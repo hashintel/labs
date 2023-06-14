@@ -1,2 +1,2 @@
-# experiments
+# Labs
 🧪 Public laboratory for experiments
