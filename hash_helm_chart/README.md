@@ -24,6 +24,7 @@ The helm chart can be spun up by:
   $ helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace ingress-nginx --create-namespace
   ```
 
+- Apply the helm chart with `helm install hash ./hash`. Delete with `helm delete hash -n default`
 - Running the HASH frontend with `api.hash.localhost` as the API endpoint (this is a little spotty, as we need to proxy the endpoint for CORS not to blow up)
 - Going to `http://k8s.hash.localhost` for the k8s dashboard
 
