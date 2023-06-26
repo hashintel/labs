@@ -1,0 +1,71 @@
+{{- $fullName := "hash-db" -}}
+{{- if eq .Values.pg.host $fullName -}}
+{{- $component := dict
+  "ctx" .
+  "component" "pg"
+  "domain" $fullName
+-}}
+{{- $image := .Values.pg.image -}}
+{{- $configMapName := printf "%s-config" $fullName -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+data:
+  PGDATA: /data/pgdata
+  POSTGRES_DB: {{ .Values.pg.database | quote}}
+  POSTGRES_USER: {{ .Values.pg.user | quote}}
+  POSTGRES_PASSWORD: {{ .Values.pg.password | quote}}
+  HASH_KRATOS_PG_USER: {{ .Values.kratos.pg.user}}
+  HASH_KRATOS_PG_PASSWORD: {{ .Values.kratos.pg.password }}
+  HASH_KRATOS_PG_DATABASE: {{ .Values.kratos.pg.database }}
+  HASH_GRAPH_PG_USER: {{ .Values.graph.pg.user }}
+  HASH_GRAPH_PG_PASSWORD: {{ .Values.graph.pg.password }}
+  HASH_GRAPH_PG_DATABASE: {{ .Values.graph.pg.database }}
+  HASH_GRAPH_REALTIME_PG_USER: {{ .Values.realtime.pg.user }}
+  HASH_GRAPH_REALTIME_PG_PASSWORD: {{ .Values.realtime.pg.password }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.pg.port }}
+      protocol: TCP
+      name: postgres
+  selector:
+    {{- include "component.selectorLabels" $component | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "component.selectorLabels" $component | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "component.labels" $component | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ $fullName }}
+          image: {{ $image | quote }}
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - containerPort: {{ .Values.pg.port }}
+          envFrom:
+            - configMapRef:
+                name: {{ $configMapName }}
+{{- end -}}

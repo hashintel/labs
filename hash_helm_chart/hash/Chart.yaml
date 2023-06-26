@@ -1,0 +1,14 @@
+apiVersion: v2
+name: hash
+description: Helm Chart to deploy and instance of HASH
+
+type: application
+
+version: 0.0.1
+appVersion: "0.0.1"
+
+dependencies:
+  - name: kubernetes-dashboard
+    version: "4.3.1"
+    repository: "https://kubernetes.github.io/dashboard/"
+    condition: dev.k8sdash.enable
