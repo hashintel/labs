@@ -1,0 +1,115 @@
+{{- $component := dict
+  "ctx" .
+  "component" "api"
+  "domain" .Values.api.domain
+-}}
+{{- $port := .Values.api.internal.port -}}
+{{- $image := .Values.api.image -}}
+{{- $fullName := include "component.fullname" $component -}}
+{{- $configMapName := printf "%s-config" $fullName -}}
+{{- $graphServiceDns := include "serviceHost" (dict "ctx" . "component" "graph") -}}
+{{- $redisServiceDns := include "serviceHost" (dict "ctx" . "component" "redis") -}}
+{{- $kratosServiceDns := include "serviceHost" (dict "ctx" . "component" "kratos") -}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+data:
+  FRONTEND_URL: {{ print "http://" .Values.frontend.domain | quote }}
+  API_ORIGN: {{ print "http://" .Values.api.domain | quote }}
+
+  SYSTEM_USER_SHORTNAME:  {{ .Values.api.SYSTEM_USER_SHORTNAME | quote }}
+  SYSTEM_USER_PREFERRED_NAME:  {{ .Values.api.SYSTEM_USER_PREFERRED_NAME | quote }}
+  SYSTEM_USER_PASSWORD:  {{ .Values.api.SYSTEM_USER_PASSWORD | quote }}
+  SYSTEM_USER_EMAIL_ADDRESS:  {{ .Values.api.SYSTEM_USER_EMAIL_ADDRESS | quote }}
+
+  HASH_SEED_USERS: {{ .Values.api.HASH_SEED_USERS | quote }}
+
+  HASH_GRAPH_API_HOST: {{ $graphServiceDns | quote }}
+  HASH_GRAPH_API_PORT: {{ .Values.graph.port | quote }}
+
+  LOG_LEVEL: {{ .Values.api.LOG_LEVEL | quote}}
+
+  SESSION_SECRET: {{ .Values.api.SESSION_SECRET | quote }}
+
+  HASH_REDIS_HOST: {{ $redisServiceDns }}
+  HASH_REDIS_PORT: {{ .Values.redis.port | quote }}
+
+  HASH_OPENSEARCH_ENABLED: "false"
+
+  HASH_TASK_EXECUTOR_HOST: ""
+  HASH_TASK_EXECUTOR_PORT: ""
+
+  ORY_KRATOS_PUBLIC_URL: {{ include "serviceUrl" (dict "serviceDns" $kratosServiceDns "port" .Values.kratos.publicPort ) | quote }}
+  ORY_KRATOS_ADMIN_URL: {{ include "serviceUrl" (dict  "serviceDns" $kratosServiceDns "port" .Values.kratos.privatePort) | quote }}
+  KRATOS_API_KEY: {{ .Values.kratos.apiSecret | quote }}
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName | quote }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "component.selectorLabels" $component | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "component.selectorLabels" $component | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "component.labels" $component | nindent 8 }}
+    spec:
+      initContainers:
+        - name: init-redis-dependency
+          image: busybox:1.35
+          command: ["sh", "-c", "until nslookup {{ $redisServiceDns }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for redis; sleep 2; done"]
+        - name: init-graph-dependency
+          image: busybox:1.35
+          command: ["sh", "-c", "until nslookup {{ $graphServiceDns }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for graph; sleep 2; done"]
+        - name: init-kratos-dependency
+          image: busybox:1.35
+          command: ["sh", "-c", "until nslookup {{ $kratosServiceDns }}.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for kratos; sleep 2; done"]
+      containers:
+        - name: {{ include "component" $component }}
+          image: {{ $image | quote }}
+          # Or `Never` if we want to only use pre-built images...
+          # See https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: {{ $configMapName }}
+          ports:
+            - name: http
+              containerPort: {{ $port }}
+              protocol: TCP
+          livenessProbe:
+            {{- include "probe-threshold-nodejs" . | nindent 12 }}
+            httpGet:
+              path: /health-check
+              port: http
+          readinessProbe:
+            {{- include "probe-threshold-nodejs" . | nindent 12 }}
+            httpGet:
+              path: /health-check
+              port: http

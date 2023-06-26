@@ -1,0 +1,107 @@
+{{- $component := dict
+  "ctx" .
+  "component" "kratos"
+-}}
+{{- $publicPort := .Values.kratos.publicPort -}}
+{{- $privatePort := .Values.kratos.privatePort -}}
+{{- $fullName := include "component.fullname" $component -}}
+{{- $image := .Values.kratos.image -}}
+{{- $migrateImage := .Values.kratos.migrateImage -}}
+{{- $kratosMigrateDsn := print "postgres://" .Values.pg.user ":" .Values.pg.password  "@" .Values.pg.host ":" .Values.pg.port "/" .Values.kratos.pg.database -}}
+{{- $kratosDsn := print "postgres://" .Values.kratos.pg.user ":" .Values.kratos.pg.password  "@" .Values.pg.host ":" .Values.pg.port "/" .Values.kratos.pg.database -}}
+{{- $configMapName := printf "%s-config" $fullName -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $configMapName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+data:
+  COOKIES_DOMAIN: {{ .Values.root.domain | quote }}
+  COOKIES_PATH: /
+  COURIER_SMTP_CONNECTION_URI: smtps://test:test@mailslurper:1025/?skip_ssl_verify=true
+  DSN: {{ $kratosDsn | quote }}
+  LOG_LEVEL: info
+  SECRETS_CIPHER: {{ .Values.kratos.cipherSecret | quote }}
+  SECRETS_COOKIE: {{ .Values.kratos.cookieSecret | quote }}
+  SELFSERVICE_ALLOWED_RETURN_URLS: {{ .Values.kratos.cipherSecret | quote }}
+  SELFSERVICE_DEFAULT_BROWSER_RETURN_URL: {{ print "http://" .Values.frontend.domain | quote }}
+  SELFSERVICE_FLOWS_ERROR_UI_URL: {{ print "http://" .Values.frontend.domain "/error" | quote }}
+  SELFSERVICE_FLOWS_LOGIN_UI_URL: {{ print "http://" .Values.frontend.domain "/login" | quote }}
+  SELFSERVICE_FLOWS_LOGOUT_AFTER_DEFAULT_BROWSER_RETURN_URL: {{ print "http://" .Values.frontend.domain "/" | quote }}
+  SELFSERVICE_FLOWS_REGISTRATION_UI_URL: {{ print "http://" .Values.frontend.domain "/signup" | quote }}
+  SERVE_PUBLIC_BASE_URL: {{ print "http://" .Values.kratos.domain | quote }}
+  SERVE_PUBLIC_CORS_ALLOWED_HEADERS: {{ .Values.root.domain | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $publicPort }}
+      targetPort: http-public
+      protocol: TCP
+      name: http-public
+    
+    - port: {{ $privatePort }}
+      targetPort: http-private
+      protocol: TCP
+      name: http-private
+  selector:
+    {{- include "component.selectorLabels" $component | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "component.selectorLabels" $component | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "component.labels" $component | nindent 8 }}
+    spec:
+      initContainers:
+        {{- include "pg-ready-init-container" . | nindent 8 }}
+
+        - name: init-kratos-migrate
+          image: {{ $migrateImage | quote }}
+          args: ["migrate", "sql", "-e", "--yes"]
+          env:
+            - name: DSN
+              value: {{ $kratosMigrateDsn | quote }}
+      containers:
+        - name: {{ include "component" $component }}
+          image: {{ $image | quote }}
+          # Or `Never` if we want to only use pre-built images...
+          # See https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
+          imagePullPolicy: Always
+          envFrom:
+            - configMapRef:
+                name: {{ $configMapName }}
+          ports:
+            - name: http-public
+              containerPort: {{ $publicPort }}
+              protocol: TCP
+            - name: http-private
+              containerPort: {{ $privatePort }}
+              protocol: TCP
+          livenessProbe:
+            {{- include "probe-kratos-threshold" . | nindent 12 }}
+            httpGet:
+              path: /health/alive
+              port: http-public
+          readinessProbe:
+            {{- include "probe-kratos-threshold" . | nindent 12 }}
+            httpGet:
+              path: /health/ready
+              port: http-public

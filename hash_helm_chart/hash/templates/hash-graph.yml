@@ -1,0 +1,89 @@
+{{- $component := dict
+  "ctx" .
+  "component" "graph"
+-}}
+{{- $port := .Values.graph.port -}}
+{{- $fullName := include "component.fullname" $component -}}
+{{- $image := .Values.graph.image -}}
+{{- $migrateImage := .Values.graph.migrateImage -}}
+{{- $graphMigrateDsn := print "postgres://" .Values.pg.user ":" .Values.pg.password  "@" .Values.pg.host ":" .Values.pg.port "/" .Values.graph.pg.database -}}
+{{- $graphDsn := print "postgres://" .Values.graph.pg.user ":" .Values.graph.pg.password  "@" .Values.pg.host ":" .Values.pg.port "/" .Values.graph.pg.database -}}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ $port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "component.selectorLabels" $component | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "component.labels" $component | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "component.selectorLabels" $component | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "component.labels" $component | nindent 8 }}
+    spec:
+      initContainers:
+        {{- include "pg-ready-init-container" . | nindent 8 }}
+
+        - name: init-graph-migrate
+          image: {{ $migrateImage | quote }}
+          env:
+            - name: HASH_GRAPH_PG_MIGRATION_URL
+              value: {{ $graphMigrateDsn | quote }}
+      containers:
+        - name: {{ include "component" $component }}
+          image: {{ $image | quote }}
+          # Or `Never` if we want to only use pre-built images...
+          # See https://kubernetes.io/docs/concepts/containers/images/#pre-pulled-images
+          imagePullPolicy: Always
+          env:
+            - name: HASH_GRAPH_ALLOWED_URL_DOMAIN_PATTERN
+            # TODO
+              value: {{ print "http://" .Values.root.domain "/@(?P<shortname>[\\w-]+)/types/(?P<kind>(?:data-type)|(?:property-type)|(?:entity-type)|(?:link-type))/[\\w-]+/" }}
+            - name: HASH_GRAPH_LOG_FORMAT
+              value: pretty
+            - name: HASH_GRAPH_PG_DATABASE
+              value: {{ .Values.graph.pg.database | quote }}
+            - name: HASH_GRAPH_PG_HOST
+              value: {{ .Values.pg.host | quote }}
+            - name: HASH_GRAPH_PG_PORT
+              value: {{ .Values.pg.port | quote }}
+            - name: HASH_GRAPH_PG_USER
+              value: {{ .Values.graph.pg.user | quote }}
+            - name: HASH_GRAPH_PG_PASSWORD
+              value: {{ .Values.graph.pg.password | quote }}
+            - name: RUST_LOG
+              value: graph=trace,hash_graph=trace,tokio_postgres=debug
+          ports:
+            - name: http
+              containerPort: {{ $port }}
+              protocol: TCP
+          livenessProbe:
+            {{- include "probe-threshold-fast" . | nindent 12 }}
+            httpGet:
+              path: /api-doc/openapi.json
+              port: http
+          readinessProbe:
+            {{- include "probe-threshold-fast" . | nindent 12 }}
+            httpGet:
+              path: /api-doc/openapi.json
+              port: http
