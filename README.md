@@ -5,4 +5,6 @@ This repository contains code snippets, examples and experimental work made publ
 
 # Projects
 
-- `distributed_collab` - **Distributed Collab**: a BEAM VM based system for publishing/subscribing to JSON Patches with core logic implemented in Rust.
+- [`distributed_collab`](./distributed_collab) - **Distributed Collab**: a BEAM VM based system for publishing/subscribing to JSON Patches with core logic implemented in Rust.
+- [`hash_helm_chart`](./hash_helm_chart) - **HASH Helm Charts**: An experimental [Helm](https://helm.sh) chart for deploying an instance of HASH on Kubernetes.
+ 
