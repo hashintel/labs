@@ -1,6 +1,10 @@
-[hash]: https://hash.ai/platform/hash?utm_medium=organic&utm_source=github_readme_core
-[hash core]: https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_core
-[hash engine]: https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_core
+[discord]: https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core
+[github_star]: https://github.com/hashintel/labs#
+[hash]: https://hash.ai/platform/hash?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core
+[hash core]: https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core
+[hash engine]: https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core
+
+[![discord](https://img.shields.io/discord/840573247803097118)][discord] [![github_star](https://img.shields.io/github/stars/hashintel/labs?label=Star%20on%20GitHub&style=social)][github_star]
 
 # HASH Core
 
