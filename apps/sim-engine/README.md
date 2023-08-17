@@ -3,7 +3,6 @@
 [hash]: https://hash.ai/platform/hash?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
 [hash core]: https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
 [hash engine]: https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
-[repository guidelines]: https://github.com/hashintel/labs/blob/main/.github/CONTRIBUTING.md
 
 [![discord](https://img.shields.io/discord/840573247803097118)][discord] [![github_star](https://img.shields.io/github/stars/hashintel/labs?label=Star%20on%20GitHub&style=social)][github_star]
 
