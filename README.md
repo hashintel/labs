@@ -1,4 +1,4 @@
-[discord]: https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_hash-repo_apps
+[discord]: https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_root
 [github_star]: https://github.com/hashintel/labs/tree/main/apps#
 [hash]: https://hash.ai/platform/hash?utm_medium=organic&utm_source=github_readme_labs-repo_root
 [hash core]: https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_root
