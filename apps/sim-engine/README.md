@@ -1,5 +1,5 @@
 [discord]: https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
-[github_star]: https://github.com/hashintel/labs/tree/main/apps/sim-engine#
+[github_star]: https://github.com/hashintel/labs#
 [hash]: https://hash.ai/platform/hash?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
 [hash core]: https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
 [hash engine]: https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
