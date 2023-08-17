@@ -1,10 +1,22 @@
+[discord]: https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core-plugin-pm
+[github_star]: https://github.com/hashintel/labs#
+[hash]: https://hash.ai/platform/hash?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core-plugin-pm
+[hash core]: https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core-plugin-pm
+[hash engine]: https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-core-plugin-pm
+
+[![discord](https://img.shields.io/discord/840573247803097118)][discord] [![github_star](https://img.shields.io/github/stars/hashintel/labs?label=Star%20on%20GitHub&style=social)][github_star]
+
 # hCore Business Process Modeling Plugin
 
 ## Overview
 
-This HASH Core (**hCore**) plugin was initially developed as a proof-of-concept in March 2021 with the goal of demonstrating how plugins could be developed for hCore, and in a bid to provide a new graphical interface for capturing business process models for use in HASH simulations. This plugin was open-sourced alongside hCore in 2023.
+This [HASH Core] (**hCore**) plugin was initially developed as a proof-of-concept in March 2021 with the goal of demonstrating how plugins could be developed for hCore, and in a bid to provide a new graphical interface for capturing business process models for use in HASH simulations.
 
-**This plugin is unmaintained, outdated, and not recommended for use in production.**
+This plugin was open-sourced alongside hCore ([co-located in this repo](https://github.com/hashintel/labs/tree/main/apps/sim-core)) in 2023. **Please note: this plugin is unmaintained, outdated, and not recommended for use in production.**
+
+## Contributing
+
+This project is currently unmaintained and we will not be accepting pull requests for it. If you would like to discuss undertaking a major upgrade or revitalization of the plugin to make it useful,[open an issue](https://github.com/hashintel/labs/issues) on this repo, mentioning the **Process Modeler plugin for hCore**.
 
 ## Built with Create React App
 
