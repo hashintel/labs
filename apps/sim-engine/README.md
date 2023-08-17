@@ -12,3 +12,5 @@
 **A versatile engine for agent-based simulation 🚀** 
 
 [HASH Engine] (**hEngine**) can currently be found in the main `hash` monorepo. It will be moved here in due course, reflecting its status as an experimental.
+
+This engine is a different one to the (older) experimental engine powering [HASH Core].
