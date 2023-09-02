@@ -1,0 +1,212 @@
+name: Rust
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev/**
+  merge_group:
+
+defaults:
+  run:
+    shell: bash
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: hashintel
+  TURBO_REMOTE_ONLY: true
+
+jobs:
+  setup:
+    name: setup
+    runs-on: ubuntu-latest
+    outputs:
+      lint: ${{ steps.crates.outputs.lint }}
+      test: ${{ steps.crates.outputs.test }}
+      samples: ${{ steps.samples.outputs.samples }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        with:
+          fetch-depth: 2
+
+      - name: Setup CI
+        uses: ./.github/actions/setup-rust-ci
+
+      - name: Find changed crates
+        id: crates
+        run: |
+          export GITHUB_OUTPUT_FILE_PATH=$(mktemp)
+          python .github/scripts/rust/setup.py
+          cat $GITHUB_OUTPUT_FILE_PATH >> $GITHUB_OUTPUT
+
+      - name: Determine samples
+        id: samples
+        run: |
+          if [[ ${{ github.event_name }} = pull_request ]]; then
+            echo "samples=1" >> $GITHUB_OUTPUT
+          else
+            echo "samples=10" >> $GITHUB_OUTPUT
+          fi
+
+  lint:
+    name: lint
+    needs: setup
+    if: needs.setup.outputs.lint != '{}'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.lint) }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          working-directory: ${{ matrix.directory }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e207df5d269b42b69c8bc5101da26f7d31feddb4 # v2.6.2
+        with:
+          workspaces: ${{ matrix.directory }}
+          save-if: ${{ !startsWith(github.ref, 'refs/heads/gh-readonly-queue') }}
+          cache-all-crates: true
+
+      - name: Install tools
+        uses: taiki-e/install-action@cc5a5c56a296ea597e6ea38f551f25dee8be1225 # v2.17.7
+        with:
+          tool: cargo-hack@0.5.26,rust-script@0.23.0,clippy-sarif@0.3.7,sarif-fmt@0.3.7
+
+      - name: Check formatting
+        working-directory: ${{ matrix.directory }}
+        run: cargo fmt --all --check
+
+      - name: Check clippy
+        working-directory: ${{ matrix.directory }}
+        if: always()
+        run: |
+          cargo clippy --workspace --all-features --all-targets --no-deps --message-format=json \
+            | clippy-sarif \
+            | jq '.runs[].results |= unique' \
+            | tee clippy.sarif \
+            | sarif-fmt
+
+          jq -e '.runs[].results == []' clippy.sarif> /dev/null
+
+      - name: Process SARIF file
+        working-directory: ${{ matrix.directory }}
+        if: always()
+        run: |
+          tmp=$(mktemp)
+
+          jq --arg pwd "${{ matrix.directory }}" '.runs[].results[].locations[].physicalLocation.artifactLocation.uri |= $pwd + "/" + .' clippy.sarif > "$tmp"
+
+          mv "$tmp" clippy.sarif
+
+      - name: Upload SARIF file
+        uses: github/codeql-action/upload-sarif@00e563ead9f72a8461b24876bee2d0c2e8bd2ee8 # v2.21.5
+        if: always()
+        with:
+          sarif_file: ${{ matrix.directory }}/clippy.sarif
+          category: ${{ matrix.name }}
+
+      - name: Check public documentation
+        working-directory: ${{ matrix.directory }}
+        if: always()
+        env:
+          RUSTDOCFLAGS: "--check -Z unstable-options -D warnings"
+        run: cargo doc --workspace --all-features --no-deps
+
+      - name: Check private documentation
+        working-directory: ${{ matrix.directory }}
+        if: always()
+        env:
+          RUSTDOCFLAGS: "--check -Z unstable-options -D warnings"
+        run: cargo doc --workspace --all-features --no-deps --document-private-items
+
+      - name: Ensure empty git diff
+        run: git --no-pager diff --exit-code --color
+
+  test:
+    name: test
+    needs: setup
+    if: always() && needs.setup.outputs.test != '{}'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.test) }}
+    env:
+      OUTPUT_DIRECTORY: test-results
+      RUST_BACKTRACE: 1
+      PROFILE: ${{ matrix.profile }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+
+      - name: Install Rust toolchain
+        uses: ./.github/actions/install-rust-toolchain
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          working-directory: ${{ matrix.directory }}
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@e207df5d269b42b69c8bc5101da26f7d31feddb4 # v2.6.2
+        with:
+          workspaces: ${{ matrix.directory }}
+          key: ${{ matrix.profile }}
+          save-if: ${{ !startsWith(github.ref, 'refs/heads/gh-readonly-queue') }}
+          cache-all-crates: true
+
+      - name: Install tools
+        uses: taiki-e/install-action@cc5a5c56a296ea597e6ea38f551f25dee8be1225 # v2.17.7
+        with:
+          tool: cargo-nextest@0.9.37
+
+      - name: Install Python
+        if: matrix.directory == 'apps/sim-engine'
+        uses: actions/setup-python@61a6322f88396a6271a6ee3565807d608ecaddd1 # v4.7.0
+        with:
+          python-version: "3.10"
+
+      - name: Prepare tests
+        if: matrix.directory == 'apps/sim-engine'
+        working-directory: ${{ matrix.directory }}
+        run: |
+          cargo build --profile ${{ matrix.profile }} -p memory
+          bash lib/execution/src/runner/python/setup.sh python3.10
+
+      - name: Run tests
+        working-directory: ${{ matrix.directory }}
+        run: cargo nextest run --cargo-profile ${{ matrix.profile }} --workspace --all-features
+
+      - name: Run miri
+        if: ${{ startsWith(matrix.toolchain, 'nightly') }}
+        working-directory: ${{ matrix.directory }}
+        run: cargo miri test --workspace --all-features --all-targets --no-fail-fast
+
+      - name: Ensure empty git diff
+        run: git --no-pager diff --exit-code --color
+
+  merging-enabled:
+    name: Merging enabled
+    needs: [setup, lint, test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: check setup
+        run: |
+          [[ ${{ needs.setup.result }} = success ]]
+      - name: check lint
+        run: |
+          [[ ${{ needs.lint.result }} =~ success|skipped ]]
+      - name: check test
+        run: |
+          [[ ${{ needs.test.result }} =~ success|skipped ]]
