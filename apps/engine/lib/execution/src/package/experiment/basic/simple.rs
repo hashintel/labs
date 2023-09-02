@@ -33,10 +33,13 @@ struct SimQueue<'a> {
 impl<'a> SimQueue<'a> {
     async fn start_sim_if_available(&mut self) -> Result<()> {
         if let Some((sim_id, changed_props)) = self.pending_iter.next() {
-            self.active.insert(sim_id, SimProgress {
-                n_steps: 0,
-                stopped: false,
-            });
+            self.active.insert(
+                sim_id,
+                SimProgress {
+                    n_steps: 0,
+                    stopped: false,
+                },
+            );
             let msg = ExperimentControl::StartSim {
                 span_id: tracing::Span::current().id(),
                 sim_id,

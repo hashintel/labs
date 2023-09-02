@@ -689,12 +689,15 @@ impl Worker {
         if self
             .tasks
             .inner
-            .insert(task_id, PendingWorkerTask {
-                task: task.task,
-                pending_groups,
-                final_task_messages: Vec::new(),
-                cancelling: CancelState::None,
-            })
+            .insert(
+                task_id,
+                PendingWorkerTask {
+                    task: task.task,
+                    pending_groups,
+                    final_task_messages: Vec::new(),
+                    cancelling: CancelState::None,
+                },
+            )
             .is_some()
         {
             return Err(Error::TaskAlreadyExists(task_id));

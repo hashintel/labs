@@ -265,12 +265,14 @@ impl WorkerPool {
                 let (worker_msgs, worker_completion_receivers) =
                     sync.create_children(self.comms.num_workers());
                 for (worker_index, msg) in worker_msgs.into_iter().enumerate() {
-                    self.comms
-                        .send(WorkerIndex::new(worker_index), WorkerPoolToWorkerMsg {
+                    self.comms.send(
+                        WorkerIndex::new(worker_index),
+                        WorkerPoolToWorkerMsg {
                             span: Span::current(),
                             sim_id: Some(sim_id),
                             payload: WorkerPoolToWorkerMsgPayload::Sync(SyncPayload::State(msg)),
-                        })?;
+                        },
+                    )?;
                 }
                 let fut = async move {
                     let sync = sync;
@@ -450,12 +452,15 @@ impl WorkerPool {
             triples
                 .into_iter()
                 .map(|(worker, task, shared_store)| {
-                    (worker, WorkerTask {
-                        task_id,
-                        package_id,
-                        task,
-                        shared_store,
-                    })
+                    (
+                        worker,
+                        WorkerTask {
+                            task_id,
+                            package_id,
+                            task,
+                            shared_store,
+                        },
+                    )
                 })
                 .collect(),
             original_task,

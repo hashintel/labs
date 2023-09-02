@@ -85,10 +85,8 @@ impl Manifest {
                 "js" => InitialStateName::InitJs,
                 "py" => InitialStateName::InitPy,
                 "json" => InitialStateName::InitJson,
-                _ => bail!(
-                    Report::new(ManifestError)
-                        .attach_printable(format!("Not a valid initial state file: {path:?}"))
-                ),
+                _ => bail!(Report::new(ManifestError)
+                    .attach_printable(format!("Not a valid initial state file: {path:?}"))),
             },
             src: file_contents(path)?,
         }))
@@ -135,10 +133,8 @@ impl Manifest {
         } else if json_path.is_file() {
             self.set_initial_state_from_file(json_path)
         } else {
-            bail!(
-                Report::new(ManifestError)
-                    .attach_printable(format!("No initial state found in {src_folder:?}"))
-            );
+            bail!(Report::new(ManifestError)
+                .attach_printable(format!("No initial state found in {src_folder:?}")));
         }
     }
 
@@ -646,10 +642,8 @@ fn get_behavior_from_dependency_projects(
             })
         }) {
         None => {
-            bail!(
-                Report::new(ManifestError)
-                    .attach_printable(format!("Could not find dependency behavior: {name}"))
-            )
+            bail!(Report::new(ManifestError)
+                .attach_printable(format!("Could not find dependency behavior: {name}")))
         }
         Some(behavior) => {
             let mut behavior = behavior.clone();

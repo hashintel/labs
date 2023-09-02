@@ -49,14 +49,20 @@ lazy_static! {
         use InitPackageName::{JsPy, Json};
         let mut id_creator = PackageIdGenerator::new(PackageType::Init);
         let mut m = HashMap::new();
-        m.insert(Json, PackageMetadata {
-            id: id_creator.next(),
-            dependencies: JsonInitCreator::dependencies(),
-        });
-        m.insert(JsPy, PackageMetadata {
-            id: id_creator.next(),
-            dependencies: JsPyInitCreator::dependencies(),
-        });
+        m.insert(
+            Json,
+            PackageMetadata {
+                id: id_creator.next(),
+                dependencies: JsonInitCreator::dependencies(),
+            },
+        );
+        m.insert(
+            JsPy,
+            PackageMetadata {
+                id: id_creator.next(),
+                dependencies: JsPyInitCreator::dependencies(),
+            },
+        );
         m
     };
 }

@@ -1030,13 +1030,14 @@ mod tests {
         agent
             .add_message(&"alice", "custom_message", data.clone())
             .unwrap();
-        assert_eq!(agent.messages, vec![message::Message::Generic(
-            message::payload::Generic {
+        assert_eq!(
+            agent.messages,
+            vec![message::Message::Generic(message::payload::Generic {
                 data,
                 to: vec!["alice".to_string()],
                 r#type: "custom_message".to_string(),
-            }
-        )]);
+            })]
+        );
     }
 
     #[test]
@@ -1047,12 +1048,13 @@ mod tests {
         agent
             .add_message(&to, "custom_message", data.clone())
             .unwrap();
-        assert_eq!(agent.messages, vec![message::Message::Generic(
-            message::payload::Generic {
+        assert_eq!(
+            agent.messages,
+            vec![message::Message::Generic(message::payload::Generic {
                 data,
                 to,
                 r#type: "custom_message".to_string(),
-            }
-        )]);
+            })]
+        );
     }
 }

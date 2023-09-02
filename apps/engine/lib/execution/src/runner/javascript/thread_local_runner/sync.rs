@@ -33,12 +33,12 @@ impl<'s> ThreadLocalRunner<'s> {
         let js_batch_id = batch_to_js(scope, context_batch.segment())?;
         let js_idxs = new_js_array_from_usizes(scope, &state_group_start_indices)?;
         let js_current_step = current_step_to_js(scope, current_step);
-        call_js_function(scope, self.embedded.ctx_batch_sync, self.this, &[
-            js_sim_id,
-            js_batch_id,
-            js_idxs,
-            js_current_step,
-        ])
+        call_js_function(
+            scope,
+            self.embedded.ctx_batch_sync,
+            self.this,
+            &[js_sim_id, js_batch_id, js_idxs, js_current_step],
+        )
         .map_err(|err| format!("Could not run ctx_batch_sync function: {err}"))?;
 
         Ok(())
@@ -62,9 +62,12 @@ impl<'s> ThreadLocalRunner<'s> {
         // TODO: Pass `agent_pool` and `msg_pool` by reference
         let (agent_pool, msg_pool) = state_to_js(scope, agent_pool, msg_pool)?;
         let js_sim_id = sim_id_to_js(scope, sim_run_id);
-        call_js_function(scope, self.embedded.state_sync, self.this, &[
-            js_sim_id, agent_pool, msg_pool,
-        ])
+        call_js_function(
+            scope,
+            self.embedded.state_sync,
+            self.this,
+            &[js_sim_id, agent_pool, msg_pool],
+        )
         .map_err(|err| format!("Could not run state_sync Function: {err}"))?;
 
         tracing::trace!("Sending state sync completion");
@@ -91,12 +94,12 @@ impl<'s> ThreadLocalRunner<'s> {
 
         let js_sim_id = sim_id_to_js(scope, sim_id);
         let js_idxs = new_js_array_from_usizes(scope, &group_indices)?;
-        call_js_function(scope, self.embedded.state_interim_sync, self.this, &[
-            js_sim_id,
-            js_idxs,
-            agent_batches,
-            msg_batches,
-        ])
+        call_js_function(
+            scope,
+            self.embedded.state_interim_sync,
+            self.this,
+            &[js_sim_id, js_idxs, agent_batches, msg_batches],
+        )
         .map_err(|err| {
             JavaScriptError::V8(format!("Could not call state_interim_sync Function: {err}"))
         })?;
@@ -115,9 +118,12 @@ impl<'s> ThreadLocalRunner<'s> {
         let msg_pool = msg.state_proxy.message_pool().batches_iter();
         let (agent_pool, msg_pool) = state_to_js(scope, agent_pool, msg_pool)?;
         let sim_run_id = sim_id_to_js(scope, sim_run_id);
-        call_js_function(scope, self.embedded.state_snapshot_sync, self.this, &[
-            sim_run_id, agent_pool, msg_pool,
-        ])
+        call_js_function(
+            scope,
+            self.embedded.state_snapshot_sync,
+            self.this,
+            &[sim_run_id, agent_pool, msg_pool],
+        )
         .map_err(|err| format!("Could not run state_snapshot_sync Function: {err}"))?;
 
         // State snapshots are part of context, not state, so don't need to

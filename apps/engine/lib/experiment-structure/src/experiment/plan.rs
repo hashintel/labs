@@ -111,10 +111,8 @@ fn create_experiment_plan(
     match experiment_type {
         "group" => create_group_variant(selected_experiment, experiments),
         "multiparameter" => create_multiparameter_variant(selected_experiment, experiments),
-        "optimization" => bail!(
-            Report::new(ExperimentPlanError)
-                .attach_printable("Not implemented for optimization experiment types")
-        ),
+        "optimization" => bail!(Report::new(ExperimentPlanError)
+            .attach_printable("Not implemented for optimization experiment types")),
         _ => create_basic_variant(selected_experiment, experiment_type)
             .attach_printable("Could not parse basic variant"),
     }
@@ -216,10 +214,8 @@ fn create_basic_variant(
         "linspace" => create_linspace_variant_plan(selected_experiment),
         "arange" => create_arange_variant_plan(selected_experiment),
         "meshgrid" => create_meshgrid_variant_plan(selected_experiment),
-        _ => bail!(
-            Report::new(ExperimentPlanError)
-                .attach_printable(format!("Unknown experiment type: {experiment_type}"))
-        ),
+        _ => bail!(Report::new(ExperimentPlanError)
+            .attach_printable(format!("Unknown experiment type: {experiment_type}"))),
     }
 }
 

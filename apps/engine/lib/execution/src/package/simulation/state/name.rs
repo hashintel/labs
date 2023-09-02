@@ -49,14 +49,20 @@ lazy_static! {
         use StatePackageName::{BehaviorExecution, Topology};
         let mut id_creator = PackageIdGenerator::new(PackageType::State);
         let mut m = HashMap::new();
-        m.insert(BehaviorExecution, PackageMetadata {
-            id: id_creator.next(),
-            dependencies: BehaviorExecutionCreator::dependencies(),
-        });
-        m.insert(Topology, PackageMetadata {
-            id: id_creator.next(),
-            dependencies: TopologyCreator::dependencies(),
-        });
+        m.insert(
+            BehaviorExecution,
+            PackageMetadata {
+                id: id_creator.next(),
+                dependencies: BehaviorExecutionCreator::dependencies(),
+            },
+        );
+        m.insert(
+            Topology,
+            PackageMetadata {
+                id: id_creator.next(),
+                dependencies: TopologyCreator::dependencies(),
+            },
+        );
         m
     };
 }

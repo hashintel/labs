@@ -49,14 +49,20 @@ lazy_static! {
         use OutputPackageName::{Analysis, JsonState};
         let mut id_creator = PackageIdGenerator::new(PackageType::Output);
         let mut m = HashMap::new();
-        m.insert(Analysis, PackageMetadata {
-            id: id_creator.next(),
-            dependencies: AnalysisCreator::dependencies(),
-        });
-        m.insert(JsonState, PackageMetadata {
-            id: id_creator.next(),
-            dependencies: JsonStateCreator::dependencies(),
-        });
+        m.insert(
+            Analysis,
+            PackageMetadata {
+                id: id_creator.next(),
+                dependencies: AnalysisCreator::dependencies(),
+            },
+        );
+        m.insert(
+            JsonState,
+            PackageMetadata {
+                id: id_creator.next(),
+                dependencies: JsonStateCreator::dependencies(),
+            },
+        );
         m
     };
 }

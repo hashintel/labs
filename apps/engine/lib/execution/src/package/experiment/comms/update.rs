@@ -27,7 +27,8 @@ impl ExpPkgUpdateRecv {
 
 pub fn new_pair() -> (ExpPkgUpdateSend, ExpPkgUpdateRecv) {
     let (send, recv) = unbounded_channel();
-    (ExpPkgUpdateSend { inner: send }, ExpPkgUpdateRecv {
-        inner: recv,
-    })
+    (
+        ExpPkgUpdateSend { inner: send },
+        ExpPkgUpdateRecv { inner: recv },
+    )
 }

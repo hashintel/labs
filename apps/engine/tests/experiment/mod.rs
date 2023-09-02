@@ -417,9 +417,10 @@ pub fn read_config<P: AsRef<Path>>(path: P) -> Result<Vec<(ExperimentType, Vec<E
             ConfigValue::SingleRun {
                 steps,
                 expected_output,
-            } => (ExperimentType::SingleRun { num_steps: steps }, vec![
-                expected_output,
-            ]),
+            } => (
+                ExperimentType::SingleRun { num_steps: steps },
+                vec![expected_output],
+            ),
         })
         .collect())
 }

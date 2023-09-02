@@ -84,9 +84,10 @@ fn simple_roundtrip() {
     });
     let record_batch = RecordBatch::new(
         schema.clone(),
-        Chunk::new(vec![
-            BooleanArray::from_slice(&[true, true, true, true, true]).boxed(),
-        ]),
+        Chunk::new(vec![BooleanArray::from_slice(&[
+            true, true, true, true, true,
+        ])
+        .boxed()]),
     );
 
     round_trip(schema, record_batch);
@@ -102,7 +103,7 @@ fn integer_roundtrip() {
     let record_batch = RecordBatch::new(
         schema.clone(),
         Chunk::new(vec![
-            PrimitiveArray::<u32>::from_slice(&[1, 2, 1, 2]).boxed(),
+            PrimitiveArray::<u32>::from_slice(&[1, 2, 1, 2]).boxed()
         ]),
     );
 
@@ -142,7 +143,7 @@ fn utf8_roundrip() {
     let record_batch = RecordBatch::new(
         schema.clone(),
         Chunk::new(vec![
-            Utf8Array::<i32>::from_slice(&["one", "two", "three"]).boxed(),
+            Utf8Array::<i32>::from_slice(&["one", "two", "three"]).boxed()
         ]),
     );
 
@@ -189,15 +190,13 @@ fn fixed_size_binary_roundrip() {
 
     let record_batch = RecordBatch::new(
         schema.clone(),
-        Chunk::new(vec![
-            FixedSizeBinaryArray::from_slice(&[
-                [0u8, 1u8, 12u8, 59u8, 212u8],
-                [0u8, 121u8, 12u8, 59u8, 212u8],
-                [0u8, 104u8, 202u8, 59u8, 212u8],
-                [0u8, 122u8, 12u8, 59u8, 212u8],
-            ])
-            .boxed(),
-        ]),
+        Chunk::new(vec![FixedSizeBinaryArray::from_slice(&[
+            [0u8, 1u8, 12u8, 59u8, 212u8],
+            [0u8, 121u8, 12u8, 59u8, 212u8],
+            [0u8, 104u8, 202u8, 59u8, 212u8],
+            [0u8, 122u8, 12u8, 59u8, 212u8],
+        ])
+        .boxed()]),
     );
 
     round_trip(schema, record_batch)
@@ -213,12 +212,10 @@ fn single_fixed_size_binary_roundtrip() {
 
     let record_batch = RecordBatch::new(
         schema.clone(),
-        Chunk::new(vec![
-            FixedSizeBinaryArray::from_slice(&[[
-                44, 76, 252, 210, 92, 141, 68, 36, 129, 235, 57, 157, 47, 231, 116, 103,
-            ]])
-            .boxed(),
-        ]),
+        Chunk::new(vec![FixedSizeBinaryArray::from_slice(&[[
+            44, 76, 252, 210, 92, 141, 68, 36, 129, 235, 57, 157, 47, 231, 116, 103,
+        ]])
+        .boxed()]),
     );
 
     round_trip(schema, record_batch)

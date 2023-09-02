@@ -20,9 +20,7 @@ impl Messages {
         let indices = ids_and_names
             .map(|(agent_id, agent_name)| {
                 let by_id = message_map.get_msg_refs(
-                    &uuid::Uuid::from_slice(agent_id)?
-                        .hyphenated()
-                        .to_string(), //TODO[6](optimization) lose the string creation
+                    &uuid::Uuid::from_slice(agent_id)?.hyphenated().to_string(), //TODO[6](optimization) lose the string creation
                 );
 
                 let by_name = agent_name.map(|val| message_map.get_msg_refs(val));

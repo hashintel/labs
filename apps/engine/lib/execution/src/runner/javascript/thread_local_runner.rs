@@ -187,15 +187,20 @@ impl<'s> ThreadLocalRunner<'s> {
         let globals = new_js_string(scope, &globals);
 
         let js_sim_id = sim_id_to_js(scope, run.short_id);
-        call_js_function(scope, self.embedded.start_sim, self.this, &[
-            js_sim_id,
-            agent_schema_bytes,
-            msg_schema_bytes,
-            ctx_schema_bytes,
-            pkg_ids.into(),
-            pkg_msgs.into(),
-            globals.into(),
-        ])
+        call_js_function(
+            scope,
+            self.embedded.start_sim,
+            self.this,
+            &[
+                js_sim_id,
+                agent_schema_bytes,
+                msg_schema_bytes,
+                ctx_schema_bytes,
+                pkg_ids.into(),
+                pkg_msgs.into(),
+                globals.into(),
+            ],
+        )
         .map_err(|err| JavaScriptError::V8(format!("Could not run start_sim Function: {err}")))?;
 
         // Initialize Rust.

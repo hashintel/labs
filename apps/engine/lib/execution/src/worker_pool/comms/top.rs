@@ -37,7 +37,8 @@ pub enum WorkerPoolToExpCtlMsg {
 
 pub fn new_pair() -> (WorkerPoolMsgSend, WorkerPoolMsgRecv) {
     let (send, recv) = unbounded_channel();
-    (WorkerPoolMsgSend { inner: send }, WorkerPoolMsgRecv {
-        inner: recv,
-    })
+    (
+        WorkerPoolMsgSend { inner: send },
+        WorkerPoolMsgRecv { inner: recv },
+    )
 }

@@ -202,9 +202,10 @@ impl PartialSharedState {
                     .map(|((group_index, agent_batch_proxy), message_batch_proxy)| {
                         Self::Read(PartialStateReadProxy {
                             group_indices: vec![group_index],
-                            state_proxy: StateReadProxy::from((vec![agent_batch_proxy], vec![
-                                message_batch_proxy,
-                            ])),
+                            state_proxy: StateReadProxy::from((
+                                vec![agent_batch_proxy],
+                                vec![message_batch_proxy],
+                            )),
                         })
                     })
                     .collect()
@@ -220,9 +221,10 @@ impl PartialSharedState {
                     .map(|((group_index, agent_batch_proxy), message_batch_proxy)| {
                         Self::Write(PartialStateWriteProxy {
                             group_indices: vec![group_index],
-                            state_proxy: StateWriteProxy::from((vec![agent_batch_proxy], vec![
-                                message_batch_proxy,
-                            ])),
+                            state_proxy: StateWriteProxy::from((
+                                vec![agent_batch_proxy],
+                                vec![message_batch_proxy],
+                            )),
                         })
                     })
                     .collect()

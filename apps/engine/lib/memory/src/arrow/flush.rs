@@ -113,10 +113,13 @@ pub trait GrowableBatch<D: GrowableArrayData, C: GrowableColumn<D>> {
             array_datas.iter().enumerate().for_each(|(i, array_data)| {
                 let node_index = meta.node_start + i;
                 // Update Node information
-                node_changes.push((node_index, meta::Node {
-                    null_count: array_data.null_count(),
-                    length: array_data.len(),
-                }));
+                node_changes.push((
+                    node_index,
+                    meta::Node {
+                        null_count: array_data.null_count(),
+                        length: array_data.len(),
+                    },
+                ));
 
                 // Null buffer calculation.
                 // The null buffer is always the first buffer in a column,

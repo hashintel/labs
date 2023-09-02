@@ -213,14 +213,17 @@ fn data_type_to_metadata(
             2,
             vec![2],
             vec![is_parent_growable, is_parent_growable],
-            vec![meta::NodeStatic::new(multiplier, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::Data {
-                    unit_byte_size: *size as usize,
-                },
-            ])],
+            vec![meta::NodeStatic::new(
+                multiplier,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::Data {
+                        unit_byte_size: *size as usize,
+                    },
+                ],
+            )],
             NodeMapping::empty(),
         ),
         D::List(ref list_data_type) => {
@@ -236,12 +239,15 @@ fn data_type_to_metadata(
             buffer_counts.append(&mut child_buffer_counts);
             let mut padding_meta = vec![is_parent_growable, is_parent_growable];
             padding_meta.append(&mut padding);
-            let mut node_meta = vec![meta::NodeStatic::new(multiplier, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::Offset,
-            ])];
+            let mut node_meta = vec![meta::NodeStatic::new(
+                multiplier,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::Offset,
+                ],
+            )];
             node_meta.append(&mut data);
             DataTypeMetadata::new(
                 node_count + 1,
@@ -265,11 +271,12 @@ fn data_type_to_metadata(
             buffer_counts.append(&mut child_buffer_counts);
             let mut padding_meta = vec![is_parent_growable];
             padding_meta.append(&mut padding);
-            let mut node_meta = vec![meta::NodeStatic::new(multiplier, vec![
-                BufferType::BitMap {
+            let mut node_meta = vec![meta::NodeStatic::new(
+                multiplier,
+                vec![BufferType::BitMap {
                     is_null_bitmap: true,
-                },
-            ])];
+                }],
+            )];
             node_meta.append(&mut data);
             DataTypeMetadata::new(
                 node_count + 1,
@@ -285,14 +292,17 @@ fn data_type_to_metadata(
             2,
             vec![2],
             vec![is_parent_growable, is_parent_growable],
-            vec![meta::NodeStatic::new(multiplier, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::BitMap {
-                    is_null_bitmap: false,
-                },
-            ])],
+            vec![meta::NodeStatic::new(
+                multiplier,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::BitMap {
+                        is_null_bitmap: false,
+                    },
+                ],
+            )],
             NodeMapping::empty(),
         ),
         // Sizes taken from https://docs.rs/arrow/1.0.1/src/arrow/datatypes.rs.html#688
@@ -333,11 +343,12 @@ fn data_type_to_metadata(
             let mut buffer_counts = vec![1];
             let mut buffer_count = 1;
             let mut buffer_is_growable_values = vec![is_parent_growable];
-            let mut node_meta = vec![meta::NodeStatic::new(multiplier, vec![
-                BufferType::BitMap {
+            let mut node_meta = vec![meta::NodeStatic::new(
+                multiplier,
+                vec![BufferType::BitMap {
                     is_null_bitmap: true,
-                },
-            ])];
+                }],
+            )];
             let mut child_node_mappings = Vec::with_capacity(fields.len());
             for field in fields {
                 let DataTypeMetadata {
@@ -381,12 +392,15 @@ fn data_type_metadata(
         2,
         vec![2],
         vec![is_parent_growable, is_parent_growable],
-        vec![meta::NodeStatic::new(multiplier, vec![
-            BufferType::BitMap {
-                is_null_bitmap: true,
-            },
-            BufferType::Data { unit_byte_size },
-        ])],
+        vec![meta::NodeStatic::new(
+            multiplier,
+            vec![
+                BufferType::BitMap {
+                    is_null_bitmap: true,
+                },
+                BufferType::Data { unit_byte_size },
+            ],
+        )],
         NodeMapping::empty(),
     )
 }
@@ -513,14 +527,17 @@ pub mod tests {
 
         let expected_buffer_info = vec![false; num_buffers]; // no growable parents
 
-        let expected_node_info = vec![meta::NodeStatic::new(1, vec![
-            BufferType::BitMap {
-                is_null_bitmap: true,
-            },
-            BufferType::BitMap {
-                is_null_bitmap: false,
-            },
-        ])];
+        let expected_node_info = vec![meta::NodeStatic::new(
+            1,
+            vec![
+                BufferType::BitMap {
+                    is_null_bitmap: true,
+                },
+                BufferType::BitMap {
+                    is_null_bitmap: false,
+                },
+            ],
+        )];
 
         assert_eq!(column_indices, expected_col_info);
         assert_eq!(padding_meta, expected_buffer_info);
@@ -598,12 +615,15 @@ pub mod tests {
         let expected_node_info: Vec<meta::NodeStatic> = [1, 2, 4, 8, 1, 2, 4, 8, 4, 8]
             .iter()
             .map(|&unit_byte_size| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Data { unit_byte_size },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Data { unit_byte_size },
+                    ],
+                )
             })
             .collect();
 
@@ -758,12 +778,15 @@ pub mod tests {
         let expected_node_info: Vec<meta::NodeStatic> = unit_byte_sizes
             .iter()
             .map(|&unit_byte_size| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Data { unit_byte_size },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Data { unit_byte_size },
+                    ],
+                )
             })
             .collect();
 
@@ -872,12 +895,15 @@ pub mod tests {
         let expected_node_info: Vec<meta::NodeStatic> = unit_byte_sizes
             .iter()
             .map(|&unit_byte_size| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Data { unit_byte_size },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Data { unit_byte_size },
+                    ],
+                )
             })
             .collect();
 
@@ -973,12 +999,15 @@ pub mod tests {
         // all nodes have same structure
         let expected_node_info: Vec<meta::NodeStatic> = (0..fields.len())
             .map(|_| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Data { unit_byte_size: 8 },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Data { unit_byte_size: 8 },
+                    ],
+                )
             })
             .collect();
 
@@ -1095,12 +1124,15 @@ pub mod tests {
         let expected_node_info: Vec<meta::NodeStatic> = unit_byte_sizes
             .iter()
             .map(|&unit_byte_size| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Data { unit_byte_size },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Data { unit_byte_size },
+                    ],
+                )
             })
             .collect();
 
@@ -1194,12 +1226,15 @@ pub mod tests {
         // all nodes have same structure
         let expected_node_info: Vec<meta::NodeStatic> = (0..fields.len())
             .map(|_| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Data { unit_byte_size: 8 },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Data { unit_byte_size: 8 },
+                    ],
+                )
             })
             .collect();
 
@@ -1306,14 +1341,17 @@ pub mod tests {
         let expected_node_info: Vec<meta::NodeStatic> = fixed_sizes
             .iter()
             .map(|&fixed_size| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Data {
-                        unit_byte_size: fixed_size as usize,
-                    },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Data {
+                            unit_byte_size: fixed_size as usize,
+                        },
+                    ],
+                )
             })
             .collect();
 
@@ -1392,13 +1430,16 @@ pub mod tests {
         // all nodes have the same structure
         let expected_node_info: Vec<meta::NodeStatic> = (0..fields.len())
             .map(|_| {
-                meta::NodeStatic::new(1, vec![
-                    BufferType::BitMap {
-                        is_null_bitmap: true,
-                    },
-                    BufferType::Offset,
-                    BufferType::Data { unit_byte_size: 1 },
-                ])
+                meta::NodeStatic::new(
+                    1,
+                    vec![
+                        BufferType::BitMap {
+                            is_null_bitmap: true,
+                        },
+                        BufferType::Offset,
+                        BufferType::Data { unit_byte_size: 1 },
+                    ],
+                )
             })
             .collect();
 
@@ -1496,35 +1537,47 @@ pub mod tests {
 
         let expected_node_info: Vec<meta::NodeStatic> = vec![
             // List Node "c0"
-            meta::NodeStatic::new(1, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::Offset,
-            ]),
+            meta::NodeStatic::new(
+                1,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::Offset,
+                ],
+            ),
             // Bool Node
-            meta::NodeStatic::new(1, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::BitMap {
-                    is_null_bitmap: false,
-                },
-            ]),
+            meta::NodeStatic::new(
+                1,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::BitMap {
+                        is_null_bitmap: false,
+                    },
+                ],
+            ),
             // List Node "c1"
-            meta::NodeStatic::new(1, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::Offset,
-            ]),
+            meta::NodeStatic::new(
+                1,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::Offset,
+                ],
+            ),
             // UInt32 Node
-            meta::NodeStatic::new(1, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::Data { unit_byte_size: 4 },
-            ]),
+            meta::NodeStatic::new(
+                1,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::Data { unit_byte_size: 4 },
+                ],
+            ),
         ];
 
         assert_eq!(column_indices, expected_col_info);
@@ -1633,30 +1686,42 @@ pub mod tests {
 
         let expected_node_info = vec![
             // struct "c0"
-            meta::NodeStatic::new(1, vec![BufferType::BitMap {
-                is_null_bitmap: true,
-            }]),
+            meta::NodeStatic::new(
+                1,
+                vec![BufferType::BitMap {
+                    is_null_bitmap: true,
+                }],
+            ),
             // utf8 "a"
-            meta::NodeStatic::new(1, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::Offset,
-                BufferType::Data { unit_byte_size: 1 },
-            ]),
+            meta::NodeStatic::new(
+                1,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::Offset,
+                    BufferType::Data { unit_byte_size: 1 },
+                ],
+            ),
             // bool "b"
-            meta::NodeStatic::new(1, vec![
-                BufferType::BitMap {
-                    is_null_bitmap: true,
-                },
-                BufferType::BitMap {
-                    is_null_bitmap: false,
-                },
-            ]),
+            meta::NodeStatic::new(
+                1,
+                vec![
+                    BufferType::BitMap {
+                        is_null_bitmap: true,
+                    },
+                    BufferType::BitMap {
+                        is_null_bitmap: false,
+                    },
+                ],
+            ),
             // struct "c1"
-            meta::NodeStatic::new(1, vec![BufferType::BitMap {
-                is_null_bitmap: true,
-            }]),
+            meta::NodeStatic::new(
+                1,
+                vec![BufferType::BitMap {
+                    is_null_bitmap: true,
+                }],
+            ),
         ];
 
         assert_eq!(column_indices, expected_col_info);

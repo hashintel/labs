@@ -156,10 +156,13 @@ fn buffer_actions_from_pending_batch<'a>(
     // We don't copy agents between batches anymore
     let copy = (0, vec![]);
     let create = {
-        (pending_batch.num_inbound(), vec![IndexRange::new(
-            *inbound_taken_count,
+        (
             pending_batch.num_inbound(),
-        )])
+            vec![IndexRange::new(
+                *inbound_taken_count,
+                pending_batch.num_inbound(),
+            )],
+        )
     };
 
     *inbound_taken_count += create.0;
