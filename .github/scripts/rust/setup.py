@@ -43,7 +43,7 @@ def find_local_crates():
     the sub-crates will be picked up by `cargo` automatically.
     :return: a list of crate paths
     """
-    return [path.relative_to(CWD).parent for path in CWD.rglob("Cargo.toml")]
+    return [path.relative_to(CWD).parent for path in CWD.rglob("Cargo.toml") if find_toolchain(path.parent)]
 
 
 def find_toolchain(crate):
@@ -65,7 +65,7 @@ def find_toolchain(crate):
                 return toolchain
         directory = directory.parent
 
-    raise Exception("No rust-toolchain.toml with a `toolchain.channel` attribute found")
+    return None
 
 
 
@@ -124,22 +124,13 @@ def output_matrix(name, github_output_file, crates, **kwargs):
                 crate_names[crate] = str(crate.name.replace("_", "-"))
 
     available_toolchains = set()
-    for crate in crates:
-        available_toolchains.add(find_toolchain(crate))
-        if not IS_PULL_REQUEST_EVENT:
-            for pattern, additional_toolchains in TOOLCHAINS.items():
-                for additional_toolchain in additional_toolchains:
-                    available_toolchains.add(additional_toolchain)
-
     used_toolchain_combinations = []
-    for crate in crates:
-        toolchains = [find_toolchain(crate)]
 
-        # We only run the default toolchain on coverage/lint/publish (rust-toolchain.toml)
-        if name not in ("coverage", "lint", "publish"):
-            for pattern, additional_toolchains in TOOLCHAINS.items():
-                if fnmatch(crate, pattern):
-                    toolchains += additional_toolchains
+    for crate in crates:
+        toolchain = find_toolchain(crate)
+        available_toolchains.add(toolchain)
+        toolchains = [toolchain]
+
         used_toolchain_combinations.append(
             itertools.product([crate_names[crate]], toolchains, repeat=1)
         )
