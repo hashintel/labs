@@ -4,6 +4,7 @@
 <div align="center">
  <a href="https://github.com/hashintel/labs/blob/main/apps/engine/LICENSE.md"><img src="https://cdn-us1.hash.ai/assets/license-badge-elastic.svg" alt="Elastic License v2" /></a>
  <a href="https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_hash-repo_engine"><img src="https://img.shields.io/discord/840573247803097118" alt="Join HASH on Discord" /></a>
+ <a href="https://github.com/hashintel/labs#"><img src="https://img.shields.io/github/stars/hashintel/labs?label=Star%20on%20GitHub&style=social" alt="Star on GitHub"></a>
 </div>
 
 # HASH Engine
