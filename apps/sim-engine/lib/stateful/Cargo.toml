@@ -9,7 +9,7 @@ memory = { path = "../memory", default-features = false }
 arrow2 = { version = "0.13.1", default-features = false }
 # arrow_format needs to be updated in line with arrow2
 arrow-format = { version = "=0.7.0", features = ["ipc"] }
-flatbuffers = "2.1.1"
+flatbuffers = "22.9.29"
 lazy_static = "1.4.0"
 parking_lot = "0.12.1"
 rayon = "1.5.3"
