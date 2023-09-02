@@ -9,9 +9,9 @@
 
 # HASH Engine
 
-[HASH Engine](https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_engine) (**hEngine**) is the computational simulation engine at the heart of [HASH](https://hash.ai/simulations?utm_medium=organic&utm_source=github_readme_engine). It is publicly and freely available here under the Elastic License.
+[HASH Engine](https://hash.ai/platform/engine?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) (**hEngine**) is the computational simulation engine at the heart of [HASH](https://hash.ai/simulations?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine). It is publicly and freely available here under the Elastic License.
 
-This public version of hEngine is our 'alpha' engine whose architecture and performance characteristics differ significantly to the stable engine powering [hCore](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_engine), our in-browser simulation envrionment; and [hCloud](https://hash.ai/platform/cloud?utm_medium=organic&utm_source=github_readme_engine), our cloud simulation compute service. It is not yet stable.
+This public version of hEngine is our 'alpha' engine whose architecture and performance characteristics differ significantly to the stable engine powering [hCore](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine), our in-browser simulation envrionment; and [hCloud](https://hash.ai/platform/cloud?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine), our cloud simulation compute service. It is not yet stable.
 
 Our ultimate intention is to migrate both hCore and hCloud to use the engine under development here (upon its first stable release).
 
@@ -44,21 +44,21 @@ Our ultimate intention is to migrate both hCore and hCloud to use the engine und
 
 ## Issue Tracking
 
-We use [GitHub Issues](https://github.com/hashintel/labs/issues) to help prioritize and track bugs and feature requests. Please use the [HASH Engine Issue form](https://github.com/hashintel/labs/issues/new?assignees=&labels=A-engine%2CC-bug&template=bug-report-hash-engine.yml) to help us deal with your report most effectively. If you're unsure about something or need help, you can also ask questions and get support on our public [Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_engine).
+We use [GitHub Issues](https://github.com/hashintel/labs/issues) to help prioritize and track bugs and feature requests. Please use the [HASH Engine Issue form](https://github.com/hashintel/labs/issues/new?assignees=&labels=A-engine%2CC-bug&template=bug-report-hash-engine.yml) to help us deal with your report most effectively. If you're unsure about something or need help, you can also ask questions and get support on our public [Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine).
 
 ## Additional Documentation
 
-Our [user guide for simulation](https://hash.ai/docs/simulation?utm_medium=organic&utm_source=github_readme_engine) contains a beginner's introduction as well as in-depth tutorials for **hCore** today.
+Our [user guide for simulation](https://hash.ai/docs/simulation?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) contains a beginner's introduction as well as in-depth tutorials for **hCore** today.
 
-The [HASH glossary](https://hash.ai/glossary?utm_medium=organic&utm_source=github_readme_engine) contains helpful explainers around key modeling, simulation and AI-related terms and concepts.
+The [HASH glossary](https://hash.ai/glossary?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) contains helpful explainers around key modeling, simulation and AI-related terms and concepts.
 
 ## Questions & Support
 
-We're building a community of people who care about enabling better decision-making through modeling and simulation. Our [support forum](https://hash.community/?utm_medium=organic&utm_source=github_readme_engine) and [HASH community Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_engine) (requires login) are both great places to meet other modelers and get help.
+We're building a community of people who care about enabling better decision-making through modeling and simulation. Our [support forum](https://hash.community/?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) and [HASH community Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) (requires login) are both great places to meet other modelers and get help.
 
 ## The State of Development
 
-As outlined above, this project is the next-generation of our simulation engine, and differs from the one currently powering [hCore](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_engine) and [hCloud](https://hash.ai/platform/cloud?utm_medium=organic&utm_source=github_readme_engine). It's published here as a pre-release technology preview, and as such the feature-set and codebase should be considered unstable until it's released. That means that there are a number of features you may use on the HASH platform that at present may not be supported by this project, notably:
+As outlined above, this project is the next-generation of our simulation engine, and differs from the one currently powering [hCore](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) and [hCloud](https://hash.ai/platform/cloud?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine). It's published here as a pre-release technology preview, and as such the feature-set and codebase should be considered unstable until it's released. That means that there are a number of features you may use on the HASH platform that at present may not be supported by this project, notably:
 
 - Rust runners, and therefore **Rust behaviors** (which are generally a subset of the @hash behaviors found within hIndex) are currently **disabled**. This is a high-priority item for us and will be one of the main items of development focused on in the near future. A large part of the implementation is finished and can be found in this repository, if you are interested in exploring it (Although as it is _not_ completely finished, expect to find bugs).
 
@@ -176,7 +176,7 @@ The ageing simulation increases the age of each agent by one every step. Looking
 
 **Congratulations!** 🎉 , you just ran your first simulation with the hEngine!
 
-[demo simulation]: https://core.hash.ai/@hash/ageing-agents?utm_medium=organic&utm_source=github_readme_engine
+[demo simulation]: https://core.hash.ai/@hash/ageing-agents?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
 
 ## Usage
 
@@ -194,7 +194,7 @@ If one of the environment variables shown in the help page is passed, it will ov
 
 > **Warning** - Rust runners are currently not supported. Within your simulation project, you should only see `.js` files within dependencies (for example, dependencies/@hash/age/src/behaviors/age.js). Files ending in `.rs` will be ignored and the run will possibly fail in unclear ways.
 >
-> Currently, the easiest way to create a project is by using [HASH Core](https://core.hash.ai). In the future, an in-depth description of the expected project structure will be given here instead.
+> Currently, the easiest way to create a project is by using [HASH Core](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine). In the future, an in-depth description of the expected project structure will be given here instead.
 
 In order to download and run a simulation from HASH Core, use `File -> Export Project` (this is available in the toolbar at the top of the page). For help in finding or creating, and editing, simulations in HASH Core, take a look at our [online documentation][docs]. Then save and unzip the downloaded project to a location of your choice, for example by
 
@@ -234,7 +234,7 @@ export GN_ARGS = "v8_enable_pointer_compression=false v8_enable_shared_ro_heap=t
 - `v8_enable_pointer_compression` is an optimization reducing RAM usage but limits the heap size to 4 gigabytes.
 - `v8_enable_shared_ro_heap` enables read-only memory sharing by V8 isolates. This means, that read-only memory may be shared across different workers for JavaScript. Enabling this is required to compile V8 without pointer compression.
 
-[docs]: https://hash.ai/docs/simulation?utm_medium=organic&utm_source=github_readme_engine
+[docs]: https://hash.ai/docs/simulation?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine
 
 ### Simulation Inputs
 
@@ -242,7 +242,7 @@ export GN_ARGS = "v8_enable_pointer_compression=false v8_enable_shared_ro_heap=t
 
 #### Behavior keys
 
-Behavior keys define the fields, and their respective **data type**, that a behavior accesses on an agent's state. See the [docs](https://hash.ai/docs/simulation/creating-simulations/behaviors/behavior-keys?utm_medium=organic&utm_source=github_readme_engine) for an explanation of behavior keys in general.
+Behavior keys define the fields, and their respective **data type**, that a behavior accesses on an agent's state. See the [docs](https://hash.ai/docs/simulation/creating-simulations/behaviors/behavior-keys?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) for an explanation of behavior keys in general.
 
 If you haven't created and exported a project from [hCore], it's also possible to manually create the file that specifies the behaviors keys. Generally, every user-defined variable on state (i.e. a behavior key) requires it to be specified within the accompanying `.json` file. The top level JSON object has up to three members, `"keys"`, `"built_in_key_use"`, and `"dynamic_access"`, while the latter two are neither required, nor used currently:
 
@@ -353,7 +353,7 @@ The engine (and CLI) currently logs to both stderr, and to the `./log` directory
 
 ## Main Concepts
 
-Being familiar with running experiments and simulations on the HASH platform will help a lot with understanding the Engine. The [docs](https://hash.ai/docs/simulation/?utm_medium=organic&utm_source=github_readme_engine) are also a good place to search for clarification on some terms used below when unclear.
+Being familiar with running experiments and simulations on the HASH platform will help a lot with understanding the Engine. The [docs](https://hash.ai/docs/simulation/?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) are also a good place to search for clarification on some terms used below when unclear.
 
 ## The Project Layout
 
@@ -373,10 +373,3 @@ Located within [`./bin/cli`](bin/cli), the CLI binary is responsible for the orc
 ### The Engine Process(es)
 
 Located within [`./bin/hash_engine`](bin/hash_engine), the HASH Engine binary implements all of the logic required for running a single experiment and its one or more simulations.
-
-## Contributors
-
-hEngine is under active development. Its primary contributors are:
-
-- [Tim Diekmann](https://hash.ai/@timdiekmann) - HASH
-- [Alfie Mountfield](https://hash.ai/@alfie) - HASH
