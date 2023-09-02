@@ -5,8 +5,8 @@
   "description": "HASH Engine stdlib",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hashintel/hash.git",
-    "directory": "apps/engine/stdlib"
+    "url": "git+https://github.com/hashintel/labs.git",
+    "directory": "apps/sim-engine/stdlib"
   },
   "license": "Apache 2.0",
   "author": "HASH",

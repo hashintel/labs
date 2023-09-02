@@ -28,7 +28,7 @@ The bundle should appear as `./dist/apache-arrow-bundle.js`
       ...
   ```
 
-- From the `./apps/engine` folder run:
+- From the `./apps/sim-engine` folder run:
   `cp apache-arrow-js-bundle/dist/apache-arrow-bundle.js lib/execution/src/runner/javascript/apache-arrow-bundle.js`
 
 > [1] Unfortunately at this time we haven't figured out how to generate the exact format we need for the way we load modules into V8.

@@ -5,8 +5,8 @@
   "description": "Apache Arrow JS bundle for HASH Engine",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hashintel/hash.git",
-    "directory": "apps/engine/apache-arrow-js-bundle"
+    "url": "git+https://github.com/hashintel/labs.git",
+    "directory": "apps/sim-engine/apache-arrow-js-bundle"
   },
   "type": "module",
   "scripts": {

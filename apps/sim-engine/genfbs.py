@@ -1,11 +1,11 @@
 #! /usr/bin/env python3
 """
 Runs flatc on the flatbuffer definition files, generating Rust & Python files.
-Saves Rust files to apps/engine/src/gen.
-Saves Python files to apps/engine/runner/py/fbs.
+Saves Rust files to apps/sim-engine/src/gen.
+Saves Python files to apps/sim-engine/runner/py/fbs.
 
 Example:
-    cd apps/engine
+    cd apps/sim-engine
     python3 genfbs.py
 """
 import os
