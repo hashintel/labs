@@ -1,0 +1,16 @@
+# Rust artifacts
+target/
+
+# Python artifacts
+runner_venv/
+build/
+lib/execution/src/runner/python/wrappers.c*
+
+# Runtime
+*-topy*
+*-frompy*
+*hash-orchestrator-*
+/output
+/log
+
+pynng
