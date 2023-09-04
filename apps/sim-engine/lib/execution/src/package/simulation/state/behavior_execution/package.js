@@ -107,7 +107,6 @@ const load_behaviors = (experiment, behavior_descs) => {
         trace.msg;
       throw new Error(JSON.stringify(trace));
     }
-     
     let t = typeof fn;
     if (t !== "function") {
       throw new TypeError(
