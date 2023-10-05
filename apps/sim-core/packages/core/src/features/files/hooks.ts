@@ -6,6 +6,7 @@ import { saveAs } from "file-saver";
 import { unparse } from "papaparse";
 
 import { AppDispatch, RootState } from "../types";
+import { FilePathParts } from "../../util/files/types";
 import { HcFile } from "./types";
 import { HcFileKind } from "./enums";
 import {
@@ -14,6 +15,7 @@ import {
   SimulationProjectWithHcFiles,
 } from "../project/types";
 import { addUserProject } from "../user/slice";
+import { fromFormatted } from "../../util/files/parse";
 import { preparePartialSimulationProject, toHcConfig } from "../project/utils";
 import { save } from "../thunks";
 import {
@@ -140,13 +142,45 @@ export const useImportFiles = () => {
       throw "Error unzipping " + file.name + ": " + err.message;
     }
     const projectFiles: ProjectFile[] = [];
-    const zipFiles: { name: string; contentPromise: Promise<string> }[] = [];
+    const zipFiles: {
+      name: string;
+      contentPromise: Promise<string>;
+    }[] = [];
 
     zip.forEach((_relativePath, zipEntry) => {
       if (zipEntry.dir) {
         // Skip directories.
         return;
       }
+
+      // Some zip files put leading '/'s on the file names.
+      // Trim those out so that HASH doesn't nest it as a folder.
+      while (zipEntry.name.startsWith("/")) {
+        zipEntry.name = zipEntry.name.slice(1);
+      }
+
+      if (zipEntry.name.startsWith(".")) {
+        // Skip hidden files
+        return;
+      }
+
+      let parsed: FilePathParts | null = null;
+      try {
+        parsed = fromFormatted(zipEntry.name);
+      } catch (err) {
+        console.warn("Skipping file in import:", zipEntry.name, err);
+        return;
+      }
+
+      if (parsed.dir) {
+        const permittedDirs = ["src", "data", "views", "dependencies"];
+        const candidateDir = parsed.dir.split("/")[0];
+        if (!permittedDirs.includes(candidateDir)) {
+          console.warn("Skipping directory in import", parsed.dir);
+          return;
+        }
+      }
+
       // Convert to a simple array so we can later await the promises.
       zipFiles.push({
         name: zipEntry.name,

@@ -42,7 +42,7 @@ export const nameByMatch: { [match: string]: string } = {
  * /^(?:([\/@])?(?:([\/\w-]*)\/)?)?([\w-]*)(\.(?:csv|js|json|md|py|rs|ts|txt))?$/
  */
 const root = "(?:([\\/@])";
-const dir = "(?:([\\/\\w-]*)\\/)?)";
+const dir = "(?:([\\/\\w-@]*)\\/)?)";
 const name = "([\\w-]*)";
 const exts = Object.values(Ext)
   .map((withDot) => withDot.substring(1).replace(".", "\\."))
