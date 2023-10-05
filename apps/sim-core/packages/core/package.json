@@ -7,9 +7,9 @@
   "private": true,
   "scripts": {
     "clean": "rimraf dist",
-    "serve": "yarn codegen && webpack-dev-server --mode development",
-    "prod-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=production",
-    "dev-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=4096 NODE_ENV=development",
+    "serve": "yarn codegen && yarn dev-env webpack-dev-server --mode development",
+    "prod-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=8192 NODE_ENV=production NODE_OPTIONS=--openssl-legacy-provider",
+    "dev-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=4096 NODE_ENV=development NODE_OPTIONS=--openssl-legacy-provider",
     "build": "yarn codegen && yarn prod-env webpack --mode production",
     "build-dev": "yarn codegen && yarn dev-env webpack --mode development",
     "start": "yarn codegen && yarn prod-env webpack-dev-server --mode production",
