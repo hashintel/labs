@@ -411,7 +411,6 @@ checksum = "62aca2aba2d62b4a7f5b33f3712cb1b0692779a56fb510499d5c0aa594daeaf3"
 [[package]]
 name = "hash_types"
 version = "0.1.0"
-source = "git+ssh://git@github.com/hasharchives/sim-engine-types?tag=v1.4.0#7310287d2c6e9d66b9c7d4be011585ffe4ff4607"
 dependencies = [
  "async-trait",
  "serde",
