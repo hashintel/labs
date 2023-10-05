@@ -88,17 +88,7 @@ export const useExportFiles = () => {
           ? file.repoPath.replace(/\.json$/i, "")
           : file.repoPath;
 
-      const contents =
-        file.kind === HcFileKind.Dataset
-          ? await fetch(file.contents).then((resp) => {
-              if (file.path.ext === ".csv" && !file.data.rawCsv) {
-                return resp.json().then((jsonCsv) => unparse(jsonCsv));
-              }
-              return resp.text();
-            })
-          : file.contents;
-
-      zip.file(path, contents);
+      zip.file(path, file.contents);
 
       if (
         file.kind === HcFileKind.Behavior ||
@@ -107,6 +97,11 @@ export const useExportFiles = () => {
         const behaviorKeysJson = stringifyBehaviorKeys(file);
         zip.file(`${path}.json`, behaviorKeysJson);
       }
+    }
+
+    const hashJson = currentProject?.config;
+    if (hashJson) {
+      zip.file("hash.json", JSON.stringify(hashJson, null, 2));
     }
 
     const fileZip = await zip.generateAsync({ type: "blob" });
