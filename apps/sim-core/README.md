@@ -73,7 +73,7 @@ To run hCore, run:
 yarn serve:core
 ```
 
-This will compile the application and host it for you at a default location of [localhost:8080](http://localhost:8080)
+This will compile the application and host it for you at a default location of [`localhost:8080`](http://localhost:8080).
 
 ### Development and Troubleshooting
 
