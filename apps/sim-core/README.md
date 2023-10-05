@@ -63,7 +63,7 @@ yarn
 
 ### Supported Environments
 
-The above requirements are all cross-platform, and as such sim-core can build and run in modern Windows, OSX, and Ubuntu, as well as within common VM's and containers.
+The required dependencies above are available (and consistent) across platforms. hCore can be built and run in modern Windows, macOS, and Ubuntu Linux environments, as well as within common VMs and containers.
 
 ## Running `sim-core`
 
