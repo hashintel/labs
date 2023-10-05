@@ -1,0 +1,14 @@
+.BehaviorKeys {
+  --padding-horizontal: 25px;
+  --bk-row-spacing: 14px;
+  --bk-row-height: 38px;
+
+  background-color: #0d0f13;
+  padding-top: 20px;
+  padding-bottom: 14px;
+  overflow: auto;
+}
+
+.BehaviorKeys > * {
+  min-width: 340px;
+}

@@ -1,0 +1,30 @@
+.HashCoreFilesSearchFile {
+  line-height: 1.3em;
+  margin-bottom: 10px;
+}
+
+.HashCoreFilesSearchFile > ul {
+  padding: 0;
+  margin: 0;
+  list-style-type: none;
+}
+
+.HashCoreFilesSearchFile__Title {
+  border-radius: 3px;
+  user-select: none;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  margin-bottom: 5px;
+  font-size: 0.8rem;
+  padding-left: 5px;
+
+  @media (any-hover: hover) {
+    &:hover {
+      --background-color: var(--theme-light-on-dark);
+      background-color: var(--background-color);
+    }
+  }
+}

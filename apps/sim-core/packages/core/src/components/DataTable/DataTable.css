@@ -1,0 +1,12 @@
+.DataTable__container {
+  height: 100%;
+  overflow-y: hidden;
+  overflow-x: auto;
+}
+
+.DataTable {
+  border-collapse: collapse;
+  border-spacing: 0;
+
+  min-width: 100%;
+}

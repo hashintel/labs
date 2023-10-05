@@ -1,0 +1,92 @@
+.HashCoreTour-Center.HashCoreTour-Step-done .shepherd-element {
+  padding: 0;
+  width: 740px;
+}
+
+.HashCoreTourDone {
+  text-align: center;
+  font-size: 14px;
+  padding: 65px 45px;
+}
+
+.HashCoreTourDone h2 {
+  font-size: 24px;
+  margin: 0 0 10px;
+}
+
+.HashCoreTourDone p {
+  margin-bottom: 30px;
+  line-height: 1.5;
+}
+
+.HashCoreTourStepDoneShowcase {
+  display: flex;
+  justify-content: center;
+}
+
+.HashCoreTourStepDoneShowcase a,
+.HashCoreTourStepDoneShowcase a:hover {
+  color: inherit;
+  text-decoration: none;
+  border: none;
+}
+
+.HashCoreTourStepDoneShowcase__Sim {
+  --size: 150px;
+  font-size: 14px;
+  width: var(--size);
+  display: block;
+}
+
+.HashCoreTourStepDoneShowcase__Sim:not(:first-child) {
+  margin-left: 15px;
+}
+
+.HashCoreTourStepDoneShowcase__Sim__Thumb {
+  height: var(--size);
+  border-radius: 5px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 46px;
+  color: rgba(255, 255, 255, 0.33);
+  position: relative;
+  overflow: hidden;
+}
+
+.HashCoreTourStepDoneShowcase__Sim__Thumb img,
+.HashCoreTourStepDoneShowcase__Sim__Thumb video {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: auto;
+  height: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.HashCoreTourStepDoneShowcase__Sim__Name {
+  max-width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.HashCoreTourStepDoneShowcase__Sim--Create
+  .HashCoreTourStepDoneShowcase__Sim__Thumb {
+  background-color: var(--theme-black);
+}
+
+.HashCoreTourDoneButton {
+  width: 100%;
+  border: none;
+  border-top: 1px solid var(--theme-border);
+  padding: 18px 0;
+  text-align: center;
+  font-size: 14px;
+  color: white;
+  border-radius: 0 0 var(--border-radius) var(--border-radius);
+}

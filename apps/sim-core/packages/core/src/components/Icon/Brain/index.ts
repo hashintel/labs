@@ -1,0 +1,1 @@
+export { IconBrain } from "./IconBrain";

@@ -1,0 +1,51 @@
+.ProcessChart {
+  background: var(--theme-dark);
+}
+
+.ProcessChart__Header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--theme-border);
+  margin: 20px 20px 0 20px;
+}
+
+.ProcessChart__Header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 3;
+  margin: 0;
+}
+
+.ProcessChart__ChartSelect {
+  display: flex;
+  align-items: center;
+
+  select {
+    padding: 2px 4px;
+    max-width: 150px;
+  }
+
+  .ProcessChart__DraftLabel {
+    font-size: 12px;
+    margin-right: 20px;
+    padding: 2px 8px;
+    border: 1px dashed var(--theme-grey-alt);
+    color: var(--theme-grey-alt);
+  }
+}
+
+.ProcessChart__Plugin__Wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.ProcessChart__Plugin__Frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+}

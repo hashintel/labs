@@ -1,0 +1,15 @@
+/**
+ * @todo remove duplication with RoundedSelect
+ */
+.ModalShareSelect {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 7px;
+  font-size: 13px;
+  height: 35px;
+  padding: 11px 6px 11px 20px;
+  max-width: 100%;
+
+  .Select__Value {
+    font-weight: bold;
+  }
+}

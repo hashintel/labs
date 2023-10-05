@@ -1,0 +1,1 @@
+export { IconRestart } from "./IconRestart";

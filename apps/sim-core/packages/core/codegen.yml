@@ -1,0 +1,13 @@
+schema: ./src/util/api/graphql-schema.json
+overwrite: true
+generates:
+  ./src/util/api/auto-types.ts:
+    plugins:
+      - add: 
+          content: "// tslint:disable"
+      - "typescript"
+      - "typescript-operations"
+    config:
+      skipTypename: true
+      maybeValue: T | null | undefined
+    documents: ./src/util/api/queries/*.ts

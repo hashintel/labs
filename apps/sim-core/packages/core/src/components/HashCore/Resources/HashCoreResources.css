@@ -1,0 +1,29 @@
+.HashCoreResources {
+  --resources-padding: 17px;
+  background: var(--theme-dark);
+  height: 100%;
+
+  padding: var(--resources-padding) var(--resources-padding) 0;
+  overflow: auto;
+  overflow-y: hidden;
+  box-sizing: border-box;
+
+  display: flex;
+  flex-direction: column;
+}
+
+.HashCoreResources__h1 {
+  font-size: 12px;
+  line-height: 130%;
+  margin-bottom: 8px;
+  margin-top: 0;
+  padding: 0;
+  text-align: center;
+  text-transform: uppercase;
+  user-select: none;
+}
+.HashCoreResources .Search__Icon.clearable {
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+}

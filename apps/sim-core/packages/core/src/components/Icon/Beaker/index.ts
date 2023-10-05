@@ -1,0 +1,1 @@
+export { IconBeaker } from "./IconBeaker";

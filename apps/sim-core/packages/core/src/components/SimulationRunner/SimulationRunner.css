@@ -1,0 +1,287 @@
+.simulation-runner {
+  background-color: var(--theme-darkest);
+  border-top: 1px solid var(--theme-border);
+  flex-shrink: 0;
+}
+
+.simulation-runner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  height: 48px;
+}
+
+.simulation-runner .scrubber,
+.simulation-runner .simulation-control,
+.simulation-runner .experiment-control,
+.simulation-runner .simulation-control > button,
+.simulation-runner .experiment-control button {
+  height: 100%;
+  width: 48px;
+}
+
+.simulation-control > button {
+  background-color: var(--theme-darkest);
+  transition: background-color 0.1s;
+
+  padding: 0 0.75rem;
+  position: relative;
+  border: 0;
+
+  color: var(--theme-white);
+  fill: var(--theme-white);
+}
+
+.simulation-control > button:disabled {
+  color: var(--theme-dark-border);
+  fill: var(--theme-dark-border);
+  cursor: default;
+}
+
+@media (any-hover: hover) {
+  .simulation-control > button:not(:disabled):hover {
+    background-color: var(--theme-dark-hover);
+  }
+}
+
+.simulation-control--open > button:not(:disabled) {
+  background-color: var(--theme-dark-hover);
+}
+
+/**
+ * Local/custom scrubber stuff
+ */
+.simulation-runner .scrubber {
+  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+}
+
+.simulation-runner .scrubber,
+.simulation-runner .scrubber .scrubber-input {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.simulation-runner input {
+  margin: 4px 8px 4px 0;
+}
+
+.simulation-runner .scrubber .timeline {
+  flex-grow: 1;
+  transition: flex-grow 0.2s;
+
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+
+  font-size: 11px;
+  opacity: 0.4;
+}
+
+.simulation-runner .scrubber .timeline.hidden {
+  flex-grow: 0.0001;
+}
+
+.simulation-runner .scrubber .timeline.disabled {
+  display: none;
+}
+
+.simulation-runner .scrubber .timeline .step {
+  text-align: left;
+  flex: 0 0 auto;
+}
+
+.simulation-runner .scrubber .timeline .last {
+  text-align: right;
+  flex-grow: 1;
+}
+
+.simulation-runner .scrubber .current-container {
+  width: 100%;
+  position: relative;
+  top: 0;
+}
+
+.simulation-runner .scrubber .current {
+  position: absolute;
+  color: white;
+  text-align: right;
+  font-size: 14px;
+  opacity: 0.4;
+  transform: translateY(-100%) translateX(-50%);
+  background-color: var(--theme-darkest);
+}
+
+/**
+ * Scrubber
+ * From https://css-tricks.com/styling-cross-browser-compatible-range-inputs-css/
+ */
+
+/* Reset all styles */
+
+.simulation-runner .scrubber input {
+  -webkit-appearance: none;
+  width: 100%;
+  background: transparent;
+  cursor: pointer;
+}
+
+.simulation-runner .scrubber input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+}
+
+.simulation-runner .scrubber input[type="range"]:focus {
+  outline: none; /* Removes the blue border. You should probably do some kind of focus styling for accessibility reasons though. */
+}
+
+.simulation-runner .scrubber input[type="range"]::-ms-track {
+  width: 100%;
+  cursor: pointer;
+
+  /* Hides the slider so custom styles can be added */
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+
+/* Style the thumb */
+
+/* Special styling for WebKit/Blink */
+.simulation-runner .scrubber input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  border: 2px solid var(--theme-white);
+  border-top: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  height: 16px;
+  width: 5px;
+  background: var(--theme-black);
+  cursor: pointer;
+  margin-top: -8px; /* You need to specify a margin in Chrome, but in Firefox and IE it is automatic */
+}
+
+.simulation-runner
+  .scrubber
+  input[type="range"]:disabled::-webkit-slider-thumb {
+  width: 0;
+  border: 0;
+}
+
+/* All the same stuff for Firefox */
+.simulation-runner .scrubber input[type="range"]::-moz-range-thumb {
+  border: 2px solid var(--theme-white);
+  border-top: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  height: 16px;
+  width: 1px;
+  background: var(--theme-black);
+  cursor: pointer;
+}
+
+.simulation-runner .scrubber input[type="range"]:disabled::-moz-range-thumb {
+  width: 0;
+  border: 0;
+}
+
+/* All the same stuff for IE */
+.simulation-runner .scrubber input[type="range"]::-ms-thumb {
+  border: 2px solid var(--theme-white);
+  border-top: 0;
+  border-bottom: 0;
+  border-radius: 0;
+  height: 16px;
+  width: 1px;
+  background: var(--theme-black);
+  cursor: pointer;
+}
+
+.simulation-runner .scrubber input[type="range"]:disabled::-ms-thumb {
+  width: 0;
+  border: 0;
+}
+
+/* Style the track */
+
+.simulation-runner
+  .scrubber
+  input[type="range"]::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: var(--theme-white);
+}
+
+.simulation-runner
+  .scrubber
+  input[type="range"]:disabled::-webkit-slider-runnable-track {
+  opacity: 0.33;
+}
+
+.simulation-runner .scrubber input[type="range"]::-moz-range-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: var(--theme-white);
+}
+
+.simulation-runner .scrubber input[type="range"]:disabled::-moz-range-track {
+  opacity: 0.33;
+}
+
+.simulation-runner .scrubber input[type="range"]::-ms-track {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: transparent;
+  border-color: transparent;
+  border-width: 16px 0;
+  color: transparent;
+}
+.simulation-runner .scrubber input[type="range"]::-ms-fill-lower {
+  background: var(--theme-white);
+}
+.simulation-runner .scrubber input[type="range"]::-ms-fill-upper {
+  width: 100%;
+  height: 2px;
+  cursor: pointer;
+  background: var(--theme-white);
+}
+
+.simulation-runner .scrubber input[type="range"]:disabled::-ms-track {
+  opacity: 0.33;
+}
+
+.simulation-control > button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.SimulationRunnerTooltip--reset {
+  max-width: calc(
+    var(--viewer-width) - var(--runner-tooltip-left-offset-reset) - 10px
+  );
+  min-width: 115px;
+}
+
+.SimulationRunnerTooltip--step {
+  max-width: calc(
+    var(--viewer-width) - var(--runner-tooltip-left-offset-step) - 10px
+  );
+  min-width: 115px;
+}
+
+.SimulationRunnerTooltip--simulate {
+  max-width: calc(
+    var(--viewer-width) - var(--runner-tooltip-left-offset-simulate) - 10px
+  );
+  min-width: 115px;
+}
+
+.simulation-control-container .simulation-control:not(:last-child) {
+  border-right: 1px solid var(--theme-border);
+}

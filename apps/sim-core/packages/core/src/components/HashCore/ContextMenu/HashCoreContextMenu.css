@@ -1,0 +1,42 @@
+.HashCoreContextMenu {
+  background: var(--theme-dark);
+  border: 1px solid var(--theme-dark-border);
+  border-radius: 0.25rem;
+
+  margin: 0;
+  padding: 0.5rem 0;
+  list-style-type: none;
+
+  position: absolute;
+  z-index: 4;
+  min-width: 160px;
+}
+
+.HashCoreContextMenu > li > a {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.HashCoreContextMenu > li,
+.HashCoreContextMenu > li > a,
+.HashCoreContextMenu > li > button {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.HashCoreContextMenu > li > a,
+.HashCoreContextMenu > li > button {
+  border: 0;
+  text-align: start;
+
+  background-color: transparent;
+  color: var(--theme-white);
+
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+}
+
+.HashCoreContextMenu > li:hover > a,
+.HashCoreContextMenu > li:hover > button {
+  background-color: var(--theme-dark-hover);
+}

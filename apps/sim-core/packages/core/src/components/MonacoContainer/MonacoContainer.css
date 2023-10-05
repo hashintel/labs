@@ -1,0 +1,11 @@
+.MonacoContainer {
+  position: relative;
+}
+
+.MonacoContainer .monaco-editor {
+  position: absolute;
+}
+
+.MonacoContainer .monaco-editor .monaco-scrollable-element .scrollbar .slider {
+  background-color: rgba(170, 170, 170, 0.6);
+}

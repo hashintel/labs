@@ -1,0 +1,1 @@
+export { IconPython } from "./IconPython";

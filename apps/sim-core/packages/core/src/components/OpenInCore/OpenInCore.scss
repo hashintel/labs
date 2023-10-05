@@ -1,0 +1,62 @@
+.OpenInCore {
+  --text-top-margin: 1px;
+  position: absolute;
+  bottom: 62px;
+  right: 15px;
+  text-decoration: inherit;
+  color: inherit;
+  display: block;
+  height: 36px;
+
+  transform: scale(0.8);
+  transform-origin: right center;
+
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  overflow: hidden;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  .LogoText {
+    overflow: hidden;
+  }
+
+  .hash-logo {
+    transition: all 0.2s ease;
+  }
+
+  &:not(:hover) .hash-logo {
+    transform-origin: right center;
+    transform: scale(0.75);
+  }
+
+  .OpenInCore__Text {
+    margin-bottom: calc(0px - 1em - var(--text-top-margin));
+    transition: all 0.2s ease;
+  }
+
+  &:hover .OpenInCore__Text {
+    margin-bottom: 0;
+  }
+}
+
+.OpenInCore__Text {
+  font-size: 10px;
+  padding: 0;
+  font-weight: normal;
+  margin: var(--text-top-margin) 0 0;
+  fill: currentColor;
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  width: fit-content;
+  white-space: nowrap;
+
+  .Icon {
+    position: relative;
+    top: 1px;
+    right: -1px;
+  }
+}

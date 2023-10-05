@@ -1,0 +1,88 @@
+.HashCoreFilesHeaderActionTooltip {
+  --clip-y-below: 0;
+  top: 0;
+  font-size: 10px;
+  text-align: left;
+  min-width: 0;
+  padding: 8px 13px;
+}
+
+.HashCoreFilesHeaderAction {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  box-sizing: border-box;
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+  border: 0;
+  background-color: var(--theme-darkest);
+
+  /**
+   * This ensures the icons share a border on hover – just reduces the space
+   * between them a little which is more visually pleasant
+   */
+  margin-right: -1px;
+  position: relative;
+  @media (any-hover: hover) {
+    &:hover {
+      z-index: 1;
+    }
+  }
+
+  .Icon {
+    fill: var(--theme-grey);
+    opacity: 0.7;
+    height: 11px;
+    transform-origin: center;
+  }
+
+  /**
+   * These numbers are the ratio between the rendered icon size and the size of
+   * the viewbox for each icon. Using a transform for this means I can set the
+   * icon size universally using .Icon – the overflow is to prevent the svg's
+   * viewbox from breaking out of the button
+   */
+  overflow: hidden;
+  .IconFilePlus,
+  .IconExperimentsCreate {
+    transform: scale(1.6);
+  }
+
+  .IconTableAdd {
+    transform: translateY(1px) scale(2);
+  }
+
+  .IconMagnify {
+    transform: scale(1.829);
+  }
+
+  @media (any-hover: hover) {
+    &:hover {
+      /**
+       * Using box shadow ensures the borders don't take up space and act as
+       * overlays – it also ensures 90deg edges to the borders, rather than 45deg
+       * which is what you get when using CSS borders
+       */
+      box-shadow: inset 1px 0 0 var(--theme-border),
+        inset -1px 0 0 var(--theme-border);
+
+      .Icon {
+        opacity: 1;
+      }
+    }
+  }
+}
+
+.HashCoreFilesHeaderAction--left {
+  .SimpleTooltip-PositionHelper {
+    left: 1px;
+  }
+}
+
+.HashCoreFilesHeaderAction--right {
+  .SimpleTooltip-PositionHelper {
+    right: 1px;
+  }
+}

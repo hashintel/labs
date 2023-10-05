@@ -1,0 +1,24 @@
+.HashCoreFilesSearchItemWithIcons {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.HashCoreFilesSearchItemWithIcons__Icons {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  opacity: 0;
+  background-color: var(--background-color);
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  padding-right: 5px;
+
+  @media (any-hover: hover) {
+    .HashCoreFilesSearchItemWithIcons:hover & {
+      opacity: 1;
+    }
+  }
+}

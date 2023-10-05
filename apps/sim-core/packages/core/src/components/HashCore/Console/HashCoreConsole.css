@@ -1,0 +1,106 @@
+.HashCoreConsole {
+  position: relative;
+  background: rgba(0, 0, 0, 0.9);
+  font-size: 12px;
+  line-height: 130%;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+
+  --scrollable-margin: 9px;
+  --scrollable-top-offset: 15px;
+}
+
+.HashCoreConsoleScrollable {
+  max-height: 180px;
+  margin-top: -1px;
+}
+
+.HashCoreConsole__clear {
+  cursor: pointer;
+  user-select: none;
+  fill: var(--theme-dark-grey);
+  position: absolute;
+  top: 5px;
+  right: 7px;
+  z-index: 1;
+}
+
+.HashCoreConsole--empty {
+  display: none;
+}
+
+.HashCoreConsole__alert-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+
+.HashCoreConsole__alert {
+  --alert-color: transparent;
+  background-color: var(--alert-color);
+
+  --scrollable-right-item-padding: 15px;
+
+  padding: 20px var(--scrollable-right-item-padding) 20px
+    var(--scrollable-top-offset);
+}
+
+.HashCoreConsole__alert hr {
+  border-width: 1px 0 0;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.HashCoreConsole__alert:not(:first-child) {
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.HashCoreConsole__alert--error {
+  --alert-color: rgba(255, 75, 86, 0.15);
+}
+
+.HashCoreConsole__alert--warning {
+  --alert-color: rgba(251, 187, 42, 0.15);
+}
+
+.HashCoreConsole__alert--complete {
+  --alert-color: rgba(15, 172, 51, 0.4);
+}
+
+.HashCoreConsole__alert .timestamp {
+  font-weight: bold;
+  font-size: 11px;
+  margin-bottom: 2px;
+}
+
+.HashCoreConsole__alert .type {
+  text-transform: uppercase;
+  font-weight: bold;
+  font-size: 14px;
+  fill: currentColor;
+  position: relative;
+  padding-left: 16px;
+  margin-right: 3px;
+}
+
+.HashCoreConsole__alert .type svg {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translate(-31%, -50%);
+}
+
+.HashCoreConsole__alert--error .type {
+  color: var(--theme-red-alt);
+}
+
+.HashCoreConsole__alert--warning .type {
+  color: var(--theme-yellow-alt);
+  padding-left: 18px;
+}
+
+.HashCoreConsole__alert--complete .type {
+  color: var(--theme-green-alt);
+}
+
+.HashCoreConsole__alert--warning .type svg {
+  left: 4px;
+}

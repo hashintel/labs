@@ -1,0 +1,34 @@
+.ModalFullScreen {
+  max-width: none;
+  background: transparent;
+  font-size: 15px;
+  width: var(--theme-min-width);
+  flex-shrink: 0;
+  padding: 0 30px;
+  position: relative;
+}
+
+.ModalFullScreen-backdrop--light {
+  background-color: #e6e6e6;
+}
+
+.ModalFullScreen,
+.ModalFullScreen * {
+  box-sizing: border-box;
+}
+
+.ModalFullScreen__Close {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.ModalFullScreen--light .ModalFullScreen__Close {
+  fill: var(--theme-black);
+}
+
+.ModalFullScreen--dark .ModalFullScreen__Close {
+  fill: var(--theme-white);
+}

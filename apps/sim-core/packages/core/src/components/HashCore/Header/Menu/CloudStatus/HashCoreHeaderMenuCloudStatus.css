@@ -1,0 +1,54 @@
+.HashCoreHeaderMenuCloudStatus {
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  background: var(--theme-dark-hover);
+  border: solid #232427;
+  border-width: 0 1px;
+  height: 32px;
+  padding: 0 18px;
+  font-size: 11px;
+  position: relative;
+  top: -1px;
+  margin-left: 5px;
+  user-select: none;
+}
+
+.HashCoreHeaderMenuCloudStatus:disabled {
+  cursor: default;
+}
+
+.HashCoreHeaderMenuCloudStatus:not(:disabled):hover {
+  background: var(--theme-dark-hover-hover);
+  border-color: var(--theme-border);
+}
+
+.HashCoreHeaderMenuCloudStatus__Label,
+.HashCoreHeaderMenuCloudStatus__Label > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.HashCoreHeaderMenuCloudStatus__Indicator {
+  width: 5px;
+  height: 5px;
+  border-radius: 6px;
+  background: transparent;
+  margin-left: 9px;
+  flex-shrink: 0;
+  border: 1px solid blue;
+}
+
+.HashCoreHeaderMenuCloudStatus__Indicator--running-web {
+  border-color: var(--theme-dark-grey);
+}
+
+.HashCoreHeaderMenuCloudStatus__Indicator--running-cloud {
+  background-color: var(--theme-green-alt);
+  border-color: var(--theme-green-alt);
+}
+
+.HashCoreHeaderMenuCloudStatus .SimpleTooltip {
+  z-index: -1;
+}

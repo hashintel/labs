@@ -1,0 +1,81 @@
+.BehaviorKeys__FieldForm {
+  --field-background: rgba(255, 255, 255, 0.1);
+
+  .RoundedTextInput {
+    --background-color: var(--field-background);
+    input {
+    }
+  }
+
+  .RoundedSelect {
+    background: var(--field-background);
+  }
+
+  .RoundedSelect,
+  .RoundedTextInput input {
+    height: var(--bk-row-height);
+    border: var(--input-border);
+    border-radius: 7px;
+  }
+
+  > *:not(:last-child) {
+    margin-right: 10px;
+  }
+}
+
+.BehaviorKeys__FieldForm__Container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  max-width: 372px;
+  min-width: 276px;
+
+  > *:not(:last-child) {
+    margin-right: 10px;
+  }
+}
+
+.BehaviorKeys__FieldForm__FieldName {
+  flex: 1;
+}
+
+.BehaviorKeys__FieldForm__Type {
+  min-width: 116px;
+}
+
+.BehaviorKeys__FieldForm__ListLength {
+  width: 60px;
+}
+
+.BehaviorKeys__FieldForm__Button {
+  --size: 30px;
+  background-color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-sizing: border-box;
+  padding: 0;
+  width: var(--size);
+  height: var(--size);
+  flex: 0 0 var(--size);
+  border-radius: var(--size);
+  font-weight: bold;
+  fill: white;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.BehaviorKeys__FieldForm__Button:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.BehaviorKeys__FieldForm__Button:not(:last-child) {
+  margin-right: 5px;
+}
+
+.BehaviorKeys__FieldForm__Button--error {
+  border: none;
+  &,
+  &:hover {
+    background-color: var(--theme-red);
+  }
+}

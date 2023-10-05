@@ -1,0 +1,42 @@
+.Modal-container {
+  position: fixed;
+  top: 0;
+  z-index: var(--modal-z);
+
+  width: 100%;
+  height: 100%;
+  min-width: var(--theme-min-width);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  overflow: scroll;
+}
+
+.Modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.9);
+
+  width: 100%;
+  height: 100%;
+
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--modal-container-z);
+}
+
+.Modal {
+  --max-width-pc-default: 90%;
+  background-color: rgba(17, 17, 17, 0.9);
+  /** min isn't supported in all our browsers, so need to have a fallback */
+  max-width: var(--max-width-pc, var(--max-width-pc-default));
+  max-width: min(
+    var(--max-width-px, 1220px),
+    var(--max-width-pc, var(--max-width-pc-default))
+  );
+}
+
+.react-tiny-popover-container.Modal__Tooltip {
+  z-index: calc(var(--modal-z) + 1);
+}

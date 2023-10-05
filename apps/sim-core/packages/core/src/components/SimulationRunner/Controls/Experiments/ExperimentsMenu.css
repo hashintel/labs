@@ -1,0 +1,110 @@
+.ExperimentsMenu {
+  width: 425px;
+  max-width: calc(
+    var(--viewer-width) - var(--runner-tooltip-left-offset-experiments) - 10px
+  );
+  min-width: 0;
+  padding: 0;
+  border-bottom: none;
+  overflow: hidden;
+}
+
+.ExperimentsMenu__List {
+  flex-direction: column;
+  font-weight: bold;
+  font-size: 12px;
+
+  /**
+   * this has been copied from SimulationRunner
+   * @todo dry this up
+   **/
+  list-style-type: none;
+  text-align: left;
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+  color: #d2d2d2;
+  text-transform: uppercase;
+}
+
+.ExperimentsMenu__List,
+.ExperimentsMenu__List * {
+  box-sizing: border-box;
+}
+
+.ExperimentsMenu__Button {
+  width: 100%;
+
+  --experiments-button-padding: 17px;
+
+  padding: 12px var(--experiments-button-padding);
+  border: 0 solid var(--theme-border);
+  border-bottom-width: 1px;
+  text-align: inherit;
+  font: inherit;
+  text-transform: inherit;
+  color: inherit;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  fill: currentColor;
+  background-color: transparent;
+}
+
+.ExperimentsMenu__Button:disabled {
+  opacity: 0.9;
+  cursor: default;
+}
+
+.ExperimentsMenu__Button .IconRunFast {
+  margin-left: 6px;
+}
+
+.ExperimentsMenu__Button .IconExperimentsCreate {
+  transform: translate(-1px, 1px);
+  margin-left: -4px;
+  flex-shrink: 0;
+}
+
+.ExperimentsMenu__Button svg:first-child {
+  margin-right: 10px;
+}
+
+.ExperimentsMenu__Button:not(:disabled):hover {
+  color: white;
+  background-color: var(--theme-dark-hover);
+}
+
+.ExperimentsMenu__Button--special {
+  background-color: var(--theme-darkest);
+}
+
+.ExperimentsMenu__Button--special span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ExperimentsMenu__Button--special:not(:disabled):hover {
+  background-color: rgba(0, 0, 0, 0.1);
+}
+
+.ExperimentsMenu__Button--experiment__Label {
+  display: flex;
+  flex-direction: column;
+  white-space: nowrap;
+  width: 0;
+  flex: 1;
+}
+
+.ExperimentsMenu__Button--experiment__Label,
+.ExperimentsMenu__Button--experiment__Label * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ExperimentsMenu__Button--experiment__Label__Description {
+  font-weight: normal;
+  text-transform: none;
+}

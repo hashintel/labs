@@ -1,0 +1,10 @@
+.BehaviorKeysRow {
+  padding: 0 var(--padding-horizontal);
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+
+  &:not(:last-child) {
+    margin-bottom: var(--bk-row-spacing);
+  }
+}

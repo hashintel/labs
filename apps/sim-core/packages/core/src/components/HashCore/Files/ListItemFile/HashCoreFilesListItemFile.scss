@@ -1,0 +1,84 @@
+.HashCoreFilesListItemFile {
+  /* make the background fill the container */
+  transition: background-color 0.1s;
+  padding-left: 0;
+  user-select: none;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: row;
+  height: 1.64rem;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+
+  margin-right: 0;
+  cursor: pointer;
+}
+
+.HashCoreFilesListItemFile__Pending {
+  justify-content: center;
+  cursor: default;
+}
+
+.HashCoreFilesListItemFile__Delete {
+  align-items: center;
+  justify-content: center;
+  border: none;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+
+  color: var(--theme-grey);
+  fill: var(--theme-grey);
+
+  position: absolute;
+  right: 1rem;
+  top: 0;
+  bottom: 0;
+  padding-left: 0;
+  padding-right: 0;
+  background-color: var(--background-color);
+
+  display: none;
+  @media (any-hover: hover) {
+    display: flex;
+
+    .HashCoreFilesListItemFile:not(:hover) & {
+      display: none;
+    }
+
+    &:hover {
+      color: var(--theme-white);
+      fill: var(--theme-white);
+    }
+  }
+}
+
+.HashCoreFilesListItemFile__Delete__Fade {
+  position: absolute;
+  top: 0;
+  right: 100%;
+  width: 40px;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    var(--background-color-transparent),
+    var(--background-color)
+  );
+}
+
+.HashCoreFilesListItemFile__SharedBehaviorIndicator {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  padding: 0;
+  color: var(--theme-white);
+  fill: var(--theme-white);
+  margin: 0;
+}
+
+.HashCoreFilesListItemFile .Icon.IconTrash {
+  min-width: auto;
+  min-height: auto;
+}

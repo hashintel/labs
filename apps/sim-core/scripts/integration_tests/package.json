@@ -1,0 +1,13 @@
+{
+  "name": "@hashintel/integration_tests",
+  "version": "1.0.0",
+  "contributors": [
+    "Ilya Novohatskyi <1llyanovohatskyy@gmail.com>",
+    "Matt Hayes <m@hash.ai>"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "cypress": "7.2.0",
+    "cypress-iframe": "1.0.1"
+  }
+}

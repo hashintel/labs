@@ -1,0 +1,4 @@
+.FileBannerBuiltin .IconRust {
+  opacity: 0.25;
+  fill: var(--theme-white);
+}

@@ -1,0 +1,44 @@
+.ExperimentsList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.ExperimentsListScrollable {
+  max-height: 55vh;
+}
+
+.ExperimentsList .ExperimentsMenu__Button {
+  --scrollable-right-item-padding: var(--experiments-button-padding);
+
+  &:disabled {
+    background: #3a3a3a;
+    cursor: not-allowed;
+  }
+}
+
+.DisabledExperimentTooltip {
+  width: 325px;
+  max-width: 325px;
+  font-size: 13px;
+}
+
+.ExperimentsMenu__ButtonEditExperiment {
+  cursor: pointer;
+
+  :hover {
+    fill: white;
+  }
+
+  svg {
+    margin-right: 0 !important;
+  }
+}
+
+.ExperimentsList > li:last-child > :last-child {
+  border-bottom: 0;
+}
+
+.ExperimentsListScrollable + li > :first-child {
+  border-top-width: 1px;
+}

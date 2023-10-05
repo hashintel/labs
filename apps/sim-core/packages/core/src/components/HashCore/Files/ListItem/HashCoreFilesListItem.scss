@@ -1,0 +1,27 @@
+.HashCoreFilesListItem {
+  --background-color: var(--theme-dark);
+  --background-color-transparent: var(--theme-dark-transparent);
+  background-color: var(--background-color);
+  align-items: center;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  min-height: var(--files-list-item-height);
+  padding-left: 0.7rem;
+  padding-right: 1rem;
+  position: relative;
+  width: 100%;
+  cursor: pointer;
+
+  > .Icon:first-child {
+    margin-left: -2px;
+  }
+
+  @media (any-hover: hover) {
+    &:hover {
+      --background-color: var(--theme-dark-hover);
+      --background-color-transparent: var(--theme-dark-hover-transparent);
+      color: var(--theme-white);
+    }
+  }
+}

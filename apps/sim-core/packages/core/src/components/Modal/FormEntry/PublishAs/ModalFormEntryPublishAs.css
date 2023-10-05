@@ -1,0 +1,24 @@
+.ModalFormEntryPublishAs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ModalFormEntryPublishAs > * {
+  margin-top: 0.75rem;
+}
+
+.ModalFormEntryPublishAs .Fancy-hindex {
+  font-size: 13px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.ModalFormEntryPublishAs .dropdown-wrapper {
+  flex: 1 0 0;
+  min-width: 80px;
+}
+
+.ModalFormEntryPublishAs__spacer {
+  margin: 0.75rem 0.5rem 0;
+}

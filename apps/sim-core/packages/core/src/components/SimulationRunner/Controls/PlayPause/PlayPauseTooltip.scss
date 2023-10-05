@@ -1,0 +1,47 @@
+.PlayPauseTooltip {
+  --padding-x: 26px !important;
+  padding-bottom: 0;
+  width: 288px !important;
+  overflow: hidden;
+}
+
+.PlayPauseTooltip__Header {
+  margin: 7px 0 16px !important;
+}
+
+.PlayPauseTooltip__PlaybackSpeeds {
+  display: flex;
+  flex-wrap: wrap;
+  width: 100%;
+  position: relative;
+  margin-top: 10px;
+}
+
+.PlayPauseTooltip__PlaybackSpeeds__Button {
+  background-color: var(--theme-dark);
+  font-size: 12px;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 37px;
+  height: 37px;
+  border-radius: 7px;
+  border: none;
+  margin: 0 1px 6px;
+
+  &:not(:disabled):hover {
+    background-color: rgba(0, 0, 0, 0.25);
+  }
+
+  &:disabled {
+    color: #aaabad;
+    cursor: default;
+  }
+}
+
+.PlayPauseTooltip__PlaybackSpeeds__Button--active {
+  font-weight: bold;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: white !important;
+}

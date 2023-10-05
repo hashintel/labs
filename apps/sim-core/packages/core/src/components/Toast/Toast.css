@@ -1,0 +1,78 @@
+.Toast {
+  width: 100%;
+  padding: 12px 1rem;
+  box-sizing: border-box;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.Toast-success {
+  background-color: var(--theme-green);
+  color: var(--theme-white);
+  fill: var(--theme-white);
+}
+
+.Toast-warning {
+  background-color: var(--theme-yellow-alt);
+  color: var(--theme-black);
+  fill: var(--theme-black);
+}
+
+.Toast-error {
+  background-color: var(--theme-red);
+  color: var(--theme-white);
+  fill: var(--theme-white);
+}
+
+.Toast-info {
+  background-color: var(--theme-white);
+  color: var(--theme-black);
+  fill: var(--theme-black);
+}
+
+.Toast .Fancy {
+  margin-left: 20px;
+}
+
+.Toast .Fancy,
+.Toast strong {
+  white-space: nowrap;
+}
+
+.Toast .Fancy ~ .Fancy {
+  margin-left: 0;
+}
+
+.Toast-dismiss {
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.Toast-dismiss-spacer {
+  width: 15px;
+}
+
+.Toast-dismiss svg {
+  display: block;
+}
+
+.Toast > * {
+  margin-right: 10px;
+}
+
+.Toast-content-spacer,
+.Toast-dismiss {
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.Toast-content-spacer {
+  width: 0;
+}

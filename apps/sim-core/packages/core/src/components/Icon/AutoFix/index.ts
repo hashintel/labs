@@ -1,0 +1,1 @@
+export { IconAutoFix } from "./IconAutoFix";

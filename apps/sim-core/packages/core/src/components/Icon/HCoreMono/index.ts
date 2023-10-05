@@ -1,0 +1,1 @@
+export { IconHCoreMono } from "./IconHCoreMono";

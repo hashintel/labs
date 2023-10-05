@@ -1,0 +1,31 @@
+.ErrorBoundary {
+  max-width: 600px;
+}
+
+.ErrorBoundary__Header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-block-start: 0.83em;
+  margin-block-end: 0.83em;
+  margin-inline-start: 0;
+  margin-inline-end: 0;
+}
+
+.ErrorBoundary__Header h2 {
+  margin: 0;
+}
+
+.ErrorBoundary__Header__EventId {
+  font-size: 0.8em;
+  padding: 4px 8px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+.ErrorBoundary__Footer {
+  display: flex;
+  justify-content: space-between;
+}

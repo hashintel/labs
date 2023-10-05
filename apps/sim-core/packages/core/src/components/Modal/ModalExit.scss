@@ -1,0 +1,25 @@
+.ModalExit {
+  position: absolute;
+  top: 25px;
+  right: 25px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+  fill: currentColor;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  z-index: 1;
+
+  .Icon {
+    margin-left: 6px;
+  }
+
+  &:hover {
+    color: white;
+    fill: white;
+  }
+}

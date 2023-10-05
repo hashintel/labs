@@ -1,0 +1,1 @@
+export { IconAccountMultiple } from "./IconAccountMultiple";

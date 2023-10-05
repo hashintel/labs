@@ -1,0 +1,60 @@
+.ModalSignin {
+  height: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: black;
+}
+
+.ModalSignin__Frame {
+  min-width: 300px;
+  border: none;
+  overflow-y: hidden;
+  width: 300px;
+  height: 520px;
+  border-radius: 5px;
+  animation: ModalSignin__Frame__FadeIn 0.4s ease forwards;
+  animation-delay: 0.5s;
+  box-shadow: 0 1px 60px rgba(0, 0, 0, 0.15);
+  background-color: white;
+  opacity: 0;
+  margin: 30px 0 60px 0;
+}
+
+@keyframes ModalSignin__Frame__FadeIn {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ModalSignin__Signup {
+  font-size: 18px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  padding-bottom: 10px;
+}
+
+.ModalSignin__Signup--visible {
+  opacity: 1;
+}
+
+.ModalSignin__Signup a {
+  color: inherit;
+  text-decoration: inherit;
+  border-bottom: 0.2rem solid var(--theme-blue);
+  transition: color 0.2s, border-color 0.3s;
+  font-weight: 600;
+}
+
+.ModalSignin__Signup a:hover {
+  border-bottom-color: var(--theme-blue-hover);
+  color: var(--theme-blue);
+}

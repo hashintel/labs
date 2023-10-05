@@ -1,0 +1,1 @@
+export { IconCodeTagsCheck } from "./IconCodeTagsCheck";

@@ -1,0 +1,48 @@
+.HashCoreFilesSearchInput {
+  flex: 1;
+}
+
+.HashCoreFilesSearchInput__search {
+  padding-right: 57px;
+}
+
+.HashCoreFilesSearchInput__replace {
+  padding-right: 35px;
+}
+
+.HashCoreFilesSearchInput__Icons {
+  display: flex;
+  align-items: center;
+  padding: 0 0.5rem 0 0;
+  color: var(--theme-grey);
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.HashCoreFilesSearchInput__Icons > * {
+  pointer-events: auto;
+}
+
+.HashCoreFilesSearchInput__Icons .codicon-case-sensitive:before {
+  margin-left: -1px;
+}
+
+.HashCoreFilesSearchInput__Icons .checked {
+  background-color: var(--theme-blue-translucent);
+  color: white;
+}
+
+.HashCoreFilesSearchInput .HashCoreFilesSearchFade {
+  top: 1px;
+  bottom: 1px;
+}
+
+.HashCoreFilesSearchInput
+  input:focus
+  + .HashCoreFilesSearchInput__Icons
+  .HashCoreFilesSearchFade {
+  opacity: 0;
+}

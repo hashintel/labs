@@ -1,0 +1,30 @@
+.ModalInfoBox {
+  display: flex;
+  padding: 10px;
+  border: 1px solid #202020;
+  border-radius: 3px;
+  color: #8e8e8e;
+  align-items: center;
+  user-select: none;
+  margin-top: 10px;
+  box-sizing: border-box;
+
+  .Icon {
+    margin-right: 7px;
+    fill: currentColor;
+    flex-shrink: 0;
+  }
+
+  p {
+    font-size: 12px;
+    line-height: 1.1;
+    padding: 2px;
+    margin: 0;
+  }
+}
+
+.ModalInfoBox--warning {
+  > .Icon {
+    fill: var(--theme-yellow-alt);
+  }
+}

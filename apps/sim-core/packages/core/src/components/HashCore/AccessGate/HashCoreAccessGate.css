@@ -1,0 +1,66 @@
+.HashCoreAccessGate {
+  background-color: var(--theme-dark);
+  height: 100%;
+  box-sizing: border-box;
+  overflow: auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.HashCoreAccessGate .Fancy {
+  margin-right: 10px;
+}
+
+.HashCoreAccessGate .Fancy * {
+  text-transform: none;
+}
+
+.HashCoreAccessGate-content {
+  width: 790px;
+  max-width: 100%;
+  position: relative;
+  z-index: 1;
+  color: white;
+  line-height: 1.3em;
+  padding: 30px;
+}
+
+.HashCoreAccessGate-content h2,
+.HashCoreAccessGate-content h3,
+.HashCoreAccessGate-content p {
+  margin: 0;
+}
+
+.HashCoreAccessGate-content h2,
+.HashCoreAccessGate-content h3 {
+  font-size: 24px;
+}
+
+.HashCoreAccessGate-content h2 {
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.HashCoreAccessGate-content h3 {
+  opacity: 0.5;
+  font-weight: normal;
+}
+
+.HashCoreAccessGate-content p {
+  margin: 26px 0 25px;
+  font-size: 16px;
+  line-height: 1.5em;
+}
+
+.HashCoreAccessGate-content > .Icon:first-child {
+  position: absolute;
+  z-index: -1;
+  top: -8%;
+  left: 80%;
+  height: 116%;
+  width: auto;
+  pointer-events: none;
+  opacity: 0.2;
+}

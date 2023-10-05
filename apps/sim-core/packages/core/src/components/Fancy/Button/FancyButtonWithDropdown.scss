@@ -1,0 +1,80 @@
+@keyframes fancyButtonRotate180Degrees {
+  to {
+    transform: rotate(180deg);
+  }
+}
+@keyframes fancyButtonRotate0Degrees {
+  from {
+    transform: rotate(180deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.FancyButtonWithDropdownContainer {
+  position: relative;
+}
+
+.FancyButtonWithDropdown {
+  padding: 0;
+  height: auto;
+
+  .Fancy-label {
+    padding: 0;
+  }
+
+  .flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-transform: none;
+
+    div {
+      padding: 0 0.6rem 0 1rem;
+    }
+
+    span {
+      margin-left: 0.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-left: 1px solid rgba(0, 0, 0, 0.1);
+      padding: 0 0.4rem;
+      height: 38px;
+    }
+
+    span.rotate180degrees > svg {
+      animation-name: fancyButtonRotate180Degrees;
+      animation-duration: 0.5s;
+      animation-fill-mode: forwards;
+    }
+
+    span.rotate0degrees > svg {
+      animation-name: fancyButtonRotate0Degrees;
+      animation-duration: 0.5s;
+      animation-fill-mode: forwards;
+    }
+  }
+
+  .flex:hover span {
+    border-left-color: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.FancyButtonWithDropdown-dropdown {
+  position: absolute;
+  top: 2.47rem;
+  width: 94.5%;
+  left: 1rem;
+  background: #505050;
+
+  .react-select__control.react-select__control--menu-is-open {
+    display: none;
+  }
+
+  .react-select__menu {
+    display: block;
+    width: 100%;
+  }
+}

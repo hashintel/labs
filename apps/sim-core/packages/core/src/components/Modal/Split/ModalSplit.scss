@@ -1,0 +1,51 @@
+.ModalSplit__Container {
+  --ModalSplit-border-radius: 16px;
+  width: 100%;
+}
+
+.ModalSplit {
+  --padding-horizontal: 45px;
+  --background: rgba(0, 0, 0, 0.81);
+  --top-background: rgba(17, 17, 17, 0.9);
+
+  position: relative;
+  box-sizing: border-box;
+  background-color: transparent;
+}
+
+.ModalSplit--loading {
+  .IconSpinner {
+    margin: 40px auto;
+    display: block;
+  }
+}
+
+/**
+ * @warning this is used in ModalShare
+ */
+.ModalSplitInner__Top {
+  background-color: var(--top-background);
+  padding: 0 var(--padding-horizontal) 40px;
+
+  border-top-left-radius: var(--ModalSplit-border-radius);
+  border-top-right-radius: var(--ModalSplit-border-radius);
+  border: var(--modal-border);
+  border-bottom: none;
+}
+
+.ModalSplitInner__Top--noBottom {
+  border-bottom-left-radius: var(--ModalSplit-border-radius);
+  border-bottom-right-radius: var(--ModalSplit-border-radius);
+  border-bottom: var(--modal-border);
+}
+
+.ModalSplitInner__Bottom {
+  background-color: var(--background);
+  border-bottom-left-radius: var(--ModalSplit-border-radius);
+  border-bottom-right-radius: var(--ModalSplit-border-radius);
+  border: var(--modal-border);
+
+  .ModalFormEntry__Label {
+    margin-bottom: 15px;
+  }
+}

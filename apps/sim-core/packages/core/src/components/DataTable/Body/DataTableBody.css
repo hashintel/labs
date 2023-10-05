@@ -1,0 +1,12 @@
+.DataTableBody > tr {
+  background: var(--theme-dark);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.DataTableBody > tr:last-child {
+  border-bottom: none;
+}
+
+.DataTableBody > tr:nth-child(even) {
+  background: var(--theme-darkest);
+}

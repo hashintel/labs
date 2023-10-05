@@ -1,0 +1,48 @@
+.ModalPrivateDependencies {
+  max-width: 80%;
+  box-sizing: border-box;
+
+  border: 1px solid var(--theme-dark-border);
+  border-radius: 16px;
+  padding: 60px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ModalPrivateDependencies .IconAlertOutline {
+  fill: var(--theme-yellow-alt);
+}
+
+.ModalPrivateDependencies__content {
+  margin-left: 1rem;
+}
+
+.ModalPrivateDependencies ul,
+.ModalPrivateDependencies h4 {
+  padding: 0;
+}
+
+.ModalPrivateDependencies h4 {
+  margin: 0.5rem 0;
+}
+
+.ModalPrivateDependencies ul {
+  margin: 0 0 1rem;
+  list-style-type: none;
+}
+
+.ModalPrivateDependencies li {
+  position: relative;
+}
+
+.ModalPrivateDependencies li:before {
+  content: "‣";
+  position: absolute;
+  left: -0.875rem;
+}
+
+.ModalPrivateDependencies button {
+  margin-top: 0.875rem;
+}

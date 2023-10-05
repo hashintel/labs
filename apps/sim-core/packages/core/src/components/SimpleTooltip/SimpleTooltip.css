@@ -1,0 +1,140 @@
+.SimpleTooltip {
+  --padding-x: 18px;
+  border: 1px solid var(--theme-border);
+  box-sizing: border-box;
+  box-shadow: var(--popover-shadow);
+  background: var(--theme-dark);
+  padding: 11px var(--padding-x);
+  color: white;
+  text-align: left;
+  min-width: 230px;
+  max-width: 290px;
+  width: max-content;
+  position: relative;
+
+  --left-clip-x: -50px;
+  --right-clip-x: 50px;
+  --clip-y-below: 1px;
+  --clip-y-above: calc(100% - 1px);
+}
+
+.SimpleTooltip h4,
+.SimpleTooltip h4 small,
+.SimpleTooltip p {
+  margin: 0;
+  padding: 0;
+  font-size: 11px;
+  user-select: none;
+}
+
+.SimpleTooltip h4 small {
+  font-weight: normal;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 2px;
+}
+
+.SimpleTooltip hr {
+  width: calc(100% + (var(--padding-x) * 2));
+  position: relative;
+  left: calc(0px - var(--padding-x));
+  border: 0 solid var(--theme-border);
+  border-top-width: 1px;
+  box-sizing: border-box;
+}
+
+.SimpleTooltip h4 {
+  font-weight: bold;
+  text-transform: uppercase;
+}
+.SimpleTooltip p {
+  font-weight: normal;
+  text-transform: none;
+}
+
+.SimpleTooltip-all-rounded-borders {
+  border-radius: var(--popover-border-radius);
+}
+
+.SimpleTooltip-position-above:not(.SimpleTooltip-all-rounded-borders) {
+  border-radius: var(--popover-border-radius) var(--popover-border-radius) 0 0;
+  clip-path: polygon(
+    var(--left-clip-x) -50px,
+    calc(100% + var(--right-clip-x)) -50px,
+    calc(100% + var(--right-clip-x)) var(--clip-y-above),
+    var(--left-clip-x) var(--clip-y-above)
+  );
+}
+
+.SimpleTooltip-position-below:not(.SimpleTooltip-all-rounded-borders) {
+  border-radius: 0 0 var(--popover-border-radius) var(--popover-border-radius);
+  clip-path: polygon(
+    var(--left-clip-x) var(--clip-y-below),
+    calc(100% + var(--right-clip-x)) var(--clip-y-below),
+    calc(100% + var(--right-clip-x)) calc(100% + 50px),
+    var(--left-clip-x) calc(100% + 50px)
+  );
+}
+
+.SimpleTooltip-align-right {
+  right: -1px;
+  max-width: 350px;
+}
+
+.SimpleTooltip-align-left {
+  left: -1px;
+}
+
+.SimpleTooltip--flatLeft {
+  --left-clip-x: 0px;
+  border-left: none;
+}
+
+.SimpleTooltip--flatRight {
+  --right-clip-x: 0px;
+  border-right: none;
+}
+
+.SimpleTooltip--flatLeft.SimpleTooltip-align-left {
+  left: 0;
+}
+
+.SimpleTooltip--flatRight.SimpleTooltip-align-right {
+  right: 0;
+}
+
+.SimpleTooltip--flatLeft.SimpleTooltip-position-above {
+  border-top-left-radius: 0;
+}
+
+.SimpleTooltip--flatLeft.SimpleTooltip-position-below {
+  border-bottom-left-radius: 0;
+}
+
+.SimpleTooltip--flatRight.SimpleTooltip-position-above {
+  border-top-right-radius: 0;
+}
+
+.SimpleTooltip--flatRight.SimpleTooltip-position-below {
+  border-bottom-right-radius: 0;
+}
+
+.SimpleTooltip-Parent {
+  position: relative;
+}
+
+.SimpleTooltip-PositionHelper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  pointer-events: none;
+}
+
+.SimpleTooltipPopover-container {
+  overflow: visible !important;
+}
+
+.SimpleTooltipPopover-container--noInteractive {
+  pointer-events: none;
+}

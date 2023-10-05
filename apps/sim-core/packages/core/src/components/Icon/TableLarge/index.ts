@@ -1,0 +1,1 @@
+export { IconTableLarge } from "./IconTableLarge";

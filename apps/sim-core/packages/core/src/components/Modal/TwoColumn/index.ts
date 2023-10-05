@@ -1,0 +1,1 @@
+export { ModalTwoColumn } from "./ModalTwoColumn";

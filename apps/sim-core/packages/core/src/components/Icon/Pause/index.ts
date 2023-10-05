@@ -1,0 +1,1 @@
+export { IconPause } from "./IconPause";

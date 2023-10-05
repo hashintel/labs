@@ -1,0 +1,16 @@
+.splitter-primary-hidden,
+.splitter-secondary-hidden {
+  > .layout-splitter {
+    display: none !important;
+  }
+
+  > .layout-pane {
+    width: 100% !important;
+    height: 100% !important;
+  }
+}
+
+.splitter-primary-hidden > .layout-pane-primary,
+.splitter-secondary-hidden > .layout-pane:not(.layout-pane-primary) {
+  display: none !important;
+}

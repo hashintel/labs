@@ -1,0 +1,1 @@
+export { IconEarth } from "./IconEarth";

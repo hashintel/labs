@@ -1,0 +1,115 @@
+.ModalShare {
+  --copy-button-height: 35px;
+
+  width: 920px;
+  margin: 80px 0;
+  align-self: flex-start;
+
+  .ModalSplitBottomSection {
+    h4 {
+      text-transform: uppercase;
+      font-size: 12px;
+      font-weight: bold;
+      user-select: none;
+      margin: 30px 0 15px;
+    }
+
+    > :first-child {
+      &,
+      * {
+        margin-top: 0;
+      }
+    }
+
+    label {
+      font-size: 12px;
+      margin-right: 40px;
+      display: flex;
+      align-items: center;
+      user-select: none;
+      white-space: nowrap;
+      margin-bottom: 0.3em;
+      line-height: 1;
+
+      .CheckboxInput {
+        margin-right: 14px;
+      }
+    }
+  }
+}
+
+.ModalShare--loading {
+  align-self: center;
+}
+
+.ModalShare__Tabs {
+  background-color: var(--top-background);
+  padding: 30px var(--padding-horizontal) 28px;
+  margin: 0;
+  list-style-type: none;
+  display: flex;
+}
+
+.ModalShare__Tabs__Tab {
+  font-size: 16px;
+  font-weight: normal;
+  margin: 0;
+  border-bottom: 3px solid transparent;
+  width: fit-content;
+  margin-right: 28px;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+}
+
+.ModalShare__Tabs__Tab--selected {
+  border-bottom-color: var(--theme-light-blue);
+}
+
+.ModalShare__MultiSelect {
+  max-width: 280px;
+  min-width: 255px;
+
+  .react-select__multi-value {
+    font-weight: bold;
+  }
+
+  .react-select__value-container {
+    padding: 7px 11px;
+    font-size: 12px;
+  }
+
+  .react-select__multi-value {
+    border-radius: 3px;
+  }
+
+  .react-select__multi-value__label {
+    padding: 6px 9px 6px 9px;
+  }
+}
+
+.ModalShare__MultiSelect--nonRemovable {
+  .react-select__multi-value__remove {
+    display: none;
+  }
+}
+
+.ModalShare__BottomSections {
+  display: flex;
+}
+
+.ModalShare .ModalSplitInner__Top:not(.ModalShare__Tabs) {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-top: none;
+}
+
+.ModalShare__RefSelect {
+  width: 89px !important;
+
+  .Select__Value {
+    max-width: 40px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

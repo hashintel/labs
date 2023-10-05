@@ -1,0 +1,47 @@
+.ResourceListItemPopupTable-container {
+  flex-direction: column;
+  margin: 20px 0;
+  max-height: 169px;
+  overflow: auto;
+}
+.ResourceListItemPopupTable {
+  border-collapse: collapse;
+  text-align: left;
+  vertical-align: middle;
+  font-size: 13px;
+  line-height: 1.3;
+  box-sizing: border-box;
+  table-layout: fixed;
+  width: 100%;
+}
+.ResourceListItemPopupTable * {
+  box-sizing: inherit;
+}
+.ResourceListItemPopupTable thead {
+  font-weight: bold;
+}
+.ResourceListItemPopupTable th,
+.ResourceListItemPopupTable td {
+  border: 1px solid #303030;
+}
+.ResourceListItemPopupTable th,
+.ResourceListItemPopupTable td:first-child,
+.ResourceListItemPopupTable td label {
+  padding: 10px 15px;
+}
+.ResourceListItemPopupTable td label {
+  width: 100%;
+  display: block;
+}
+
+.ResourceListItemPopupTable th:first-child,
+.ResourceListItemPopupTable td:first-child {
+  width: 38px;
+  padding-left: 0;
+  padding-right: 0;
+  text-align: center;
+}
+.ResourceListItemPopupTable__resource-name
+  ~ .ResourceListItemPopupTable__short-name {
+  color: rgba(255, 255, 255, 0.5);
+}

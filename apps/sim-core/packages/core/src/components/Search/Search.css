@@ -1,0 +1,33 @@
+.Search {
+  margin-bottom: 8px;
+}
+
+.Search__Input {
+  padding-right: 28px;
+}
+
+.Search__Icon {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  right: 5px;
+  width: 18px;
+  height: 18px;
+  pointer-events: none;
+}
+
+@keyframes Search__Loading-rotate {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+.Search__Icon .IconSync {
+  animation: Search__Loading-rotate 1.5s linear infinite;
+  transform-origin: center;
+  color: var(--theme-black);
+  font-size: 18px !important;
+}

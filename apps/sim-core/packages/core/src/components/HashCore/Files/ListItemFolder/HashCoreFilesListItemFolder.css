@@ -1,0 +1,30 @@
+:root {
+  --files-list-item-height: 1.64rem;
+}
+
+/** @todo remove unnecessary styles */
+.HashCoreFilesListItemFolder {
+  user-select: none;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: row;
+  flex-wrap: wrap;
+  min-height: var(--files-list-item-height);
+  align-items: center;
+  align-self: center;
+  justify-content: space-between;
+  position: relative;
+  margin-right: 0;
+  width: 100%;
+}
+
+.HashCoreFilesListItemFolder__Items {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  overflow: hidden;
+}
+
+.HashCoreFilesListItemFolder__Items--closed {
+  display: none;
+}

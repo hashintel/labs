@@ -1,0 +1,246 @@
+.AnalysisViewer {
+  background: var(--theme-dark);
+  position: relative;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 20px 20px;
+  /**
+   * inherits `flex-grow: 1;` from
+   * `packages/core/src/components/HashCore/Viewer/HashCoreViewer.css`
+   */
+
+  .empty {
+    padding: 1em;
+  }
+
+  .react-tabs__tab-panel--selected {
+    min-height: 100%;
+  }
+}
+
+.AnalysisViewer__Container {
+  padding: 1.5rem;
+  background: var(--theme-dark);
+  max-width: 100%;
+  max-height: 100%;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.AnalysisViewer__CenteredDiv {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  background-color: var(--theme-darkest);
+  user-select: none;
+
+  p {
+    max-width: 60%;
+    line-height: 1.3;
+    position: relative;
+  }
+}
+
+.AnalysisViewer__CenteredDiv {
+  flex-direction: column;
+  font-size: 1rem;
+}
+
+.AnalysisViewer__CenteredDiv > span {
+  margin-bottom: 1rem;
+}
+
+.AnalysisViewer__CenteredDiv > .AnalysisViewer__MetricsHelp {
+  flex: 0;
+  margin-top: 1rem;
+}
+
+.AnalysisViewer__CenteredDiv__Pre {
+  text-align: left;
+  font-size: 1.5rem;
+  background: var(--theme-black);
+  padding: 2rem;
+  width: 75%;
+  overflow: auto;
+}
+
+.AnalysisViewer__Header {
+  display: flex;
+  flex-direction: row;
+  justify-items: left;
+  padding: 0;
+  align-items: center;
+  user-select: none;
+  overflow: hidden;
+  font-size: 18px;
+  line-height: 3;
+
+  &,
+  > * {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.AnalysisViewer__Header__Sub {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.AnalysisViewer__Tabs {
+  height: 100%;
+}
+
+.AnalysisViewer__TabContainer {
+  display: flex;
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  border-bottom: 1px solid transparent;
+  position: relative;
+
+  &:after {
+    content: "";
+    display: block;
+    height: 1px;
+    background-color: var(--theme-border);
+    left: 0;
+    right: 0;
+    width: 100%;
+    bottom: -1px;
+    position: absolute;
+    pointer-events: none;
+    z-index: calc(var(--popover-z) + 2);
+  }
+
+  /**
+   * These styles are nested in here for specificity issues
+   */
+  .AnalysisViewer__TabContainer__TabList {
+    background: none;
+    text-transform: uppercase;
+    font-weight: bold;
+    font-size: 12px;
+    margin-bottom: -1px;
+  }
+
+  .AnalysisViewer__TabContainer__Tab {
+    background: none;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
+    border: 1px solid transparent;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+
+    &:not(.react-tabs__tab--selected):hover {
+      border-color: var(--theme-border);
+      z-index: calc(var(--popover-z) + 1);
+    }
+  }
+}
+
+.AnalysisViewer__TabContainer__Tab--disabled {
+  cursor: default !important;
+
+  svg {
+    opacity: 0.5;
+  }
+
+  &:hover {
+    background-color: var(--theme-dark) !important;
+  }
+}
+
+.AnalysisViewer__TabPanel {
+  display: block !important;
+  overflow: auto !important;
+  padding-right: 1.5rem;
+}
+
+.AnalysisViewer__LoggedOut.AnalysisViewer__TabPanel__Plots--nodata {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center;
+  color: var(--theme-grey-alt);
+}
+
+.AnalysisViewer__TabPanel--nodata {
+  display: flex !important; /* TODO: find a way to avoid using important here */
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column;
+  color: var(--theme-grey-alt);
+  height: 100%;
+  text-align: center !important;
+}
+
+.AnalysisViewer__NoData {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  p {
+    margin-top: 0;
+  }
+}
+
+.AnalysisViewer__MetricsHelp {
+  fill: white;
+  display: flex;
+  justify-content: center;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 3rem;
+  line-height: 1.5;
+  color: var(--theme-grey-alt);
+
+  a {
+    text-decoration: none;
+  }
+}
+
+.AnalysisViewer__MetricsHelp__IconText {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+  font-weight: bold;
+
+  .Icon {
+    fill: currentColor;
+    flex-shrink: 0;
+    margin-right: 6px;
+  }
+}
+
+.AnalysisViewerSplitterController {
+  --avsc-viewer-min-width: 559px;
+  --avsc-total-min-width: calc(
+    var(--avsc-viewer-min-width) + var(--avsc-analysis-width)
+  );
+
+  min-width: var(--avsc-total-min-width);
+
+  .HashCoreViewer > .splitter-layout {
+    > .layout-pane-primary {
+      min-width: var(--avsc-viewer-min-width);
+    }
+
+    > .layout-pane:not(.layout-pane-primary) {
+      max-width: var(--avsc-analysis-width);
+    }
+  }
+}

@@ -1,0 +1,23 @@
+.ModalForm__Fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  position: relative;
+}
+
+.ModalForm__Fieldset .ModalFormEntry__Input,
+.ModalForm__Fieldset .Fancy,
+.ModalForm__Fieldset .VersionPicker__item {
+  transition: opacity 0.2s ease;
+}
+
+.ModalForm__Fieldset:disabled .ModalFormEntry_Input,
+.ModalForm__Fieldset:disabled .Fancy,
+.ModalForm__Fieldset:disabled .VersionPicker__item,
+.ModalForm__Fieldset .ModalFormEntry_Input:disabled,
+.ModalForm__Fieldset .Fancy:disabled,
+.ModalForm__Fieldset .VersionPicker__item:disabled {
+  opacity: 0.5;
+  cursor: default !important;
+}

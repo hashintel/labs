@@ -1,0 +1,17 @@
+.ToastManager__Item-exit {
+  margin-top: 0;
+}
+
+.ToastManager__Item-enter-active,
+.ToastManager__Item-exit-active {
+  transition: margin-top 600ms cubic-bezier(0.23, 1, 0.32, 1); /* easeOutQuint https://easings.net/en#easeOutQuint */
+}
+
+.ToastManager__Item-enter,
+.ToastManager__Item-exit-active {
+  margin-top: -52px;
+}
+
+.ToastManager__Item-enter-active {
+  margin-top: 0;
+}

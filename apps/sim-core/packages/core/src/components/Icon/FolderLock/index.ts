@@ -1,0 +1,1 @@
+export { IconFolderLock } from "./IconFolderLock";

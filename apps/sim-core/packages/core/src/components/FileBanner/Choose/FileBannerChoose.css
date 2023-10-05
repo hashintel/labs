@@ -1,0 +1,10 @@
+.FileBannerChoose {
+  padding: calc(1.5rem - 5px);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.FileBannerChoose .Fancy {
+  white-space: nowrap;
+  margin: 5px;
+}

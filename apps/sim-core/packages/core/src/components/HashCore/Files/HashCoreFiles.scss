@@ -1,0 +1,42 @@
+.HashCoreFiles {
+  background-color: var(--theme-dark);
+
+  width: 100%;
+  flex: 1;
+  max-height: 100%;
+
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.HashCoreFiles__Actions {
+  display: flex;
+  list-style: none;
+  justify-content: flex-start;
+  align-items: stretch;
+  padding-left: calc(1rem - 4px);
+  height: 34px;
+  background-color: var(--theme-darkest);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.HashCoreFiles ul:not(.HashCoreFiles__Actions) {
+  list-style-type: none;
+  padding: 0;
+  overflow-y: auto;
+  box-sizing: border-box;
+  flex: 1 1 auto;
+  margin: 0;
+}
+
+.HashCoreFiles__Files {
+  padding-top: 0.4rem !important;
+
+  /* for applying consistent spacing to icons in the File Viewer */
+  *:not(.FileNameWithIcon) > .Icon {
+    fill: var(--theme-white);
+    padding-right: 4px;
+  }
+}

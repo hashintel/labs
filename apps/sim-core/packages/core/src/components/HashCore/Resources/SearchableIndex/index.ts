@@ -1,0 +1,1 @@
+export { HashCoreResourcesSearchableIndex } from "./HashCoreResourcesSearchableIndex";

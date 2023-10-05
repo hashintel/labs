@@ -1,0 +1,32 @@
+.FileNameWithShortname {
+  display: flex;
+  align-self: center;
+  font-weight: normal;
+  flex-grow: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.FileNameWithShortname > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.FileNameWithShortname__filename {
+  flex-shrink: 0;
+  max-width: 100%;
+}
+
+.FileNameWithShortname__filename--current {
+  font-weight: bold;
+}
+
+.FileNameWithShortname__meta {
+  color: var(--theme-dark-grey);
+}
+
+.FileNameWithShortname__shortname {
+  font-style: italic;
+}

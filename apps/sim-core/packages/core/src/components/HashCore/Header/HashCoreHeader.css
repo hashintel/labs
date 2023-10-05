@@ -1,0 +1,156 @@
+.HashCoreHeader {
+  --header-item-height: 24px;
+  --header-item-spacing: 4px;
+  --header-item-radius: 2px;
+
+  background: var(--theme-darkest);
+  border-bottom: 1px solid var(--theme-border);
+
+  height: 32px;
+  padding: 0 0 0 1.25rem;
+
+  display: flex;
+
+  flex: none;
+}
+
+.HashCoreHeader__section {
+  line-height: 0;
+  display: flex;
+  flex: 1 1 0;
+  width: 0;
+  align-items: center;
+  min-width: fit-content;
+}
+
+.HashCoreHeader__section--left {
+  min-width: 502px;
+}
+
+.HashCoreHeader__section--middle {
+  justify-content: center;
+}
+
+.HashCoreHeader__section--right {
+  justify-content: flex-end;
+}
+
+.HashCoreHeader-logo {
+  margin: 0.5rem 0;
+}
+
+.HashCoreHeader-title,
+.HashCoreHeader-title::first-line {
+  font-size: 13px;
+  padding: 4px 3px 3px 6px;
+  margin-right: -2px;
+  line-height: 15px;
+  font-weight: bold;
+  font-style: normal;
+}
+
+.HashCoreHeader-title-link {
+  text-decoration: none;
+}
+
+.HashCoreHeader-title {
+  display: inline-flex;
+  fill: currentColor;
+  align-items: center;
+  user-select: none;
+}
+
+.HashCoreHeader-title .IconBrain {
+  margin-right: 2px;
+  fill: var(--theme-blue);
+  position: relative;
+  top: -1px;
+}
+
+.HashCoreHeader-title .IconLock {
+  position: relative;
+  margin-left: 2px;
+}
+
+input:not(:disabled).HashCoreHeader-title:not(.submitted):hover,
+input:not(:disabled).HashCoreHeader-title:active,
+input:not(:disabled).HashCoreHeader-title:focus {
+  background-color: var(--selected-background-color);
+}
+
+.HashCoreHeader-timeago {
+  display: inline-block;
+  font-style: normal;
+  color: #707070;
+  margin-right: var(--header-item-spacing);
+}
+
+.HashCoreHeader__RightButton {
+  font-weight: bold;
+  background: var(--theme-dark);
+  transition: 0.2s ease background, 0.2s ease opacity;
+  border-radius: var(--header-item-radius);
+
+  border: 0;
+  display: inline-block;
+  text-decoration: none;
+  margin: 0 var(--header-item-spacing);
+
+  padding-left: 0.5rem;
+  padding-right: 0.5rem;
+}
+
+.HashCoreHeader__RightButton:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+.HashCoreHeader__RightButton:not(:disabled):hover {
+  background: var(--theme-light-on-dark);
+}
+
+.HashCoreHeader__RightButton--CTA {
+  background-color: var(--theme-blue);
+  box-shadow: 0 0 0 0 rgba(30, 119, 255, 1);
+}
+
+.HashCoreHeader__RightButton--CTA:not(:hover) {
+  animation: HashCoreHeader__RightButton--CTA-pulsate 2s infinite;
+}
+
+@keyframes HashCoreHeader__RightButton--CTA-pulsate {
+  0% {
+    box-shadow: 0 0 0 0 rgba(30, 119, 255, 0.7);
+  }
+
+  70% {
+    box-shadow: 0 0 0 10px rgba(30, 119, 255, 0);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(30, 119, 255, 0);
+  }
+}
+
+.HashCoreHeader__RightButton--CTA:hover {
+  background-color: var(--theme-blue-hover);
+}
+
+.HashCoreHeader-timeago,
+.HashCoreHeader__RightButton {
+  --font-size: 12px;
+  --padding: calc((var(--header-item-height) - var(--font-size)) / 2);
+  padding-top: var(--padding);
+  padding-bottom: var(--padding);
+  font-size: var(--font-size);
+  line-height: 1;
+}
+
+@media screen and (max-width: 1300px) {
+  /**
+   * TODO: @mysterycommand - probably need to collapse the menu somehow as well
+   */
+  .HashCoreHeader-timeago {
+    display: none;
+  }
+}

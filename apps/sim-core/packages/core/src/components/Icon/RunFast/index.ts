@@ -1,0 +1,1 @@
+export { IconRunFast } from "./IconRunFast";

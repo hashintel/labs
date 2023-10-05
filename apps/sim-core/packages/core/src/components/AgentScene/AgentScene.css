@@ -1,0 +1,71 @@
+.AgentScene {
+  overflow: hidden;
+  position: relative;
+}
+
+.AgentScene canvas {
+  outline: none;
+}
+/*
+All of these are important because stats.js overrides them at runtime.
+If not set to important, the stats monitor sits at the top left corner of core,
+rather than the canvas div.
+*/
+.StatsContainer {
+  position: absolute !important;
+}
+.StatsMonitor {
+  position: absolute !important;
+}
+.StatsHidden {
+  visibility: hidden !important;
+}
+
+.SceneSettings {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 12px;
+}
+
+.SceneSettings svg path {
+  fill: var(--theme-dark-grey);
+  transition: fill 0.1s;
+}
+
+.SceneSettings:hover svg path {
+  fill: var(--theme-white);
+}
+
+.SceneSettingsTooltip {
+  font-size: 12px;
+}
+
+.SceneSettings__SettingRow {
+  display: flex;
+  align-items: center;
+  margin: 10px 0;
+}
+
+.SceneSettings__ColorPicker input {
+  padding: 0;
+  border: 0;
+}
+
+.SceneSettings__SettingRow label {
+  margin-left: 8px;
+  user-select: none;
+  cursor: pointer;
+}
+
+.SceneSettingsTooltip .CheckboxInput {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.SceneSettingsTooltip .TextOrNumberInput .RoundedTextInput {
+  display: none;
+}
+
+.SceneSettingsTooltip .TextOrNumberInput__Range {
+  width: 3rem;
+}
