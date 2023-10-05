@@ -22,7 +22,10 @@ It uses a legacy version of hEngine which is no longer maintained, separate from
 - [ ] Direct GitHub integration for simulation management and storage
 - [X] Removal of legacy UI elements which no longer function
 
-While we work toward completing this migration project, please be mindful of the software's current limitations.
+While we work toward completing phase one, please be mindful of the software's current limitations.
+
+Phase two of our migration process involves enabling users to create, work with and run [HASH Core] and [HASH Engine] simulations in the [HASH] application directly.
+
 ## Limitations
 
 The sim-core engine is strongly limited to being a run-only environment. Current recommended use is as follows:
