@@ -12,7 +12,7 @@ import {
   selectProjectUpdated,
 } from "../project/selectors";
 
-const setLocalStorageProject = (project: LocalStorageProject) => {
+export const setLocalStorageProject = (project: LocalStorageProject) => {
   /**
    * This flag allows you to avoid saving projects to localStorage whilst in
    * dev mode. This is useful for if you're working on something that requires
