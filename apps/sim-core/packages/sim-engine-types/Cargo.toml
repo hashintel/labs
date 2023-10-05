@@ -1,7 +1,7 @@
 [package]
 name = "hash_types"
 version = "0.1.0"
-authors = ["Haze Booth <hb@hash.ai>"]
+authors = ["HASH <careers@hash.dev>"]
 edition = "2018"
 
 [dependencies]
