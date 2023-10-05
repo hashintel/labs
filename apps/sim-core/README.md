@@ -15,7 +15,7 @@ It uses a legacy version of hEngine which is no longer maintained, separate from
 
 ## Project Status
 
-`sim-core` is currently undergoing a migration process away from our internal infrastructure and toward this open-source, self-hosted version.  While we're making it available at this time so that our users can preserve and run their preesting simulations, additional migraiton work is ongoing.  Those upcoming tasks include:
+**hCore** is currently in the process of transitioning from being closed-source and hosted on our internal infrastructure towards being a free, open-source IDE available to self-host. Much of this code dates from 2019-2020. While we're making it available at this time so that users can continue to work with and run existing simulations, additional migration work is ongoing, and we'll be changing the way simulations are created in the future. Upcoming tasks in 'phase one' of the migration include:
 
 - [ ] Re-enabling 'new simulation' creation flow
 - [ ] Allow for "Project Export" functionality in the development environment
