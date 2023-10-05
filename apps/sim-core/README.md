@@ -20,7 +20,7 @@ It uses a legacy version of hEngine which is no longer maintained, separate from
 - [ ] Re-enabling 'new simulation' creation flow
 - [ ] Allow for "Project Export" functionality in the development environment
 - [ ] Direct GitHub integration for simulation management and storage
-- [ ] Removal of legacy UI elements which no longer function
+- [X] Removal of legacy UI elements which no longer function
 
 While we work toward completing this migration project, please be mindful of the software's current limitations.
 ## Limitations

@@ -5,12 +5,9 @@ import { useModal } from "react-modal-hook";
 import urljoin from "url-join";
 
 import { HashCoreHeaderMenu } from "..";
-import { HashCoreHeaderShareButton } from "./ShareButton/HashCoreHeaderShareButton";
-import { HashCoreHeaderUserImage } from "./UserImage/HashCoreHeaderUserImage";
-import { IS_STAGING, SITE_URL, getReleaseMeta } from "../../../util/api";
+import { IS_STAGING, SITE_URL } from "../../../util/api";
 import { IconBrain } from "../../Icon/Brain";
 import { IconLock } from "../../Icon/Lock";
-import { Link } from "../../Link/Link";
 import { Logo } from "../../Logo";
 import { ModalPrivateDependencies } from "../../Modal/PrivateDependencies";
 import { ModalReleaseCreate, ModalReleaseUpdate } from "../../Modal";
@@ -53,22 +50,22 @@ export const HashCoreHeader: FC = () => {
     return controller.abort.bind(controller);
   }, []);
 
-  const [data, setData] = useState<ReleaseMeta>();
-  const [showCreateReleaseModal, hideCreateReleaseModal] = useModal(
+  const [data, _setData] = useState<ReleaseMeta>();
+  const [_showCreateReleaseModal, hideCreateReleaseModal] = useModal(
     () => <ModalReleaseCreate onClose={hideCreateReleaseModal} data={data} />,
     [data]
   );
 
-  const [showUpdateInIndex, hideUpdateInIndex] = useModal(
+  const [_showUpdateInIndex, hideUpdateInIndex] = useModal(
     () => <ModalReleaseUpdate onClose={hideUpdateInIndex} />,
     []
   );
 
-  const [showPrivateDependencies, hidePrivateDependencies] = useModal(() => (
+  const [_showPrivateDependencies, hidePrivateDependencies] = useModal(() => (
     <ModalPrivateDependencies onClose={hidePrivateDependencies} />
   ));
 
-  const hasPrivateDependencies = useSelector(
+  const _hasPrivateDependencies = useSelector(
     selectProjectHasPrivateDependencies
   );
 
@@ -85,10 +82,10 @@ export const HashCoreHeader: FC = () => {
   const isBehaviorProject = project?.type === "Behavior";
 
   const {
-    canLogin,
-    canRelease,
+    canLogin: _canLogin,
+    canRelease: _canRelease,
     canSave,
-    canUseAccount,
+    canUseAccount: _canUseAccount,
     canLinkToProjectInIndex,
   } = useScopes(
     Scope.login,
@@ -163,14 +160,14 @@ export const HashCoreHeader: FC = () => {
              * We only show last published if you are on main and are able to
              * edit / publish
              */
-            project?.latestRelease && canRelease ? (
-              <i className="HashCoreHeader-timeago">
-                Last released <TimeAgo date={project.latestRelease.createdAt} />
-              </i>
-            ) : null
+            // project?.latestRelease && canRelease ? (
+            //   <i className="HashCoreHeader-timeago">
+            //     Last released <TimeAgo date={project.latestRelease.createdAt} />
+            //   </i>
+            // ) : null
           }
-          {project ? <HashCoreHeaderShareButton /> : null}
-          {project && canRelease ? (
+          {/* {project ? <HashCoreHeaderShareButton /> : null} */}
+          {/* {project && canRelease ? (
             <button
               className="HashCoreHeader__RightButton"
               onClick={async (evt) => {
@@ -197,18 +194,18 @@ export const HashCoreHeader: FC = () => {
                 : ""}
               release
             </button>
-          ) : null}
-          {canLogin ? (
+          ) : null} */}
+          {/* {canLogin ? (
             <Link
               className="HashCoreHeader__RightButton HashCoreHeader__RightButton--CTA"
               path="/signup"
             >
               Sign up / Sign in
             </Link>
-          ) : null}
+          ) : null} */}
         </div>
 
-        {canUseAccount ? <HashCoreHeaderUserImage /> : null}
+        {/* {canUseAccount ? <HashCoreHeaderUserImage /> : null} */}
       </div>
     </header>
   );
