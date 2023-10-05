@@ -10,7 +10,7 @@ export const IS_STAGING =
 
 export const IS_LOCAL = process.env.NODE_ENV !== "production";
 
-export const SITE_URL = IS_DEV ? "https://dev.hash.ai" : "https://hash.ai";
+export const SITE_URL = "http://localhost:8080";
 export const API_LOGIN_URL =
   typeof LOCAL_API !== "undefined" && LOCAL_API
     ? "http://localhost:5000"

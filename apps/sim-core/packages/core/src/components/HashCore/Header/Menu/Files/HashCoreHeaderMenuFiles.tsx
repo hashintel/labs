@@ -1,7 +1,6 @@
 import React, { ChangeEvent, FC, memo, MouseEvent, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
-import urljoin from "url-join";
 
 import { IconBrain } from "../../../../Icon/Brain";
 import { IconLock } from "../../../../Icon/Lock";
@@ -9,16 +8,9 @@ import { LabeledInputRadio } from "../../../../LabeledInputRadio";
 import { Link } from "../../../../Link/Link";
 import { ModalNewDataset } from "../../../../Modal/NewDataset/ModalNewDataset";
 import { PartialSimulationProject } from "../../../../../features/project/types";
-import { SITE_URL } from "../../../../../util/api/paths";
-import { Scope, useScope } from "../../../../../features/scopes";
-import {
-  createMergeRequestUrl,
-  forkUrlFromProject,
-  mainProjectPath,
-  urlFromProject,
-} from "../../../../../routes";
+import { Scope } from "../../../../../features/scopes";
 import { descByUpdatedAt } from "../../../../../util/descByUpdatedAt";
-import { getMetaCharacter } from "../../../../../hooks/useKeyboardShortcuts";
+import { mainProjectPath, urlFromProject } from "../../../../../routes";
 import { selectCurrentProject } from "../../../../../features/project/selectors";
 import { selectUserProfileUrl } from "../../../../../features/user/selectors";
 import { trackEvent } from "../../../../../features/analytics";
@@ -58,15 +50,15 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     onMouseEnterSubmenuItem,
     onMouseLeaveSubmenuItem,
     userProjects,
-    exampleProjects,
+    exampleProjects: _exampleProjects,
   }) => {
     const userProfileUrl = useSelector(selectUserProfileUrl);
     const project = useSelector(selectCurrentProject);
     const dispatch = useDispatch();
-    const forkUrl = project ? forkUrlFromProject(project) : null;
+    // const forkUrl = project ? forkUrlFromProject(project) : null;
 
     const showModalNewBehavior = useNameNewBehaviorModal();
-    const [showNewDatasetModal, hideNewDatasetModal] = useModal(
+    const [_showNewDatasetModal, hideNewDatasetModal] = useModal(
       () => <ModalNewDataset onClose={hideNewDatasetModal} />,
       []
     );
@@ -79,15 +71,14 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     };
 
     const [
-      saveOrFork,
-      canSaveOrFork,
-      requireLoginToSaveOrFork,
-      { canSave, canFork, canForkIfSignedIn },
+      _saveOrFork,
+      _canSaveOrFork,
+      _requireLoginToSaveOrFork,
+      { canSave, canFork: _canFork, canForkIfSignedIn: _canForkIfSignedIn },
     ] = useSaveOrFork();
-    const canLinkToProjectInIndex = useScope(Scope.linkToProjectInIndex);
-    const isFork = !!project?.forkOf;
-    const mergeRequestUrl =
-      project && isFork ? createMergeRequestUrl(project) : "";
+    // const canLinkToProjectInIndex = useScope(Scope.linkToProjectInIndex);
+    // const isFork = !!project?.forkOf;
+    // const mergeRequestUrl = project && isFork ? createMergeRequestUrl(project) : "";
 
     const toListItem = (type: "Example" | "User") => (
       item: PartialSimulationProject
@@ -152,7 +143,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 >
                   New behavior
                 </Link>
-                <Link
+                {/* <Link
                   scope={Scope.uploadDataset}
                   onClick={() => {
                     showNewDatasetModal();
@@ -160,11 +151,11 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                   }}
                 >
                   New dataset
-                </Link>
+                </Link> */}
               </ul>
             </li>
           )}
-          <li className="HashCoreHeaderMenu-submenu-item">
+          {/* <li className="HashCoreHeaderMenu-submenu-item">
             <LabeledInputRadio
               group="HashCoreHeaderMenu-submenu"
               label="New project"
@@ -191,7 +182,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 From starter template
               </Link>
             </ul>
-          </li>
+          </li> */}
           <li>
             <hr />
           </li>
@@ -229,7 +220,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               </ul>
             </li>
           ) : null}
-          {exampleProjects.length ? (
+          {/* {exampleProjects.length ? (
             <li
               className="HashCoreHeaderMenu-submenu-item"
               onMouseEnter={onMouseEnterSubmenuItem}
@@ -247,7 +238,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                   .map(toListItem("Example"))}
               </ul>
             </li>
-          ) : null}
+          ) : null} */}
           <li className="HashCoreHeaderMenu-submenu-item">
             <input
               type="file"
@@ -274,7 +265,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
           <li>
             <hr />
           </li>
-          <li className="HashCoreHeaderMenu-submenu-item">
+          {/* <li className="HashCoreHeaderMenu-submenu-item">
             {project && canSaveOrFork ? (
               <Link
                 forceLogin={requireLoginToSaveOrFork}
@@ -293,8 +284,8 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 </div>
               </Link>
             ) : null}
-          </li>
-          {project && forkUrl && (canFork || canForkIfSignedIn) ? (
+          </li> */}
+          {/* {project && forkUrl && (canFork || canForkIfSignedIn) ? (
             <li className="HashCoreHeaderMenu-submenu-item">
               <Link
                 scope={Scope.fork}
@@ -306,7 +297,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 Fork project
               </Link>
             </li>
-          ) : null}
+          ) : null} */}
           {project ? (
             <li className="HashCoreHeaderMenu-submenu-item">
               <Link
@@ -325,7 +316,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               </Link>
             </li>
           ) : null}
-          <li>
+          {/* <li>
             <hr />
           </li>
           {project && isFork ? (
@@ -334,8 +325,8 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 Create merge request
               </Link>
             </li>
-          ) : null}
-          {project && canLinkToProjectInIndex ? (
+          ) : null} */}
+          {/* {project && canLinkToProjectInIndex ? (
             <li className="HashCoreHeaderMenu-submenu-item">
               <a
                 href={urljoin(SITE_URL, project.pathWithNamespace)}
@@ -344,7 +335,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 View project in HASH
               </a>
             </li>
-          ) : null}
+          ) : null} */}
         </ul>
       </>
     );

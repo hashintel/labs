@@ -14,7 +14,6 @@ import { HashCoreFilesListItemFolder, useNameNewBehaviorModal } from ".";
 import { HcFile } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
 import { IconExperimentsCreate, IconFilePlus, IconMagnify } from "../../Icon";
-import { IconTableAdd } from "../../Icon/TableAdd";
 import { ModalNewDataset } from "../../Modal/NewDataset/ModalNewDataset";
 import { Scope, useScopes } from "../../../features/scopes";
 import { addPreparedFile } from "../../../features/files/slice";
@@ -47,7 +46,7 @@ const calculateOpenFoldersForPath = (
 
 export const HashCoreFiles: FC = () => {
   const pendingFiles = useSelector(selectPendingDependencies);
-  const { canSave, canUploadDataset, canEdit } = useScopes(
+  const { canSave, canEdit } = useScopes(
     Scope.save,
     Scope.uploadDataset,
     Scope.edit
@@ -56,7 +55,7 @@ export const HashCoreFiles: FC = () => {
   const dispatch = useDispatch();
 
   const showNameBehavior = useNameNewBehaviorModal();
-  const [showNewDatasetModal, hideNewDatasetModal] = useModal(
+  const [_showNewDatasetModal, hideNewDatasetModal] = useModal(
     () => <ModalNewDataset onClose={hideNewDatasetModal} />,
     []
   );
@@ -174,7 +173,7 @@ export const HashCoreFiles: FC = () => {
             <IconFilePlus />
           </HashCoreFilesHeaderAction>
         ) : null}
-        {canUploadDataset ? (
+        {/* {canUploadDataset ? (
           <HashCoreFilesHeaderAction
             paneRef={paneRef}
             title="New Dataset"
@@ -185,7 +184,7 @@ export const HashCoreFiles: FC = () => {
           >
             <IconTableAdd />
           </HashCoreFilesHeaderAction>
-        ) : null}
+        ) : null} */}
         {canSave ? (
           <HashCoreFilesHeaderAction
             paneRef={paneRef}
