@@ -77,7 +77,7 @@ This will compile the application and host it for you at a default location of [
 
 ### Development and Troubleshooting
 
-See the README in [`packages/core`](https://github.com/hashintel/labs/tree/main/apps/sim-core/packages/core) for more details
+See the README in [`packages/core`](https://github.com/hashintel/labs/tree/main/apps/sim-core/packages/core) for more details.
 
 
 ### Repository Structure
