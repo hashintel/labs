@@ -38,7 +38,6 @@ import { ModalExit } from "../ModalExit";
 import { ModalFormEntryLabel } from "../FormEntry/ModalFormEntryLabel";
 import { ReactSelectOption } from "../../Dropdown/types";
 import { RoundedSelect } from "../../Inputs/Select/RoundedSelect";
-import { Scope, useScope } from "../../../features/scopes";
 import { addUserAlert } from "../../../features/viewer/slice";
 import {
   convertToReactSelectOption,
@@ -478,7 +477,7 @@ export const ExperimentModal: FC<{
   const metricOptions = useSelector(selectParsedAnalysisMetricNames).map(
     (name): ReactSelectOption => ({ value: name, label: name })
   );
-  const canUseCloud = useScope(Scope.useCloud);
+  const canUseCloud = false;
 
   // FUNCTIONS
   const validate = () => {
