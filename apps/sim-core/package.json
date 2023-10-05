@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "HASH monorepo",
+  "description": "HASH Core",
   "repository": "https://github.com/hashintel/labs",
   "license": "AGPL-3.0-only",
   "scripts": {
