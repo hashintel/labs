@@ -3,7 +3,6 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import JSZip from "jszip";
 import { navigate } from "hookrouter";
 import { saveAs } from "file-saver";
-import { unparse } from "papaparse";
 
 import { AppDispatch, RootState } from "../types";
 import { FilePathParts } from "../../util/files/types";
