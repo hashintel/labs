@@ -67,7 +67,7 @@ The required dependencies above are available (and consistent) across platforms.
 
 ## Running `sim-core`
 
-To run the sim-core IDE, run:
+To run hCore, run:
 
 ```sh
 yarn serve:core
