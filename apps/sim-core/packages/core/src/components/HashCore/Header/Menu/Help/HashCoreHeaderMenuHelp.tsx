@@ -1,10 +1,8 @@
 import React, { FC, memo, MouseEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { ACCOUNT_URL } from "../../../../../util/api/paths";
 import { DISCORD_URL } from "../../../../DiscordWidget/DiscordWidget";
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
-import { Scope, useScope } from "../../../../../features/scopes";
 import { selectHasProject } from "../../../../../features/project/selectors";
 import { trackEvent } from "../../../../../features/analytics";
 import { useTour } from "../../../Tour";
@@ -24,7 +22,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
     clearAll,
   }) => {
     const tour = useTour();
-    const canUseAccount = useScope(Scope.useAccount);
+    // const canUseAccount = useScope(Scope.useAccount);
     const hasProject = useSelector(selectHasProject);
     const dispatch = useDispatch();
 
@@ -54,13 +52,13 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
               Docs
             </a>
           </li>
-          {canUseAccount ? (
+          {/* {canUseAccount ? (
             <li className="HashCoreHeaderMenu-submenu-item">
               <a href={ACCOUNT_URL} target="_blank">
                 My Account
               </a>
             </li>
-          ) : null}
+          ) : null} */}
           {hasProject ? (
             <li className="HashCoreHeaderMenu-submenu-item">
               <a
