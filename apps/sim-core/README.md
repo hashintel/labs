@@ -64,6 +64,7 @@ yarn
 ### Supported Environments
 
 The above requirements are all cross-platform, and as such sim-core can build and run in modern Windows, OSX, and Ubuntu, as well as within common VM's and containers.
+
 ## Running `sim-core`
 
 To run the sim-core IDE, run:
