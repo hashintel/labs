@@ -9,9 +9,14 @@ Ideally, they'll either
   For now, here's wildfires.
 */
 
-import { RemoteSimulationProject } from "../features/project/types";
+import {
+  RemoteSimulationProject,
+  SimulationProjectWithHcFiles,
+} from "../features/project/types";
+import { toHcConfig } from "../features/project/utils";
+import { toHcFiles } from "../features/files/utils";
 
-export const BUILTIN_SIMULATIONS: RemoteSimulationProject[] = [
+const remoteSimulationProjects: RemoteSimulationProject[] = [
   {
     id: "@hash/wildfires-regrowth",
     name: "Wildfires - Regrowth",
@@ -22,18 +27,14 @@ export const BUILTIN_SIMULATIONS: RemoteSimulationProject[] = [
       "https://s3.amazonaws.com/images.hash.ai/projects/projects/hash/wildfires-regrowth/1604676092745-thumb.png",
     createdAt: "2019-12-02T15:55:46.405Z",
     updatedAt: "2022-05-19T13:57:26.000Z",
-    canUserEdit: false,
+    canUserEdit: true,
     pathWithNamespace: "@hash/wildfires-regrowth",
     namespace: "hash",
     type: "Simulation",
-    ref: "9.9.0",
+    ref: "main",
     visibility: "public",
     ownerType: "Org",
     forkOf: null,
-    latestRelease: {
-      tag: "9.9.0",
-      createdAt: "2022-02-18T15:53:24.422Z",
-    },
     license: {
       id: "5dc3da73cc0cf804dcc66a51",
       name: "MIT License",
@@ -166,3 +167,13 @@ export const BUILTIN_SIMULATIONS: RemoteSimulationProject[] = [
     ],
   },
 ];
+
+export const BUILTIN_SIMULATIONS: SimulationProjectWithHcFiles[] = remoteSimulationProjects.map(
+  (project) => ({
+    ...project,
+    config: toHcConfig(project),
+    files: toHcFiles(project),
+    ref: project.ref ?? "main",
+    access: null,
+  })
+);

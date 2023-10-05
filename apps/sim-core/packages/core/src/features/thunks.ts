@@ -44,7 +44,6 @@ export const bootstrapApp = createAppAsyncThunk<{
 
   const result = await bootstrapQuery();
   const currentProject = selectCurrentProject(getState());
-
   if (currentProject) {
     dispatch(
       canUserEditProjectUpdate(

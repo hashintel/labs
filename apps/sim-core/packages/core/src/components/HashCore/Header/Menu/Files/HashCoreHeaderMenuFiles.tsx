@@ -210,11 +210,11 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                         <hr />
                       </li>
                     ) : null}
-                    <li>
+                    {/* <li>
                       <a href={userProfileUrl} target="_blank">
                         My projects
                       </a>
-                    </li>
+                    </li> */}
                   </>
                 ) : null}
               </ul>
