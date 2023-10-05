@@ -1,4 +1,4 @@
-# Developing sim-core
+# Developing hCore
 
 ### Getting started
 
@@ -10,16 +10,17 @@ $ yarn global add wasm-pack && yarn && yarn serve:core
 
 ### Troubleshooting
 
-### MapBox and the Geospatial tab
-To make use of the Geospatial tab in the sim-core IDE, a MapBox API key is needed. 
+#### Geospatial functionality
+
+To make use of geospatial and routing functionality in hCore, including the "geospatial" viewer, a Mapbox API key is needed, which can be obtained from [Mapbox.com](https://www.mapbox.com/).
 To provide the key, specify an environment variable of the form `MAPBOX_API_TOKEN=your-mapbox-api-token-here` when running node.  Your operating system's standard ways to provide this variable should all work, however an easy way that works in all environments is as follows:
- 1. create a new file `.env` located here in `packages/core/`.
+ 1. Create a new file `.env` located here in `packages/core/`.
  2. Place your environment variable in this file as a new line in the form above.
- 3. Restart node.js (repeat `yarn serve:core`) and refresh your sim-core browser page.
+ 3. Restart Node.js (repeat `yarn serve:core`) and refresh your hCore browser page.
 
- The Geospatial tab should now be active for you. If there was an issue with the token, MapBox will throw an error indicating the problem.
+ The geospatial tab should now be active for you. If there was an issue with the token, Mapbox will throw an error indicating the problem.
 
- You can retrieve your MapBox token from https://account.mapbox.com/access-tokens/. They have a generous free tier.
+ Obtain and manage Mapbox tokens from your [Mapbox account page](https://account.mapbox.com/access-tokens/). Mapbox provides a generous free tier, but you alone will be responsible for any charges incurred while using functionality in hCore that relies upon third-party providers beyond this.
 
 #### Missing latest XCode Dev Tools?
 
