@@ -1,0 +1,27 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: rust:1.45.1-slim-stretch
+    working_directory: ~/hash
+    steps:
+      - checkout
+      - restore_cache:
+          name: Restore Rust Cache
+          key: rust-1-dependency-cache-{{ checksum "Cargo.lock" }}
+      - run: cargo build --all-targets
+      - run: rustup component add rustfmt clippy
+      - save_cache:
+          key: rust-1-dependency-cache-{{ checksum "Cargo.lock" }}
+          paths:
+            - /usr/local/cargo
+            - ./target
+      - run:
+          name: Check formatting
+          command: cargo fmt -- --check
+      - run:
+          name: Clippy
+          command: cargo clippy -- -D warnings -W clippy::pedantic
+      - run:
+          name: Test
+          command: cargo test
