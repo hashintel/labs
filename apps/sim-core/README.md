@@ -31,7 +31,7 @@ Phase two of our migration process involves enabling users to create, work with 
 In its present form, the version of hCore published here is for the most part limited to providing a run-only environment for simulations. Current recommended use is as follows:
 
 1) Run hCore (this `apps/sim-core` project) on `localhost` and view it in your browser
-2) To open a simulation, use the 'import' functionality and target a .zip file containing a previously exported simluation.
+2) To open a simulation, use the 'import' functionality and target a `.zip` file containing a previously exported simulation. _This can be downloaded from a project's hIndex listing page._
 3) You can now run and edit this simulation, however file storage is simply maintained within your browser (using `localstorage`), and changes you make will only be preserved within this web browser.
 4) You can use the 'recent projects' menu to switch between other projects that you have imported.
 5) To experiment with an example project, import an example project .zip file from the `example_projects` folder.
