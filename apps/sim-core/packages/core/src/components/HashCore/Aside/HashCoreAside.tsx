@@ -17,7 +17,7 @@ export const HashCoreAside: FC = () => {
         percentage={true}
         primaryMinSize={20}
         secondaryMinSize={20}
-        secondaryHidden={!canSave}
+        secondaryHidden={!canSave || true} // migration shim.
       >
         <HashCoreFiles />
         <HashCoreResources />
