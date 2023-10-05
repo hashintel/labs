@@ -49,11 +49,6 @@ With these in place, you must use yarn to install wasm-pack:
 yarn global add wasm-pack
 ```
 
-And then you must expand node's default memory size. From the `sim-core` directory run:
-```sh
-yarn ws:core dev-env
-```
-
 To verify your installation, from the `sim-core` directory run:
 ```sh
 node -v
@@ -75,7 +70,7 @@ The required dependencies above are available (and consistent) across platforms.
 To run hCore, run:
 
 ```sh
-yarn serve:core
+yarn start:core
 ```
 
 This will compile the application and host it for you at a default location of [`localhost:8080`](http://localhost:8080).
@@ -95,6 +90,7 @@ Several different packages in this repository are orchestrated as yarn workspace
  Additional utility packages also exist to facilitate minor conveniences.
 
  While each package can be built and run separately using the `yarn` commands within its package (see the given package's package.json file for guidance), the most common commands you will run are:
- - `yarn serve:core`, to rebuild everything and then host the hCore application
+ - `yarn start:core`, to rebuild everything and then host the hCore application
+ - `yarn serve:core`, to rebuild everything and then host the hCore application, in development mode
  - `yarn`, to rebuild everything.
  - `yarn fmt`, to apply formatting to source code when doing development work
