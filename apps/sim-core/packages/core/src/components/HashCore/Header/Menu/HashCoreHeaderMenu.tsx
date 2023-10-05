@@ -2,7 +2,6 @@ import React, { FC, memo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { AppDispatch } from "../../../../features/types";
-import { HashCoreHeaderMenuCloudStatus } from "./CloudStatus/HashCoreHeaderMenuCloudStatus";
 import { HashCoreHeaderMenuExperiments } from "./Experiments";
 import { HashCoreHeaderMenuFiles } from "./Files";
 import { HashCoreHeaderMenuHelp } from "./Help";
@@ -82,9 +81,9 @@ export const HashCoreHeaderMenu: FC = memo(() => {
           clearAll={clearAll}
         />
       </li>
-      <li className="HashCoreHeaderMenu-item">
+      {/* <li className="HashCoreHeaderMenu-item">
         <HashCoreHeaderMenuCloudStatus />
-      </li>
+      </li> */}
     </ul>
   );
 });
