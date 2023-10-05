@@ -1,0 +1,59 @@
+.Scrollable {
+  overflow-y: auto;
+  overflow-x: hidden;
+
+  --scrollable-width: 6px;
+
+  --default-scrollable-margin: 9px;
+  --actual-scrollable-margin: var(
+    --scrollable-margin,
+    var(--default-scrollable-margin)
+  );
+
+  --default-scrollable-top-offset: 0px;
+  --actual-scrollable-top-offset: var(
+    --scrollable-top-offset,
+    var(--default-scrollable-top-offset)
+  );
+}
+
+.Scrollable__Item {
+  --default-scrollable-right-item-padding: 0px;
+  --actual-scrollable-right-item-padding: var(
+    --scrollable-right-item-padding,
+    var(--default-scrollable-right-item-padding)
+  );
+
+  padding-right: calc(
+    var(--actual-scrollable-margin) + var(--scrollable-width) +
+      var(--actual-scrollable-right-item-padding)
+  ) !important;
+}
+
+/* This selects the item when there are not enough items for scrolling */
+.simplebar-content-wrapper[style*="overflow: hidden;"] .Scrollable__Item {
+  padding-right: var(--actual-scrollable-right-item-padding) !important;
+}
+
+.Scrollable .simplebar-track.simplebar-vertical {
+  margin: calc(
+      var(--actual-scrollable-margin) + var(--actual-scrollable-top-offset)
+    )
+    var(--actual-scrollable-margin) var(--actual-scrollable-margin);
+  width: var(--scrollable-width);
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.Scrollable .simplebar-track.simplebar-vertical .simplebar-scrollbar:before {
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--theme-dark-grey);
+  opacity: 1;
+}
+
+.Scrollable .simplebar-track.simplebar-vertical .simplebar-scrollbar:before,
+.Scrollable .simplebar-track.simplebar-vertical {
+  border-radius: 16px;
+}

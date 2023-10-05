@@ -1,0 +1,1 @@
+export { IconStop } from "./IconStop";

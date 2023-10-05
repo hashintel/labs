@@ -1,0 +1,22 @@
+.FileNameWithIcon {
+  display: flex;
+  flex: 1;
+  align-self: center;
+  overflow: hidden;
+
+  .Icon {
+    min-width: var(--icon-size);
+    min-height: var(--icon-size);
+    fill: var(--theme-white);
+    padding-right: 4px;
+    flex-shrink: 0;
+  }
+}
+
+.FileNameWithIcon__FileName {
+  flex: 1;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  display: flex;
+}

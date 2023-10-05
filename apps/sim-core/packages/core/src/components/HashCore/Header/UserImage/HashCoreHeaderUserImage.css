@@ -1,0 +1,16 @@
+.HashCoreHeaderUserImage {
+  background-color: var(--theme-grey);
+  width: var(--header-item-height);
+  height: var(--header-item-height);
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  border-radius: var(--header-item-radius);
+  margin-right: var(--header-item-spacing);
+}
+
+.HashCoreHeaderUserImage img {
+  height: 100%;
+  width: auto;
+}

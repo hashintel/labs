@@ -1,0 +1,36 @@
+[package]
+name = "hashintel-core"
+version = "0.1.0"
+authors = ["HASH <careers@hash.dev>"]
+description = "Legacy HASH agent-based modeling simulation runner"
+repository = "https://github.com/hashintel/hash"
+license = "SSPL-1.0"
+edition = "2018"
+
+[lib]
+bench = false
+
+[dependencies]
+futures = "0.3.4"
+fux_kdtree = { path = "vendor/kdtree-rust" }
+lazy_static = "1.4.0"
+rand = { version = "0.7.2", features = ["wasm-bindgen"] }
+rayon = "1.2.0"
+rayon-cond = "0.1.0"
+serde-aux = "0.6.1"
+serde = { version = "1.0.111", features = ["derive"] }
+serde_json = "1.0.53"
+tokio = { version = "0.2.11", features = ["rt-threaded", "macros", "sync"] }
+async-trait = "0.1.24"
+
+# Note that now cargo needs to be able to see our git credentials
+# there is a bug on mac os: run `git config --global credential.helper osxkeychain` to fix
+hash_types = { git = "ssh://git@github.com/hasharchives/sim-engine-types", tag = "v1.4.0" }
+
+[dev-dependencies]
+criterion = "0.3.0"
+assert_approx_eq = "1.1.0"
+
+[[bench]]
+name = "benchmark"
+harness = false

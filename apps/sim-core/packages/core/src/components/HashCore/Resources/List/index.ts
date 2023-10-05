@@ -1,0 +1,1 @@
+export { HashCoreResourcesList } from "./HashCoreResourcesList";

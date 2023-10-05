@@ -1,0 +1,126 @@
+.ResourceListItemPopup-Container {
+  /* using a filter instead of box-shadow so there is a shadow on the arrow too */
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.ResourceListItemPopup {
+  --padding-y: 22px;
+  --scroll-fade-intensity: 1;
+  background-color: var(--theme-black);
+  border: 1px solid var(--theme-border);
+  border-radius: 15px;
+  padding: var(--padding-y) 16px var(--padding-y) 32px;
+  width: 510px;
+  box-sizing: border-box;
+}
+.ResourceListItemPopup__Scroller {
+  max-height: calc(100vh - 80px - (var(--padding-y) * 2));
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+  padding-right: 16px;
+  box-sizing: border-box;
+}
+.ResourceListItemPopup__header {
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1.3;
+  margin: 0 0 5px;
+}
+.ResourceListItemPopup__shortname {
+  font-weight: normal;
+  font-size: 14px;
+  line-height: 14px;
+  color: var(--theme-grey);
+  opacity: 0.66;
+  margin: 0 0 15px;
+}
+.ResourceListItemPopup__text {
+  font-size: 13px;
+  text-overflow: ellipsis;
+  overflow: auto;
+  max-height: 10em;
+  margin: 1em 0;
+}
+.ResourceListItemPopup__text :first-child {
+  margin-top: 0;
+}
+.ResourceListItemPopup__text :last-child {
+  margin-bottom: 0;
+}
+.ResourceListItemPopup__text h1,
+.ResourceListItemPopup__text h2,
+.ResourceListItemPopup__text h3,
+.ResourceListItemPopup__text h4,
+.ResourceListItemPopup__text h5,
+.ResourceListItemPopup__text h6 {
+  font-size: inherit;
+  font-weight: bold;
+  margin: 0 0 1em;
+  padding: 0;
+}
+.ResourceListItemPopup__grid {
+  display: flex;
+  align-items: stretch;
+}
+
+.ResourceListItemPopup__grid__item:not(:first-child) {
+  margin-left: 10px;
+}
+
+.ResourceListItemPopup__grid__item {
+  display: flex;
+  flex-wrap: wrap;
+  flex: 1 1 50%;
+}
+
+.ResourceListItemPopup__grid__item > *:not(.ResourceListItemPopup__button) {
+  flex: 1 1 100%;
+  width: 0;
+}
+
+.ResourceListItemPopup__grid__item > .ResourceListItemPopup__button {
+  flex: 1 0 auto;
+  align-self: flex-end;
+}
+
+.ResourceListItemPopup__button {
+  font-size: 13px;
+  font-weight: bold;
+  height: 39px;
+  text-transform: uppercase;
+  transition: 0.1s ease-in-out opacity;
+  white-space: nowrap;
+}
+.ResourceListItemPopup__button--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.ResourceListItemPopup__meta {
+  margin-bottom: 20px;
+  font-size: 13px;
+  line-height: 13px;
+  color: var(--theme-grey);
+}
+.ResourceListItemPopup__meta__heading {
+  font-weight: bold;
+  font-size: inherit;
+  line-height: inherit;
+  margin: 0 0 5px;
+  padding: 0;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+.ResourceListItemPopup__meta__contents {
+  opacity: 0.66;
+  padding: 0;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.ResourceListItemPopup__delete-explain {
+  font-size: 0.8em;
+  margin-top: 1.3em;
+  display: block;
+  line-height: 1.5;
+}

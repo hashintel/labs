@@ -1,0 +1,31 @@
+.ModalConfirmFileDelete {
+  padding-right: 100px;
+}
+
+.ModalConfirmFileDelete__title {
+  font-size: 30px;
+  line-height: 30px;
+  font-weight: normal;
+  color: var(--theme-grey);
+  margin-bottom: 20px;
+  margin-top: 0;
+}
+
+.ModalConfirmFileDelete__detail {
+  font-size: 16px;
+  line-height: 16px;
+  margin-bottom: 30px;
+}
+
+.ModalConfirmFileDelete__buttons {
+  display: flex;
+}
+
+.ModalConfirmFileDelete__buttons > * {
+  margin-right: 20px;
+}
+
+.ModalConfirmFileDelete__buttons__label {
+  margin-right: 5px;
+  font-size: 13px;
+}

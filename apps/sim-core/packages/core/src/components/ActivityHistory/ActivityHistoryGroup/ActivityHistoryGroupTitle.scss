@@ -1,0 +1,22 @@
+.ActivityHistoryGroupTitle__Name {
+  flex-shrink: 1;
+  flex-grow: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+  top: -1px;
+}
+
+.ActivityHistoryGroupTitle__Arrow {
+  transform-origin: center;
+  height: 18px;
+  width: 18px;
+
+  .Icon {
+    fill: white;
+  }
+
+  .ActivityHistoryGroup--closed & {
+    transform: rotate(-90deg);
+  }
+}

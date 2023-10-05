@@ -1,0 +1,47 @@
+.ModalSplitBottomSection {
+  --size: 25%;
+
+  padding: calc(var(--padding-horizontal) * 0.8) var(--padding-horizontal);
+  box-sizing: border-box;
+
+  &:not(.ModalSplitBottomSection--small) {
+    flex: 1;
+  }
+}
+
+.ModalSplitBottomSection--small {
+  width: var(--size);
+
+  // @todo allow non-first scrollables
+  &.ModalSplitBottomSection--scrollable {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    overflow: auto;
+    height: 100%;
+
+    + * {
+      margin-left: var(--size);
+    }
+  }
+}
+
+.ModalSplitBottomSection--flex {
+  display: flex;
+  flex-direction: column;
+}
+
+.ModalSplitBottomSection--divide {
+  &:not(:last-child) {
+    border-right: var(--modal-border);
+  }
+}
+
+.ModalSplitBottomSection:not(.ModalSplitBottomSection--divide):not(:last-child) {
+  padding-right: calc(var(--padding-horizontal) / 2);
+
+  + .ModalSplitBottomSection {
+    padding-left: calc(var(--padding-horizontal) / 2);
+  }
+}

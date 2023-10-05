@@ -1,0 +1,41 @@
+.HashCoreFilesSearchMatch {
+  border-radius: 3px;
+  user-select: none;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 10px;
+
+  /* styles borrowed from monaco */
+  font-family: Menlo, Monaco, "Courier New", monospace;
+  font-weight: normal;
+  font-size: 12px;
+
+  @media (any-hover: hover) {
+    &:hover {
+      --background-color: var(--theme-light-on-dark);
+      background-color: var(--background-color);
+    }
+  }
+}
+
+.HashCoreFilesSearchMatch__MatchedText {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.HashCoreFilesSearchMatch__MatchDiff {
+  border: 1px solid;
+}
+
+.HashCoreFilesSearchMatch__MatchDiff--Before {
+  border-color: var(--theme-red);
+  background-color: var(--theme-red-translucent);
+  text-decoration: line-through;
+}
+
+.HashCoreFilesSearchMatch__MatchDiff--After {
+  border-color: var(--theme-green);
+  background-color: var(--theme-green-translucent);
+}

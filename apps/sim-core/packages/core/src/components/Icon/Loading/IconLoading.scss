@@ -1,0 +1,13 @@
+.IconLoading {
+  transform-origin: center;
+  animation: 0.8s linear IconLoading--spin infinite;
+}
+
+@keyframes IconLoading--spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

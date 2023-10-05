@@ -1,0 +1,16 @@
+.BigModal {
+  --big-modal-padding: 30px 45px;
+  box-sizing: border-box;
+  border-radius: 16px;
+  position: relative;
+  border: 1px solid rgba(27, 29, 36, 0.9);
+  padding: var(--big-modal-padding);
+  margin: auto;
+}
+
+.BigModal-Container {
+  padding: 40px;
+  overflow: auto;
+  align-items: flex-start;
+  box-sizing: border-box;
+}

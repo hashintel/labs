@@ -1,0 +1,26 @@
+.ResizingInputText {
+  display: inline-block;
+}
+
+.ResizingInputText-measurable,
+.ResizingInputText-input {
+  box-sizing: content-box !important;
+}
+
+.ResizingInputText-measurable {
+  display: inline-block;
+  position: absolute;
+  visibility: hidden;
+  white-space: pre;
+}
+
+.ResizingInputText-input {
+  background: transparent;
+}
+
+.ResizingInputText-measurable,
+.ResizingInputText-input,
+.ResizingInputText-input::first-line {
+  margin: 0;
+  padding: 0;
+}

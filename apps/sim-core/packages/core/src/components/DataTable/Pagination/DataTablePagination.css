@@ -1,0 +1,33 @@
+.DataTablePagination {
+  background: var(--theme-black);
+
+  box-sizing: border-box;
+  padding: 0.75rem;
+
+  width: 100%;
+  position: sticky;
+  bottom: 0;
+  left: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  opacity: 0.35;
+  transition: opacity 0.1s ease-in-out;
+}
+
+.DataTablePagination:hover {
+  opacity: 1;
+}
+
+.DataTablePagination > .Fancy {
+  padding: 0;
+  border-radius: 50%;
+  height: 26px;
+}
+
+.DataTablePagination > .Fancy:disabled {
+  border-color: var(--theme-dark-border);
+  fill: var(--theme-dark-border);
+}

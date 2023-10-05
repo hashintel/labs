@@ -1,0 +1,21 @@
+/**
+ * @todo reduce duplication with RoundedTextInput
+ */
+.RoundedSelect {
+  background: var(--theme-light-on-dark);
+  border-radius: 3px;
+  color: white;
+  font-size: 12px;
+  box-sizing: border-box;
+  fill: rgba(255, 255, 255, 0.33);
+  padding: 7px 2px 7px 12px;
+}
+
+.RoundedSelect .Select__Value {
+  position: relative;
+  top: -1px;
+}
+
+.RoundedSelect--disabled {
+  opacity: var(--disabled-input-opacity);
+}

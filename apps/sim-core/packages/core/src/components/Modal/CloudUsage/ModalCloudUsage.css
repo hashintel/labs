@@ -1,0 +1,85 @@
+.ModalCloudUsage {
+  border: 1px solid var(--theme-border);
+  border-radius: 7px;
+  overflow: hidden;
+  width: 767px;
+  text-align: center;
+}
+
+.ModalCloudUsage__Section {
+  padding: 45px;
+}
+
+.ModalCloudUsage__Section:first-child {
+  border-bottom: 1px solid var(--theme-border);
+  background-color: #1b1d23;
+  padding-top: 50px;
+}
+
+.ModalCloudUsage__Section:last-child {
+  background-color: #1f2127;
+  padding-bottom: 60px;
+}
+
+.ModalCloudUsage h2,
+.ModalCloudUsage h3,
+.ModalCloudUsage p {
+  margin: 0;
+  padding: 0;
+}
+
+.ModalCloudUsage p {
+  font-size: 16px;
+}
+
+.ModalCloudUsage h2 {
+  font-size: 32px;
+  margin-bottom: 10px;
+}
+
+.ModalCloudUsage h3 {
+  font-size: 21px;
+  margin-bottom: 25px;
+}
+
+.ModalCloudUsage__Buttons {
+  display: flex;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.ModalCloudUsage__Buttons button,
+.ModalCloudUsage__Buttons a {
+  font-weight: bold;
+  color: white;
+  fill: white;
+  font-size: 13px;
+  text-transform: uppercase;
+  border: none;
+  padding: 0 10px 0 20px;
+  height: 45px;
+}
+
+.ModalCloudUsage__Buttons .Icon {
+  margin-left: 5px;
+}
+
+.ModalCloudUsage__Buttons__Simulate {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.ModalCloudUsage__Buttons__Simulate:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.ModalCloudUsage__Buttons__Contact {
+  background: var(--theme-blue);
+}
+
+.ModalCloudUsage__Buttons__Contact:hover {
+  background: var(--theme-blue-hover);
+}
+
+.ModalCloudUsage__Buttons > *:not(:first-child) {
+  margin-left: 20px;
+}

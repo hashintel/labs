@@ -1,0 +1,54 @@
+.BehaviorKeys__Projection {
+  height: 16px;
+  display: flex;
+  align-items: center;
+  font-weight: bold;
+  text-transform: uppercase;
+  font-size: 11px;
+  overflow: hidden;
+  padding-right: 20px;
+  padding-left: var(--padding-horizontal);
+  margin-bottom: 12px;
+}
+
+.BehaviorKeys__Projection__Crumb {
+  border: 0;
+  padding: 0;
+  align-self: stretch;
+  position: relative;
+  flex-shrink: 1;
+  display: flex;
+  align-items: center;
+  background-color: transparent;
+
+  .IconChevronRight {
+    fill: white;
+    margin-left: -2px;
+    margin-right: -2px;
+  }
+
+  &:first-child {
+    font-weight: bold;
+  }
+
+  &:last-child .IconChevronRight {
+    display: none;
+  }
+}
+
+.BehaviorKeys__Projection__Crumb span {
+  white-space: nowrap;
+}
+
+.BehaviorKeys__Projection__Crumb--title {
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.BehaviorKeys__Projection__Crumb:not(:disabled):hover {
+  color: var(--theme-blue);
+}
+
+.BehaviorKeys__Projection__Crumb:disabled {
+  cursor: default;
+}

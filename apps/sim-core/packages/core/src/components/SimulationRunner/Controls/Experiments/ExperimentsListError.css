@@ -1,0 +1,54 @@
+.ExperimentsListError {
+  --experiments-list-error-padding: 30px;
+  border-bottom: 1px solid var(--experiments-border-color);
+  border-top-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  padding: var(--experiments-list-error-padding);
+  text-transform: none;
+  text-align: left;
+  font-weight: normal;
+}
+
+.ExperimentsListError__Text {
+  line-height: 1.3;
+}
+
+.ExperimentsListError__Text h3 {
+  font-size: 20px;
+  padding: 0;
+  margin-top: 0;
+  margin-bottom: 5px;
+}
+
+.ExperimentsListError__Text p {
+  line-height: 1.5;
+  font-size: 14px;
+  padding: 0;
+  margin: 0;
+}
+
+.ExperimentsListError__Text button,
+.ExperimentsListError__Text a {
+  appearance: none;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: bold;
+  text-decoration: underline;
+}
+
+.ExperimentsListError .IconAlert {
+  position: absolute;
+  top: 50%;
+  right: var(--experiments-list-error-padding);
+  transform: translate(15%, -50%);
+  fill: black;
+  opacity: 0.3;
+  z-index: -1;
+}

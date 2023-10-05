@@ -1,0 +1,1 @@
+export { IconSettings } from "./IconSettings";

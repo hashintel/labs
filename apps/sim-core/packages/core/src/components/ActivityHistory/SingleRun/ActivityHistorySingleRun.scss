@@ -1,0 +1,19 @@
+.ActivityHistorySingleRun__Details {
+  display: flex;
+  align-items: center;
+  margin-right: 5px;
+  flex-shrink: 1;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+
+.ActivityHistorySingleRun__Name {
+  margin-right: 5px;
+  position: relative;
+  top: -1px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+  max-width: 100%;
+}

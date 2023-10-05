@@ -1,0 +1,15 @@
+.HashCoreAside {
+  width: 100%;
+  height: 100%;
+
+  position: relative;
+}
+
+.HashCoreAside .aside-splitter > .layout-pane-primary {
+  display: flex;
+  flex-direction: column;
+}
+
+.HashCoreAside .aside-splitter .layout-pane.bootstrapped {
+  overflow: hidden;
+}

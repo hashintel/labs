@@ -1,0 +1,114 @@
+/*noinspection CssOverwrittenProperties*/
+.ModalNameBehavior {
+  /**
+   * @todo remove this fallback when all supported browsers support clamp
+   * @see https://docs.google.com/spreadsheets/d/1pCjtbvxIgnbzIbgfrJuYIk6TLHhLhqIxNAA2Iord1gE/edit#gid=319934737&range=A3
+   */
+  min-width: 60%;
+  min-width: min(60%, 600px);
+
+  border: 1px solid var(--theme-dark-border);
+  border-radius: 7px;
+}
+
+.ModalNameBehavior--error {
+  border-color: var(--theme-red);
+}
+
+.ModalNameBehavior--form {
+  display: flex;
+}
+
+.ModalNameBehavior--input__wrapper {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: center;
+  background-color: var(--theme-dark);
+  border-top-left-radius: var(--button-border-radius);
+  border-bottom-left-radius: var(--button-border-radius);
+  padding: 0.5rem 1rem;
+  position: relative;
+}
+
+.ModalNameBehavior--input {
+  max-width: 70vw;
+}
+
+.ModalNameBehavior--input {
+  min-width: 8px;
+  color: var(--theme-white);
+  padding: 0;
+  margin: 0;
+}
+
+.ModalNameBehavior--input::placeholder {
+  color: var(--theme-translucent);
+  font-style: normal;
+}
+
+.ModalNameBehavior__error-message {
+  font-size: 0.75rem;
+  padding-left: 20px;
+  white-space: nowrap;
+  color: var(--theme-red-alt);
+  text-transform: uppercase;
+}
+
+.ModalNameBehavior__error-message--tooltip {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  padding-right: 1rem;
+  background: linear-gradient(to right, transparent, var(--theme-dark) 20px);
+  padding-left: 40px;
+  fill: var(--theme-red);
+}
+
+.ModalNameBehavior .dropdown-wrapper {
+  width: 5.32rem;
+  flex: 0 0 auto;
+}
+
+.ModalNameBehavior .dropdown-wrapper .react-select__control {
+  border-radius: 0;
+  background-color: var(--theme-dark-hover) !important;
+}
+
+.ModalNameBehavior
+  .dropdown-wrapper
+  .react-select-container.dark
+  .react-select__control {
+  border-width: 0 1px;
+}
+
+.ModalNameBehavior .dropdown-wrapper .react-select-container,
+.ModalNameBehavior .dropdown-wrapper .react-select__control,
+.ModalNameBehavior .dropdown-wrapper .react-select__value-container {
+  height: 100%;
+}
+
+.ModalNameBehavior--input,
+.ModalNameBehavior .dropdown-wrapper .react-select__single-value {
+  font-size: 1.375rem;
+  line-height: 1.5;
+}
+
+.ModalNameBehavior--submit {
+  border: 0;
+  border-top-right-radius: var(--button-border-radius);
+  border-bottom-right-radius: var(--button-border-radius);
+
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  padding: 0 1rem 0 1.25rem;
+  text-transform: uppercase;
+}
+
+.ModalNameBehavior--submit .Icon {
+  fill: currentColor;
+  margin-left: 0.5rem;
+}

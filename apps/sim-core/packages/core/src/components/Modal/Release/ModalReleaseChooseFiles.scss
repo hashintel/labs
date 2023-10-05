@@ -1,0 +1,57 @@
+.ModalReleaseChooseFiles__List {
+  margin: 0;
+  list-style: none;
+
+  &,
+  li {
+    padding: 0;
+  }
+
+  li {
+    margin: 3px 0;
+  }
+}
+
+.ModalReleaseChooseFiles__File {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  user-select: none;
+
+  .FileNameWithShortname {
+    opacity: 0.66;
+    color: white;
+  }
+
+  .CheckboxInput {
+    margin-right: 8px;
+  }
+}
+
+.ModalTooltipContainer {
+  z-index: 306 !important;
+
+  .SimpleTooltip {
+    max-width: var(--tooltip-helper-width);
+    font-size: 0.8em;
+    border: none;
+    border-radius: 4px;
+    transform: translateY(10px);
+    background-color: var(--theme-darkest);
+    position: relative;
+    clip-path: none;
+
+    &:before {
+      content: "";
+      display: block;
+      width: 10px;
+      height: 10px;
+      background-color: var(--theme-darkest);
+      border-top-left-radius: 3px;
+      transform: translateY(1px) translateY(-50%) rotate(45deg);
+      position: absolute;
+      top: 0;
+      left: 4px;
+    }
+  }
+}

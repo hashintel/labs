@@ -1,0 +1,36 @@
+.AnalysisViewer__ActionButtons__Tooltip {
+  max-width: calc(
+    (var(--analysis-tab-container-width) - 10px) -
+      var(--AnalysisViewer__ActionButtons__Tooltip--index) * 38px
+  );
+  min-width: 0;
+  --clip-y-below: -50px;
+}
+
+.AnalysisViewer__ActionButtons {
+  // To ensured shadows are visible
+  overflow: visible !important;
+
+  // Double class name for specificity
+  .AnalysisViewer__TabContainer__Tab.AnalysisViewer__TabContainer__Tab {
+    width: 38px;
+    --left-clip-x: -50px;
+    --right-clip-x: 50px;
+    --bottom-clip-y: calc(100%);
+
+    clip-path: polygon(
+      var(--left-clip-x) -50px,
+      calc(100% + var(--right-clip-x)) -50px,
+      calc(100% + var(--right-clip-x)) var(--bottom-clip-y),
+      var(--left-clip-x) var(--bottom-clip-y)
+    );
+
+    &:hover {
+      box-shadow: var(--popover-shadow);
+    }
+
+    &:not(.AnalysisViewer__TabContainer__Tab--disabled):hover {
+      background-color: black;
+    }
+  }
+}

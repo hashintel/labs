@@ -1,0 +1,126 @@
+.TextOrNumberInput {
+  display: flex;
+}
+
+.TextOrNumberInput__Range {
+  margin-right: 10px;
+
+  /* Based on the below – modified */
+  /* Styling Cross-Browser Compatible Range Inputs with Sass */
+  /* Github: https://github.com/darlanrod/input-range-sass */
+  /* Author: Darlan Rod https://github.com/darlanrod */
+  /* Version 1.5.2 */
+  /* MIT License */
+
+  $track-color: #34353a !default;
+  $thumb-color: var(--theme-blue) !default;
+
+  $thumb-radius: 12px !default;
+  $thumb-height: 14px !default;
+  $thumb-width: 14px !default;
+
+  $track-width: 100px !default;
+  $track-height: 8px !default;
+
+  $track-radius: 5px !default;
+  $contrast: 5% !default;
+
+  $ie-bottom-track-color: darken($track-color, $contrast) !default;
+
+  @mixin track {
+    cursor: default;
+    height: $track-height;
+    transition: all 0.2s ease;
+    width: $track-width;
+  }
+
+  @mixin thumb {
+    background: $thumb-color;
+    border-radius: $thumb-radius;
+    box-sizing: border-box;
+    cursor: default;
+    height: $thumb-height;
+    width: $thumb-width;
+  }
+
+  -webkit-appearance: none;
+  background: transparent;
+  width: $track-width;
+
+  &::-moz-focus-outer {
+    border: 0;
+  }
+
+  &:focus {
+    outline: 0;
+
+    &::-webkit-slider-runnable-track {
+      background: lighten($track-color, $contrast);
+    }
+
+    &::-ms-fill-lower {
+      background: $track-color;
+    }
+
+    &::-ms-fill-upper {
+      background: lighten($track-color, $contrast);
+    }
+  }
+
+  &::-webkit-slider-runnable-track {
+    @include track;
+    background: $track-color;
+    border-radius: $track-radius;
+  }
+
+  &::-webkit-slider-thumb {
+    @include thumb;
+    -webkit-appearance: none;
+    margin-top: (($track-height) / 2 - $thumb-height / 2);
+  }
+
+  &::-moz-range-track {
+    @include track;
+    background: $track-color;
+    border-radius: $track-radius;
+    height: $track-height / 2;
+  }
+
+  &::-moz-range-thumb {
+    @include thumb;
+  }
+
+  &::-ms-track {
+    @include track;
+    background: transparent;
+    border-color: transparent;
+    border-width: ($thumb-height / 2) 0;
+    color: transparent;
+  }
+
+  &::-ms-fill-lower {
+    background: $ie-bottom-track-color;
+    border-radius: ($track-radius * 2);
+  }
+
+  &::-ms-fill-upper {
+    background: $track-color;
+    border-radius: ($track-radius * 2);
+  }
+
+  &::-ms-thumb {
+    @include thumb;
+    margin-top: $track-height / 4;
+  }
+
+  &:disabled {
+    &::-webkit-slider-thumb,
+    &::-moz-range-thumb,
+    &::-ms-thumb,
+    &::-webkit-slider-runnable-track,
+    &::-ms-fill-lower,
+    &::-ms-fill-upper {
+      cursor: not-allowed;
+    }
+  }
+}

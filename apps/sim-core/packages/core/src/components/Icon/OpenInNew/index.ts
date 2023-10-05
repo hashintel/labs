@@ -1,0 +1,1 @@
+export { IconOpenInNew } from "./IconOpenInNew";

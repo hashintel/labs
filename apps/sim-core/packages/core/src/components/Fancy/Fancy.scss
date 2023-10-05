@@ -1,0 +1,111 @@
+.Fancy {
+  box-sizing: border-box;
+  padding: 6px 19px;
+
+  border-width: 1px;
+  border-style: solid;
+  border-radius: var(--button-border-radius);
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+}
+
+.Fancy:disabled {
+  cursor: default;
+}
+
+.Fancy-regular {
+  height: 39px;
+}
+
+.Fancy-compact {
+  height: 29px;
+  padding: 4px 14px;
+}
+
+.Fancy-hindex {
+  height: 48px;
+}
+
+.Fancy > * + * {
+  margin-left: 4px;
+}
+
+.Fancy-no-label > * + * {
+  margin-left: 0;
+}
+
+.Fancy-label {
+  text-align: start;
+  padding-top: 1px;
+}
+
+.Fancy-label > * {
+  margin: 0;
+  padding: 0;
+}
+
+.Fancy-label > *:first-child {
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.Fancy-icon {
+  display: inline-block;
+  line-height: 0;
+}
+
+.Fancy-white {
+  background-color: var(--theme-white);
+  border-color: var(--theme-white);
+  color: var(--theme-black);
+  fill: var(--theme-black);
+}
+
+.Fancy-grey {
+  background-color: var(--theme-grey);
+  border-color: var(--theme-grey);
+  color: var(--theme-black);
+  fill: var(--theme-black);
+}
+
+.Fancy-black {
+  background-color: var(--theme-black);
+  border-color: var(--theme-white);
+  color: var(--theme-white);
+  fill: var(--theme-white);
+}
+
+.Fancy-transparent {
+  background-color: transparent;
+  border: 0;
+  color: var(--theme-white);
+  fill: var(--theme-white);
+}
+
+.Fancy-blue {
+  --background: var(--theme-blue);
+  border-color: var(--background);
+  background-color: var(--background);
+  fill: var(--theme-white);
+  color: var(--theme-white);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.Fancy-blue:hover {
+  --background: var(--theme-blue-hover);
+}
+
+.Fancy-dark {
+  background: var(--theme-dark);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+  color: white;
+  fill: white;
+
+  &:hover {
+    background: var(--theme-dark-hover);
+  }
+}

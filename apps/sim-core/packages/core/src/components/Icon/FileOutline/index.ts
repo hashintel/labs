@@ -1,0 +1,1 @@
+export { IconFileOutline } from "./IconFileOutline";

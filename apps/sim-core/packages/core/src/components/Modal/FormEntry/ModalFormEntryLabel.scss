@@ -1,0 +1,13 @@
+.ModalFormEntry__Label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ModalFormEntry__Optional {
+  color: var(--theme-translucent);
+  margin-left: 5px;
+}

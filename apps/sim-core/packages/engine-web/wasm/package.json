@@ -1,0 +1,10 @@
+{
+  "name": "hashintel-core-wasm",
+  "version": "0.1.0",
+  "description": "Hand-made glue code needed by HASH Core",
+  "repository": "https://github.com/hashintel/labs",
+  "license": "AGPL-3.0-only",
+  "main": "node/hash.js",
+  "module": "bundler/hash.js",
+  "types": "bundler/hash.d.ts"
+}

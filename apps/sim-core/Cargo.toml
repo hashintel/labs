@@ -1,0 +1,14 @@
+[workspace]
+
+members = ["packages/engine", "packages/engine-web"]
+
+[profile.dev]
+opt-level = 0
+
+# Enable debug symbols in release mode
+# The impact is low and we get debug symbols when Rust panics!
+# See: https://rustwasm.github.io/docs/book/reference/debugging.html
+[profile.release]
+debug = true
+lto = "fat"
+codegen-units = 1

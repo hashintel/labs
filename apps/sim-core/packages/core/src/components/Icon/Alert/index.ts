@@ -1,0 +1,1 @@
+export { IconAlert } from "./IconAlert";

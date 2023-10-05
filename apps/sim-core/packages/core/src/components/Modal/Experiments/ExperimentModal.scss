@@ -1,0 +1,196 @@
+.ExperimentModal {
+  // This must not be transparent due to the sticky header of the fields table
+  --experiments-background: rgb(17, 17, 17);
+  border-radius: var(--modal-border-radius);
+  border: 1px solid var(--theme-border);
+  background-color: var(--experiments-background);
+
+  // @todo remove this hack - should be removed from Dropdown.scss
+  // But other layout might be relying on the higher min-height there
+  div.react-select__control {
+    min-height: 46px !important;
+  }
+
+  .RoundedSelect {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 7px;
+    height: 100%;
+    width: 100%;
+  }
+}
+
+.ExperimentModal__Topbar {
+  position: relative;
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  padding: 1rem 1rem 0 0;
+}
+
+.ExperimentModal__Topbar .ModalExit {
+  position: relative;
+  top: 0;
+  right: 0;
+  margin-right: 1rem;
+}
+
+.ExperimentModal__Content {
+  padding: 0rem 3.8rem 0px 3.8rem;
+}
+
+.ExperimentModal__CreationHint {
+  margin-top: 0;
+  margin-bottom: 35px;
+}
+
+.ExperimentModal__TypeDropdownContainer {
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  .IconInformationOutline {
+    fill: white;
+  }
+
+  .ExperimentModal__TypeDropdown_TooltipContainer {
+    margin-left: 10px;
+    padding: 2px;
+  }
+}
+
+.ExperimentModal__TypeDropdown_Tooltip {
+  font-size: 13px;
+}
+
+.ExperimentModal__TypeDropdownContainer > :first-child,
+.ExperimentModal__TitleContainer > :first-child {
+  width: 50%;
+}
+
+.ExperimentModal__TitleContainer {
+  margin-bottom: 1.5rem;
+}
+
+.ExperimentModal__GetHelp {
+  display: flex;
+  align-items: center;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+  fill: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  text-decoration: none;
+  margin-right: 1rem;
+
+  &:hover {
+    color: white;
+    fill: white;
+    font-weight: bold;
+  }
+}
+
+.ExperimentModal__GetHelpIcon {
+  margin-left: 0.5rem;
+}
+
+.ExperimentModal__DynamicFieldsContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  > label {
+    padding-right: 1rem;
+    margin-bottom: 1.5rem;
+    flex: 1;
+  }
+
+  > label:last-child {
+    padding-right: 0;
+  }
+}
+
+.ExperimentsModal__FieldsTableContainer {
+  margin-bottom: 0.66rem;
+  max-height: 134px;
+  overflow-y: auto;
+}
+
+.ExperimentsModal__FieldsTable {
+  text-align: left;
+  width: 100%;
+
+  .ExperimentsModal__FieldsRow {
+    display: flex;
+
+    &:first-child {
+      position: sticky;
+      top: 0;
+      background-color: var(--experiments-background);
+      z-index: 1;
+    }
+  }
+
+  .ExperimentsModal__FieldsCell {
+    &:not(.ExperimentsModal__FieldsCellDelete) {
+      width: 100%;
+    }
+  }
+
+  .ExperimentsModal__FieldsCell small {
+    font-size: 0.8em;
+    opacity: 0.7;
+  }
+
+  .ExperimentsModal__FieldsCell {
+    &:not(:last-child) {
+      padding-right: 1rem;
+    }
+  }
+
+  .ExperimentsModal__FieldsRow {
+    &:not(:last-child) {
+      padding-bottom: 0.66rem;
+    }
+  }
+
+  .ExperimentsModal__FieldsRow .ExperimentsModal__FieldsCell {
+    &:first-child {
+      min-width: 400px;
+      width: 50%;
+    }
+  }
+}
+
+.ExperimentModal__AddField {
+  strong {
+    text-transform: none !important;
+  }
+}
+
+.ExperimentModal__ErroredField {
+  border: 1px solid var(--theme-red) !important;
+  border-radius: 7px;
+}
+
+.ExperimentModal__ActionButtonsContainer {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  padding: 3rem;
+  background: var(--theme-black);
+  border: 0;
+  border-top: 1px solid var(--theme-border);
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: var(--modal-border-radius);
+  border-bottom-right-radius: var(--modal-border-radius);
+
+  button {
+    border-radius: 7px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 1rem;
+  }
+}

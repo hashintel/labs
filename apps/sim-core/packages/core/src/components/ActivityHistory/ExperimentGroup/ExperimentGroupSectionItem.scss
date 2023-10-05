@@ -1,0 +1,50 @@
+.ExperimentGroupSectionItem__Icon {
+  display: flex;
+  align-items: center;
+  width: 16px;
+  margin-right: var(--experiments-icon-spacing);
+  justify-content: center;
+  position: relative;
+  flex-shrink: 0;
+  height: 100%;
+
+  .Icon {
+    margin: 0;
+    padding: 0;
+  }
+
+  .IconCheck {
+    fill: var(--theme-green);
+  }
+
+  .ExperimentGroupSectionItem__Icon__CompletedWon {
+    background-color: var(--theme-green);
+    border-radius: 50%;
+    width: 12px;
+    height: 12px;
+
+    .IconCheck {
+      fill: white;
+    }
+  }
+
+  .IconPackageDown {
+    fill: var(--theme-yellow);
+  }
+
+  .IconAlert {
+    fill: var(--theme-red-alt);
+  }
+
+  .IconLoading {
+    position: absolute;
+    top: calc(50% - 5px);
+    left: calc(50% - 5px);
+
+    // Ensure if any other icon is displayed, we hide this icon
+    &:not(:first-child),
+    &:not(:last-child) {
+      opacity: 0;
+    }
+  }
+}

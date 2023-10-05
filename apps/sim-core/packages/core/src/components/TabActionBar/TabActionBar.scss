@@ -1,0 +1,88 @@
+.TabActionBar.react-tabs {
+  width: 100%;
+  height: 0;
+  flex: 1 1 100%;
+
+  .react-tabs__tab-panel {
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .react-tabs__tab-panel--selected {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.TabActionBar__TabContainer {
+  display: flex;
+  background-color: var(--theme-darkest);
+  flex-shrink: 0;
+}
+
+.TabActionBar__TabContainer__Tabs {
+  flex: 1;
+}
+
+.TabActionBar__Actions {
+  --box-shadow: 20px;
+  --box-shadow-x-offset: -5px;
+  --clip-path-offset: calc(
+    calc(0px - var(--box-shadow)) + var(--box-shadow-x-offset)
+  );
+  position: relative;
+  z-index: 1;
+  clip-path: polygon(
+    var(--clip-path-offset) 0,
+    calc(100% + 1px) 0,
+    calc(100% + 1px) 100%,
+    var(--clip-path-offset) 100%
+  );
+  transition: box-shadow 0.2s ease;
+  margin-left: auto !important;
+
+  /**
+   * @todo don't use outside of TabActionBar
+   */
+  .tab-button {
+    display: flex;
+    align-items: center;
+    align-self: stretch;
+    justify-content: center;
+    min-width: 40px;
+    box-sizing: border-box;
+
+    &:hover {
+      box-shadow: inset 1px 0 0 var(--theme-border),
+        inset -1px 0 0 var(--theme-border);
+    }
+  }
+
+  .react-tabs__tab {
+    &:not(:last-child) {
+      .SimpleTooltip-PositionHelper {
+        right: 1px;
+      }
+    }
+
+    &:last-child .tab-button:hover {
+      box-shadow: inset 1px 0 0 var(--theme-border);
+    }
+  }
+}
+
+.TabActionBar__Actions--fadeOut {
+  box-shadow: var(--box-shadow-x-offset) 0 var(--box-shadow) black;
+}
+
+/**
+ * @todo don't use outside of TabActionBar
+ */
+.TabActionBar__Actions__Tooltip {
+  top: -1px;
+  --clip-y-below: 0px !important;
+}
+
+.TabActionBar__TabContainer--hidden {
+  display: none;
+}

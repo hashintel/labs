@@ -1,0 +1,1 @@
+export { IconDiscord } from "./IconDiscord";

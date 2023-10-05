@@ -1,0 +1,1 @@
+export { ModalPrivateDependencies } from "./ModalPrivateDependencies";

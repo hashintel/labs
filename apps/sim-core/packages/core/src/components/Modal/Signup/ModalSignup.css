@@ -1,0 +1,91 @@
+.ModalSignup {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.ModalSignup h2 {
+  font-size: 72px;
+  font-weight: bold;
+  line-height: 1.3;
+  margin-bottom: 25px;
+}
+
+.ModalSignup h3 {
+  font-size: 24px;
+  font-weight: normal;
+  line-height: 1.3;
+}
+
+.ModalSignup input {
+  border: 1px solid #444;
+  border-radius: var(--button-border-radius);
+  font-size: 18px;
+  transition: border-color 0.2s ease;
+  background: #080808;
+  max-width: 400px;
+  min-width: 250px;
+  width: 50%;
+  margin-right: 20px;
+}
+
+.ModalSignup .Fancy,
+.ModalSignup input {
+  height: 56px;
+  padding: 0 22px;
+}
+
+.ModalSignup .Fancy * {
+  text-transform: none !important;
+  font-weight: 600 !important;
+}
+
+.ModalSignup input:focus {
+  border-color: #666;
+}
+
+.ModalSignup input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: normal;
+}
+
+.ModalSignup p {
+  font-size: 18px;
+}
+
+.ModalSignup__Signin {
+  margin-top: 60px;
+}
+
+.ModalSignup__Signin a {
+  color: inherit;
+  text-decoration: inherit;
+  border-bottom: 0.2rem solid var(--theme-blue);
+  transition: color 0.2s, border-color 0.3s;
+  font-weight: 600;
+}
+
+.ModalSignup__Signin a:hover {
+  border-bottom-color: var(--theme-blue-hover);
+  color: var(--theme-blue);
+}
+
+.ModalSignup__Legal {
+  color: rgba(255, 255, 255, 0.5);
+  padding: 10px 0;
+}
+
+.ModalSignup__Legal a {
+  text-decoration: none;
+  font-weight: bold;
+  color: inherit;
+  transition: color 0.2s;
+}
+
+.ModalSignup__Legal a:hover {
+  color: white;
+}
+
+.ModalSignup__Legal__Copyright {
+  margin-right: 40px;
+}

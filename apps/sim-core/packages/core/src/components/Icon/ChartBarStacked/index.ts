@@ -1,0 +1,1 @@
+export { IconChartBarStacked } from "./IconChartBarStacked";

@@ -1,0 +1,7 @@
+.FileBannerUpgrade .IconSync {
+  fill: var(--theme-blue);
+}
+
+.FileBannerUpgrade p:not(:last-child) {
+  margin-bottom: 5px;
+}

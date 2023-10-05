@@ -1,0 +1,58 @@
+.HashCoreFilesSearchProgress {
+  position: absolute;
+  height: 3px;
+  top: 0;
+  left: 0;
+  background: var(--theme-blue);
+  width: 0;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.HashCoreFilesSearchProgress.active:not(.complete) {
+  animation: 5s HashCoreFilesSearchProgress--Active;
+  opacity: 1;
+  animation-fill-mode: forwards;
+}
+
+.HashCoreFilesSearchProgress.complete {
+  animation: 0.4s HashCoreFilesSearchProgress--Complete;
+}
+
+@keyframes HashCoreFilesSearchProgress--Active {
+  0% {
+    width: 0;
+  }
+  25% {
+    width: 45%;
+  }
+  50% {
+    width: 67%;
+  }
+  75% {
+    width: 78%;
+  }
+  87% {
+    width: 84%;
+  }
+  93% {
+    width: 87%;
+  }
+  100% {
+    width: 90%;
+  }
+}
+
+@keyframes HashCoreFilesSearchProgress--Complete {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    width: 100%;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+  }
+}

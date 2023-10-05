@@ -1,0 +1,103 @@
+.ActivityHistoryItem {
+  --background: var(--theme-dark);
+  --background-transparent: var(--theme-dark-transparent);
+
+  list-style: none;
+  padding: 0;
+  position: relative;
+  margin: 0 0 -1px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.ActivityHistoryItem__Row {
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+  height: 38px;
+  position: relative;
+
+  user-select: none;
+  display: flex;
+  box-sizing: border-box;
+  flex-direction: row;
+  cursor: default;
+  white-space: nowrap;
+
+  list-style: none;
+  padding: 0 var(--padding-x);
+  align-items: center;
+  text-decoration: none;
+
+  &:before,
+  &:after {
+    pointer-events: none;
+    content: "";
+    display: block;
+    position: absolute;
+    left: var(--padding-x);
+    right: 0;
+    height: 1px;
+    background-color: var(--theme-border);
+  }
+
+  &:before {
+    top: -1px;
+  }
+
+  &:after {
+    bottom: -1px;
+  }
+
+  .ActivityHistory__Items--scrolls .ActivityHistoryItem:last-child > &:after {
+    display: none;
+  }
+
+  .ActivityHistoryItem--open & {
+    &:before,
+    &:after {
+      display: none;
+    }
+  }
+}
+
+.ActivityHistoryItem__Row--viewable {
+  cursor: pointer;
+
+  @media (any-hover: hover) {
+    &:hover {
+      --background: var(--theme-dark-hover);
+      --background-transparent: var(--theme-dark-hover-transparent);
+      background-color: var(--background);
+      color: var(--theme-white);
+      fill: var(--theme-white);
+
+      .ActivityHistoryItem--open & {
+        --background: var(--theme-dark-hover-hover);
+        --background-transparent: var(--theme-dark-hover-hover-transparent);
+      }
+    }
+  }
+}
+
+@media (any-hover: hover) {
+  .ActivityHistoryItem__Row--tooltip:hover:after {
+    left: 0;
+    display: block !important;
+    z-index: 3;
+  }
+}
+
+.ActivityHistoryItem--open {
+  background-color: var(--background);
+  z-index: 2;
+}
+
+.ActivityHistoryItem--open {
+  &,
+  .ActivityHistoryItem {
+    --background: black;
+    --background-transparent: rgb(0, 0, 0, 0);
+  }
+}

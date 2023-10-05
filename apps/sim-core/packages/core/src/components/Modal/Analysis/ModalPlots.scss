@@ -1,0 +1,59 @@
+.ModalPlots {
+  width: 60%;
+  min-width: 728px;
+  background: rgba(0, 0, 0, 0.75);
+  padding-top: 3rem;
+  padding: 3rem 0 0 0;
+}
+
+.ModalPlots__Container {
+  padding: 0 3rem 0 3rem;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.ModalPlots span {
+  user-select: none;
+}
+
+.ModalPlots .ModalFormEntry__Label {
+  margin-bottom: 1rem;
+}
+
+.ModalPlots__Container .ModalFormEntry__Description {
+  margin: 0.25rem 0 1rem 0;
+  font-weight: normal;
+  text-transform: none;
+}
+
+.ModalPlots .dropdown-wrapper {
+  cursor: pointer;
+}
+
+.ModalPlots__Title {
+  position: absolute;
+  top: -13%;
+}
+
+.ModalPlots__YAxisItems {
+  display: grid;
+  grid-auto-flow: row;
+  grid-template-columns: 1fr 1fr 0.2fr;
+}
+
+.ModalPlots__LegendDisplayContainer {
+  display: flex;
+  margin-bottom: 1.25rem;
+
+  .ModalPlots__LegendDisplayLabel {
+    display: flex;
+    margin-right: 1rem;
+
+    .CheckboxInput {
+      margin-right: 0.55rem;
+      background: var(
+        --theme-dark-border
+      ); // TODO: discuss if we should add a new color for checkboxes on dark models
+    }
+  }
+}

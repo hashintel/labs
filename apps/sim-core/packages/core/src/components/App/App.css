@@ -1,0 +1,105 @@
+.App {
+  background: transparent;
+
+  width: 100%;
+  height: 100%;
+  min-width: var(--theme-min-width);
+  overflow: hidden;
+
+  display: flex;
+  flex-direction: column;
+  position: relative;
+
+  --splitter-hit-area: 7px;
+  --splitter-visible-area: 1px;
+  --splitter-hit-offset: calc(
+    -1 * ((var(--splitter-hit-area) - var(--splitter-visible-area)) / 2)
+  );
+}
+
+.App .splitter-layout > .layout-splitter {
+  z-index: 4;
+  position: relative;
+  background: var(--theme-border) !important;
+  height: 100%;
+}
+
+.App .splitter-layout:not(.splitter-layout-vertical) > .layout-splitter,
+.App .splitter-layout:not(.splitter-layout-vertical) > .layout-splitter:after {
+  width: var(--splitter-visible-area);
+}
+
+/* There is an issue to add support for this to the project.
+  In lieu of that, I came up with this
+  The issue: https://github.com/zesik/react-splitter-layout/issues/51#issue-537237116 */
+.App .splitter-layout > .layout-splitter:before,
+.App .splitter-layout > .layout-splitter:after {
+  content: "";
+  display: block;
+  position: absolute;
+  top: 0;
+  height: 100%;
+}
+
+.App .splitter-layout > .layout-splitter:after {
+  background: var(--theme-border);
+  left: 0;
+  transition: transform 0.1s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.App .splitter-layout > .layout-splitter:hover:after {
+  transition-delay: 0.5s;
+}
+
+.App .splitter-layout > .layout-splitter:before {
+  width: var(--splitter-hit-area);
+  left: var(--splitter-hit-offset);
+}
+
+.App .splitter-layout--right > .layout-splitter:before {
+  left: 0;
+  width: calc(var(--splitter-hit-area) - calc(var(--splitter-hit-offset) * -1));
+}
+
+.App .splitter-layout > .layout-splitter:hover:after,
+.App .splitter-layout.layout-changing > .layout-splitter:after {
+  transform: scale(7, 1);
+}
+
+.App .splitter-layout > .layout-splitter:hover:after,
+.App .splitter-layout.layout-changing > .layout-splitter:after {
+  background: var(--theme-border-hover);
+}
+
+.App .splitter-layout.splitter-layout-vertical > .layout-splitter,
+.App .splitter-layout.splitter-layout-vertical > .layout-splitter:after {
+  height: var(--splitter-visible-area);
+}
+
+.App .splitter-layout.splitter-layout-vertical > .layout-splitter:before,
+.App .splitter-layout.splitter-layout-vertical > .layout-splitter:after {
+  width: 100%;
+  left: 0;
+}
+
+.App .splitter-layout.splitter-layout-vertical > .layout-splitter:before {
+  height: var(--splitter-hit-area);
+  top: var(--splitter-hit-offset);
+}
+
+.App .splitter-layout.splitter-layout-vertical > .layout-splitter:hover:after,
+.App
+  .splitter-layout.layout-changing
+  > .layout-splitter.splitter-layout-vertical:after {
+  transform: scale(1, 7);
+  left: 0;
+}
+
+.App .splitter-layout.layout-changing > .layout-splitter:after {
+  background: var(--theme-border-drag);
+}
+
+.App .layout-splitter-no-transition-delay:after,
+.App .splitter-layout.layout-changing > .layout-splitter:after {
+  transition-delay: 0s !important;
+}

@@ -1,0 +1,75 @@
+.ModalNewDatasetContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: var(--modal-container-z);
+}
+
+.ModalNewDataset {
+  padding: 0;
+  overflow: hidden;
+}
+
+.ModalNewDataset__Root {
+  min-height: 380px;
+  min-width: 820px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--big-modal-padding);
+  box-sizing: border-box;
+  position: relative;
+
+  &:focus,
+  &:active {
+    outline: none;
+  }
+}
+
+.ModalNewDataset__Root--notDisabled {
+  cursor: pointer;
+}
+
+.ModalNewDataset__Root--dragging {
+  background-color: var(--theme-blue-translucent);
+}
+
+.ModalNewDataset__Content {
+  color: white;
+  fill: white;
+  text-align: center;
+
+  h3,
+  p {
+    margin: 0;
+    padding: 0;
+    line-height: 1.3;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  p {
+    font-size: 14px;
+  }
+}
+
+.ModalNewDataset__Errored {
+  font-size: 8px;
+  opacity: 0.66;
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+
+  .Icon {
+    margin-right: 3px;
+    flex-shrink: 0;
+  }
+}

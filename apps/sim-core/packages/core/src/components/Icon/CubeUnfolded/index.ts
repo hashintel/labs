@@ -1,0 +1,1 @@
+export { IconCubeUnfolded } from "./IconCubeUnfolded";

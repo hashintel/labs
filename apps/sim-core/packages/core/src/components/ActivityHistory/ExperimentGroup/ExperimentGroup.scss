@@ -1,0 +1,24 @@
+.ExperimentGroup__StatusIcon {
+  flex-shrink: 0;
+  margin-right: 8px;
+  width: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  position: relative;
+
+  .Icon {
+    flex-shrink: 0;
+  }
+
+  .IconAlert {
+    fill: var(--theme-red-alt);
+  }
+}
+
+.ExperimentGroup__StatusIcon--cloud {
+  opacity: 0.5;
+  fill: var(--theme-grey);
+  color: var(--theme-grey);
+}

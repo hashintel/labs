@@ -1,0 +1,13 @@
+target/
+.vscode/
+node_modules/
+.DS_Store
+.ipynb_checkpoints
+test_artifacts/
+.idea
+.env
+.env.local
+.env.sh
+.old/
+dist/
+.next

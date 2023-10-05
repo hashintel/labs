@@ -1,0 +1,15 @@
+.mapboxgl-map {
+  flex: 1 0 100%;
+}
+
+.mapboxgl-map .mapboxgl-popup-content {
+  background: var(--theme-darkest);
+}
+
+.mapboxgl-map .mapboxgl-popup-anchor-bottom .mapboxgl-popup-tip {
+  border-top-color: var(--theme-darkest);
+}
+
+.mapboxgl-canvas:focus {
+  outline: none;
+}
