@@ -28,7 +28,7 @@ Phase two of our migration process involves enabling users to create, work with 
 
 ## Limitations
 
-The sim-core engine is strongly limited to being a run-only environment. Current recommended use is as follows:
+In its present form, the version of hCore published here is for the most part limited to providing a run-only environment for simulations. Current recommended use is as follows:
 
 1) Run sim-core on localhost and view in your browser
 2) To open a simulation, use the 'import' functionality and target a .zip file containing a previously exported simluation.
