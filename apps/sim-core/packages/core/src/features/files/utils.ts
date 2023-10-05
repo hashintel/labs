@@ -104,41 +104,23 @@ const createTypedAdder = <A>(arr: A[]) => <T extends A>(...items: T[]) =>
   arr.push(...items);
 
 const datasetFields = (file: ProjectFile | ReleaseFile) => {
-  if (file.path.startsWith("dependencies/")) {
-    // In this circumstance, we already have the data.
-    // Store it in 'inPlaceData'
-    // Construct a shim url so that we successfully parse the file type, etc., later on.
-    const shimUrl = `https://example.com/${file.name}`;
-    const rawCsv = file.name.endsWith(".csv");
-    return {
-      data: {
-        url: shimUrl,
-        name: file.name,
-        s3Key: "",
-        inPlaceData: file.contents,
-        rawCsv,
-      },
-      contents: shimUrl,
-      kind: HcFileKind.Dataset as const,
-    };
-  }
-  const data: {
-    url: string;
-    name?: string;
-    s3Key: string;
-  } = JSON.parse(file.contents);
-
-  if (!data.url) {
-    throw new Error("dataset missing url");
-  }
-
+  /**
+   * We previously had datasets stored in URLs, and so had a system of fetching datasets from URLs.
+   * Now, all data is stored within the repo, and so all contents are available immediately.
+   * We construct a shim url so that we successfully parse the file type, etc., later on,
+   * using the old system which relied on URLs.
+   */
+  const shimUrl = `https://example.com/${file.name}`;
+  const rawCsv = file.name.endsWith(".csv");
   return {
     data: {
-      ...data,
-      inPlaceData: null,
+      url: shimUrl,
+      name: file.name,
+      s3Key: "",
+      inPlaceData: file.contents,
+      rawCsv,
     },
-    contents: data.url,
-    // `as const` is needed here otherwise the types are too wide
+    contents: shimUrl,
     kind: HcFileKind.Dataset as const,
   };
 };
@@ -250,10 +232,7 @@ export const releaseToHcFiles = (release: Release): HcDependencyFile[] => {
 const getProjectFilePath = (projectFile: ProjectFile) => {
   if (projectFile.path.startsWith("@")) {
     return projectFile.path;
-  } else if (projectFile.path.startsWith("data/")) {
-    return JSON.parse(projectFile.contents).filename as string;
   }
-
   return projectFile.path.split("/").pop()!;
 };
 
