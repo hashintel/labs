@@ -82,7 +82,7 @@ See the README in [`packages/core`](https://github.com/hashintel/labs/tree/main/
 
 ### Repository Structure
 
-Several different packages in this repository are orchistrated as yarn workspaces.  The key packages are:
+Several different packages in this repository are orchestrated as yarn workspaces. Important packages include:
  - `core`, which is the React/Redux/Typescript frontend for the simulation engine. 
  - `engine`, which is the rust implementation of the simulation engine
  - `engine-web`, which bundles the rust-based `engine` into a webassembly-backed javascript interface using `wasm-bindgen`.
