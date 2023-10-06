@@ -7,7 +7,7 @@
     "// 01": "Global scripts: these belong to the workspace itself",
     "// 02": "",
     "preinstall": "node scripts/preinstall.js",
-    "postinstall": "yarn build:engine-web && yarn build:utils",
+    "postinstall": "yarn build:utils && yarn build:engine-web",
     "all": "npx npm-run-all",
     "fmt:scripts": "prettier \"scripts/**/*.{ts,tsx,js,json}\" --write",
     "fmt-check:scripts": "prettier \"scripts/**/*.{ts,tsx,js,json}\" --check",
