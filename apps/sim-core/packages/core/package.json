@@ -152,7 +152,7 @@
     "eslint-plugin-react": "7.22.0",
     "graphql": "15.5.0",
     "monaco-editor-webpack-plugin": "4.0.0",
-    "postcss": "8.2.13",
+    "postcss": "8.4.31",
     "postcss-loader": "4.1.0",
     "sass": "1.29.0",
     "sass-loader": "10.1.0"
