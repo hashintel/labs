@@ -14,6 +14,13 @@
   "rebaseWhen": "conflicted",
   "semanticCommits": "disabled",
 
+  "ignorePaths": [
+      "apps/sim-core/",
+      "apps/sim-core-plugins/",
+      "apps/sim-engine/",
+      "pocs/"
+  ],
+
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
