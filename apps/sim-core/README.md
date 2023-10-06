@@ -17,10 +17,11 @@ It uses a legacy version of hEngine which is no longer maintained, separate from
 
 **hCore** is currently in the process of transitioning from being closed-source and hosted on our internal infrastructure towards being a free, open-source IDE available to self-host. Much of this code dates from 2019-2020. While we're making it available at this time so that users can continue to work with and run existing simulations, additional migration work is ongoing, and we'll be changing the way simulations are created in the future. Upcoming tasks in 'phase one' of the migration include:
 
-- [ ] Re-enabling 'new simulation' creation flow
-- [ ] Allow for "Project Export" functionality in the development environment
+- [X] Temporary removal of legacy Git-based UI elements
+- [x] Allow for "project export" functionality in the development environment
+- [ ] Re-enable "new simulation" creation flow
 - [ ] Direct GitHub integration for simulation management and storage
-- [X] Removal of legacy UI elements which no longer function
+- [ ] Reintroduction of Git-based UI elements (such as the activity pane)
 
 While we work toward completing phase one, please be mindful of the software's current limitations.
 
@@ -80,7 +81,7 @@ Deploy (or re-deploy) the project, then visit the preview URL. Future pushes to 
 
 ## Hosted
 
-**Coming soon:** we will be hosting a demonstration deployment of hCore.
+A demonstration deployment of hCore can be [found in our sandbox](https://core.labs.hashsandbox.com/).
 
 ## Run or develop locally
 
