@@ -1,6 +1,6 @@
 [workspace]
 
-members = ["packages/engine", "packages/engine-web", "packages/sim-engine-types"]
+members = ["packages/engine", "packages/engine-web", "packages/engine-types"]
 
 [profile.dev]
 opt-level = 0

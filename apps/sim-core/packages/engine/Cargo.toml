@@ -14,7 +14,7 @@ bench = false
 async-trait = "0.1.24"
 futures = "0.3.4"
 fux_kdtree = { path = "vendor/kdtree-rust" }
-hash_types = { path = "../sim-engine-types" }
+hash_types = { path = "../engine-types" }
 lazy_static = "1.4.0"
 rand = { version = "0.7.2", features = ["wasm-bindgen"] }
 rayon = "1.2.0"
