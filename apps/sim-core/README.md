@@ -135,7 +135,7 @@ See the README in [`packages/core`](https://github.com/hashintel/labs/tree/main/
 
 Several different packages in this repository are orchestrated as yarn workspaces. Important packages include:
  - `core`, which is the React/Redux/TypeScript frontend of hCore
- - `engine` contains the hCore simulation engine, written in Rust. This is a legacy engine that is less powerful than [HASH Engine].
+ - `engine` contains the hCore simulation engine, written in Rust. This is a legacy engine that is less powerful than the newer [HASH Engine], which [can be found separately](https://github.com/hashintel/labs/tree/main/apps/sim-engine) in this repo.
  - `engine-web` bundles the `engine` package into a WebAssembly-backed JavaScript interface using `wasm-bindgen`.
 
  Additional utility packages also exist to facilitate minor conveniences.
