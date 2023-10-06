@@ -81,11 +81,11 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
           </li>
           <li className="HashCoreHeaderMenu-submenu-item">
             <a
-              href={"https://github.com/hashintel/labs/tree/main/apps/sim-core"}
+              href={"https://github.com/hashintel/labs/issues/new/choose"}
               target="_blank"
               rel="noopener noreferrer"
             >
-              GitHub
+              Report an issue
             </a>
           </li>
         </ul>
