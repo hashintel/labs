@@ -5,7 +5,7 @@ import { useModal } from "react-modal-hook";
 import urljoin from "url-join";
 
 import { HashCoreHeaderMenu } from "..";
-import { IS_STAGING, SITE_URL } from "../../../util/api";
+import { IS_STAGING } from "../../../util/api";
 import { IconBrain } from "../../Icon/Brain";
 import { IconLock } from "../../Icon/Lock";
 import { Logo } from "../../Logo";
@@ -125,8 +125,7 @@ export const HashCoreHeader: FC = () => {
       <div className="HashCoreHeader__section HashCoreHeader__section--middle">
         {project && canLinkToProjectInIndex ? (
           <a
-            href={urljoin(SITE_URL, project.pathWithNamespace)}
-            target="_blank"
+            href={urljoin("/", project.pathWithNamespace)}
             className="HashCoreHeader-title-link"
           >
             {title}
