@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "jstat": "1.9.4",
-    "node-fetch": "2.6.1",
+    "node-fetch": "2.6.7",
     "promise-worker-transferable": "github:hashdeps/promise-worker-transferable",
     "rxjs": "6.6.6"
   },
