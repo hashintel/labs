@@ -8,6 +8,7 @@
 .next
 .old/
 .vscode/
+.config/**/*.log
 dist/
 node_modules/
 target/
