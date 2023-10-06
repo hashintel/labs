@@ -325,15 +325,17 @@ module.exports = (_env, argv) => {
      * which means index.html must be located above `/[BUILD_STAMP]/`. The default config outputs it to `/[BUILD_STAMP]/`.
      * The default config is to allow for past versions of the app to be retained in the dist/ directory.
      */
-    browserConfig.plugins.push(new HtmlWebpackPlugin({
-      template: path.join(__dirname, "/src/index.html"),
-      chunks: ["index"],
-      filename: "../index.html",
-      templateParameters: {
-        meta_description: defaultMetaDescription,
-        meta_image: defaultMetaImage,
-      },
-    }));
+    browserConfig.plugins.push(
+      new HtmlWebpackPlugin({
+        template: path.join(__dirname, "/src/index.html"),
+        chunks: ["index"],
+        filename: "../index.html",
+        templateParameters: {
+          meta_description: defaultMetaDescription,
+          meta_image: defaultMetaImage,
+        },
+      })
+    );
   }
 
   return [browserConfig, simulationWorkerConfig, analyzerWorkerConfig];
