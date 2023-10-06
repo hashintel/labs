@@ -36,9 +36,57 @@ In its present form, the version of hCore published here is for the most part li
 4) You can use the 'recent projects' menu to switch between other projects that you have imported.
 5) To experiment with an example project, import an example project .zip file from the `example_projects` folder.
 
-Please exercise caution if authoring work inside the self-hosted environment because any simulations you author are **not being presreved** outside of the browser environment.  These limitations will lift as the project status goals above are accomplished.
+Please exercise caution if authoring work inside the self-hosted environment because any simulations you author are **not being preserved** outside of the browser environment.  These limitations will lift as the project status goals above are accomplished.
 
-## Installation
+## Using hCore
+
+You can run hCore in three ways:
+
+1. **[Self-hosted](#self-hosting)**: host hCore on your own webserver
+1. **[Hosted](#hosted)**: visit our demonstration deployment of hCore
+1. **[Locally](#run-or-develop-locally)**: run hCore on your local machine
+
+## Self-hosting
+
+To host hCore yourself, you need:
+1. To build hCore with output suitable for serving directly from a webserver
+2. A webserver
+
+There are countless options for this, but we use [Vercel](https://vercel.com/), for which [instructions](#deploying-to-vercel) are below.
+
+### Building the files
+
+First, the environment in which you are building the files must have the correct dependencies available.
+
+If doing so locally, you can follow the [installation instructions](#run-or-develop-locally) below.
+
+If doing so remotely:
+1. Ensure Node and Yarn are available in your environment, e.g. by
+   - using a Docker image that already has them
+   - use a runtime that already has them (e.g. the Vercel Node runtime)
+   - installing them as part of your build script
+1. Run `sh scripts/install-dependencies.sh`
+2. Run `yarn ws:core build  --copy-index-to-root`
+
+The output files will be at `packages/core/dist`. Serve the contents of this folder from your webserver.
+
+### Deploying to Vercel
+
+If you want to host hCore on Vercel, you should:
+1. Create a fork of this repository.
+2. Create a new project in Vercel, and select your fork.
+3. Select 'Other' from framework.
+4. In 'Settings' -> 'General', set the 'Root Directory' to `apps/sim-core
+ 
+Deploy (or re-deploy) the project, then visit the preview URL. Future pushes to your fork will result in a new deployment.
+
+## Hosted
+
+**Coming soon:** we will be hosting a demonstration deployment of hCore.
+
+## Run or develop locally
+
+### Installation
 
 Before running this software, your environment will need to have installed modern versions of:
 
@@ -61,13 +109,13 @@ For the first build, simply run:
 yarn
 ```
 
-### Supported Environments
+#### Supported Environments
 
 The required dependencies above are available (and consistent) across platforms. hCore can be built and run in modern Windows, macOS, and Ubuntu Linux environments, as well as within common VMs and containers.
 
-## Running `sim-core`
+### Running `sim-core`
 
-To run hCore, run:
+To run hCore, after following the [installation](#installation) instructions , run:
 
 ```sh
 yarn start:core
@@ -77,8 +125,13 @@ This will compile the application and host it for you at a default location of [
 
 ### Development and Troubleshooting
 
-See the README in [`packages/core`](https://github.com/hashintel/labs/tree/main/apps/sim-core/packages/core) for more details.
+If you want to run the application in development mode, which will enable hot-reloading when you make changes, run:
 
+```sh
+yarn serve:core
+```
+
+See the README in [`packages/core`](https://github.com/hashintel/labs/tree/main/apps/sim-core/packages/core) for more details.
 
 ### Repository Structure
 
