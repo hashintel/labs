@@ -30,21 +30,19 @@ Phase two of our migration process involves enabling users to create, work with 
 
 In its present form, the version of hCore published here is for the most part limited to providing a run-only environment for simulations. Current recommended use is as follows:
 
-1) Run hCore (this `apps/sim-core` project) on `localhost` and view it in your browser
-2) To open a simulation, use the 'import' functionality and target a `.zip` file containing a previously exported simulation. _This can be downloaded from a project's hIndex listing page._
-3) You can now run and edit this simulation, however file storage is simply maintained within your browser (using `localstorage`), and changes you make will only be preserved within this web browser.
-4) You can use the 'recent projects' menu to switch between other projects that you have imported.
-5) To experiment with an example project, import an example project .zip file from the `example_projects` folder.
+1. Run hCore (this `apps/sim-core` project) on `localhost` and view it in your browser
+1. To open a simulation, use the 'import' functionality and target a `.zip` file containing a previously exported simulation. _This can be downloaded from a project's hIndex listing page._
+1. You can now run and edit this simulation, however file storage is simply maintained within your browser (using `localstorage`), and changes you make will only be preserved within this web browser.
+1. You can use the 'recent projects' menu to switch between other projects that you have imported.
+1. To experiment with an example project, import an example project .zip file from the `example_projects` folder.
 
 Please exercise caution if authoring work inside the self-hosted environment because any simulations you author are **not being preserved** outside of the browser environment.  These limitations will lift as the project status goals above are accomplished.
 
 ## Using hCore
 
-You can run hCore in three ways:
+You can either [self-host](#self-hosting) hCore on-prem or in your own cloud, or simply run it [locally](#run-or-develop-locally) on your machine.
 
-1. **[Self-hosted](#self-hosting)**: host hCore on your own webserver
-1. **[Hosted](#hosted)**: visit our demonstration deployment of hCore
-1. **[Locally](#run-or-develop-locally)**: run hCore on your local machine
+A [hosted preview](#hosted) of hCore also exists for demonstration purposes.
 
 ## Self-hosting
 
@@ -66,7 +64,7 @@ If doing so remotely:
    - use a runtime that already has them (e.g. the Vercel Node runtime)
    - installing them as part of your build script
 1. Run `sh scripts/install-dependencies.sh`
-2. Run `yarn ws:core build  --copy-index-to-root`
+1. Run `yarn ws:core build  --copy-index-to-root`
 
 The output files will be at `packages/core/dist`. Serve the contents of this folder from your webserver.
 
@@ -74,9 +72,9 @@ The output files will be at `packages/core/dist`. Serve the contents of this fol
 
 If you want to host hCore on Vercel, you should:
 1. Create a fork of this repository.
-2. Create a new project in Vercel, and select your fork.
-3. Select 'Other' from framework.
-4. In 'Settings' -> 'General', set the 'Root Directory' to `apps/sim-core
+1. Create a new project in Vercel, and select your fork.
+1. Select 'Other' from framework.
+1. In 'Settings' -> 'General', set the 'Root Directory' to `apps/sim-core
  
 Deploy (or re-deploy) the project, then visit the preview URL. Future pushes to your fork will result in a new deployment.
 
