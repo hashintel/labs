@@ -4,6 +4,6 @@
     "autoJobCancelation": true
   },
   "installCommand": "./scripts/install-dependencies.sh",
-  "buildCommand": "yarn ws:core build",
+  "buildCommand": "yarn ws:core build --copy-index-to-root",
   "outputDirectory": "./packages/core/dist"
 }

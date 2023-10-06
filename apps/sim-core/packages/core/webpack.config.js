@@ -316,5 +316,25 @@ module.exports = (_env, argv) => {
     analyzerWorkerConfig.plugins.push(sentryPlugin);
   }
 
+  if (argv["copy-index-to-root"]) {
+    /**
+     * Also output index.html to the root of the dist/ directory so that the contents of dist/
+     * can be served directly by a webserver.
+     *
+     * This is necessary because JS scripts are injected into HTML files assuming a `/[BUILD_STAMP]/[filename]` path,
+     * which means index.html must be located above `/[BUILD_STAMP]/`. The default config outputs it to `/[BUILD_STAMP]/`.
+     * The default config is to allow for past versions of the app to be retained in the dist/ directory.
+     */
+    browserConfig.plugins.push(new HtmlWebpackPlugin({
+      template: path.join(__dirname, "/src/index.html"),
+      chunks: ["index"],
+      filename: "../index.html",
+      templateParameters: {
+        meta_description: defaultMetaDescription,
+        meta_image: defaultMetaImage,
+      },
+    }));
+  }
+
   return [browserConfig, simulationWorkerConfig, analyzerWorkerConfig];
 };
