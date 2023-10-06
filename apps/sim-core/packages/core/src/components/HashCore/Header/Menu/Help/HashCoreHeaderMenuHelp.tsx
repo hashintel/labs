@@ -79,6 +79,15 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
               Community Discord
             </a>
           </li>
+          <li className="HashCoreHeaderMenu-submenu-item">
+            <a
+              href={"https://github.com/hashintel/labs/tree/main/apps/sim-core"}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub
+            </a>
+          </li>
         </ul>
       </>
     );
