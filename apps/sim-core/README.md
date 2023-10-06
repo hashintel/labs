@@ -20,12 +20,17 @@ It uses a legacy version of hEngine which is no longer maintained, separate from
 - [X] Temporary removal of legacy Git-based UI elements
 - [x] Allow for "project export" functionality in the development environment
 - [ ] Re-enable "new simulation" creation flow
-- [ ] Direct GitHub integration for simulation management and storage
-- [ ] Reintroduction of Git-based UI elements (such as the activity pane)
+- [ ] Introduce local file storage for working offline (outside of local storage)
+- [ ] Introduce GitHub integration for simulation management and storage
+- [ ] Introduce prompt to ask users to insert Mapbox keys (securely stored) where not provided as an environment variable
+- [ ] Re-introduce "Example projects" accessible via the menus
+- [ ] Re-enable Git-based UI elements (such as the resources and activity panes, as well as ability to fork projects)
+- [ ] Re-enable executing simulations in hCloud from hCore itself (allowing access to cloud-only features such as optimization experiments)
 
 While we work toward completing phase one, please be mindful of the software's current limitations.
 
-Phase two of our migration process involves enabling users to create, work with and run [HASH Core] and [HASH Engine] simulations in the [HASH] application directly.
+Phase two of our migration process involves enabling users to create, work with and run [HASH Core] and [HASH Engine] simulations in the [HASH] application directly. This will involved re-enabling simulation/behavior/dataset publishing directly on HASH, and a whole new approach to using typed entities in simulations.
+
 
 ## Limitations
 
