@@ -8,6 +8,7 @@ import { ActivityEmpty } from "../ActivityEmpty";
 import { IconClose } from "../../Icon";
 
 import "./Inspector.css";
+import { WrappedSplitterLayout } from "../../WrappedSplitterLayout/WrappedSplitterLayout";
 
 export const AgentInspector: FC = () => {
   const [selectedAgentIds, setSelectedAgents] = useRecoilState(
@@ -237,3 +238,19 @@ const prettifyField = (val: any) =>
   (val ?? "null").toLocaleString(undefined, {
     maximumSignificantDigits: 21,
   });
+
+export const AgentInspectorSplitterLayout = () => (
+  <div>
+    <WrappedSplitterLayout
+      vertical={true}
+      percentage={true}
+      primaryMinSize={20}
+      secondaryMinSize={30}
+      secondaryInitialSize={40}
+      secondaryHidden={true}
+    >
+      <AgentInspector />
+      <div />
+    </WrappedSplitterLayout>
+  </div>
+);

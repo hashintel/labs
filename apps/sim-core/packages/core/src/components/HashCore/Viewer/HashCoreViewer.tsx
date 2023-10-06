@@ -1,7 +1,6 @@
 import React, { FC, lazy, Suspense } from "react";
 import { useSelector } from "react-redux";
 
-import { ActivityHistory } from "../../ActivityHistory";
 import { Scope, useScope } from "../../../features/scopes";
 import { SimulationRunner } from "../../SimulationRunner/SimulationRunner";
 import { SimulationViewer } from "../../SimulationViewer";
@@ -11,6 +10,7 @@ import { useInstructionReceiver } from "../useInstructionReceiver";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 
 import "./HashCoreViewer.css";
+import { AgentInspectorSplitterLayout } from "../../ActivityHistory/Inspector/Inspector";
 
 const LazyOpenInCore = lazy(() =>
   import(
@@ -59,7 +59,8 @@ export const HashCoreViewer: FC = () => {
             </Suspense>
           ) : null}
         </div>
-        <ActivityHistory visible={activityVisible} />
+        {/* <ActivityHistory visible={activityVisible} /> */}
+        <AgentInspectorSplitterLayout />
       </WrappedSplitterLayout>
     </div>
   );
