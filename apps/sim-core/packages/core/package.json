@@ -93,7 +93,7 @@
     "idb-keyval": "5.0.2",
     "js-levenshtein": "1.1.6",
     "json-stringify-pretty-compact": "2.0.0",
-    "jszip": "3.7.0",
+    "jszip": "3.8.0",
     "line-column": "1.0.2",
     "lodash-es": "4.17.21",
     "mapbox-gl": "1.13.1",
