@@ -1,0 +1,42 @@
+.DataTableCell {
+  height: 1.2rem;
+  line-height: 0.8rem;
+  font-size: 0.8rem;
+  padding: 0.2rem 1rem;
+  box-sizing: border-box;
+  border-right: 1px solid var(--theme-border);
+}
+
+.DataTableCell:last-child {
+  border-right: none;
+}
+
+.DataTableCell svg {
+  fill: currentColor;
+}
+
+.DataTableCell-parsedIndex,
+.DataTableCell-rgb,
+.DataTableCell-boolean {
+  text-align: center;
+}
+
+.DataTableCell-rgb > span {
+  display: inline-block;
+  text-indent: 100%;
+  overflow: hidden;
+  width: 1em;
+  height: 1em;
+  border-radius: 2px;
+}
+
+.DataTableCell-string > span,
+.overflowable-string {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.empty-value {
+  opacity: 0.4;
+}

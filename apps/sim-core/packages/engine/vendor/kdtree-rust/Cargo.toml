@@ -1,0 +1,24 @@
+[package]
+name = "fux_kdtree"
+version = "0.2.0"
+authors = ["fulara <ntszar@gmail.com>"]
+repository = "https://github.com/fulara/kdtree-rust"
+keywords = ["tree", "dimension", "nearest", "search", "neighbor"]
+readme = "README.md"
+license = "Unlicense"
+description = "K-dimensional tree implemented in Rust for fast NN querying."
+
+[lib]
+name = "kdtree"
+path = "src/lib.rs"
+bench = false
+
+[[bench]]
+name = "bench"
+harness = false
+path = "src/bench.rs"
+
+[dev-dependencies]
+quickcheck = "~0.3"
+rand = "~0.3.12"
+bencher = "~0.1.2"

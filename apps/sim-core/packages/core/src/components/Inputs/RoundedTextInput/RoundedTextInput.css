@@ -1,0 +1,26 @@
+.RoundedTextInput {
+  --background-color: var(--theme-light-on-dark);
+  position: relative;
+  display: inline-block;
+}
+
+.RoundedTextInput__input {
+  padding: 6px 12px;
+  background: var(--background-color);
+  border-radius: 3px;
+  color: white;
+  border: none;
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 12px;
+  height: 26px;
+}
+
+.RoundedTextInput__input:disabled {
+  opacity: var(--disabled-input-opacity);
+}
+
+.RoundedTextInput__input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+  font-style: normal;
+}

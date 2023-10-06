@@ -1,0 +1,82 @@
+.ActivityHistoryGroupSection {
+  &:last-child {
+    padding-bottom: 10px;
+  }
+}
+
+.ActivityHistoryGroupSection__Header {
+  font-weight: bold;
+  font-size: 11px;
+  padding: 2px var(--padding-x) 2px;
+  margin: 4px 0 0;
+  display: flex;
+  align-items: center;
+  fill: currentColor;
+  user-select: none;
+  height: 20px;
+  box-sizing: border-box;
+
+  .IconArrowDownDrop {
+    transform-origin: center;
+  }
+}
+
+.ActivityHistoryGroupSection__Header__Loading {
+  height: 80%;
+  border-radius: 4px;
+  width: 60%;
+  position: relative;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.15);
+
+  &::before {
+    content: "";
+    display: block;
+    position: absolute;
+    right: 100%;
+    top: 0;
+    height: 100%;
+    width: 75%;
+    background: linear-gradient(
+      to right,
+      transparent 0%,
+      rgba(255, 255, 255, 0.3) 50%,
+      transparent 100%
+    );
+    animation: ActivityHistoryGroupSection__Header__Loading--loading 1s
+      cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+}
+
+@keyframes ActivityHistoryGroupSection__Header__Loading--loading {
+  from {
+    right: 100%;
+  }
+  to {
+    right: -100%;
+  }
+}
+
+.ActivityHistoryGroupSection__Header--enabled {
+  cursor: pointer;
+
+  @media (any-hover: hover) {
+    &:hover {
+      background-color: var(--theme-dark-hover);
+    }
+  }
+}
+
+.ActivityHistoryGroupSection__Header--disabled {
+  cursor: default;
+}
+
+.ActivityHistoryGroupSection__Header--closed .IconArrowDownDrop {
+  transform: rotate(-90deg);
+}
+
+.ActivityHistoryGroupSection__Rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}

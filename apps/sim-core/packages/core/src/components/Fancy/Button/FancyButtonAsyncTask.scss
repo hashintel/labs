@@ -1,0 +1,64 @@
+.FancyButtonAsyncTask {
+  position: relative;
+}
+
+.FancyButtonAsyncTask--progress {
+  cursor: pointer;
+}
+
+.FancyButtonAsyncTask * {
+  text-transform: none !important;
+}
+
+.FancyButtonAsyncTask__Label {
+  display: flex;
+  align-items: center;
+}
+
+.FancyButtonAsyncTask__Overlay {
+  --overlay-color: var(--theme-blue);
+  display: flex;
+  color: white;
+  fill: white;
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  right: -1px;
+  bottom: -1px;
+  z-index: 1;
+  font-weight: bold;
+  padding: 6px 19px;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  pointer-events: none;
+  border-radius: var(--button-border-radius);
+  background-color: var(--overlay-color);
+  border: 1px solid var(--overlay-color);
+}
+
+.FancyButtonAsyncTask__Overlay--done {
+  --overlay-color: var(--theme-green);
+
+  .IconCheck {
+    margin-right: -24px;
+  }
+}
+
+.FancyButtonAsyncTask__Overlay-enter {
+  opacity: 0;
+}
+
+.FancyButtonAsyncTask__Overlay-enter-active {
+  opacity: 1;
+  transition: var(--FancyButtonAsyncTask-ms) opacity ease-out;
+}
+
+.FancyButtonAsyncTask__Overlay-exit {
+  opacity: 1;
+}
+
+.FancyButtonAsyncTask__Overlay-exit-active {
+  opacity: 0;
+  transition: var(--FancyButtonAsyncTask-ms) opacity ease-in;
+}

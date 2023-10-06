@@ -1,0 +1,98 @@
+.ModalFormEntry {
+  display: flex;
+  flex-direction: column;
+}
+
+.ModalFormEntry__Main--errorInline .ModalFormEntry__Error {
+  margin-left: 25px;
+}
+
+.ModalFormEntry__Main:not(.ModalFormEntry__Main--errorInline)
+  .ModalFormEntry__Error {
+  margin-top: 10px;
+}
+
+.ModalFormEntry__Error__Label {
+  color: var(--theme-red-alt);
+  font-size: 0.75rem;
+  font-family: var(--mono-font);
+  font-weight: bold;
+}
+
+.ModalFormEntry__Error__Desc {
+  font-size: 0.875rem;
+}
+
+.ModalFormEntry:not(:last-child) {
+  margin-bottom: 1.5rem;
+}
+
+.ModalFormEntry--flex {
+  flex: 1;
+}
+
+.ModalFormEntry__Main {
+  display: flex;
+  flex: 1;
+  max-width: 100%;
+}
+
+.ModalFormEntry__Main:not(.ModalFormEntry__Main--errorInline) {
+  flex-wrap: wrap;
+}
+
+.ModalFormEntry_Input {
+  display: flex;
+  max-width: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.ModalFormEntry__Main--errorInline .ModalFormEntry_Input {
+  flex: 1 0 150px;
+}
+
+.ModalFormEntry_Input > input,
+.ModalFormEntry_Input > textarea {
+  width: 100%;
+  border-radius: var(--button-border-radius);
+  padding: 14px 20px;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: calc(18 / 14);
+  color: white;
+}
+
+.ModalFormEntry textarea {
+  line-height: 1.5;
+  resize: none;
+  flex: 1;
+  padding-top: 15px;
+  padding-bottom: 15px;
+}
+
+.ModalFormEntry input::placeholder,
+.ModalFormEntry textarea::placeholder {
+  color: var(--theme-translucent);
+  font-style: normal;
+}
+
+.ModalFormEntry_Input--error input,
+.ModalFormEntry_Input--error textarea {
+  border-color: var(--theme-red-alt);
+  padding-right: 48px;
+}
+
+.ModalFormEntry_Input--error__icon {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  fill: var(--theme-red);
+  display: flex;
+  align-items: center;
+}

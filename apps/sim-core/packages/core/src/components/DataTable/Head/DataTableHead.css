@@ -1,0 +1,13 @@
+.DataTableHead th {
+  height: 1.875rem;
+  font-size: 0.875rem;
+  line-height: 0.875rem;
+  text-align: left;
+  padding: 0.5rem 1rem;
+  box-sizing: border-box;
+  white-space: nowrap;
+}
+
+.DataTableRow > th:last-child {
+  border-right: none;
+}

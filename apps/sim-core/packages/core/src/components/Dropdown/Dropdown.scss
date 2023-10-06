@@ -1,0 +1,222 @@
+/**
+ * n.b. this is *mostly* copy/pasted from the `hashintel/hash.ai` repo,
+ * specifically the below-linked component and styles
+ *
+ * @see: https://github.com/hashintel/hash.ai/blob/master/nextjs/src/components/Dropdown.tsx
+ * @see: https://github.com/hashintel/hash.ai/blob/master/nextjs/src/styles/scss/components/_ReactSelect.scss
+ */
+
+.dropdown-wrapper {
+  width: 100%;
+  position: relative;
+}
+
+.required-input-enforcement {
+  opacity: 0 !important;
+  height: 0 !important;
+  width: 0 !important;
+  position: absolute;
+  top: 42px;
+  left: 82px;
+}
+
+div.react-select-container {
+  font-family: var(--font);
+  width: 100%;
+
+  div.react-select__control {
+    color: var(--theme-dark);
+    border: var(--theme-border);
+    background-color: rgba(255, 255, 255, 0.1);
+    min-height: 48px;
+    transition: background-color 0.3s;
+  }
+
+  div.react-select__control--is-focused {
+    box-shadow: 0px 5px 20px rgba(95, 71, 255, 0.05);
+    transition: box-shadow 0.3s;
+    background-color: white;
+  }
+
+  div.react-select__control:hover {
+    background-color: white;
+  }
+}
+
+div.react-select-container div.react-select__control--is-focused:hover {
+  background-color: white;
+}
+
+div.react-select-container div.react_select__value-container {
+  padding: 0 17px;
+}
+
+div.react-select-container.dark div.react-select__control {
+  border: var(--theme-border);
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+div.react-select-container.dark
+  div.react-select__control
+  div.react-select__placeholder {
+  color: #808080;
+}
+
+div.react-select-container.dark
+  div.react-select__control
+  div.react-select__single-value {
+  color: white;
+}
+
+div.react-select-container.dark
+  div.react-select__control
+  div.react-select__input {
+  color: white;
+}
+
+div.react-select-container.dark div.react-select__control--is-focuesd {
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+
+div.react-select-container.dark div.react-select__multi-value {
+  background-color: black;
+}
+
+div.react-select-container.dark div.react-select__multi-value__label {
+  color: white;
+}
+
+div.react-select-container div.react-select__multi-value__label {
+  user-select: none;
+}
+
+div.react-select-container.dark div.react-select__option {
+  color: var(--theme-white);
+}
+
+div.react-select-container-noborder {
+  width: 100%;
+}
+
+div.react-select-container-noborder div.react-select__control {
+  border: none;
+  background: none;
+}
+
+div.react-select-container-noborder div.react-select__control--is-focused {
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+
+div.react-select-container-noborder div.react_select__value-container {
+  padding: 0 17px 0 0;
+}
+
+div.react-select__control {
+  border-radius: var(--button-border-radius);
+  font-size: 14px;
+  line-height: 18px;
+  text-transform: none;
+  height: auto;
+
+  -webkit-transition: all 0.2s;
+  -o-transition: all 0.2s;
+  transition: all 0.2s;
+}
+
+div.react-select__control div.react-select__placeholder {
+  font-weight: 300;
+  padding-left: 2px;
+  color: rgba(27, 29, 36, 0.5);
+}
+
+div.react-select__control div.react-select__single-value,
+div.react-select__control div.react-select__placeholder {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+}
+
+div.react-select__menu {
+  z-index: 4;
+  font-size: 14px;
+}
+
+div.react-select__value-container {
+  -webkit-box-align: start;
+  -ms-flex-align: start;
+  align-items: flex-start;
+  padding: 2px 8px 2px 16px;
+}
+
+div.react-select__placeholder {
+  color: #e6e6e6;
+}
+
+span.react-select__indicator-separator {
+  display: none;
+}
+
+.react-select__indicators {
+  margin-right: 5px;
+}
+
+.dropdown-wrapper svg {
+  fill: rgba(255, 255, 255, 0.33);
+}
+
+div.react-select__multi-value__remove {
+  -webkit-transition: all 0.2s;
+  -o-transition: all 0.2s;
+  transition: all 0.2s;
+}
+
+div.react-select__multi-value__remove:hover {
+  background: red;
+}
+
+div.react-select__multi-value__remove:hover svg {
+  fill: white;
+  -webkit-transition: fill 0.2s;
+  -o-transition: fill 0.2s;
+  transition: fill 0.2s;
+}
+
+div.react-select__input {
+  padding-left: 3px;
+}
+
+div.react-select__input input {
+  width: 100% !important;
+  -webkit-box-shadow: none !important;
+  box-shadow: none !important;
+}
+
+div.react-select__menu {
+  background-color: rgb(30, 30, 30);
+  border-color: rgb(80, 80, 80);
+  color: rgb(120, 120, 120);
+}
+
+div.react-select__menu {
+  z-index: 4;
+  font-size: 14px;
+}
+div.react-select__menu .sub-label {
+  font-size: 11px;
+  color: #8c8c8c;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+div.react-select__menu div.react-select__option--is-selected .sub-label {
+  color: #e6e6e6;
+}
+
+div.react-select__option--is-focused {
+  background-color: rgb(80, 80, 80);
+  color: rgb(160, 160, 160);
+}

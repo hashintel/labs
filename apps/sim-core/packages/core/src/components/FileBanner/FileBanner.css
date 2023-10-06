@@ -1,0 +1,27 @@
+.FileBanner {
+  background-color: var(--selected-background-color);
+
+  border-top: 1px solid var(--theme-border);
+  border-bottom: 1px solid var(--theme-border);
+  border-left: 0;
+  border-right: 0;
+
+  text-align: start;
+
+  box-sizing: border-box;
+  padding: 1rem 1.5rem;
+
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.FileBanner .Icon {
+  flex: 0 0 auto;
+}
+
+.FileBanner p {
+  font-size: 0.8125rem;
+  line-height: 1.3;
+  margin: 0 3rem 0 1rem;
+}

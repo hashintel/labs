@@ -1,0 +1,14 @@
+.DS_Store
+.awcache
+.env
+.env.local
+.env.sh
+.idea
+.ipynb_checkpoints
+.next
+.old/
+.vscode/
+dist/
+node_modules/
+target/
+test_artifacts/

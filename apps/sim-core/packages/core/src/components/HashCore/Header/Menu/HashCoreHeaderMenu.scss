@@ -1,0 +1,206 @@
+:root {
+  --shortcut-bg: #1b1d24;
+  --shortcut-text-color: var(--white);
+}
+
+.HashCoreHeaderMenu {
+  display: inline-block;
+  vertical-align: top;
+  margin: 0 1rem;
+  padding: 0;
+  list-style-type: none;
+  position: relative;
+  z-index: 303;
+}
+
+.HashCoreHeaderMenu a {
+  text-decoration: none;
+}
+
+.HashCoreHeaderMenu hr {
+  margin: 0 auto;
+  border: 0;
+  height: 1px;
+  background: var(--theme-border);
+  width: 85%;
+}
+
+.HashCoreHeaderMenu-item,
+.HashCoreHeaderMenu-submenu-item {
+  display: inherit;
+  font-weight: bold;
+  position: relative;
+}
+
+/**
+ * TODO: @mysterycommand - figure out how to DRY this up
+ * @see: ../HashCoreHeader/HashCoreHeader.css ~ L23
+ */
+.HashCoreHeaderMenu-submenu-item a,
+.HashCoreHeaderMenu-submenu-item--disabled > span {
+  /* padding-vertical + (font-size * line-height) adds up to 32px */
+  padding: 10px 0.5rem 9px;
+  font-size: 13px;
+  line-height: 1;
+
+  cursor: pointer;
+  user-select: none;
+  display: block;
+
+  background: var(--theme-darkest);
+  transition: background 0.1s;
+}
+
+.HashCoreHeaderMenu-submenu-item--disabled {
+  > a {
+    cursor: default;
+    opacity: 0.66;
+  }
+}
+
+.HashCoreHeaderMenu-submenu-item:not(.HashCoreHeaderMenu-submenu-item--disabled)
+  a:hover {
+  background: var(--theme-dark);
+}
+
+.HashCoreHeaderMenu-submenu-item--disabled > span {
+  cursor: default;
+  background: #3a3a3a;
+  color: #d2d2d2;
+  font-weight: 400;
+}
+
+.HashCoreHeaderMenu-item > label {
+  border-left: 1px solid transparent;
+  border-right: 1px solid transparent;
+
+  transition: border 0.1s;
+}
+
+.HashCoreHeaderMenu-item > input:checked + label {
+  border-left: 1px solid var(--theme-border);
+  border-right: 1px solid var(--theme-border);
+}
+
+.HashCoreHeaderMenu-item > input + label + ul,
+.HashCoreHeaderMenu-submenu-item > input + label + ul {
+  display: none;
+  position: absolute;
+  border: 1px solid var(--theme-border);
+}
+
+.HashCoreHeaderMenu-submenu-item > input + label + ul {
+  top: 0;
+  left: 100%;
+}
+
+.HashCoreHeaderMenu-item > input:checked + label + ul,
+.HashCoreHeaderMenu-submenu-item > input:checked + label + ul {
+  display: block;
+  z-index: 1;
+}
+
+.HashCoreHeaderMenu-submenu,
+.HashCoreHeaderMenu-submenu-item > ul {
+  background: var(--theme-darkest);
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  border-bottom-right-radius: 6px;
+  border-bottom-left-radius: 6px;
+  min-width: 160px;
+}
+
+.HashCoreHeaderMenu-submenu-item ul {
+  overflow: hidden;
+  border-top-right-radius: 6px;
+}
+
+.HashCoreHeaderMenu-submenu-item a,
+.HashCoreHeaderMenu-submenu-item label,
+.HashCoreHeaderMenu-submenu-item--disabled > span {
+  white-space: nowrap;
+  padding-right: 1rem;
+  padding-left: 1rem;
+}
+
+.HashCoreHeaderMenu-submenu-item label {
+  padding-right: calc(1rem + 14px);
+}
+
+.HashCoreHeaderMenu-submenu-item label::after {
+  content: "\25B8";
+  position: absolute;
+  right: 14px;
+}
+
+.HashCoreHeaderMenu-submenu-item > a[title="Coming soon"] {
+  color: rgba(255, 255, 255, 0.25);
+  cursor: not-allowed;
+}
+
+.HashCoreHeaderMenu-submenu li:last-child,
+.HashCoreHeaderMenu-submenu li:last-child > a,
+.HashCoreHeaderMenu-submenu li:last-child > label {
+  border-bottom-right-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.HashCoreHeaderMenu-submenu li:last-child > a,
+.HashCoreHeaderMenu-submenu li:last-child > label {
+  padding-bottom: 12px;
+}
+
+.HashCoreHeaderMenu-submenu-item .HashCoreHeaderMenu__LabelWithHint {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  .HashCoreHeaderMenu__LabelWithHint__Hint {
+    color: var(--shortcut-text-color);
+    margin: 5px 0 5px 0;
+
+    span {
+      background-color: var(--shortcut-bg);
+      padding: 5px;
+      border-radius: 4px;
+      margin-left: 4px;
+    }
+  }
+}
+
+/**
+ * TODO: @mysterycommand - this is super brittle/coupled, but works and allows
+ * the `drive` and `examples` to share a common map `toListItem` function
+ */
+label[for="HashCoreHeaderMenu-submenu::My simulations"]
+  + ul
+  > li:nth-last-child(3)
+  > a {
+  padding-bottom: 12px;
+}
+
+.HashCoreHeaderMenuProjectLink {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+
+  span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .Icon {
+    // Ensures the icon doesn't make the list item taller
+    margin: -6px 0 -6px 8px;
+  }
+
+  .IconBrain {
+    fill: var(--theme-blue);
+  }
+
+  .IconLock {
+    fill: white;
+  }
+}

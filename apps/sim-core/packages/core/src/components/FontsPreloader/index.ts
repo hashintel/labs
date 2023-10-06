@@ -1,0 +1,1 @@
+export { FontsPreloader } from "./FontsPreloader";

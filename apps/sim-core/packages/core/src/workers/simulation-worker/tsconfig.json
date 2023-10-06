@@ -1,0 +1,13 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["esnext", "WebWorker"], // Specify library files to be included in the compilation.
+    "outDir": "./../../dist",
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true,
+    "allowJs": true
+  },
+  "include": ["**/*.ts", "**/*.d.ts", "**/*.js"],
+  "exclude": ["node_modules", "**/*.spec.ts"]
+}

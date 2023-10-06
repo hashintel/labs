@@ -1,0 +1,1 @@
+export { ResourceListItemPopupTable } from "./ResourceListItemPopupTable";

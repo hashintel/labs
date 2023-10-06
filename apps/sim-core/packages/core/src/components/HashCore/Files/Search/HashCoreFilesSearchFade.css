@@ -1,0 +1,15 @@
+.HashCoreFilesSearchFade {
+  pointer-events: none !important;
+  width: 15px;
+  left: -15px;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background-image: linear-gradient(
+    to right,
+    transparent,
+    var(--background-color)
+  );
+  opacity: 1;
+  transition: opacity 0.2s ease;
+}

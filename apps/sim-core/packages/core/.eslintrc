@@ -1,0 +1,38 @@
+{
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "jsx": true,
+    "useJSXTextNode": true
+  },
+  "extends": [
+    "plugin:@typescript-eslint/base",
+    "prettier"
+  ],
+  "plugins": ["@typescript-eslint", "react-hooks", "react", "import"],
+  "rules": {
+    "id-length": ["error", {
+      "min": 2,
+      "exceptions": ["_", "x", "y", "z", "a", "b"],
+      "properties": "never"
+    }],
+    "react-hooks/rules-of-hooks": "error",
+    "react-hooks/exhaustive-deps": [
+      "warn",
+      {
+        "additionalHooks": "(^useModal$)|(^useUserGatedEffect$)"
+      }
+    ],
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "error",
+      { "argsIgnorePattern": "^_+", "varsIgnorePattern": "^_+" }
+    ],
+    "no-unused-expressions": "error",
+    "prefer-const": "error",
+    "react/jsx-key": "error",
+    "react/jsx-no-useless-fragment": "error",
+    "import/no-default-export": "error",
+    "react/self-closing-comp": "warn",
+    "eqeqeq": ["error", "always", { "null": "ignore" }]
+  }
+}

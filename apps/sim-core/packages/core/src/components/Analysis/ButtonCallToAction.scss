@@ -1,0 +1,27 @@
+.ButtonCallToAction {
+  margin: 1.5rem auto;
+  border: 1px solid var(--theme-border);
+  border-radius: var(--item-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem 3rem 1rem 2rem;
+  font-size: 1rem;
+  fill: white;
+  text-align: left;
+  color: white;
+
+  div {
+    display: flex;
+    flex-direction: column;
+  }
+
+  > div > strong {
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  > .Icon {
+    margin-right: 1.5rem;
+  }
+}

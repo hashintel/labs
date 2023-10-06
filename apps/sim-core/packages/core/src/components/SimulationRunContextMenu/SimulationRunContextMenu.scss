@@ -1,0 +1,47 @@
+.SimulationRunContextMenu {
+  background: var(--theme-dark);
+  border: 1px solid var(--theme-dark-border);
+  border-radius: 0.25rem;
+
+  margin: 0;
+  padding: 0.5rem 0;
+  list-style-type: none;
+
+  position: absolute;
+  z-index: 52;
+  min-width: 160px;
+}
+
+.SimulationRunContextMenu > li > a {
+  display: inline-block;
+  text-decoration: none;
+}
+
+.SimulationRunContextMenu > li,
+.SimulationRunContextMenu > li > a,
+.SimulationRunContextMenu > li > button {
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.SimulationRunContextMenu > li > a,
+.SimulationRunContextMenu > li > button {
+  border: 0;
+  text-align: start;
+
+  background-color: transparent;
+  color: var(--theme-white);
+  transition: color 0.1s ease-in-out, background-color 0.1s ease-in-out;
+
+  padding: 0.5rem 1rem;
+  font-size: 0.8rem;
+
+  &:disabled {
+    opacity: 0.8;
+    cursor: default;
+  }
+
+  &:not(:disabled):hover {
+    background-color: var(--theme-dark-hover);
+  }
+}

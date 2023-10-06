@@ -1,0 +1,6 @@
+.HashCoreResourcesList {
+  overflow-y: scroll;
+  margin-right: -1em;
+  padding-right: 1em;
+  padding-bottom: var(--resources-padding);
+}

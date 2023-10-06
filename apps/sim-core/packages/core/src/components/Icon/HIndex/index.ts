@@ -1,0 +1,1 @@
+export { IconHIndex } from "./IconHIndex";

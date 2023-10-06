@@ -1,0 +1,80 @@
+.BehaviorKeys__FormWrapper {
+  position: relative;
+}
+
+.BehaviorKeys__Form {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /**
+   * Ensure maximum 4 rows are visible (with only half spacing after the
+   * final row)
+   */
+  max-height: calc(
+    ((var(--bk-row-height) + var(--bk-row-spacing)) * 4) -
+      (var(--bk-row-spacing) / 2)
+  );
+  overflow: auto;
+  position: relative;
+}
+
+.BehaviorKeys__Form__Buttons {
+  margin: 17px 0 3px;
+}
+
+.BehaviorKeys__Form__Buttons__Button {
+  font-weight: bold;
+  white-space: nowrap;
+  height: 36px !important;
+
+  &:not(:last-child) {
+    margin-right: 13px;
+  }
+}
+
+.BehaviorKeys__Form__Buttons__Button--autosuggest {
+  background: var(--theme-dark);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-sizing: border-box;
+  color: white;
+  fill: white;
+
+  &:hover {
+    background: var(--theme-dark-hover);
+  }
+}
+
+.BehaviorKeys__DynamicAccessCheckbox,
+.BehaviorKeys__ReadOnlyWarning {
+  font-size: 0.85rem;
+}
+
+.BehaviorKeys__DynamicAccessCheckbox {
+  padding: 0 1rem 0 1.5rem;
+  margin: 1rem 0 1rem 0;
+  fill: white;
+
+  label {
+    display: flex;
+    align-items: center;
+    user-select: none;
+  }
+
+  .CheckboxInput {
+    margin-right: 0.5rem;
+  }
+
+  a {
+    margin: 0.25rem 0 0 0.5rem;
+  }
+}
+
+.BehaviorKeys__ReadOnlyWarning {
+  padding: 0 1.5rem 1rem;
+  margin: 0;
+}
+
+.BehaviorKeys__ReadOnlyWarning--disabled {
+  opacity: 0.66;
+  line-height: 1.3;
+}

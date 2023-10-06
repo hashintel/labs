@@ -1,0 +1,1 @@
+export { IconCreatePlot } from "./IconCreatePlot";

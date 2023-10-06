@@ -1,0 +1,72 @@
+:root {
+  --BehaviorKeys__Popover--background: var(--theme-light-on-dark);
+}
+
+.BehaviorKeys__PopoverContainer {
+  /* using a filter instead of box-shadow so there is a shadow on the arrow too */
+  filter: drop-shadow(0 4px 4px rgba(0, 0, 0, 0.25));
+}
+
+.BehaviorKeys__Popover {
+  background-color: var(--BehaviorKeys__Popover--background);
+  padding: 5px;
+  border-radius: 7px;
+  width: 200px;
+}
+
+.BehaviorKeys__Popover--error {
+  max-width: 250px;
+  width: auto;
+  pointer-events: none;
+  padding-left: 15px;
+  padding-right: 15px;
+  text-align: center;
+  font-size: 0.8em;
+}
+
+.BehaviorKeys__PopoverSection {
+  user-select: none;
+  border-radius: 3px;
+  background-color: var(--theme-dark);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 13px;
+  font-weight: bold;
+  font-family: var(--font);
+  border: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+button.BehaviorKeys__PopoverSection {
+  justify-content: center;
+}
+
+.BehaviorKeys__PopoverSection:not(:last-child) {
+  margin-bottom: 5px;
+}
+
+.BehaviorKeys__PopoverSection input,
+.BehaviorKeys__PopoverSection .RoundedTextInput {
+  margin-left: auto;
+}
+
+.BehaviorKeys__PopoverSection--project:hover {
+  background-color: var(--theme-blue);
+}
+
+.BehaviorKeys__PopoverSection--remove {
+  background-color: var(--theme-red);
+  margin-top: 10px;
+}
+
+.BehaviorKeys__PopoverSection--remove:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+.BehaviorKeys__PopoverSection--remove:not(:disabled):hover {
+  background-color: var(--theme-red-alt);
+}

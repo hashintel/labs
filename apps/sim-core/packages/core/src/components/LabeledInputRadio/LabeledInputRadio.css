@@ -1,0 +1,29 @@
+.LabeledInputRadio-input {
+  background: var(--theme-darkest);
+  display: none;
+}
+
+/**
+ * TODO: @mysterycommand - figure out how to DRY this up
+ * @see: ../HashCoreHeader/HashCoreHeader.css ~ L23
+ */
+.LabeledInputRadio-label {
+  /* padding-vertical + (font-size * line-height) adds up to 32px */
+  padding: 10px 0.5rem 9px;
+  font-size: 13px;
+  line-height: 1;
+  transition: background 0.1s;
+  cursor: pointer;
+  display: block;
+  user-select: none;
+}
+
+.LabeledInputRadio-label--disabled {
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.LabeledInputRadio-input:checked + .LabeledInputRadio-label,
+.LabeledInputRadio-label:hover {
+  background: var(--theme-dark);
+}

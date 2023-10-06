@@ -1,0 +1,30 @@
+.HashCoreFilesSearch .codicon {
+  transition: all 0.2s ease;
+}
+
+.HashCoreFilesSearch .button {
+  color: white;
+  user-select: none;
+}
+
+.HashCoreFilesSearch .button.disabled {
+  color: var(--theme-dark-grey);
+}
+
+.HashCoreFilesSearch .button:not(.disabled) {
+  cursor: pointer;
+
+  @media (any-hover: hover) {
+    &:hover {
+      background-color: var(--theme-blue-translucent);
+    }
+  }
+}
+
+.HashCoreFilesSearch .codicon-search-replace {
+  padding-left: 1px;
+}
+
+.HashCoreFilesSearch .codicon-search-replace:before {
+  content: "\eb3d";
+}

@@ -1,0 +1,1 @@
+export { TabbedEditorPanel } from "./TabbedEditorPanel";

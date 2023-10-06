@@ -1,0 +1,1 @@
+export { IconLoading } from "./IconLoading";

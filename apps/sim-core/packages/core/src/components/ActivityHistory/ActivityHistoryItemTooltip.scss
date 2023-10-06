@@ -1,0 +1,7 @@
+.ActivityHistoryItemTooltip {
+  width: calc(var(--activity-width) - 20px) !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  transform: translateX(10px);
+  text-align: center;
+}

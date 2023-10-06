@@ -1,0 +1,14 @@
+@keyframes IconSpinnerRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.IconSpinner {
+  animation: IconSpinnerRotate 0.8s linear infinite;
+  transform-origin: center;
+}

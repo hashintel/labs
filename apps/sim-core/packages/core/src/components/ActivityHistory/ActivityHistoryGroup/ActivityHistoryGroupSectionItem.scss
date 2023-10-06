@@ -1,0 +1,33 @@
+.ActivityHistoryGroupSectionItem {
+  height: 22px;
+  font-size: 11px;
+}
+
+.ActivityHistoryGroupSectionItem__Label {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ActivityHistoryGroupSectionItem__ViewingStatus {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: flex-start;
+  width: 75px;
+  padding-left: 10px;
+  box-sizing: border-box;
+  margin-left: auto;
+
+  fill: currentColor;
+  color: var(--theme-grey-alt);
+  font-size: 11px;
+
+  .Icon {
+    margin-right: 8px;
+  }
+}
+
+.ActivityHistoryGroupSectionItem__ViewingStatus--open {
+  color: white;
+}

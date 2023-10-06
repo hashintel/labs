@@ -1,0 +1,1 @@
+export { ModalNameBehavior } from "./ModalNameBehavior";

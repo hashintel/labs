@@ -1,0 +1,48 @@
+.PlayPauseTooltipModeSwitcherHeader {
+  margin-top: 18px !important;
+}
+
+.PlayPauseTooltipModeSwitcher {
+  list-style-type: none;
+
+  margin: 11px 0 24px;
+  padding: 0;
+
+  li {
+    margin: 0;
+    padding: 0;
+
+    &:not(:last-child) {
+      margin-bottom: 11px;
+    }
+  }
+
+  .PlayPauseTooltipModeSwitcher__StepRetentionSelector {
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+
+    input {
+      width: 70px;
+      margin: 0 10px;
+    }
+  }
+}
+
+.PlayPauseTooltipModeLabel {
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  line-height: 13px;
+  cursor: pointer;
+  user-select: none;
+
+  .RadioInput {
+    margin-right: 12px;
+  }
+}
+
+.PlayPauseTooltipModeLabel--disabled {
+  cursor: default;
+  opacity: 0.65;
+}

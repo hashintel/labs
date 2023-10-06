@@ -1,0 +1,29 @@
+.SimulationViewerPyodideIndicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--theme-dark);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.SimulationViewerPyodideIndicator .IconPython {
+  width: 96px;
+  height: 96px;
+  opacity: 0.25;
+  fill: var(--theme-white);
+}
+
+.SimulationViewerPyodideIndicator__Label {
+  margin-top: 25px;
+  padding: 0 10px;
+  font-size: 16px;
+  line-height: 19px;
+  color: white;
+}

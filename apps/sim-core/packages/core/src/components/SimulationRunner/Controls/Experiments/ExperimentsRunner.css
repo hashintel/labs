@@ -1,0 +1,10 @@
+.ExperimentsRunner {
+  height: 100%;
+  border-right: 1px solid var(--theme-border);
+  position: relative;
+}
+
+.ExperimentsRunnerButton {
+  height: 100%;
+  width: 100%;
+}

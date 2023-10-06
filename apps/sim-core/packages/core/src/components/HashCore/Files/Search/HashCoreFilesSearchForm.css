@@ -1,0 +1,30 @@
+.HashCoreFilesSearchForm {
+  display: flex;
+  padding: 10px 3px 10px 0;
+}
+
+.HashCoreFilesSearchForm__Toggle {
+  display: flex !important;
+  align-items: center;
+}
+
+.HashCoreFilesSearchForm__Inputs {
+  flex: 1;
+  margin-left: 5px;
+}
+
+.HashCoreFilesSearchForm__Section {
+  display: flex;
+  align-items: stretch;
+}
+
+.HashCoreFilesSearchForm__Section + .HashCoreFilesSearchForm__Section {
+  margin-top: 5px;
+}
+
+.HashCoreFilesSearchForm__Section .button {
+  padding: 0 5px 0 4px;
+  margin-left: 4px;
+  display: flex;
+  align-items: center;
+}

@@ -1,0 +1,23 @@
+.ModalSplitLegacyTitle {
+  padding-top: 30px;
+}
+
+.ModalSplitLegacyTitle__Title {
+  font-size: 30px;
+  line-height: 30px;
+  padding: 0;
+  margin: 0 0 15px;
+  fill: var(--theme-white);
+  display: flex;
+  align-items: center;
+
+  svg {
+    fill: currentColor;
+  }
+}
+
+.ModalSplitLegacyTitle__Description {
+  font-size: 16px;
+  padding: 0;
+  margin: 0;
+}

@@ -1,0 +1,1 @@
+export { IconInformationOutline } from "./IconInformationOutline";

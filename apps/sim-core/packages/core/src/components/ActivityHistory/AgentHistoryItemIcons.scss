@@ -1,0 +1,43 @@
+.AgentHistoryItemIcons {
+  color: var(--theme-white);
+  fill: currentColor;
+  border: none;
+  margin: 0;
+  cursor: pointer;
+  user-select: none;
+  appearance: none;
+  position: absolute;
+  height: 100%;
+  align-items: center;
+  justify-content: flex-end;
+  width: 3rem;
+  right: 0;
+  // Due to a bug in Safari we have to fade from a transparent version of the
+  // color we are fading to
+  // @see https://ambientimpact.com/web/snippets/safari-bug-with-gradients-that-fade-to-transparent
+  background: linear-gradient(
+    to right,
+    var(--background-transparent),
+    var(--background) 20%
+  );
+  padding: 0 1.2rem 0 0;
+
+  display: none;
+
+  @media (any-hover: hover) {
+    display: flex;
+
+    :not(:hover) > &:not(.AgentHistoryItemIcons--exporting) {
+      display: none;
+    }
+  }
+
+  .IconDownload {
+    position: relative;
+    right: -5px;
+  }
+}
+
+.AgentHistoryItemIcons--exporting {
+  cursor: default;
+}

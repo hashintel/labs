@@ -1,0 +1,19 @@
+{
+  "compileOnSave": false,
+
+  "compilerOptions": {
+    "target": "es6",
+    "declaration": true,
+    "declarationMap": true,
+    "module": "es2015",
+    "moduleResolution": "node",
+    "strictNullChecks": true,
+    "types": ["node"],
+    "lib": ["es2017", "dom"],
+    "outDir": "lib",
+    "rootDir": "src",
+    "noImplicitAny": true
+  },
+
+  "include": ["src"]
+}

@@ -1,0 +1,108 @@
+.AnalysisViewer__OutputMetricsGridContainer {
+  overflow: hidden;
+  border-radius: var(--item-border-radius);
+  border: 1px solid var(--theme-border);
+  margin-top: 4rem;
+  margin-bottom: 1.5rem;
+}
+
+.AnalysisViewer__OutputMetricsGrid {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  grid-template-columns: repeat(auto-fit, minmax(30rem, 1fr));
+}
+
+.AnalysisViewer__OutputMetricsGrid__ListItem {
+  background: var(--theme-dark);
+  border: 1px solid var(--theme-border);
+  padding: 1rem 2rem 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+  flex-basis: 25%;
+  cursor: pointer;
+  min-height: 5rem;
+  fill: white;
+}
+
+.AnalysisViewer__OutputMetricsGrid__ListItem--readonly {
+  cursor: default;
+}
+
+.AnalysisViewer__OutputMetricsGrid__BigNumber {
+  align-self: start;
+  color: #66686c;
+  flex: 1;
+  font-size: 2rem;
+  font-weight: bold;
+  height: 40px;
+  margin-right: 1em;
+}
+
+.AnalysisViewer__OutputMetricsGrid__TitleContainer {
+  display: flex;
+  justify-content: space-between;
+  fill: white;
+  margin: 0;
+}
+
+.AnalysisViewer__OutputMetricsGrid__Title {
+  font-weight: bold;
+  margin: 0 0 0.7rem 0;
+}
+
+.AnalysisViewer__OutputMetricsGrid__TextContainer {
+  display: flex;
+  flex-direction: column;
+  flex: 40;
+  align-self: start;
+  padding-top: 0.3rem;
+}
+
+.AnalysisViewer__OutputMetricsGrid__Operation {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+}
+
+.AnalysisViewer__OutputMetricsGrid__Operation__Op {
+  margin-left: 0;
+}
+
+.AnalysisViewer__OutputMetricsGrid__Operation__Op,
+.AnalysisViewer__OutputMetricsGrid__Operation__Field,
+.AnalysisViewer__OutputMetricsGrid__Operation__Comparison,
+.AnalysisViewer__OutputMetricsGrid__Operation__Value {
+  margin: 0 0.2rem 0 0.2rem;
+  font-size: 1rem;
+}
+
+.AnalysisViewer__OutputMetricsGrid__Operation__Field,
+.AnalysisViewer__OutputMetricsGrid__Operation__Value {
+  border-radius: 8px;
+  background: var(--background-grey);
+  padding: 0.3rem;
+}
+
+.AnalysisViewer__OutputMetricsGrid__Operation--nooperations {
+  opacity: 0.5;
+  font-style: italic;
+}
+
+.AnalysisViewer__OutputMetricsGrid__ListItem__AddNewMetric {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--theme-black);
+
+  .AnalysisViewer__OutputMetricsGrid__Title,
+  .AnalysisViewer__OutputMetricsGrid__TextContainer {
+    margin: 0;
+    padding: 0;
+    align-self: center;
+  }
+}
