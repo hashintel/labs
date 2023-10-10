@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+set -e
+
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "************************************************************************"
+echo "**    Running sim-core's 'yarn fmt-check'                             **"
+echo "**    If this fails, run 'yarn fmt' and commit your fixes.            **"
+echo "**    (Output is stored in .config/husky/husky.log)                   **"
+echo "**    This takes about 10 seconds...                                  **"
+echo "************************************************************************"
+
+cd apps/sim-core || exit 1
+yarn fmt-check > ../../.config/husky/husky.log 2>&1;
+
+echo "**    Formatting check success.                                       **"
+echo "************************************************************************"
