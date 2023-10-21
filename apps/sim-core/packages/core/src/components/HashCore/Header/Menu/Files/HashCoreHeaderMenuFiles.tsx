@@ -155,7 +155,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               </ul>
             </li>
           )}
-          {/* <li className="HashCoreHeaderMenu-submenu-item">
+          <li className="HashCoreHeaderMenu-submenu-item">
             <LabeledInputRadio
               group="HashCoreHeaderMenu-submenu"
               label="New project"
@@ -182,7 +182,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 From starter template
               </Link>
             </ul>
-          </li> */}
+          </li>
           <li>
             <hr />
           </li>
