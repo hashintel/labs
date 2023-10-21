@@ -201,7 +201,6 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               <ul>
                 {[...userProjects]
                   .sort(descByUpdatedAt)
-                  .slice(0, 10)
                   .map(toListItem("User"))}
                 {userProfileUrl ? (
                   <>
