@@ -1,22 +1,21 @@
-import React, { FC, useEffect } from "react";
-import { useDispatch } from "react-redux";
-import { useModal } from "react-modal-hook";
 import { navigate } from "hookrouter";
+import React, { FC, useEffect } from "react";
+import { useModal } from "react-modal-hook";
+import { useDispatch } from "react-redux";
 
-import { AppDispatch } from "../../../features/types";
-import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
-import { Scope, useScopes } from "../../../features/scopes";
-import { addUserProject } from "../../../features/user/slice";
-import { createNewSimulationProject } from "../../../util/api/queries/createNewSimulationProject";
-import { forceLogIn } from "../../../features/user/utils";
-import { preparePartialSimulationProject } from "../../../features/project/utils";
 import { setProjectWithMeta } from "../../../features/actions";
-import { templates } from "./templates/templates";
 import { trackEvent } from "../../../features/analytics";
+import { preparePartialSimulationProject } from "../../../features/project/utils";
+import { Scope, useScopes } from "../../../features/scopes";
+import { AppDispatch } from "../../../features/types";
+import { addUserProject } from "../../../features/user/slice";
+import { forceLogIn } from "../../../features/user/utils";
+import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
 import { urlFromProject } from "../../../routes";
 import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
+import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
 import { useNavigateAway } from "./hooks";
-import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
+import { createNewSimulationProjectFromTemplate } from "./templates/templates";
 
 export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
   template = "empty",
@@ -30,22 +29,19 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
   );
   const fatalError = useFatalError();
 
-  const actions = templates[template];
-  if (!actions) {
-    throw new Error(`Unrecognised template ${template}`);
-  }
-
   const [showModal, hideModal] = useModal(
     () => (
       <ModalNewProject
         onCancel={navigateAway}
         onSubmit={async (values) => {
-          const project = await createNewSimulationProject(
+          //migration shim
+
+          const project = createNewSimulationProjectFromTemplate(
             values.namespace,
             values.path,
             values.name,
             values.visibility,
-            actions
+            template
           );
 
           dispatch(
@@ -55,10 +51,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
             })
           );
 
-          if (!values.namespace) {
-            dispatch(addUserProject(preparePartialSimulationProject(project)));
-          }
-
+          dispatch(addUserProject(preparePartialSimulationProject(project)));
           dispatch(setProjectWithMeta(project));
           navigate(urlFromProject(project), false, {}, true);
         }}
@@ -66,7 +59,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
         defaultNamespace={namespace}
       />
     ),
-    [actions, dispatch, namespace, navigateAway]
+    [dispatch, namespace, navigateAway]
   );
 
   useEffect(() => {
