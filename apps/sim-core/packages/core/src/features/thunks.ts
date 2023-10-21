@@ -1,32 +1,27 @@
-import { HcBehaviorFile, HcFile, HcSharedBehaviorFile } from "./files/types";
+import { getReleaseMeta } from "../util/api";
+import { bootstrapQuery } from "../util/api/queries";
+import { canUserEditProject } from "../util/api/queries/canUserEditProject";
+import { forkAndReleaseBehaviorsQuery } from "../util/api/queries/forkAndReleaseBehaviorsQuery";
+import { TourProgress, User } from "../util/api/types";
+import { beginActionSave, canUserEditProjectUpdate } from "./actions";
+import { trackEvent } from "./analytics";
+import { createAppAsyncThunk } from "./createAppAsyncThunk";
 import { HcFileKind } from "./files/enums";
+import { selectFileActions, selectLocalBehaviorFiles } from "./files/selectors";
+import { HcBehaviorFile, HcFile, HcSharedBehaviorFile } from "./files/types";
+import {
+  behaviorKeysFileName,
+  mapFileId,
+  repoPathForBehavior,
+} from "./files/utils";
+import { createActionQueue } from "./middleware/queue";
+import { selectCurrentProject } from "./project/selectors";
 import {
   PartialSimulationProject,
   ProjectVisibility,
   SimulationProject,
 } from "./project/types";
 import { Scope, selectScope } from "./scopes";
-import { TourProgress, User } from "../util/api/types";
-import {
-  beginActionSave,
-  canUserEditProjectUpdate,
-  projectUpdated,
-} from "./actions";
-import {
-  behaviorKeysFileName,
-  mapFileId,
-  repoPathForBehavior,
-} from "./files/utils";
-import { bootstrapQuery } from "../util/api/queries";
-import { canUserEditProject } from "../util/api/queries/canUserEditProject";
-import { commitActions } from "../util/api/queries/commitActions";
-import { createActionQueue } from "./middleware/queue";
-import { createAppAsyncThunk } from "./createAppAsyncThunk";
-import { forkAndReleaseBehaviorsQuery } from "../util/api/queries/forkAndReleaseBehaviorsQuery";
-import { getReleaseMeta } from "../util/api";
-import { selectCurrentProject } from "./project/selectors";
-import { selectFileActions, selectLocalBehaviorFiles } from "./files/selectors";
-import { trackEvent } from "./analytics";
 
 export const bootstrapApp = createAppAsyncThunk<{
   user?: User;
@@ -93,13 +88,15 @@ export const save = () =>
 
       try {
         dispatch(beginActionSave(actions.map((action) => action.uuid)));
-        const { result: updatedAt, commit } = await commitActions(
-          project.pathWithNamespace,
-          actions,
-          false,
-          project.access?.code
-        );
-        dispatch(projectUpdated({ updatedAt, actions, commit }));
+        // migration shim -- disable these API requests until they can talk to github.
+        //
+        // const { result: updatedAt, commit } = await commitActions(
+        //   project.pathWithNamespace,
+        //   actions,
+        //   false,
+        //   project.access?.code
+        // );
+        // dispatch(projectUpdated({ updatedAt, actions, commit }));
       } catch (err) {
         if (err.name !== "AbortError") {
           console.error(err);
