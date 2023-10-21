@@ -1,26 +1,8 @@
 import { useEffect, useReducer, useRef } from "react";
 import { useDispatch, useStore } from "react-redux";
-import { Subject, combineLatest, merge } from "rxjs";
-import {
-  debounceTime,
-  distinctUntilChanged,
-  filter,
-  map,
-  skip,
-  take,
-  withLatestFrom,
-} from "rxjs/operators";
+import { Subject } from "rxjs";
 
 import type { ResourceProject } from "../../../../features/project/types";
-import { Scope, selectScope } from "../../../../features/scopes";
-import { fromStore } from "../../../../util/fromStore";
-import { projectChangeObservable } from "../../../../features/project/observables";
-import { searchResourceProjects } from "../../../../util/api/queries/searchResourceProjects";
-import {
-  selectLatestReleaseTag,
-  selectProjectLoaded,
-} from "../../../../features/project/selectors";
-import { trackEvent } from "../../../../features/analytics";
 
 export const useSearchIndex = (): {
   loading: boolean;
@@ -63,77 +45,80 @@ export const useSearchIndex = (): {
   );
 
   useEffect(() => {
-    const search = async (searchTerm: string, signal: AbortSignal) => {
-      try {
-        dispatch({ type: "BEGIN_SEARCH" });
+    // migration shim
+    return;
 
-        const results = await searchResourceProjects(searchTerm, signal);
+    // const search = async (searchTerm: string, signal: AbortSignal) => {
+    //   try {
+    //     dispatch({ type: "BEGIN_SEARCH" });
 
-        // Search is triggered on page load - we don't want to track those as events
-        if (searchTerm) {
-          appDispatch(
-            trackEvent({ action: "Index Search: Core", label: searchTerm })
-          );
-        }
+    //     const results = await searchResourceProjects(searchTerm, signal);
 
-        if (signal.aborted) {
-          return;
-        }
+    //     // Search is triggered on page load - we don't want to track those as events
+    //     if (searchTerm) {
+    //       appDispatch(
+    //         trackEvent({ action: "Index Search: Core", label: searchTerm })
+    //       );
+    //     }
 
-        dispatch({ type: "FINISHED_SEARCHING", payload: results });
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error("Could not fetch resources", err);
+    //     if (signal.aborted) {
+    //       return;
+    //     }
 
-          dispatch({ type: "ERROR" });
-        }
-      }
-    };
+    //     dispatch({ type: "FINISHED_SEARCHING", payload: results });
+    //   } catch (err) {
+    //     if (err.name !== "AbortError") {
+    //       console.error("Could not fetch resources", err);
 
-    let controller: AbortController | null = null;
+    //       dispatch({ type: "ERROR" });
+    //     }
+    //   }
+    // };
 
-    const storeObs = fromStore(store);
-    const subscription = combineLatest([
-      merge(
-        searchTermSubjectRef.current.pipe(skip(1), debounceTime(500)),
-        searchTermSubjectRef.current.pipe(take(1)),
-        projectChangeObservable(store).pipe(
-          withLatestFrom(searchTermSubjectRef.current),
-          map((pair) => pair[1] ?? "")
-        ),
-        storeObs.pipe(
-          filter(selectProjectLoaded),
-          map(selectLatestReleaseTag),
-          distinctUntilChanged(),
-          withLatestFrom(searchTermSubjectRef.current),
-          map((pair) => pair[1] ?? "")
-        )
-      ),
-      storeObs.pipe(
-        filter(selectProjectLoaded),
-        map(selectScope[Scope.save]),
-        distinctUntilChanged()
-      ),
-    ])
-      .pipe(debounceTime(0))
-      .subscribe(([searchTerm, canSave]) => {
-        controller?.abort();
+    // let controller: AbortController | null = null;
 
-        if (canSave) {
-          controller = new AbortController();
+    // const storeObs = fromStore(store);
+    // const subscription = combineLatest([
+    //   merge(
+    //     searchTermSubjectRef.current.pipe(skip(1), debounceTime(500)),
+    //     searchTermSubjectRef.current.pipe(take(1)),
+    //     projectChangeObservable(store).pipe(
+    //       withLatestFrom(searchTermSubjectRef.current),
+    //       map((pair) => pair[1] ?? "")
+    //     ),
+    //     storeObs.pipe(
+    //       filter(selectProjectLoaded),
+    //       map(selectLatestReleaseTag),
+    //       distinctUntilChanged(),
+    //       withLatestFrom(searchTermSubjectRef.current),
+    //       map((pair) => pair[1] ?? "")
+    //     )
+    //   ),
+    //   storeObs.pipe(
+    //     filter(selectProjectLoaded),
+    //     map(selectScope[Scope.save]),
+    //     distinctUntilChanged()
+    //   ),
+    // ])
+    //   .pipe(debounceTime(0))
+    //   .subscribe(([searchTerm, canSave]) => {
+    //     controller?.abort();
 
-          search(searchTerm, controller.signal).catch((err) => {
-            if (err.name !== "AbortError") {
-              console.error(err);
-            }
-          });
-        }
-      });
+    //     if (canSave) {
+    //       controller = new AbortController();
 
-    return () => {
-      controller?.abort();
-      subscription.unsubscribe();
-    };
+    //       search(searchTerm, controller.signal).catch((err) => {
+    //         if (err.name !== "AbortError") {
+    //           console.error(err);
+    //         }
+    //       });
+    //     }
+    //   });
+
+    // return () => {
+    //   controller?.abort();
+    //   subscription.unsubscribe();
+    // };
   }, [appDispatch, store]);
 
   useEffect(() => {
