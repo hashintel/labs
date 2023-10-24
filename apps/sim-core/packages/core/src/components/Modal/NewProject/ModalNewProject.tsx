@@ -112,7 +112,7 @@ export const ModalNewProject: FC<{
         await onSubmit({
           ...values,
           namespace:
-            values.namespace === USER_ORG_VALUE ? "" : values.namespace,
+            values.namespace === USER_ORG_VALUE ? "@user" : values.namespace,
         });
       });
     } catch (err) {

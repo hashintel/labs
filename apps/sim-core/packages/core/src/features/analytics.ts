@@ -1,5 +1,4 @@
 import { AppThunk } from "./types";
-import { registerEvents } from "../util/api/queries/registerEvents";
 import { selectCurrentUser } from "./user/selectors";
 import { selectEmbedded } from "./viewer/selectors";
 
@@ -67,6 +66,12 @@ const reportEvents = (events: AnalyticsEventMeta[]) => {
     []
   );
   if (eventsToReport.length > 0) {
-    registerEvents({ actions: eventsToReport });
+    // migration shim
+    // disable event reporting,
+    // but keep this code alive so that all of the event tracking
+    // touchpoints remain in the codebase.
+    // that instrumentation will be useful to anyone who
+    // ends up hosting this.
+    // registerEvents({ actions: eventsToReport });
   }
 };
