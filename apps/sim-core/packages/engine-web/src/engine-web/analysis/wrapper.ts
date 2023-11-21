@@ -6,7 +6,7 @@ import { SerializableAgentState } from "../../glue";
 export class AnalyzerProvider {
   promiseWorker: PromiseWorker;
 
-  constructor(path: URL) {
+  constructor(path: string) {
     this.promiseWorker = new PromiseWorker(
       new Worker(path, { name: "hash-analyzer", type: "module" })
     );

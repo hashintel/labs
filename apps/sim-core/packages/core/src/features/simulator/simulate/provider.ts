@@ -30,7 +30,7 @@ export class SimulationProvider implements ExperimentRunner {
 
   constructor(public target: ProviderTargetEnv) {}
 
-  build(workerFileName: URL, numWorkers = 4, devMode = false) {
+  build(workerFileName: string, numWorkers = 4, devMode = false) {
     this.devMode = devMode;
 
     // For now, use the same dedicated runner for both cloud and web

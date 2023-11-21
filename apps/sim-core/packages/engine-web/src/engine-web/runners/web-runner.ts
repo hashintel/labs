@@ -25,7 +25,7 @@ export class WebExperimentRunner implements ExperimentRunner {
   devMode = false;
   runningQueue = false;
 
-  constructor(numWorkers: number, devMode: boolean, fileName: URL) {
+  constructor(numWorkers: number, devMode: boolean, fileName: string) {
     this.devMode = devMode;
 
     for (let idx = 0; idx < numWorkers; idx++) {

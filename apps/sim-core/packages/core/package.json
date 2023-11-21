@@ -13,6 +13,7 @@
     "dev-env": "cross-env-shell NODE_OPTIONS=\"--max_old_space_size=4096 --openssl-legacy-provider\" NODE_ENV=development",
     "build": "yarn prod-env vite build",
     "start": "yarn prod-env vite build && vite preview",
+    "preview": "yarn prod-env vite preview",
     "fmt": "prettier \"*.{ts,tsx,js,jsx,json,css,scss}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss}\" --write; eslint --quiet --fix \"*.{ts,tsx,js}\" \"{scripts,src}/**/*.{ts,tsx,js}\"",
     "fmt-check": "prettier \"*.{ts,tsx,js,jsx,json,css,scss}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss}\" --check || exit 1; eslint --quiet \"*.{ts,tsx,js}\" \"{scripts,src}/**/*.{ts,tsx,js}\"",
     "deploy": "ts-node --project scripts/tsconfig.json scripts/deploy.ts",
