@@ -15,8 +15,8 @@
     "pretest": "yarn prebuild:node",
     "test": "jest",
     "prepare": "npx npm-run-all clean build build:node",
-    "prod-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=4096 NODE_ENV=production",
-    "dev-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=4096 NODE_ENV=development",
+    "prod-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=4096 NODE_ENV=production NODE_OPTIONS=--openssl-legacy-provider",
+    "dev-env": "cross-env-shell NODE_OPTIONS=--max_old_space_size=4096 NODE_ENV=development NODE_OPTIONS=--openssl-legacy-provider",
     "build-stdlib": "yarn prod-env webpack --mode production",
     "build-stdlib-dev": "yarn dev-env webpack --mode development"
   },
@@ -42,5 +42,20 @@
   },
   "main": "dist-node/index.js",
   "module": "dist/index.js",
-  "types": "dist/index.d.ts"
+  "types": "dist/index.d.ts",
+  "devDependencies": {
+    "@babel/core": "7.12.3",
+    "@babel/helper-environment-visitor": "^7.22.20",
+    "@babel/helper-string-parser": "^7.23.4",
+    "@babel/preset-env": "7.12.11",
+    "@babel/preset-react": "7.14.5",
+    "@babel/preset-typescript": "7.12.1",
+    "@jridgewell/gen-mapping": "^0.3.3",
+    "babel-jest": "26.6.3",
+    "babel-loader": "8.2.1",
+    "babel-plugin-dynamic-import-node": "^2.3.3",
+    "fork-ts-checker-webpack-plugin": "6.0.3",
+    "webpack": "4.44.2",
+    "webpack-cli": "3.3.12"
+  }
 }
