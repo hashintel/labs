@@ -1,5 +1,4 @@
 import { BasicUser } from "../types";
-import { IS_DEV, IS_LOCAL } from "../paths";
 import { query } from "../query";
 
 export const BasicUserFragment = /* GraphQL */ `

@@ -1,5 +1,3 @@
-import prettyStringify from "json-stringify-pretty-compact";
-
 import { API_URL } from "./paths";
 
 const parseQueryForName = (graphql: string) =>
@@ -92,21 +90,7 @@ export async function query<T, V = {} | undefined>(
   variables?: V,
   signal?: AbortSignal
 ): Promise<T> {
-  const { data, errors, queryName } = await baseQuery<T, V>(
-    graphql,
-    variables,
-    signal
-  );
-
-  const crumb = {
-    type: "query",
-    data: {
-      graphql,
-      variables: variables ? prettyStringify(variables) : "{}",
-      ...(errors ? { errors: prettyStringify(errors) } : {}),
-    },
-    category: "graphql",
-  };
+  const { data, errors } = await baseQuery<T, V>(graphql, variables, signal);
 
   if (errors) {
     throw new QueryError({

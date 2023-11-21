@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       },
       reportCompressedSize: false,
       minify: true,
-      sourcemap: false
+      sourcemap: false,
     },
     define: {
       BUILD_STAMP: JSON.stringify(BUILD_STAMP),

@@ -1,7 +1,6 @@
 import React, {
   Component,
   createContext,
-  ErrorInfo,
   FC,
   useContext,
   useMemo,
@@ -129,10 +128,6 @@ export class ErrorBoundary extends Component<
     detailsHidden: true,
     hashEventId: null,
   };
-
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const { hashEventId } = this.state;
-  }
 
   render() {
     const {

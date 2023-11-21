@@ -47,8 +47,6 @@ import { setLocalStorageProject } from "../../../features/middleware/localStorag
 // `;
 
 export const bootstrapQuery = async () => {
-  let me: User | undefined;
-
   try {
     // const result = await query<BootstrapQuery>(queryString);
     // Migration shim
@@ -62,7 +60,6 @@ export const bootstrapQuery = async () => {
         email: string;
         role: Pick<User, "role">;
       };
-      me = user;
 
       return {
         ...bootstrap,

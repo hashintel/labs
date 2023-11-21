@@ -2,7 +2,6 @@ import {
   AnyAction,
   createAction,
   createSlice,
-  current,
   Draft,
   EntityId,
   freeze,
@@ -490,8 +489,6 @@ const { reducer, actions } = createSlice({
           state.analysisMode === AnalysisMode.SingleRun
             ? null
             : action.payload.simId;
-
-        const currentState = current(state);
 
         state.currentSimulation = simId;
         state.analysisMode = simId ? AnalysisMode.SingleRun : null;
