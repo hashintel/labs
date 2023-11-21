@@ -22,6 +22,15 @@ import {
   SimulationProject,
 } from "./project/types";
 import { Scope, selectScope } from "./scopes";
+// import { Octokit } from "@octokit/rest";
+
+// const authKey = "github-auth";
+// if(!localStorage[authKey]) {
+//   localStorage[authKey] = window.prompt("Please provide your GitHub personal access token.\n\n It will be preserved in localstorage and used to read and commit files to your GitHub account.\n\nhttps://github.com/settings/tokens/new");
+// }
+// const octokit = new Octokit({
+//   auth: localStorage[authKey],
+// });
 
 export const bootstrapApp = createAppAsyncThunk<{
   user?: User;
@@ -89,6 +98,9 @@ export const save = () =>
       try {
         dispatch(beginActionSave(actions.map((action) => action.uuid)));
         // migration shim -- disable these API requests until they can talk to github.
+
+        // const { data } = await octokit.request("/user");
+        // console.log("github data:", data);
         //
         // const { result: updatedAt, commit } = await commitActions(
         //   project.pathWithNamespace,
@@ -96,6 +108,7 @@ export const save = () =>
         //   false,
         //   project.access?.code
         // );
+
         // dispatch(projectUpdated({ updatedAt, actions, commit }));
       } catch (err) {
         if (err.name !== "AbortError") {

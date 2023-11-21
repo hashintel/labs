@@ -4,7 +4,7 @@
     "noEmit": true, // Do not emit outputs.
     "incremental": false, // Enable incremental compilation
     "isolatedModules": true, // Transpile each file as a separate module (similar to 'ts.transpileModule').
-    "skipLibCheck": true
+    "skipLibCheck": false // set to true when needed to work around upstream errors caused by isolatedModules
   },
   "include": ["site.d.ts", "scripts/**/*", "src/**/*"],
   "exclude": ["node_modules"]

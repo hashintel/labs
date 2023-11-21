@@ -1,4 +1,3 @@
-import urljoin from "url-join";
 import {
   AnalyzerProvider,
   OutputSeries,
@@ -9,11 +8,9 @@ import {
 
 import { OutputPlotProps } from "./types";
 import { buildData, buildPlots } from "./utils";
+import analyzerWorkerUrl from "../../workers/analyzer-worker/index?worker&url";
 
-export const analyzer = new AnalyzerProvider(
-  urljoin(WEBPACK_PUBLIC_PATH, "analyzerworker.js")
-);
-
+export const analyzer = new AnalyzerProvider(analyzerWorkerUrl);
 type PlotDefinitionIsInvalidType = {
   isInvalid?: boolean;
 };

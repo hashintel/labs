@@ -123,7 +123,7 @@ export const HashCoreFiles: FC = () => {
           /**
            * @todo don't rely on querying for ids for this
            */
-          setImmediate(() => {
+          Promise.resolve().then(() => {
             document
               .querySelector<HTMLLIElement>(`#${getDomIdByFileId(file.id)}`)
               ?.scrollIntoView({ block: "center", inline: "center" });

@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import { CanvasProps, useThree } from "react-three-fiber";
 import * as THREE from "three";
-import { MapControls, OrbitControls } from "drei";
+import { MapControls, OrbitControls } from "@react-three/drei";
 import { useRecoilValue } from "recoil";
 
 import * as sceneState from "../state/SceneState";

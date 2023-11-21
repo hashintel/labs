@@ -11,7 +11,7 @@ export const initSentry = (integrations?: Options["integrations"]) => {
     // Enable error reporting:
     Sentry.init({
       dsn: "https://38b4aff591fa46f096b59d49d71c5d45@sentry.io/1509252",
-      release: WEBPACK_BUILD_STAMP,
+      release: BUILD_STAMP,
       environment: IS_DEV ? "Development" : "Production",
       integrations: [
         new CaptureConsoleIntegration({
@@ -33,7 +33,7 @@ export const initSentry = (integrations?: Options["integrations"]) => {
           const { signal } = sentryConsoleLogAbortController;
 
           return new Promise((resolve) => {
-            setImmediate(() => {
+            Promise.resolve().then(() => {
               resolve(signal.aborted ? null : event);
             });
           });

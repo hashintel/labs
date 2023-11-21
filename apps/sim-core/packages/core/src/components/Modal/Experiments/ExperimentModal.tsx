@@ -1408,7 +1408,7 @@ export const ExperimentModal: FC<{
 
                   fields.push(optimizationFieldTemplate());
                   setFormData(clone);
-                  setImmediate(() => {
+                  Promise.resolve().then(() => {
                     document
                       .querySelector<HTMLInputElement>(
                         `[name="fields.${fields.length - 1}.name"]`

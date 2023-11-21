@@ -60,7 +60,7 @@ const useRepositionPopoverOnElementResize = () =>
        */
       scrollBy(0, 1);
 
-      setImmediate(() => {
+      Promise.resolve().then(() => {
         scrollBy(0, -1);
       });
     },

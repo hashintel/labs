@@ -31,7 +31,6 @@
     "prefer-const": "error",
     "react/jsx-key": "error",
     "react/jsx-no-useless-fragment": "error",
-    "import/no-default-export": "error",
     "react/self-closing-comp": "warn",
     "eqeqeq": ["error", "always", { "null": "ignore" }]
   }

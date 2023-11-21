@@ -51,14 +51,14 @@ const getEntry = <NodeType extends HTMLElement>(
 export const useOncePerFrameHandler = <T extends (...args: any[]) => void>(
   handler: T
 ): T => {
-  const timeoutRef = useRef<ReturnType<typeof setImmediate> | null>(null);
+  const timeoutRef = useRef<number | null>(null);
 
   return ((...args: any[]) => {
     if (timeoutRef.current) {
-      clearImmediate(timeoutRef.current);
+      clearTimeout(timeoutRef.current);
     }
 
-    timeoutRef.current = setImmediate(() => {
+    timeoutRef.current = setTimeout(() => {
       timeoutRef.current = null;
       handler(...args);
     });

@@ -69,7 +69,7 @@ export const HashVersionPicker: FC<HashVersionPickerProps> = ({ versions }) => {
   >(0);
 
   const confirmationDialogs = [
-    `Promote ${WEBPACK_BUILD_STAMP} to production?`,
+    `Promote ${BUILD_STAMP} to production?`,
     "You've tested everything?",
     "Ok...",
   ];
@@ -84,7 +84,7 @@ export const HashVersionPicker: FC<HashVersionPickerProps> = ({ versions }) => {
       setConfirmationIndex(confirmationIndex + 1);
     } else {
       const controller = new AbortController();
-      promoteToLive({ stamp: WEBPACK_BUILD_STAMP }, controller.signal)
+      promoteToLive({ stamp: BUILD_STAMP }, controller.signal)
         .then(() => setConfirmationIndex(undefined))
         .catch((err) => {
           console.error(err);
@@ -101,7 +101,7 @@ export const HashVersionPicker: FC<HashVersionPickerProps> = ({ versions }) => {
           size="small"
           options={versions}
           getOptionLabel={(version) => `${version}`}
-          value={WEBPACK_BUILD_STAMP}
+          value={BUILD_STAMP}
           onChange={(_, newValue) => {
             if (newValue) {
               // Add "hash-prod-" so it doesn't have to come down in the version list

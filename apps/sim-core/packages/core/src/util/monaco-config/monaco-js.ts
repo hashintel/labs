@@ -1,7 +1,7 @@
 // @ts-ignore
-import completions from "!!raw-loader!./completions.d.ts";
+import completions from "./completions.d.ts?raw";
 // @ts-ignore
-import completionsHStd from "!!raw-loader!./completions-hstd.d.ts";
+import completionsHStd from "./completions-hstd.d.ts?raw";
 import { languages } from "monaco-editor";
 
 export function configureJsCompletions() {

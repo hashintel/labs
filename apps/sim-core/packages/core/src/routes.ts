@@ -28,7 +28,7 @@ export const getRouteFromQuery = () => {
 
 export const getUrlForRouteWithBuildStamp = (
   route: string,
-  buildStamp = WEBPACK_BUILD_STAMP
+  buildStamp = BUILD_STAMP
 ) =>
   `${origin}/${buildStamp}/index.html${
     route ? `?route=${encodeURIComponent(route)}` : ""
@@ -40,9 +40,8 @@ export const getCurrentRoute = () => {
   return href.slice(origin.length).replace(/^\//, "");
 };
 
-export const getUrlForCurrentRouteWithBuildStamp = (
-  buildStamp = WEBPACK_BUILD_STAMP
-) => getUrlForRouteWithBuildStamp(getCurrentRoute(), buildStamp);
+export const getUrlForCurrentRouteWithBuildStamp = (buildStamp = BUILD_STAMP) =>
+  getUrlForRouteWithBuildStamp(getCurrentRoute(), buildStamp);
 
 // @todo should this take into account access codes?
 export const urlFromProject = (project: LinkableProject): string => {

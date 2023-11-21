@@ -47,7 +47,7 @@ const iframeSrcCode = (
 
   return `\
 <iframe src="${window.location.origin}/${
-    linkToBuild ? `${WEBPACK_BUILD_STAMP}/` : ""
+    linkToBuild ? `${BUILD_STAMP}/` : ""
   }embed.html?${new URLSearchParams(
     query
   ).toString()}" width="700" height="400" frameborder="0" scrolling="auto"></iframe>`;

@@ -53,7 +53,7 @@ const runSim = async (runner: RunnerState) => {
     runner.stepsLeft -= 1;
 
     // awaiting the runner might be instant, so we need to prevent the thread from locking
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => Promise.resolve().then(resolve));
 
     if (runner.stepHandler) {
       await runner.stepHandler(runner.stepsTaken + 1, newState);

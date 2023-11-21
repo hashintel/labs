@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { Canvas } from "react-three-fiber";
 import * as THREE from "three";
 import { Json, SerializableAgentState } from "@hashintel/engine-web";
-import { Stats } from "drei";
+// import { Stats } from "@react-three/drei";
 import {
   useRecoilBridgeAcrossReactRoots_UNSTABLE,
   useRecoilCallback,
@@ -63,8 +63,8 @@ export const AgentScene = ({
   );
 
   // Stats element
-  const showStats = useRecoilValue(SceneState.StatsEnabled);
-  const statsContainerRef = useRef(null);
+  // const showStats = useRecoilValue(SceneState.StatsEnabled);
+  // const statsContainerRef = useRef(null);
 
   const updatesEnabled = useRecoilValue(SceneState.UpdatesEnabled);
   const edgesEnabled = useRecoilValue(SceneState.EdgesEnabled);
@@ -135,13 +135,13 @@ export const AgentScene = ({
 
   return (
     <div className="AgentScene">
-      <div
+      {/* <div
         className="StatsContainer"
         hidden={!showStats}
         ref={statsContainerRef}
       >
         <Stats className={"StatsMonitor"} parent={statsContainerRef} />
-      </div>
+      </div> */}
 
       <Canvas
         /**

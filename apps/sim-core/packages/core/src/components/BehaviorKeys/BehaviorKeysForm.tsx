@@ -114,7 +114,7 @@ export const BehaviorKeysForm: FC<{
 
   const onAddField = () => {
     setData((draft) => addField(draft, projection.length === 0));
-    setImmediate(() => {
+    Promise.resolve().then(() => {
       if (listRef.current) {
         scrollToEnd(listRef.current);
         focusLast();
