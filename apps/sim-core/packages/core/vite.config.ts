@@ -56,11 +56,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       wasm(),
       topLevelAwait(),
-      react({
-        babel: {
-          plugins: [],
-        },
-      }),
+      react(),
       monacoEditorPlugin({}),
     ],
   };
