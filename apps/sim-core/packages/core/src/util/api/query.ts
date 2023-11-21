@@ -1,5 +1,4 @@
 import prettyStringify from "json-stringify-pretty-compact";
-import { Severity, addBreadcrumb } from "@sentry/browser";
 
 import { API_URL } from "./paths";
 
@@ -110,20 +109,10 @@ export async function query<T, V = {} | undefined>(
   };
 
   if (errors) {
-    addBreadcrumb({
-      ...crumb,
-      level: Severity.Warning,
-      message: `Unsuccessful query ${queryName}`,
-    });
     throw new QueryError({
       graphql,
       variables: variables || null,
       errors: errors as ApiError[],
-    });
-  } else {
-    addBreadcrumb({
-      ...crumb,
-      message: `Successful query ${queryName}`,
     });
   }
 

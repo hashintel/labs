@@ -7,7 +7,6 @@ import React, {
   useMemo,
   useState,
 } from "react";
-import * as Sentry from "@sentry/browser";
 import { customAlphabet } from "nanoid";
 
 import { BasicDiscordWidget } from "../DiscordWidget/DiscordWidget";
@@ -15,7 +14,6 @@ import { BigModal } from "../Modal";
 import { ErrorDetails } from "../ErrorDetails";
 import { FancyButton } from "../Fancy";
 import { IS_LOCAL } from "../../util/api";
-import { sentryConsoleLogAbortController } from "../../util/initSentry";
 
 import "./ErrorBoundary.css";
 
@@ -134,19 +132,6 @@ export class ErrorBoundary extends Component<
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     const { hashEventId } = this.state;
-
-    /**
-     * Cancel the in-flight sentry log of this error caused by React calling
-     * console.error before notifying the error boundary
-     */
-    sentryConsoleLogAbortController.abort();
-
-    Sentry.withScope((scope) => {
-      scope.setTag("hashId", hashEventId);
-      scope.setExtras(errorInfo as any);
-      const eventId = Sentry.captureException(error);
-      this.setState({ eventId });
-    });
   }
 
   render() {

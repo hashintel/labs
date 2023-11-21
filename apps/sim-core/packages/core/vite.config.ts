@@ -27,9 +27,12 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: "./src/index.html",
-          embed: "./src/embed.tsx",
+          embed: "./src/embed.html",
         },
       },
+      reportCompressedSize: false,
+      minify: true,
+      sourcemap: false
     },
     define: {
       BUILD_STAMP: JSON.stringify(BUILD_STAMP),

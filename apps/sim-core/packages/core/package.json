@@ -38,7 +38,7 @@
       "/node_modules/(?!monaco-editor).+\\.js$"
     ]
   },
-    "browserslist": [
+  "browserslist": [
     "edge >= 88",
     "firefox >= 78",
     "chrome >= 87",
@@ -63,9 +63,6 @@
     "@msrvida/sanddance-explorer": "3.1.0",
     "@react-three/drei": "1.5.9",
     "@reduxjs/toolkit": "1.5.0",
-    "@sentry/browser": "6.2.0",
-    "@sentry/fullstory": "1.1.5",
-    "@sentry/integrations": "6.2.0",
     "@svgr/core": "5.5.0",
     "@types/node": "14.14.7",
     "bowser": "2.11.0",

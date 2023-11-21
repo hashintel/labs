@@ -248,12 +248,6 @@ const setters = {
         state.openFileIds.push(id);
       }
     } else {
-      /**
-       * Diagnostics to fix sentry issue
-       * "Cannot append file that does not exist: initialState"
-       * @see https://sentry.io/organizations/hashintel/issues/2371565370/events/fd45f2d27fad4b3ca12a2e60a910ecee/?project=1509252
-       * @todo remove this when above issue resolved
-       */
       const currentState = current(state);
       console.log("===== CURRENT STATE =====");
       for (const [key, value] of Object.entries(currentState)) {

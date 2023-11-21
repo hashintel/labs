@@ -4,7 +4,6 @@ import { ProjectTypeName, VisibilityLevel } from "../auto-types";
 import type { User } from "../types";
 import { getItem } from "../../../hooks/useLocalStorage";
 import { getLocalStorageProject } from "../../../features/project/utils";
-import { identifyBasicUser } from "./basicUser";
 import { prepareExamples } from "./exampleSimulations";
 import { prepareUserProjects } from "./myProjects";
 import { setLocalStorageProject } from "../../../features/middleware/localStorage";
@@ -77,7 +76,6 @@ export const bootstrapQuery = async () => {
     // Migration shim
     return { examples: [] };
   } finally {
-    identifyBasicUser(me);
   }
 };
 

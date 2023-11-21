@@ -86,11 +86,7 @@ async function buildAndStageAssets(): Promise<string> {
     });
 
   // 4. Notify relevant apps:
-  // Notify Sentry.io that a new deploy exists
-  await request.post(
-    "https://sentry.io/api/hooks/release/builtin/1509252/efc0273443d500ecd145d41ac4e0b48999648d378b828dca8b4a1b8fb3d42ef8/",
-    { json: { version: stamp } }
-  );
+  // (nothing to do at the moment)
 
   return stamp;
 }

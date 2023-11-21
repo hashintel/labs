@@ -16,7 +16,6 @@ import {
   RunnerStatus,
   SimulationStates,
 } from "@hashintel/engine-web";
-import { addBreadcrumb } from "@sentry/browser";
 
 import { AnalysisMode } from "./enum";
 import { Commit, ProjectHistoryItemType } from "../../../util/api/auto-types";
@@ -493,21 +492,6 @@ const { reducer, actions } = createSlice({
             : action.payload.simId;
 
         const currentState = current(state);
-
-        /**
-         * @todo remove when sentry issue is solved
-         * @see https://sentry.io/organizations/hashintel/issues/2237610017
-         */
-        addBreadcrumb({
-          message: "Setting simulation as selected",
-          data: {
-            currentSimulation: currentState.currentSimulation,
-            analysisMode: currentState.analysisMode,
-            payloadSimId: action.payload.simId,
-            payloadLatest: action.payload.latest ?? false,
-            simId,
-          },
-        });
 
         state.currentSimulation = simId;
         state.analysisMode = simId ? AnalysisMode.SingleRun : null;
