@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: "./src/index.html",
-          embed: "./src/embed.tsx"
+          embed: "./src/embed.tsx",
         },
       },
     },
@@ -53,11 +53,6 @@ export default defineConfig(({ mode }) => {
       plugins: () => [wasm(), topLevelAwait()],
       format: "es",
     },
-    plugins: [
-      wasm(),
-      topLevelAwait(),
-      react(),
-      monacoEditorPlugin({}),
-    ],
+    plugins: [wasm(), topLevelAwait(), react(), monacoEditorPlugin({})],
   };
 });
