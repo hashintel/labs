@@ -38,19 +38,11 @@
       "/node_modules/(?!monaco-editor).+\\.js$"
     ]
   },
-  "// browserslist": [
-    "this list is an `intersection` of browsers (organized as they are in `https://caniuse.com/`",
-    "for easier reference) that support the features we need/use, namely (really wish this was a",
-    "`featureslist` instead):",
-    "",
-    "We have compiled a browserlist query based on the below at https://docs.google.com/spreadsheets/d/1pCjtbvxIgnbzIbgfrJuYIk6TLHhLhqIxNAA2Iord1gE/edit#gid=0",
-    ""
-  ],
   "browserslist": [
-    "edge >= 79",
-    "firefox >= 67",
-    "chrome >= 66",
-    "safari >= 12.1"
+    "edge >= 88",
+    "firefox >= 78",
+    "chrome >= 87",
+    "safari >= 14"
   ],
   "// dependencies": [
     "We compile to a single-page app, so technically everything should be in '/devDependencies'",
