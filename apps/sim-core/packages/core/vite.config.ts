@@ -37,6 +37,10 @@ export default defineConfig(({ mode }) => {
     server: {
       port: 8080,
     },
+    preview: {
+      port: 8080,
+      open: true,
+    },
     resolve: {
       alias: {
         // Aliases preserved from old webpack config for migration, should investigate removing.
