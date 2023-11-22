@@ -99,6 +99,7 @@ export class StepExplorer extends React.Component<
       loaded: false,
 
       // This array is passed by reference and needs to be modified in place
+      // (But really should be a hook and a ref instead of a mutable state object)
       sandDanceData: [],
     };
   }
@@ -112,6 +113,7 @@ export class StepExplorer extends React.Component<
 
     // Update the content of the data object is using to display
     if (nextStep) {
+      // eslint-disable-next-line react/no-direct-mutation-state
       this.state.sandDanceData.length = 0;
       // Find all fields of all agents
       const allFields = new Set<string>();
@@ -128,6 +130,7 @@ export class StepExplorer extends React.Component<
           allFields.add(key);
         });
 
+        // eslint-disable-next-line react/no-direct-mutation-state
         this.state.sandDanceData.push(new_agent);
       });
 
@@ -135,6 +138,7 @@ export class StepExplorer extends React.Component<
       // This lets the sanddance recommender recognize that all fields exist
       allFields.forEach((field) => {
         if (!this.state.sandDanceData[0].hasOwnProperty(field)) {
+          // eslint-disable-next-line react/no-direct-mutation-state
           this.state.sandDanceData[0][field] = undefined;
         }
       });

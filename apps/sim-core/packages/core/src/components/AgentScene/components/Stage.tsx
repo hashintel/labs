@@ -25,6 +25,7 @@ export const ViewerStage: FC = () => {
     pyMin,
   );
 
+  /* eslint-disable react/no-unknown-property */
   return (
     <>
       <gridHelper
@@ -56,6 +57,7 @@ export const ViewerStage: FC = () => {
       <axesHelper args={[5]} visible={showAxes} />
     </>
   );
+  /* eslint-enable react/no-unknown-property */
 };
 
 function getStagePlacement(

@@ -38,6 +38,7 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
       const [posx, posy, posz] = agent.position.to;
       const pos: Vec3 = [posx, posy, posz + offsetZ];
 
+      /* eslint-disable react/no-unknown-property */
       return (
         <mesh
           scale={scale}
@@ -53,6 +54,7 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
           />
         </mesh>
       );
+      /* eslint-enable react/no-unknown-property */
     }
   }
   return null;

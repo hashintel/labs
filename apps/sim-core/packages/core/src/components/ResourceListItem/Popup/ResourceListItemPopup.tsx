@@ -106,11 +106,9 @@ const ResourceMarkdownDescription: FC<{
   description: string;
   trusted: boolean;
 }> = ({ description, trusted }) => (
-  <ReactMarkdown
-    children={linkShortnames(description)}
-    skipHtml={!trusted}
-    linkTarget="_blank noreferrer noopener"
-  />
+  <ReactMarkdown skipHtml={!trusted} linkTarget="_blank noreferrer noopener">
+    {linkShortnames(description)}
+  </ReactMarkdown>
 );
 
 export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({

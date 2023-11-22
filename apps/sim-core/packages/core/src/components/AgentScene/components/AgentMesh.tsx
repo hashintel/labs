@@ -119,6 +119,8 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
   });
 
   return (
+    /* eslint-disable react/no-unknown-property */
+
     <instancedMesh
       ref={ref}
       args={[geometry, material, bufferedMeshCount]}
@@ -133,6 +135,8 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
           }
         }
       }}
+      /* eslint-enable react/no-unknown-property */
+
       // Agent is being clicked
       onPointerDown={(evt) => {
         const id = evt.instanceId;

@@ -170,6 +170,8 @@ export const AgentScene = ({
         onCreated={({ gl }) => gl.setClearColor("#0e0d15")}
         invalidateFrameloop={!updatesEnabled}
       >
+        {/* eslint-disable react/no-unknown-property */}
+
         <RecoilBridge>
           <fog args={["white", 50000, 3000000]} attach="fog" />
           <ViewerControls
@@ -185,6 +187,7 @@ export const AgentScene = ({
           <AgentRenderer mappedTransitions={mappedTransitions} />
           <HoveredAgent transitions={mappedTransitions} />
         </RecoilBridge>
+        {/* eslint-disable react/no-unknown-property */}
       </Canvas>
       {!embedded && <SceneSettings />}
     </div>

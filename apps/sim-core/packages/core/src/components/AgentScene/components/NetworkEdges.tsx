@@ -138,6 +138,7 @@ export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
   return (
     <>
       {arrowData.map(({ key, args }) => (
+        // eslint-disable-next-line react/no-unknown-property
         <arrowHelper args={args} key={key} />
       ))}
     </>

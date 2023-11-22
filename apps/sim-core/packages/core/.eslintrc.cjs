@@ -95,12 +95,8 @@ module.exports = {
     "no-prototype-builtins": "off",
     "no-useless-catch": "off",
     "no-useless-escape": "off",
-    "react/display-name": "off",
-    "react/no-children-prop": "off",
-    "react/no-direct-mutation-state": "off",
-    "react/no-unescaped-entities": "off",
-    "react/no-unknown-property": "off",
-    "react/prop-types": "off",
-    "react/schema-validation": "off",
+    "react/prop-types": ["error", {skipUndeclared: true, ignore: ['children'] }], // 'children' prop type detection is buggy
+    "react/display-name": "off", // Set automatically during transpilation
+    "react/no-unescaped-entities": "off", // Permits more natural language in html, e.g. aprostrophies.
   },
 };
