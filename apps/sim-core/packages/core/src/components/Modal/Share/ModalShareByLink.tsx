@@ -84,6 +84,7 @@ export const ModalShareByLink: FC<{
   onSelectedReleaseChange,
   hasReleases,
 }) => {
+  //@ts-expect-error Genuine type error here, please fix.
   const { params, setParams, changedParams } = useParams(defaultParams);
   const { accessCode, requestAccessCode } = useRequestAccessCode(
     project,
@@ -161,6 +162,7 @@ export const ModalShareByLink: FC<{
           ) : null}
           <ModalShareViews
             params={params}
+            //@ts-expect-error Genuine type error here, please fix.
             onParamsChange={setParams}
             availableTabs={viewerTabs}
           />

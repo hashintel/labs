@@ -28,7 +28,7 @@ export async function fetchDatasetContent(
   const kvps: DataKeyValuePair[] = await Promise.all<DataKeyValuePair | null>(
     datasets.map((dataset) => {
       return Promise.resolve()
-        .then(() => {
+        .then(async () => {
           if (cache.has(dataset.s3Key)) {
             return Promise.resolve(cache.get(dataset.s3Key)?.data);
           }

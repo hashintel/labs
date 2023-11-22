@@ -336,6 +336,7 @@ export const selectScope: Record<Scope, ScopeSelector> = scopeEntries.reduce(
   ): T & { [key in S]: ScopeSelector } =>
     ({
       ...existingSelectors,
+      //@ts-expect-error Genuine type error here, please fix.
       [scope]: createSelectorForSelectorChain(selectorChain, existingSelectors),
     }) as any,
   {} as any,

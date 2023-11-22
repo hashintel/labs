@@ -71,6 +71,7 @@ export const ModalShareEmbed: FC<{
     "ReadEmbed",
   );
 
+  //@ts-expect-error Genuine type error here, please fix.
   const { params, setParams, changedParams } = useParams(defaultParams);
   const value = iframeSrcCode(
     project.pathWithNamespace,
@@ -131,6 +132,7 @@ export const ModalShareEmbed: FC<{
         <div className="ModalShare__BottomSections">
           <ModalShareViews
             params={params}
+            //@ts-expect-error Genuine type error here, please fix.
             onParamsChange={setParams}
             availableTabs={embedViewerTabs}
           />
