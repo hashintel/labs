@@ -20282,7 +20282,7 @@
           },
           {
             "name": "baseUrl",
-            "description": "MapBox: The base URL for the integration.\nNote: GraphQL does not currently support union types in inputs.\nCheck SourceType for what fields are necessary for the type of integration you are creating.",
+            "description": "Mapbox: The base URL for the integration.\nNote: GraphQL does not currently support union types in inputs.\nCheck SourceType for what fields are necessary for the type of integration you are creating.",
             "type": {
               "kind": "SCALAR",
               "name": "String",

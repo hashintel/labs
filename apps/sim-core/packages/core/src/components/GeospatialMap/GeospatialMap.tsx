@@ -61,18 +61,18 @@ function hasLngLatNotHidden(agent: AgentState): agent is AgentStateLngLat {
 
 const debounced = debounce((fn) => fn(), 100);
 
-// If there's no MapBox API key, we'll crash instantiating the MapComponent.
+// If there's no Mapbox API key, we'll crash instantiating the MapComponent.
 // So instead return a placeholder GeospatialMap with user instructions.
 const GeospatialMapPlaceholder: FC<GeospatialMapProps> = () => (
   <div style={{ margin: "1em" }}>
-    <h3>MapBox requires an API token.</h3>
+    <h3>Mapbox requires an API token.</h3>
     <p>
       Please add <code>MAPBOX_API_TOKEN=your-token</code> to the{" "}
-      <code>.env</code> file if you wish to enable MapBox.
+      <code>.env</code> file if you wish to enable Mapbox.
     </p>
     <p>You can create the .env file if it doesn't exist.</p>
     <p>
-      MapBox API access tokens can be found at{" "}
+      Mapbox API access tokens can be found at{" "}
       <a
         target="_blank"
         href="https://account.mapbox.com/access-tokens/"
