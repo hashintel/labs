@@ -6,6 +6,12 @@
     "isolatedModules": true, // Transpile each file as a separate module (similar to 'ts.transpileModule').
     "skipLibCheck": false // set to true when needed to work around upstream errors caused by isolatedModules
   },
-  "include": ["vite.config.ts", "site.d.ts", "scripts/**/*", "src/**/*"],
+  "include": [
+    "vite.config.ts",
+    "site.d.ts",
+    "scripts/**/*",
+    "src/**/*",
+    "postcss.config.js"
+  ],
   "exclude": ["node_modules"]
 }
