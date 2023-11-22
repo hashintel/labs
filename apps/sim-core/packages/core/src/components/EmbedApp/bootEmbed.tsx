@@ -39,6 +39,7 @@ export const bootEmbed = async (
 
   await Promise.all([
     store.dispatch(
+      //@ts-expect-error redux problems
       fetchProject({
         project: { pathWithNamespace: params.project, ref: params.ref },
         prefetchedRemoteProject: prefetchedProjectPromise,

@@ -69,7 +69,7 @@ export const useSelectableRelease = (
         );
         dispatch({ type: "RESULTS", payload: releases });
       } catch (err) {
-        if (err?.name !== "AbortError") {
+        if (err instanceof Error && err?.name !== "AbortError") {
           console.error(err);
           onErrorRef.current?.();
         }

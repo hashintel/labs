@@ -38,17 +38,19 @@ const useEnsureProject = (
 
   useEffect(() => {
     if (bootstrapped && !isCurrentProject && project) {
+      //@ts-expect-error redux problems
       const promise = dispatch(fetchProject({ project, redirect: false }));
 
       (async () => {
         try {
+          //@ts-expect-error redux problems
           const result = unwrapResult(await promise);
 
           if (!result) {
             onCancelRef.current();
           }
         } catch (err) {
-          if (err?.name !== "AbortError") {
+          if (err instanceof Error && err?.name !== "AbortError") {
             fatalError(err);
           }
         }
@@ -86,6 +88,7 @@ export const HashRouterEffectFork: FC<{
         <ModalNewProject
           onCancel={navigateAway}
           onSubmit={async (values) => {
+            //@ts-expect-error redux problems
             await dispatch(forkProject(project, values));
             hideForkModal();
           }}

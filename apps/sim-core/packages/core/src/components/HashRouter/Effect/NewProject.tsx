@@ -46,6 +46,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
           );
 
           dispatch(
+            //@ts-expect-error redux problems
             trackEvent({
               action: "New Project: Core",
               label: project.pathWithNamespace,
@@ -53,6 +54,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
           );
 
           dispatch(addUserProject(preparePartialSimulationProject(project)));
+          //@ts-expect-error redux problems
           dispatch(setProjectWithMeta(project));
           navigate(urlFromProject(project), false, {}, true);
         }}

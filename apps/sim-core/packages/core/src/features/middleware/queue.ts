@@ -50,6 +50,7 @@ const isQueueable = (action: any): action is QueueableAction =>
  * Redux behaviour changed by middleware, so overloads here
  */
 declare module "redux" {
+  //@ts-expect-error fix this as part of dispatch type problems
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   export type Dispatch<A extends Action = AnyAction> = (
     action: QueueableAction,
@@ -74,6 +75,7 @@ export const queueMiddleware: Middleware<QueueDispatch, RootState> = (
             dequeue(key);
           },
           store.getState,
+          //@ts-expect-error redux type problems
           store.dispatch,
         );
       }

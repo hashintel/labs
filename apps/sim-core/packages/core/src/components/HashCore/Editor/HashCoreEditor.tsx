@@ -335,6 +335,7 @@ export const HashCoreEditor: FC = () => {
                    * @todo fix this
                    */
                   dispatch(
+                    //@ts-expect-error redux problems
                     trackEvent({
                       action: "Validate Analysis JSON Button clicked: Core",
                       label: "analysis.json",
@@ -368,6 +369,7 @@ export const HashCoreEditor: FC = () => {
             target="_blank"
             onClick={() =>
               dispatch(
+                //@ts-expect-error redux problems
                 trackEvent({
                   action: "Docs Link Clicked: Core",
                   label: section,

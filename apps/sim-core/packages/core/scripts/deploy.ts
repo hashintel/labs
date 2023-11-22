@@ -180,7 +180,7 @@ async function run() {
     }
   } catch (err) {
     console.error(`Deploy failed with error:`);
-    console.error("```" + err + "```");
+    console.error(`\`\`\`${String(err)}\`\`\``);
     process.exit(1);
   }
 }

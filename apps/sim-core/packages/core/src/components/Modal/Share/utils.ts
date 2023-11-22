@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { TabKind } from "../../../features/viewer/enums";
 
-type ValidParamType = string | string[] | boolean;
+type ValidParamType = string | string[] | boolean | TabKind;
 type TotalParamType = ValidParamType | null | undefined;
 
 export const useParams = <T extends Record<string, TotalParamType>>(

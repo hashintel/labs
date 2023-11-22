@@ -155,6 +155,7 @@ export const fetchProject = createAppAsyncThunk<
     const selectedFile =
       file ?? (scopes[Scope.edit] ? undefined : globalsFileId);
 
+    //@ts-expect-error redux problems
     dispatch(setProjectWithMeta(project, { fromLegacy, file: selectedFile }));
     if (project && redirect) {
       navigate(urlFromProject(project), true, {}, false);
@@ -262,6 +263,7 @@ export const release = createAppAsyncThunk<
     );
 
     dispatch(
+      //@ts-expect-error redux type problems
       trackEvent({
         action: "New Release: Core",
         label: `${type} - ${pathWithNamespace} – ${tag}`,

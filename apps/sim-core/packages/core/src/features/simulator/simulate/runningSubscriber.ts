@@ -38,6 +38,7 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
     if (running() && !signal.aborted) {
       const project = selectCurrentProject(appStore.getState());
       appStore.dispatch(
+        // @ts-expect-error redux problems
         trackEvent({
           action: "Run Simulation",
           label: `${project!.name} - ${project!.id}`,

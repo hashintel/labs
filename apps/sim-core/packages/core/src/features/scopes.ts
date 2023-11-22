@@ -196,7 +196,7 @@ type ScopeSelectorOrAlias = ScopeSelector | Scope;
 
 type ScopeSelectorList = ScopeSelectorOrAlias[];
 
-const createSelectorForSelectorChain = <T>(
+const createSelectorForSelectorChain = <T extends object>(
   selectorChain: ScopeSelectorList,
   existingSelectors: T,
 ): ScopeSelector =>

@@ -72,7 +72,9 @@ const HashRouterEffectProjectFetch: FC<{
 
     async function fetch() {
       await withSignal(
+        //@ts-expect-error redux problems
         dispatch(
+          //@ts-expect-error redux problems
           fetchProject({
             project,
             fromLegacy: !!fromLegacy,

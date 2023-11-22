@@ -111,7 +111,7 @@ export const save = () =>
 
         // dispatch(projectUpdated({ updatedAt, actions, commit }));
       } catch (err) {
-        if (err.name !== "AbortError") {
+        if (err instanceof Error && err.name !== "AbortError") {
           console.error(err);
           throw err;
         }
@@ -195,6 +195,7 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
     });
 
     dispatch(
+      // @ts-expect-error redux problems
       trackEvent({
         action: "New Release: Core",
         label: `Behavior - ${forkedBehaviors

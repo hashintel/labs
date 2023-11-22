@@ -80,6 +80,9 @@ export async function fetchDatasetContent(
 export const refreshPyodideDatasetCache = async (cache: DatasetCache) => {
   if (datasetNamespace === null) {
     datasetNamespace = self.pyodide.toPy({});
+    if (datasetNamespace === null) {
+      throw new Error("Expected non-null namespace from pyodide");
+    }
   }
   // Cache datasets
   // Inject whatever datasets are not cached in the python side into pyodide

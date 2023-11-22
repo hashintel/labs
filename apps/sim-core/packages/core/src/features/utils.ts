@@ -21,3 +21,8 @@ export const observeMiddleware =
 // @todo remove this
 export const isCompleteErrorMessage = (message: string) =>
   message.includes("_HASH_PRIVATE_TEMPORARY_COMPLETE_ERROR");
+
+export const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  return String(error);
+};

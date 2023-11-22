@@ -88,6 +88,7 @@ export const autoSaveSubscribe = (store: Store<RootState>) => {
   );
 
   actionsWhenFocused.subscribe(() => {
+    // @ts-expect-error redux problems
     store.dispatch(save()).catch((err) => {
       console.error("Failed to save", err);
     });
