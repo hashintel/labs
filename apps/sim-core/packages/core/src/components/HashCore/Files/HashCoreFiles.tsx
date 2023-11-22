@@ -226,7 +226,7 @@ export const HashCoreFiles: FC = () => {
   );
 };
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashCoreFiles.whyDidYouRender = {
 //   customName: "HashCoreFiles"
 // };

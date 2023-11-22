@@ -340,7 +340,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
   },
 );
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashCoreHeaderMenuFiles.whyDidYouRender = {
 //   customName: "HashCoreHeaderMenuFiles"
 // };

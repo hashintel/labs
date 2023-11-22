@@ -143,7 +143,6 @@ export const BoxValidator = (
     if (Object.keys(currentPlotDataItem).length > 2) {
       return new PlotHasExtraDataFieldsError(cleanPlot?.title, "YDataPoints");
     }
-    // @ts-ignore we know that it expects y items. This is just for better errors
     if (currentPlotDataItem.x || currentPlotDataItem.z) {
       return new PlotHasTheWrongKindOfDataError(
         cleanPlot?.title,
@@ -183,7 +182,6 @@ const TimeseriesDataFieldValidator = (
   if (Object.keys(data).length > 2) {
     return new PlotHasExtraDataFieldsError(cleanPlot?.title, "YDataPoints");
   }
-  // @ts-ignore at this point we expect .y
   if (data?.x || data?.z) {
     return new PlotHasTheWrongKindOfDataError(
       cleanPlot?.title,
@@ -329,7 +327,7 @@ const LineOrScatterValidatorBothAxes = (
     return false;
   }
   // ensure both x and y are using the same data source
-  // @ts-ignore fixme
+  // @ts-expect-error fixme
   const errors = currentPlot.data.map((currentPlotDataItem) => {
     const xKey = currentPlotDataItem.x;
     const yKey = currentPlotDataItem.y;
@@ -352,10 +350,10 @@ const LineOrScatterValidatorBothAxes = (
       return yOutputExists;
     }
     if (xOutputExists === true && yOutputExists === true) {
-      // @ts-ignore we already checked this above
+      // @ts-expect-error we already checked this above
       const outputMetric = outputs[xKey][outputs[xKey].length - 1] ?? {};
       const outputMetricEndsInGet = outputMetric.op === GetOperator.get;
-      // @ts-ignore we already checked this above
+      // @ts-expect-error we already checked this above
       const outputMetricY = outputs[yKey][outputs[yKey].length - 1] ?? {};
       const outputMetricYEndsInGet = outputMetricY.op === GetOperator.get;
       if (outputMetricEndsInGet !== outputMetricYEndsInGet) {

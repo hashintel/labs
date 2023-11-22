@@ -142,7 +142,7 @@ export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
   );
 };
 
-// // @ts-ignore
+// // @ts-expect-error
 // ModalNameBehavior.whyDidYouRender = {
 //   customName: "ModalNameBehavior"
 // };

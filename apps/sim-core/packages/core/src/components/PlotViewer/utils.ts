@@ -113,8 +113,7 @@ const extractColor = (name: Color) => {
   if (name === "white") {
     return "gray";
   }
-
-  const colorHashCode = (mapColor(name) ?? intToRGB(hashCode(name))).toString();
+  const colorHashCode = mapColor(name) ?? intToRGB(hashCode(name));
   return `#${colorHashCode}`;
 };
 // https://stackoverflow.com/a/3426956

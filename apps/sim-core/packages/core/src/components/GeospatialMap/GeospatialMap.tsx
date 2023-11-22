@@ -173,9 +173,11 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
                     agent_idx: idx,
                     color: `#${o.getOrElse(() => "ffffff")(
                       o.map((color: number) => color.toString(16))(
-                        mapColor(
-                          agent.geo_color ?? agent.color ?? "random",
-                          agent.agent_id,
+                        o.fromNullable(
+                          mapColor(
+                            agent.geo_color ?? agent.color ?? "random",
+                            agent.agent_id,
+                          ),
                         ),
                       ),
                     )}`,

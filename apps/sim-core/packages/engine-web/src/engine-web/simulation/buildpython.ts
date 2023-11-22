@@ -96,7 +96,7 @@ export const buildPyodide = async () => {
     Object.prototype.hasOwnProperty.call(global,"pythonLoader")
   ) {
     try {
-      // @ts-ignore
+      // @ts-expect-error
       runnerPython = await global.pythonLoader();
     } catch (err) {
       console.error("No pyodide loader provided!", err);

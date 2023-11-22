@@ -210,7 +210,7 @@ export const HashCoreHeader: FC = () => {
   );
 };
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashCoreHeader.whyDidYouRender = {
 //   customName: "HashCoreHeader"
 // };

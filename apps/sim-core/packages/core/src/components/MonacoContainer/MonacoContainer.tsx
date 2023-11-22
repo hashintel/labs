@@ -28,7 +28,7 @@ export const MonacoContainer: ForwardRefExoticComponent<
   )),
 );
 
-// // @ts-ignore
+// // @ts-expect-error
 // MonacoContainer.whyDidYouRender = {
 //   customName: "MonacoContainer"
 // };

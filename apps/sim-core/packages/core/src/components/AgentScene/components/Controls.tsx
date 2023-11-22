@@ -73,7 +73,7 @@ export const ViewerControls: FC<{
       camera.lookAt(0, 0, 0);
 
       // Flatten the camera
-      // @ts-ignore
+      // @ts-expect-error 'fov' does in fact exist.
       camera.fov = 1;
       camera.updateProjectionMatrix();
 

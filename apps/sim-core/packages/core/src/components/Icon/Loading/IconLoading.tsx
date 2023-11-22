@@ -1,5 +1,5 @@
 import React, { FC, memo, useLayoutEffect, useRef } from "react";
-// @ts-ignore
+// @ts-expect-error unclear what the issue is here
 import GradientPath from "gradient-path";
 
 import { IconLoadingProps } from "./types";

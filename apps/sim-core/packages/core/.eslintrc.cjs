@@ -47,7 +47,6 @@ module.exports = {
         additionalHooks: "(^useModal$)|(^useUserGatedEffect$)",
       },
     ],
-    // "no-unused-vars": "off",
     "@typescript-eslint/no-unused-vars": [
       "error",
       { argsIgnorePattern: "^_+", varsIgnorePattern: "^_+" },
@@ -62,18 +61,11 @@ module.exports = {
       "off",
       { allowConstantExport: true },
     ],
-    // Disable a bunch of rules to get compilation working in the first place
-    // Ideally, all of these items should be removed,
-    // as they represent deviations from the standard set.
-    "@typescript-eslint/await-thenable": "off",
-    "@typescript-eslint/ban-ts-comment": "off",
-    "@typescript-eslint/ban-types": "off",
-    "@typescript-eslint/no-base-to-string": "off",
-    "@typescript-eslint/no-empty-function": "off",
-    "@typescript-eslint/no-empty-interface": "off",
-    "@typescript-eslint/no-explicit-any": "off",
 
     // Disabled due to tech debt
+    // Ideally each of these would be brought back into play, but they're not small potatoes.
+    "@typescript-eslint/ban-types": "off",
+    "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unsafe-enum-comparison": "off",
     "@typescript-eslint/no-unsafe-argument": "off",
     "@typescript-eslint/no-unsafe-assignment": "off",
@@ -86,6 +78,9 @@ module.exports = {
       { ignoreMixedLogicalExpressions: true, ignorePrimitives: true },
     ],
 
+    // Deliberately disabled
+    "@typescript-eslint/await-thenable": "off", // Redux/Dispatch uses this a lot.
+    "@typescript-eslint/no-empty-function": "off", // React uses this a lot.
     "@typescript-eslint/no-floating-promises": "off", // redux 'dispatch' and other react hooks create lots of floating promises.
     "@typescript-eslint/no-misused-promises": [
       "error",
@@ -97,7 +92,7 @@ module.exports = {
       "error",
       { skipUndeclared: true, ignore: ["children"] }, // 'children' prop type detection is buggy
     ],
-    "react/display-name": "off", // Set automatically during transpilation
+    "react/display-name": "off", // Set automatically during transpilation, so disable it here.
     "react/no-unescaped-entities": "off", // Permits more natural language in html, e.g. aprostrophies.
   },
 };

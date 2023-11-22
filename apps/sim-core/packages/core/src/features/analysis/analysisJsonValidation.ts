@@ -306,15 +306,12 @@ export const validatePlot = (
   if (!cleanPlot.type) {
     return new PlotHasNoTypeError(cleanPlot.title);
   }
-  // @ts-ignore it has been checked above
   if (!getValidPlotTypes().includes(cleanPlot.type)) {
-    // @ts-ignore
     return new UnhandledPlotTypeError(cleanPlot.title, cleanPlot.type);
   }
   if (!cleanPlot.data) {
     return new PlotHasNoDataError(cleanPlot.title);
   }
-  // @ts-ignore FIXME: since this went through standardizePlot, it's already an array
   for (const currentDataItem of cleanPlot.data) {
     if (Object.keys(currentDataItem).length === 0) {
       return new PlotHasEmptyDataObjectError(cleanPlot.title);
@@ -338,7 +335,7 @@ export const validatePlot = (
     //   return TwoParameterExperimentChartValidator(cleanPlot, outputs);
 
     case "timeseries": {
-      // @ts-ignore FIXME: this is a cryptic error
+      // @ts-expect-error FIXME: this is a cryptic error
       return TimeseriesValidator(cleanPlot, outputs);
     }
 
@@ -387,7 +384,7 @@ export const validateAnalysisJson = (parsedJson: UncheckedAnalysisJson) => {
 
   const errors: any = [];
   const warnings = [];
-  // @ts-ignore: at this point we know plots is an array
+  // @ts-expect-error: at this point we know plots is an array
   if (!allOutputsAreUsedInPlots(outputs, plots)) {
     warnings.push(
       new AnalysisJsonHasUnusedOutputsWarning(getUnusedOutputs(outputs, plots)),

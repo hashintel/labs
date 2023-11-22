@@ -1,6 +1,4 @@
-// @ts-ignore
 import completions from "./completions.d.ts?raw";
-// @ts-ignore
 import completionsHStd from "./completions-hstd.d.ts?raw";
 import { languages } from "monaco-editor";
 

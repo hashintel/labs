@@ -91,6 +91,6 @@ export const HashCoreFilesListItemFolder: FC<
 };
 
 // HashCoreFilesListItemFolder.whyDidYouRender = {
-//   // @ts-ignore
+//   // @ts-expect-error
 //   customName: "HashCoreFilesListItemFolder"
 // };

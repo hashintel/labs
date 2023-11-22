@@ -189,7 +189,8 @@ export const createDataset =
       file.name.endsWith(".csv"),
     );
 
-    await dispatch(
+    dispatch(
+      //@ts-expect-error trackEvent
       trackEvent({
         action: "New dataset: Core",
         label: `${dataset?.name} - ${dataset?.id}`,

@@ -15,12 +15,12 @@
  * ```
  */
 
-// @ts-ignore
+// @ts-expect-error
 import { jStat } from "jstat";
 import { number } from "prop-types";
 import { v4 as uuid } from "uuid";
 
-// @ts-ignore
+// @ts-expect-error
 export { jStat as stats } from "jstat";
 
 export function incr(n: number) {

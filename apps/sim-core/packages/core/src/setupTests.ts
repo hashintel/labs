@@ -23,7 +23,7 @@ beforeEach(() => {
   mock.mockReset();
   mock.mockImplementation((...args) => mapFileId(...args));
 });
-
+// @ts-expect-error scoping issues
 global.BUILD_STAMP = "JEST";
 
 window.ResizeObserver = class ResizeObserver {

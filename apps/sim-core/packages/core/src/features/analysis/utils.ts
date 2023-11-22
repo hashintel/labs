@@ -176,10 +176,7 @@ export const getNonArrayPlotDataWarnings = (
     ? plots
         .map((plot) => {
           if (plot?.data && !Array.isArray(plot?.data)) {
-            return (
-              // @ts-ignore
-              new PlotDataIsNotAnArrayWarning(plot.title, plot.data)
-            );
+            return new PlotDataIsNotAnArrayWarning(plots.title, plot.data);
           }
         })
         .filter((item) => item)

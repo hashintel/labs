@@ -445,6 +445,6 @@ export const HashCoreEditor: FC = () => {
 //   // `displayName` is `undefined` ... apparently `@welldone-software/why-did-
 //   // you-render`'s types are somewhat incomplete
 //   //
-//   // @ts-ignore
+//   // @ts-expect-error
 //   customName: "HashCoreEditor"
 // };

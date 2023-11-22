@@ -299,7 +299,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
 };
 
 // HashCoreFilesListItem.whyDidYouRender = {
-//   // @ts-ignore
+//   // @ts-expect-error
 //   customName: "HashCoreFilesListItem"
 // };
 

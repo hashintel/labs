@@ -515,7 +515,7 @@ export const ExperimentModal: FC<{
     const experimentType: ExperimentTypes | string =
       formData.experimentType.value;
     let fields = JSON.parse(
-      //@ts-ignore
+      //@ts-expect-error tech debt
       JSON.stringify(formData.dynamicFields[experimentType]),
     );
 
@@ -591,7 +591,7 @@ export const ExperimentModal: FC<{
     const splitted = fieldName.split(".");
     if (splitted.length === 1) {
       clone[fieldName] = value;
-      // @ts-ignore
+      // @ts-expect-error tech debt
       if (fieldName === "experimentType" && value.value !== clone[fieldName]) {
         // we changed the experiment type, thus we have to rebuild the dynamicFields
         const clonedDynamicFields: typeof initialFormData.dynamicFields =

@@ -41,6 +41,7 @@ const quotableId = (() => {
       .padStart(2, "0")}${generateHashEventId()}`;
 })();
 
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
 interface ErrorBoundaryProps {}
 interface ErrorBoundaryState {
   didError: boolean;

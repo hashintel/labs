@@ -1,27 +1,23 @@
-import * as o from "fp-ts/es6/Option";
-
 import { mod } from "./math";
 import { themeNumbers } from "./theme";
 
-export const mapColor: (src: string, sd?: string) => o.Option<number> = (
+export const mapColor: (src: string, sd?: string) => number | null = (
   src,
   seed,
 ) =>
-  o.fromNullable(
-    src === "random"
-      ? themeColor(
-          mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1),
-        )
-      : src === "primary"
-        ? themeNumbers.purple
-        : src === "accent"
-          ? themeNumbers.green
-          : !isNaN(Number(src))
-            ? themeColor(mod(Number(src) / themeBase.length, 1))
-            : Object.prototype.hasOwnProperty.call(themeNumbers, src)
-              ? themeNumbers[src]
-              : undefined,
-  );
+  src === "random"
+    ? themeColor(
+        mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1),
+      )
+    : src === "primary"
+      ? themeNumbers.purple
+      : src === "accent"
+        ? themeNumbers.green
+        : !isNaN(Number(src))
+          ? themeColor(mod(Number(src) / themeBase.length, 1))
+          : Object.prototype.hasOwnProperty.call(themeNumbers, src)
+            ? themeNumbers[src]
+            : null;
 
 const themeBase = [
   themeNumbers.purple,

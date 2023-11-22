@@ -88,7 +88,7 @@ export const HashCoreHeaderMenu: FC = memo(() => {
   );
 });
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashCoreHeaderMenu.whyDidYouRender = {
 //   customName: "HashCoreHeaderMenu"
 // };
