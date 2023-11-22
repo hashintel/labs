@@ -34,15 +34,14 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
     },
     ref,
   ) => {
+    function handler(evt: KeyboardEvent) {
+      if (evt.key === "Escape") {
+        evt.preventDefault();
+        onClose?.();
+      }
+    }
     useEffect(() => {
       if (esc) {
-        function handler(evt: KeyboardEvent) {
-          if (evt.key === "Escape") {
-            evt.preventDefault();
-            onClose?.();
-          }
-        }
-
         window.addEventListener("keydown", handler);
 
         return () => {

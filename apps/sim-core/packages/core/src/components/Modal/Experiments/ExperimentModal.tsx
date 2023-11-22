@@ -396,7 +396,7 @@ const onSubmitSpecificExperimentHandler = (
       clone.runs = clone.runs?.map((run: ReactSelectOption) => run.value) ?? [];
       return ok(clone);
 
-    case ExperimentTypes.optimization:
+    case ExperimentTypes.optimization: {
       clone.metricName = clone.metricName.value;
       clone.metricObjective = clone.metricObjective.value;
       let formErrors: FormErrorsType | null = null;
@@ -436,7 +436,7 @@ const onSubmitSpecificExperimentHandler = (
         return res;
       }
       return ok(clone);
-
+    }
     default:
       if (clone.field?.value) {
         clone.field = clone.field.value;

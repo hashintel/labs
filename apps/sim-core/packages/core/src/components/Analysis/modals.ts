@@ -265,7 +265,7 @@ export const transformPlotDataBasedOnChartType = (
       break;
 
     case ChartTypes.line:
-    case ChartTypes.scatter:
+    case ChartTypes.scatter: {
       // this assumes we have both X and Y  OR we have only Y and X=steps
       const hasMagicStepsKey =
         input.data?.xitems.length === 1 &&
@@ -294,7 +294,7 @@ export const transformPlotDataBasedOnChartType = (
       }
 
       break;
-
+    }
     case ChartTypes.bar:
     default:
       result.data = input.data?.yitems?.map((item: any) => ({

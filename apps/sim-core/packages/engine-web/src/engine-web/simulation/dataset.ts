@@ -66,7 +66,7 @@ export async function fetchDatasetContent(
 
   for (const kvp of kvps) {
     data[kvp.name] = kvp.value;
-    if (!cache.hasOwnProperty(kvp.s3Key)) {
+    if (!Object.prototype.hasOwnProperty.call(cache,kvp.s3Key)) {
       cache.set(kvp.s3Key, { data: kvp.value, name: kvp.name });
     }
   }

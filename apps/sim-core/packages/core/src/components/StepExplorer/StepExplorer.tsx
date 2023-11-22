@@ -137,7 +137,12 @@ export class StepExplorer extends React.Component<
       // Set the unused fields on the first agent to undefined
       // This lets the sanddance recommender recognize that all fields exist
       allFields.forEach((field) => {
-        if (!this.state.sandDanceData[0].hasOwnProperty(field)) {
+        if (
+          !Object.prototype.hasOwnProperty.call(
+            this.state.sandDanceData[0],
+            field,
+          )
+        ) {
           // eslint-disable-next-line react/no-direct-mutation-state
           this.state.sandDanceData[0][field] = undefined;
         }

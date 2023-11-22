@@ -93,7 +93,7 @@ export const buildPyodide = async () => {
   if (
     typeof global === "object" &&
     typeof require === "function" &&
-    global.hasOwnProperty("pythonLoader")
+    Object.prototype.hasOwnProperty.call(global,"pythonLoader")
   ) {
     try {
       // @ts-ignore

@@ -186,7 +186,7 @@ export const useImportFiles = () => {
     for (const zipFile of zipFiles) {
       const contents = await zipFile.contentPromise;
       projectFiles.push({
-        name: zipFile.name.replace(/^.*[\\\/]/, ""),
+        name: zipFile.name.replace(/^.*[\\/]/, ""),
         path: zipFile.name,
         contents: contents,
         ref: "1.0",

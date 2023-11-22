@@ -140,7 +140,7 @@ export const useInstructionReceiver = () => {
           simulatorDispatch(toggleCurrentSimulator());
           return;
 
-        case "updateFile":
+        case "updateFile": {
           const { file, contents } = event.data;
           const foundFile = Object.values(files)?.find(
             (fileOption) => fileOption?.path.formatted === file,
@@ -151,7 +151,7 @@ export const useInstructionReceiver = () => {
             console.error(`Could not find file at path ${file} to update`);
           }
           return;
-
+        }
         case "upsertCreatorAgent": {
           const { file, contents } = event.data;
           const foundFile = Object.values(files)?.find(
@@ -190,7 +190,7 @@ export const useInstructionReceiver = () => {
 
         // Add supplied outputs and plots to analysis.json
         // Replace if we can find a match for the name / key
-        case "updateAnalysis":
+        case "updateAnalysis": {
           const analysisJson = Object.values(files)?.find(
             (file) => file.path.base === "analysis.json",
           );
@@ -242,7 +242,7 @@ export const useInstructionReceiver = () => {
             );
           }
           return;
-
+        }
         // A message to indicate that a plugin is embedding hCore,
         // so that we don't attempt to communicate with one otherwise.
         case "initialize":

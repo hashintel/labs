@@ -7,7 +7,7 @@ export type OutputSlice = { name: string; slice: [number] | [number, number] };
 export function isOutputSlice<K extends DatumKeys>(
   d: HashDatum<K>
 ): d is OutputSlice {
-  return d.hasOwnProperty("name");
+  return Object.prototype.hasOwnProperty.call(d,"name");
 }
 export type HashDatum<K extends DatumKeys> = PlotData[K] | string | OutputSlice;
 

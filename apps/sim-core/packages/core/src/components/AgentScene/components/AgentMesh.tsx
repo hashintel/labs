@@ -145,7 +145,7 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
           const [agentId] = renderAgents[id];
           const temp = { ...selectedAgentIds };
 
-          if (selectedAgentIds.hasOwnProperty(agentId)) {
+          if (Object.prototype.hasOwnProperty.call(selectedAgentIds, agentId)) {
             delete temp[agentId];
             setSelectedAgentIds(temp);
           } else {

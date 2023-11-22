@@ -4,7 +4,6 @@ import { theme } from "../../../src/util/theme";
 
 /**
  * give the new component one of our brighter theme colors to make it stand out
- * more … also because empty classes are a lint error … also whimsy!
  */
 const themeColors = Object.keys(theme)
   .filter((key) => key.match(/white|grey|dark|black/) === null)

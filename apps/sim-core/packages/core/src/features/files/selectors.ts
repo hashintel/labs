@@ -349,7 +349,7 @@ export const selectSimulationSrc = createSelector(
      * this would be cheaper to do as a single `reduce` pass, but I can't get
      * the types to check out … I think this is only working now because of some
      * type confusion, the return value is `any` but the `createSelector`
-     * generics specify that it should be `SimulationSrc` … ¯\_(ツ)_/¯
+     * generics specify that it should be `SimulationSrc` ¯\_(ツ)_/¯
      */
     const pairs = ids
       .map((id) => [

@@ -291,10 +291,13 @@ export function parseReplaceString(replaceString: string): ReplacePattern {
         // to the replacement text, not subsequent content.
         case CharCode.u:
         // \u => upper-cases one character.
+        // falls through
         case CharCode.U:
         // \U => upper-cases ALL following characters.
+        // falls through
         case CharCode.l:
         // \l => lower-cases one character.
+        // falls through
         case CharCode.L:
           // \L => lower-cases ALL following characters.
           result.emitUnchanged(idx - 1);

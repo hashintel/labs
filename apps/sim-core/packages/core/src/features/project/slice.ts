@@ -110,80 +110,80 @@ export const fetchProject = createAppAsyncThunk<
 
     const refWithDefault = ref ?? "main";
 
-    try {
-      // Migration shim
-      // To be restored with Github intregration.
-      // const remoteProject = prefetchedRemoteProject
-      //   ? prepareRemoteProject(await prefetchedRemoteProject, access)
-      //   : await projectByPath(
-      //       pathWithNamespace,
-      //       refWithDefault,
-      //       access,
-      //       signal
-      //     );
-      // const localProject = getLocalStorageProject(
-      //   pathWithNamespace,
-      //   remoteProject.ref
-      // );
-      // const project = chooseLatestProject(remoteProject, localProject);
+    // try {
+    // Migration shim
+    // To be restored with Github intregration.
+    // const remoteProject = prefetchedRemoteProject
+    //   ? prepareRemoteProject(await prefetchedRemoteProject, access)
+    //   : await projectByPath(
+    //       pathWithNamespace,
+    //       refWithDefault,
+    //       access,
+    //       signal
+    //     );
+    // const localProject = getLocalStorageProject(
+    //   pathWithNamespace,
+    //   remoteProject.ref
+    // );
+    // const project = chooseLatestProject(remoteProject, localProject);
 
-      // if (access?.level === "Write" && !project.canUserEdit) {
-      //   throw new Error("Invalid access token");
-      // }
-      const project = getLocalStorageProject(pathWithNamespace, refWithDefault);
+    // if (access?.level === "Write" && !project.canUserEdit) {
+    //   throw new Error("Invalid access token");
+    // }
+    const project = getLocalStorageProject(pathWithNamespace, refWithDefault);
 
-      if (!project) {
-        const err =
-          "Attempted to fetch project from localstorage, but could not.";
-        console.warn(err, pathWithNamespace, ref);
+    if (!project) {
+      const err =
+        "Attempted to fetch project from localstorage, but could not.";
+      console.warn(err, pathWithNamespace, ref);
 
-        dispatch(
-          setAccessGate({
-            accessGate: {
-              kind: HashCoreAccessGateKind.NotFound,
-              props: { requestedProject: null },
-            },
-            url: pathWithNamespace,
-          }),
-        );
+      dispatch(
+        setAccessGate({
+          accessGate: {
+            kind: HashCoreAccessGateKind.NotFound,
+            props: { requestedProject: null },
+          },
+          url: pathWithNamespace,
+        }),
+      );
 
-        return false;
-      }
-
-      const scopes = batchedScopes.selectScopes(getState())(project);
-
-      const selectedFile =
-        file ?? (scopes[Scope.edit] ? undefined : globalsFileId);
-
-      dispatch(setProjectWithMeta(project, { fromLegacy, file: selectedFile }));
-      if (project && redirect) {
-        navigate(urlFromProject(project), true, {}, false);
-      }
-
-      return true;
-    } catch (err) {
-      // const requestedProject = { pathWithNamespace, ref: refWithDefault };
-      // const gate =
-      //   err instanceof QueryError
-      //     ? queryErrorToAccessGate(err, {
-      //         requestedProject: requestedProject,
-      //       })
-      //     : null;
-
-      // if (gate) {
-      //   dispatch(
-      //     setAccessGate({
-      //       accessGate: gate,
-      //       // @todo include access code in this
-      //       url: urlFromProject(requestedProject),
-      //     })
-      //   );
-      //   return false;
-      // } else {
-      //   throw err;
-      // }
-      throw err;
+      return false;
     }
+
+    const scopes = batchedScopes.selectScopes(getState())(project);
+
+    const selectedFile =
+      file ?? (scopes[Scope.edit] ? undefined : globalsFileId);
+
+    dispatch(setProjectWithMeta(project, { fromLegacy, file: selectedFile }));
+    if (project && redirect) {
+      navigate(urlFromProject(project), true, {}, false);
+    }
+
+    return true;
+    // } catch (err) {
+    // const requestedProject = { pathWithNamespace, ref: refWithDefault };
+    // const gate =
+    //   err instanceof QueryError
+    //     ? queryErrorToAccessGate(err, {
+    //         requestedProject: requestedProject,
+    //       })
+    //     : null;
+
+    // if (gate) {
+    //   dispatch(
+    //     setAccessGate({
+    //       accessGate: gate,
+    //       // @todo include access code in this
+    //       url: urlFromProject(requestedProject),
+    //     })
+    //   );
+    //   return false;
+    // } else {
+    //   throw err;
+    // }
+    //   throw err;
+    // }
   },
 );
 

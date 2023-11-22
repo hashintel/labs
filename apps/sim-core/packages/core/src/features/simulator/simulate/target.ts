@@ -7,7 +7,9 @@ export const DEFAULT_SIMULATOR_TARGET: ProviderTargetEnv = "cloud";
 const getUnsafeLocalStorageSimulatorTarget = () => {
   try {
     return localStorage.getItem(SIMULATOR_TARGET_KEY) as ProviderTargetEnv;
-  } catch {}
+  } catch {
+    // Some browsers will disable localstorage.
+  }
 
   return null;
 };
@@ -21,5 +23,7 @@ export const getLocalStorageSimulatorTarget = (): ProviderTargetEnv =>
 export const setLocalStorageSimulatorTarget = (target: ProviderTargetEnv) => {
   try {
     localStorage.setItem(SIMULATOR_TARGET_KEY, target);
-  } catch {}
+  } catch {
+    // Some browsers will disable localstorage.
+  }
 };

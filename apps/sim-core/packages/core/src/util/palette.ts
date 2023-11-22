@@ -18,7 +18,7 @@ export const mapColor: (src: string, sd?: string) => o.Option<number> = (
           ? themeNumbers.green
           : !isNaN(Number(src))
             ? themeColor(mod(Number(src) / themeBase.length, 1))
-            : themeNumbers.hasOwnProperty(src)
+            : Object.prototype.hasOwnProperty.call(themeNumbers, src)
               ? themeNumbers[src]
               : undefined,
   );

@@ -14,7 +14,7 @@ export const loadGeometryMesh = async (
   switch (userMeshName) {
     case "box":
       return geoHelper("BoxBufferGeometry", num, [1, 1, 1]);
-    case "cone":
+    case "cone": {
       const [geo, mat] = geoHelper("ConeBufferGeometry", num, [0.5, 1, 30]);
       // Our cones point in the forward direction
       // Cones normally point up
@@ -22,7 +22,8 @@ export const loadGeometryMesh = async (
       geo.rotateX(Math.PI);
       geo.rotateY(Math.PI / 2);
       return [geo, mat];
-    case "flatplane":
+    }
+    case "flatplane": {
       const [geoPlane, matPlane] = geoHelper(
         "PlaneBufferGeometry",
         num,
@@ -30,6 +31,7 @@ export const loadGeometryMesh = async (
       );
       geoPlane.translate(0, 0, -0.5);
       return [geoPlane, matPlane];
+    }
     case "cylinder":
       return geoHelper("CylinderBufferGeometry", num, [0.5, 0.5]);
     case "dodecahedron":

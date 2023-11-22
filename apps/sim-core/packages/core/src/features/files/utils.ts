@@ -332,7 +332,8 @@ export const fastPrettyStringify = (json: any) =>
 
 export const isSharedDependency = (
   file: HcFile | HcDependencyFile,
-): file is HcAnyDependencyFile => file.hasOwnProperty("pathWithNamespace");
+): file is HcAnyDependencyFile =>
+  Object.prototype.hasOwnProperty.call(file, "pathWithNamespace");
 
 export const behaviorKeyExtensions = [
   Ext.JsJson,

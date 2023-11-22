@@ -12,7 +12,7 @@ interface HashCoreConsoleAlertProps {
   files: Record<string, Pick<HcFile, "id" | "path">>;
 }
 
-const filesRegex = /((?:(?:[@\/](?:[\w-]+\/)+)|(?:\/))?[\w-]+\.[a-z]+)/i;
+const filesRegex = /((?:(?:[@/](?:[\w-]+\/)+)|(?:\/))?[\w-]+\.[a-z]+)/i;
 
 /**
  * Convert internal error language into something more widely accessible.

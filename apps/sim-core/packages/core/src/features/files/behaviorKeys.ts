@@ -175,7 +175,8 @@ export function toDraftFormat(data: BehaviorKeysField): BehaviorKeysDraftField {
 
 export const fieldHasRows = (
   field: BehaviorKeysDraftField,
-): field is BehaviorKeysDraftFieldWithRows => field.hasOwnProperty("rows");
+): field is BehaviorKeysDraftFieldWithRows =>
+  Object.prototype.hasOwnProperty.call(field, "rows");
 
 // export function toBehaviorKeysFormat(data: BehaviorKeysDraftFieldList): BehaviorKeysFieldList;
 // export function toBehaviorKeysFormat(data: BehaviorKeysDraftFieldFixedList): BehaviorKeysFieldFixedList;

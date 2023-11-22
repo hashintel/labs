@@ -24,7 +24,7 @@ type LanguageOption = ReactSelectOption & {
 };
 
 const isAllowedExtensionString = (str: string): str is allowedExtensionString =>
-  extensionMap.hasOwnProperty(str);
+  Object.prototype.hasOwnProperty.call(extensionMap, str);
 
 const isReactOptionAllowable = (
   option: ReactSelectOption,
@@ -75,7 +75,7 @@ const nameReducer = produce(
         state.selectedLanguage = action.language;
         break;
 
-      case "setName":
+      case "setName": {
         const matches = action.name.trim().match(/^(.*?)(\..*)?$/);
         const selectedLanguage = getLanguageForLanguageStr(matches?.[2]);
 
@@ -86,7 +86,7 @@ const nameReducer = produce(
           state.name = action.name;
         }
         break;
-
+      }
       case "set":
         return action.value;
     }

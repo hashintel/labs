@@ -72,7 +72,6 @@ export const bootstrapQuery = async () => {
   } catch {
     // Migration shim
     return { examples: [] };
-  } finally {
   }
 };
 
@@ -92,7 +91,7 @@ const bootstrapQueryResponse = () => {
   const myProjects = [];
   for (const key in localStorage) {
     if (
-      !localStorage.hasOwnProperty(key) ||
+      !Object.prototype.hasOwnProperty.call(localStorage, key) ||
       !key.startsWith(`project/`) ||
       !key.endsWith("/main")
     ) {

@@ -489,11 +489,13 @@ export const queueExperiment =
                      * multiple types together – so we need to cast it back to
                      * a regular observable.
                      */
+                    /* eslint-disable no-case-declarations */
                     const combinedGroup = group as Observable<
                       typeof group extends GroupedObservable<any, infer Type>
                         ? Type
                         : never
                     >;
+                    /* eslint-enable no-case-declarations */
 
                     return combinedGroup.pipe(
                       tap(({ type, error, simulationId }) => {

@@ -645,7 +645,7 @@ const { reducer, actions } = createSlice({
 
     removeSimulationData(state, action: PayloadAction<string>) {
       const id = action.payload;
-      if (state.simulationData.hasOwnProperty(id)) {
+      if (Object.prototype.hasOwnProperty.call(state.simulationData, id)) {
         const simulation = state.simulationData[id];
         delete state.simulationData[id];
         historyAdapter.removeOne(
@@ -662,7 +662,10 @@ const { reducer, actions } = createSlice({
 
         if (
           simulation.experimentId &&
-          state.experimentRuns.hasOwnProperty(simulation.experimentId)
+          Object.prototype.hasOwnProperty.call(
+            state.experimentRuns,
+            simulation.experimentId,
+          )
         ) {
           const experiment = state.experimentRuns[simulation.experimentId];
           const nextSimIds = experiment.simulationIds.filter(

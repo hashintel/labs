@@ -24,7 +24,7 @@ const matchError = <T extends Record<string, any>>(
 } | null => {
   if (err instanceof QueryError) {
     const code = err.onlyError?.extensions?.code;
-    if (values.hasOwnProperty("name")) {
+    if (Object.prototype.hasOwnProperty.call(values, "name")) {
       switch (code) {
         case "INVALID_NAME":
           return {
@@ -39,7 +39,7 @@ const matchError = <T extends Record<string, any>>(
       }
     }
 
-    if (values.hasOwnProperty("path")) {
+    if (Object.prototype.hasOwnProperty.call(values, "path")) {
       switch (code) {
         case "PATH_TAKEN":
           return {

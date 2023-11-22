@@ -59,9 +59,6 @@ module.exports = {
     // Disable a bunch of rules to get compilation working in the first place
     // Ideally, all of these items should be removed,
     // as they represent deviations from the standard set.
-    "@react/display-name": "off",
-    "@react/no-children-prop": "off",
-    "@react/no-unescaped-entities": "off",
     "@typescript-eslint/await-thenable": "off",
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/ban-types": "off",
@@ -86,16 +83,7 @@ module.exports = {
     "@typescript-eslint/require-await": "off",
     "@typescript-eslint/restrict-template-expressions": "off",
     "@typescript-eslint/unbound-method": "off",
-    "no-case-declarations": "off",
-    "no-constant-condition": "off",
-    "no-empty": "off",
-    "no-fallthrough": "off",
-    "no-inner-declarations": "off",
-    "no-irregular-whitespace": "off",
-    "no-prototype-builtins": "off",
-    "no-useless-catch": "off",
-    "no-useless-escape": "off",
-    "react/prop-types": ["error", {skipUndeclared: true, ignore: ['children'] }], // 'children' prop type detection is buggy
+    "react/prop-types": ["error", { skipUndeclared: true, ignore: ['children'] }], // 'children' prop type detection is buggy
     "react/display-name": "off", // Set automatically during transpilation
     "react/no-unescaped-entities": "off", // Permits more natural language in html, e.g. aprostrophies.
   },

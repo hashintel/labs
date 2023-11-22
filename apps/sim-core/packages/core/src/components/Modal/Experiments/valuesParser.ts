@@ -115,7 +115,9 @@ const convertParsedValueFromInput = (value: string): ParseResult<any> => {
   try {
     const obj = JSON.parse(value);
     return ok(obj);
-  } catch (error) {}
+  } catch (error) {
+    // Hide parsing errors.
+  }
 
   return ok(value.trim());
 };
@@ -125,6 +127,7 @@ const parseValues = (values: string): ParseResult<any[]> => {
   let modified = modifier.modify(values);
   let parsed: any[];
   let remainingRetries = 100;
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       parsed = (Parser.parse(modified) as any).body[0].expression.expressions;
@@ -150,7 +153,7 @@ const parseValues = (values: string): ParseResult<any[]> => {
         const modPos = (error as any).pos as number;
         const position = modPos - 1; // Account for wrap
         return err({
-          msg: `Invalid value at character \'${modified[modPos]}\' [${position}]`,
+          msg: `Invalid value at character '${modified[modPos]}' [${position}]`,
         });
       }
 

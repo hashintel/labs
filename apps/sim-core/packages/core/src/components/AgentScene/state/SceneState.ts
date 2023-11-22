@@ -56,7 +56,7 @@ export const PositionedMeshes = autoSelector({
     const mappedTransitions = get(MappedTransitions);
     const meshes: Record<string, RenderSummary> = {};
     for (const [id, agent] of Object.entries(mappedTransitions)) {
-      if (!meshes.hasOwnProperty(agent.shape)) {
+      if (!Object.prototype.hasOwnProperty.call(meshes, agent.shape)) {
         meshes[agent.shape] = {};
       }
       meshes[agent.shape][id] = agent;
