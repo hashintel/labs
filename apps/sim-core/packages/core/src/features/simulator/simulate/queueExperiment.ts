@@ -599,7 +599,7 @@ export const queueExperiment =
 
             for (const [runId, promise] of Object.entries(startedPromises)) {
               promise.then(() => {
-                dispatch(simulationRunStarted(runId));
+                return dispatch(simulationRunStarted(runId));
               });
             }
 

@@ -28,11 +28,10 @@ if (IS_STAGING) {
 // Report our version number on startup:
 console.log("HASH Core Version:", BUILD_STAMP);
 
-boot(true).then(() => {
-  render(
-    <App store={store}>
-      <HashRouter />
-    </App>,
-    document.getElementById("root"),
-  );
-});
+await boot(true);
+render(
+  <App store={store}>
+    <HashRouter />
+  </App>,
+  document.getElementById("root"),
+);

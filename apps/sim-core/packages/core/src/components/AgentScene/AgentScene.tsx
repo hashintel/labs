@@ -78,10 +78,7 @@ export const AgentScene = ({
    * whenever you want to schedule an update to the stage, and it'll wait until
    * the last update was done.
    */
-  const stageUpdateChainRef = useRef<Promise<unknown>>(null as any);
-  if (!stageUpdateChainRef.current) {
-    stageUpdateChainRef.current = Promise.resolve();
-  }
+  const stageUpdateChainRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const { resetViewer, updateTransitionMap } = use3DViewer();
   useEffect(() => {

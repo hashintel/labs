@@ -1,4 +1,3 @@
-import { PlotDefinition } from "@hashintel/engine-web";
 import { omit } from "lodash";
 
 import { ChartTypes, Operation, Plot, YAxisItemType } from "./types";
@@ -160,7 +159,7 @@ export const onDuplicateMetric = ({
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getYAxisItemsFromDataDefinition = (
-  input: PlotDefinition & any,
+  input: any,
 ): YAxisItemType[] => {
   if (!input.type && input[ChartTypes.timeseries]) {
     return input.timeseries.map((metric: any) => ({
@@ -196,7 +195,7 @@ export const getYAxisItemsFromDataDefinition = (
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getXAxisItemsFromDataDefinition = (
-  input: PlotDefinition & any,
+  input: any,
 ): YAxisItemType[] => {
   if (!input.type) {
     return input.data;
@@ -211,16 +210,13 @@ export const getXAxisItemsFromDataDefinition = (
   );
 };
 
-export const getPlotTypeFromDataDefinition = (
-  input: PlotDefinition & any,
-): string => input.type ?? ChartTypes.timeseries;
+export const getPlotTypeFromDataDefinition = (input: any): string =>
+  input.type ?? ChartTypes.timeseries;
 
 const chartItemLabel = (item: { name?: string; metric?: string }) =>
   item.name ?? item.metric;
 
-export const transformPlotDataBasedOnChartType = (
-  input: PlotDefinition & any,
-) => {
+export const transformPlotDataBasedOnChartType = (input: any) => {
   const result = Object.assign({}, input);
   switch (input.type) {
     // http://localhost:8080/@hash/city-infection-model/6.1.1

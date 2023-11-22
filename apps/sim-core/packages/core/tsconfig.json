@@ -11,7 +11,9 @@
     "site.d.ts",
     "scripts/**/*",
     "src/**/*",
-    "postcss.config.js"
+    "postcss.config.js",
+    ".eslintrc.cjs",
+    "*.cjs"
   ],
   "exclude": ["node_modules"]
 }

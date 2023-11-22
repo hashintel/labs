@@ -268,7 +268,7 @@ const usePreparePlotsObserver = (
     }>
   >(null as any);
   // @todo type this
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<any>(null);
 
   if (!ref.current) {
     ref.current = new Subject();

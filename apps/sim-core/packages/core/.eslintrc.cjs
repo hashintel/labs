@@ -8,7 +8,7 @@ module.exports = {
     project: ["./tsconfig.json"],
     tsconfigRootDir: __dirname,
   },
-  env: { browser: true, es2020: true },
+  env: { browser: true, es2020: true, node: true },
   ignorePatterns: ["dist"],
   settings: {
     react: {
@@ -24,7 +24,13 @@ module.exports = {
     "plugin:react/recommended",
     "prettier",
   ],
-  plugins: ["react-refresh", "@typescript-eslint", "react-hooks", "react", "import"],
+  plugins: [
+    "react-refresh",
+    "@typescript-eslint",
+    "react-hooks",
+    "react",
+    "import",
+  ],
   rules: {
     "id-length": [
       "error",
@@ -66,20 +72,31 @@ module.exports = {
     "@typescript-eslint/no-empty-function": "off",
     "@typescript-eslint/no-empty-interface": "off",
     "@typescript-eslint/no-explicit-any": "off",
-    "@typescript-eslint/no-floating-promises": "off",
-    "@typescript-eslint/no-misused-promises": "off",
-    "@typescript-eslint/no-redundant-type-constituents": "off",
-    "@typescript-eslint/no-unnecessary-type-constraint": "off",
+
+    // Disabled due to tech debt
+    "@typescript-eslint/no-unsafe-enum-comparison": "off",
     "@typescript-eslint/no-unsafe-argument": "off",
     "@typescript-eslint/no-unsafe-assignment": "off",
     "@typescript-eslint/no-unsafe-call": "off",
-    "@typescript-eslint/no-unsafe-enum-comparison": "off",
+    "@typescript-eslint/no-unsafe-member-access": "off",
+    "@typescript-eslint/no-unsafe-return": "off",
+    "@typescript-eslint/unbound-method": "off",
+    "@typescript-eslint/prefer-nullish-coalescing": [
+      "error",
+      { ignoreMixedLogicalExpressions: true, ignorePrimitives: true },
+    ],
 
-    "@typescript-eslint/no-unsafe-member-access": "off", // Disabled due to tech debt
-    "@typescript-eslint/no-unsafe-return": "off", // Disabled due to tech debt
-    "@typescript-eslint/unbound-method": "off", // Disabled due to tech debt
-    "@typescript-eslint/prefer-nullish-coalescing": ["error", {ignoreMixedLogicalExpressions: true, ignorePrimitives: true}],
-    "react/prop-types": ["error", { skipUndeclared: true, ignore: ['children'] }], // 'children' prop type detection is buggy
+    "@typescript-eslint/no-floating-promises": "off", // redux 'dispatch' and other react hooks create lots of floating promises.
+    "@typescript-eslint/no-misused-promises": [
+      "error",
+      {
+        checksVoidReturn: false, // Void-returned promises come up a lot in react
+      },
+    ],
+    "react/prop-types": [
+      "error",
+      { skipUndeclared: true, ignore: ["children"] }, // 'children' prop type detection is buggy
+    ],
     "react/display-name": "off", // Set automatically during transpilation
     "react/no-unescaped-entities": "off", // Permits more natural language in html, e.g. aprostrophies.
   },

@@ -42,7 +42,7 @@ const idbGet = <T>(key: string) =>
         })
     : Promise.resolve(null);
 
-const idbSet = <T extends any>(key: string, value: T) => {
+const idbSet = <T>(key: string, value: T) => {
   if (experimentDataStoreIdb) {
     if (value === undefined || value === null) {
       return experimentDataStoreIdb
@@ -150,7 +150,7 @@ export const historicCloudExperimentProvider = {
     run: SimulationData,
   ): Promise<SimulationStates> {
     if (hasStepsLink(run)) {
-      if (stepRequests[run.simulationRunId]) {
+      if (run.simulationRunId in stepRequests) {
         return stepRequests[run.simulationRunId].catch(() =>
           historicCloudExperimentProvider.getSteps(experiment, run),
         );

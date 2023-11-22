@@ -14,8 +14,8 @@
     "build": "yarn prod-env vite build",
     "start": "yarn prod-env vite build && vite preview",
     "preview": "yarn prod-env vite preview",
-    "fmt": "prettier \"*.{ts,tsx,js,jsx,json,css,scss}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss}\" --write; eslint --quiet --fix \"*.{ts,tsx,js}\" \"{scripts,src}/**/*.{ts,tsx,js}\"",
-    "fmt-check": "prettier \"*.{ts,tsx,js,jsx,json,css,scss}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss}\" --check || exit 1; eslint --quiet \"*.{ts,tsx,js}\" \"{scripts,src}/**/*.{ts,tsx,js}\"",
+    "fmt": "prettier \"*.{ts,tsx,js,jsx,json,css,scss,cjs}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss,cjs}\" --write; eslint --quiet --fix \"*.{ts,tsx,js,cjs}\" \"{scripts,src}/**/*.{ts,tsx,js,cjs}\"",
+    "fmt-check": "prettier \"*.{ts,tsx,js,jsx,json,css,scss,cjs}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss,cjs}\" --check || exit 1; eslint --quiet \"*.{ts,tsx,js,cjs}\" \"{scripts,src}/**/*.{ts,tsx,js,cjs}\"",
     "deploy": "ts-node --project scripts/tsconfig.json scripts/deploy.ts",
     "g": "ts-node --project scripts/tsconfig.json scripts/cli",
     "test": "jest --forceExit --testPathIgnorePatterns '/node_modules/|/tests/e2e/'"
