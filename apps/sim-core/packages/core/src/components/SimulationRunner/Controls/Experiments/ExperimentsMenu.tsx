@@ -12,10 +12,10 @@ import { useCloseTooltip } from "../../../SimpleTooltip/context";
 
 import "./ExperimentsMenu.css";
 
-type ExperimentsMenuProps = {
+interface ExperimentsMenuProps {
   openModal: VoidFunction;
   setCurrentExperiment: Dispatch<SetStateAction<RawExperimentType | undefined>>;
-};
+}
 
 const ExperimentsMenuList: FC<ExperimentsMenuProps> = ({
   openModal,

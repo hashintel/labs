@@ -11,89 +11,89 @@ import {
 import { historyAdapter } from "./historyAdapter";
 
 const selectSimulatorSlice: Selector<SimulatorRootState, SimulatorSlice> = (
-  state
+  state,
 ) => state.simulator;
 
 export const selectAllSimulationData = createSelector(
   selectSimulatorSlice,
-  (simulator) => simulator.simulationData
+  (simulator) => simulator.simulationData,
 );
 
 export const selectExperimentRuns = createSelector(
   selectSimulatorSlice,
-  (simulator) => simulator.experimentRuns
+  (simulator) => simulator.experimentRuns,
 );
 
 export const selectPendingExperimentRuns = createSelector(
   selectSimulatorSlice,
-  (simulator) => simulator.pendingExperimentRuns
+  (simulator) => simulator.pendingExperimentRuns,
 );
 
 export const selectAllExperimentSimulationRunIds = createSelector(
   selectExperimentRuns,
-  (runs) => Object.values(runs).flatMap((run) => run.simulationIds)
+  (runs) => Object.values(runs).flatMap((run) => run.simulationIds),
 );
 
 export const selectAllSingleRuns = createSelector(
   selectAllSimulationData,
-  (simdata) => Object.values(simdata).filter((run) => !run.experimentId)
+  (simdata) => Object.values(simdata).filter((run) => !run.experimentId),
 );
 
 const selectNullableCurrentSimulationId = createSelector(
   selectSimulatorSlice,
-  (simulator) => simulator.currentSimulation
+  (simulator) => simulator.currentSimulation,
 );
 
 export const selectHasCurrentSimulation = createSelector(
   [selectNullableCurrentSimulationId, selectAllSimulationData],
-  (id, data) => id && !!data[id]
+  (id, data) => id && !!data[id],
 );
 
 export const selectCurrentSimulationData = createSelector(
   [selectNullableCurrentSimulationId, selectAllSimulationData],
   (currentSimulation, simulationData): SimulationData =>
     (currentSimulation ? simulationData[currentSimulation] : null) ??
-    defaultSimulationData
+    defaultSimulationData,
 );
 
 export const selectCurrentSimulationId = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.simulationRunId
+  (sim) => sim.simulationRunId,
 );
 
 export const selectCurrentExperimentId = createSelector(
   selectSimulatorSlice,
-  (slice) => slice.selectedExperimentId
+  (slice) => slice.selectedExperimentId,
 );
 
 export const selectCurrentExperimentData = createSelector(
   [selectCurrentExperimentId, selectExperimentRuns],
-  (experimentId, runs) => (experimentId ? runs[experimentId] ?? null : null)
+  (experimentId, runs) => (experimentId ? runs[experimentId] ?? null : null),
 );
 
 export const selectCurrentExperimentName = createSelector(
   selectCurrentExperimentData,
-  (data) => data?.experimentName ?? null
+  (data) => data?.experimentName ?? null,
 );
 
 export const selectPyodideStatus = createSelector(
   selectSimulatorSlice,
-  (status) => status.pyodideStatus
+  (status) => status.pyodideStatus,
 );
 
 export const selectRunning = createSelector(
   selectCurrentSimulationData,
-  (runner) => runner.status === "running"
+  (runner) => runner.status === "running",
 );
 
 export const selectResetting = createSelector(
   selectSimulatorSlice,
-  (slice) => slice.resetting
+  (slice) => slice.resetting,
 );
 
 export const selectCurrentRunnerSteps = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.steps
+  (sim) => sim.steps,
 );
 
 /**
@@ -101,12 +101,12 @@ export const selectCurrentRunnerSteps = createSelector(
  */
 const selectCurrentRunnerStepsCount = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.stepsCount
+  (sim) => sim.stepsCount,
 );
 
 export const selectCurrentRunnerHasSteps = createSelector(
   selectCurrentRunnerStepsCount,
-  (numSteps) => numSteps > 1
+  (numSteps) => numSteps > 1,
 );
 
 /**
@@ -116,7 +116,7 @@ export const selectCurrentRunnerHasSteps = createSelector(
  */
 export const selectCurrentRunnerNumSteps = createSelector(
   selectCurrentRunnerStepsCount,
-  (count) => Math.max(0, count - 1)
+  (count) => Math.max(0, count - 1),
 );
 
 /**
@@ -125,17 +125,17 @@ export const selectCurrentRunnerNumSteps = createSelector(
  */
 export const selectCurrentRunnerMinStep = createSelector(
   selectCurrentSimulationData,
-  (sim) => minimumAvailableStep(sim)
+  (sim) => minimumAvailableStep(sim),
 );
 
 export const selectScrubbedStep = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.scrubbedStep
+  (sim) => sim.scrubbedStep,
 );
 
 export const selectTrackingFinalStep = createSelector(
   selectScrubbedStep,
-  (step) => step === null
+  (step) => step === null,
 );
 
 export const selectCurrentStep = createSelector(
@@ -143,42 +143,42 @@ export const selectCurrentStep = createSelector(
   (trackingFinalStep, numSteps, scrubbedStep) =>
     trackingFinalStep || numSteps === 0 || scrubbedStep! >= numSteps
       ? numSteps
-      : scrubbedStep!
+      : scrubbedStep!,
 );
 
 export const selectPresentingSpeed = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.presentingSpeed
+  (sim) => sim.presentingSpeed,
 );
 
 export const selectPresenting = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.presenting
+  (sim) => sim.presenting,
 );
 
 export const selectCurrentSimMode = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.mode
+  (sim) => sim.mode,
 );
 
 export const selectCurrentSimStepRetention = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.stepRetention
+  (sim) => sim.stepRetention,
 );
 
 export const selectCanCurrentSimCompute = createSelector(
   selectCurrentSimMode,
-  (mode) => mode === "computeAndPlayback"
+  (mode) => mode === "computeAndPlayback",
 );
 
 export const selectCurrentSimComplete = createSelector(
   selectCurrentSimulationData,
-  simulationComplete
+  simulationComplete,
 );
 
 export const selectCurrentSimErrored = createSelector(
   selectCurrentSimulationData,
-  (sim) => sim.status === "errored"
+  (sim) => sim.status === "errored",
 );
 
 export const selectCanPlayPause = createSelector(
@@ -194,7 +194,7 @@ export const selectCanPlayPause = createSelector(
     !resetting &&
     !complete &&
     mode !== "historic" &&
-    pyodide !== "errored"
+    pyodide !== "errored",
 );
 
 export const selectCanPresent = createSelector(
@@ -205,23 +205,23 @@ export const selectCanPresent = createSelector(
     selectCurrentRunnerNumSteps,
   ],
   (hasSteps, resetting, step, count) =>
-    hasSteps && !resetting && step !== null && step < count
+    hasSteps && !resetting && step !== null && step < count,
 );
 
 export const selectProviderTarget = createSelector(
   [selectSimulatorSlice],
-  (slice) => (slice.cloudDisabled ? "web" : slice.selectedTarget)
+  (slice) => (slice.cloudDisabled ? "web" : slice.selectedTarget),
 );
 
 export const selectCanRunExperiment = createSelector(
   [selectResetting, selectPyodideStatus, selectProviderTarget],
   (resetting, pyodide, target) =>
-    !resetting && (target === "cloud" || pyodide !== "errored")
+    !resetting && (target === "cloud" || pyodide !== "errored"),
 );
 
 export const selectAnalysisMode = createSelector(
   selectSimulatorSlice,
-  (slice) => slice.analysisMode
+  (slice) => slice.analysisMode,
 );
 
 /**
@@ -231,7 +231,7 @@ export const selectAnalysisMode = createSelector(
  */
 export const selectAnalysisTabVisibleInSimulator = createSelector(
   selectSimulatorSlice,
-  (slice) => slice.analysisVisible
+  (slice) => slice.analysisVisible,
 );
 
 export const selectSimulationIdsForAnalysisMode = createSelector(
@@ -245,47 +245,47 @@ export const selectSimulationIdsForAnalysisMode = createSelector(
     }
 
     return [];
-  }
+  },
 );
 
 export const selectHistory = createSelector(
   selectSimulatorSlice,
-  (slice) => slice.history
+  (slice) => slice.history,
 );
 
 export const selectHistoryNextPage = createSelector(
   selectHistory,
-  (history) => history.nextPage
+  (history) => history.nextPage,
 );
 
 export const selectHistoryComplete = createSelector(
   selectHistory,
-  (history) => history.complete
+  (history) => history.complete,
 );
 
 export const selectHistoryReceivedCurrent = createSelector(
   selectHistory,
-  (history) => history.receivedCurrent
+  (history) => history.receivedCurrent,
 );
 
 export const selectHistoryHasFilledScreen = createSelector(
   selectHistory,
-  (history) => history.haveFilledScreen
+  (history) => history.haveFilledScreen,
 );
 
 export const selectHistoryProject = createSelector(
   selectHistory,
-  (history) => history.project
+  (history) => history.project,
 );
 
 export const selectHistoryReady = createSelector(
   selectHistoryProject,
-  (project) => project !== null
+  (project) => project !== null,
 );
 
 export const selectHistoryRequestingMore = createSelector(
   selectHistory,
-  (history) => history.requestingMore
+  (history) => history.requestingMore,
 );
 
 /**
@@ -295,12 +295,12 @@ export const selectHistoryRequestingMore = createSelector(
  */
 export const selectHistoryVisible = createSelector(
   [selectHistory],
-  (history) => history.visible
+  (history) => history.visible,
 );
 
 export const selectHistoryCurrentCommitGroup = createSelector(
   [selectHistory],
-  (history) => history.selectedCommitGroup
+  (history) => history.selectedCommitGroup,
 );
 
 export const historySelectors = historyAdapter.getSelectors(selectHistory);

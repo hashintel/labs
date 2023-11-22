@@ -15,7 +15,7 @@ import { nextNonClashingName } from "../../util/nextNonClashingName";
 
 export const addField = (
   draft: Draft<BehaviorKeysDraftRow[]>,
-  atRoot: boolean
+  atRoot: boolean,
 ) => {
   const allocatedName = nextNonClashingName("field", [
     "field",
@@ -26,13 +26,13 @@ export const addField = (
     toDraftFormatPerField([
       allocatedName,
       atRoot ? behaviorKeysTopLevelRowTemplate : behaviorKeysRowTemplate,
-    ])
+    ]),
   );
 };
 
 export const castField = (
   draft: Draft<BehaviorKeysDraftField>,
-  nextType: BehaviorKeysField["type"]
+  nextType: BehaviorKeysField["type"],
 ) => {
   const prevMeta = current(draft.meta);
   const sharedMeta = { nullable: prevMeta.nullable };

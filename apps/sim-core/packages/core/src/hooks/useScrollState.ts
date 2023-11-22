@@ -100,7 +100,7 @@ export const useScrollState = (mode: Mode = "vertical") => {
         newRef.addEventListener("scroll", handler);
       }
     },
-    [handler, setResizeObserverRef]
+    [handler, setResizeObserverRef],
   );
 
   return [setRef, contentRemaining, scrollable] as const;

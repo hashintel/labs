@@ -28,15 +28,15 @@ import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
 // actually want the `Option` component here
 const { Option } = components;
 
-type ModalCreateReleaseProps = {
+interface ModalCreateReleaseProps {
   onClose: VoidFunction;
   data?: ReleaseMeta;
-};
+}
 
-type FormInputs = {
+interface FormInputs {
   name: string;
   description: string;
-};
+}
 
 export const ModalReleaseCreate: FC<ModalCreateReleaseProps> = ({
   onClose,
@@ -63,13 +63,13 @@ export const ModalReleaseCreate: FC<ModalCreateReleaseProps> = ({
   /* KEYWORD OPTIONS */
   const [keywordOptions, selectedKeywords, setSelectedKeywords] = useKeywords(
     data?.keywords,
-    project.keywords
+    project.keywords,
   );
 
   /* LICENSE OPTIONS */
   const [licenseOptions, selectedLicense, setSelectedLicense] = useLicenses(
     data?.licenses,
-    project.license
+    project.license,
   );
 
   const onSubmit = async (values: FormInputs) => {
@@ -85,7 +85,7 @@ export const ModalReleaseCreate: FC<ModalCreateReleaseProps> = ({
               keywords: selectedKeywords.map((keyword) => keyword.value),
               license: selectedLicense.value ?? "",
             },
-          })
+          }),
         );
 
         onClose();

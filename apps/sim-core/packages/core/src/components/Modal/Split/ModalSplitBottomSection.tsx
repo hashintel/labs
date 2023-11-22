@@ -14,7 +14,7 @@ export const ModalSplitBottomSection = forwardRef<
 >(
   (
     { className, children, small, scrollable, flex, divide = true, ...props },
-    ref
+    ref,
   ) => (
     <div
       className={classNames(
@@ -25,12 +25,12 @@ export const ModalSplitBottomSection = forwardRef<
           "ModalSplitBottomSection--flex": flex,
           "ModalSplitBottomSection--divide": divide,
         },
-        className
+        className,
       )}
       ref={ref}
       {...props}
     >
       {children}
     </div>
-  )
+  ),
 );

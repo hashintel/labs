@@ -30,6 +30,7 @@ export const ExperimentsListError: FC = () => {
           <a
             href={`${SIM_DOCS_URL}/creating-simulations/experiments`}
             target="_blank"
+            rel="noreferrer"
           >
             our docs
           </a>{" "}

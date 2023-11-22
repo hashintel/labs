@@ -13,13 +13,13 @@ export interface HcBaseFile<K extends HcFileKind = HcFileKind> {
   kind: K;
   path: ParsedPath;
   repoPath: string;
-  children?: Array<HcFile | HcFolder>;
+  children?: (HcFile | HcFolder)[];
   name?: string;
 }
 
 type HcDependencyFileKind = HcFileKind.Dataset | HcFileKind.SharedBehavior;
 export type HcDependencyFile<
-  K extends HcDependencyFileKind = HcDependencyFileKind
+  K extends HcDependencyFileKind = HcDependencyFileKind,
 > = HcBaseFile<K> &
   LinkableProject & {
     name: string;
@@ -29,24 +29,24 @@ export type HcDependencyFile<
     visibility: ProjectVisibility;
   };
 
-export type DatasetFields = {
+export interface DatasetFields {
   data: {
     name?: string;
     rawCsv?: boolean;
     s3Key: string;
     inPlaceData: string | null;
   };
-};
+}
 
-type BehaviorFields = {
+interface BehaviorFields {
   keys: DraftBehaviorKeysRoot;
-};
+}
 
 export interface HcTemporaryFile extends HcBaseFile<HcFileKind.Temporary> {
   name?: string;
 }
 
-export interface HcRequiredFile extends HcBaseFile<HcFileKind.Required> {}
+export type HcRequiredFile = HcBaseFile<HcFileKind.Required>;
 
 export interface HcBehaviorFile
   extends HcBaseFile<HcFileKind.Behavior>,
@@ -70,10 +70,10 @@ export type HcSharedBehaviorFile = HcDependencyFile<HcFileKind.SharedBehavior> &
 
 export interface HcFolder extends HcBaseFile<HcFileKind.Folder> {
   name: string;
-  children: Array<HcFolder | HcFile>;
+  children: (HcFolder | HcFile)[];
 }
 
-export interface HcInitFile extends HcBaseFile<HcFileKind.Init> {}
+export type HcInitFile = HcBaseFile<HcFileKind.Init>;
 
 export type HcProcessModelFile = HcBaseFile<HcFileKind.ProcessModel>;
 
@@ -119,4 +119,4 @@ export interface FilesSlice extends EntityState<HcFile> {
   visualAnalysis: boolean;
 }
 
-export type DependenciesDescriptor = { [name: string]: string };
+export type DependenciesDescriptor = Record<string, string>;

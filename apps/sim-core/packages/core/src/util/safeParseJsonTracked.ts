@@ -5,7 +5,7 @@ import { ParsedAnalysis, ParsedGlobals } from "../features/files/types";
 // type SafeParseJsonTrackedReturn<T> = () => T;
 
 export const safeParseJsonTracked = <T extends ParsedAnalysis | ParsedGlobals>(
-  inputString?: string | null
+  inputString?: string | null,
 ): {
   lastInputString: null | string;
   parsed: null | T | Json;

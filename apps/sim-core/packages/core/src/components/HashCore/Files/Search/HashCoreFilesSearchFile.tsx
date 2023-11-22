@@ -9,7 +9,7 @@ import type { SearchMatch } from "./types";
 
 import "./HashCoreFilesSearchFile.scss";
 
-type SearchFileProps = {
+interface SearchFileProps {
   file: HcFile;
   matches: SearchMatch[];
   onClick: (match: SearchMatch) => void;
@@ -18,7 +18,7 @@ type SearchFileProps = {
   onReplaceAllInFile: () => Promise<void>;
   replacing: boolean;
   pending: boolean;
-};
+}
 
 export const HashCoreFilesSearchFile: FC<SearchFileProps> = ({
   file,

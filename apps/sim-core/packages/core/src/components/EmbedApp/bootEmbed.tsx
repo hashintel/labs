@@ -29,7 +29,7 @@ import { store } from "../../features/store";
 export const bootEmbed = async (
   params: ValidatedEmbedParams,
   prefetchedProjectPromise: Promise<RemoteSimulationProject>,
-  basicUserPromise: Promise<BasicUser | null | undefined>
+  basicUserPromise: Promise<BasicUser | null | undefined>,
 ) => {
   await boot(false);
 
@@ -44,7 +44,7 @@ export const bootEmbed = async (
         prefetchedRemoteProject: prefetchedProjectPromise,
         redirect: false,
         access: params.access,
-      })
+      }),
     ),
     basicUserPromise.then((basicUser) => {
       if (basicUser) {
@@ -57,6 +57,6 @@ export const bootEmbed = async (
     <App store={store}>
       <EmbedApp />
     </App>,
-    document.getElementById("root")
+    document.getElementById("root"),
   );
 };

@@ -7,13 +7,13 @@ import { useKeepInView } from "../../../KeepInView";
 
 import "./HashCoreFilesSearchMatch.scss";
 
-type SearchResultProps = {
+interface SearchResultProps {
   match: SearchMatch;
   onClick: (match: SearchMatch) => void;
   onReplace: (match: SearchMatch) => Promise<void>;
   replacing: boolean;
   pending: boolean;
-};
+}
 
 export const HashCoreFilesSearchMatch: FC<SearchResultProps> = ({
   match,

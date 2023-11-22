@@ -8,8 +8,8 @@ import { selectLinkableProject, selectProjectLoaded } from "./selectors";
 export const projectChangeObservable = (store: Store<RootState>) =>
   fromStore(store).pipe(
     map((state) =>
-      selectProjectLoaded(state) ? selectLinkableProject(state) : null
+      selectProjectLoaded(state) ? selectLinkableProject(state) : null,
     ),
     distinctUntilChanged(),
-    filter(<T>(url: T | null): url is T => url !== null)
+    filter(<T>(url: T | null): url is T => url !== null),
   );

@@ -35,7 +35,7 @@ export const createReleaseWithUpdate = async (
   projectPath: string,
   tag: string,
   updateDescription: string,
-  update: ProjectUpdate
+  update: ProjectUpdate,
 ) =>
   (
     await query<{

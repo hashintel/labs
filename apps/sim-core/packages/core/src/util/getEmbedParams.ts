@@ -13,14 +13,14 @@ export type ValidatedEmbedParams = {
 } & ParseAccessCodeParam;
 
 const validateEmbedParams = (
-  params: ParseAccessCodeParam & HookRouter.QueryParams
+  params: ParseAccessCodeParam & HookRouter.QueryParams,
 ): params is ValidatedEmbedParams =>
   typeof params.project === "string" && typeof params.ref === "string";
 
 export const getEmbedParams = () => {
   const params = parseAccessCodeInParams(
     getSafeQueryParams(),
-    ProjectAccessScope.ReadEmbed
+    ProjectAccessScope.ReadEmbed,
   );
 
   if (!validateEmbedParams(params)) {

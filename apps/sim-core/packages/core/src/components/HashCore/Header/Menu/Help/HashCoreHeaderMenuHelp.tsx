@@ -7,12 +7,12 @@ import { selectHasProject } from "../../../../../features/project/selectors";
 import { trackEvent } from "../../../../../features/analytics";
 import { useTour } from "../../../Tour";
 
-type HashCoreHeaderMenuHelpProps = {
+interface HashCoreHeaderMenuHelpProps {
   openMenuItem: string;
   onClickMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   clearAll: () => void;
-};
+}
 
 export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
   ({
@@ -45,9 +45,10 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
                   trackEvent({
                     action: "Docs Link Clicked: Core",
                     label: "Homepage",
-                  })
+                  }),
                 )
               }
+              rel="noreferrer"
             >
               Docs
             </a>
@@ -91,7 +92,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
         </ul>
       </>
     );
-  }
+  },
 );
 
 // // @ts-ignore

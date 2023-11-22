@@ -11,20 +11,18 @@ import { buildData, buildPlots } from "./utils";
 import analyzerWorkerUrl from "../../workers/analyzer-worker/index?worker&url";
 
 export const analyzer = new AnalyzerProvider(analyzerWorkerUrl);
-type PlotDefinitionIsInvalidType = {
+interface PlotDefinitionIsInvalidType {
   isInvalid?: boolean;
-};
+}
 
-export type PlotDataItem = {
+export interface PlotDataItem {
   definition: PlotDefinition & PlotDefinitionIsInvalidType;
   outputProps: OutputPlotProps;
   data: Plotly.Data[];
-};
-export type PlotDataMap = {
-  [id: string]: PlotDataItem;
-};
+}
+export type PlotDataMap = Record<string, PlotDataItem>;
 
-export type OutputPlots = {
+export interface OutputPlots {
   outputs: OutputSeries;
   /**
    * @todo what is this for – we don't have it in cloud analysis which makes
@@ -32,7 +30,7 @@ export type OutputPlots = {
    */
   rawOutputs: Outputs[];
   plots: PlotDataMap;
-};
+}
 
 /**
  * Analyzing returns an array of output maps.
@@ -53,7 +51,7 @@ export type OutputPlots = {
  * analyzer.analyze() ->  {[outputId]: value}[]
  */
 export const refreshAnalysisSource = async (
-  source: string
+  source: string,
   // simId: string
 ): Promise<OutputPlots> => {
   const { plots } = await analyzer.setAnalysisSrc(source);
@@ -78,7 +76,7 @@ export const refreshAnalysisSource = async (
 export const analyzeSteps = async (
   agentData: SimulationStates,
   lastOutputs: Outputs[] = [],
-  stepsCount: number
+  stepsCount: number,
 ): Promise<{ total: Outputs[]; added: Outputs[] }> => {
   if (lastOutputs.length === stepsCount) {
     return { total: lastOutputs, added: [] };
@@ -103,7 +101,7 @@ export const analyzeSteps = async (
 export const mutatingPlotData = (
   outputs: OutputSeries,
   plots: PlotDataMap,
-  stepCount: number
+  stepCount: number,
 ) => {
   // Build that data on the plot definitions
 
@@ -133,7 +131,7 @@ export const mutatingPlotData = (
 export const mutatingUpdatePlotsForSingleRun = async (
   agentData: SimulationStates,
   plotsData: OutputPlots,
-  stepsCount: number
+  stepsCount: number,
 ): Promise<OutputPlots> => {
   const { outputs, plots, rawOutputs } = plotsData;
 

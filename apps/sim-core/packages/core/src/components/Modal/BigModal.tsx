@@ -6,12 +6,12 @@ import { ModalExit } from "./ModalExit";
 
 import "./BigModal.css";
 
-type BigModalProps = {
+interface BigModalProps {
   onClose?: () => void;
   cancelButton?: boolean;
   className?: string;
   backdropClassName?: string;
-};
+}
 
 export const BigModal: FC<BigModalProps> = ({
   onClose,

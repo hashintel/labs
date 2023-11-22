@@ -2,7 +2,7 @@
  * provided by vite
  * @see: ./vite.config.ts
  */
-declare var BUILD_STAMP: string;
+declare let BUILD_STAMP: string;
 
 /**
  * Like `Omit` but distributes over unions

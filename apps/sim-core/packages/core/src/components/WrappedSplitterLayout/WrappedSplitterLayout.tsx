@@ -24,7 +24,7 @@ interface SplitterLayoutPrivateAPI {
  * This messes with resizing panes when the mouse moves over the iframe.
  * @see https://github.com/zesik/react-splitter-layout/issues/7
  */
-const setIframeInteractivity = (interactive: boolean = true) => {
+const setIframeInteractivity = (interactive = true) => {
   const iframes = document.getElementsByTagName("iframe");
   for (const iframe of iframes) {
     iframe.style.pointerEvents = interactive ? "all" : "none";
@@ -90,9 +90,9 @@ export const WrappedSplitterLayout: FC<
       onDragStart={() => setIframeInteractivity(false)}
       onSecondaryPaneSizeChange={(secondary) => {
         if (ref.current) {
-          const container = ref.current.container as HTMLElement;
+          const container = ref.current.container;
           const secondaryPane = Array.from(container.children).find((node) =>
-            node.matches(".layout-pane:not(.layout-pane-primary)")
+            node.matches(".layout-pane:not(.layout-pane-primary)"),
           )!;
 
           const totalBox = container.getBoundingClientRect();

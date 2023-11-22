@@ -31,7 +31,7 @@ import "./ErrorBoundary.css";
 const quotableId = (() => {
   const generateHashEventId = customAlphabet(
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    6
+    6,
   );
 
   return () =>
@@ -41,8 +41,8 @@ const quotableId = (() => {
       .padStart(2, "0")}${generateHashEventId()}`;
 })();
 
-type ErrorBoundaryProps = {};
-type ErrorBoundaryState = {
+interface ErrorBoundaryProps {}
+interface ErrorBoundaryState {
   didError: boolean;
   errorName?: string;
   errorMessage?: string;
@@ -50,7 +50,7 @@ type ErrorBoundaryState = {
   eventId: string | null;
   detailsHidden: boolean;
   hashEventId: string | null;
-};
+}
 
 type TErrorBoundaryContext = {
   handlePromiseRejection: (promise: Promise<any>) => void;
@@ -160,6 +160,7 @@ export class ErrorBoundary extends Component<
             <a
               href="https://docs.hash.ai/core/extra/troubleshooting#troubleshooting-crashes"
               target="_blank"
+              rel="noreferrer"
             >
               troubleshooting guide
             </a>

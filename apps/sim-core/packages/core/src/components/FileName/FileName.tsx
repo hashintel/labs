@@ -8,5 +8,5 @@ export const FileName = forwardRef<HTMLDivElement, HTMLProps<HTMLDivElement>>(
     <div className={classNames("FileName", className)} {...props} ref={ref}>
       {children}
     </div>
-  )
+  ),
 );

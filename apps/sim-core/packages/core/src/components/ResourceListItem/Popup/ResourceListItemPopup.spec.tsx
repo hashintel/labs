@@ -100,7 +100,7 @@ it("renders without crashing with one dataset with none present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -142,7 +142,7 @@ it("renders without crashing with one dataset with it present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -183,7 +183,7 @@ it("renders without crashing with one trusted dataset with it present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -224,7 +224,7 @@ it("renders without crashing with two datasets with none present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -265,7 +265,7 @@ it("renders without crashing with two datasets with one present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -309,7 +309,7 @@ it("renders without crashing with two datasets with two present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -350,7 +350,7 @@ it("renders without crashing one behavior with none present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -391,7 +391,7 @@ it("renders without crashing one behavior with one present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

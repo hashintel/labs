@@ -17,7 +17,7 @@ const setToast = (
   project: SimulationProject | null,
   canEdit: boolean,
   canWriteProject: boolean,
-  fromLegacy: boolean = false
+  fromLegacy = false,
 ) => {
   delete state.data;
 
@@ -64,7 +64,7 @@ export const {
           project,
           scopes[Scope.edit],
           scopes[Scope.mutate],
-          meta.fromLegacy ?? false
+          meta.fromLegacy ?? false,
         );
       })
       .addCase(bootstrapApp.fulfilled, (draft, action) => {
@@ -72,7 +72,7 @@ export const {
           draft,
           action.payload.currentProject,
           action.payload.scopes[Scope.edit],
-          action.payload.scopes[Scope.mutate]
+          action.payload.scopes[Scope.mutate],
         );
       });
   },

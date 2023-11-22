@@ -2,9 +2,9 @@ import React, { FC } from "react";
 
 import { IconAlertOutline } from "../Icon/AlertOutline";
 
-type ErrorNotificationProps = {
+interface ErrorNotificationProps {
   plots: any;
-};
+}
 
 const SinglePlot: FC<ErrorNotificationProps> = ({ plots }) => {
   const title = plots[0].plot.definition.title;

@@ -6,5 +6,5 @@ export const registerEvents = curriedQuery<
 >(
   `mutation registerEvents($actions: [AnalyticEvent!]!) {
         registerEvents(actions: $actions)
-     }`
+     }`,
 );

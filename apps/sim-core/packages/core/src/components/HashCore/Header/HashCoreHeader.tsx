@@ -31,7 +31,7 @@ const HashVersionPicker = shouldShowVersionPicker
         /* webpackChunkName: "HashVersionPicker" */ "./HashVersionPicker"
       ).then((module) => ({
         default: module.HashVersionPicker,
-      }))
+      })),
     )
   : null;
 
@@ -44,7 +44,7 @@ export const HashCoreHeader: FC = () => {
     const controller = new AbortController();
     if (shouldShowVersionPicker) {
       coreVersions(undefined, controller.signal).then((vs) =>
-        setVersions(vs.coreVersions)
+        setVersions(vs.coreVersions),
       );
     }
     return controller.abort.bind(controller);
@@ -53,12 +53,12 @@ export const HashCoreHeader: FC = () => {
   const [data, _setData] = useState<ReleaseMeta>();
   const [_showCreateReleaseModal, hideCreateReleaseModal] = useModal(
     () => <ModalReleaseCreate onClose={hideCreateReleaseModal} data={data} />,
-    [data]
+    [data],
   );
 
   const [_showUpdateInIndex, hideUpdateInIndex] = useModal(
     () => <ModalReleaseUpdate onClose={hideUpdateInIndex} />,
-    []
+    [],
   );
 
   const [_showPrivateDependencies, hidePrivateDependencies] = useModal(() => (
@@ -66,7 +66,7 @@ export const HashCoreHeader: FC = () => {
   ));
 
   const _hasPrivateDependencies = useSelector(
-    selectProjectHasPrivateDependencies
+    selectProjectHasPrivateDependencies,
   );
 
   const projectUpdatedAtDate = project
@@ -92,7 +92,7 @@ export const HashCoreHeader: FC = () => {
     Scope.release,
     Scope.save,
     Scope.useAccount,
-    Scope.linkToProjectInIndex
+    Scope.linkToProjectInIndex,
   );
 
   /**

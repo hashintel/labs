@@ -6,11 +6,11 @@ import { RoundedTextInput } from "../Inputs/RoundedTextInput";
 
 import "./Search.css";
 
-type SearchProps = {
+interface SearchProps {
   onChange: (term: string) => void;
   loading: boolean;
   searchTerm: string;
-};
+}
 
 export const Search: FC<SearchProps> = ({ onChange, loading, searchTerm }) => {
   const clearable = searchTerm.length > 0;

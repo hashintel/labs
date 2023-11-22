@@ -29,7 +29,7 @@ function getNotifier(notifySlack: boolean) {
     if (notifySlack) {
       await request.post(
         "https://hooks.slack.com/services/T5Z49HZPW/B01QB9PQNE8/4Ur5MWKteJFdxvGYCCxiD",
-        { json: { text: `${logging_prefix} ${message}` } }
+        { json: { text: `${logging_prefix} ${message}` } },
       );
     }
   };
@@ -56,7 +56,7 @@ async function buildAndStageAssets(): Promise<string> {
     throw "Couldn't find a manifest.";
   }
   const manifest = JSON.parse(cat(manifests[0]));
-  if (!manifest || !manifest.BUILD_STAMP) {
+  if (!manifest?.BUILD_STAMP) {
     throw "Build stamp not found in manifest, aborting.";
   }
   const stamp = manifest.BUILD_STAMP;
@@ -78,7 +78,7 @@ async function buildAndStageAssets(): Promise<string> {
 
       // Copy the wasm file onto itself so we can mutate its metadata to set content-type wasm
       exec(
-        `aws s3 cp ${s3Path} ${s3Path} --content-type application/wasm --metadata-directive REPLACE`
+        `aws s3 cp ${s3Path} ${s3Path} --content-type application/wasm --metadata-directive REPLACE`,
       );
 
       // Check our work:
@@ -118,20 +118,20 @@ async function setLive(stamp: string) {
 
   try {
     exec(
-      `aws s3api head-object --bucket ${S3_BUCKET} --key ${stamp}/index.html`
+      `aws s3api head-object --bucket ${S3_BUCKET} --key ${stamp}/index.html`,
     );
   } catch (err) {
     console.error("Build stamp not found in s3", stamp);
     process.exit(1);
   }
   exec(
-    `aws s3 cp ${manifestIndexPath} ${rootIndexPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`
+    `aws s3 cp ${manifestIndexPath} ${rootIndexPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`,
   );
 
   // Older builds may not have an embed.html (linked to when embedding hCore)
   try {
     exec(
-      `aws s3 cp ${manifestEmbedPath} ${rootEmbedPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`
+      `aws s3 cp ${manifestEmbedPath} ${rootEmbedPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`,
     );
   } catch (err) {
     console.warn("*** Build does not contain an embed.html! ***");
@@ -175,7 +175,7 @@ async function run() {
           `Built from: \`${commitUrl}\` ${
             localChanges ? "(plus local modifications)" : ""
           }`,
-        ].join("\n")
+        ].join("\n"),
       );
     }
   } catch (err) {

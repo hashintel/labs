@@ -40,24 +40,22 @@ export const ActivityHistory: FC<{ visible: boolean }> = ({ visible }) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [setScrollStateRef, fadeVisible, scrollable] = useScrollState();
   const historyComplete = useSimulatorSelector(selectHistoryComplete);
-  const [
-    spinnerRef,
-    shouldShowHistory,
-    historyInitialized,
-  ] = useInfiniteScrollingHistory(containerRef, visible);
+  const [spinnerRef, shouldShowHistory, historyInitialized] =
+    useInfiniteScrollingHistory(containerRef, visible);
   const canEdit = useScope(Scope.edit);
   const projectRef = useSelector(selectProjectRef);
 
   const historyItemsFromStore = useSimulatorSelector(
-    historySelectors.selectAll
+    historySelectors.selectAll,
   );
 
   const [selected, setSelected] = useState<"All" | FilterOption>("All");
-  const historyItems = (selected === "All"
-    ? historyItemsFromStore
-    : historyItemsFromStore.filter(
-        (item) => item.itemType === filterOptionToItemType[selected]
-      )
+  const historyItems = (
+    selected === "All"
+      ? historyItemsFromStore
+      : historyItemsFromStore.filter(
+          (item) => item.itemType === filterOptionToItemType[selected],
+        )
   ).map((item) => {
     switch (item.itemType) {
       case SimulatorHistoryItemType.ExperimentRun:
@@ -94,7 +92,7 @@ export const ActivityHistory: FC<{ visible: boolean }> = ({ visible }) => {
       containerRef.current = node;
       setScrollStateRef(node);
     },
-    [setScrollStateRef]
+    [setScrollStateRef],
   );
 
   return (

@@ -100,7 +100,7 @@ export const fetchProject = createAppAsyncThunk<
       access, // eslint-disable-line @typescript-eslint/no-unused-vars
       prefetchedRemoteProject, // eslint-disable-line @typescript-eslint/no-unused-vars
     },
-    { dispatch, signal, getState } // eslint-disable-line @typescript-eslint/no-unused-vars
+    { dispatch, signal, getState }, // eslint-disable-line @typescript-eslint/no-unused-vars
   ) => {
     if (selectScope[Scope.save](getState())) {
       await dispatch(save());
@@ -144,7 +144,7 @@ export const fetchProject = createAppAsyncThunk<
               props: { requestedProject: null },
             },
             url: pathWithNamespace,
-          })
+          }),
         );
 
         return false;
@@ -184,7 +184,7 @@ export const fetchProject = createAppAsyncThunk<
       // }
       throw err;
     }
-  }
+  },
 );
 
 export const release = createAppAsyncThunk<
@@ -199,7 +199,7 @@ export const release = createAppAsyncThunk<
   "project/release",
   async (
     { tag, updateDescription, update = {}, toPublish = [] },
-    { dispatch, getState }
+    { dispatch, getState },
   ) => {
     await dispatch(save());
 
@@ -214,8 +214,8 @@ export const release = createAppAsyncThunk<
 
     const withKeys = Object.fromEntries(
       selectLocalBehaviorFiles(state).flatMap((file) =>
-        !file.keys._trackCreation ? [[file.path.base, file]] : []
-      )
+        !file.keys._trackCreation ? [[file.path.base, file]] : [],
+      ),
     );
 
     const newFiles = [...new Set([...currentFiles, ...toPublish])].flatMap(
@@ -229,12 +229,12 @@ export const release = createAppAsyncThunk<
               {
                 filename: behaviorKeysFileName(withKeys[filename]),
                 path: repoPathForBehavior(
-                  behaviorKeysFileName(withKeys[filename])
+                  behaviorKeysFileName(withKeys[filename]),
                 ),
               },
             ]
           : [file];
-      }
+      },
     );
 
     const { updatedAt, ...changes } = await createReleaseWithUpdate(
@@ -244,7 +244,7 @@ export const release = createAppAsyncThunk<
       {
         ...update,
         files: newFiles,
-      }
+      },
     );
 
     // @todo do this with .fulfilled
@@ -258,7 +258,7 @@ export const release = createAppAsyncThunk<
             files: newFiles.map((file) => file.filename),
           },
         },
-      })
+      }),
     );
 
     dispatch(
@@ -268,14 +268,14 @@ export const release = createAppAsyncThunk<
         context: {
           type,
         },
-      })
+      }),
     );
 
     dispatch(displayToast({ kind: ToastKind.ReleaseSuccess }));
     setTimeout(() => dispatch(displayToast({ kind: ToastKind.None })), 6_000);
 
     return { tag, createdAt: updatedAt };
-  }
+  },
 );
 
 export const {
@@ -290,7 +290,7 @@ export const {
       action: PayloadAction<{
         accessGate: HashCoreAccessGateKindWithProps;
         url: string | null;
-      }>
+      }>,
     ) {
       state.accessGate = {
         ...action.payload.accessGate,
@@ -313,7 +313,7 @@ export const {
           action.payload.project,
           "files",
           "dependencies",
-          "actions"
+          "actions",
         );
 
         state.projectLoaded = true;

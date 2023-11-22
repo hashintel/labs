@@ -29,6 +29,6 @@ describe("toast feature", () => {
 
       expect(selectToastKind(state)).toEqual(payload.kind);
       expect(selectToastData(state)).toEqual(payload.data);
-    }
+    },
   );
 });

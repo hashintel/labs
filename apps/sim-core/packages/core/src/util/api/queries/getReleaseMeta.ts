@@ -33,7 +33,7 @@ export const getReleaseMeta = (() => {
             parentChain
           }
         }
-      `
+      `,
     );
 
     lastRequest = currentRequest;

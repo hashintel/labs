@@ -43,7 +43,7 @@ export const GlobalsObject: FC<
         [field]: value,
       });
     },
-    [onChange]
+    [onChange],
   );
 
   return globalsList.length ? (
@@ -58,7 +58,7 @@ export const GlobalsObject: FC<
             schema={getChildSchema(schema?.properties?.[field])}
             {...props}
           />
-        ) : null
+        ) : null,
       )}
     </>
   ) : (

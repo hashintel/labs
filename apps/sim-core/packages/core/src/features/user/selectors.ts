@@ -11,37 +11,37 @@ export const selectUserSlice: Selector<RootState, UserSlice> = (state) =>
 
 export const selectBootstrapped = createSelector(
   selectUserSlice,
-  (user) => user.bootstrapped
+  (user) => user.bootstrapped,
 );
 
 export const selectCurrentUser = createSelector(
   selectUserSlice,
-  (user) => user.currentUser
+  (user) => user.currentUser,
 );
 
 export const selectUserProfileUrl = createSelector(selectCurrentUser, (user) =>
-  user ? urljoin(SITE_URL, `@${user.shortname}`) : null
+  user ? urljoin(SITE_URL, `@${user.shortname}`) : null,
 );
 
 export const selectUserImage = createSelector(
   selectCurrentUser,
-  (user) => user?.image
+  (user) => user?.image,
 );
 
 export const selectTourProgress = createSelector(
   selectUserSlice,
-  (user) => user.tourProgress
+  (user) => user.tourProgress,
 );
 
 export const selectRemainingCloudCredits = createSelector(
   selectCurrentUser,
-  (currentUser) => currentUser?.cloudCredits ?? 0
+  (currentUser) => currentUser?.cloudCredits ?? 0,
 );
 
-export const selectUserProjects = getSelectors<RootState>(selectUserSlice)
-  .selectAll;
+export const selectUserProjects =
+  getSelectors<RootState>(selectUserSlice).selectAll;
 
 export const selectUserProjectsLoaded = createSelector(
   selectUserSlice,
-  (slice) => slice.projectsLoaded
+  (slice) => slice.projectsLoaded,
 );

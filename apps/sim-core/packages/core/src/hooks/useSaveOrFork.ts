@@ -17,7 +17,7 @@ export const useSaveOrFork = () => {
     Scope.fork,
     Scope.forkIfSignedIn,
     Scope.save,
-    Scope.saveIfSignedIn
+    Scope.saveIfSignedIn,
   );
 
   const forkUrl = useSelector(selectForkCurrentProjectUrl);

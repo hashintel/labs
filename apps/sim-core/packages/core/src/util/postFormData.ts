@@ -1,7 +1,7 @@
 export const postFormData = async (
   url: string,
   formData: FormData,
-  reportProgress?: (value: number) => void
+  reportProgress?: (value: number) => void,
 ) => {
   await new Promise<void>((resolve, reject) => {
     const request = new XMLHttpRequest();

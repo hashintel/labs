@@ -6,18 +6,18 @@ import type { ResizeObserver } from "./types";
 type RefArgType<NodeType extends HTMLElement = HTMLElement> = NodeType | null;
 
 // @todo Provide position
-export type UseResizeObserverEntry<NodeType> = {
+export interface UseResizeObserverEntry<NodeType> {
   width: number;
   height: number;
   target: NodeType;
-};
+}
 
 export type UseResizeObserverCallback<NodeType> = (
-  entry: UseResizeObserverEntry<NodeType>
+  entry: UseResizeObserverEntry<NodeType>,
 ) => void;
 
 const toEntry = <NodeType extends HTMLElement>(
-  entry: ResizeObserverEntry
+  entry: ResizeObserverEntry,
 ): UseResizeObserverEntry<NodeType> => ({
   width: entry.contentRect.width,
   height: entry.contentRect.height,
@@ -25,7 +25,7 @@ const toEntry = <NodeType extends HTMLElement>(
 });
 
 const getEntry = <NodeType extends HTMLElement>(
-  node: NodeType
+  node: NodeType,
 ): UseResizeObserverEntry<NodeType> => {
   const computedStyle = window.getComputedStyle(node);
   const paddingX =
@@ -49,7 +49,7 @@ const getEntry = <NodeType extends HTMLElement>(
  * abstraction does not allow observing multiple nodes.
  */
 export const useOncePerFrameHandler = <T extends (...args: any[]) => void>(
-  handler: T
+  handler: T,
 ): T => {
   const timeoutRef = useRef<number | null>(null);
 
@@ -66,13 +66,13 @@ export const useOncePerFrameHandler = <T extends (...args: any[]) => void>(
 };
 
 const useObserverRef = <NodeType extends HTMLElement = HTMLElement>(
-  handlerRef: MutableRefObject<UseResizeObserverCallback<NodeType>>
+  handlerRef: MutableRefObject<UseResizeObserverCallback<NodeType>>,
 ): MutableRefObject<ResizeObserver> => {
   const observerRef = useRef<ResizeObserver>();
 
   if (!observerRef.current) {
-    observerRef.current = new window.ResizeObserver(([entry]) =>
-      handlerRef.current?.(toEntry<NodeType>(entry))
+    observerRef.current = new window.ResizeObserver(
+      ([entry]) => handlerRef.current?.(toEntry<NodeType>(entry)),
     ) as any;
   }
   return observerRef as any;
@@ -92,14 +92,14 @@ export function useResizeObserver<NodeType extends HTMLElement = HTMLElement>(
     onObserve?:
       | ((
           newNode: NodeType,
-          handler: UseResizeObserverCallback<NodeType>
+          handler: UseResizeObserverCallback<NodeType>,
         ) => void)
       | null;
     onUnobserve?: (
       removedNode: NodeType,
-      handler: UseResizeObserverCallback<NodeType>
+      handler: UseResizeObserverCallback<NodeType>,
     ) => void;
-  }
+  },
 ) {
   const handlerRef = useRef(handler);
   handlerRef.current = handler;
@@ -125,7 +125,7 @@ export function useResizeObserver<NodeType extends HTMLElement = HTMLElement>(
       const previousNode = previousNodeRef.current;
       previousNodeRef.current = node;
 
-      const observer = observerRef.current!;
+      const observer = observerRef.current;
 
       if (previousNode) {
         observer.unobserve(previousNode);
@@ -144,7 +144,7 @@ export function useResizeObserver<NodeType extends HTMLElement = HTMLElement>(
         }
       }
     },
-    [observerRef]
+    [observerRef],
   );
 
   useEffect(() => {

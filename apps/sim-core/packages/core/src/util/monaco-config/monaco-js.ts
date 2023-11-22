@@ -21,6 +21,6 @@ export function configureJsCompletions() {
   languages.typescript.javascriptDefaults.addExtraLib(completions);
   languages.typescript.javascriptDefaults.addExtraLib(completionsHStd);
   languages.typescript.javascriptDefaults.addExtraLib(
-    completionsHStd?.replace(/hstd/g, "hash_stdlib")
+    completionsHStd?.replace(/hstd/g, "hash_stdlib"),
   );
 }

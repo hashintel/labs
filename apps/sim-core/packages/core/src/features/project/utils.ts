@@ -23,7 +23,8 @@ export const partialSimulationProjectFields = [
   "visibility",
 ] as const;
 
-export type PartialSimulationProjectFieldsTuple = typeof partialSimulationProjectFields;
+export type PartialSimulationProjectFieldsTuple =
+  typeof partialSimulationProjectFields;
 
 export const preparePartialSimulationProject = ({
   latestRelease,
@@ -34,7 +35,7 @@ export const preparePartialSimulationProject = ({
       ...partial,
       ref: latestRelease?.tag ?? "main",
     },
-    partialSimulationProjectFields
+    partialSimulationProjectFields,
   );
 
 /**
@@ -48,7 +49,7 @@ export const isProjectLatest = (project: SimulationProject) =>
  * @todo this should return the full path for files
  */
 export const toHcConfig = (
-  project: Pick<RemoteSimulationProject, "files" | "keywords" | "type">
+  project: Pick<RemoteSimulationProject, "files" | "keywords" | "type">,
 ): SimulationProjectConfig => {
   const { files, keywords, type } = project;
   let config = {
@@ -58,7 +59,7 @@ export const toHcConfig = (
   };
   try {
     config = JSON.parse(
-      project.files.find((file) => file.path === "hash.json")!.contents
+      project.files.find((file) => file.path === "hash.json")!.contents,
     );
   } catch (exception) {
     // TODO: track event
@@ -95,7 +96,7 @@ export const mapLegacyDependencyFormat = (dependency: string) => {
 
 export const getLocalStorageProject = (
   pathWithNamespace: string,
-  ref?: string | null
+  ref?: string | null,
 ): LocalStorageProject | null => {
   const key = localStorageProjectKey({ pathWithNamespace, ref });
   const localProject = getItem<LocalStorageProject>(key);
@@ -138,11 +139,11 @@ export const getLocalStorageProject = (
 };
 
 export const isStoringProjectActions = (
-  project: SimulationProjectWithHcFiles | LocalStorageProject
+  project: SimulationProjectWithHcFiles | LocalStorageProject,
 ): project is LocalStorageProject => "actions" in project;
 
 export const projectIsPrivate = (
-  project: Pick<SimulationProject, "visibility">
+  project: Pick<SimulationProject, "visibility">,
 ) => project.visibility === "private";
 
 export const refIsNotCommit = (ref: string | null) =>

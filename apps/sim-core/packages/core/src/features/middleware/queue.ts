@@ -12,7 +12,7 @@ const QUEUE_ACTION_TAG = "__QUEUED_ACTION_TYPE";
 type QueuedCallback = (
   next: VoidFunction,
   getState: () => RootState,
-  dispatch: AppDispatch
+  dispatch: AppDispatch,
 ) => void;
 
 export interface QueueableAction {
@@ -20,9 +20,7 @@ export interface QueueableAction {
   handler: QueuedCallback;
 }
 
-export interface QueueDispatch {
-  (queueableAction: QueueableAction): Promise<void>;
-}
+export type QueueDispatch = (queueableAction: QueueableAction) => Promise<void>;
 
 const queueAction = (queue: string, handler: QueuedCallback) => ({
   [QUEUE_ACTION_TAG]: queue,
@@ -53,13 +51,13 @@ const isQueueable = (action: any): action is QueueableAction =>
  */
 declare module "redux" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  export interface Dispatch<A extends Action = AnyAction> {
-    (action: QueueableAction): Promise<void>;
-  }
+  export type Dispatch<A extends Action = AnyAction> = (
+    action: QueueableAction,
+  ) => Promise<void>;
 }
 
 export const queueMiddleware: Middleware<QueueDispatch, RootState> = (
-  store
+  store,
 ) => {
   const queues: Record<string, QueuedCallback[] | undefined> = {};
 
@@ -76,7 +74,7 @@ export const queueMiddleware: Middleware<QueueDispatch, RootState> = (
             dequeue(key);
           },
           store.getState,
-          store.dispatch
+          store.dispatch,
         );
       }
     }
@@ -90,10 +88,13 @@ export const queueMiddleware: Middleware<QueueDispatch, RootState> = (
         queues[key] = queue;
 
         queue.push((next, ...args) => {
-          action.handler(() => {
-            resolve();
-            next();
-          }, ...args);
+          action.handler(
+            () => {
+              resolve();
+              next();
+            },
+            ...args,
+          );
         });
 
         if (queue.length === 1) {

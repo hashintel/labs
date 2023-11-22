@@ -56,12 +56,12 @@ export async function commitActions<
   IncludeFullProject extends boolean,
   Result extends IncludeFullProject extends true
     ? SimulationProjectWithHcFiles
-    : string
+    : string,
 >(
   pathWithNamespace: string,
   actions: FileAction[],
   includeFullProject: IncludeFullProject,
-  accessCode?: string
+  accessCode?: string,
 ): Promise<{ result: Result; commit: CommitWithoutStats }> {
   const result = await query<
     CommitActionsMutation,
@@ -77,10 +77,10 @@ export async function commitActions<
           `${action.action}: ${
             action.previousPath
               ? `${toFileName(action.previousPath)} → ${toFileName(
-                  action.filePath
+                  action.filePath,
                 )}`
               : toFileName(action.filePath)
-          }`
+          }`,
       )
       .join(", ")}`,
     accessCode,

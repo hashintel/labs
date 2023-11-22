@@ -1,6 +1,6 @@
 export const prepareFormDataWithFile = (
   file: File,
-  fields: Record<string | number, string> = {}
+  fields: Record<string | number, string> = {},
 ) => {
   const formData = new FormData();
 

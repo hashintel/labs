@@ -11,7 +11,8 @@ export const slugify = (value: string) =>
     remove: /[^\w-\s]/g,
   });
 
-const HASH_BUILD_STAMP_RE = /hash-(?:(?:prod)|(?:dev))-[0-9]{4}-[0-9]{2}-[0-9]{2}-T[0-9]{4}_[0-9]{5}(-pr-[0-9]+)?/;
+const HASH_BUILD_STAMP_RE =
+  /hash-(?:(?:prod)|(?:dev))-[0-9]{4}-[0-9]{2}-[0-9]{2}-T[0-9]{4}_[0-9]{5}(-pr-[0-9]+)?/;
 export const getBuildStampFromUrl = () =>
   HASH_BUILD_STAMP_RE.exec(location.pathname)?.[0];
 
@@ -28,7 +29,7 @@ export const getRouteFromQuery = () => {
 
 export const getUrlForRouteWithBuildStamp = (
   route: string,
-  buildStamp = BUILD_STAMP
+  buildStamp = BUILD_STAMP,
 ) =>
   `${origin}/${buildStamp}/index.html${
     route ? `?route=${encodeURIComponent(route)}` : ""
@@ -65,6 +66,6 @@ export const createMergeRequestUrl = (project: SimulationProject) =>
     ? urljoin(
         SITE_URL,
         project.forkOf.pathWithNamespace,
-        `merge-requests/new?compare=${urlFromProject(project)}`
+        `merge-requests/new?compare=${urlFromProject(project)}`,
       )
     : "";

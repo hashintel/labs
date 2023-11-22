@@ -87,7 +87,7 @@ export const ModalNewProject: FC<{
         validate: validateName,
       });
     },
-    [register]
+    [register],
   );
 
   useEffect(() => {
@@ -98,7 +98,7 @@ export const ModalNewProject: FC<{
   const safeOnCancel = useSafeOnClose(
     Object.keys(dirtyFields).length === 0,
     !isSubmitting,
-    onCancel
+    onCancel,
   );
 
   const namespace = watch("namespace");

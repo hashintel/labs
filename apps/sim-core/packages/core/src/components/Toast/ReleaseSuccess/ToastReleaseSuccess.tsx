@@ -6,21 +6,21 @@ import { ToastAnchor } from "../Anchor";
 import { urlFromProject } from "../../../routes";
 import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
 
-type ToastPublishSuccessProps = {
+interface ToastPublishSuccessProps {
   project: Pick<SimulationProject, "name" | "pathWithNamespace"> & {
     latestRelease?: Pick<
       NonNullable<SimulationProject["latestRelease"]>,
       "tag"
     > | null;
   };
-};
+}
 
 export const ToastReleaseSuccess: FC<ToastPublishSuccessProps> = ({
   project,
 }) => {
   if (!project.latestRelease) {
     throw new Error(
-      "Cannot show release success toast for project that has no release"
+      "Cannot show release success toast for project that has no release",
     );
   }
 

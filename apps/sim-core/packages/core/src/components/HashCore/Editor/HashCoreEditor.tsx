@@ -84,10 +84,8 @@ export const HashCoreEditor: FC = () => {
   const replaceProposal = useSelector(selectReplaceProposal);
   const analysis = useSelector(selectParsedAnalysis);
 
-  const [
-    diffEditorInstance,
-    monacoDiffContainerRef,
-  ] = useMonacoContainerFromContext(true);
+  const [diffEditorInstance, monacoDiffContainerRef] =
+    useMonacoContainerFromContext(true);
   const [nextContents, setNextContents] = useState<string | null>(null);
 
   useEffect(() => {
@@ -113,13 +111,13 @@ export const HashCoreEditor: FC = () => {
     setTabsContentHeight(
       tabsContainer && tabsList
         ? tabsContainer.clientHeight - tabsList.clientHeight
-        : undefined
+        : undefined,
     );
   }, []);
 
   const setTabsContainerResizeObserver = useResizeObserver(
     updateTabsContentHeight,
-    { onObserve: null }
+    { onObserve: null },
   );
   const setTabsListResizeObserver = useResizeObserver(updateTabsContentHeight, {
     onObserve: null,
@@ -132,7 +130,7 @@ export const HashCoreEditor: FC = () => {
 
       if (node) {
         const tabsList = node.querySelector<HTMLUListElement>(
-          ".react-tabs__tab-list"
+          ".react-tabs__tab-list",
         );
 
         tabsListRef.current = tabsList;
@@ -148,7 +146,7 @@ export const HashCoreEditor: FC = () => {
       setTabsContainerResizeObserver,
       setTabsListResizeObserver,
       updateTabsContentHeight,
-    ]
+    ],
   );
 
   const editorVisible = useSelector(selectEditorVisible);
@@ -216,7 +214,7 @@ export const HashCoreEditor: FC = () => {
         </li>
       </HashCoreContextMenu>
     ),
-    [contextMenuStyle, dispatch, currentOpenFileInEditor]
+    [contextMenuStyle, dispatch, currentOpenFileInEditor],
   );
 
   useOnClickOutside(tabsRef, hideContextMenu);
@@ -266,7 +264,7 @@ export const HashCoreEditor: FC = () => {
                     </button>
                   ) : null}
                 </Tab>
-              ) : null
+              ) : null,
             )}
             {editorVisible ? (
               <>
@@ -340,11 +338,11 @@ export const HashCoreEditor: FC = () => {
                     trackEvent({
                       action: "Validate Analysis JSON Button clicked: Core",
                       label: "analysis.json",
-                    })
+                    }),
                   );
                   validateAnalysisJsonAndDispatchErrorsIfAny(
                     analysis as any,
-                    dispatch
+                    dispatch,
                   );
                 }
               }}
@@ -373,9 +371,10 @@ export const HashCoreEditor: FC = () => {
                 trackEvent({
                   action: "Docs Link Clicked: Core",
                   label: section,
-                })
+                }),
               )
             }
+            rel="noreferrer"
           >
             <IconHelpCircle size={fileActionSize} />
             <SimpleTooltip
@@ -394,8 +393,8 @@ export const HashCoreEditor: FC = () => {
           replaceProposal.proposal
             ? openFileIds.length
             : currentFileId
-            ? openFileIds.indexOf(currentFileId)
-            : openFileIds.length - 1
+              ? openFileIds.indexOf(currentFileId)
+              : openFileIds.length - 1
         }
       >
         {openFiles.map((file) => (

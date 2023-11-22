@@ -58,7 +58,7 @@ export const FancyButtonAsyncTask: FC<
         controllerRef.current?.abort();
         controllerRef.current = new AbortController();
 
-        const signal = controllerRef.current!.signal;
+        const signal = controllerRef.current.signal;
         const progressAbortController = new AbortController();
 
         signal.addEventListener("abort", () => progressAbortController.abort());
@@ -68,7 +68,7 @@ export const FancyButtonAsyncTask: FC<
             setState("progress");
           },
           100,
-          progressAbortController.signal
+          progressAbortController.signal,
         );
 
         await onTaskBegin();
@@ -86,7 +86,7 @@ export const FancyButtonAsyncTask: FC<
                 await onTaskEnd?.();
               },
               1_000,
-              signal
+              signal,
             );
           }
         }

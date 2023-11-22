@@ -9,11 +9,11 @@ import "./ModalSplit.scss";
 
 type ModalSplitOuterProps = ModalProps & { loading?: boolean };
 
-type ModalSplitInnerProps = {
+interface ModalSplitInnerProps {
   top?: ReactNode | null;
   bottom?: ReactNode | null;
   innerClassName?: string;
-};
+}
 
 export const ModalSplitOuter = forwardRef<HTMLDivElement, ModalSplitOuterProps>(
   ({ modalClassName, children, loading, onClose, ...props }, ref) => (
@@ -26,7 +26,7 @@ export const ModalSplitOuter = forwardRef<HTMLDivElement, ModalSplitOuterProps>(
         {
           "ModalSplit--loading": loading,
         },
-        modalClassName
+        modalClassName,
       )}
     >
       {loading ? (
@@ -43,7 +43,7 @@ export const ModalSplitOuter = forwardRef<HTMLDivElement, ModalSplitOuterProps>(
         </div>
       )}
     </Modal>
-  )
+  ),
 );
 
 export const ModalSplitInner: FC<ModalSplitInnerProps> = ({

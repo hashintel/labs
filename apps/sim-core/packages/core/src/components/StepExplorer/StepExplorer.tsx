@@ -36,18 +36,18 @@ fluentui.loadTheme({
  * @see: https://github.com/microsoft/SandDance/blob/master/packages/common-extensions/src/app.tsx
  */
 use(
-  (fluentui as unknown) as FluentUIComponents,
+  fluentui as unknown as FluentUIComponents,
   React,
   ReactDOM,
   vega,
   deck,
   layers,
-  luma
+  luma,
 );
 
 function getViewerOptions() {
   const color = SandDance.VegaDeckGl.util.colorToString(
-    SandDance.VegaDeckGl.util.colorFromString("white")
+    SandDance.VegaDeckGl.util.colorFromString("white"),
   );
 
   const fontFamily = "Inter";
@@ -64,29 +64,29 @@ function getViewerOptions() {
   return viewerOptions;
 }
 
-export type StepExplorerProps = {
+export interface StepExplorerProps {
   data: AgentState[];
   step: number | undefined;
   visible: boolean;
   simId: string;
-};
+}
 
 /**
  * The Microsoft-way of interacting with the explorer is by pulling it out of the mounted closure
  *
  * https://github.com/leozhoujf/Microsoft-OpenSource-SandDance-Visualization-Data-Tool/blob/b4e6bf8016b2c6ea0ef16a0876665d69d7f504d4/packages/sanddance-app/src/index.tsx#L35
  */
-var sanddanceExplorerElement: Explorer_Class | undefined;
+let sanddanceExplorerElement: Explorer_Class | undefined;
 
 /**
  * getPartialInsight (defined below) needs access to the display dataset to determine the columns
  * This is typically not necessary, but is for us because we have to infer all the columns
  * Therefore, we drop displayData into the global scope
  */
-type InternalState = {
+interface InternalState {
   loaded: boolean;
   sandDanceData: AgentState[];
-};
+}
 
 export class StepExplorer extends React.Component<
   StepExplorerProps,
@@ -114,7 +114,7 @@ export class StepExplorer extends React.Component<
     if (nextStep) {
       this.state.sandDanceData.length = 0;
       // Find all fields of all agents
-      const allFields: Set<string> = new Set();
+      const allFields = new Set<string>();
 
       nextStep.forEach((agent) => {
         const new_agent = Object.assign({}, agent, {
@@ -149,7 +149,7 @@ export class StepExplorer extends React.Component<
         // Force the viewer to render with its current insight but new data
         sanddanceExplorerElement?.viewer.render(
           sanddanceExplorerElement?.viewer.insight,
-          this.state.sandDanceData
+          this.state.sandDanceData,
         );
       }
     }

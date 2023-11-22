@@ -15,5 +15,5 @@ export const ModalShareSelect = forwardRef<HTMLSelectElement, SelectProps>(
         {...props}
       />
     );
-  }
+  },
 );

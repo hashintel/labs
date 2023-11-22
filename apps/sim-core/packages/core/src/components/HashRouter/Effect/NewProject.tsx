@@ -25,7 +25,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
   const [{ namespace }] = useSafeQueryParams();
   const { canNewProject, canNewProjectIfSignedIn } = useScopes(
     Scope.newProject,
-    Scope.newProjectIfSignedIn
+    Scope.newProjectIfSignedIn,
   );
   const fatalError = useFatalError();
 
@@ -41,14 +41,14 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
             values.path,
             values.name,
             values.visibility,
-            template
+            template,
           );
 
           dispatch(
             trackEvent({
               action: "New Project: Core",
               label: project.pathWithNamespace,
-            })
+            }),
           );
 
           dispatch(addUserProject(preparePartialSimulationProject(project)));
@@ -59,7 +59,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
         defaultNamespace={namespace}
       />
     ),
-    [dispatch, namespace, navigateAway]
+    [dispatch, namespace, navigateAway],
   );
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
       forceLogIn(true);
     } else {
       fatalError(
-        "Should never not be able to new project if signed while at /new"
+        "Should never not be able to new project if signed while at /new",
       );
     }
   }, [

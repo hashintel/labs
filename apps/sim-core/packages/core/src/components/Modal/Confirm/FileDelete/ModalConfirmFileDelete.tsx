@@ -6,10 +6,10 @@ import { useModalConfirm } from "../hooks";
 
 import "./ModalConfirmFileDelete.css";
 
-type ModalConfirmFileDeleteProps = {
+interface ModalConfirmFileDeleteProps {
   onAnswer: (answer: boolean) => void;
   fileName: string;
-};
+}
 
 export const ModalConfirmFileDelete: FC<ModalConfirmFileDeleteProps> = ({
   onAnswer,

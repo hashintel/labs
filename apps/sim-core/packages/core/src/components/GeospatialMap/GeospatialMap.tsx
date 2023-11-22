@@ -13,16 +13,16 @@ import { useResizeObserver } from "../../hooks/useResizeObserver/useResizeObserv
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./GeospatialMap.css";
 
-export type GeospatialMapProps = {
+export interface GeospatialMapProps {
   simulationStep: AgentState[] | null;
   simulationId: string | null | undefined;
   errored: boolean;
-};
+}
 
-type PopupData = {
+interface PopupData {
   coordinates: [number, number];
   description: string;
-};
+}
 
 // Injected by vite.
 // To specify, add a '.env' file containing, e.g.,
@@ -36,13 +36,12 @@ const MapComponent = accessToken
     })
   : null;
 
-const onClick = (setPopup: (popup: PopupData) => void) => (
-  evt: MapLayerMouseEvent
-) =>
-  setPopup({
-    coordinates: evt.lngLat.toArray() as [number, number],
-    description: evt.features![0]!.properties!.description,
-  });
+const onClick =
+  (setPopup: (popup: PopupData) => void) => (evt: MapLayerMouseEvent) =>
+    setPopup({
+      coordinates: evt.lngLat.toArray() as [number, number],
+      description: evt.features![0]!.properties!.description,
+    });
 
 type AgentStateLngLat = AgentState & {
   lng_lat: [number, number];
@@ -74,7 +73,11 @@ const GeospatialMapPlaceholder: FC<GeospatialMapProps> = () => (
     <p>You can create the .env file if it doesn't exist.</p>
     <p>
       MapBox API access tokens can be found at{" "}
-      <a target="_blank" href="https://account.mapbox.com/access-tokens/">
+      <a
+        target="_blank"
+        href="https://account.mapbox.com/access-tokens/"
+        rel="noreferrer"
+      >
         https://account.mapbox.com/access-tokens/
       </a>
     </p>
@@ -88,7 +91,7 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
   ? GeospatialMapPlaceholder
   : ({ simulationStep, simulationId, errored }) => {
       const lngLatAgents: AgentStateLngLat[] = (simulationStep ?? []).filter(
-        hasLngLatNotHidden
+        hasLngLatNotHidden,
       );
 
       const agentAverageCenter: [number, number] | undefined =
@@ -99,13 +102,13 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
                   acc[0] + agent.lng_lat[0],
                   acc[1] + agent.lng_lat[1],
                 ],
-                [0, 0]
+                [0, 0],
               )
               .map((val) => val / lngLatAgents.length) as [number, number])
           : undefined;
 
       const [center, setCenter] = useState<[number, number] | undefined>(
-        agentAverageCenter
+        agentAverageCenter,
       );
       const [popup, setPopup] = useState<PopupData | undefined>(undefined);
 
@@ -128,7 +131,7 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
           instanceRef.current = instance;
           setResizeRef(instance?.container);
         },
-        [setResizeRef]
+        [setResizeRef],
       );
 
       if (!simulationStep && simulationId && !errored) {
@@ -162,21 +165,19 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
                   properties: {
                     description: JSON.stringify(
                       r.filterWithIndex((idx) =>
-                        ((agent.popup_fields as Array<string>) ?? []).includes(
-                          idx
-                        )
+                        ((agent.popup_fields as string[]) ?? []).includes(idx),
                       )(agent),
                       null,
-                      2
+                      2,
                     ),
                     agent_idx: idx,
                     color: `#${o.getOrElse(() => "ffffff")(
                       o.map((color: number) => color.toString(16))(
                         mapColor(
                           agent.geo_color ?? agent.color ?? "random",
-                          agent.agent_id
-                        )
-                      )
+                          agent.agent_id,
+                        ),
+                      ),
                     )}`,
                     radius: agent.geo_radius ?? 5,
                     opacity: agent.geo_opacity ?? 1,

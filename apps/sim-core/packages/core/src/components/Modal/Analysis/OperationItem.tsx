@@ -44,7 +44,7 @@ export const OperationItem: FC<OperationItemProps> = ({
 }) => {
   const filterPropertiesBasedOnOperationType = (
     OpType: OperationTypes,
-    newValues: Operation
+    newValues: Operation,
   ) => {
     if (operationSupportsFieldField(OpType) && !newValues.field) {
       newValues.field = "agent_id";
@@ -78,7 +78,7 @@ export const OperationItem: FC<OperationItemProps> = ({
           onChange={(option) => {
             const newValues = filterPropertiesBasedOnOperationType(
               option.value,
-              { ...operation, op: option.value }
+              { ...operation, op: option.value },
             );
             onChange(index, newValues);
           }}

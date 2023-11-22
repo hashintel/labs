@@ -20,10 +20,10 @@ export const BehaviorKeys: FC<{
 }> = ({ data, onChange, fileId, autosuggest, disabled }) => {
   const [projection, setProjection] = useState<Projection>([]);
 
-  const projectedData = useMemo(() => reduceProjection(projection, data), [
-    projection,
-    data,
-  ]);
+  const projectedData = useMemo(
+    () => reduceProjection(projection, data),
+    [projection, data],
+  );
 
   const onProjectedDataChange = (rows: BehaviorKeysDraftRow[]) => {
     if (!disabled) {

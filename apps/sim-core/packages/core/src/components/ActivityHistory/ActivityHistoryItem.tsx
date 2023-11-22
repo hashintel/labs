@@ -5,12 +5,12 @@ import { Link, LinkProps } from "../Link/Link";
 
 import "./ActivityHistoryItem.scss";
 
-type ActivityHistoryItemPropsShared = {
+interface ActivityHistoryItemPropsShared {
   open?: boolean;
   tooltip?: ReactNode | null;
   viewable?: boolean;
   after?: ReactNode | null;
-};
+}
 
 type ActivityHistoryItemPropsDiv = ActivityHistoryItemPropsShared &
   Omit<HTMLProps<HTMLDivElement>, "ref" | "as">;
@@ -35,7 +35,7 @@ export const ActivityHistoryItem = forwardRef<
     after = null,
     ...props
   },
-  ref
+  ref,
 ) {
   const { as, ...otherProps } = props;
   const Component = as === "link" ? Link : "div";
@@ -53,7 +53,7 @@ export const ActivityHistoryItem = forwardRef<
             "ActivityHistoryItem__Row--tooltip": !!tooltip && viewable,
             "ActivityHistoryItem__Row--viewable": viewable,
           },
-          className
+          className,
         )}
         ref={ref as any}
         {...(otherProps as any)}

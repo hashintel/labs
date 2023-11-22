@@ -2,9 +2,9 @@ import React, { FC, CSSProperties } from "react";
 
 import "./HashCoreContextMenu.css";
 
-type HashCoreContextMenuProps = {
+interface HashCoreContextMenuProps {
   style: Pick<CSSProperties, "top" | "left">;
-};
+}
 
 export const HashCoreContextMenu: FC<HashCoreContextMenuProps> = ({
   children,

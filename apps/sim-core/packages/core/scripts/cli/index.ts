@@ -20,8 +20,8 @@ export function cli() {
   if (isValidIcon && _.length > 1) {
     throw new Error(
       `Can't use \`--fromIcon\` while generating multiple components, got ${_.map(
-        (arg) => `"${arg}"`
-      ).join(", ")} with \`--fromIcon "${fromIcon}"\``
+        (arg) => `"${arg}"`,
+      ).join(", ")} with \`--fromIcon "${fromIcon}"\``,
     );
   }
 
@@ -29,7 +29,7 @@ export function cli() {
   // n.b. `fromIcon!` is fine(?) below, because `isValidIcon` checks for string
   // value, `.svg` extension, and file existence
   const names =
-    isValidIcon && _.length === 0 ? [basename(fromIcon!, ".svg")] : _;
+    isValidIcon && _.length === 0 ? [basename(fromIcon, ".svg")] : _;
 
   names.forEach(generateFiles({ dryRun, verbose, isValidIcon, fromIcon }));
 }

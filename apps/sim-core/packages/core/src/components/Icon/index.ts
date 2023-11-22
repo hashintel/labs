@@ -53,6 +53,6 @@ export { IconTableLarge } from "./TableLarge";
 export { IconTrash } from "./Trash";
 export { IconHCoreMono } from "./HCoreMono";
 
-export type IconProps = {
+export interface IconProps {
   size?: number;
-};
+}

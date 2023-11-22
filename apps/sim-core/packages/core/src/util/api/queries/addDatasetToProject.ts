@@ -30,7 +30,7 @@ export const addDatasetToProject = async (
   projectPath: string,
   datasetId: string,
   datasetS3Key: string | undefined,
-  rawCsv: boolean
+  rawCsv: boolean,
 ) => {
   const { files } = (
     await query<

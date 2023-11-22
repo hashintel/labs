@@ -81,7 +81,7 @@ const bootstrapQueryResponse = () => {
   for (const simulation of BUILTIN_SIMULATIONS) {
     const existingProject = getLocalStorageProject(
       simulation.pathWithNamespace,
-      simulation.ref
+      simulation.ref,
     );
     if (!existingProject) {
       setLocalStorageProject({ ...simulation, actions: [] });

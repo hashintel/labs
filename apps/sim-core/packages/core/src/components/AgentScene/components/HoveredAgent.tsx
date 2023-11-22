@@ -9,9 +9,9 @@ import { RenderSummary } from "../util/anim";
 const tempObject = new THREE.Object3D();
 tempObject.up = new THREE.Vector3(0, 0, 1);
 
-type HoveredAgentProps = {
+interface HoveredAgentProps {
   transitions: RenderSummary;
-};
+}
 /*
  * Creates the appropriate ThreeJS representation of a "hovered" agent
  */

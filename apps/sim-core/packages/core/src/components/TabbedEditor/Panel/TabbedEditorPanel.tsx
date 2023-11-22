@@ -8,12 +8,12 @@ import { parse } from "../../../util/files";
 import { restoreEditorState } from "../utils";
 
 export type ViewStates = Record<string, ViewState | null>;
-type TabbedEditorPanelProps = {
+interface TabbedEditorPanelProps {
   editorInstance: EditorInstance | undefined;
   textModel: TextModel | undefined;
   readOnly?: boolean;
   viewStatesRef?: MutableRefObject<ViewStates>;
-};
+}
 
 // monaco-editor prepends a `/` to all it's paths
 const pathForModel = (textModel: editor.ITextModel) =>
@@ -57,9 +57,8 @@ export const TabbedEditorPanel: FC<TabbedEditorPanelProps> = ({
     const currentModel = editorInstance.getModel();
     if (currentModel !== textModel) {
       if (currentModel && viewStatesRef) {
-        viewStatesRef.current[
-          pathForModel(currentModel).formatted
-        ] = editorInstance.saveViewState();
+        viewStatesRef.current[pathForModel(currentModel).formatted] =
+          editorInstance.saveViewState();
       }
 
       const path = pathForModel(textModel);
@@ -73,7 +72,7 @@ export const TabbedEditorPanel: FC<TabbedEditorPanelProps> = ({
           tabSize: 2,
           wordWrap: ext === Ext.Md ? "on" : "off",
           readOnly: readOnlyRef.current,
-        }
+        },
       );
     }
   }, [editorInstance, textModel, viewStatesRef]);

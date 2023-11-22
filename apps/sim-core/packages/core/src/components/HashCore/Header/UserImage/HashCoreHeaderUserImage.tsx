@@ -22,6 +22,7 @@ export const HashCoreHeaderUserImage: FC = () => {
       target="_blank"
       className="HashCoreHeaderUserImage"
       title="My account"
+      rel="noreferrer"
     >
       {image ? <img src={image} alt="User profile image" /> : null}
     </a>

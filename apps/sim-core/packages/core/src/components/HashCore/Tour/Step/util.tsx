@@ -156,7 +156,7 @@ export const Indicator: FC<{
     }
 
     indicator.classList[shouldShow ? "add" : "remove"](
-      "HashCoreTour-Indicator--showing"
+      "HashCoreTour-Indicator--showing",
     );
   }, [element, show, indicator]);
 
@@ -166,7 +166,7 @@ export const Indicator: FC<{
 export const PlayIndicator: FC<{ show: boolean }> = ({ show }) => {
   const element = useMemo(
     () => document.querySelector<HTMLElement>(".simulation-control.simulate"),
-    []
+    [],
   );
 
   return <Indicator element={element} show={show} position="right-overlap" />;

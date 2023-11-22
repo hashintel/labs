@@ -50,7 +50,9 @@
   color: inherit;
   text-decoration: inherit;
   border-bottom: 0.2rem solid var(--theme-blue);
-  transition: color 0.2s, border-color 0.3s;
+  transition:
+    color 0.2s,
+    border-color 0.3s;
   font-weight: 600;
 }
 

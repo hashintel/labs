@@ -17,7 +17,7 @@ it("renders without crashing", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

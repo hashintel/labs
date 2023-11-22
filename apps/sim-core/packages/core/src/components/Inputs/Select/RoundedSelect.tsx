@@ -13,12 +13,12 @@ export const RoundedSelect = forwardRef<HTMLSelectElement, SelectProps>(
         className={classNames(
           "RoundedSelect",
           { "RoundedSelect--disabled": disabled },
-          className
+          className,
         )}
         ref={ref}
         disabled={disabled}
         {...props}
       />
     );
-  }
+  },
 );

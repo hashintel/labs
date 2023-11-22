@@ -13,7 +13,7 @@ export const fileActionSize = 18;
  */
 export const getDocsSection = (
   file?: HcFile,
-  behaviorKeysOpen?: boolean
+  behaviorKeysOpen?: boolean,
 ): string => {
   if (behaviorKeysOpen) {
     return "behaviors/behavior-keys";
@@ -40,7 +40,7 @@ export const getDocsSection = (
 
 export const validateAnalysisJsonAndDispatchErrorsIfAny = (
   analysis: AnalysisJson,
-  dispatch: AppDispatch
+  dispatch: AppDispatch,
 ) => {
   const result = validateAnalysisJson(analysis);
   dispatch(clearUserAlerts());
@@ -59,13 +59,13 @@ export const validateAnalysisJsonAndDispatchErrorsIfAny = (
     alerts.push({
       type: "warning",
       message: `${warning.message} (Code: ${warning.name})`,
-    })
+    }),
   );
   result.errors.forEach((error) =>
     alerts.push({
       type: "error",
       message: `${error.message} (Error code: ${error.name})`,
-    })
+    }),
   );
   const baseAttrs = {
     context: "analysis.json",

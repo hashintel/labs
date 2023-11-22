@@ -16,11 +16,11 @@ export const useRenameBehaviorModal = (id: string, source: ParsedPath) => {
           renameBehavior({
             id,
             newName: path.base,
-          })
+          }),
         );
       },
     },
     source,
-    id
+    id,
   );
 };

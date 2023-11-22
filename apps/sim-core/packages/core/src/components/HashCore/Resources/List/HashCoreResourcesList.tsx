@@ -5,9 +5,9 @@ import { ResourceProject } from "../../../../features/project/types";
 
 import "./HashCoreResourcesList.css";
 
-export type HashCoreResourcesListProps = {
+export interface HashCoreResourcesListProps {
   results: ResourceProject[];
-};
+}
 
 export const HashCoreResourcesList: FC<HashCoreResourcesListProps> = ({
   results,
@@ -16,7 +16,7 @@ export const HashCoreResourcesList: FC<HashCoreResourcesListProps> = ({
     {results.map((resource, id) =>
       resource.files.length ? (
         <ResourceListItem key={id} resource={resource} />
-      ) : null
+      ) : null,
     )}
   </div>
 );

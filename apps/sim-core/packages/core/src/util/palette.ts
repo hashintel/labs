@@ -5,22 +5,22 @@ import { themeNumbers } from "./theme";
 
 export const mapColor: (src: string, sd?: string) => o.Option<number> = (
   src,
-  seed
+  seed,
 ) =>
   o.fromNullable(
     src === "random"
       ? themeColor(
-          mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1)
+          mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1),
         )
       : src === "primary"
-      ? themeNumbers.purple
-      : src === "accent"
-      ? themeNumbers.green
-      : !isNaN(Number(src))
-      ? themeColor(mod(Number(src) / themeBase.length, 1))
-      : themeNumbers.hasOwnProperty(src)
-      ? themeNumbers[src]
-      : undefined
+        ? themeNumbers.purple
+        : src === "accent"
+          ? themeNumbers.green
+          : !isNaN(Number(src))
+            ? themeColor(mod(Number(src) / themeBase.length, 1))
+            : themeNumbers.hasOwnProperty(src)
+              ? themeNumbers[src]
+              : undefined,
   );
 
 const themeBase = [
@@ -56,7 +56,7 @@ const themeColor: (r: number) => number = (val) => {
 
 // From https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
 const hash = (str: string) => {
-  var hash = 0,
+  let hash = 0,
     idx,
     chr;
   if (str.length === 0) return hash;

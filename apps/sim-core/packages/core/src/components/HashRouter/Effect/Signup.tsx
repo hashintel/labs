@@ -13,7 +13,7 @@ export const HashRouterEffectSignup: FC = () => {
 
   const [showModal, hideModal] = useModal(
     () => <ModalSignup onClose={() => navigateAway(false)} route={route} />,
-    [navigateAway, route]
+    [navigateAway, route],
   );
 
   useEffect(() => {

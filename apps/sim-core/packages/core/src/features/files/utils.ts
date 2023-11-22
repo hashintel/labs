@@ -68,7 +68,7 @@ export const requiredFileOrder = Object.values(pathToId);
 
 const sortByRequiredFileOrder = (
   a: HcRequiredFile,
-  b: HcRequiredFile
+  b: HcRequiredFile,
 ): number => requiredFileOrder.indexOf(a.id) - requiredFileOrder.indexOf(b.id);
 
 const sortByFormatted = (a: HcFile, b: HcFile): number =>
@@ -92,16 +92,18 @@ export const fileSorter = (a: HcFile, b: HcFile): number =>
   a.kind === HcFileKind.Required && b.kind === HcFileKind.Required
     ? sortByRequiredFileOrder(a, b)
     : a.kind === b.kind
-    ? sortByFormatted(a, b)
-    : sortByFileKindOrder(a, b);
+      ? sortByFormatted(a, b)
+      : sortByFileKindOrder(a, b);
 
 /**
  * When an array contains a typed union, there's no way to make push require a
  * more specific version of that type, which can be useful for code completion
  * and type safety. This allows you to create a function to do that.
  */
-const createTypedAdder = <A>(arr: A[]) => <T extends A>(...items: T[]) =>
-  arr.push(...items);
+const createTypedAdder =
+  <A>(arr: A[]) =>
+  <T extends A>(...items: T[]) =>
+    arr.push(...items);
 
 const datasetFields = (file: ProjectFile | ReleaseFile) => {
   /**
@@ -141,7 +143,7 @@ const groupFiles = <FileKind extends ProjectFile = ProjectFile>(
   files: FileKind[],
   behaviorKind:
     | HcFileKind.Behavior
-    | HcFileKind.SharedBehavior = HcFileKind.Behavior
+    | HcFileKind.SharedBehavior = HcFileKind.Behavior,
 ) => {
   const grouped = files.reduce<Record<string, GroupedProjectFile<FileKind>>>(
     (grouped, file) => {
@@ -168,19 +170,19 @@ const groupFiles = <FileKind extends ProjectFile = ProjectFile>(
         group.kind = isBehavior
           ? behaviorKind
           : file.path.startsWith("data") ||
-            (file.path.startsWith("dependencies") &&
-              file.path.includes("/data/"))
-          ? HcFileKind.Dataset
-          : isInit
-          ? HcFileKind.Init
-          : file.path.endsWith(".bpmn")
-          ? HcFileKind.ProcessModel
-          : HcFileKind.Required;
+              (file.path.startsWith("dependencies") &&
+                file.path.includes("/data/"))
+            ? HcFileKind.Dataset
+            : isInit
+              ? HcFileKind.Init
+              : file.path.endsWith(".bpmn")
+                ? HcFileKind.ProcessModel
+                : HcFileKind.Required;
       }
 
       return grouped;
     },
-    {}
+    {},
   );
 
   /**
@@ -329,7 +331,7 @@ export const fastPrettyStringify = (json: any) =>
   JSON.stringify(json, null, "\t");
 
 export const isSharedDependency = (
-  file: HcFile | HcDependencyFile
+  file: HcFile | HcDependencyFile,
 ): file is HcAnyDependencyFile => file.hasOwnProperty("pathWithNamespace");
 
 export const behaviorKeyExtensions = [
@@ -342,7 +344,7 @@ export const isBehaviorKeyFile = (path: string) =>
   behaviorKeyExtensions.some((ext) => path.endsWith(ext));
 
 export const behaviorKeysFileName = (
-  behavior: HcBehaviorFile | HcSharedBehaviorFile
+  behavior: HcBehaviorFile | HcSharedBehaviorFile,
 ) => `${behavior.path.base}.json`;
 
 export const repoPathForBehavior = (newFileName: string) =>
@@ -380,9 +382,9 @@ export const defaultBehaviorKeys: DraftBehaviorKeysRoot = {
  * @todo clean up
  */
 export const parseRelativePathsAsTree = (
-  files: Pick<HcFile, "id" | "name" | "repoPath">[]
+  files: Pick<HcFile, "id" | "name" | "repoPath">[],
 ) => {
-  const result: Array<any> = [];
+  const result: any[] = [];
   const level = { result };
 
   files.forEach((file) => {
@@ -393,7 +395,7 @@ export const parseRelativePathsAsTree = (
     const reduceFn = (
       accumulator: any,
       currentValue: string,
-      currentIndex: number
+      currentIndex: number,
     ) => {
       if (!accumulator[currentValue]) {
         accumulator[currentValue] = { result: [] };
@@ -414,24 +416,23 @@ export const parseRelativePathsAsTree = (
 };
 
 export const canAutosuggestKeysForFile = (
-  file: HcBehaviorFile | HcSharedBehaviorFile
+  file: HcBehaviorFile | HcSharedBehaviorFile,
 ) => file.path.ext === Ext.Js || file.path.ext === Ext.Py;
 
 export const allocateDatasetFileName = (
   originalFileName: string,
-  datasets: HcAnyDatasetFile[]
+  datasets: HcAnyDatasetFile[],
 ) => {
   const existingNames = datasets
     .filter((dataset) => !isSharedDependency(dataset))
     .map((dataset) => dataset.path.name);
 
-  const [originalFileNameBase, ...fileNameExtensions] = originalFileName.split(
-    "."
-  );
+  const [originalFileNameBase, ...fileNameExtensions] =
+    originalFileName.split(".");
 
   const allocatedFileNameBase = nextNonClashingName(
     stripInvalidFileNameCharacters(originalFileNameBase),
-    existingNames
+    existingNames,
   );
 
   const fileExtension = fileNameExtensions.length
@@ -452,7 +453,7 @@ export const behaviorKeysRepoPath = (behavior: Draft<HcBehaviorFile>) =>
   repoPathForBehavior(behaviorKeysFileName(behavior));
 
 export const stringifyBehaviorKeys = (
-  behavior: HcBehaviorFile | HcSharedBehaviorFile
+  behavior: HcBehaviorFile | HcSharedBehaviorFile,
 ) => {
   const committed: CommittedBehaviorKeysRoot = {
     ...omit(behavior.keys, "_trackCreation"),

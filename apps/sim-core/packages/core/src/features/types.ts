@@ -7,11 +7,14 @@ export type AppDispatch = StoreType["dispatch"];
 export type AppThunk<ReturnValueType = void> = (
   dispatch: AppDispatch,
   getState: () => RootState,
-  extraArgument: unknown
+  extraArgument: unknown,
 ) => ReturnValueType;
 
 export type AsyncAppThunk<ReturnValueType = void> = AppThunk<
   Promise<ReturnValueType>
 >;
 
-export type AppAsyncThunkArgs = { state: RootState; dispatch: AppDispatch };
+export interface AppAsyncThunkArgs {
+  state: RootState;
+  dispatch: AppDispatch;
+}

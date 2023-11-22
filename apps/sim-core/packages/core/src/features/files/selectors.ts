@@ -65,52 +65,52 @@ export const {
  * @todo Remove this when the above issue is fixed
  */
 
-const createCompareEqualForKeySelector = (
-  keySelector: (_: unknown, __: unknown, key: any) => boolean | undefined
-) => (currentEntities: any, previousEntities: any) => {
-  if (currentEntities.length !== previousEntities.length) {
-    return false;
-  }
-
-  for (let idx = 0; idx < currentEntities.length; idx++) {
-    const currentEntity = currentEntities[idx];
-    const previousEntity = previousEntities[idx];
-
-    if (!isEqualWith(currentEntity, previousEntity, keySelector)) {
+const createCompareEqualForKeySelector =
+  (keySelector: (_: unknown, __: unknown, key: any) => boolean | undefined) =>
+  (currentEntities: any, previousEntities: any) => {
+    if (currentEntities.length !== previousEntities.length) {
       return false;
     }
-  }
 
-  return true;
-};
+    for (let idx = 0; idx < currentEntities.length; idx++) {
+      const currentEntity = currentEntities[idx];
+      const previousEntity = previousEntities[idx];
+
+      if (!isEqualWith(currentEntity, previousEntity, keySelector)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
 
 export const createFieldSelector = <T, F extends keyof T>(
   selector: (state: any) => T[],
-  field: F
+  field: F,
 ) =>
   createSelectorCreator(
     defaultMemoize,
     createCompareEqualForKeySelector((curr, prev, key) =>
-      !key || field === key ? undefined : true
-    )
+      !key || field === key ? undefined : true,
+    ),
   )([selector], (entities: T[]) => entities.map((entity) => entity[field]));
 
 export const createFieldsSelector = <T, F extends keyof T>(
   selector: (state: any) => T[],
-  fields: F[]
+  fields: F[],
 ) =>
   createSelectorCreator(
     defaultMemoize,
     createCompareEqualForKeySelector((curr, prev, key) =>
-      !key || fields.includes(key) ? undefined : true
-    )
+      !key || fields.includes(key) ? undefined : true,
+    ),
   )([selector], (entities: T[]) =>
-    entities.map((entity) => pick(entity, fields) as Pick<T, F>)
+    entities.map((entity) => pick(entity, fields) as Pick<T, F>),
   );
 
 export const selectIdKindAndPathFromFiles = createFieldsSelector(
   selectAllFiles,
-  ["id", "kind", "path"]
+  ["id", "kind", "path"],
 );
 
 export const selectCurrentFileId = createSelector(
@@ -119,8 +119,8 @@ export const selectCurrentFileId = createSelector(
     editorVisible
       ? files.currentFileId
       : files.entities.properties
-      ? globalsFileId
-      : null
+        ? globalsFileId
+        : null,
 );
 
 export const selectReplaceProposal = createSelector(
@@ -132,13 +132,13 @@ export const selectReplaceProposal = createSelector(
       proposal: proposal,
       file: proposal?.fileId ? files.entities[proposal.fileId] : null,
     };
-  }
+  },
 );
 
 export const selectCurrentFile = createSelector(
   [selectFileEntities, selectCurrentFileId],
   (entities, currentFileId) =>
-    currentFileId ? entities[currentFileId] : undefined
+    currentFileId ? entities[currentFileId] : undefined,
 );
 
 export const selectCurrentBehavior = createSelector(
@@ -147,7 +147,7 @@ export const selectCurrentBehavior = createSelector(
     file?.kind === HcFileKind.Behavior ||
     file?.kind === HcFileKind.SharedBehavior
       ? file
-      : undefined
+      : undefined,
 );
 
 export const selectOpenFileIds = createSelector(
@@ -156,8 +156,8 @@ export const selectOpenFileIds = createSelector(
     editorVisible
       ? files.openFileIds
       : files.entities.properties
-      ? [globalsFileId]
-      : []
+        ? [globalsFileId]
+        : [],
 );
 
 export const selectOpenFiles = createSelector<
@@ -166,35 +166,35 @@ export const selectOpenFiles = createSelector<
   string[],
   HcFile[]
 >(selectFileEntities, selectOpenFileIds, (entities, openFileIds) =>
-  openFileIds.map((openFileId) => (entities as any)[openFileId])
+  openFileIds.map((openFileId) => (entities as any)[openFileId]),
 );
 
 export const selectRequiredFiles = createSelector(
   selectAllFiles,
   (files) =>
     files.filter(
-      (file) => file.kind === HcFileKind.Required
-    ) as HcRequiredFile[]
+      (file) => file.kind === HcFileKind.Required,
+    ) as HcRequiredFile[],
 );
 
 export const selectRequiredIds = createFieldSelector(selectRequiredFiles, "id");
 
 export const selectDescriptionFile: Selector<RootState, HcFile | undefined> = (
-  state
+  state,
 ) => selectFileById(state, "description");
 
 export const selectDescription = createSelector(
   selectDescriptionFile,
-  (file) => file?.contents
+  (file) => file?.contents,
 );
 
 export const selectDependenciesFile: Selector<RootState, HcFile | undefined> = (
-  state
+  state,
 ) => selectFileById(state, "dependencies");
 
 export const selectDependencies = createSelector(
   selectDependenciesFile,
-  (file) => file?.contents
+  (file) => file?.contents,
 );
 
 export const selectParsedDependencies = createSelector(
@@ -207,26 +207,26 @@ export const selectParsedDependencies = createSelector(
       return {};
     }
     return result;
-  }
+  },
 );
 
 export const selectLocalBehaviorFiles = createSelector(
   selectAllFiles,
   (files) =>
     files.filter(
-      (file) => file.kind === HcFileKind.Behavior
-    ) as HcBehaviorFile[]
+      (file) => file.kind === HcFileKind.Behavior,
+    ) as HcBehaviorFile[],
 );
 
 export const selectInitFiles = createSelector(
   selectAllFiles,
   (files) =>
-    files.filter((file) => file.kind === HcFileKind.Init) as HcInitFile[]
+    files.filter((file) => file.kind === HcFileKind.Init) as HcInitFile[],
 );
 
 export const selectLocalBehaviorIds = createFieldSelector(
   selectLocalBehaviorFiles,
-  "id"
+  "id",
 );
 
 export const selectEditableFiles = createSelector(selectAllFiles, (files) =>
@@ -234,24 +234,24 @@ export const selectEditableFiles = createSelector(selectAllFiles, (files) =>
     (file) =>
       file.kind === HcFileKind.Required ||
       file.kind === HcFileKind.Behavior ||
-      file.kind === HcFileKind.Init
-  )
+      file.kind === HcFileKind.Init,
+  ),
 );
 
 export const selectDatasetFiles = createSelector(
   selectAllFiles,
   (files) =>
     files.filter(
-      (file) => file.kind === HcFileKind.Dataset
-    ) as HcAnyDatasetFile[]
+      (file) => file.kind === HcFileKind.Dataset,
+    ) as HcAnyDatasetFile[],
 );
 
 export const selectDatasetFilesLocal = createSelector(
   selectAllFilesLocal,
   (files) =>
     files.filter(
-      (file) => file.kind === HcFileKind.Dataset
-    ) as HcAnyDatasetFile[]
+      (file) => file.kind === HcFileKind.Dataset,
+    ) as HcAnyDatasetFile[],
 );
 
 export const selectDatasetIds = createFieldSelector(selectDatasetFiles, "id");
@@ -266,43 +266,43 @@ export const selectSharedBehaviorFiles = createSelector(
         (file.kind === HcFileKind.Behavior &&
           file.repoPath.startsWith("dependencies/"))
       );
-    }) as HcSharedBehaviorFile[]
+    }) as HcSharedBehaviorFile[],
 );
 
 export const selectSharedBehaviorFilesLocal = createSelector(
   selectAllFilesLocal,
   (files) =>
     files.filter(
-      (file) => file.kind === HcFileKind.SharedBehavior
-    ) as HcSharedBehaviorFile[]
+      (file) => file.kind === HcFileKind.SharedBehavior,
+    ) as HcSharedBehaviorFile[],
 );
 
 export const selectSharedBehaviorIds = createFieldSelector(
   selectSharedBehaviorFiles,
-  "id"
+  "id",
 );
 
 export const selectGlobalsFile: Selector<RootState, HcFile | undefined> = (
-  state
+  state,
 ) => selectFileById(state, globalsFileId);
 
 export const selectGlobals = createSelector(
   selectGlobalsFile,
-  (file) => file?.contents
+  (file) => file?.contents,
 );
 
 export const selectAnalysisFile: Selector<RootState, HcFile | undefined> = (
-  state
+  state,
 ) => selectFileById(state, analysisFileId);
 
 export const selectAnalysis = createSelector(
   selectAnalysisFile,
-  (file) => file?.contents
+  (file) => file?.contents,
 );
 
 export const selectParsedAnalysis = createSelector(
   selectAnalysis,
-  (analysisString) => parseAnalysis(analysisString).analysis
+  (analysisString) => parseAnalysis(analysisString).analysis,
 );
 
 export const selectParsedAnalysisMetricNames = createSelector(
@@ -319,21 +319,21 @@ export const selectParsedAnalysisMetricNames = createSelector(
     }
 
     return [];
-  }
+  },
 );
 
 export const selectExperimentsFile: Selector<RootState, HcFile | undefined> = (
-  state
+  state,
 ) => selectFileById(state, "experiments");
 
 export const selectExperimentsSrc = createSelector(
   selectExperimentsFile,
-  (file) => file?.contents
+  (file) => file?.contents,
 );
 
 export const selectProcessModelSourceFiles = createSelector(
   selectAllFiles,
-  (files) => files.filter((file) => file.kind === HcFileKind.ProcessModel)
+  (files) => files.filter((file) => file.kind === HcFileKind.ProcessModel),
 );
 
 export const selectSimulationSrc = createSelector(
@@ -374,7 +374,7 @@ export const selectSimulationSrc = createSelector(
             behaviorSrc: file.contents,
           })),
         };
-  }
+  },
 );
 
 export const selectSimulationRequiresPyodide = createSelector(
@@ -382,22 +382,22 @@ export const selectSimulationRequiresPyodide = createSelector(
   (simulationSrc, sharedBehaviors) =>
     sharedBehaviors.some((behavior) => behavior.path.ext === Ext.Py) ||
     simulationSrc.behaviors.some((behavior) => behavior.name.includes(".py")) ||
-    simulationSrc.initializers.some((init) => init.name.includes(".py"))
+    simulationSrc.initializers.some((init) => init.name.includes(".py")),
 );
 
 export const selectPendingDependencies = createSelector(
   selectFilesSlice,
-  (slice) => slice.pendingDependencies
+  (slice) => slice.pendingDependencies,
 );
 
 export const selectFileActions = createSelector(
   selectFilesSlice,
-  (slice) => slice.actions
+  (slice) => slice.actions,
 );
 
 export const selectDidSave = createSelector(
   selectFileActions,
-  (actions) => actions.length === 0
+  (actions) => actions.length === 0,
 );
 
 export const selectPrivateDependencies = createSelector(
@@ -405,44 +405,44 @@ export const selectPrivateDependencies = createSelector(
   (datasets, sharedBehaviors) =>
     [...datasets, ...sharedBehaviors].filter(
       (file): file is HcAnyDependencyFile =>
-        isSharedDependency(file) && file.visibility === "private"
-    )
+        isSharedDependency(file) && file.visibility === "private",
+    ),
 );
 
 export const selectProjectHasPrivateDependencies = createSelector(
   selectPrivateDependencies,
-  (deps) => deps.length > 0
+  (deps) => deps.length > 0,
 );
 
 const behaviorToBehaviorKeyNamesCombinator = (
-  files: (HcBehaviorFile | HcSharedBehaviorFile)[]
+  files: (HcBehaviorFile | HcSharedBehaviorFile)[],
 ) => [
   ...new Set(files.flatMap((file) => file.keys.keys.rows.map((row) => row[0]))),
 ];
 
 export const selectLocalBehaviorKeyFieldNames = createSelector(
   [selectLocalBehaviorFiles],
-  behaviorToBehaviorKeyNamesCombinator
+  behaviorToBehaviorKeyNamesCombinator,
 );
 
 export const selectSharedBehaviorKeyFieldNames = createSelector(
   [selectSharedBehaviorFiles],
-  behaviorToBehaviorKeyNamesCombinator
+  behaviorToBehaviorKeyNamesCombinator,
 );
 
 export const selectShouldShowBehaviorKeys = createSelector(
   [selectFilesSlice, selectCurrentBehavior],
-  (slice, behavior) => slice.behaviorKeys && !!behavior
+  (slice, behavior) => slice.behaviorKeys && !!behavior,
 );
 
 export const selectBehaviorKeysDynamicAccess = createSelector(
   selectCurrentBehavior,
-  (file) => file?.keys.dynamic_access ?? false
+  (file) => file?.keys.dynamic_access ?? false,
 );
 
 export const selectCurrentFileRepoPath = createSelector(
   selectCurrentFile,
-  (file) => file?.repoPath ?? null
+  (file) => file?.repoPath ?? null,
 );
 
 const selectFilesIdRepoPathName = createFieldsSelector(selectAllFiles, [
@@ -456,7 +456,7 @@ export const selectFolderTree = createSelector(
   selectFilesIdRepoPathName,
   (files) => {
     const filteredFiles = files.filter(
-      (file) => file.kind !== HcFileKind.ProcessModel
+      (file) => file.kind !== HcFileKind.ProcessModel,
     );
     return sortBy(
       parseRelativePathsAsTree(filteredFiles),
@@ -464,7 +464,7 @@ export const selectFolderTree = createSelector(
         (item) => item.children.length === 0,
         (item) => item.repoPath.toLowerCase(),
       ],
-      ["asc", "asc"]
+      ["asc", "asc"],
     );
-  }
+  },
 );

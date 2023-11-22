@@ -18,7 +18,7 @@ export const forkProjectQuery = async (
   namespace: string,
   path: string,
   visibility: ProjectVisibility,
-  actions: FileAction[] = []
+  actions: FileAction[] = [],
 ) => {
   const remoteProject = (
     await query<{ forkAndUpdate: RemoteSimulationProject }>(
@@ -52,14 +52,14 @@ export const forkProjectQuery = async (
         namespace: namespace,
         path: path,
         visibility: visibility,
-      }
+      },
     )
   ).forkAndUpdate;
   if (actions.length) {
     return await commitActions(
       remoteProject.pathWithNamespace,
       actions,
-      true
+      true,
     ).then((res) => res.result);
   }
 

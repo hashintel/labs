@@ -3,9 +3,9 @@ import React, { FC } from "react";
 import { IconFileFind } from "../../../Icon";
 import { LinkableProject } from "../../../../features/project/types";
 
-export type HashCoreAccessGateNotFoundProps = {
+export interface HashCoreAccessGateNotFoundProps {
   requestedProject: LinkableProject | null;
-};
+}
 
 export const HashCoreAccessGateNotFound: FC<
   HashCoreAccessGateNotFoundProps & { embedded: boolean }

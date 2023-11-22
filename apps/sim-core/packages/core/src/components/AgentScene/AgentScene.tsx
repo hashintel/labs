@@ -29,7 +29,7 @@ import "./AgentScene.css";
 // - https://threejs.org/examples/#webgl_trails
 // - https://github.com/mrdoob/three.js/blob/master/examples/webgl_buffergeometry_drawrange.html
 
-export type SimulationStepProps = {
+export interface SimulationStepProps {
   simulationRunId: string | undefined;
   properties: Json;
   simulationStep: SerializableAgentState[] | null;
@@ -37,7 +37,7 @@ export type SimulationStepProps = {
   visible: boolean;
   resetting: boolean;
   errored: boolean;
-};
+}
 
 THREE.Object3D.DefaultUp.set(0, 0, 1);
 
@@ -59,7 +59,7 @@ export const AgentScene = ({
   simulationRunId,
 }: SimulationStepProps) => {
   const [mappedTransitions, setMappedTransitions] = useRecoilState(
-    SceneState.MappedTransitions
+    SceneState.MappedTransitions,
   );
 
   // Stats element
@@ -115,7 +115,7 @@ export const AgentScene = ({
           console.error(err);
         })
         .then(() =>
-          updateTransitionMap(mappedTransitions, simulationStep ?? [])
+          updateTransitionMap(mappedTransitions, simulationStep ?? []),
         );
     }
   }, [resetting, simulationStep, updateTransitionMap]);

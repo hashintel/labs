@@ -4,11 +4,11 @@ import { format } from "prettier";
 
 type NameContentTuple = [string, string];
 type FileGenerator = (pair: NameContentTuple) => void;
-type FileGeneratorContext = {
+interface FileGeneratorContext {
   dryRun: boolean;
   verbose: boolean;
   componentDir: string;
-};
+}
 type FileGeneratorFactory = (ctx: FileGeneratorContext) => FileGenerator;
 
 /**
@@ -19,44 +19,42 @@ type FileGeneratorFactory = (ctx: FileGeneratorContext) => FileGenerator;
  *
  * it does not write over existing files
  */
-export const generateFile: FileGeneratorFactory = ({
-  dryRun = false,
-  verbose = false,
-  componentDir,
-}) => ([fileName, content]) => {
-  const filePath = join(componentDir, fileName);
+export const generateFile: FileGeneratorFactory =
+  ({ dryRun = false, verbose = false, componentDir }) =>
+  ([fileName, content]) => {
+    const filePath = join(componentDir, fileName);
 
-  const relPath = relative(process.cwd(), filePath);
-  const ext = extname(filePath).substr(1);
+    const relPath = relative(process.cwd(), filePath);
+    const ext = extname(filePath).substr(1);
 
-  const fileContent = format(content, {
-    parser: ext === "css" ? "css" : "babel",
-  });
+    const fileContent = format(content, {
+      parser: ext === "css" ? "css" : "babel",
+    });
 
-  if (!existsSync(componentDir)) {
-    mkdirSync(componentDir);
-  }
+    if (!existsSync(componentDir)) {
+      mkdirSync(componentDir);
+    }
 
-  if (existsSync(filePath) && !dryRun) {
-    console.warn(
-      `file already exists at \`${relPath}\` ${
-        dryRun ? "will skip" : "skipping"
-      }`
-    );
-    return;
-  }
+    if (existsSync(filePath) && !dryRun) {
+      console.warn(
+        `file already exists at \`${relPath}\` ${
+          dryRun ? "will skip" : "skipping"
+        }`,
+      );
+      return;
+    }
 
-  if (verbose || dryRun) {
-    console.log(`\
+    if (verbose || dryRun) {
+      console.log(`\
 ${dryRun ? "will write" : "writing"} file to:
 \`${relPath}\`
 
 with \`${ext}\` contents:
 ${fileContent}
 `);
-  }
+    }
 
-  if (!dryRun) {
-    writeFileSync(filePath, fileContent);
-  }
-};
+    if (!dryRun) {
+      writeFileSync(filePath, fileContent);
+    }
+  };

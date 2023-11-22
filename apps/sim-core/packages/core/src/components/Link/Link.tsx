@@ -34,7 +34,7 @@ export const Link: FC<LinkProps> = forwardRef<HTMLAnchorElement, LinkProps>(
       target,
       ...props
     },
-    ref
+    ref,
   ) {
     /**
      * defaulting to Scope.login because we cannot dynamically call this hook.
@@ -50,8 +50,8 @@ export const Link: FC<LinkProps> = forwardRef<HTMLAnchorElement, LinkProps>(
 
     let filteredQuery = Object.fromEntries(
       Object.entries(query).filter(
-        ([_, value]) => value !== null && typeof value !== "undefined"
-      )
+        ([_, value]) => value !== null && typeof value !== "undefined",
+      ),
     );
 
     let route = path;
@@ -89,5 +89,5 @@ export const Link: FC<LinkProps> = forwardRef<HTMLAnchorElement, LinkProps>(
         {children}
       </a>
     );
-  }
+  },
 );

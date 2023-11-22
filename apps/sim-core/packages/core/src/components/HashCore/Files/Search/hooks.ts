@@ -92,9 +92,9 @@ export const useFilesRemovedObservable = () => {
       map(([firstIds, secondIds]) =>
         firstIds
           .filter((id) => !secondIds.includes(id))
-          .map((id) => id.toString())
+          .map((id) => id.toString()),
       ),
-      filter((ids) => ids.length > 0)
+      filter((ids) => ids.length > 0),
     );
   }, [store]);
 };
@@ -111,15 +111,15 @@ const useQueryChangeObservable = (query: SearchQuery) => {
     () =>
       subject.pipe(
         searchDebounce(),
-        map(() => selectFileIds(store.getState()) as string[])
+        map(() => selectFileIds(store.getState()) as string[]),
       ),
-    [subject, store]
+    [subject, store],
   );
 };
 
 const useRemoveDeletedFilesFromResults = (
   resultsRef: RefObject<SearchResultsDictionary>,
-  searchDispatch: SearchDispatch
+  searchDispatch: SearchDispatch,
 ) => {
   const fileIds = useSelector(selectFileIds);
 
@@ -129,7 +129,7 @@ const useRemoveDeletedFilesFromResults = (
     }
 
     const keysToRemove = Object.keys(resultsRef.current).filter(
-      (resultFileId) => !fileIds.includes(resultFileId)
+      (resultFileId) => !fileIds.includes(resultFileId),
     );
 
     if (keysToRemove.length) {
@@ -149,15 +149,15 @@ const useFilesToSearchObserver = (searchState: SearchState) => {
   const fileChangeObservable = useFileChangeObservable();
   const queryChangeObservable = useQueryChangeObservable(searchState.query);
 
-  return useMemo(() => merge(fileChangeObservable, queryChangeObservable), [
-    fileChangeObservable,
-    queryChangeObservable,
-  ]);
+  return useMemo(
+    () => merge(fileChangeObservable, queryChangeObservable),
+    [fileChangeObservable, queryChangeObservable],
+  );
 };
 
 export const useSearch = (
   searchState: SearchState,
-  searchDispatch: SearchDispatch
+  searchDispatch: SearchDispatch,
 ) => {
   const resultsRef = useRef(searchState.resultsMap);
   const queryRef = useRef(searchState.query);
@@ -215,7 +215,7 @@ export const useSearch = (
         files,
         pattern,
         resultsRef.current,
-        controller.signal
+        controller.signal,
       )
         .then((nextResults) => {
           if (controller!.signal.aborted) {
@@ -246,7 +246,7 @@ export const useSearch = (
  * Highlights the search term in the editor
  */
 export const useMonacoSearchHighlightDecorator = (
-  results: SearchFileResult[]
+  results: SearchFileResult[],
 ) => {
   useEffect(() => {
     if (!results.length) return;
@@ -265,9 +265,9 @@ export const useMonacoSearchHighlightDecorator = (
                 stickiness:
                   editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
               },
-            }))
+            })),
           ),
-        ] as const
+        ] as const,
     );
 
     return () => {
@@ -283,7 +283,7 @@ export const useMonacoSearchHighlightDecorator = (
 
 export const useReplaceProposal = (
   replacing: boolean,
-  results: SearchFileResult[]
+  results: SearchFileResult[],
 ) => {
   const appDispatch = useDispatch<AppDispatch>();
   const replaceProposal = useSelector(selectReplaceProposal);
@@ -305,7 +305,7 @@ export const useReplaceProposal = (
     }
 
     const resultsForCurrentFile = results.find(
-      ({ file }) => file.id === replacingFileIdRef.current
+      ({ file }) => file.id === replacingFileIdRef.current,
     );
 
     if (!resultsForCurrentFile) {
@@ -323,7 +323,7 @@ export const useReplaceProposal = (
       setReplaceProposal({
         fileId: file.id,
         nextContents: getNextContents(file, model, matches),
-      })
+      }),
     );
   }, [appDispatch, replacing, results]);
 
@@ -354,7 +354,7 @@ export const useRevealMatchInEditor = () => {
       file: HcFile,
       model: editor.ITextModel,
       matches: Replacement[],
-      range?: IRange
+      range?: IRange,
     ) => {
       /**
        * We have to manually set the model here because
@@ -370,7 +370,7 @@ export const useRevealMatchInEditor = () => {
 
         appDispatch(setReplaceProposal({ fileId: file.id, nextContents }));
         diffEditorInstance.setModel(
-          getDiffModel(projectUrl, file, nextContents)
+          getDiffModel(projectUrl, file, nextContents),
         );
 
         if (range) {
@@ -389,6 +389,6 @@ export const useRevealMatchInEditor = () => {
         }
       }
     },
-    [appDispatch, diffEditorInstance, editorInstance, projectUrl]
+    [appDispatch, diffEditorInstance, editorInstance, projectUrl],
   );
 };

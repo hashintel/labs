@@ -42,7 +42,7 @@ export const bootstrapApp = createAppAsyncThunk<{
 }>("bootstrapApp", async (_, { getState, dispatch }) => {
   getReleaseMeta().catch(() => {
     console.warn(
-      "Failed to get release meta at bootstrap time – must retry later"
+      "Failed to get release meta at bootstrap time – must retry later",
     );
   });
 
@@ -53,9 +53,9 @@ export const bootstrapApp = createAppAsyncThunk<{
       canUserEditProjectUpdate(
         await canUserEditProject(
           currentProject.pathWithNamespace,
-          currentProject.ref
-        )
-      )
+          currentProject.ref,
+        ),
+      ),
     );
   }
 
@@ -150,7 +150,7 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
       behaviorFiles.map((file): [string, HcBehaviorFile] => [
         file.repoPath,
         file,
-      ])
+      ]),
     );
 
     const files = behaviors.flatMap((behavior) => {
@@ -178,13 +178,13 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
     const forkedBehaviors = behaviors.map((behavior) => {
       const forkedBehaviorId = mapFileId(
         `${result.behaviorPathWithNamespace}/${behavior.filename}`,
-        result.behaviorRef
+        result.behaviorRef,
       );
 
       const forkedBehavior = result.files.find(
         (file): file is HcSharedBehaviorFile =>
           file.id === forkedBehaviorId &&
-          file.kind === HcFileKind.SharedBehavior
+          file.kind === HcFileKind.SharedBehavior,
       );
 
       if (!forkedBehavior) {
@@ -204,7 +204,7 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
           type: "Behavior",
           forkOf: args.projectPath,
         },
-      })
+      }),
     );
 
     return {
@@ -212,5 +212,5 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
       updatedAt: result.updatedAt,
       forkedBehaviors,
     };
-  }
+  },
 );

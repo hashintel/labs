@@ -56,7 +56,7 @@ const dataLoaderParserReducer: DataLoaderParserReducer = (state, action) => {
 
 export const useDataLoaderParser = (
   url: string,
-  file: HcDatasetFile
+  file: HcDatasetFile,
 ): DataLoaderParserState => {
   const [state, dispatch] = useReducer(dataLoaderParserReducer, {
     message: loadingMessage,

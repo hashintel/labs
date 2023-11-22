@@ -56,7 +56,7 @@ export const ExperimentGroupSectionItem = forwardRef<
              * by the time they render. We hide it with CSS instead
              */}
             <LazyIconLoading
-              end={hovered ? theme["dark-hover"] : theme["black"]}
+              end={hovered ? theme["dark-hover"] : theme.black}
             />
           </>
         )}

@@ -1,4 +1,4 @@
-export let resizeObserverPromise = Promise.resolve(window.ResizeObserver!);
+export let resizeObserverPromise = Promise.resolve(window.ResizeObserver);
 
 if (!window.ResizeObserver) {
   resizeObserverPromise = import(

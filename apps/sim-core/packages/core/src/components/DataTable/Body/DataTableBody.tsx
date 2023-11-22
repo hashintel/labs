@@ -4,10 +4,10 @@ import { DataTableRow } from "..";
 
 import "./DataTableBody.css";
 
-type DataTableBodyProps = {
+interface DataTableBodyProps {
   beginIndex: number;
   records: any[][];
-};
+}
 
 export const DataTableBody: FC<DataTableBodyProps> = memo(
   ({ beginIndex, records }) => (
@@ -20,5 +20,5 @@ export const DataTableBody: FC<DataTableBodyProps> = memo(
         />
       ))}
     </tbody>
-  )
+  ),
 );

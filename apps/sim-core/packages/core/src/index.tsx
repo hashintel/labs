@@ -33,6 +33,6 @@ boot(true).then(() => {
     <App store={store}>
       <HashRouter />
     </App>,
-    document.getElementById("root")
+    document.getElementById("root"),
   );
 });

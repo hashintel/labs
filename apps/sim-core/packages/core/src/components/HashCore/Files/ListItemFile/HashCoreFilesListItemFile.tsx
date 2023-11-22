@@ -44,11 +44,11 @@ import { useRenameBehaviorModal } from "..";
 
 import "./HashCoreFilesListItemFile.scss";
 
-type HashCoreFilesListItemFileProps = {
+interface HashCoreFilesListItemFileProps {
   fileId: string;
   scrollIntoViewRef?: MutableRefObject<VoidFunction | null>;
   depth?: number;
-};
+}
 
 export const getDomIdByFileId = (id: string) => `HashCoreFilesListItem-${id}`;
 
@@ -90,7 +90,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
         }}
       />
     ),
-    [title, dispatch, file.id]
+    [title, dispatch, file.id],
   );
 
   const [data, setData] = useState<ReleaseMeta | null>(null);
@@ -103,7 +103,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
           file={file}
         />
       ) : null,
-    [data, file]
+    [data, file],
   );
 
   const showNameBehavior = useRenameBehaviorModal(file.id, file.path);
@@ -135,6 +135,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
               <a
                 href={urljoin(SITE_URL, file.pathWithNamespace)}
                 target="_blank"
+                rel="noreferrer"
               >
                 View in HASH
               </a>
@@ -226,7 +227,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
       showNameBehavior,
       showReleaseBehaviorModal,
       dispatch,
-    ]
+    ],
   );
 
   const listItemRef = useRef<HTMLLIElement>(null);

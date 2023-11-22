@@ -96,10 +96,8 @@ export const BehaviorKeysForm: FC<{
   const listRef = useRef<HTMLUListElement | null>(null);
   const [scrollStateRef, contentRemaining] = useScrollState();
 
-  const [
-    dispatchParseAndShowBehaviorKeys,
-    isParsingDisabled,
-  ] = useAbortingDispatch(parseAndShowBehaviorKeys, [autosuggest]);
+  const [dispatchParseAndShowBehaviorKeys, isParsingDisabled] =
+    useAbortingDispatch(parseAndShowBehaviorKeys, [autosuggest]);
 
   const focusLast = () => {
     const fields =
@@ -137,7 +135,7 @@ export const BehaviorKeysForm: FC<{
                     updateBehaviorKeysDynamicAccess({
                       fileId,
                       dynamicAccess: evt.target.checked,
-                    })
+                    }),
                   );
                 }}
               />
@@ -183,13 +181,13 @@ export const BehaviorKeysForm: FC<{
           {data.rows.map(([fieldName, row], idx) => {
             const clash = clashes[idx];
             const realRow = originalData.rows.find(
-              (originalRow) => originalRow[1].uuid === row.uuid
+              (originalRow) => originalRow[1].uuid === row.uuid,
             );
 
             const onChange = (
               handler: (
-                draft: Draft<BehaviorKeysDraftRow>
-              ) => void | BehaviorKeysDraftRow
+                draft: Draft<BehaviorKeysDraftRow>,
+              ) => void | BehaviorKeysDraftRow,
             ) => {
               setData((draft) => {
                 const next = handler(draft[idx]);
@@ -199,8 +197,8 @@ export const BehaviorKeysForm: FC<{
 
             const onRowChange = (
               handler: (
-                draft: Draft<BehaviorKeysDraftField>
-              ) => void | BehaviorKeysDraftField
+                draft: Draft<BehaviorKeysDraftField>,
+              ) => void | BehaviorKeysDraftField,
             ) => {
               onChange((draft) => {
                 const next = handler(draft[1]);

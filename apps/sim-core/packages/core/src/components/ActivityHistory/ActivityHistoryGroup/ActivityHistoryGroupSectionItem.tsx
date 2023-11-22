@@ -25,7 +25,7 @@ export const ActivityHistoryGroupSectionItem = forwardRef<
   ActivityHistoryGroupSectionItemProps
 >(function ActivityHistoryGroupSectionItem(
   { children, className, open, viewable, loading, label, ...props },
-  ref
+  ref,
 ) {
   return (
     <ActivityHistoryItem
@@ -46,7 +46,7 @@ export const ActivityHistoryGroupSectionItem = forwardRef<
             {
               "ActivityHistoryGroupSectionItem__ViewingStatus--open":
                 open && !loading,
-            }
+            },
           )}
         >
           {loading ? (

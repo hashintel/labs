@@ -7,7 +7,7 @@ import { validateBehaviorKeyName } from "../features/files/validate";
 
 export const parseBehaviorKeysQuery = async (
   file: HcBehaviorFile,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<BehaviorKeyFields> => {
   let result: {
     error?: { code: string } | null;
@@ -40,8 +40,8 @@ export const parseBehaviorKeysQuery = async (
   if (result?.keys) {
     return Object.fromEntries(
       Object.entries(result.keys).filter(
-        ([key]) => validateBehaviorKeyName(key).length === 0
-      )
+        ([key]) => validateBehaviorKeyName(key).length === 0,
+      ),
     );
   }
 

@@ -7,7 +7,7 @@ import { agentScene } from "./lazy";
 const AgentSceneLazy = lazy(() =>
   agentScene().then((module) => ({
     default: module.AgentScene,
-  }))
+  })),
 );
 
 export const AgentScene: FC<SimulationStepProps> = (props) => (

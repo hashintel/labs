@@ -19,9 +19,7 @@ import { trackEvent } from "../../features/analytics";
 
 import "./ProcessChart.scss";
 
-type LocalStorageDrafts = {
-  [processName: string]: string;
-};
+type LocalStorageDrafts = Record<string, string>;
 
 type ProcessChartMessage =
   | {
@@ -53,7 +51,7 @@ export const ProcessChart: FC = () => {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const project = useSelector(selectCurrentProject);
   const projectRef = useRef<string>(
-    `${project?.pathWithNamespace}:${project?.ref}`
+    `${project?.pathWithNamespace}:${project?.ref}`,
   );
 
   useEffect(() => {
@@ -63,7 +61,7 @@ export const ProcessChart: FC = () => {
   }, []);
 
   const savedChart = chartFiles.find(
-    (file) => file.path.name === processChartOption
+    (file) => file.path.name === processChartOption,
   );
 
   // Hide activity on tab load, restore it on unload (if it was visible)
@@ -112,7 +110,7 @@ export const ProcessChart: FC = () => {
               contents: data.contents,
               project: project!,
               repoPath,
-            })
+            }),
           );
 
           // Update the tab to use the new name and clear the 'new' draft
@@ -130,14 +128,14 @@ export const ProcessChart: FC = () => {
               context: {
                 processName: data.processName,
               },
-            })
+            }),
           );
         } else if (savedChart) {
           dispatch(
             updateFile({
               id: savedChart.id,
               contents: data.contents,
-            })
+            }),
           );
           dispatch(
             trackEvent({
@@ -148,7 +146,7 @@ export const ProcessChart: FC = () => {
               context: {
                 processName: data.processName,
               },
-            })
+            }),
           );
         }
         setSaving(false);
@@ -168,7 +166,7 @@ export const ProcessChart: FC = () => {
     if (projectRef.current !== projectUid) {
       // we've just switched project, default to the first defined chart
       dispatch(
-        setProcessChart(chartFiles[0]?.path.name || newProcessChartValue)
+        setProcessChart(chartFiles[0]?.path.name || newProcessChartValue),
       );
       projectRef.current = projectUid;
     } else {
@@ -201,7 +199,7 @@ export const ProcessChart: FC = () => {
         existingProcess,
         value: projectRef.current,
       },
-      "*"
+      "*",
     );
   };
   useEffect(setProjectRefAndSendChart, [

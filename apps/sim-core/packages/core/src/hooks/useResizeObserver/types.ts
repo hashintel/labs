@@ -30,7 +30,7 @@ declare class ResizeObserverEntry {
 }
 declare type ResizeObserverCallback = (
   entries: ResizeObserverEntry[],
-  observer: ResizeObserver
+  observer: ResizeObserver,
 ) => void;
 declare class ResizeObserver {
   constructor(callback: ResizeObserverCallback);

@@ -25,14 +25,14 @@ const paginationPx = 26;
 const rowHeightRem = 1.2;
 const rowBorderPx = 1;
 
-type DataLoaderProps = {
+interface DataLoaderProps {
   url: string;
   editorInstance: EditorInstance | undefined;
   manifestId: string | null;
   file: HcDatasetFile;
   setDidFallback: Dispatch<SetStateAction<boolean>>;
   containerHeight?: number;
-};
+}
 
 export const DataLoader: FC<DataLoaderProps> = ({
   url,
@@ -60,7 +60,7 @@ export const DataLoader: FC<DataLoaderProps> = ({
       dataLoaderParserState.message === successMessage &&
       !isValidDataTable(
         dataLoaderParserState.headings,
-        dataLoaderParserState.records
+        dataLoaderParserState.records,
       );
 
     setDidFallback(shouldFallback);
@@ -88,11 +88,11 @@ export const DataLoader: FC<DataLoaderProps> = ({
             (containerHeight -
               (remSize * (headingHeightRem + paginationPaddingRem) +
                 paginationPx)) /
-              (remSize * rowHeightRem + rowBorderPx)
+              (remSize * rowHeightRem + rowBorderPx),
           )
         : // No container height? Don't render yet
           undefined,
-    [containerHeight, remSize]
+    [containerHeight, remSize],
   );
 
   /**

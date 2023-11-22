@@ -1,12 +1,12 @@
 import { SelectComponents } from "react-select/src/components";
 
-export type ReactSelectOption = {
+export interface ReactSelectOption {
   label: string;
   subLabel?: string;
   value: string;
-};
+}
 
-export type DropdownProps = {
+export interface DropdownProps {
   options: ReactSelectOption[];
   value: ReactSelectOption | ReactSelectOption[] | undefined;
   onChange: (option: any) => void;
@@ -28,4 +28,4 @@ export type DropdownProps = {
   largeList?: boolean;
   className?: string;
   creatableIsCaseInsensitive?: boolean;
-};
+}

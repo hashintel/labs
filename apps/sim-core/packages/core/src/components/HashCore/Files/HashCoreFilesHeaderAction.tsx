@@ -59,7 +59,7 @@ export const HashCoreFilesHeaderAction: FC<
             "HashCoreFilesHeaderAction--right": position === "right",
             "HashCoreFilesHeaderAction--left": position === "left",
           },
-          className
+          className,
         )}
         {...props}
       >

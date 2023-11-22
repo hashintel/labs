@@ -39,17 +39,17 @@ import { useOrgs } from "../NewProject/utils";
 // actually want the `Option` component here
 const { Option } = components;
 
-type FormInputs = {
+interface FormInputs {
   name: string;
   path: string;
   description: string;
-};
+}
 
-type ModalPublishBehaviorToIndexProps = {
+interface ModalPublishBehaviorToIndexProps {
   onHide: VoidFunction;
   data: ReleaseMeta;
   file: HcBehaviorFile;
-};
+}
 
 export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
   onHide,
@@ -81,12 +81,12 @@ export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
 
   /* KEYWORD OPTIONS */
   const [keywordOptions, selectedKeywords, setSelectedKeywords] = useKeywords(
-    data?.keywords
+    data?.keywords,
   );
 
   /* LICENSE OPTIONS */
   const [licenseOptions, selectedLicense, setSelectedLicense] = useLicenses(
-    data?.licenses
+    data?.licenses,
   );
 
   /* SUBJECT OPTIONS */
@@ -95,11 +95,8 @@ export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
   // );
 
   /* PUBLISH AS OPTIONS */
-  const [
-    publishAsOptions,
-    selectedPublishAs,
-    setSelectedPublishAs,
-  ] = usePublishAs(orgs);
+  const [publishAsOptions, selectedPublishAs, setSelectedPublishAs] =
+    usePublishAs(orgs);
 
   const submitDisabled = toPublish.length === 0;
 
@@ -129,14 +126,14 @@ export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
             license: selectedLicense.value ?? "",
             // @todo allow for private behavior releases
             visibility: "public",
-          })
+          }),
         ).then(unwrapResult);
 
         dispatch(
           displayToast({
             kind: ToastKind.ReleaseBehaviorSuccess,
             data: forkedBehaviors,
-          })
+          }),
         );
 
         onHide();

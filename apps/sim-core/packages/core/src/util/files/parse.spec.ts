@@ -24,7 +24,7 @@ describe("parse", () => {
 
   const filePartTests: [
     FilePathParts,
-    Omit<ParsedPath, keyof FilePathParts>
+    Omit<ParsedPath, keyof FilePathParts>,
   ][] = [
     [
       {

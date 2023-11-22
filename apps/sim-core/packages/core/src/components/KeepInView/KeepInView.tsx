@@ -56,7 +56,7 @@ export const useKeepInView = () => {
     if (childRef.current && parentRef.current) {
       parentRef.current.scrollTo(
         childRef.current.offsetLeft - parentRef.current.offsetLeft,
-        childRef.current.offsetTop - parentRef.current.offsetTop
+        childRef.current.offsetTop - parentRef.current.offsetTop,
       );
     }
   }, []);
@@ -82,7 +82,7 @@ export const useKeepInView = () => {
       parentRef.current = node;
       scroll();
     },
-    [scroll]
+    [scroll],
   );
 
   const setChildRef = useCallback(
@@ -94,7 +94,7 @@ export const useKeepInView = () => {
       childRef.current = node;
       scroll();
     },
-    [scroll]
+    [scroll],
   );
 
   return [setParentRef, setChildRef];

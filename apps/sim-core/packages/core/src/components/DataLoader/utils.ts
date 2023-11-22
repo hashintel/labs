@@ -5,7 +5,7 @@
 import { DatasetFormat } from "@hashintel/utils/lib/datasets/fetchDataset";
 
 export const isValidHeadings = (
-  headings: string[] | undefined
+  headings: string[] | undefined,
 ): headings is string[] =>
   !!(
     headings &&
@@ -26,7 +26,7 @@ export const isValidHeadings = (
  * ```
  */
 export const isValidRecords = (
-  records: any[][] | undefined
+  records: any[][] | undefined,
 ): records is any[][] =>
   !!(records && Array.isArray(records) && Array.isArray(records[0]));
 
@@ -35,13 +35,13 @@ export const isValidRecords = (
  */
 export const isValidDataTable = (
   headings: string[] | undefined,
-  records: any[][] | undefined
+  records: any[][] | undefined,
 ): boolean => isValidHeadings(headings) && isValidRecords(records);
 
 const toDatasetJson = (json: any) => JSON.stringify(json, null, 2);
 
 export const getHeadingsRecordsForJsonObjects = (
-  json: any[]
+  json: any[],
 ): [string[], any[]] => {
   if (json.length === 0) {
     return [[], []];

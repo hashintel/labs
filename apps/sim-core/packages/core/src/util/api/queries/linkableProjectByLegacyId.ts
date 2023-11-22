@@ -11,7 +11,7 @@ type LegacyProject = Pick<
 
 export const linkableProjectByLegacyId = async (
   id: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<LinkableProject> => {
   const { pathWithNamespace, latestRelease } = (
     await query<{
@@ -26,7 +26,7 @@ export const linkableProjectByLegacyId = async (
         }
       `,
       { id },
-      signal
+      signal,
     )
   ).project;
 

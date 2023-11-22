@@ -40,7 +40,7 @@ export const {
     },
     addUserProject(
       state,
-      { payload }: PayloadAction<PartialSimulationProject>
+      { payload }: PayloadAction<PartialSimulationProject>,
     ) {
       upsertOne(state, payload);
     },

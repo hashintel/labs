@@ -6,7 +6,7 @@ import { ModalShare } from "../../../Modal/Share/ModalShare";
 export const HashCoreHeaderShareButton: FC = () => {
   const [showModal, hideModal] = useModal(
     () => <ModalShare onClose={hideModal} />,
-    []
+    [],
   );
 
   useEffect(() => {

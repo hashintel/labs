@@ -16,106 +16,109 @@ import {
   useSimulatorSelector,
 } from "../../../../../features/simulator/context";
 
-type HashCoreHeaderMenuExperimentsProps = {
+interface HashCoreHeaderMenuExperimentsProps {
   openMenuItem: string;
   onClickMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   clearAll: () => void;
-};
+}
 
-export const HashCoreHeaderMenuExperiments: FC<HashCoreHeaderMenuExperimentsProps> = memo(
-  ({
-    openMenuItem,
-    onClickMenuItemLabel,
-    onMouseEnterMenuItemLabel,
-    clearAll,
-  }) => {
-    const dispatch = useSimulatorDispatch();
-    const canEdit = useScope(Scope.edit);
-    const experiments = useSelector(selectExperiments);
-    const target = useSimulatorSelector(selectProviderTarget);
-    const [
-      openCreateExperimentModal,
-      hideCreateExperimentModal,
-    ] = useModal(() => <ExperimentModal onClose={hideCreateExperimentModal} />);
+export const HashCoreHeaderMenuExperiments: FC<HashCoreHeaderMenuExperimentsProps> =
+  memo(
+    ({
+      openMenuItem,
+      onClickMenuItemLabel,
+      onMouseEnterMenuItemLabel,
+      clearAll,
+    }) => {
+      const dispatch = useSimulatorDispatch();
+      const canEdit = useScope(Scope.edit);
+      const experiments = useSelector(selectExperiments);
+      const target = useSimulatorSelector(selectProviderTarget);
+      const [openCreateExperimentModal, hideCreateExperimentModal] = useModal(
+        () => <ExperimentModal onClose={hideCreateExperimentModal} />,
+      );
 
-    const items =
-      experiments?.map(
-        (
-          experiment: [string, { description: string; type: ExperimentTypes }]
-        ) => {
-          const experimentTitle = experiment[0];
+      const items =
+        experiments?.map(
+          (
+            experiment: [
+              string,
+              { description: string; type: ExperimentTypes },
+            ],
+          ) => {
+            const experimentTitle = experiment[0];
 
-          const disabledOptimizationExperiment =
-            target !== "cloud" && experiment[1].type === "optimization";
-          if (disabledOptimizationExperiment) {
+            const disabledOptimizationExperiment =
+              target !== "cloud" && experiment[1].type === "optimization";
+            if (disabledOptimizationExperiment) {
+              return (
+                <li
+                  className="HashCoreHeaderMenu-submenu-item HashCoreHeaderMenu-submenu-item--disabled"
+                  key={experimentTitle}
+                >
+                  <span>{experimentTitle}</span>
+                  <DisabledExperimentTooltip />
+                </li>
+              );
+            }
+
             return (
               <li
-                className="HashCoreHeaderMenu-submenu-item HashCoreHeaderMenu-submenu-item--disabled"
+                className="HashCoreHeaderMenu-submenu-item"
                 key={experimentTitle}
               >
-                <span>{experimentTitle}</span>
-                <DisabledExperimentTooltip />
+                <a
+                  onClick={() => {
+                    clearAll();
+                    dispatch(queueExperiment(experimentTitle));
+                  }}
+                >
+                  {experimentTitle}
+                </a>
               </li>
             );
-          }
+          },
+        ) ?? [];
 
-          return (
-            <li
-              className="HashCoreHeaderMenu-submenu-item"
-              key={experimentTitle}
-            >
+      if (canEdit) {
+        items.push(
+          <Fragment key="account">
+            {items.length ? (
+              <li>
+                <hr />
+              </li>
+            ) : null}
+            <li className="HashCoreHeaderMenu-submenu-item">
               <a
                 onClick={() => {
                   clearAll();
-                  dispatch(queueExperiment(experimentTitle));
+                  openCreateExperimentModal();
+                  trackEvent({
+                    action: "Experiment wizard opened",
+                    label: "Menu",
+                  });
                 }}
               >
-                {experimentTitle}
+                Create new experiment
               </a>
             </li>
-          );
-        }
-      ) ?? [];
+          </Fragment>,
+        );
+      }
 
-    if (canEdit) {
-      items.push(
-        <Fragment key="account">
-          {items.length ? (
-            <li>
-              <hr />
-            </li>
-          ) : null}
-          <li className="HashCoreHeaderMenu-submenu-item">
-            <a
-              onClick={() => {
-                clearAll();
-                openCreateExperimentModal();
-                trackEvent({
-                  action: "Experiment wizard opened",
-                  label: "Menu",
-                });
-              }}
-            >
-              Create new experiment
-            </a>
-          </li>
-        </Fragment>
+      return (
+        <>
+          <LabeledInputRadio
+            group="HashCoreHeaderMenu"
+            label="Experiments"
+            isChecked={(htmlFor) => htmlFor === openMenuItem}
+            onClick={onClickMenuItemLabel}
+            onMouseEnter={onMouseEnterMenuItemLabel}
+            disabled={items.length === 0}
+          />
+          <ul className="HashCoreHeaderMenu-submenu">{items}</ul>
+        </>
       );
-    }
-
-    return (
-      <>
-        <LabeledInputRadio
-          group="HashCoreHeaderMenu"
-          label="Experiments"
-          isChecked={(htmlFor) => htmlFor === openMenuItem}
-          onClick={onClickMenuItemLabel}
-          onMouseEnter={onMouseEnterMenuItemLabel}
-          disabled={items.length === 0}
-        />
-        <ul className="HashCoreHeaderMenu-submenu">{items}</ul>
-      </>
-    );
-  }
-);
+    },
+  );

@@ -11,9 +11,9 @@ import { SimulatorProvider } from "../../features/simulator/context";
 
 import "./App.css";
 
-type AppProps = {
+interface AppProps {
   store: Store;
-};
+}
 
 export const App: FC<AppProps> = ({ store, children }) => (
   <RecoilRoot>

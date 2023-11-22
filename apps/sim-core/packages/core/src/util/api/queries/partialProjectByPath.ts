@@ -36,7 +36,7 @@ const queryString = /* GraphQL */ `
 export const partialProjectByPath = async (
   pathWithNamespace: string,
   version: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<PartialSimulationProject> => {
   const { project } = await query<
     PartialProjectByPathQuery,

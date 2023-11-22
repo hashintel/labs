@@ -11,10 +11,10 @@ import {
 import { selectCurrentProject } from "../../project/selectors";
 import { trackEvent } from "../../analytics";
 
-type RunningState = {
+interface RunningState {
   controller: AbortController | null;
   status: SimulationData["status"];
-};
+}
 
 const getDefaultRunningState = (sim: SimulationData): RunningState => ({
   status: sim.status,
@@ -25,12 +25,12 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
   const run = async (simulationId: string, signal: AbortSignal) => {
     const selectSimRunning = createSelector(
       selectAllSimulationData,
-      (data) => data[simulationId]?.status === "running"
+      (data) => data[simulationId]?.status === "running",
     );
 
     const selectSimCurrent = createSelector(
       selectCurrentSimulationId,
-      (id) => id === simulationId
+      (id) => id === simulationId,
     );
 
     const running = () => selectSimRunning(store.getState());
@@ -41,7 +41,7 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
         trackEvent({
           action: "Run Simulation",
           label: `${project!.name} - ${project!.id}`,
-        })
+        }),
       );
 
       await runnerMessage({ type: "play" }, simulationId);
@@ -55,7 +55,7 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
           type: "getReadySteps",
           omitData: !needSteps,
         },
-        simulationId
+        simulationId,
       );
     }
 
@@ -69,7 +69,7 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
     Object.values(simData).map((sim) => [
       sim.simulationRunId,
       getDefaultRunningState(sim),
-    ])
+    ]),
   );
 
   return () => {

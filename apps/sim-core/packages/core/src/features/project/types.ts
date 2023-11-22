@@ -4,51 +4,51 @@ import { License } from "../../util/api/types";
 import { PartialSimulationProjectFieldsTuple } from "./utils";
 import { ProjectAccessCodeAccessType } from "../../shared/scopes";
 
-export type ProjectFile = {
+export interface ProjectFile {
   name: string;
   path: string;
   contents: string;
   ref: string;
-};
+}
 
 export type ReleaseFile = ProjectFile & {
   dependencyPath: string;
 };
 
-export type Release = {
+export interface Release {
   pathWithNamespace: string;
   tag: string;
   latestReleaseTag: string;
   files: ReleaseFile[];
   canUserEdit: boolean;
   visibility: ProjectVisibility;
-};
+}
 
 type SimulationProjectType = "Simulation" | "Dataset" | "Behavior";
 
-export type ReleaseDescription = {
+export interface ReleaseDescription {
   tag: string;
   createdAt: string;
-};
+}
 
-export type SimulationProjectConfig = {
+export interface SimulationProjectConfig {
   files: string[];
   type: SimulationProjectType;
   keywords: string[];
   avatar?: string;
-};
+}
 
 export type ProjectVisibility = "public" | "private";
 
-export type CanUserEditProject = {
+export interface CanUserEditProject {
   canUserEdit: boolean;
   dependencies: Pick<Release, "pathWithNamespace" | "canUserEdit">[];
-};
+}
 
-export type ProjectAccessParsed = {
+export interface ProjectAccessParsed {
   code: string;
   level: ProjectAccessCodeAccessType;
-};
+}
 export type ProjectAccess = ProjectAccessParsed | null | undefined;
 
 /**
@@ -111,14 +111,15 @@ export type ResourceProject = Omit<
   subject: { name: string }[];
 };
 
-export type ProjectSlice = {
+export interface ProjectSlice {
   projectLoaded: boolean;
   accessGate: (HashCoreAccessGateKindWithProps & { url: string | null }) | null;
   currentProject: SimulationProject | null;
   pendingProject: LinkableProject | null;
-};
+}
 
-export type PartialSimulationProjectFields = PartialSimulationProjectFieldsTuple[number];
+export type PartialSimulationProjectFields =
+  PartialSimulationProjectFieldsTuple[number];
 
 export type PartialSimulationProject = Pick<
   SimulationProject,

@@ -9,7 +9,7 @@ import { Projection } from "./types";
 
 export const reduceProjection = (
   projection: Projection,
-  data: BehaviorKeysDraftFieldWithRows
+  data: BehaviorKeysDraftFieldWithRows,
 ): BehaviorKeysDraftFieldWithRows =>
   projection.reduce<BehaviorKeysDraftFieldWithRows>((data, { idx }) => {
     if (!fieldHasRows(data)) {
@@ -28,7 +28,7 @@ export const reduceProjection = (
 export const assignProjection = <T extends BehaviorKeysDraftFieldWithRows>(
   projection: Projection,
   data: T,
-  rows: BehaviorKeysDraftRow[]
+  rows: BehaviorKeysDraftRow[],
 ): T =>
   produce(data, (fullDraft) => {
     const draft = reduceProjection(projection, fullDraft);

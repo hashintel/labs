@@ -1,42 +1,42 @@
 import { Reducer } from "react";
 
-type DataLoaderParserMessage = {
+interface DataLoaderParserMessage {
   message: string;
-};
+}
 
-type DataLoaderParserData = {
+interface DataLoaderParserData {
   headings?: string[];
   records?: any[][];
   contents?: string;
-};
+}
 
 export type DataLoaderParserState = DataLoaderParserData &
   DataLoaderParserMessage;
 
-type DataLoaderParserActionSuccess = {
+interface DataLoaderParserActionSuccess {
   type: "success";
   payload: DataLoaderParserData;
-};
+}
 
-type DataLoaderParserActionInvalidUrl = {
+interface DataLoaderParserActionInvalidUrl {
   type: "invalidUrl";
   payload: { url: string; errorMessage: string };
-};
+}
 
-type DataLoaderParserActionUnparseableValue = {
+interface DataLoaderParserActionUnparseableValue {
   type: "unparseableValue";
   payload: { pathname: string; errorMessage: string };
-};
+}
 
-type DataLoaderParserActionUnsupportedExtension = {
+interface DataLoaderParserActionUnsupportedExtension {
   type: "unsupportedExtension";
   payload: { pathname: string; ext: string };
-};
+}
 
-type DataLoaderParserActionLoadingError = {
+interface DataLoaderParserActionLoadingError {
   type: "loadingError";
   payload: { pathname: string; errorMessage: string };
-};
+}
 
 type DataLoaderParserAction =
   | DataLoaderParserActionSuccess

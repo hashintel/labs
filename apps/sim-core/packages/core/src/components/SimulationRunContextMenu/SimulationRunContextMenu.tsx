@@ -2,9 +2,9 @@ import React, { FC, CSSProperties } from "react";
 
 import "./SimulationRunContextMenu.scss";
 
-type SimulationRunContextMenuProps = {
+interface SimulationRunContextMenuProps {
   style: Pick<CSSProperties, "top" | "right">;
-};
+}
 
 export const SimulationRunContextMenu: FC<SimulationRunContextMenuProps> = ({
   children,

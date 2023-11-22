@@ -6,5 +6,5 @@ export const promoteToLive = curriedQuery<
 >(
   `mutation promoteToLive($stamp: String!) {
         promoteToLive(stamp: $stamp)
-     }`
+     }`,
 );

@@ -51,6 +51,7 @@ export const HashCoreTourStepDone: FC = () => {
           <a
             href="https://docs.hash.ai/core/tutorials/hello-hash"
             target="_blank"
+            rel="noreferrer"
           >
             Getting Started tutorial
           </a>{" "}
@@ -77,7 +78,7 @@ export const HashCoreTourStepDone: FC = () => {
                 })}
                 thumb={<Avatar avatar={avatar} thumbnail={thumbnail} />}
               />
-            )
+            ),
           )}
           <ShowcaseItem
             name="Create New"

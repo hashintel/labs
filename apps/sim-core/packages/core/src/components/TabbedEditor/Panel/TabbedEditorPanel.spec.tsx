@@ -9,7 +9,7 @@ it("renders without crashing", () => {
   ReactDOM.render(
     // <TabbedEditorPanel editorInstance={undefined} textModel={undefined} />,
     <div />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

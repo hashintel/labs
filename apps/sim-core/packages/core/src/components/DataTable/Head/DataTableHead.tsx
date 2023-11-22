@@ -3,9 +3,9 @@ import { kebabCase } from "lodash";
 
 import "./DataTableHead.css";
 
-type DataTableHeadProps = {
+interface DataTableHeadProps {
   headings: string[];
-};
+}
 
 export const DataTableHead: FC<DataTableHeadProps> = memo(({ headings }) => (
   <>

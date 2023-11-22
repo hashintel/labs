@@ -16,11 +16,11 @@ const publishAsToOptions: FunctionN<[Org], ReactSelectOption> = ({
 
 export const usePublishAs = (
   publishAs?: Org[],
-  currentNamespace?: string
+  currentNamespace?: string,
 ): [
   ReactSelectOption[],
   ReactSelectOption,
-  (setOrg: ReactSelectOption) => void
+  (setOrg: ReactSelectOption) => void,
 ] => {
   const defaultOrg =
     (currentNamespace
@@ -29,7 +29,7 @@ export const usePublishAs = (
 
   const options = publishAs?.map(publishAsToOptions) ?? [];
   const defaultValue = options?.find(
-    (option) => option.subLabel === defaultOrg?.shortname
+    (option) => option.subLabel === defaultOrg?.shortname,
   );
 
   if (!defaultValue) {

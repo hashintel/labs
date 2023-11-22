@@ -3,15 +3,15 @@ import { Release } from "../../../features/project/types";
 import { graphqlUuid } from "../utils";
 import { query } from "../query";
 
-type DepArgs = {
+interface DepArgs {
   pathWithNamespace: string;
   tag: string;
   files: string[];
-};
+}
 
 export async function fetchDependencies(
   dependencies: DependenciesDescriptor,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Release[]> {
   /**
    * DependenciesDescriptor is a full file path -> version record, but the API
@@ -46,24 +46,22 @@ export async function fetchDependencies(
 
         return grouped;
       },
-      {}
-    )
+      {},
+    ),
   );
 
-  const res = await query<{
-    [uuid: string]: Release | null;
-  }>(
+  const res = await query<Record<string, Release | null>>(
     `
     query fetchDependencies {
       ${groupedDependencies.reduce(
         (query, { pathWithNamespace, tag, files }) => `${query}
         ${graphqlUuid()}: release(projectPath: "${pathWithNamespace}", tag: "${tag}", files: ${JSON.stringify(
-          files
+          files,
         )}) {
           ...dependencyFields
         }
       `,
-        ""
+        "",
       )}
     }
     
@@ -82,10 +80,10 @@ export async function fetchDependencies(
       }
     }
   `,
-    signal
+    signal,
   );
 
   return Object.values(res).filter(
-    (release): release is Release => release !== null
+    (release): release is Release => release !== null,
   );
 }

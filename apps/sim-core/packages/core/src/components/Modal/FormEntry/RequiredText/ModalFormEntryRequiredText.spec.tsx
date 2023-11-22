@@ -14,7 +14,7 @@ it("renders without crashing", () => {
       onChange={() => undefined}
       onBlur={() => undefined}
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

@@ -23,7 +23,7 @@ it("renders without crashing", () => {
         />
       </ErrorBoundary>
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

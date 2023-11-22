@@ -4,7 +4,7 @@ import { releaseToHcFiles } from "../../../features/files/utils";
 
 export const searchResourceProjects = async (
   searchTerm: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<ResourceProject[]> =>
   (
     await query<{
@@ -59,7 +59,7 @@ export const searchResourceProjects = async (
         }
       `,
       { searchTerm },
-      signal
+      signal,
     )
   ).searchProjects.results.map((project) => ({
     ...project,

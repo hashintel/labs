@@ -34,7 +34,7 @@ export const HashCoreConsole: FC = memo(function HashCoreConsole() {
 
   const filesMap = useMemo(
     () => Object.fromEntries(files.map((file) => [file.path.formatted, file])),
-    [files]
+    [files],
   );
 
   // Show a modal on more important alert messages

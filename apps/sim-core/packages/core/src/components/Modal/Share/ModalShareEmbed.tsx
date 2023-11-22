@@ -22,7 +22,7 @@ const linkToBuild =
   getSafeQueryParams()?.forceRootEmbed !== "true" ? IS_DEV : false;
 
 const embedViewerTabs = viewerTabs.filter((tab) =>
-  embeddableTabs.includes(tab.kind)
+  embeddableTabs.includes(tab.kind),
 );
 
 const defaultParams: ModalShareViewsParams = {
@@ -33,7 +33,7 @@ const iframeSrcCode = (
   pathWithNamespace: string,
   ref: string,
   accessCode: string | null,
-  params: (readonly [string, string])[]
+  params: (readonly [string, string])[],
 ) => {
   const query: Record<string, string> = {
     project: pathWithNamespace,
@@ -49,7 +49,7 @@ const iframeSrcCode = (
 <iframe src="${window.location.origin}/${
     linkToBuild ? `${BUILD_STAMP}/` : ""
   }embed.html?${new URLSearchParams(
-    query
+    query,
   ).toString()}" width="700" height="400" frameborder="0" scrolling="auto"></iframe>`;
 };
 
@@ -68,7 +68,7 @@ export const ModalShareEmbed: FC<{
 }) => {
   const { accessCode, requesting, requestAccessCode } = useRequestAccessCode(
     project,
-    "ReadEmbed"
+    "ReadEmbed",
   );
 
   const { params, setParams, changedParams } = useParams(defaultParams);
@@ -76,7 +76,7 @@ export const ModalShareEmbed: FC<{
     project.pathWithNamespace,
     selectedRelease,
     accessCode,
-    changedParams
+    changedParams,
   );
 
   const isPrivate = projectIsPrivate(project);

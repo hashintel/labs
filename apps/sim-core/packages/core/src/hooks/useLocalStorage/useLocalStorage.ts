@@ -22,7 +22,7 @@ import { getItem, setItem } from "./utils";
  */
 export function useLocalStorage<T>(
   key: string,
-  initialValue: any
+  initialValue: any,
 ): [T, Dispatch<SetStateAction<T>>] {
   const [value, setValue] = useState(() => (getItem(key) ?? initialValue) as T);
 
@@ -39,5 +39,5 @@ export function useLocalStorage<T>(
     setItem(key, value);
   }, [value]);
 
-  return [value as T, setValue];
+  return [value, setValue];
 }

@@ -9,8 +9,10 @@ const BASE_DOCS_URL =
 
 const BASE_REGULAR_EXP_URL = `${BASE_DOCS_URL}experiment-types`;
 
-interface ExperimentTypeHints
-  extends Record<ExperimentTypes, { description: string; docsUrl: string }> {}
+type ExperimentTypeHints = Record<
+  ExperimentTypes,
+  { description: string; docsUrl: string }
+>;
 
 const EXPERIMENT_TYPE_HINTS: ExperimentTypeHints = {
   values: {
@@ -53,7 +55,11 @@ export const ExperimentTypeTooltip: FC<{ type: ExperimentTypes }> = ({
   type,
 }) => (
   <div className="ExperimentModal__TypeDropdown_TooltipContainer">
-    <a href={EXPERIMENT_TYPE_HINTS[type].docsUrl} target="_blank">
+    <a
+      href={EXPERIMENT_TYPE_HINTS[type].docsUrl}
+      target="_blank"
+      rel="noreferrer"
+    >
       <IconInformationOutline size={28} />
     </a>
     <SimpleTooltip
@@ -66,7 +72,11 @@ export const ExperimentTypeTooltip: FC<{ type: ExperimentTypes }> = ({
       {EXPERIMENT_TYPE_HINTS[type].description}
       <br />
       <br />
-      <a href={EXPERIMENT_TYPE_HINTS[type].docsUrl} target="_blank">
+      <a
+        href={EXPERIMENT_TYPE_HINTS[type].docsUrl}
+        target="_blank"
+        rel="noreferrer"
+      >
         Read more.
       </a>
     </SimpleTooltip>

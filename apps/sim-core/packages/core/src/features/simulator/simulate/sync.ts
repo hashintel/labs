@@ -50,7 +50,7 @@ type SimulatorStore = typeof simulatorStore;
 
 export const syncStores = (
   appStore: AppStore,
-  simulatorStore: SimulatorStore
+  simulatorStore: SimulatorStore,
 ) => {
   const appStoreObservable = fromStore(appStore);
   const simulationStoreObservable = fromStore(simulatorStore);
@@ -59,8 +59,8 @@ export const syncStores = (
     simulatorStore.dispatch(
       resetSimulationDataAndHistory(
         projectUrl,
-        selectAnalysis(appStore.getState())
-      )
+        selectAnalysis(appStore.getState()),
+      ),
     );
   });
 
@@ -75,7 +75,7 @@ export const syncStores = (
         }
 
         return Promise.resolve();
-      })
+      }),
     )
     .subscribe();
 
@@ -95,7 +95,7 @@ export const syncStores = (
     .pipe(
       filter((state) => selectBootstrapped(state)),
       map(selectScope[Scope.useCloud]),
-      distinctUntilChanged()
+      distinctUntilChanged(),
     )
     .subscribe((canUseCloud) => {
       simulatorStore.dispatch(setCloudDisabled(!canUseCloud));
@@ -106,7 +106,7 @@ export const syncStores = (
       filter((state) => selectBootstrapped(state)),
       map(selectScope[Scope.useAccount]),
       distinctUntilChanged(),
-      skip(1)
+      skip(1),
     )
     .subscribe(() => {
       simulatorStore.dispatch(refetchHistory());
@@ -117,7 +117,7 @@ export const syncStores = (
       skip(1),
       map(selectResetting),
       distinctUntilChanged(),
-      filter((resetting) => resetting)
+      filter((resetting) => resetting),
     )
     .subscribe(() => {
       appStore.dispatch(clearUserAlerts());
@@ -125,13 +125,13 @@ export const syncStores = (
 
   merge(
     simulatorStoreActionObservable.pipe(
-      filter((action) => showCollatedAnalysisForExperiment.match(action))
+      filter((action) => showCollatedAnalysisForExperiment.match(action)),
     ),
     simulationStoreObservable.pipe(
       map(selectAnalysisMode),
       distinctUntilChanged(),
-      filter((mode) => !!mode && mode !== AnalysisMode.SingleRun)
-    )
+      filter((mode) => !!mode && mode !== AnalysisMode.SingleRun),
+    ),
   )
     .pipe(debounceTime(0))
     .subscribe(() => {
@@ -152,7 +152,7 @@ export const syncStores = (
           commitCreated({
             createdAt: new Date(action.payload.updatedAt).getTime(),
             commit: action.payload.commit,
-          })
+          }),
         );
       }
     });

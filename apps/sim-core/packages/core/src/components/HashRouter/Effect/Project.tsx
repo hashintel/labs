@@ -16,12 +16,12 @@ import { urlFromProject } from "../../../routes";
 import { useHandlePromiseRejection } from "../../ErrorBoundary";
 import { withSignal } from "../../../util/withSignal";
 
-type ProjectParams = {
+interface ProjectParams {
   namespace: string;
   path: string;
   ref: string;
   fork?: boolean;
-};
+}
 
 const routeHandler = ({
   namespace,
@@ -54,7 +54,7 @@ const HashRouterEffectProjectFetch: FC<{
     const { fromLegacy, file, ...params } = getSafeQueryParams();
     const { access, ...otherParams } = parseAccessCodeInParams(
       params,
-      ProjectAccessScope.Read
+      ProjectAccessScope.Read,
     );
 
     setQueryParams(
@@ -64,7 +64,7 @@ const HashRouterEffectProjectFetch: FC<{
         file: undefined,
         accessCode: access?.code ?? undefined,
       },
-      true
+      true,
     );
 
     // Assigning here due to a bug in TS typing
@@ -78,9 +78,9 @@ const HashRouterEffectProjectFetch: FC<{
             fromLegacy: !!fromLegacy,
             file,
             access,
-          })
+          }),
         ),
-        controller.signal
+        controller.signal,
       );
     }
 
@@ -112,7 +112,7 @@ export const HashRouterEffectProject: FC = () => {
 
   const project = useMemo<LinkableProject | null>(
     () => (pathWithNamespace && ref ? { pathWithNamespace, ref } : null),
-    [pathWithNamespace, ref]
+    [pathWithNamespace, ref],
   );
 
   return project ? (

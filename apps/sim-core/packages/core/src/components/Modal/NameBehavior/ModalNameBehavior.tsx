@@ -19,7 +19,7 @@ import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObs
 
 import "./ModalNameBehavior.css";
 
-type ModalNameBehaviorProps = {
+interface ModalNameBehaviorProps {
   errorMessage: string | null;
   languageOptions: ReactSelectOption[];
   name: string;
@@ -30,7 +30,7 @@ type ModalNameBehaviorProps = {
   onSelectedLanguageChange: (language: ReactSelectOption) => void;
   action: string;
   placeholder: string;
-};
+}
 
 export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
   onSubmit,
@@ -64,7 +64,7 @@ export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
     const errorRect = errorRef.current?.getBoundingClientRect();
 
     setTooltipError(
-      inputRect.width + (errorRect?.width ?? 0) > window.innerWidth * 0.7
+      inputRect.width + (errorRect?.width ?? 0) > window.innerWidth * 0.7,
     );
   }, []);
 
@@ -88,7 +88,7 @@ export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
       errorRef.current = node;
       setErrorObserver(node);
     },
-    [setErrorObserver]
+    [setErrorObserver],
   );
 
   return (

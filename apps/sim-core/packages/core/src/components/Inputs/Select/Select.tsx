@@ -24,7 +24,7 @@ export const Select = forwardRef<
     style,
     ...props
   },
-  ref
+  ref,
 ) {
   const passedValue = defaultValue ?? value;
   const currentValue = options.find((option) => option.value === passedValue);

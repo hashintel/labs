@@ -4,11 +4,11 @@ import { FancyButton } from "../../Fancy";
 
 import "./DataTablePagination.css";
 
-type DataTablePaginationProps = {
+interface DataTablePaginationProps {
   currentPage: number;
   setCurrentPage: Dispatch<SetStateAction<number>>;
   totalPages: number;
-};
+}
 
 export const DataTablePagination: FC<DataTablePaginationProps> = memo(
   ({ currentPage, setCurrentPage, totalPages }) => (
@@ -31,5 +31,5 @@ export const DataTablePagination: FC<DataTablePaginationProps> = memo(
         }
       />
     </div>
-  )
+  ),
 );

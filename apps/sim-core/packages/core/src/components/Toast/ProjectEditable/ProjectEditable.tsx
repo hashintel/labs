@@ -12,7 +12,7 @@ export const ToastProjectEditable: FC<{
 }> = ({ project }) => {
   if (!project.latestRelease || !isProjectLatest(project)) {
     throw new Error(
-      "Cannot load ToastProjectEditable for simulation without latest release"
+      "Cannot load ToastProjectEditable for simulation without latest release",
     );
   }
 

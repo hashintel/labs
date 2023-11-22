@@ -5,9 +5,9 @@ import { IconCheck, IconClose } from "../../Icon";
 
 import "./DataTableCell.css";
 
-type DataTableCellProps = {
+interface DataTableCellProps {
   cellValue: any;
-};
+}
 
 enum TypeOf {
   Undefined = "undefined",
@@ -84,5 +84,5 @@ export const DataTableCell: FC<DataTableCellProps> = memo(
     >
       {cell[typeof value](value)}
     </td>
-  )
+  ),
 );

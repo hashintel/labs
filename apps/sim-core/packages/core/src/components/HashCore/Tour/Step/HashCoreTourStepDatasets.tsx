@@ -23,12 +23,13 @@ export const HashCoreTourStepDatasets: FC = () => {
         <a
           href="https://docs.hash.ai/core/creating-simulations/datasets"
           target="_blank"
+          rel="noreferrer"
         >
           you can import datasets to customize your agents and behaviors
         </a>
         . Data, behaviors, and simulations that others users have shared are
         also available in{" "}
-        <a href={urljoin(SITE_URL, "@hash")} target="_blank">
+        <a href={urljoin(SITE_URL, "@hash")} target="_blank" rel="noreferrer">
           HASH
         </a>
         , which you can add to your own simulations.
@@ -36,7 +37,7 @@ export const HashCoreTourStepDatasets: FC = () => {
       <p>
         Your simulation and datasets are auto-saved to your{" "}
         {url ? (
-          <a href={url} target="_blank">
+          <a href={url} target="_blank" rel="noreferrer">
             profile
           </a>
         ) : (

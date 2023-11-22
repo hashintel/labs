@@ -25,7 +25,7 @@ it("renders without crashing", () => {
         </ErrorBoundary>
       </ModalProvider>
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -38,7 +38,7 @@ it("renders the right title and headings (create)", () => {
           <ModalOutputMetrics onClose={noop} onSave={noop} isCreate={true} />
         </ErrorBoundary>
       </ModalProvider>
-    </Provider>
+    </Provider>,
   );
   expect(getByText("Define new metric")).toBeDefined(); // title
   expect(getByText("METRIC NAME")).toBeDefined(); // first input label
@@ -47,7 +47,7 @@ it("renders the right title and headings (create)", () => {
   expect(getByText("Add additional operation")).toBeDefined(); // Finish? heading
   expect(getByText("Finished?")).toBeDefined(); // Finish? heading
   expect(
-    getByText("You'll be able to use your new metric in any plot.")
+    getByText("You'll be able to use your new metric in any plot."),
   ).toBeDefined(); // Finish? span
   expect(getByText("Create new metric")).toBeDefined(); // submit button
 });
@@ -60,7 +60,7 @@ it("renders the right title and headings (edit)", () => {
           <ModalOutputMetrics onClose={noop} onSave={noop} />
         </ErrorBoundary>
       </ModalProvider>
-    </Provider>
+    </Provider>,
   );
   expect(getByText("Edit metric")).toBeDefined(); // title
   expect(getByText("METRIC NAME")).toBeDefined(); // first input label
@@ -81,7 +81,7 @@ it("calls onClose when pressing ESCAPE key", () => {
           <ModalOutputMetrics onClose={mockFn} onSave={noop} />
         </ErrorBoundary>
       </ModalProvider>
-    </Provider>
+    </Provider>,
   );
   fireEvent.keyDown(baseElement, { key: "Escape", code: "Escape" });
   expect(mockFn).toHaveBeenCalled();

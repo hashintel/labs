@@ -4,24 +4,24 @@ import { PlotParams } from "react-plotly.js";
 import { AnalysisMode } from "../../features/simulator/simulate/enum";
 import { ReactSelectOption } from "../Dropdown/types";
 
-export type AnalysisProps = {
+export interface AnalysisProps {
   currentStep: number;
   visible?: boolean;
-};
+}
 
-export type AnalysisViewerPlotsTabProps = {
+export interface AnalysisViewerPlotsTabProps {
   analysisPlotsDataAvailable: boolean;
   analysisOutputMetricsDataAvailable: boolean;
   currentStep: number;
-  outputs: { [index: string]: any[] };
+  outputs: Record<string, any[]>;
   analysisMode?: AnalysisMode | null;
   onPlotsModalSaveHandler: Function;
   onPlotsModalDeleteHandler: Function;
   showPlotsModal: (event: MouseEvent) => void;
   readonly: boolean;
-};
+}
 
-export type AnalysisViewerOutputMetricsTabProps = {
+export interface AnalysisViewerOutputMetricsTabProps {
   analysisOutputMetricsDataAvailable: boolean;
   showOutputMetricsModal: (event: MouseEvent) => void;
   analysis: any;
@@ -29,7 +29,7 @@ export type AnalysisViewerOutputMetricsTabProps = {
   onOutputMetricsModalDeleteHandler: Function;
   onDuplicateMetricHandler: Function;
   readonly: boolean;
-};
+}
 
 export type OutputPlotProps = PlotParams & {
   key: string;
@@ -42,12 +42,12 @@ export enum ButtonCallToActionType {
   PLOTS = "PLOTS",
 }
 
-export type ButtonCallToActionProps = {
+export interface ButtonCallToActionProps {
   children: JSX.Element | JSX.Element[];
   onClick?: (event: MouseEvent) => void;
-};
+}
 
-export type AnalysisViewerActionButtonsProps = {
+export interface AnalysisViewerActionButtonsProps {
   canCreateNewPlot?: boolean;
   showOutputMetricsModal: (event: MouseEvent) => void;
   showPlotsModal: (event: MouseEvent) => void;
@@ -57,7 +57,7 @@ export type AnalysisViewerActionButtonsProps = {
    * it
    */
   canEdit: true;
-};
+}
 
 export enum ComparisonTypes {
   eq = "eq",
@@ -78,7 +78,7 @@ export enum OperationTypes {
   mean = "mean",
 }
 
-export type OperationItemProps = {
+export interface OperationItemProps {
   operation: Operation;
   index: number;
   onDelete: (event: MouseEvent) => void;
@@ -86,33 +86,33 @@ export type OperationItemProps = {
   permittedOperations: ReactSelectOption[]; // the operations that preceed this one.
   hideDelete?: boolean;
   behaviorKeysOptions?: ReactSelectOption[]; // used for "field"
-};
+}
 
-export type Operation = {
+export interface Operation {
   op: OperationTypes;
   field?: string;
   comparison?: ComparisonTypes;
   value?: any;
-};
+}
 
-export type OutputMetricsGridProps = {
+export interface OutputMetricsGridProps {
   onOutputMetricsModalSave: Function;
-  metrics?: { [index: string]: Operation[] };
+  metrics?: Record<string, Operation[]>;
   onOutputMetricsModalDelete?: Function;
   onDuplicateMetric?: Function;
   sizeClassname?: string;
   readonly: boolean;
-};
+}
 
-type PlotLayout = {
+interface PlotLayout {
   width: string;
   height: string;
-};
+}
 
-type PlotPosition = {
+interface PlotPosition {
   x: string;
   y: string;
-};
+}
 
 enum PlotType {
   timeseries,
@@ -121,39 +121,39 @@ enum PlotType {
   line,
 }
 
-type PlotData = {
+interface PlotData {
   y: string;
   name: string;
-};
+}
 
-export type Plot = {
+export interface Plot {
   title: string;
   layout: PlotLayout;
   position: PlotPosition;
   type?: PlotType;
   data?: PlotData[];
   timeseries?: string[];
-};
+}
 
-export type AnalysisObject = {
-  outputs: { [index: string]: Operation[] };
+export interface AnalysisObject {
+  outputs: Record<string, Operation[]>;
   plots: Plot[];
-};
+}
 
-export type AnalysisState = {
+export interface AnalysisState {
   lastAnalysisString?: any;
   analysis?: AnalysisObject;
   error: any;
-};
+}
 
-export type OnOutputMetricsModalSaveType = {
+export interface OnOutputMetricsModalSaveType {
   title: string;
   operations: Operation[];
-};
+}
 
-export type OnOutputMetricsModalSaveProps = {
+export interface OnOutputMetricsModalSaveProps {
   data: OnOutputMetricsModalSaveType;
-};
+}
 
 export enum ChartTypes {
   area = "area",
@@ -171,18 +171,18 @@ export enum ChartTypes {
   // scatter3d = "scatter3d",
 }
 
-type AxisItemType = {
+interface AxisItemType {
   name: string;
   metric: string;
-};
+}
 export type YAxisItemType = AxisItemType;
 export type XAxisItemType = AxisItemType;
 
-export type YAxisItemProps = {
+export interface YAxisItemProps {
   item: YAxisItemType;
   index: number;
   metricKeysOptions: ReactSelectOption[];
   onDelete: (event: MouseEvent) => void;
   onChange: Function;
   hideDelete: boolean;
-};
+}

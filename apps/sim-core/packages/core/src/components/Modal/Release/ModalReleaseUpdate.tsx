@@ -21,9 +21,9 @@ import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
 
 import "./ModalReleaseUpdate.scss";
 
-type ModalReleaseUpdateProps = {
+interface ModalReleaseUpdateProps {
   onClose: VoidFunction;
-};
+}
 
 const parseVersion: (version: string) => [number, number, number] = (semver) =>
   semver
@@ -45,7 +45,7 @@ export const ModalReleaseUpdate: FC<ModalReleaseUpdateProps> = ({
 
   if (!project?.latestRelease) {
     throw new Error(
-      "Cannot update release for a project that has never been released"
+      "Cannot update release for a project that has never been released",
     );
   }
 
@@ -68,7 +68,7 @@ export const ModalReleaseUpdate: FC<ModalReleaseUpdateProps> = ({
           tag: selectedVersion,
           updateDescription: changeSummary,
           toPublish: toPublish.map((file) => file.path.formatted),
-        })
+        }),
       );
       onClose();
     } catch (err) {

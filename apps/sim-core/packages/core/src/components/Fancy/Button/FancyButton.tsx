@@ -29,7 +29,7 @@ export const FancyButton: FC<FancyButtonProps> = ({
 
   if (numChildren > 2) {
     throw new Error(
-      `FancyButton expected no more than 2 children, got ${numChildren}`
+      `FancyButton expected no more than 2 children, got ${numChildren}`,
     );
   }
 
@@ -38,7 +38,7 @@ export const FancyButton: FC<FancyButtonProps> = ({
       className={classNames(
         `Fancy Fancy-${theme} Fancy-${size} Fancy-${icon}`,
         { "Fancy-no-label": numChildren === 0 },
-        className
+        className,
       )}
       style={{
         ...style,

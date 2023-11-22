@@ -14,7 +14,7 @@ import { CommitWithoutStats } from "../util/api/queries/commitActions";
 import { FileAction } from "./files/types";
 import { Scope, batchedScopes } from "./scopes";
 
-type SetProjectParams = {
+interface SetProjectParams {
   project: SimulationProjectWithHcFiles | LocalStorageProject;
   meta: {
     fromLegacy?: boolean;
@@ -22,7 +22,7 @@ type SetProjectParams = {
     file?: string;
   };
   scopes: Record<Scope.edit | Scope.mutate, boolean>;
-};
+}
 /**
  * @todo this should handle navigate
  * @todo this will need to be handled in the examples / user projects in case
@@ -33,17 +33,19 @@ type SetProjectParams = {
  */
 export const setProject = createAction<SetProjectParams>("shared/setProject");
 
-export const setProjectWithMeta = (
-  project: SetProjectParams["project"],
-  meta: SetProjectParams["meta"] = {}
-): AppThunk => (dispatch, getState) =>
-  dispatch(
-    setProject({
-      project,
-      meta,
-      scopes: batchedScopes.selectScopes(getState())(project),
-    })
-  );
+export const setProjectWithMeta =
+  (
+    project: SetProjectParams["project"],
+    meta: SetProjectParams["meta"] = {},
+  ): AppThunk =>
+  (dispatch, getState) =>
+    dispatch(
+      setProject({
+        project,
+        meta,
+        scopes: batchedScopes.selectScopes(getState())(project),
+      }),
+    );
 
 export const projectUpdated = createAction<{
   updatedAt: string;
@@ -53,7 +55,7 @@ export const projectUpdated = createAction<{
 }>("shared/projectUpdated");
 
 export const canUserEditProjectUpdate = createAction<CanUserEditProject>(
-  "shared/canUserEditProjectUpdate"
+  "shared/canUserEditProjectUpdate",
 );
 
 export const beginActionSave = createAction<string[]>("shared/beginActionSave");

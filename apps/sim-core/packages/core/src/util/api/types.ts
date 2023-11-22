@@ -1,23 +1,37 @@
 import { CommitActionVerb } from "./auto-types";
 
-export type MyType<T> = { me: T };
+export interface MyType<T> {
+  me: T;
+}
 
-export type Org = { id: string; name: string; shortname: string };
-export type Role = { id: string; name: string; description?: string | null };
-export type OrgInfo = { org: Org; role: Role; jobTitle?: string | null };
-export type TourProgress = {
+export interface Org {
+  id: string;
+  name: string;
+  shortname: string;
+}
+export interface Role {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+export interface OrgInfo {
+  org: Org;
+  role: Role;
+  jobTitle?: string | null;
+}
+export interface TourProgress {
   completed: boolean;
   version?: string | null;
   lastStepViewed?: string | null;
-};
+}
 
-export type BasicUser = {
+export interface BasicUser {
   id: string;
   email: string;
   fullName: string;
   shortname: string;
   staffMember?: boolean | null;
-};
+}
 
 export type User = BasicUser & {
   memberOf?: OrgInfo[] | null;
@@ -26,9 +40,15 @@ export type User = BasicUser & {
   image?: string | null;
 };
 
-type HasId = { id: string };
-type HasName = { name: string };
-type HasDescription = { description: string };
+interface HasId {
+  id: string;
+}
+interface HasName {
+  name: string;
+}
+interface HasDescription {
+  description: string;
+}
 
 export type Keyword = HasName & {
   count: string;
@@ -50,15 +70,15 @@ export type Subject = HasId &
     layer?: "core" | "pending"; // SchemaOrgLayer
   };
 
-export type ReleaseMeta = {
+export interface ReleaseMeta {
   keywords: Keyword[];
   licenses: License[];
   subjects?: Subject[];
-};
+}
 
-export type ApiCommitAction = {
+export interface ApiCommitAction {
   action: CommitActionVerb;
   filePath: string;
   previousPath?: string;
   content?: string;
-};
+}

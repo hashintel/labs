@@ -15,7 +15,7 @@ export const HashRouterEffectNotFound: FC = () => {
           props: { requestedProject: null },
         },
         url: window.location.pathname,
-      })
+      }),
     );
   }, [dispatch]);
 

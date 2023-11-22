@@ -30,6 +30,7 @@ export const HashCoreTourStepAgents: FC = () => {
         <a
           target="_blank"
           href="https://docs.hash.ai/core/creating-simulations/anatomy-of-an-agent"
+          rel="noreferrer"
         >
           HASH is oriented around agents.
         </a>{" "}

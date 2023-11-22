@@ -62,7 +62,7 @@ function createEditorInstance(container: HTMLElement): EditorInstance {
     (instance as any)._standaloneKeybindingService.addDynamicKeybinding(
       binding,
       null,
-      () => {}
+      () => {},
     );
   }
 
@@ -83,7 +83,7 @@ const attr = (el: any, name: string) => (isEl(el) ? el.getAttribute(name) : "");
 
 type MonacoContainerHook<EditorType> = [
   EditorType | undefined,
-  RefCallback<HTMLDivElement>
+  RefCallback<HTMLDivElement>,
 ];
 export type DiffMonacoContainerHook = MonacoContainerHook<DiffEditorInstance>;
 export type MainMonacoContainerHook = MonacoContainerHook<EditorInstance>;
@@ -91,7 +91,7 @@ export type MainMonacoContainerHook = MonacoContainerHook<EditorInstance>;
 export function useMonacoContainer(diff: true): DiffMonacoContainerHook;
 export function useMonacoContainer(diff?: false): MainMonacoContainerHook;
 export function useMonacoContainer(
-  diff = false
+  diff = false,
 ): MonacoContainerHook<DiffEditorInstance | EditorInstance> {
   const [editorInstance, setEditorInstance] = useState<
     EditorInstance | DiffEditorInstance
@@ -128,7 +128,7 @@ export function useMonacoContainer(
         monacoContainerRef.current
           ?.closest(layoutPanePrimary)
           ?.classList.remove(overflowVisible);
-      }
+      },
     );
 
     const contextMenuEl = query(monacoContainerRef.current, contextView);
@@ -173,13 +173,13 @@ export function useMonacoContainer(
         setEditorInstance(undefined);
       }
     },
-    [diff]
+    [diff],
   );
 
-  return useMemo(() => [editorInstance, setContainerRef], [
-    editorInstance,
-    setContainerRef,
-  ]);
+  return useMemo(
+    () => [editorInstance, setContainerRef],
+    [editorInstance, setContainerRef],
+  );
 }
 
 const MonacoContext = createContext<{
@@ -198,19 +198,19 @@ export const MonacoContainerProvider: FC = ({ children }) => {
 };
 
 export function useMonacoContainerFromContext(
-  diff: true
+  diff: true,
 ): DiffMonacoContainerHook;
 export function useMonacoContainerFromContext(
-  diff?: false
+  diff?: false,
 ): MainMonacoContainerHook;
 export function useMonacoContainerFromContext(
-  diff = false
+  diff = false,
 ): MainMonacoContainerHook | DiffMonacoContainerHook {
   const context = useContext(MonacoContext);
 
   if (!context) {
     throw new Error(
-      "Cannot call useMonacoContainerFromContext from outside of MonacoContainerProvider"
+      "Cannot call useMonacoContainerFromContext from outside of MonacoContainerProvider",
     );
   }
 

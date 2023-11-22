@@ -37,7 +37,7 @@ export const HashCoreHeaderMenu: FC = memo(() => {
     (tab) => {
       dispatch(openTab(tab));
     },
-    [dispatch]
+    [dispatch],
   );
 
   return (

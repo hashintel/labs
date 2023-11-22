@@ -16,9 +16,9 @@ import { promoteToLive } from "../../../../util/api/queries";
 
 import "./HashVersionPicker.css";
 
-type HashVersionPickerProps = {
+interface HashVersionPickerProps {
   versions: string[]; //TODO: @ulyssesp create a type for versions
-};
+}
 
 const useStyles = makeStyles((theme) => ({
   typography: {
@@ -106,7 +106,7 @@ export const HashVersionPicker: FC<HashVersionPickerProps> = ({ versions }) => {
             if (newValue) {
               // Add "hash-prod-" so it doesn't have to come down in the version list
               window.location.replace(
-                getUrlForCurrentRouteWithBuildStamp(`hash-prod-${newValue}`)
+                getUrlForCurrentRouteWithBuildStamp(`hash-prod-${newValue}`),
               );
             }
           }}

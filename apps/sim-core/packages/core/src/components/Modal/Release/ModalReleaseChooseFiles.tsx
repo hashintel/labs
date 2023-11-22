@@ -39,7 +39,7 @@ export const ModalReleaseChooseFiles: FC<{
             const behaviorPath = behavior.path.formatted;
             const published = existingFiles.includes(behaviorPath);
             const toPublish = selectedFiles.some(
-              (behavior) => behavior.path.formatted === behaviorPath
+              (behavior) => behavior.path.formatted === behaviorPath,
             );
 
             return (
@@ -55,8 +55,8 @@ export const ModalReleaseChooseFiles: FC<{
                         checked
                           ? [...selectedFiles, behavior]
                           : selectedFiles.filter(
-                              (file) => file.path.formatted !== behaviorPath
-                            )
+                              (file) => file.path.formatted !== behaviorPath,
+                            ),
                       );
                     }}
                   />

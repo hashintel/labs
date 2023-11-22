@@ -8,17 +8,17 @@ import { updateFile } from "../../features/files/slice";
 
 export const MAGIC_STEPS_KEY = "Use steps on the X Axis";
 
-type ModalsBaseProps = {
+interface ModalsBaseProps {
   dispatch: Function;
   setAnalysis: Function;
   analysis: any;
   analysisString?: string;
-};
+}
 
-type OutputMetricsModalSubmitType = {
+interface OutputMetricsModalSubmitType {
   title: string;
   operations: Operation[];
-};
+}
 
 type OnOutputMetricsModalSaveInputType = ModalsBaseProps & {
   data: OutputMetricsModalSubmitType;
@@ -37,51 +37,51 @@ type OnPlotsModalDeleteType = ModalsBaseProps & {
   indexToDelete: number;
 };
 
-type PlotsModalChartTypeOption = {
+interface PlotsModalChartTypeOption {
   value: string;
   label: string;
-};
+}
 
-type PlotsModalYAxisItemType = {
+interface PlotsModalYAxisItemType {
   name: string;
   metric: string;
-};
+}
 
-type PlotsModalXAxisItemType = {
+interface PlotsModalXAxisItemType {
   name: string;
   metric: string;
-};
+}
 
-type PlotsModalLayoutType = {
+interface PlotsModalLayoutType {
   width: string;
   height: string;
-};
+}
 
-type PlotsModalPositionType = {
+interface PlotsModalPositionType {
   x: string;
   y: string;
-};
+}
 
-type PlotsModalSubmitType = {
+interface PlotsModalSubmitType {
   title: string;
   chartType: PlotsModalChartTypeOption;
   yitems?: PlotsModalYAxisItemType[];
   xitems?: PlotsModalXAxisItemType[];
   layout: PlotsModalLayoutType;
   position: PlotsModalPositionType;
-};
+}
 
 type OnPlotsModalSaveType = ModalsBaseProps & {
   data: PlotsModalSubmitType;
   plotIndex?: number;
 };
 
-type saveToAnalysisFile = {
+interface saveToAnalysisFile {
   dispatch: Function;
   setAnalysis: Function;
   analysisString?: string;
   newValues: any;
-};
+}
 
 const saveToAnalysisFile = ({
   dispatch,
@@ -160,8 +160,8 @@ export const onDuplicateMetric = ({
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getYAxisItemsFromDataDefinition = (
-  input: PlotDefinition & any
-): Array<YAxisItemType> => {
+  input: PlotDefinition & any,
+): YAxisItemType[] => {
   if (!input.type && input[ChartTypes.timeseries]) {
     return input.timeseries.map((metric: any) => ({
       name: metric,
@@ -196,8 +196,8 @@ export const getYAxisItemsFromDataDefinition = (
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getXAxisItemsFromDataDefinition = (
-  input: PlotDefinition & any
-): Array<YAxisItemType> => {
+  input: PlotDefinition & any,
+): YAxisItemType[] => {
   if (!input.type) {
     return input.data;
   }
@@ -212,14 +212,14 @@ export const getXAxisItemsFromDataDefinition = (
 };
 
 export const getPlotTypeFromDataDefinition = (
-  input: PlotDefinition & any
+  input: PlotDefinition & any,
 ): string => input.type ?? ChartTypes.timeseries;
 
 const chartItemLabel = (item: { name?: string; metric?: string }) =>
   item.name ?? item.metric;
 
 export const transformPlotDataBasedOnChartType = (
-  input: PlotDefinition & any
+  input: PlotDefinition & any,
 ) => {
   const result = Object.assign({}, input);
   switch (input.type) {
@@ -276,7 +276,7 @@ export const transformPlotDataBasedOnChartType = (
         : input.data?.xitems.length > 0;
       if (!hasYItems && !hasXItems) {
         console.log(
-          "Caught invalid configuration for line or scatter plot. The validation for this should be added to the Plots modal."
+          "Caught invalid configuration for line or scatter plot. The validation for this should be added to the Plots modal.",
         );
         result.data = []; // we shouldnt get to this case, so prevent writing invalid stuff
       }

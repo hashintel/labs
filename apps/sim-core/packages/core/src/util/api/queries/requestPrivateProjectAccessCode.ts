@@ -4,7 +4,7 @@ import { query } from "../query";
 
 export const requestPrivateProjectAccessCode = async (
   project: LinkableProject,
-  level: ProjectAccessCodeAccessType
+  level: ProjectAccessCodeAccessType,
 ) =>
   (
     await query<{
@@ -17,6 +17,6 @@ export const requestPrivateProjectAccessCode = async (
         }
       }
     `,
-      { project: project.pathWithNamespace, level }
+      { project: project.pathWithNamespace, level },
     )
   ).requestPrivateProjectAccessCode.code.code;

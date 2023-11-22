@@ -15,5 +15,5 @@ export const selectExperiments = createSelector(
       console.error("Error parsing experiments.json", err);
       return null;
     }
-  }
+  },
 );

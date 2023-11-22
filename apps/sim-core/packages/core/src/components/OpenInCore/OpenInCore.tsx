@@ -15,6 +15,7 @@ export const OpenInCore = () => {
       className="OpenInCore"
       href={`${window.location.origin}${projectUrl}`}
       target="_blank"
+      rel="noreferrer"
     >
       <Logo logoSize={2.0921875} textSize={1.23}>
         <h4 className="OpenInCore__Text">

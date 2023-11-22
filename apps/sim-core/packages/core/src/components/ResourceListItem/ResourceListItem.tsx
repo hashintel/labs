@@ -8,21 +8,21 @@ import { ResourceProject } from "../../features/project/types";
 import type { RootState } from "../../features/types";
 import { makeSelectPresentItemsFromResource } from "../HashCore/Resources/selectors";
 
-type ResourceListItemProps = {
+interface ResourceListItemProps {
   resource: ResourceProject;
-};
+}
 
 export const ResourceListItem: FC<ResourceListItemProps> = ({ resource }) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
 
   const selectPresentItemsFromResource = useMemo(
     makeSelectPresentItemsFromResource,
-    []
+    [],
   );
 
   const memoSelector = useCallback(
     (state: RootState) => selectPresentItemsFromResource(state, resource),
-    [selectPresentItemsFromResource, resource]
+    [selectPresentItemsFromResource, resource],
   );
 
   const presentItems = useSelector<RootState, string[]>(memoSelector);

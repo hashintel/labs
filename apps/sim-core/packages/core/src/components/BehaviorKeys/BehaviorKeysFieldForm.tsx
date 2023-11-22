@@ -62,7 +62,7 @@ export const BehaviorKeysFieldForm: FC<BehaviorKeysFieldFormProps> = ({
             },
           },
         }
-      : {}
+      : {},
   );
 
   const debouncedOnAdd = debounce(onAddField);
@@ -98,7 +98,7 @@ export const BehaviorKeysFieldForm: FC<BehaviorKeysFieldFormProps> = ({
           name={`${row.uuid}.type`}
           className="BehaviorKeys__FieldForm__Type"
           options={behaviorKeysRowTypes.flatMap((type) =>
-            type === "any" && projection.length > 0 ? [] : [{ value: type }]
+            type === "any" && projection.length > 0 ? [] : [{ value: type }],
           )}
           value={row.meta.type}
           onChange={(evt) => {
@@ -128,7 +128,7 @@ export const BehaviorKeysFieldForm: FC<BehaviorKeysFieldFormProps> = ({
         {fieldHasRows(row) ? (
           <button
             className={classNames(
-              "BehaviorKeys__FieldForm__Button BehaviorKeys__FieldForm__Button--children"
+              "BehaviorKeys__FieldForm__Button BehaviorKeys__FieldForm__Button--children",
             )}
             onClick={() => {
               onProject();
@@ -157,7 +157,7 @@ export const BehaviorKeysFieldForm: FC<BehaviorKeysFieldFormProps> = ({
               "BehaviorKeys__FieldForm__Button BehaviorKeys__FieldForm__Button--options",
               {
                 "BehaviorKeys__FieldForm__Button--options--open": isOptionsOpen,
-              }
+              },
             )}
             onClick={() => setIsOptionsOpen(!isOptionsOpen)}
           >

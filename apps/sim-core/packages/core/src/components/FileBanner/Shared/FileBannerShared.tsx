@@ -15,10 +15,10 @@ import { useModalNameBehavior } from "../../HashCore/Files/hooks/useModalNameBeh
 import "../FileBanner.css";
 import "./FileBannerShared.css";
 
-type FileBannerSharedProps = {
+interface FileBannerSharedProps {
   file: HcSharedBehaviorFile;
   project: SimulationProject;
-};
+}
 
 export const FileBannerShared: FC<FileBannerSharedProps> = ({
   file,
@@ -26,7 +26,7 @@ export const FileBannerShared: FC<FileBannerSharedProps> = ({
 }) => {
   const destination = useMemo(
     () => parse({ name: file.path.name, ext: file.path.ext }),
-    [file]
+    [file],
   );
 
   const dispatch = useDispatch();
@@ -41,7 +41,7 @@ export const FileBannerShared: FC<FileBannerSharedProps> = ({
       placeholder: "Name your forked behavior",
       onSubmit: copy,
     },
-    destination
+    destination,
   );
 
   const files = useSelector(selectIdKindAndPathFromFiles);

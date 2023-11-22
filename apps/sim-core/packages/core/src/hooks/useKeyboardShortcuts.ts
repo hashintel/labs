@@ -12,16 +12,14 @@ export enum HotKey {
 export const getMetaCharacter = () =>
   navigator.platform.toUpperCase().indexOf("MAC") >= 0 ? "⌘" : "Ctrl";
 
-type ShortcutMap = {
-  [key: string]: VoidFunction | undefined;
-};
+type ShortcutMap = Record<string, VoidFunction | undefined>;
 
-type HandlerDescription = {
+interface HandlerDescription {
   meta?: ShortcutMap;
   metaShift?: ShortcutMap;
   single?: ShortcutMap;
   alt?: ShortcutMap;
-};
+}
 
 const listeningState: {
   listener: null | ((evt: KeyboardEvent) => void);
@@ -71,7 +69,7 @@ export const useKeyboardShortcuts = (handlers: HandlerDescription) => {
     return () => {
       listeningState.handlers.splice(
         listeningState.handlers.indexOf(handlersRef),
-        1
+        1,
       );
 
       if (!listeningState.handlers.length && listeningState.listener) {

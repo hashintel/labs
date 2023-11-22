@@ -34,7 +34,7 @@ export const getTourShowcase = async (): Promise<TourShowcase[]> =>
     //   {}
     // )
     // Migration Shim
-    tourShowcaseResponse
+    tourShowcaseResponse,
   ).reduce<TourShowcase[]>((showcase, item) => {
     if (item) {
       showcase.push({

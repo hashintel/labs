@@ -18,7 +18,7 @@ const numThreads = (window.navigator.hardwareConcurrency ?? 4) + 1;
  * Spin up a new simulation provider and then dispatch an update to the Ui
  */
 export const simulationProvider = new SimulationProvider(
-  getLocalStorageSimulatorTarget()
+  getLocalStorageSimulatorTarget(),
 );
 
 /**

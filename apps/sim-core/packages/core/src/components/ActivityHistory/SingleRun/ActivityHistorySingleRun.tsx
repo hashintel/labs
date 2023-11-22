@@ -36,11 +36,8 @@ export const ActivityHistorySingleRun: FC<{
   const selectRun = useSelectRun(id);
   const open = useRunOpen(id);
 
-  const [
-    onContextMenu,
-    exportingTooltip,
-    exporting,
-  ] = useSimulationRunContextMenu(itemRef, id);
+  const [onContextMenu, exportingTooltip, exporting] =
+    useSimulationRunContextMenu(itemRef, id);
 
   return (
     <ActivityHistoryItem

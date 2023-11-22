@@ -40,7 +40,7 @@ export const PlayPauseTooltipModeSwitcher: FC = () => {
   const speed = useSimulatorSelector(selectPresentingSpeed);
   const mode = useSimulatorSelector(selectCurrentSimMode);
   const { retentionPolicy, stepsToRetain } = useSimulatorSelector(
-    selectCurrentSimStepRetention
+    selectCurrentSimStepRetention,
   );
   const hasSteps = useSimulatorSelector(selectCurrentRunnerHasSteps);
   const dispatch = useSimulatorDispatch();

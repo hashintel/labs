@@ -19,7 +19,7 @@ it("renders without crashing", () => {
         <ModalReleaseUpdate onClose={() => {}} />
       </ErrorBoundary>
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

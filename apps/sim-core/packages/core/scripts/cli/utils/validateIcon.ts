@@ -11,7 +11,7 @@ export function validateIcon(iconPath: string): boolean {
       `Got \`--fromIcon "${iconPath}"\`, but ${[
         ...(isSvg ? [] : ["it's missing the `.svg` extension"]),
         ...(isFile ? [] : ["there's no file at that location"]),
-      ].join(", and ")}`
+      ].join(", and ")}`,
     );
   }
 

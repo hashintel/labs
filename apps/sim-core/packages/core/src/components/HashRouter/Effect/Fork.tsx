@@ -21,7 +21,7 @@ import { useNavigateAway } from "./hooks";
 
 const useEnsureProject = (
   project: LinkableProject,
-  onCancel: VoidFunction
+  onCancel: VoidFunction,
 ): SimulationProject | null => {
   const dispatch = useDispatch<AppDispatch>();
   const currentProject = useSelector(selectCurrentProject);
@@ -71,10 +71,10 @@ export const HashRouterEffectFork: FC<{
   const { canFork, canForkIfSignedIn, canLogin } = useScopes(
     Scope.fork,
     Scope.forkIfSignedIn,
-    Scope.login
+    Scope.login,
   );
   const project = useEnsureProject(targetProject, () =>
-    canLogin ? forceLogIn(true) : navigateAway(true)
+    canLogin ? forceLogIn(true) : navigateAway(true),
   );
   const projectName = project?.name;
   const projectVisibility = project?.visibility;
@@ -95,7 +95,7 @@ export const HashRouterEffectFork: FC<{
           visibilityDisabled={projectVisibility === "private"}
         />
       ) : null,
-    [dispatch, navigateAway, project, projectName, projectVisibility]
+    [dispatch, navigateAway, project, projectName, projectVisibility],
   );
 
   useEffect(() => {
