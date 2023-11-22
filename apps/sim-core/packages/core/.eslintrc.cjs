@@ -24,22 +24,9 @@ module.exports = {
     "plugin:react/recommended",
     "prettier",
   ],
-  plugins: [
-    "react-refresh",
-    "@typescript-eslint",
-    "react-hooks",
-    "react",
-    "import",
-  ],
+  plugins: ["@typescript-eslint", "react-hooks", "react", "import"],
   rules: {
-    "id-length": [
-      "error",
-      {
-        min: 2,
-        exceptions: ["_", "x", "y", "z", "a", "b"],
-        properties: "never",
-      },
-    ],
+    // Augmentations
     "react-hooks/rules-of-hooks": "error",
     "react-hooks/exhaustive-deps": [
       "warn",
@@ -47,6 +34,8 @@ module.exports = {
         additionalHooks: "(^useModal$)|(^useUserGatedEffect$)",
       },
     ],
+
+    // Preferences
     "@typescript-eslint/no-unused-vars": [
       "error",
       { argsIgnorePattern: "^_+", varsIgnorePattern: "^_+" },
@@ -55,12 +44,8 @@ module.exports = {
     "prefer-const": "error",
     "react/jsx-key": "error",
     "react/jsx-no-useless-fragment": "error",
-    "react/self-closing-comp": "warn",
+    "react/self-closing-comp": "error",
     eqeqeq: ["error", "always", { null: "ignore" }],
-    "react-refresh/only-export-components": [
-      "off",
-      { allowConstantExport: true },
-    ],
 
     // Disabled due to tech debt
     // Ideally each of these would be brought back into play, but they're not small potatoes.
@@ -78,7 +63,7 @@ module.exports = {
       { ignoreMixedLogicalExpressions: true, ignorePrimitives: true },
     ],
 
-    // Deliberately disabled
+    // Deliberately disabled to ease use of React/Redux
     "@typescript-eslint/await-thenable": "off", // Redux/Dispatch uses this a lot.
     "@typescript-eslint/no-empty-function": "off", // React uses this a lot.
     "@typescript-eslint/no-floating-promises": "off", // redux 'dispatch' and other react hooks create lots of floating promises.

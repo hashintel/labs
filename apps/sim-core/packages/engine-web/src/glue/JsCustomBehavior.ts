@@ -23,7 +23,7 @@ export class JsCustomBehavior {
     src: NamedBehavior,
     properties: Json,
     datasets: Json,
-    agentCache: AgentCache
+    agentCache: AgentCache,
   ) {
     this.name = src.name;
     this.dependencies = src.dependencies;
@@ -35,7 +35,7 @@ export class JsCustomBehavior {
 
   public apply(
     stateWrapper: AgentStateWrapper,
-    contextWrapper: ContextWrapper
+    contextWrapper: ContextWrapper,
   ) {
     const context: Context = {
       messages: () => contextWrapper.messages(),
@@ -59,15 +59,18 @@ export class JsCustomBehavior {
         // Errors from flushing to Rust do not go through our extended EvalError
         // We need to add information about the behavior and cause
         throw new Error(
-          `error setting agent state after behavior ${this.name}: ${err.message}`
+          `error setting agent state after behavior ${this.name}: ${
+            err instanceof Error ? err.message : err
+          }`,
         );
       }
-    } catch (e) {
+    } catch (err) {
       /**
        * @todo this context is lost when stringifying in WasmRequestHandler
        *    figure out why and do something about it, or stop adding it.
        */
-      e.args = {
+      // @ts-expect-error args isn't on the err type, we're bolting it on.
+      err.args = {
         context: {
           messages: JSON.parse(JSON.stringify(context.messages())),
           neighbors: JSON.parse(JSON.stringify(context.neighbors())),
@@ -75,7 +78,7 @@ export class JsCustomBehavior {
           // use the copy in the main thread.
         },
       };
-      throw e;
+      throw err;
     } finally {
       /**
        * Make sure to free memory!
@@ -99,8 +102,10 @@ export class JsCustomBehavior {
         const agent_id = state.wrapper.get("agent_id");
         throw new Error(
           `could not set state variable '${key}' to value ${JSON.stringify(
-            value
-          )} on agent with id '${agent_id}': ${err.message}`
+            value,
+          )} on agent with id '${agent_id}': ${
+            err instanceof Error ? err.message : err
+          }`,
         );
       }
     });

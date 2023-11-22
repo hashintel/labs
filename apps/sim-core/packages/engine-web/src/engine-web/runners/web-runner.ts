@@ -15,7 +15,7 @@ type WorkerId = string;
 type QueueEntry = [
   RunnerRequest,
   DeferredPromise<RunnerStatus>,
-  DeferredPromise<void>
+  DeferredPromise<void>,
 ];
 
 // experimentQueue = new Map<string, QueuedExperimentRun>();
@@ -40,7 +40,7 @@ export class WebExperimentRunner implements ExperimentRunner {
 
   async handleRequest(
     req: RunnerRequest,
-    simulationRunId: string
+    simulationRunId: string,
   ): Promise<RunnerStatus> {
     // This method should never be called, but regardless, throw an error
     throw new Error("Single-actions are not supported (yet) with experiments");
@@ -50,7 +50,7 @@ export class WebExperimentRunner implements ExperimentRunner {
    * @todo implement stream
    */
   async queueExperiment(
-    src: ExperimentSrc
+    src: ExperimentSrc,
   ): Promise<ExperimentRun & ExperimentPromises> {
     const experiment = prepareExperiment(src);
 
@@ -63,7 +63,7 @@ export class WebExperimentRunner implements ExperimentRunner {
       [...runs].map<[string, QueueEntry]>((run) => [
         run.presetRunId ?? "",
         [run, new DeferredPromise<RunnerStatus>(), new DeferredPromise<void>()],
-      ])
+      ]),
     );
 
     // Add the collection to our internal queue
@@ -76,14 +76,14 @@ export class WebExperimentRunner implements ExperimentRunner {
       Object.entries(runQueue).map(([runId, [, runnerProm]]) => [
         runId,
         runnerProm,
-      ])
+      ]),
     );
 
     const startedPromises = Object.fromEntries(
       Object.entries(runQueue).map(([runId, [, , startedProm]]) => [
         runId,
         startedProm,
-      ])
+      ]),
     );
 
     // Combine the completion of all the runs to a final experiment promise

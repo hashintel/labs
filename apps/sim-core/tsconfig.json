@@ -17,7 +17,9 @@
     /* Even More Options */
     "resolveJsonModule": true,
     "incremental": true,
-    "noEmit": false
+    "noEmit": false,
+
+    "strictPropertyInitialization": false,
 
     /**
      * HI, HELLO! READ THIS:

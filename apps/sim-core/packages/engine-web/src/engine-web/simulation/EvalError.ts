@@ -33,7 +33,7 @@ export class EvalError {
         }
       } catch (e) {
         console.error(
-          "Could not parse error stack correctly: " + original.stack
+          "Could not parse error stack correctly: " + original.stack,
         );
         console.error(e);
       }

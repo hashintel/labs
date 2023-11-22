@@ -21,7 +21,7 @@ export class JsMessageHandler {
 
   public handle(state: MessageHandlerState, properties: Json) {
     return this.inner(state, properties).then(
-      (mh) => new MessageHandlerStateWrapper(mh)
+      (mh) => new MessageHandlerStateWrapper(mh),
     );
   }
 }

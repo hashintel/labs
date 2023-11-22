@@ -43,7 +43,7 @@ describe("JS Message handlers", () => {
       {},
       [],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;
@@ -94,7 +94,7 @@ describe("JS Message handlers", () => {
       {},
       [],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;
@@ -156,8 +156,8 @@ describe("JS Message handlers", () => {
               (m.from === "send" &&
                 m.type === "sent" &&
                 m.data.message === "received"),
-            false
-          )
+            false,
+          ),
         );
         state.addMessage("send_to_xyz", "trigger_send");
         return state;
@@ -171,7 +171,7 @@ describe("JS Message handlers", () => {
       {},
       [checkMessageReceived],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;
@@ -209,7 +209,7 @@ describe("JS Message handlers", () => {
         name: "timeout",
         handler: async (state, props) => {
           const timeout = await new Promise((res, _) =>
-            setTimeout(() => res("xyz"), 10)
+            setTimeout(() => res("xyz"), 10),
           );
           state.add_agent({
             agent_id: timeout as string,
@@ -226,7 +226,7 @@ describe("JS Message handlers", () => {
       {},
       [],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;
@@ -281,7 +281,7 @@ describe("JS Message handlers", () => {
       {},
       [],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;
@@ -346,7 +346,7 @@ describe("JS Message handlers", () => {
       {},
       [sendMessage],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;
@@ -422,7 +422,7 @@ describe("JS Message handlers", () => {
       {},
       [sendMessage],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;
@@ -473,7 +473,7 @@ describe("JS Message handlers", () => {
       {},
       [],
       messageHandlers,
-      analyzer
+      analyzer,
     );
 
     let i = 0;

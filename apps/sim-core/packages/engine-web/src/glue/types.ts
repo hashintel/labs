@@ -19,7 +19,7 @@ export type MessageHandler = {
 
 export type MessageHandlerFn = (
   state: MessageHandlerState,
-  properties: Json
+  properties: Json,
 ) => Promise<MessageHandlerState>;
 
 export type MessageHandlerState = {

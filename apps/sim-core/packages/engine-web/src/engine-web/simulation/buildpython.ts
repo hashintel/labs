@@ -72,12 +72,12 @@ export const runPythonNamespaced = async (
   code: string,
   namespace: PyProxy,
   messageCallback?: MessageCallback,
-  errorCallback?: ErrorCallback
+  errorCallback?: ErrorCallback,
 ): Promise<any> => {
   await runnerPython?.loadPackagesFromImports(
     code,
     messageCallback,
-    errorCallback
+    errorCallback,
   );
   const coroutine = runnerPython?.pyodide_py.eval_code_async(code, namespace);
   try {
@@ -93,7 +93,7 @@ export const buildPyodide = async () => {
   if (
     typeof global === "object" &&
     typeof require === "function" &&
-    Object.prototype.hasOwnProperty.call(global,"pythonLoader")
+    Object.prototype.hasOwnProperty.call(global, "pythonLoader")
   ) {
     try {
       // @ts-expect-error

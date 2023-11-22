@@ -19,7 +19,7 @@ const uploadBehaviorToHASHIndex = (
   cookie: string,
   behavior_name: string,
   behavior_source: string,
-  behavior_slug: string
+  behavior_slug: string,
 ) => {
   let data = {
     title: behavior_name,
@@ -36,7 +36,7 @@ const uploadBehaviorToHASHIndex = (
 
   if (options.env !== "prod") {
     throw new Error(
-      "There is no dev API to upload to: https://devapi.hash.ai/graphql was deprecated in Nov 2022"
+      "There is no dev API to upload to: https://devapi.hash.ai/graphql was deprecated in Nov 2022",
     );
   }
   const url = "https://api.hash.ai/graphql";
@@ -88,7 +88,7 @@ fs.readdir("builtin_behaviors", {}, (err: any, files: string[]) => {
         cookie!,
         snakeToTitleCase(behavior_name),
         data.toString(),
-        behavior_slug
+        behavior_slug,
       );
     });
   }

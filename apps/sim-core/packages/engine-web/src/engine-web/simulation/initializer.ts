@@ -23,7 +23,7 @@ const loadInitializer = async (code: string, ns: PyProxy) => {
  */
 export const getInitFn = async (
   fileName: string,
-  initCode: string
+  initCode: string,
 ): Promise<InitFn> => {
   const extension = fileName.split(".").pop();
 
@@ -44,7 +44,7 @@ export const getInitFn = async (
       const fn = new Function(
         "hash_stdlib",
         "hstd",
-        `${initCode}\nreturn init`
+        `${initCode}\nreturn init`,
       )(hash_stdlib, hash_stdlib);
 
       return (context) => {

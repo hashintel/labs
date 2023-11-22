@@ -30,7 +30,7 @@ export const getPyodideLoader = () => {
     if (globalThis.__pyodideLoading) {
       if (globalThis.languagePluginURL) {
         throw new Error(
-          "Pyodide is already loading because languagePluginURL is defined."
+          "Pyodide is already loading because languagePluginURL is defined.",
         );
       } else {
         throw new Error("Pyodide is already loading.");
@@ -88,7 +88,7 @@ export const getPyodideLoader = () => {
       names,
       _messageCallback,
       errorCallback,
-      sharedLibsOnly
+      sharedLibsOnly,
     ) {
       const packages = Module.packages.dependencies;
       const loadedPackages = Module.loadedPackages;
@@ -116,8 +116,8 @@ export const getPyodideLoader = () => {
           if (toLoad.has(pkgname) && toLoad.get(pkgname) !== name) {
             errorCallback(
               `Loading same package ${pkgname} from ${name} and ${toLoad.get(
-                pkgname
-              )}`
+                pkgname,
+              )}`,
             );
             continue;
           }
@@ -179,7 +179,7 @@ export const getPyodideLoader = () => {
         windowErrorPromise = new Promise((_res, rej) => {
           windowErrorHandler = (e) => {
             errorCallback(
-              "Unhandled error. We don't know what it is or whether it is related to 'loadPackage' but out of an abundance of caution we will assume that loading failed."
+              "Unhandled error. We don't know what it is or whether it is related to 'loadPackage' but out of an abundance of caution we will assume that loading failed.",
             );
             errorCallback(e);
             rej(e.message);
@@ -207,7 +207,7 @@ export const getPyodideLoader = () => {
             errorCallback(
               `URI mismatch, attempting to load package ${pkg} from ${uri} ` +
                 `while it is already loaded from ${loaded}. To override a dependency, ` +
-                `load the custom package first.`
+                `load the custom package first.`,
             );
             continue;
           }
@@ -218,7 +218,7 @@ export const getPyodideLoader = () => {
           loadScript(scriptSrc).catch(() => {
             errorCallback(`Couldn't load package from URL ${scriptSrc}`);
             toLoad.delete(pkg);
-          })
+          }),
         );
       }
 
@@ -276,7 +276,7 @@ export const getPyodideLoader = () => {
       // We have to invalidate Python's import caches, or it won't
       // see the new files.
       Module.runPythonSimple(
-        "import importlib\n" + "importlib.invalidate_caches()\n"
+        "import importlib\n" + "importlib.invalidate_caches()\n",
       );
     }
 
@@ -315,7 +315,7 @@ export const getPyodideLoader = () => {
     Module.loadPackage = async function (
       names,
       messageCallback,
-      errorCallback
+      errorCallback,
     ) {
       if (Module.isPyProxy(names)) {
         let temp;
@@ -338,7 +338,7 @@ export const getPyodideLoader = () => {
           names,
           messageCallback,
           errorCallback,
-          true
+          true,
         );
         for (let pkg of sharedLibraryPackagesToLoad) {
           sharedLibraryNames.push(pkg[0]);
@@ -372,7 +372,7 @@ export const getPyodideLoader = () => {
                     global: true,
                     nodelete: true,
                   });
-                }
+                },
               );
             };
           } else {
@@ -388,8 +388,8 @@ export const getPyodideLoader = () => {
         _loadPackage(
           sharedLibraryNames,
           messageCallback || console.log,
-          errorCallback || console.error
-        )
+          errorCallback || console.error,
+        ),
       );
       loadPackageChain = loadPackageChain.then(() => promise.catch(() => {}));
       await promise;
@@ -399,8 +399,8 @@ export const getPyodideLoader = () => {
         _loadPackage(
           names,
           messageCallback || console.log,
-          errorCallback || console.error
-        )
+          errorCallback || console.error,
+        ),
       );
       loadPackageChain = loadPackageChain.then(() => promise.catch(() => {}));
       await promise;
@@ -429,7 +429,7 @@ export const getPyodideLoader = () => {
         recursionLimit = 1000;
       }
       pyodide.runPythonSimple(
-        `import sys; sys.setrecursionlimit(int(${recursionLimit}))`
+        `import sys; sys.setrecursionlimit(int(${recursionLimit}))`,
       );
     }
 
@@ -482,7 +482,7 @@ export const getPyodideLoader = () => {
       fatal_error_occurred = true;
       console.error(
         "Pyodide has suffered a fatal error. " +
-          "Please report this to the Pyodide maintainers."
+          "Please report this to the Pyodide maintainers.",
       );
       console.error("The cause of the fatal error was:");
       console.error(e);
@@ -490,7 +490,7 @@ export const getPyodideLoader = () => {
         let fd_stdout = 1;
         Module.__Py_DumpTraceback(
           fd_stdout,
-          Module._PyGILState_GetThisThreadState()
+          Module._PyGILState_GetThisThreadState(),
         );
         for (let key of PUBLIC_API) {
           if (key === "version") {
@@ -501,7 +501,7 @@ export const getPyodideLoader = () => {
             configurable: true,
             get: () => {
               throw new Error(
-                "Pyodide already fatally failed and can no longer be used."
+                "Pyodide already fatally failed and can no longer be used.",
               );
             },
           });
@@ -664,7 +664,7 @@ export const getPyodideLoader = () => {
     Module.loadPackagesFromImports = async function (
       code,
       messageCallback,
-      errorCallback
+      errorCallback,
     ) {
       let imports = Module.pyodide_py.find_imports(code).toJs();
       if (imports.length === 0) {
@@ -681,7 +681,7 @@ export const getPyodideLoader = () => {
         await Module.loadPackage(
           Array.from(packages.keys()),
           messageCallback,
-          errorCallback
+          errorCallback,
         );
       }
     };
@@ -699,7 +699,7 @@ export const getPyodideLoader = () => {
     Module.pyimport = (name) => {
       console.warn(
         "Access to the Python global namespace via pyodide.pyimport is deprecated and " +
-          "will be removed in version 0.18.0. Use pyodide.globals.get('key') instead."
+          "will be removed in version 0.18.0. Use pyodide.globals.get('key') instead.",
       );
       return Module.globals.get(name);
     };
@@ -746,12 +746,12 @@ export const getPyodideLoader = () => {
     Module.runPythonAsync = async function (
       code,
       messageCallback,
-      errorCallback
+      errorCallback,
     ) {
       await Module.loadPackagesFromImports(
         code,
         messageCallback,
-        errorCallback
+        errorCallback,
       );
       let coroutine = Module.pyodide_py.eval_code_async(code, Module.globals);
       try {
@@ -920,7 +920,7 @@ def temp(Module):
   if (globalThis.languagePluginUrl) {
     console.warn(
       "languagePluginUrl is deprecated and will be removed in version 0.18.0, " +
-        "instead use loadPyodide({ indexURL : <some_url>})"
+        "instead use loadPyodide({ indexURL : <some_url>})",
     );
 
     /**

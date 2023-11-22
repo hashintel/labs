@@ -25,16 +25,16 @@ import { builtInMessageHandlers } from "./messagehandler";
 export async function simulationFromRequest(
   manifestSrc: string,
   datasetCache: DatasetCache,
-  pyodideEnabled: boolean
+  pyodideEnabled: boolean,
 ): Promise<SimulationComponents> {
   const manifest: RawManifest = parseAndThrowProper(
     manifestSrc,
-    "manifest.json"
+    "manifest.json",
   );
 
   const properties: Json = parseAndThrowProper(
     manifest.propertiesSrc,
-    "globals.json"
+    "globals.json",
   );
 
   const datasets = await fetchDatasetContent(manifest.datasets, datasetCache);
@@ -43,7 +43,7 @@ export async function simulationFromRequest(
 
   if (manifest.initializers.length !== 1) {
     throw new Error(
-      `Only one initializer is supported, but the following were supplied: ${manifest.initializers}`
+      `Only one initializer is supported, but the following were supplied: ${manifest.initializers}`,
     );
   }
   const initFile = manifest.initializers.pop()!;

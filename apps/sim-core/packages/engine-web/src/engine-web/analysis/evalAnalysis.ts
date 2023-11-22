@@ -2,9 +2,7 @@ import { AgentState, OutputDefinition, OutputFn, OutputSeries } from "../../";
 import { Comparison, EvalError, Op } from "../simulation";
 import { PlotDefinition } from "./plots";
 
-export function evalAnalysis(
-  analysisSrc: string
-): {
+export function evalAnalysis(analysisSrc: string): {
   outputs: OutputDefinition[];
   plots: PlotDefinition[];
 } {
@@ -31,9 +29,9 @@ export function evalAnalysis(
               entry[1].map((op) =>
                 op.op === "filter" && Array.isArray(op.value)
                   ? op.value.map((val) => ({ ...op, value: val }))
-                  : [op]
+                  : [op],
               ),
-            ] as [string, Op[][]]
+            ] as [string, Op[][]],
         )
         .flatMap(
           (entry: [string, Op[][]]) =>
@@ -49,16 +47,16 @@ export function evalAnalysis(
                           [
                             name + "_" + (op as { value: any }).value!,
                             opsa.concat([op]),
-                          ] as [string, Op[]]
+                          ] as [string, Op[]],
                       )
                     : // if it's just a single op, concat it to all the entries so far
-                      [[name, opsa.concat(op)]]
+                      [[name, opsa.concat(op)]],
                 ),
               /* start with just the name */ [[entry[0], []]] as [
                 string,
-                Op[]
-              ][]
-            ) as [string, Op[]][]
+                Op[],
+              ][],
+            ) as [string, Op[]][],
         )
         .map(([name, ops]: [string, Op[]]) => ({
           name,
@@ -69,8 +67,8 @@ export function evalAnalysis(
           (plotDefinition: PlotDefinition, i: number): PlotDefinition => ({
             ...plotDefinition,
             layout: {
-              width: ("50%" as unknown) as number, // gross but it works
-              height: ("40%" as unknown) as number,
+              width: "50%" as unknown as number, // gross but it works
+              height: "40%" as unknown as number,
               ...plotDefinition.layout,
             },
             position: {
@@ -78,7 +76,7 @@ export function evalAnalysis(
               y: `${Math.floor(i / 2) * 40}%`,
               ...plotDefinition.position,
             },
-          })
+          }),
         ) ?? [],
     };
   } catch (e) {
@@ -92,7 +90,7 @@ const nestedAccess = (accessor: string, val: any) =>
 function opChain(ops: Op[]): OutputFn {
   return ops.reduce(
     (fn, op) => (arr) => OpFn(op)(fn(arr) as any[]),
-    ((state: AgentState[]) => state) as (as: any[]) => any[] | number
+    ((state: AgentState[]) => state) as (as: any[]) => any[] | number,
   );
 }
 
@@ -117,7 +115,7 @@ const OpFn = (op: Op): ((as: any[]) => any[] | number) => {
     case "filter":
       return (as: any[]) =>
         as.filter((a: any) =>
-          ComparisonFn[op.comparison](nestedAccess(op.field, a), op.value)
+          ComparisonFn[op.comparison](nestedAccess(op.field, a), op.value),
         );
   }
 };
@@ -168,7 +166,7 @@ function splitBy(field: string, options: any[], rawFn: Function | Chain) {
       return fn(
         list.filter((a) => match(a[field], option)),
         series,
-        context
+        context,
       );
     });
   }
@@ -331,7 +329,7 @@ class Chain {
       return (
         slice.reduce<number>(
           (acc, x) => acc + (x && !(x instanceof Array) ? x : 0),
-          0
+          0,
         ) / slice.length
       );
     });

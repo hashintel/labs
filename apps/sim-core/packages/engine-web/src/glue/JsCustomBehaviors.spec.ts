@@ -47,7 +47,7 @@ describe("JS-side cache", () => {
                   behaviors: ["check-neighbors", "generate"],
                 },
               },
-            ])
+            ]),
           );
           return state;
         },
@@ -71,7 +71,7 @@ describe("JS-side cache", () => {
       {},
       behaviors,
       [],
-      analyzer
+      analyzer,
     );
 
     let step = 0;
@@ -80,7 +80,7 @@ describe("JS-side cache", () => {
       for (const agent of state) {
         if (agent.step !== step) {
           throw new Error(
-            `steps not updated correctly: ${agent.agent_id} ${agent.step}`
+            `steps not updated correctly: ${agent.agent_id} ${agent.step}`,
           );
         }
       }
@@ -148,7 +148,7 @@ describe("JS-side cache", () => {
       {},
       behaviors,
       [],
-      analyzer
+      analyzer,
     );
 
     let step = 0;

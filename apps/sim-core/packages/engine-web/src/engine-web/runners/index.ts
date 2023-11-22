@@ -50,7 +50,7 @@ export interface ExperimentRunner {
   ) => Promise<RunnerStatus>;
 
   queueExperiment(
-    experiment: ExperimentSrc
+    experiment: ExperimentSrc,
   ):
     | Observable<ExperimentStreamResponse>
     | Promise<ExperimentRun & ExperimentPromises>;
