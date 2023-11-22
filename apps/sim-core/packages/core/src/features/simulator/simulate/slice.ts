@@ -1167,7 +1167,7 @@ const simulationStatus = (
 
   if (
     simData?.experimentId &&
-    (simData?.stepsCount > 0 || simData.analysis || simData.stepsLink)
+    (simData?.stepsCount > 0 || (simData.analysis ?? simData.stepsLink))
   ) {
     return "completed";
   }

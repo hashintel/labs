@@ -77,7 +77,7 @@ export const PlotViewerSingleRun: FC<PlotViewerProps> = ({
             return null;
           }
           const definedKeys: string[] =
-            plot.definition.data?.map((item) => String(item.y)) || [];
+            plot.definition.data?.map((item) => String(item.y)) ?? [];
           const missingKeys: string[] = definedKeys?.filter(
             (key) => !metricKeys.includes(key),
           );

@@ -203,10 +203,10 @@ export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
   return [geometry, material];
 };
 
-const fetchPolyFromBuiltinDb = async (slug: string) => {
+const fetchPolyFromBuiltinDb = (slug: string) => {
   const { folderPath, resourceUrls } = BUILTIN_MODELS_DB.find((model) => {
     return model.slug === slug;
-  }) || { folderPath: null, resourceUrls: [] };
+  }) ?? { folderPath: null, resourceUrls: [] };
 
   if (!folderPath) {
     throw new Error("No folderPath found for built-in model " + slug);

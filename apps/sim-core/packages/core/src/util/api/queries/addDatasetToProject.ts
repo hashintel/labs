@@ -46,7 +46,10 @@ export const addDatasetToProject = async (
   // @todo this will break when we can put files anywhere
   const datasets = files
     .filter((file) => file.path.startsWith("data/"))
-    .map((file) => ({ file, data: JSON.parse(file.contents) }));
+    .map((file) => ({
+      file,
+      data: JSON.parse(file.contents) as { s3Key?: string },
+    }));
 
   return datasets.find((dataset) => dataset.data.s3Key === datasetS3Key);
 };

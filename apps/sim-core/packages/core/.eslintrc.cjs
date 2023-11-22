@@ -74,15 +74,11 @@ module.exports = {
     "@typescript-eslint/no-unsafe-assignment": "off",
     "@typescript-eslint/no-unsafe-call": "off",
     "@typescript-eslint/no-unsafe-enum-comparison": "off",
-    "@typescript-eslint/no-unsafe-member-access": "off",
-    "@typescript-eslint/no-unsafe-return": "off",
-    "@typescript-eslint/no-useless-escape": "off",
-    "@typescript-eslint/no-var-requires": "off",
-    "@typescript-eslint/prefer-for-of": "off",
-    "@typescript-eslint/prefer-nullish-coalescing": "off",
-    "@typescript-eslint/require-await": "off",
-    "@typescript-eslint/restrict-template-expressions": "off",
-    "@typescript-eslint/unbound-method": "off",
+
+    "@typescript-eslint/no-unsafe-member-access": "off", // Disabled due to tech debt
+    "@typescript-eslint/no-unsafe-return": "off", // Disabled due to tech debt
+    "@typescript-eslint/unbound-method": "off", // Disabled due to tech debt
+    "@typescript-eslint/prefer-nullish-coalescing": ["error", {ignoreMixedLogicalExpressions: true, ignorePrimitives: true}],
     "react/prop-types": ["error", { skipUndeclared: true, ignore: ['children'] }], // 'children' prop type detection is buggy
     "react/display-name": "off", // Set automatically during transpilation
     "react/no-unescaped-entities": "off", // Permits more natural language in html, e.g. aprostrophies.

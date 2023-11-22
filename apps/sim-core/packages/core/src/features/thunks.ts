@@ -79,7 +79,7 @@ const saveQueue = createActionQueue("save");
  * @warning You cannot catch errors from save because it is queued.
  */
 export const save = () =>
-  saveQueue.queue(async (next, getState, dispatch) => {
+  saveQueue.queue((next, getState, dispatch) => {
     try {
       const state = getState();
       const project = selectCurrentProject(state);

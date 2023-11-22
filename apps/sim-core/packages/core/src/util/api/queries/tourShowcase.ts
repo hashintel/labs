@@ -9,6 +9,7 @@ type ApiTourShowcase = UnpreparedPartialSimulationProject & {
   thumbnail?: string;
 };
 
+// eslint-disable-next-line @typescript-eslint/require-await
 export const getTourShowcase = async (): Promise<TourShowcase[]> =>
   Object.values(
     // await query<{

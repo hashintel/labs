@@ -50,14 +50,14 @@ const baseValidations = (
       expectedShape,
     );
   }
-  for (let index = 0; index < plot.data.length; index++) {
-    if (typeof plot.data[index] !== "object") {
+  for (const datum of plot.data) {
+    if (typeof datum !== "object") {
       return new PlotHasAnInvalidItemInTheDataArrayError(
         plot?.title ?? defaultTitle,
         expectedShape,
       );
     }
-    if (Object.keys(plot.data[index]).length === 0) {
+    if (Object.keys(datum).length === 0) {
       return new PlotHasEmptyDataObjectError(
         plot?.title ?? defaultTitle,
         expectedShape,

@@ -46,7 +46,7 @@ export const getNextContents = (
   return nextContents;
 };
 
-export const replace = async (
+export const replace = (
   model: editor.ITextModel,
   file: HcFile,
   replacements: { range: Range; replaceTerm: string }[],

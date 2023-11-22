@@ -33,6 +33,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
     () => (
       <ModalNewProject
         onCancel={navigateAway}
+        //eslint-disable-next-line @typescript-eslint/require-await
         onSubmit={async (values) => {
           //migration shim
 

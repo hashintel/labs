@@ -16,7 +16,7 @@ import { store } from "../../../features/store";
  */
 export const resetViewer =
   ({ set, reset }: CallbackInterface) =>
-  async () => {
+  () => {
     // Set the dimensions of the stage on reset
     let { pxMin, pxMax, pyMin, pyMax } = dimensionDefaults;
 

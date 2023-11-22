@@ -105,13 +105,18 @@ function scatter3dToData(
   return data;
 }
 
-const extractColor = (name: Color) =>
-  typeof name === "string"
-    ? name === "white"
-      ? "gray"
-      : `#${mapColor(name) ?? intToRGB(hashCode(name))}`
-    : name;
+const extractColor = (name: Color) => {
+  if (typeof name !== "string") {
+    return name;
+  }
 
+  if (name === "white") {
+    return "gray";
+  }
+
+  const colorHashCode = (mapColor(name) ?? intToRGB(hashCode(name))).toString();
+  return `#${colorHashCode}`;
+};
 // https://stackoverflow.com/a/3426956
 function hashCode(str: string) {
   // java String#hashCode

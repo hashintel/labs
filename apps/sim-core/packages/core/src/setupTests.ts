@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+
 // required to run 'monaco-editor' in the 'jest-dom' environments
 // @see https://medium.com/hired-engineering/setting-up-monaco-with-jest-e1e4c963ac
 import "jest-canvas-mock";

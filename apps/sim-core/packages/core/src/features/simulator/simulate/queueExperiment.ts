@@ -145,8 +145,8 @@ const groupExperimentStreamByType =
     );
 
 export const queueExperiment =
-  (experimentName: string): SimulatorThunk<Promise<void>> =>
-  async (dispatch, getState) => {
+  (experimentName: string): SimulatorThunk<void> =>
+  (dispatch, getState) => {
     const appState = appStore.getState();
     const project = selectCurrentProject(appState);
     const projectUrl = selectCurrentProjectUrl(appState);

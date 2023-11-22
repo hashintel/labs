@@ -68,7 +68,7 @@ export const TabActionBar: FC<{
       selectedIndex={selectedIndex}
       onSelect={onSelectedIndexChange}
       domRef={(node) => {
-        tabsRef.current = node || null;
+        tabsRef.current = node ?? null;
 
         setScrollRef(node?.querySelector(".TabActionBar__TabContainer__Tabs"));
       }}

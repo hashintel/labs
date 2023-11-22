@@ -197,7 +197,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
     return true;
   };
 
-  const onSubmit = async (values: FormInputs) => {
+  const onSubmit = (values: FormInputs) => {
     const result = getFormState(values);
     if (!validate(result)) {
       return;

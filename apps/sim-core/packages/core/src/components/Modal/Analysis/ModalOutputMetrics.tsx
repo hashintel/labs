@@ -96,7 +96,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
     return true;
   };
 
-  const onSubmit = async (values: FormInputs) => {
+  const onSubmit = (values: FormInputs) => {
     const result = {
       ...values,
       operations: currentOperations,

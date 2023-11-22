@@ -3,6 +3,7 @@ import { PartialSimulationProject } from "../../../features/project/types";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
 // import { query } from "../query";
 
+/*eslint-disable @typescript-eslint/require-await*/
 export const getOnboardingProject =
   async (): Promise<PartialSimulationProject> => {
     // Migration shim
@@ -35,3 +36,4 @@ export const getOnboardingProject =
 
     return preparePartialSimulationProject(onBoardingProject);
   };
+/*eslint-enable @typescript-eslint/require-await*/

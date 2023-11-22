@@ -93,7 +93,7 @@ export async function query<T, V = {} | undefined>(
   if (errors) {
     throw new QueryError({
       graphql,
-      variables: variables || null,
+      variables: variables ?? null,
       errors: errors,
     });
   }

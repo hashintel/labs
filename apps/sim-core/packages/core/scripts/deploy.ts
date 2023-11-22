@@ -40,7 +40,7 @@ function getNotifier(notifySlack: boolean) {
  *
  * @return {string} The build stamp
  */
-async function buildAndStageAssets(): Promise<string> {
+function buildAndStageAssets(): Promise<string> {
   // 1. clean build:
   exec("yarn clean");
   exec("yarn build");
@@ -110,7 +110,7 @@ async function buildAndStageAssets(): Promise<string> {
  *
  * @param stamp -- build stamp to deploy (should already be present in s3)
  */
-async function setLive(stamp: string) {
+function setLive(stamp: string) {
   const rootIndexPath = `s3://${S3_BUCKET}/index.html`;
   const manifestIndexPath = `s3://${S3_BUCKET}/${stamp}/index.html`;
   const rootEmbedPath = `s3://${S3_BUCKET}/embed.html`;

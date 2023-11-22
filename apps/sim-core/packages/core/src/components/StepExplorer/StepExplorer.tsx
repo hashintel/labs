@@ -120,9 +120,9 @@ export class StepExplorer extends React.Component<
 
       nextStep.forEach((agent) => {
         const new_agent = Object.assign({}, agent, {
-          pos_x: (agent.position || [undefined])[0],
-          pos_y: (agent.position || [undefined])[1],
-          pos_z: (agent.position || [undefined])[2],
+          pos_y: (agent.position ?? [undefined])[1],
+          pos_x: (agent.position ?? [undefined])[0],
+          pos_z: (agent.position ?? [undefined])[2],
         });
 
         // Save the keys to insert into the first agent later

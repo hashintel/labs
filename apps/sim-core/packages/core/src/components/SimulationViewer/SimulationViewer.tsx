@@ -268,7 +268,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
               "react-tabs__tab-panel": true,
               RawOutput: tab.kind === TabKind.RawOutput,
             })}
-            forceRender={tabs[tab.kind].forceRender || false}
+            forceRender={tabs[tab.kind].forceRender ?? false}
           >
             {tabs[tab.kind].el(selectedTab === tab.kind)}
           </TabPanel>

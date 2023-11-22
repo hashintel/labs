@@ -30,7 +30,7 @@ export const parseBehaviorKeysQuery = async (
 
     result = await req.json();
 
-    if (!req.ok || result.error || !result.success) {
+    if (!req.ok || (result.error ?? !result.success)) {
       console.error("Cannot fetch behavior keys", result);
     }
   } catch (err) {

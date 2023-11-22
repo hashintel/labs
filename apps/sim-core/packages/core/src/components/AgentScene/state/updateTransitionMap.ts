@@ -82,7 +82,7 @@ export const updateTransitionMap =
       // are turned into "arrows" (ie pointed cones)
       let shape = agent.shape ?? oldAgent?.shape;
       if (!shape) {
-        if (agent.direction || agent.velocity) {
+        if (agent.direction ?? agent.velocity) {
           shape = "cone";
         } else {
           shape = "box";

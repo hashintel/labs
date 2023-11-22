@@ -243,7 +243,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               accept=".zip"
               ref={importFileRef}
               style={{ display: "none" }}
-              onChange={async (evt: ChangeEvent<HTMLInputElement>) => {
+              onChange={(evt: ChangeEvent<HTMLInputElement>) => {
                 evt.preventDefault();
                 clearAll();
                 const files = evt.currentTarget.files;
@@ -300,7 +300,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
             <li className="HashCoreHeaderMenu-submenu-item">
               <Link
                 forceLogin={!userProfileUrl}
-                onClick={async (evt: MouseEvent<HTMLAnchorElement>) => {
+                onClick={(evt: MouseEvent<HTMLAnchorElement>) => {
                   evt.preventDefault();
                   clearAll();
                   exportFiles().catch((err) =>

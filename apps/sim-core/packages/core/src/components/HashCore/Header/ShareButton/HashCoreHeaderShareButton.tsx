@@ -18,7 +18,7 @@ export const HashCoreHeaderShareButton: FC = () => {
   return (
     <button
       className="HashCoreHeader__RightButton"
-      onClick={async (evt) => {
+      onClick={(evt) => {
         evt.preventDefault();
         showModal();
       }}

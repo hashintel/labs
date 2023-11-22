@@ -46,6 +46,7 @@ import { setLocalStorageProject } from "../../../features/middleware/localStorag
 //   ${ExampleProjectsFragment}
 // `;
 
+//eslint-disable-next-line @typescript-eslint/require-await
 export const bootstrapQuery = async () => {
   try {
     // const result = await query<BootstrapQuery>(queryString);

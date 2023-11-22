@@ -38,7 +38,7 @@ export const parseAccessCodeInParams = <
   if (accessCode) {
     try {
       const json = atob(accessCode);
-      const parsed = JSON.parse(json);
+      const parsed = JSON.parse(json) as { accessLevel: string };
       const accessLevel = parseAccessLevel(parsed.accessLevel);
 
       if (

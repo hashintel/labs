@@ -100,13 +100,14 @@ export const HashVersionPicker: FC<HashVersionPickerProps> = ({ versions }) => {
         <HashVersionAutocomplete
           size="small"
           options={versions}
-          getOptionLabel={(version) => `${version}`}
+          getOptionLabel={(version) => (version as object).toString()}
           value={BUILD_STAMP}
           onChange={(_, newValue) => {
             if (newValue) {
               // Add "hash-prod-" so it doesn't have to come down in the version list
+              const slugPart = newValue.toString();
               window.location.replace(
-                getUrlForCurrentRouteWithBuildStamp(`hash-prod-${newValue}`),
+                getUrlForCurrentRouteWithBuildStamp(`hash-prod-${slugPart}`),
               );
             }
           }}
