@@ -6,6 +6,7 @@
     "lib": ["DOM", "DOM.Iterable", "ESNext"], // Specify library files to be included in the compilation.
     "jsx": "react", // Specify JSX code generation: 'preserve', 'react-native', or 'react'.
     "removeComments": true, // Do not emit comments to output.
+    "skipLibCheck": true, // set to true when needed to work around upstream errors caused by isolatedModules
 
     /* Strict Type-Checking Options */
     "strict": true, // Enable all strict type-checking options.
@@ -17,7 +18,7 @@
     /* Even More Options */
     "resolveJsonModule": true,
     "incremental": true,
-    "noEmit": false,
+    "noEmit": true,
 
     "strictPropertyInitialization": false,
 

@@ -4,7 +4,7 @@
     "noEmit": true, // Do not emit outputs.
     "incremental": false, // Enable incremental compilation
     "isolatedModules": true, // Transpile each file as a separate module (similar to 'ts.transpileModule').
-    "skipLibCheck": false // set to true when needed to work around upstream errors caused by isolatedModules
+    "skipLibCheck": true // set to true when needed to work around upstream errors caused by isolatedModules
   },
   "include": [
     "vite.config.ts",
@@ -14,6 +14,5 @@
     "postcss.config.js",
     ".eslintrc.cjs",
     "*.cjs"
-  ],
-  "exclude": ["node_modules"]
+  ]
 }
