@@ -1391,7 +1391,7 @@ export const ExperimentModal: FC<{
 
                   fields.push(optimizationFieldTemplate());
                   setFormData(clone);
-                  Promise.resolve().then(() => {
+                  setTimeout(() => {
                     document
                       .querySelector<HTMLInputElement>(
                         `[name="fields.${fields.length - 1}.name"]`,
