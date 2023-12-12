@@ -42,6 +42,7 @@
     "preserve:core": "yarn build:engine-web",
     "serve:core": "yarn ws:core serve",
     "start:core": "yarn ws:core start",
+    "preview:core": "yarn ws:core preview",
     "test:core": "yarn ws:core test",
     "g": "yarn ws:core g",
     "// 09": "",
