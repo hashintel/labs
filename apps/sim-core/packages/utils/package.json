@@ -8,8 +8,8 @@
     "postinstall": "tsc -b .",
     "build": "tsc -b .",
     "build:watch": "tsc -b . -w",
-    "fmt": "prettier --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" --write; eslint --quiet --fix \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"",
-    "lint": "prettier --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" --check || exit 1; eslint --quiet \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" ; tsc --noEmit"
+    "fmt": "prettier --write --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet --fix \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"",
+    "lint": "prettier --check --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && tsc --noEmit"
   },
   "license": "SSPL-1.0",
   "devDependencies": {
