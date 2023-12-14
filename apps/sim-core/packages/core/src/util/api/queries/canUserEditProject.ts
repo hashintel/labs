@@ -1,7 +1,7 @@
 import {
   CanUserEditProjectQuery,
   CanUserEditProjectQueryVariables,
-} from "../auto-types";
+} from "../types";
 import { query } from "../query";
 
 const queryString = /* GraphQL */ `

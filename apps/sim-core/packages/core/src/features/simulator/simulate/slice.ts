@@ -17,7 +17,7 @@ import {
 } from "@hashintel/engine-web";
 
 import { AnalysisMode } from "./enum";
-import { Commit, ProjectHistoryItemType } from "../../../util/api/auto-types";
+import { Commit, ProjectHistoryItemType } from "../../../util/api/types";
 import { CommitWithoutStats } from "../../../util/api/queries/commitActions";
 import {
   DEFAULT_STEPS_PER_SECOND,

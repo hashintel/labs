@@ -1,7 +1,7 @@
 import {
   PartialProjectByPathQuery,
   PartialProjectByPathQueryVariables,
-} from "../auto-types";
+} from "../types";
 import { PartialSimulationProject } from "../../../features/project/types";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
 import { query } from "../query";

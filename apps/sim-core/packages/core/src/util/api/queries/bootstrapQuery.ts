@@ -1,6 +1,6 @@
 import { BUILTIN_SIMULATIONS } from "../../builtinSimulations";
 import { LocalStorageProject } from "../../../features/project/types";
-import { ProjectTypeName, VisibilityLevel } from "../auto-types";
+import { ProjectTypeName, VisibilityLevel } from "../types";
 import type { User } from "../types";
 import { getItem } from "../../../hooks/useLocalStorage";
 import { getLocalStorageProject } from "../../../features/project/utils";

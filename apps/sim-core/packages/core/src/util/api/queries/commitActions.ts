@@ -2,7 +2,7 @@ import {
   Commit,
   CommitActionsMutation,
   CommitActionsMutationVariables,
-} from "../auto-types";
+} from "../types";
 import { FileAction } from "../../../features/files/types";
 import { FullProjectFragment } from "./unpreparedProjectByPath";
 import { SimulationProjectWithHcFiles } from "../../../features/project/types";

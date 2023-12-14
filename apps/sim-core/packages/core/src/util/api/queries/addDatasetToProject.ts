@@ -1,7 +1,7 @@
 import {
   AddDatasetToProjectMutation,
   AddDatasetToProjectMutationVariables,
-} from "../auto-types";
+} from "../types";
 import { query } from "../query";
 
 const queryString = /* GraphQL */ `
