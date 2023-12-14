@@ -35,7 +35,6 @@ import { HcFileKind } from "./enums";
 import type { ParsedPath } from "../../util/files/types";
 import type { RootState } from "../types";
 import { SimulationProject } from "../project/types";
-import { addDatasetToProject } from "../../util/api/queries/addDatasetToProject";
 import {
   addMany,
   getInitialState,
@@ -55,7 +54,6 @@ import {
   releaseToHcFiles,
   repoPathForBehavior,
   stringifyBehaviorKeys,
-  toHcFiles,
 } from "./utils";
 import {
   beginActionSave,
@@ -83,7 +81,6 @@ import {
 } from "./selectors";
 import { selectCurrentProjectRequired } from "../project/selectors";
 import { toggleEditor } from "../viewer/slice";
-import { trackEvent } from "../analytics";
 
 export const addDependencies = createAppAsyncThunk<
   HcDependencyFile[],
@@ -167,7 +164,7 @@ export const createDataset =
     const datasets = selectDatasetFiles(state);
     const filename = allocateDatasetFileName(file.name, datasets);
 
-    const { dataset, postForm } = await createDatasetQuery(
+    const { postForm } = await createDatasetQuery(
       project.pathWithNamespace,
       filename,
       file.name,
@@ -182,35 +179,38 @@ export const createDataset =
     // Ensure this has finished
     await savePromise;
 
-    const thisDataset = await addDatasetToProject(
-      project.pathWithNamespace,
-      dataset.id,
-      postForm.fields?.key,
-      file.name.endsWith(".csv"),
-    );
+    // Migration shim
+    throw new Error("Datasets disabled for migration");
 
-    dispatch(
-      //@ts-expect-error trackEvent
-      trackEvent({
-        action: "New dataset: Core",
-        label: `${dataset?.name} - ${dataset?.id}`,
-      }),
-    );
+    // const thisDataset = await addDatasetToProject(
+    //   project.pathWithNamespace,
+    //   dataset.id,
+    //   postForm.fields?.key,
+    //   file.name.endsWith(".csv"),
+    // );
 
-    if (!thisDataset) {
-      throw new Error("Cannot find dataset in results");
-    }
+    // dispatch(
+    //   //@ts-expect-error trackEvent
+    //   trackEvent({
+    //     action: "New dataset: Core",
+    //     label: `${dataset?.name} - ${dataset?.id}`,
+    //   }),
+    // );
 
-    const datasetFile = toHcFiles({
-      files: [
-        {
-          ...thisDataset.file,
-          ref: project.ref,
-        },
-      ],
-    })[0];
+    // if (!thisDataset) {
+    //   throw new Error("Cannot find dataset in results");
+    // }
 
-    dispatch(addPreparedFile(datasetFile));
+    // const datasetFile = toHcFiles({
+    //   files: [
+    //     {
+    //       ...thisDataset.file,
+    //       ref: project.ref,
+    //     },
+    //   ],
+    // })[0];
+
+    // dispatch(addPreparedFile(datasetFile));
   };
 
 const setters = {
