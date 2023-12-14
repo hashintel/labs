@@ -1,5 +1,5 @@
-type Theme = { [key: string]: string };
-type ThemeNumber = { [key: string]: number };
+type Theme = Record<string, string>;
+type ThemeNumber = Record<string, number>;
 
 // export to the JS world for easy reference:
 export const theme: Theme = {
@@ -76,5 +76,5 @@ export const themeNumbers: ThemeNumber = Object.fromEntries(
   Object.entries(theme).map(([key, value]) => [
     key,
     parseInt(value.substr(1), 16),
-  ])
+  ]),
 );

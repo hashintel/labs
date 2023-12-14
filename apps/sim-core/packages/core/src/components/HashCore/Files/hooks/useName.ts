@@ -17,24 +17,24 @@ const extensionMap = {
 } as const;
 
 type allowedExtensionString = keyof typeof extensionMap;
-type allowedExtensionValue = typeof extensionMap[allowedExtensionString];
+type allowedExtensionValue = (typeof extensionMap)[allowedExtensionString];
 type LanguageOption = ReactSelectOption & {
   value: allowedExtensionValue;
   label: allowedExtensionString;
 };
 
 const isAllowedExtensionString = (str: string): str is allowedExtensionString =>
-  extensionMap.hasOwnProperty(str);
+  Object.prototype.hasOwnProperty.call(extensionMap, str);
 
 const isReactOptionAllowable = (
-  option: ReactSelectOption
+  option: ReactSelectOption,
 ): option is LanguageOption => languageOptions.includes(option as any);
 
 const languageOptions: LanguageOption[] = Object.entries(extensionMap).map(
   ([label, value]) => ({
     value,
     label: label as allowedExtensionString,
-  })
+  }),
 );
 
 const languageOptionByValue = languageOptions.reduce<any>((acc, option) => {
@@ -44,7 +44,7 @@ const languageOptionByValue = languageOptions.reduce<any>((acc, option) => {
 }, {}) as Record<allowedExtensionString, LanguageOption>;
 
 const getLanguageForLanguageStr = (
-  str: string | undefined
+  str: string | undefined,
 ): LanguageOption | void => {
   const lowerCase = str?.toLowerCase();
 
@@ -55,7 +55,10 @@ const getLanguageForLanguageStr = (
   return languageOptionByValue[lowerCase];
 };
 
-type NameReducerState = { name: string; selectedLanguage: LanguageOption };
+interface NameReducerState {
+  name: string;
+  selectedLanguage: LanguageOption;
+}
 type SetName = (name: NameReducerState["name"]) => void;
 type SetSelectedLanguage = (language: ReactSelectOption) => void;
 
@@ -65,14 +68,14 @@ const nameReducer = produce(
     action:
       | { type: "setName"; name: string }
       | { type: "setLanguage"; language: LanguageOption }
-      | { type: "set"; value: NameReducerState }
+      | { type: "set"; value: NameReducerState },
   ): NameReducerState | void => {
     switch (action.type) {
       case "setLanguage":
         state.selectedLanguage = action.language;
         break;
 
-      case "setName":
+      case "setName": {
         const matches = action.name.trim().match(/^(.*?)(\..*)?$/);
         const selectedLanguage = getLanguageForLanguageStr(matches?.[2]);
 
@@ -83,21 +86,21 @@ const nameReducer = produce(
           state.name = action.name;
         }
         break;
-
+      }
       case "set":
         return action.value;
     }
-  }
+  },
 );
 
 const validateReservedName = (
   files: Pick<HcFile, "path" | "kind">[],
-  name: string
+  name: string,
 ) => {
   const reservedNames = files
     .filter(
       (file) =>
-        file.kind === HcFileKind.Required || file.kind === HcFileKind.Init
+        file.kind === HcFileKind.Required || file.kind === HcFileKind.Init,
     )
     .map((file) => file.path.name.toLowerCase());
 
@@ -109,7 +112,7 @@ const validateReservedName = (
 const validateAlreadyInUse = (
   files: Parameters<typeof destinationPathInUse>[0],
   sourceId: string | undefined,
-  destination: ParsedPath
+  destination: ParsedPath,
 ) =>
   destinationPathInUse(files, sourceId, destination)
     ? `NAME "${destination.formatted}" ALREADY IN USE`
@@ -137,7 +140,7 @@ const useValidate = (args: {
       validateAlreadyInUse(
         files,
         id,
-        parse({ name, ext: selectedLanguage.value })
+        parse({ name, ext: selectedLanguage.value }),
       ) ||
       null;
 
@@ -155,7 +158,7 @@ const useValidate = (args: {
 
 export const useName = (
   id?: string,
-  path?: ParsedPath
+  path?: ParsedPath,
 ): [
   NameReducerState,
   {
@@ -164,7 +167,7 @@ export const useName = (
   },
   ReactSelectOption[],
   ValidateHook,
-  VoidFunction
+  VoidFunction,
 ] => {
   const defaultValue = path?.name ?? "";
   const defaultLanguage =
@@ -180,7 +183,7 @@ export const useName = (
 
   const setName = useCallback<SetName>(
     (name) => nameDispatch({ type: "setName", name }),
-    [nameDispatch]
+    [nameDispatch],
   );
 
   const setSelectedLanguage = useCallback<SetSelectedLanguage>(
@@ -189,7 +192,7 @@ export const useName = (
         nameDispatch({ type: "setLanguage", language: option });
       }
     },
-    [nameDispatch]
+    [nameDispatch],
   );
 
   const defaultsRef = useRef({ defaultValue, defaultLanguage });

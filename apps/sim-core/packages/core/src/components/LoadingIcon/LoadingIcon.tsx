@@ -2,9 +2,9 @@ import React from "react";
 
 import "./LoadingIcon.css";
 
-type LoadingIconProps = {
+interface LoadingIconProps {
   fullScreen?: boolean;
-};
+}
 
 export const LoadingIcon: React.FC<LoadingIconProps> = ({ fullScreen }) => (
   <div className={"loading-icon" + (fullScreen ? " full-screen" : "")}>

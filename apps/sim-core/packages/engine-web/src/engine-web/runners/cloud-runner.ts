@@ -47,7 +47,7 @@ export class CloudExperimentRunner implements ExperimentRunner {
     // TODO @Jon this path should never be hit anyway, we don't provide a single cloud runner
     // We also don't expose individual controls of the runs via the sidebar
     throw new Error(
-      "Sending single-runner commands to cloud is not supported!"
+      "Sending single-runner commands to cloud is not supported!",
     );
   }
 
@@ -63,7 +63,7 @@ export class CloudExperimentRunner implements ExperimentRunner {
     const experimentSrc: string = JSON.parse(manifestSrc)["experimentsSrc"];
     const experimentArgs = createExperimentDefinition(
       experimentSrc,
-      experimentName
+      experimentName,
     );
 
     const path = `${this.wssConnectUrl}?${new URLSearchParams({
@@ -160,7 +160,7 @@ export class CloudExperimentRunner implements ExperimentRunner {
           if (this.devMode) {
             console.warn(
               "Closing websocket connecting with cloud because: ",
-              evt
+              evt,
             );
           }
           if (!hasErrored) {
@@ -190,14 +190,14 @@ export class CloudExperimentRunner implements ExperimentRunner {
            */
           return concat(
             of(socketResponse),
-            throwError(new Error("Out of cloud compute credits"))
+            throwError(new Error("Out of cloud compute credits")),
           );
         }
         return of(socketResponse);
       }),
       takeWhile(
         (response) => hasErrored || response.running !== "finished",
-        true
+        true,
       ),
       mergeMap((response) => {
         const responses: ExperimentStreamResponse[] = [];
@@ -321,7 +321,7 @@ export class CloudExperimentRunner implements ExperimentRunner {
         }
 
         return responses;
-      })
+      }),
     );
   }
 }

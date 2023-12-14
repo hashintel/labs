@@ -28,12 +28,12 @@ const defaultParams: ModalShareViewsParams & {
   viewer: true,
 };
 
-type UrlParams = {
+interface UrlParams {
   changedParams: [string, string][];
   requireAccessCode: boolean;
   accessCode: string | null;
   baseUrl: string;
-};
+}
 
 const generateUrl = (params: UrlParams) => {
   const { requireAccessCode, accessCode, changedParams, baseUrl } = params;
@@ -48,7 +48,7 @@ const generateUrl = (params: UrlParams) => {
 
   return urljoin(
     window.location.origin,
-    `${baseUrl}${searchParamString.length ? `?${searchParamString}` : ""}`
+    `${baseUrl}${searchParamString.length ? `?${searchParamString}` : ""}`,
   );
 };
 
@@ -57,7 +57,7 @@ const useTargetVisibility = (project: SimulationProject) => {
     projectIsPrivate(project) && !!project.access?.code;
   const defaultTargetVisibility = privateSharingDisabled ? "public" : "private";
   const [targetVisibility, setTargetVisibility] = useState(
-    defaultTargetVisibility
+    defaultTargetVisibility,
   );
 
   if (privateSharingDisabled && targetVisibility !== defaultTargetVisibility) {
@@ -84,19 +84,17 @@ export const ModalShareByLink: FC<{
   onSelectedReleaseChange,
   hasReleases,
 }) => {
+  //@ts-expect-error Genuine type error here, please fix.
   const { params, setParams, changedParams } = useParams(defaultParams);
   const { accessCode, requestAccessCode } = useRequestAccessCode(
     project,
-    "Read"
+    "Read",
   );
 
   const isPrivate = projectIsPrivate(project);
 
-  const [
-    targetVisibility,
-    setTargetVisibility,
-    privateSharingDisabled,
-  ] = useTargetVisibility(project);
+  const [targetVisibility, setTargetVisibility, privateSharingDisabled] =
+    useTargetVisibility(project);
 
   const urlParams: UrlParams = {
     changedParams,
@@ -164,6 +162,7 @@ export const ModalShareByLink: FC<{
           ) : null}
           <ModalShareViews
             params={params}
+            //@ts-expect-error Genuine type error here, please fix.
             onParamsChange={setParams}
             availableTabs={viewerTabs}
           />

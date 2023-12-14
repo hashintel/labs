@@ -4,12 +4,12 @@ import { RoundedSelect } from "../Select/RoundedSelect";
 
 import "./EnumInput.scss";
 
-export type EnumInputProps = {
+export interface EnumInputProps {
   name: string;
   value: string;
   options: string[] | string;
   onChange: (val: string) => void;
-};
+}
 
 export const EnumInput: FC<EnumInputProps> = memo(
   ({ name, value, options, onChange }) => {
@@ -35,5 +35,5 @@ export const EnumInput: FC<EnumInputProps> = memo(
         onChange={(evt) => onChange(evt.target.value)}
       />
     );
-  }
+  },
 );

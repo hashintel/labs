@@ -5,9 +5,9 @@ import { useRecoilValue } from "recoil";
 import * as sceneState from "../state/SceneState";
 import { RenderSummary } from "../util/anim";
 
-type NetworkEdgesProps = {
+interface NetworkEdgesProps {
   mappedTransitions: RenderSummary;
-};
+}
 
 // Arguments for constructing THREE arrowHelper
 type ArrowConstructorArgs = typeof ArrowHelper extends new (
@@ -16,7 +16,10 @@ type ArrowConstructorArgs = typeof ArrowHelper extends new (
   ? U
   : never;
 
-type ArrowData = { key: string; args: ArrowConstructorArgs };
+interface ArrowData {
+  key: string;
+  args: ArrowConstructorArgs;
+}
 
 /**
  * Convert the array vector in agent state to a THREE Vector3
@@ -42,7 +45,7 @@ export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
   const selectedAgents = useRecoilValue(sceneState.SelectedAgentIds);
   const selectedAgentIds = Object.keys(selectedAgents);
   const highlightedAgents = [hoveredAgentId, ...selectedAgentIds].filter(
-    Boolean
+    Boolean,
   );
 
   const arrowData: ArrowData[] = useMemo(() => {
@@ -75,7 +78,7 @@ export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
       };
 
       for (const [relationship, neighborList] of Object.entries(
-        networkNeighborMap
+        networkNeighborMap,
       )) {
         if (!isValidNetworkArray(neighborList)) {
           continue;
@@ -107,7 +110,7 @@ export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
 
           // Highlight edges connected to the hovered or selected agent(s)
           const hovered = highlightedAgents.find(
-            (id) => id === agentId || id === neighborId
+            (id) => id === agentId || id === neighborId,
           );
           const color = hovered ? 0xffffff : 0xfc03e8;
 
@@ -135,6 +138,7 @@ export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
   return (
     <>
       {arrowData.map(({ key, args }) => (
+        // eslint-disable-next-line react/no-unknown-property
         <arrowHelper args={args} key={key} />
       ))}
     </>

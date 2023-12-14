@@ -36,7 +36,7 @@ const baseValidations = (
     | "YDataPoints"
     | "ZDataPoints"
     | "XDataPoints or YDataPoints"
-    | "XDataPoints and YDataPoints"
+    | "XDataPoints and YDataPoints",
 ) => {
   if (!plot.data) {
     return new PlotHasNoDataError(plot?.title ?? defaultTitle);
@@ -47,20 +47,20 @@ const baseValidations = (
   if (plot.data.length === 0) {
     return new PlotHasEmptyDataError(
       plot?.title ?? defaultTitle,
-      expectedShape
+      expectedShape,
     );
   }
-  for (let index = 0; index < plot.data.length; index++) {
-    if (typeof plot.data[index] !== "object") {
+  for (const datum of plot.data) {
+    if (typeof datum !== "object") {
       return new PlotHasAnInvalidItemInTheDataArrayError(
         plot?.title ?? defaultTitle,
-        expectedShape
+        expectedShape,
       );
     }
-    if (Object.keys(plot.data[index]).length === 0) {
+    if (Object.keys(datum).length === 0) {
       return new PlotHasEmptyDataObjectError(
         plot?.title ?? defaultTitle,
-        expectedShape
+        expectedShape,
       );
     }
   }
@@ -69,13 +69,13 @@ const baseValidations = (
 
 export const BarChartValidator = (
   cleanPlot?: Partial<Omit<Plot, "timeseries">>,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   const currentPlot = JSON.parse(JSON.stringify(cleanPlot));
   const baseValidationErrors = baseValidations(
     currentPlot,
     "bar",
-    "YDataPoints"
+    "YDataPoints",
   );
   if (baseValidationErrors instanceof Error) {
     return baseValidationErrors;
@@ -89,7 +89,7 @@ export const BarChartValidator = (
       return new PlotHasTheWrongKindOfDataError(
         cleanPlot?.title,
         "YDataPoints",
-        currentPlotDataItem
+        currentPlotDataItem,
       );
     }
     if (!currentPlotDataItem.y) {
@@ -98,7 +98,7 @@ export const BarChartValidator = (
     if (typeof currentPlotDataItem.y !== "string") {
       return new PlotHasTheWrongTypeForYDataPointComponentError(
         cleanPlot?.title,
-        currentPlotDataItem.y
+        currentPlotDataItem.y,
       );
     }
     if (!doesOutputExist(currentPlotDataItem.y, outputs)) {
@@ -109,7 +109,7 @@ export const BarChartValidator = (
         cleanPlot?.title,
         "y",
         currentPlotDataItem.y,
-        closestMatch
+        closestMatch,
       );
     }
     const output: any = outputs?.[String(currentPlotDataItem.y)];
@@ -118,7 +118,7 @@ export const BarChartValidator = (
     if (lastOperation && !isASingleStepAggregationOperation(lastOperation)) {
       return new PlotUsedOutputMustEndInAggregationOperationError(
         cleanPlot?.title,
-        currentPlotDataItem.y
+        currentPlotDataItem.y,
       );
     }
   }
@@ -128,13 +128,13 @@ export const BarChartValidator = (
 
 export const BoxValidator = (
   cleanPlot?: Partial<Omit<Plot, "timeseries">>,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   const currentPlot = JSON.parse(JSON.stringify(cleanPlot));
   const baseValidationErrors = baseValidations(
     currentPlot,
     "box plot",
-    "YDataPoints"
+    "YDataPoints",
   );
   if (baseValidationErrors instanceof Error) {
     return baseValidationErrors;
@@ -143,12 +143,11 @@ export const BoxValidator = (
     if (Object.keys(currentPlotDataItem).length > 2) {
       return new PlotHasExtraDataFieldsError(cleanPlot?.title, "YDataPoints");
     }
-    // @ts-ignore we know that it expects y items. This is just for better errors
     if (currentPlotDataItem.x || currentPlotDataItem.z) {
       return new PlotHasTheWrongKindOfDataError(
         cleanPlot?.title,
         "YDataPoints",
-        currentPlotDataItem
+        currentPlotDataItem,
       );
     }
     if (!currentPlotDataItem.y) {
@@ -157,7 +156,7 @@ export const BoxValidator = (
     if (Array.isArray(currentPlotDataItem.y)) {
       return new PlotHasTheWrongTypeForYDataPointComponentError(
         cleanPlot?.title,
-        currentPlotDataItem.y
+        currentPlotDataItem.y,
       );
     }
     if (!doesOutputExist(currentPlotDataItem.y, outputs)) {
@@ -168,7 +167,7 @@ export const BoxValidator = (
         cleanPlot?.title,
         "y",
         currentPlotDataItem.y,
-        closestMatch
+        closestMatch,
       );
     }
   }
@@ -178,17 +177,16 @@ export const BoxValidator = (
 const TimeseriesDataFieldValidator = (
   data: any,
   cleanPlot?: Partial<Omit<Plot, "type">>,
-  outputs?: Output
+  outputs?: Output,
 ) => {
   if (Object.keys(data).length > 2) {
     return new PlotHasExtraDataFieldsError(cleanPlot?.title, "YDataPoints");
   }
-  // @ts-ignore at this point we expect .y
   if (data?.x || data?.z) {
     return new PlotHasTheWrongKindOfDataError(
       cleanPlot?.title,
       "YDataPoints",
-      data
+      data,
     );
   }
   if (!data.y) {
@@ -201,7 +199,7 @@ const TimeseriesDataFieldValidator = (
       cleanPlot?.title,
       "y",
       data.y,
-      closestMatch
+      closestMatch,
     );
   }
   return true;
@@ -209,13 +207,13 @@ const TimeseriesDataFieldValidator = (
 
 export const TimeseriesValidator = (
   cleanPlot?: Partial<Omit<Plot, "type">>,
-  outputs?: Output
+  outputs?: Output,
 ) => {
   const currentPlot: Timeseries = JSON.parse(JSON.stringify(cleanPlot));
   const baseValidationErrors = baseValidations(
     currentPlot,
     "timeseries",
-    "YDataPoints"
+    "YDataPoints",
   );
   if (baseValidationErrors instanceof Error) {
     return baseValidationErrors;
@@ -225,13 +223,13 @@ export const TimeseriesValidator = (
     if (Object.keys(currentPlotDataItem).length === 0) {
       return new PlotHasEmptyDataObjectError(
         cleanPlot?.title ?? "timeseries",
-        "YDataPoints"
+        "YDataPoints",
       );
     }
     const err = TimeseriesDataFieldValidator(
       currentPlotDataItem,
       cleanPlot,
-      outputs
+      outputs,
     );
     if (err instanceof Error) {
       errors.push(err);
@@ -242,13 +240,13 @@ export const TimeseriesValidator = (
 
 export const HistogramValidator = (
   cleanPlot?: Partial<Omit<Plot, "timeseries">>,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   const currentPlot = JSON.parse(JSON.stringify(cleanPlot));
   const baseValidationErrors = baseValidations(
     currentPlot,
     "histogram plot",
-    "XDataPoints or YDataPoints"
+    "XDataPoints or YDataPoints",
   );
   if (baseValidationErrors instanceof Error) {
     return baseValidationErrors;
@@ -257,21 +255,21 @@ export const HistogramValidator = (
     if (Object.keys(data).length === 0) {
       return new PlotHasEmptyDataObjectError(
         cleanPlot?.title ?? "histogram plot",
-        "XDataPoints or YDataPoints"
+        "XDataPoints or YDataPoints",
       );
     }
     let foundAtLeastOneValidDataPoint = false;
     if (Object.keys(data).length > 2) {
       return new PlotHasExtraDataFieldsError(
         cleanPlot?.title,
-        "XDataPoints or YDataPoints"
+        "XDataPoints or YDataPoints",
       );
     }
     if (data.z) {
       return new PlotHasTheWrongKindOfDataError(
         cleanPlot?.title,
         "XDataPoints or YDataPoints",
-        data
+        data,
       );
     }
     let currentDataPointIs: "x" | "y" | "z" | "" = "";
@@ -294,7 +292,7 @@ export const HistogramValidator = (
         cleanPlot?.title,
         currentDataPointIs,
         data[currentDataPointIs],
-        closestMatch
+        closestMatch,
       );
     }
   }
@@ -306,7 +304,7 @@ const LineOrScatterCheckOutputExistence = (
   key: string,
   plotTitle: string,
   axis: "x" | "y",
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   const outputExists = doesOutputExist(key, outputs);
   if (outputExists) {
@@ -317,19 +315,19 @@ const LineOrScatterCheckOutputExistence = (
     plotTitle,
     axis,
     key,
-    closestMatch
+    closestMatch,
   );
 };
 
 const LineOrScatterValidatorBothAxes = (
   currentPlot?: Plot & Chart,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   if (!currentPlot) {
     return false;
   }
   // ensure both x and y are using the same data source
-  // @ts-ignore fixme
+  // @ts-expect-error fixme
   const errors = currentPlot.data.map((currentPlotDataItem) => {
     const xKey = currentPlotDataItem.x;
     const yKey = currentPlotDataItem.y;
@@ -337,13 +335,13 @@ const LineOrScatterValidatorBothAxes = (
       xKey,
       currentPlot.title,
       "x",
-      outputs
+      outputs,
     );
     const yOutputExists = LineOrScatterCheckOutputExistence(
       yKey,
       currentPlot.title,
       "y",
-      outputs
+      outputs,
     );
     if (xOutputExists instanceof Error) {
       return xOutputExists;
@@ -352,15 +350,15 @@ const LineOrScatterValidatorBothAxes = (
       return yOutputExists;
     }
     if (xOutputExists === true && yOutputExists === true) {
-      // @ts-ignore we already checked this above
+      // @ts-expect-error we already checked this above
       const outputMetric = outputs[xKey][outputs[xKey].length - 1] ?? {};
       const outputMetricEndsInGet = outputMetric.op === GetOperator.get;
-      // @ts-ignore we already checked this above
+      // @ts-expect-error we already checked this above
       const outputMetricY = outputs[yKey][outputs[yKey].length - 1] ?? {};
       const outputMetricYEndsInGet = outputMetricY.op === GetOperator.get;
       if (outputMetricEndsInGet !== outputMetricYEndsInGet) {
         return new PlotLineOrScatterBothAxesMustBeInSyncError(
-          currentPlot.title
+          currentPlot.title,
         );
       }
     }
@@ -369,7 +367,7 @@ const LineOrScatterValidatorBothAxes = (
 };
 const LineOrScatterValidatorYAxis = (
   _currentPlot: Partial<Plot>,
-  _outputs?: Partial<Output>
+  _outputs?: Partial<Output>,
 ) => {
   // currently we have no special validation for this case, but we will soon
   return true;
@@ -377,13 +375,13 @@ const LineOrScatterValidatorYAxis = (
 
 export const LineOrScatterValidator = (
   cleanPlot?: Partial<Omit<Plot, "timeseries">>,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   const currentPlot = JSON.parse(JSON.stringify(cleanPlot));
   const baseValidationErrors = baseValidations(
     currentPlot,
     "line or scatter",
-    "XDataPoints or YDataPoints"
+    "XDataPoints or YDataPoints",
   );
   if (baseValidationErrors instanceof Error) {
     return baseValidationErrors;
@@ -393,13 +391,13 @@ export const LineOrScatterValidator = (
   for (const currentPlotDataItem of currentPlot.data) {
     if (currentPlotDataItem.name) {
       errors.push(
-        new PlotLineOrScatterDoesNotSupportNameError(cleanPlot?.title)
+        new PlotLineOrScatterDoesNotSupportNameError(cleanPlot?.title),
       );
       return;
     }
     if (!currentPlotDataItem.y) {
       errors.push(
-        new PlotIsMissingYDataPointsComponentError(cleanPlot?.title, true)
+        new PlotIsMissingYDataPointsComponentError(cleanPlot?.title, true),
       );
     } else if (currentPlotDataItem.y && currentPlotDataItem.x) {
       const result = LineOrScatterValidatorBothAxes(currentPlot, outputs);
@@ -415,8 +413,8 @@ export const LineOrScatterValidator = (
       // TODO: test that we can even get to this case
       errors.push(
         new PlotIsMissingYAndOptionallyXDataPointsComponentError(
-          cleanPlot?.title
-        )
+          cleanPlot?.title,
+        ),
       );
     }
   }

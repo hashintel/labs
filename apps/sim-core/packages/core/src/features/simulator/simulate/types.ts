@@ -20,10 +20,10 @@ export enum SimulatorHistoryItemType {
   SingleRun = "SingleRun",
 }
 
-type SimulatorHistoryItemShared = {
+interface SimulatorHistoryItemShared {
   createdAt: number;
   historyId: string;
-};
+}
 
 export type SimulatorHistoryItemExperimentRun = SimulatorHistoryItemShared & {
   itemType: SimulatorHistoryItemType.ExperimentRun;
@@ -70,7 +70,7 @@ export interface SimulatorHistory extends EntityState<SimulatorHistoryItem> {
   selectedCommitGroup: EntityId | null;
 }
 
-export type SimulatorSlice = {
+export interface SimulatorSlice {
   // Which simulation are we focusing on to display?
   // This simulation will be the focus of the viewers
   currentSimulation: SimulationRunId | null;
@@ -82,17 +82,11 @@ export type SimulatorSlice = {
 
   selectedTarget: ProviderTargetEnv;
 
-  simulationData: {
-    [id: string]: SimulationData;
-  };
+  simulationData: Record<string, SimulationData>;
 
-  experimentRuns: {
-    [id: string]: ExperimentRun;
-  };
+  experimentRuns: Record<string, ExperimentRun>;
 
-  pendingExperimentRuns: {
-    [id: string]: PendingExperimentRun;
-  };
+  pendingExperimentRuns: Record<string, PendingExperimentRun>;
 
   analysisMode: AnalysisMode | null;
 
@@ -103,14 +97,14 @@ export type SimulatorSlice = {
   cloudDisabled: boolean;
 
   history: SimulatorHistory;
-};
+}
 
-export type SimulationAnalysis = {
+export interface SimulationAnalysis {
   outputs?: OutputSeries;
   manifest: string;
-};
+}
 
-export type SimulationData = {
+export interface SimulationData {
   simulationRunId: string;
   steps: SimulationStates;
   /**
@@ -155,7 +149,7 @@ export type SimulationData = {
     | "downloading"
     | "errored"
     | "paused";
-};
+}
 
 export type PendingExperimentRun = Pick<
   ExperimentRun,

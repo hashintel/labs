@@ -12,7 +12,7 @@ import { WrappedSplitterLayout } from "../../WrappedSplitterLayout/WrappedSplitt
 
 export const AgentInspector: FC = () => {
   const [selectedAgentIds, setSelectedAgents] = useRecoilState(
-    sceneState.SelectedAgentIds
+    sceneState.SelectedAgentIds,
   );
   const agentIds = Object.keys(selectedAgentIds).reverse();
 
@@ -56,7 +56,7 @@ const AgentInfo: FC<{ id: string }> = ({ id }) => {
 
   // Provide a way to deselect the agent
   const [selectedAgents, setSelectedAgents] = useRecoilState(
-    sceneState.SelectedAgentIds
+    sceneState.SelectedAgentIds,
   );
   const unselectAgent = () => {
     const tempIds = { ...selectedAgents };
@@ -84,7 +84,7 @@ const AgentInfo: FC<{ id: string }> = ({ id }) => {
 
   if (otherFields.length === 0) {
     otherFields.push(
-      <AgentProperty value="Unavailable at this step" name={null} key="none" />
+      <AgentProperty value="Unavailable at this step" name={null} key="none" />,
     );
   }
 
@@ -109,7 +109,7 @@ const AgentInfo: FC<{ id: string }> = ({ id }) => {
         <div
           className={classNames(
             "codicon",
-            `codicon-${toggled ? "chevron-down" : "chevron-right"}`
+            `codicon-${toggled ? "chevron-down" : "chevron-right"}`,
           )}
         />
         {identifier}
@@ -198,7 +198,7 @@ const AgentProperty: FC<{
     const agentProps = Object.entries(value).map(
       ([key, value]: [string, any]) => {
         return <AgentProperty name={key} value={value} key={key} />;
-      }
+      },
     );
     return <InfoHeader name={name ?? "0"}>{agentProps}</InfoHeader>;
   }
@@ -222,7 +222,7 @@ const InfoHeader: FC<{ name: string }> = ({ name, children }) => {
         <div
           className={classNames(
             "codicon",
-            `codicon-${toggled ? "chevron-down" : "chevron-right"}`
+            `codicon-${toggled ? "chevron-down" : "chevron-right"}`,
           )}
         />
         <span>{name}</span>

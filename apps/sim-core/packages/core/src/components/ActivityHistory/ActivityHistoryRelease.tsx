@@ -46,7 +46,7 @@ export const ActivityHistoryRelease: FC<{
       <ActivityHistoryRowSpacer />
       {currentlySwitchingTo ? (
         <div className="ActivityHistoryRelease__Loading">
-          <LazyIconLoading end={theme["dark"]} />
+          <LazyIconLoading end={theme.dark} />
         </div>
       ) : null}
       {createdAt === null ? null : <ActivityTime time={createdAt} />}

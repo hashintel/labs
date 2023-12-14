@@ -4,13 +4,13 @@ import { RadioInput } from "../../../Inputs/Radio/RadioInput";
 
 import "./VersionPicker.css";
 
-type VersionPickerProps = {
+interface VersionPickerProps {
   nextMajorVersion: string;
   nextMinorVersion: string;
   nextPatchVersion: string;
   selectedVersion: string;
   setSelectedVersion: Dispatch<SetStateAction<string>>;
-};
+}
 
 type VersionWithHint = [string, string, string];
 
@@ -22,11 +22,13 @@ export const VersionPicker: FC<VersionPickerProps> = ({
   setSelectedVersion,
 }) => (
   <ol className="VersionPicker">
-    {([
-      [nextMajorVersion, "major", "Major: breaking changes introduced"],
-      [nextMinorVersion, "minor", "Minor: for backward-compatible changes"],
-      [nextPatchVersion, "patch", "Patch: for backward-compatible bug fixes"],
-    ] as VersionWithHint[]).map(([version, bump, hint]) => (
+    {(
+      [
+        [nextMajorVersion, "major", "Major: breaking changes introduced"],
+        [nextMinorVersion, "minor", "Minor: for backward-compatible changes"],
+        [nextPatchVersion, "patch", "Patch: for backward-compatible bug fixes"],
+      ] as VersionWithHint[]
+    ).map(([version, bump, hint]) => (
       <li className="VersionPicker__item" key={version}>
         <RadioInput
           id={`VersionPicker--${bump}`}

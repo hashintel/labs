@@ -19,7 +19,7 @@ export const useModalNameBehavior = (
     onSubmit: (path: ParsedPath) => void;
   },
   path?: ParsedPath,
-  id?: string
+  id?: string,
 ) => {
   const dispatch = useDispatch();
   const onSubmitRef = useRef(onSubmit);
@@ -51,7 +51,7 @@ export const useModalNameBehavior = (
           const path = parse({ name, ext: selectedLanguage.value });
           onSubmitRef.current(path);
           dispatch(
-            trackEvent({ action: "New behavior", label: path.formatted })
+            trackEvent({ action: "New behavior", label: path.formatted }),
           );
 
           done();

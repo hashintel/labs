@@ -54,7 +54,7 @@ describe("hash.ai platform testing", () => {
     cy.get(simulationFileElementSelector).should(
       "have.attr",
       "title",
-      "@hash/bid.js"
+      "@hash/bid.js",
     );
   });
 });

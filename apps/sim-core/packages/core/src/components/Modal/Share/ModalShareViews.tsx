@@ -17,10 +17,10 @@ const allViewsOptions = [
   },
 ];
 
-export type ModalShareViewsParams = {
+export interface ModalShareViewsParams {
   view?: TabKind;
   tabs?: TabKind[] | null;
-};
+}
 
 export const ModalShareViews: FC<{
   params: ModalShareViewsParams;
@@ -32,8 +32,8 @@ export const ModalShareViews: FC<{
       !options || options.length === 0
         ? allViewsOptions
         : options.length > 1
-        ? options.filter((opt) => opt.value !== "all")
-        : options;
+          ? options.filter((opt) => opt.value !== "all")
+          : options;
 
     const tabs =
       mappedOptions.length === 1 && mappedOptions[0].value === "all"

@@ -5,7 +5,7 @@ export const projectReleaseTags = async (
   pathWithNamespace: string,
   ref: string | undefined | null,
   accessCode?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) =>
   (
     await query<{
@@ -19,6 +19,6 @@ export const projectReleaseTags = async (
             }
          `,
       { pathWithNamespace, ref, accessCode },
-      signal
+      signal,
     )
   ).project.releases.map((release) => release.tag);

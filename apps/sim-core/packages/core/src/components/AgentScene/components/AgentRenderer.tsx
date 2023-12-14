@@ -6,9 +6,9 @@ import { AgentMesh } from "./AgentMesh";
 import { PositionedMeshes } from "../state/SceneState";
 import { RenderSummary } from "../util/anim";
 
-type AgentRendererProps = {
+interface AgentRendererProps {
   mappedTransitions: RenderSummary;
-};
+}
 
 export const AgentRenderer: FC<AgentRendererProps> = ({
   mappedTransitions,

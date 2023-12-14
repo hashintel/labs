@@ -17,14 +17,14 @@ export const validateDescription = (description: string) =>
 
 const matchError = <T extends Record<string, any>>(
   values: T,
-  err: any
+  err: any,
 ): {
   field: keyof T;
   message: string;
 } | null => {
   if (err instanceof QueryError) {
     const code = err.onlyError?.extensions?.code;
-    if (values.hasOwnProperty("name")) {
+    if (Object.prototype.hasOwnProperty.call(values, "name")) {
       switch (code) {
         case "INVALID_NAME":
           return {
@@ -39,7 +39,7 @@ const matchError = <T extends Record<string, any>>(
       }
     }
 
-    if (values.hasOwnProperty("path")) {
+    if (Object.prototype.hasOwnProperty.call(values, "path")) {
       switch (code) {
         case "PATH_TAKEN":
           return {
@@ -67,7 +67,7 @@ const matchError = <T extends Record<string, any>>(
 export const handleQueryCodeErrors = async <T extends Record<string, any>>(
   values: T,
   setError: (field: keyof T, error: ErrorOption) => void,
-  handler: () => Promise<void>
+  handler: () => Promise<void>,
 ) => {
   try {
     await handler();

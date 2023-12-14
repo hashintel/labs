@@ -1,7 +1,10 @@
 import { AgentState, Vec3 } from "@hashintel/engine-web";
 
-export type AnimValue<A> = { current: A; to: A };
-export type AgentTransition = {
+export interface AnimValue<A> {
+  current: A;
+  to: A;
+}
+export interface AgentTransition {
   position: AnimValue<Vec3>;
   direction: AnimValue<Vec3>;
   color: AnimValue<Vec3>;
@@ -15,16 +18,14 @@ export type AgentTransition = {
   network_neighbor_ids?: unknown;
   network_neighbor_in_ids: unknown;
   network_neighbor_out_ids: unknown;
-};
+}
 
-export type RenderSummary = {
-  [agent_id: string]: AgentTransition;
-};
+export type RenderSummary = Record<string, AgentTransition>;
 
 // Mutably advances "cur" to "to" based on the lerpval
 export function lerpAnimValue<A extends Vec3>(
   { current, to }: AnimValue<A>,
-  lerpVal: number
+  lerpVal: number,
 ): [number, number, number] {
   if (current) {
     return [

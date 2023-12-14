@@ -7,7 +7,7 @@ import { steps } from "./lazy";
 const StepExplorerLazy = lazy(() =>
   steps().then((module) => ({
     default: module.StepExplorer,
-  }))
+  })),
 );
 
 export const StepExplorer: FC<StepExplorerProps> = (props) => (

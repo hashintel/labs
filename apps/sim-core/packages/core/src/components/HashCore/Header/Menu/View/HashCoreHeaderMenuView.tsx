@@ -21,13 +21,13 @@ import {
 } from "../../../../../features/viewer/slice";
 import { viewerTabs } from "../../../../../features/viewer/utils";
 
-type HashCoreHeaderMenuViewProps = {
+interface HashCoreHeaderMenuViewProps {
   openMenuItem: string;
   onClickMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onAddView: (tabName: TabKind) => void;
   clearAll: () => void;
-};
+}
 
 export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
   ({
@@ -59,7 +59,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
               {tab.name}
             </a>
           </li>
-        ))
+        )),
       );
 
       if (editorVisible) {
@@ -73,7 +73,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             >
               {canEdit ? <>Search & Replace</> : <>Search</>}
             </a>
-          </li>
+          </li>,
         );
       }
     }
@@ -150,7 +150,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             </div>
           </a>
         </li>
-      </Fragment>
+      </Fragment>,
     );
 
     if (canLogin) {
@@ -171,7 +171,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
               Sign in
             </Link>
           </li>
-        </Fragment>
+        </Fragment>,
       );
     }
 
@@ -188,10 +188,10 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
         <ul className="HashCoreHeaderMenu-submenu">{items}</ul>
       </>
     );
-  }
+  },
 );
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashCoreHeaderMenuView.whyDidYouRender = {
 //   customName: "HashCoreHeaderMenuView"
 // };

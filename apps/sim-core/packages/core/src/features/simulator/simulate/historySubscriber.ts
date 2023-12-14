@@ -17,13 +17,13 @@ import {
   selectHistoryVisible,
 } from "./selectors";
 
-type RunningState = {
+interface RunningState {
   running: boolean;
   abortController: AbortController;
   wasRequestingMore: boolean;
   requestingMore: boolean;
   historyProject: LinkableProject;
-};
+}
 
 export const historySubscriber = (store: Store<SimulatorRootState>) => {
   const dispatch = store.dispatch as SimulatorDispatch;
@@ -33,8 +33,8 @@ export const historySubscriber = (store: Store<SimulatorRootState>) => {
         fetchProjectHistoryNextPage(
           selectCurrentProjectRequired(appStore.getState()),
           selectProjectAccess(appStore.getState()),
-          signal
-        )
+          signal,
+        ),
       );
 
       if (
@@ -85,7 +85,7 @@ export const historySubscriber = (store: Store<SimulatorRootState>) => {
           abortController,
           wasRequestingMore: requestingMore,
           requestingMore: requestingMore,
-          historyProject: historyProject!,
+          historyProject: historyProject,
         };
 
         run(runningState, abortController.signal).catch((err) => {

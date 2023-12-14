@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
+
 // required to run 'monaco-editor' in the 'jest-dom' environments
 // @see https://medium.com/hired-engineering/setting-up-monaco-with-jest-e1e4c963ac
 import "jest-canvas-mock";
@@ -21,8 +23,8 @@ beforeEach(() => {
   mock.mockReset();
   mock.mockImplementation((...args) => mapFileId(...args));
 });
-
-global.WEBPACK_BUILD_STAMP = "JEST";
+// @ts-expect-error scoping issues
+global.BUILD_STAMP = "JEST";
 
 window.ResizeObserver = class ResizeObserver {
   observe() {}

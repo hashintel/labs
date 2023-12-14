@@ -11,6 +11,7 @@ import { store } from "../../../features/store";
 it("renders without crashing", () => {
   const div = document.createElement("div");
 
+  //@ts-expect-error redux problems
   store.dispatch(setProjectWithMeta(mockProject));
 
   ReactDOM.render(
@@ -23,7 +24,7 @@ it("renders without crashing", () => {
         />
       </ErrorBoundary>
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

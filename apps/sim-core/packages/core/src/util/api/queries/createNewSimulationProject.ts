@@ -13,7 +13,7 @@ export const createNewSimulationProject = async (
   path: string,
   name: string,
   visibility: ProjectVisibility,
-  actions: ApiCommitAction[]
+  actions: ApiCommitAction[],
 ): Promise<SimulationProjectWithHcFiles> =>
   prepareRemoteProject(
     (
@@ -29,8 +29,8 @@ export const createNewSimulationProject = async (
           
           ${FullProjectFragment}
         `,
-        { path, visibility, name, namespace, actions }
+        { path, visibility, name, namespace, actions },
       )
     ).createProject,
-    null
+    null,
   );

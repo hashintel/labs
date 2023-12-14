@@ -21,7 +21,7 @@ export const ActivityHistoryItemCommit: FC<{
 
   const { currentlySwitchingTo, actuallyCurrent, current } = useCurrentRefItem(
     commit.id,
-    domRef
+    domRef,
   );
 
   return (

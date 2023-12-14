@@ -21,7 +21,7 @@ import { useNavigateAway } from "./hooks";
 
 const useEnsureProject = (
   project: LinkableProject,
-  onCancel: VoidFunction
+  onCancel: VoidFunction,
 ): SimulationProject | null => {
   const dispatch = useDispatch<AppDispatch>();
   const currentProject = useSelector(selectCurrentProject);
@@ -38,17 +38,19 @@ const useEnsureProject = (
 
   useEffect(() => {
     if (bootstrapped && !isCurrentProject && project) {
+      //@ts-expect-error redux problems
       const promise = dispatch(fetchProject({ project, redirect: false }));
 
       (async () => {
         try {
+          //@ts-expect-error redux problems
           const result = unwrapResult(await promise);
 
           if (!result) {
             onCancelRef.current();
           }
         } catch (err) {
-          if (err?.name !== "AbortError") {
+          if (err instanceof Error && err?.name !== "AbortError") {
             fatalError(err);
           }
         }
@@ -71,10 +73,10 @@ export const HashRouterEffectFork: FC<{
   const { canFork, canForkIfSignedIn, canLogin } = useScopes(
     Scope.fork,
     Scope.forkIfSignedIn,
-    Scope.login
+    Scope.login,
   );
   const project = useEnsureProject(targetProject, () =>
-    canLogin ? forceLogIn(true) : navigateAway(true)
+    canLogin ? forceLogIn(true) : navigateAway(true),
   );
   const projectName = project?.name;
   const projectVisibility = project?.visibility;
@@ -86,6 +88,7 @@ export const HashRouterEffectFork: FC<{
         <ModalNewProject
           onCancel={navigateAway}
           onSubmit={async (values) => {
+            //@ts-expect-error redux problems
             await dispatch(forkProject(project, values));
             hideForkModal();
           }}
@@ -95,7 +98,7 @@ export const HashRouterEffectFork: FC<{
           visibilityDisabled={projectVisibility === "private"}
         />
       ) : null,
-    [dispatch, navigateAway, project, projectName, projectVisibility]
+    [dispatch, navigateAway, project, projectName, projectVisibility],
   );
 
   useEffect(() => {

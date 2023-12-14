@@ -13,24 +13,20 @@ import { sampleDistribution } from "./montecarlo";
 
 export const createExperimentDefinition = (
   experimentsSrc: string,
-  experimentName: string
+  experimentName: string,
 ): ExperimentDefinition => {
-  const experimentDefinitions: ParsedExperimentDefinitions = parseAndThrowProper(
-    experimentsSrc,
-    "experiments.json"
-  );
+  const experimentDefinitions: ParsedExperimentDefinitions =
+    parseAndThrowProper(experimentsSrc, "experiments.json");
 
   return experimentDefinitions[experimentName];
 };
 
 export const createExperimentPlan = (
   experimentsSrc: string,
-  experimentName: string
+  experimentName: string,
 ): [ExperimentPlan, ExperimentDefinitionWithoutOptimization] => {
-  const experimentDefinitions: ParsedExperimentDefinitions = parseAndThrowProper(
-    experimentsSrc,
-    "experiments.json"
-  );
+  const experimentDefinitions: ParsedExperimentDefinitions =
+    parseAndThrowProper(experimentsSrc, "experiments.json");
 
   const selectedExperiment = experimentDefinitions[experimentName];
 
@@ -46,7 +42,7 @@ export const createExperimentPlan = (
 
 export const createExperimentVariants = (
   experimentName: string,
-  experimentDefinitions: ParsedExperimentDefinitions
+  experimentDefinitions: ParsedExperimentDefinitions,
 ): ExperimentPlan => {
   // Select the experiment from the name that the user gave us
   const selectedExperiment = experimentDefinitions[experimentName];
@@ -54,7 +50,7 @@ export const createExperimentVariants = (
   // Panic if there's no experiment definition with that name
   if (!selectedExperiment) {
     throw new Error(
-      `No experiment with name '${experimentName}' found in experiments.json`
+      `No experiment with name '${experimentName}' found in experiments.json`,
     );
   }
   switch (selectedExperiment.type) {
@@ -63,7 +59,7 @@ export const createExperimentVariants = (
     case "multiparameter":
       return createMultiparameterVariant(
         selectedExperiment,
-        experimentDefinitions
+        experimentDefinitions,
       );
     default:
       return createExperimentPlanFromArgs(selectedExperiment);
@@ -71,7 +67,7 @@ export const createExperimentVariants = (
 };
 
 const createExperimentPlanFromArgs = (
-  selectedExperiment: ExperimentDefinition
+  selectedExperiment: ExperimentDefinition,
 ) => {
   switch (selectedExperiment.type) {
     case "monte-carlo":
@@ -92,7 +88,7 @@ const createExperimentPlanFromArgs = (
     default:
       throw new EvalError(
         "Not a valid experiment type, see docs.hash.ai/experiments on how to define an experiment run",
-        "experiments.json"
+        "experiments.json",
       );
   }
 };
@@ -100,7 +96,7 @@ const createExperimentPlanFromArgs = (
 const createVariantWithMappedValue = (
   field: string,
   items: any[],
-  mapper: (item: any, idx: number) => any
+  mapper: (item: any, idx: number) => any,
 ) =>
   items.reduce<ExperimentPlan>((acc, val, idx) => {
     const mappedValue = mapper(val, idx);
@@ -139,12 +135,12 @@ const linspace = (start: number, stop: number, numSamples: number) => {
 };
 
 const createValueVariant = (
-  definition: ExperimentDefinition<"values">
+  definition: ExperimentDefinition<"values">,
 ): ExperimentPlan =>
   createVariantWithMappedValue(
     definition.field,
     definition.values,
-    (val) => val
+    (val) => val,
   );
 
 const createLinspaceVariant = ({
@@ -156,7 +152,7 @@ const createLinspaceVariant = ({
   createVariantWithMappedValue(
     field,
     Array(samples).fill(0),
-    (_, idx) => start + (idx * (stop - start)) / (samples - 1)
+    (_, idx) => start + (idx * (stop - start)) / (samples - 1),
   );
 
 const createMeshgridVariant = ({
@@ -191,7 +187,7 @@ const createMeshgridVariant = ({
 
 const createMultiparameterVariant = (
   definition: ExperimentDefinition<"multiparameter">,
-  experimentDefinitions: ParsedExperimentDefinitions
+  experimentDefinitions: ParsedExperimentDefinitions,
 ): ExperimentPlan => {
   const parameterList = definition.runs.map((runName) => {
     const definition = experimentDefinitions[runName];
@@ -246,29 +242,29 @@ const createArangeVariant = ({
   createVariantWithMappedValue(
     field,
     arange(start, stop, increment),
-    (val) => val
+    (val) => val,
   );
 
 const createGroupVariant = (
   definition: ExperimentDefinition<"group">,
-  experimentDefinitions: ParsedExperimentDefinitions
+  experimentDefinitions: ParsedExperimentDefinitions,
 ) => {
   const plan = definition.runs.reduce<ExperimentPlan>(
     (acc, name) => ({
       ...acc,
       ...createExperimentVariants(name, experimentDefinitions),
     }),
-    {}
+    {},
   );
 
   return plan;
 };
 
 export const createMonteCarloVariant = (
-  definition: ExperimentDefinition<"monte-carlo">
+  definition: ExperimentDefinition<"monte-carlo">,
 ): ExperimentPlan =>
   createVariantWithMappedValue(
     definition.field,
     Array(definition.samples).fill(0),
-    () => sampleDistribution(definition)
+    () => sampleDistribution(definition),
   );

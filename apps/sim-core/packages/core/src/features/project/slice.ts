@@ -100,7 +100,7 @@ export const fetchProject = createAppAsyncThunk<
       access, // eslint-disable-line @typescript-eslint/no-unused-vars
       prefetchedRemoteProject, // eslint-disable-line @typescript-eslint/no-unused-vars
     },
-    { dispatch, signal, getState } // eslint-disable-line @typescript-eslint/no-unused-vars
+    { dispatch, signal, getState }, // eslint-disable-line @typescript-eslint/no-unused-vars
   ) => {
     if (selectScope[Scope.save](getState())) {
       await dispatch(save());
@@ -110,81 +110,82 @@ export const fetchProject = createAppAsyncThunk<
 
     const refWithDefault = ref ?? "main";
 
-    try {
-      // Migration shim
-      // To be restored with Github intregration.
-      // const remoteProject = prefetchedRemoteProject
-      //   ? prepareRemoteProject(await prefetchedRemoteProject, access)
-      //   : await projectByPath(
-      //       pathWithNamespace,
-      //       refWithDefault,
-      //       access,
-      //       signal
-      //     );
-      // const localProject = getLocalStorageProject(
-      //   pathWithNamespace,
-      //   remoteProject.ref
-      // );
-      // const project = chooseLatestProject(remoteProject, localProject);
+    // try {
+    // Migration shim
+    // To be restored with Github intregration.
+    // const remoteProject = prefetchedRemoteProject
+    //   ? prepareRemoteProject(await prefetchedRemoteProject, access)
+    //   : await projectByPath(
+    //       pathWithNamespace,
+    //       refWithDefault,
+    //       access,
+    //       signal
+    //     );
+    // const localProject = getLocalStorageProject(
+    //   pathWithNamespace,
+    //   remoteProject.ref
+    // );
+    // const project = chooseLatestProject(remoteProject, localProject);
 
-      // if (access?.level === "Write" && !project.canUserEdit) {
-      //   throw new Error("Invalid access token");
-      // }
-      const project = getLocalStorageProject(pathWithNamespace, refWithDefault);
+    // if (access?.level === "Write" && !project.canUserEdit) {
+    //   throw new Error("Invalid access token");
+    // }
+    const project = getLocalStorageProject(pathWithNamespace, refWithDefault);
 
-      if (!project) {
-        const err =
-          "Attempted to fetch project from localstorage, but could not.";
-        console.warn(err, pathWithNamespace, ref);
+    if (!project) {
+      const err =
+        "Attempted to fetch project from localstorage, but could not.";
+      console.warn(err, pathWithNamespace, ref);
 
-        dispatch(
-          setAccessGate({
-            accessGate: {
-              kind: HashCoreAccessGateKind.NotFound,
-              props: { requestedProject: null },
-            },
-            url: pathWithNamespace,
-          })
-        );
+      dispatch(
+        setAccessGate({
+          accessGate: {
+            kind: HashCoreAccessGateKind.NotFound,
+            props: { requestedProject: null },
+          },
+          url: pathWithNamespace,
+        }),
+      );
 
-        return false;
-      }
-
-      const scopes = batchedScopes.selectScopes(getState())(project);
-
-      const selectedFile =
-        file ?? (scopes[Scope.edit] ? undefined : globalsFileId);
-
-      dispatch(setProjectWithMeta(project, { fromLegacy, file: selectedFile }));
-      if (project && redirect) {
-        navigate(urlFromProject(project), true, {}, false);
-      }
-
-      return true;
-    } catch (err) {
-      // const requestedProject = { pathWithNamespace, ref: refWithDefault };
-      // const gate =
-      //   err instanceof QueryError
-      //     ? queryErrorToAccessGate(err, {
-      //         requestedProject: requestedProject,
-      //       })
-      //     : null;
-
-      // if (gate) {
-      //   dispatch(
-      //     setAccessGate({
-      //       accessGate: gate,
-      //       // @todo include access code in this
-      //       url: urlFromProject(requestedProject),
-      //     })
-      //   );
-      //   return false;
-      // } else {
-      //   throw err;
-      // }
-      throw err;
+      return false;
     }
-  }
+
+    const scopes = batchedScopes.selectScopes(getState())(project);
+
+    const selectedFile =
+      file ?? (scopes[Scope.edit] ? undefined : globalsFileId);
+
+    //@ts-expect-error redux problems
+    dispatch(setProjectWithMeta(project, { fromLegacy, file: selectedFile }));
+    if (project && redirect) {
+      navigate(urlFromProject(project), true, {}, false);
+    }
+
+    return true;
+    // } catch (err) {
+    // const requestedProject = { pathWithNamespace, ref: refWithDefault };
+    // const gate =
+    //   err instanceof QueryError
+    //     ? queryErrorToAccessGate(err, {
+    //         requestedProject: requestedProject,
+    //       })
+    //     : null;
+
+    // if (gate) {
+    //   dispatch(
+    //     setAccessGate({
+    //       accessGate: gate,
+    //       // @todo include access code in this
+    //       url: urlFromProject(requestedProject),
+    //     })
+    //   );
+    //   return false;
+    // } else {
+    //   throw err;
+    // }
+    //   throw err;
+    // }
+  },
 );
 
 export const release = createAppAsyncThunk<
@@ -199,7 +200,7 @@ export const release = createAppAsyncThunk<
   "project/release",
   async (
     { tag, updateDescription, update = {}, toPublish = [] },
-    { dispatch, getState }
+    { dispatch, getState },
   ) => {
     await dispatch(save());
 
@@ -214,8 +215,8 @@ export const release = createAppAsyncThunk<
 
     const withKeys = Object.fromEntries(
       selectLocalBehaviorFiles(state).flatMap((file) =>
-        !file.keys._trackCreation ? [[file.path.base, file]] : []
-      )
+        !file.keys._trackCreation ? [[file.path.base, file]] : [],
+      ),
     );
 
     const newFiles = [...new Set([...currentFiles, ...toPublish])].flatMap(
@@ -229,12 +230,12 @@ export const release = createAppAsyncThunk<
               {
                 filename: behaviorKeysFileName(withKeys[filename]),
                 path: repoPathForBehavior(
-                  behaviorKeysFileName(withKeys[filename])
+                  behaviorKeysFileName(withKeys[filename]),
                 ),
               },
             ]
           : [file];
-      }
+      },
     );
 
     const { updatedAt, ...changes } = await createReleaseWithUpdate(
@@ -244,7 +245,7 @@ export const release = createAppAsyncThunk<
       {
         ...update,
         files: newFiles,
-      }
+      },
     );
 
     // @todo do this with .fulfilled
@@ -258,24 +259,25 @@ export const release = createAppAsyncThunk<
             files: newFiles.map((file) => file.filename),
           },
         },
-      })
+      }),
     );
 
     dispatch(
+      //@ts-expect-error redux type problems
       trackEvent({
         action: "New Release: Core",
         label: `${type} - ${pathWithNamespace} – ${tag}`,
         context: {
           type,
         },
-      })
+      }),
     );
 
     dispatch(displayToast({ kind: ToastKind.ReleaseSuccess }));
     setTimeout(() => dispatch(displayToast({ kind: ToastKind.None })), 6_000);
 
     return { tag, createdAt: updatedAt };
-  }
+  },
 );
 
 export const {
@@ -290,7 +292,7 @@ export const {
       action: PayloadAction<{
         accessGate: HashCoreAccessGateKindWithProps;
         url: string | null;
-      }>
+      }>,
     ) {
       state.accessGate = {
         ...action.payload.accessGate,
@@ -313,7 +315,7 @@ export const {
           action.payload.project,
           "files",
           "dependencies",
-          "actions"
+          "actions",
         );
 
         state.projectLoaded = true;

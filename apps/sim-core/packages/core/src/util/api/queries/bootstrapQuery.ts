@@ -1,10 +1,9 @@
 import { BUILTIN_SIMULATIONS } from "../../builtinSimulations";
 import { LocalStorageProject } from "../../../features/project/types";
-import { ProjectTypeName, VisibilityLevel } from "../auto-types";
+import { ProjectTypeName, VisibilityLevel } from "../types";
 import type { User } from "../types";
 import { getItem } from "../../../hooks/useLocalStorage";
 import { getLocalStorageProject } from "../../../features/project/utils";
-import { identifyBasicUser } from "./basicUser";
 import { prepareExamples } from "./exampleSimulations";
 import { prepareUserProjects } from "./myProjects";
 import { setLocalStorageProject } from "../../../features/middleware/localStorage";
@@ -47,9 +46,8 @@ import { setLocalStorageProject } from "../../../features/middleware/localStorag
 //   ${ExampleProjectsFragment}
 // `;
 
+//eslint-disable-next-line @typescript-eslint/require-await
 export const bootstrapQuery = async () => {
-  let me: User | undefined;
-
   try {
     // const result = await query<BootstrapQuery>(queryString);
     // Migration shim
@@ -63,7 +61,6 @@ export const bootstrapQuery = async () => {
         email: string;
         role: Pick<User, "role">;
       };
-      me = user;
 
       return {
         ...bootstrap,
@@ -76,8 +73,6 @@ export const bootstrapQuery = async () => {
   } catch {
     // Migration shim
     return { examples: [] };
-  } finally {
-    identifyBasicUser(me);
   }
 };
 
@@ -86,7 +81,7 @@ const bootstrapQueryResponse = () => {
   for (const simulation of BUILTIN_SIMULATIONS) {
     const existingProject = getLocalStorageProject(
       simulation.pathWithNamespace,
-      simulation.ref
+      simulation.ref,
     );
     if (!existingProject) {
       setLocalStorageProject({ ...simulation, actions: [] });
@@ -97,7 +92,7 @@ const bootstrapQueryResponse = () => {
   const myProjects = [];
   for (const key in localStorage) {
     if (
-      !localStorage.hasOwnProperty(key) ||
+      !Object.prototype.hasOwnProperty.call(localStorage, key) ||
       !key.startsWith(`project/`) ||
       !key.endsWith("/main")
     ) {

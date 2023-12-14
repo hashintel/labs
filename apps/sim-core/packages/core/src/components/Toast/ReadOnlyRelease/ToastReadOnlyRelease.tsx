@@ -14,7 +14,7 @@ export const ToastReadOnlyRelease: FC<{
 }> = ({ project }) => {
   if (isProjectLatest(project)) {
     throw new Error(
-      "Cannot load ToastReadOnlyRelease for latest copy of a project"
+      "Cannot load ToastReadOnlyRelease for latest copy of a project",
     );
   }
 

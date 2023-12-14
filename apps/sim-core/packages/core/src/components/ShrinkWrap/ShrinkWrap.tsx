@@ -27,8 +27,8 @@ export const ShrinkWrap: FC<
         span.style.removeProperty("max-width");
         const lineHeight = Math.floor(
           parseFloat(
-            window.getComputedStyle(span).lineHeight.replace("normal", "16px")
-          )
+            window.getComputedStyle(span).lineHeight.replace("normal", "16px"),
+          ),
         );
 
         while (Math.ceil(span.offsetHeight / lineHeight) < lineCount + 1) {

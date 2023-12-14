@@ -26,7 +26,7 @@ const loadBehavior = async (code: string, namespace: PyProxy) => {
  */
 export const getBehaviorFn = async (
   fileName: string,
-  behaviorCode: string
+  behaviorCode: string,
 ): Promise<BehaviorFn> => {
   const extension = fileName.split(".").pop();
 
@@ -45,7 +45,7 @@ export const getBehaviorFn = async (
       const fn = new Function(
         "hash_stdlib",
         "hstd",
-        `${behaviorCode}\n return behavior`
+        `${behaviorCode}\n return behavior`,
       )(hash_stdlib, hash_stdlib);
 
       // Return the behavior closure

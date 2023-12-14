@@ -30,8 +30,8 @@ const usePlotTab = (): [boolean, HTMLElement | null] => {
 
     const elem = Array.from(
       document.querySelectorAll<HTMLElement>(
-        ".SimulationViewerMain .react-tabs__tab"
-      )
+        ".SimulationViewerMain .react-tabs__tab",
+      ),
     ).find((tab) => tab.innerText.includes("Plots"));
 
     if (elem) {

@@ -9,9 +9,9 @@ import { RenderSummary } from "../util/anim";
 const tempObject = new THREE.Object3D();
 tempObject.up = new THREE.Vector3(0, 0, 1);
 
-type HoveredAgentProps = {
+interface HoveredAgentProps {
   transitions: RenderSummary;
-};
+}
 /*
  * Creates the appropriate ThreeJS representation of a "hovered" agent
  */
@@ -38,6 +38,7 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
       const [posx, posy, posz] = agent.position.to;
       const pos: Vec3 = [posx, posy, posz + offsetZ];
 
+      /* eslint-disable react/no-unknown-property */
       return (
         <mesh
           scale={scale}
@@ -53,6 +54,7 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
           />
         </mesh>
       );
+      /* eslint-enable react/no-unknown-property */
     }
   }
   return null;

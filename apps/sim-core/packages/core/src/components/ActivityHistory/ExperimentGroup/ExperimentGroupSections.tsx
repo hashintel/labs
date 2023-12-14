@@ -46,7 +46,7 @@ const ExperimentGroupAnalysisSection: FC<{
       (id) =>
         !!simData[id]?.analysis ||
         !!simData[id]?.plots ||
-        simulationHasSteps(simData[id])
+        simulationHasSteps(simData[id]),
     );
   });
 
@@ -75,7 +75,7 @@ const ExperimentGroupAnalysisSection: FC<{
   const [onContextMenu, exportingTooltip] = useExperimentRunContextMenu(
     allRunItemRef,
     data.experimentId,
-    analysisViewable
+    analysisViewable,
   );
 
   return (
@@ -162,7 +162,7 @@ export const ExperimentGroupSections: FC<{
                 id={id}
                 plan={initializedData.plan[id]}
                 experimentFinished={hasExperimentFinished(
-                  initializedData.status
+                  initializedData.status,
                 )}
                 metricOutcome={initializedData.metricOutcome}
               />

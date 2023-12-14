@@ -19,14 +19,14 @@ import {
 const rebuildWrapper = (
   wasmlib: WasmLib,
   components: SimulationComponents,
-  fromState: AgentState[]
+  fromState: AgentState[],
 ) =>
   wasmlib.start_simulation(
     fromState,
     components?.properties,
     components?.datasets,
     components?.behaviors,
-    components?.handlers
+    components?.handlers,
   );
 
 /**
@@ -53,7 +53,7 @@ const runSim = async (runner: RunnerState) => {
     runner.stepsLeft -= 1;
 
     // awaiting the runner might be instant, so we need to prevent the thread from locking
-    await new Promise((resolve) => setImmediate(resolve));
+    await new Promise((resolve) => setTimeout(resolve));
 
     if (runner.stepHandler) {
       await runner.stepHandler(runner.stepsTaken + 1, newState);
@@ -71,7 +71,7 @@ const runSim = async (runner: RunnerState) => {
 
 const initialize = async (
   request: RunnerRequestArgs<"initialize">,
-  runner: RunnerState
+  runner: RunnerState,
 ) => {
   if (runner.wrapper) {
     runner.wrapper.free();
@@ -90,10 +90,10 @@ const initialize = async (
     runner.parsedSimulation = await simulationFromRequest(
       request.manifestSrc,
       runner.datasetCache,
-      request.pyodideEnabled
+      request.pyodideEnabled,
     );
   } catch (err) {
-    if (err.message === "Cannot load pyodide") {
+    if (err instanceof Error && err.message === "Cannot load pyodide") {
       runner.pyodide = "errored";
       return false;
     } else {
@@ -117,7 +117,7 @@ const initialize = async (
   runner.wrapper = rebuildWrapper(
     runner.wasmlib,
     runner.parsedSimulation,
-    initialState
+    initialState,
   );
 
   runner.latestState = runner.wrapper.initial_state() as AgentState[];
@@ -129,7 +129,7 @@ const initialize = async (
 
   // Ensure the behavior's properties are up to date
   runner.parsedSimulation.behaviors.updateProperties(
-    runner.parsedSimulation.properties
+    runner.parsedSimulation.properties,
   );
 
   return true;
@@ -138,7 +138,7 @@ const initialize = async (
 // Step N steps and then give a response
 const step = async (
   request: RunnerRequestArgs<"step">,
-  runner: RunnerState
+  runner: RunnerState,
 ) => {
   if (runner.earlyStop) {
     return;
@@ -197,7 +197,7 @@ const getReadySteps = async (runner: RunnerState) => {
  */
 const updateComponents = (
   request: RunnerRequestArgs<"updateComponents">,
-  runner: RunnerState
+  runner: RunnerState,
 ) => {
   try {
     if (runner.parsedSimulation) {
@@ -216,7 +216,7 @@ const updateComponents = (
       runner.wrapper = rebuildWrapper(
         runner.wasmlib,
         runner.parsedSimulation,
-        runner.latestState
+        runner.latestState,
       );
     }
   } catch (err) {

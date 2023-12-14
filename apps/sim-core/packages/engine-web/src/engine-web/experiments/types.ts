@@ -197,13 +197,11 @@ export class DeferredPromise<T> {
   }
 }
 
-type WithoutOptimization<
-  Definition extends ExperimentDefinition
-> = Definition extends ExperimentDefinition<"optimization">
-  ? never
-  : Definition;
+type WithoutOptimization<Definition extends ExperimentDefinition> =
+  Definition extends ExperimentDefinition<"optimization"> ? never : Definition;
 
-export type ExperimentDefinitionWithoutOptimization = WithoutOptimization<ExperimentDefinition>;
+export type ExperimentDefinitionWithoutOptimization =
+  WithoutOptimization<ExperimentDefinition>;
 
 export type QueuedExperimentRunWithoutOptimization = Omit<
   QueuedExperimentRun,

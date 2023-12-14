@@ -51,6 +51,7 @@ export const ModalPrivateDependencies: FC<{
               <a
                 href={urljoin(SITE_URL, dependency.pathWithNamespace)}
                 target="_blank"
+                rel="noreferrer"
               >
                 {dependency.path.formatted}
               </a>
@@ -65,6 +66,7 @@ export const ModalPrivateDependencies: FC<{
               <a
                 href={urljoin(SITE_URL, project.pathWithNamespace)}
                 target="_blank"
+                rel="noreferrer"
               >
                 {makeCurrentProjectPrivateText}
               </a>

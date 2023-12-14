@@ -14,14 +14,14 @@ const MAX_TIMEOUT = 100;
 const maxTimeoutWhitelist = [initializeExperiment.type];
 
 export const simulatorMiddleware: Middleware<{}, SimulatorRootState> = (
-  store
+  store,
 ) => {
   const dispatch = store.dispatch as SimulatorDispatch;
 
   simulationProvider.subscribe((message) => {
     if (message.simulationRunId && message.earlyStop) {
       dispatch(
-        earlyStopSimulation(message.simulationRunId, message.stopMessage)
+        earlyStopSimulation(message.simulationRunId, message.stopMessage),
       );
     }
 
@@ -42,7 +42,7 @@ export const simulatorMiddleware: Middleware<{}, SimulatorRootState> = (
           context: "",
           timestamp: Date.now(),
           simulationId: message.simulationRunId,
-        })
+        }),
       );
     }
   });
@@ -62,7 +62,7 @@ export const simulatorMiddleware: Middleware<{}, SimulatorRootState> = (
             time,
             "Action:",
             action.type,
-            action
+            action,
           );
         }
       }

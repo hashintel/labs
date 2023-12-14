@@ -10,20 +10,20 @@ declare module "@svgr/core" {
       dimensions: boolean;
       expandProps: "start" | "end" | false;
       prettier: boolean;
-      prettierConfig: { [key: string]: any };
+      prettierConfig: Record<string, any>;
       svgo: boolean;
       svgoConfig: {
-        plugins: { [key: string]: any }[];
+        plugins: Record<string, any>[];
       };
       ref: boolean;
-      replaceAttrValues: { [key: string]: string };
-      svgProps: { [key: string]: string };
+      replaceAttrValues: Record<string, string>;
+      svgProps: Record<string, string>;
       title: boolean;
       template: ({ template }: any, _: any, { jsx }: any) => string;
       // only partially documented, but necessary
       // @see: https://www.smooth-code.com/open-source/svgr/docs/node-api/#plugins
       plugins: string[];
-    }>
+    }>,
   ): string;
 }
 declare module "random-emoji";

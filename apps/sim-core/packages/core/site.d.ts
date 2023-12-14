@@ -1,11 +1,8 @@
 /**
- * provided by webpack build
- * @see: ./webpack.config.js
+ * provided by vite
+ * @see: ./vite.config.ts
  */
-declare var WEBPACK_PUBLIC_PATH: string;
-declare var WEBPACK_BUILD_STAMP: string;
-declare var LOCAL_API: boolean;
-declare var MAPBOX_API_TOKEN: string;
+declare let BUILD_STAMP: string;
 
 /**
  * Like `Omit` but distributes over unions

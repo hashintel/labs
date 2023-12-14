@@ -37,7 +37,7 @@ export const HashCoreHeaderMenu: FC = memo(() => {
     (tab) => {
       dispatch(openTab(tab));
     },
-    [dispatch]
+    [dispatch],
   );
 
   return (
@@ -88,7 +88,7 @@ export const HashCoreHeaderMenu: FC = memo(() => {
   );
 });
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashCoreHeaderMenu.whyDidYouRender = {
 //   customName: "HashCoreHeaderMenu"
 // };

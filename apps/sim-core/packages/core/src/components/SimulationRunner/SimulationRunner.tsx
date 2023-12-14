@@ -44,19 +44,19 @@ export const SimulationRunner: FC = () => {
         // @todo use refs for all of these
         const reset =
           containerRef.current.querySelector<HTMLDivElement>(
-            ".reset.simulation-control"
+            ".reset.simulation-control",
           )?.offsetLeft ?? 0;
         const experiments =
           containerRef.current.querySelector<HTMLDivElement>(
-            ".ExperimentsRunner"
+            ".ExperimentsRunner",
           )?.offsetLeft ?? 0;
         const step =
           containerRef.current.querySelector<HTMLDivElement>(
-            ".step.simulation-control"
+            ".step.simulation-control",
           )?.offsetLeft ?? 0;
         const simulate =
           containerRef.current.querySelector<HTMLDivElement>(
-            ".simulate.simulation-control"
+            ".simulate.simulation-control",
           )?.offsetLeft ?? 0;
         for (const [key, value] of Object.entries({
           reset,
@@ -75,7 +75,7 @@ export const SimulationRunner: FC = () => {
     },
     {
       onObserve: null,
-    }
+    },
   );
 
   const setRef = useCallback(
@@ -84,7 +84,7 @@ export const SimulationRunner: FC = () => {
 
       attachResizeObserver(node);
     },
-    [attachResizeObserver]
+    [attachResizeObserver],
   );
 
   return (

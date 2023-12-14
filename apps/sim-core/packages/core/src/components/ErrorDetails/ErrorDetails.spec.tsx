@@ -12,7 +12,7 @@ it("renders without crashing", () => {
       errorStack={"errorStack"}
       hidden={true}
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

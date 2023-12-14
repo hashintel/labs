@@ -64,7 +64,7 @@ export const HashCoreFilesSearch: FC<{
               onReplaceAllInFile={async () => {
                 if (
                   !window.confirm(
-                    `Would you like to replace all instances of ${query.searchTerm} with ${query.replaceTerm} in this file?`
+                    `Would you like to replace all instances of ${query.searchTerm} with ${query.replaceTerm} in this file?`,
                   )
                 ) {
                   return;

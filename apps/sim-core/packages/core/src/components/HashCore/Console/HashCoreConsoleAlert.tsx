@@ -7,12 +7,12 @@ import type { UserAlertInState } from "../../../features/viewer/types";
 import { setCurrentFileId } from "../../../features/files/slice";
 import { trackEvent } from "../../../features/analytics";
 
-type HashCoreConsoleAlertProps = {
+interface HashCoreConsoleAlertProps {
   alert: UserAlertInState;
   files: Record<string, Pick<HcFile, "id" | "path">>;
-};
+}
 
-const filesRegex = /((?:(?:[@\/](?:[\w-]+\/)+)|(?:\/))?[\w-]+\.[a-z]+)/i;
+const filesRegex = /((?:(?:[@/](?:[\w-]+\/)+)|(?:\/))?[\w-]+\.[a-z]+)/i;
 
 /**
  * Convert internal error language into something more widely accessible.
@@ -43,16 +43,16 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
           </a>
         ) : (
           <Fragment key={idx}>{makeErrorMessageFriendlier(piece)}</Fragment>
-        )
+        ),
       ),
-    [files, alert.message, dispatch]
+    [files, alert.message, dispatch],
   );
 
   const messageIncludesFiles = useMemo(
     () =>
       filesRegex.test(alert.message) &&
       alert.message.split(filesRegex).some((piece) => files[piece]),
-    [alert.message, files]
+    [alert.message, files],
   );
 
   useEffect(() => {
@@ -60,7 +60,7 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
       trackEvent({
         action: "User Alert",
         label: Object.values(alert).join(" - "),
-      })
+      }),
     );
   }, [alert, dispatch]);
 

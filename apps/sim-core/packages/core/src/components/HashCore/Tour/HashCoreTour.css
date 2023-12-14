@@ -115,14 +115,20 @@
   pointer-events: none;
   position: fixed;
   top: 0;
-  transition: all 0.1s ease-out, height 0ms 0.1s, opacity 0.1s 0ms;
+  transition:
+    all 0.1s ease-out,
+    height 0ms 0.1s,
+    opacity 0.1s 0ms;
   width: 100vw;
   z-index: 9997;
 }
 .shepherd-modal-overlay-container.shepherd-modal-is-visible {
   height: 100vh;
   opacity: 0.5;
-  transition: all 0.1s ease-out, height 0s 0s, opacity 0.1s 0s;
+  transition:
+    all 0.1s ease-out,
+    height 0s 0s,
+    opacity 0.1s 0s;
 }
 .shepherd-modal-overlay-container.shepherd-modal-is-visible path {
   pointer-events: all;

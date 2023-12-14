@@ -51,7 +51,7 @@ export const HashCore: FC = memo(function HashCore() {
           context: {
             type: project.type,
           },
-        })
+        }),
       );
       firstLoadTracked.current = true;
     }
@@ -85,7 +85,7 @@ export const HashCore: FC = memo(function HashCore() {
       }
 
       const nextProject: SimulationProjectWithHcFiles = JSON.parse(
-        event.newValue
+        event.newValue,
       );
 
       dispatch(setProjectWithMeta(nextProject, { replaceTabs: false }));
@@ -136,7 +136,7 @@ export const HashCore: FC = memo(function HashCore() {
       .querySelector('meta[name="twitter:image"]')
       ?.setAttribute(
         "content",
-        project?.image || project?.thumbnail || defaultMetaImage
+        project?.image || project?.thumbnail || defaultMetaImage,
       );
   }, [project?.description, project?.image, project?.thumbnail]);
 

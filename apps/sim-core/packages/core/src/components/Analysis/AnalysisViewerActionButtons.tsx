@@ -13,13 +13,13 @@ import { SimpleTooltip } from "../SimpleTooltip";
 
 import "./TabListActionButtons.scss";
 
-type ListItemProps = {
+interface ListItemProps {
   icon: ReactElement;
   tooltipContent: ReactFragment;
   onClick?: MouseEventHandler;
   listIndex: number;
   disabled?: boolean;
-};
+}
 
 const ListItem: FC<ListItemProps> = ({
   icon,
@@ -31,7 +31,7 @@ const ListItem: FC<ListItemProps> = ({
   <li
     className={classNames(
       "react-tabs__tab react-tabs__tab--button AnalysisViewer__TabContainer__Tab",
-      { "AnalysisViewer__TabContainer__Tab--disabled": disabled }
+      { "AnalysisViewer__TabContainer__Tab--disabled": disabled },
     )}
     onClick={onClick}
   >
@@ -49,7 +49,9 @@ const ListItem: FC<ListItemProps> = ({
   </li>
 );
 
-export const AnalysisViewerActionButtons: FC<AnalysisViewerActionButtonsProps> = ({
+export const AnalysisViewerActionButtons: FC<
+  AnalysisViewerActionButtonsProps
+> = ({
   canCreateNewPlot = false,
   showPlotsModal,
   showOutputMetricsModal,
@@ -57,7 +59,7 @@ export const AnalysisViewerActionButtons: FC<AnalysisViewerActionButtonsProps> =
 }) => {
   if (!canEdit) {
     throw new Error(
-      "Should not be rendering analysis viewer action buttons in a read only context"
+      "Should not be rendering analysis viewer action buttons in a read only context",
     );
   }
 

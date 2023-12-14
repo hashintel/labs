@@ -22,6 +22,15 @@ import {
   SimulationProject,
 } from "./project/types";
 import { Scope, selectScope } from "./scopes";
+// import { Octokit } from "@octokit/rest";
+
+// const authKey = "github-auth";
+// if(!localStorage[authKey]) {
+//   localStorage[authKey] = window.prompt("Please provide your GitHub personal access token.\n\n It will be preserved in localstorage and used to read and commit files to your GitHub account.\n\nhttps://github.com/settings/tokens/new");
+// }
+// const octokit = new Octokit({
+//   auth: localStorage[authKey],
+// });
 
 export const bootstrapApp = createAppAsyncThunk<{
   user?: User;
@@ -33,7 +42,7 @@ export const bootstrapApp = createAppAsyncThunk<{
 }>("bootstrapApp", async (_, { getState, dispatch }) => {
   getReleaseMeta().catch(() => {
     console.warn(
-      "Failed to get release meta at bootstrap time – must retry later"
+      "Failed to get release meta at bootstrap time – must retry later",
     );
   });
 
@@ -44,9 +53,9 @@ export const bootstrapApp = createAppAsyncThunk<{
       canUserEditProjectUpdate(
         await canUserEditProject(
           currentProject.pathWithNamespace,
-          currentProject.ref
-        )
-      )
+          currentProject.ref,
+        ),
+      ),
     );
   }
 
@@ -70,7 +79,7 @@ const saveQueue = createActionQueue("save");
  * @warning You cannot catch errors from save because it is queued.
  */
 export const save = () =>
-  saveQueue.queue(async (next, getState, dispatch) => {
+  saveQueue.queue((next, getState, dispatch) => {
     try {
       const state = getState();
       const project = selectCurrentProject(state);
@@ -89,6 +98,9 @@ export const save = () =>
       try {
         dispatch(beginActionSave(actions.map((action) => action.uuid)));
         // migration shim -- disable these API requests until they can talk to github.
+
+        // const { data } = await octokit.request("/user");
+        // console.log("github data:", data);
         //
         // const { result: updatedAt, commit } = await commitActions(
         //   project.pathWithNamespace,
@@ -96,9 +108,10 @@ export const save = () =>
         //   false,
         //   project.access?.code
         // );
+
         // dispatch(projectUpdated({ updatedAt, actions, commit }));
       } catch (err) {
-        if (err.name !== "AbortError") {
+        if (err instanceof Error && err.name !== "AbortError") {
           console.error(err);
           throw err;
         }
@@ -137,7 +150,7 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
       behaviorFiles.map((file): [string, HcBehaviorFile] => [
         file.repoPath,
         file,
-      ])
+      ]),
     );
 
     const files = behaviors.flatMap((behavior) => {
@@ -165,13 +178,13 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
     const forkedBehaviors = behaviors.map((behavior) => {
       const forkedBehaviorId = mapFileId(
         `${result.behaviorPathWithNamespace}/${behavior.filename}`,
-        result.behaviorRef
+        result.behaviorRef,
       );
 
       const forkedBehavior = result.files.find(
         (file): file is HcSharedBehaviorFile =>
           file.id === forkedBehaviorId &&
-          file.kind === HcFileKind.SharedBehavior
+          file.kind === HcFileKind.SharedBehavior,
       );
 
       if (!forkedBehavior) {
@@ -182,6 +195,7 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
     });
 
     dispatch(
+      // @ts-expect-error redux problems
       trackEvent({
         action: "New Release: Core",
         label: `Behavior - ${forkedBehaviors
@@ -191,7 +205,7 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
           type: "Behavior",
           forkOf: args.projectPath,
         },
-      })
+      }),
     );
 
     return {
@@ -199,5 +213,5 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
       updatedAt: result.updatedAt,
       forkedBehaviors,
     };
-  }
+  },
 );

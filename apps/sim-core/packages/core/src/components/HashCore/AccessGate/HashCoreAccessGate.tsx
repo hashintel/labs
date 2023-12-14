@@ -12,7 +12,7 @@ function throwBadGate(gate: HashCoreAccessGateKindWithProps) {
 
 const accessGateToNode = (
   gate: HashCoreAccessGateKindWithProps,
-  embedded: boolean
+  embedded: boolean,
 ): ReactNode => {
   switch (gate.kind) {
     case HashCoreAccessGateKind.NotFound:

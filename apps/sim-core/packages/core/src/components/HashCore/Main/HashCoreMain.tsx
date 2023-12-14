@@ -15,7 +15,7 @@ export const HashCoreMain: FC = () => {
   // colour changing back on mouseup
   const [setContainerRef] = useAddClassOnClick(
     "layout-splitter",
-    "layout-splitter-no-transition-delay"
+    "layout-splitter-no-transition-delay",
   );
 
   // Some floating elements need to be offseted so as not to cover the
@@ -23,7 +23,7 @@ export const HashCoreMain: FC = () => {
   const onSecondaryPaneSizeChange = (size: number) => {
     document.documentElement.style.setProperty(
       "--left-pane-width",
-      `${size}px`
+      `${size}px`,
     );
   };
 

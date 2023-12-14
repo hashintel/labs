@@ -29,7 +29,9 @@ export const BasicDiscordWidget: FC<{
 
   try {
     loggedIn = selectScope[Scope.useAccount](store.getState());
-  } catch {}
+  } catch {
+    // Store may not be present, so hide that error.
+  }
 
   const children = <IconDiscord />;
   const props = { className: classNames("DiscordWidget", className) };

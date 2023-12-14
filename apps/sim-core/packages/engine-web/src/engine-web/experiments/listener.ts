@@ -17,7 +17,7 @@ export const prepareExperiment = ({
 }: ExperimentSrc): QueuedExperimentRunWithoutOptimization => {
   const manifest: RawManifest = parseAndThrowProper(
     manifestSrc,
-    "manifest.json"
+    "manifest.json",
   );
   const { experimentsSrc } = manifest;
 
@@ -27,13 +27,13 @@ export const prepareExperiment = ({
 
   const [plannedRuns, selectedExperiment] = createExperimentPlan(
     experimentsSrc,
-    experimentName
+    experimentName,
   );
 
   if (!selectedExperiment.steps) {
     throw new EvalError(
       `Must specify 'steps' field for experiment '${experimentName}'`,
-      "experiments.json"
+      "experiments.json",
     );
   }
 
@@ -62,7 +62,7 @@ export const experimentToRuns = (
     plan,
     definition,
   }: QueuedExperimentRunWithoutOptimization,
-  pyodideEnabled: boolean
+  pyodideEnabled: boolean,
 ): RunnerRequest<"initialize">[] => {
   const requests: RunnerRequest<"initialize">[] = [];
   console.log("queued run is ", queuedSimulationRunIds);

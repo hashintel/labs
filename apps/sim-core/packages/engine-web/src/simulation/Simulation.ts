@@ -33,14 +33,14 @@ export class Simulation {
     datasets: Json,
     customBehaviors: NamedBehavior[],
     messageHandlers: MessageHandler[],
-    analyzer: Analyzer
+    analyzer: Analyzer,
   ) {
     this.datasets = datasets;
     this.properties = properties;
     this.customBehaviors = new JsCustomBehaviors(
       customBehaviors,
       properties,
-      datasets
+      datasets,
     );
     this.messageHandlers = new JsMessageHandlers(messageHandlers);
     this.analyzer = analyzer;
@@ -100,7 +100,7 @@ export class Simulation {
         this.properties,
         this.datasets,
         this.customBehaviors,
-        this.messageHandlers
+        this.messageHandlers,
       );
       this.latestState = this.stateIteratorWrapper.initial_state();
       this.customBehaviors.updateAgentCache(this.latestState);

@@ -2,7 +2,6 @@ import { FC, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { navigate } from "hookrouter";
 
-import type { AppDispatch } from "../../../features/types";
 import { HashCoreAccessGateKind } from "../../HashCore/AccessGate";
 import { linkableProjectByLegacyId } from "../../../util/api/queries";
 import { setAccessGate } from "../../../features/project/slice";
@@ -12,7 +11,7 @@ import { useHandlePromiseRejection } from "../../ErrorBoundary";
 export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
   id,
 }) => {
-  const dispatch = useDispatch() as AppDispatch;
+  const dispatch = useDispatch();
   const handlePromiseRejection = useHandlePromiseRejection();
 
   useEffect(() => {
@@ -22,7 +21,7 @@ export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
       try {
         const simulation = await linkableProjectByLegacyId(
           id,
-          controller.signal
+          controller.signal,
         );
 
         navigate(urlFromProject(simulation), true, { fromLegacy: true }, false);
@@ -34,7 +33,7 @@ export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
               props: { requestedProject: null },
             },
             url: window.location.pathname,
-          })
+          }),
         );
       }
     }

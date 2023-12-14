@@ -15,7 +15,7 @@ export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
   const dispatch = useDispatch<AppDispatch>();
 
   const [state, setState] = useState<"uploading" | "failed" | "initial">(
-    "initial"
+    "initial",
   );
 
   const onDrop = useCallback(
@@ -29,6 +29,7 @@ export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
       setState("uploading");
 
       try {
+        //@ts-expect-error redux problems
         await dispatch(createDataset(file));
         onClose();
       } catch (err) {
@@ -36,7 +37,7 @@ export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
         setState("failed");
       }
     },
-    [onClose, dispatch]
+    [onClose, dispatch],
   );
 
   const uploading = state === "uploading";

@@ -14,43 +14,49 @@ import { setProjectWithMeta } from "../actions";
 import { trackEvent } from "../analytics";
 import { urlFromProject } from "../../routes";
 
-export const forkProject = (
-  project: PartialSimulationProject,
-  values: NewProjectModalValues
-): AsyncAppThunk => async (dispatch, getState) => {
-  if (selectScope[Scope.save](getState())) {
-    await dispatch(save());
-  }
+export const forkProject =
+  (
+    project: PartialSimulationProject,
+    values: NewProjectModalValues,
+  ): AsyncAppThunk =>
+  async (dispatch, getState) => {
+    if (selectScope[Scope.save](getState())) {
+      await dispatch(save());
+    }
 
-  const state = getState();
-  const actions = selectFileActions(state);
+    const state = getState();
+    const actions = selectFileActions(state);
 
-  const nextProject = await forkProjectQuery(
-    project.pathWithNamespace,
-    project.ref,
-    values.name,
-    values.namespace,
-    values.path,
-    values.visibility,
-    actions
-  );
+    const nextProject = await forkProjectQuery(
+      project.pathWithNamespace,
+      project.ref,
+      values.name,
+      values.namespace,
+      values.path,
+      values.visibility,
+      actions,
+    );
 
-  dispatch(
-    trackEvent({
-      action: "Fork Project: Core",
-      label: [project.type, project.pathWithNamespace, project.ref].join(" - "),
-      context: {
-        type: project.type,
-        forkPath: nextProject.pathWithNamespace,
-      },
-    })
-  );
+    dispatch(
+      //@ts-expect-error redux type problems
+      trackEvent({
+        action: "Fork Project: Core",
+        label: [project.type, project.pathWithNamespace, project.ref].join(
+          " - ",
+        ),
+        context: {
+          type: project.type,
+          forkPath: nextProject.pathWithNamespace,
+        },
+      }),
+    );
 
-  if (!values.namespace && nextProject.type === "Simulation") {
-    dispatch(addUserProject(preparePartialSimulationProject(nextProject)));
-  }
+    if (!values.namespace && nextProject.type === "Simulation") {
+      dispatch(addUserProject(preparePartialSimulationProject(nextProject)));
+    }
 
-  dispatch(setProjectWithMeta(nextProject));
-  navigate(urlFromProject(nextProject));
-  dispatch(displayToast({ kind: ToastKind.ProjectForked, data: project }));
-};
+    // @ts-expect-error redux problems
+    dispatch(setProjectWithMeta(nextProject));
+    navigate(urlFromProject(nextProject));
+    dispatch(displayToast({ kind: ToastKind.ProjectForked, data: project }));
+  };

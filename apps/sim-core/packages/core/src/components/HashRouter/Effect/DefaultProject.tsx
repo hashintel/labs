@@ -17,7 +17,7 @@ export const HashRouterEffectDefaultProject: FC = () => {
   useEffect(() => {
     if (bootstrapped) {
       const defaultProject = selectDefaultLinkableProject(
-        storeRef.current.getState()
+        storeRef.current.getState(),
       );
 
       if (!defaultProject) {

@@ -6,7 +6,7 @@ import { ModalShare } from "../../../Modal/Share/ModalShare";
 export const HashCoreHeaderShareButton: FC = () => {
   const [showModal, hideModal] = useModal(
     () => <ModalShare onClose={hideModal} />,
-    []
+    [],
   );
 
   useEffect(() => {
@@ -18,7 +18,7 @@ export const HashCoreHeaderShareButton: FC = () => {
   return (
     <button
       className="HashCoreHeader__RightButton"
-      onClick={async (evt) => {
+      onClick={(evt) => {
         evt.preventDefault();
         showModal();
       }}

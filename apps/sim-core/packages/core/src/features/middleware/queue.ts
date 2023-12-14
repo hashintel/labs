@@ -12,7 +12,7 @@ const QUEUE_ACTION_TAG = "__QUEUED_ACTION_TYPE";
 type QueuedCallback = (
   next: VoidFunction,
   getState: () => RootState,
-  dispatch: AppDispatch
+  dispatch: AppDispatch,
 ) => void;
 
 export interface QueueableAction {
@@ -20,9 +20,7 @@ export interface QueueableAction {
   handler: QueuedCallback;
 }
 
-export interface QueueDispatch {
-  (queueableAction: QueueableAction): Promise<void>;
-}
+export type QueueDispatch = (queueableAction: QueueableAction) => Promise<void>;
 
 const queueAction = (queue: string, handler: QueuedCallback) => ({
   [QUEUE_ACTION_TAG]: queue,
@@ -52,14 +50,15 @@ const isQueueable = (action: any): action is QueueableAction =>
  * Redux behaviour changed by middleware, so overloads here
  */
 declare module "redux" {
+  //@ts-expect-error fix this as part of dispatch type problems
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  export interface Dispatch<A extends Action = AnyAction> {
-    (action: QueueableAction): Promise<void>;
-  }
+  export type Dispatch<A extends Action = AnyAction> = (
+    action: QueueableAction,
+  ) => Promise<void>;
 }
 
 export const queueMiddleware: Middleware<QueueDispatch, RootState> = (
-  store
+  store,
 ) => {
   const queues: Record<string, QueuedCallback[] | undefined> = {};
 
@@ -76,7 +75,8 @@ export const queueMiddleware: Middleware<QueueDispatch, RootState> = (
             dequeue(key);
           },
           store.getState,
-          store.dispatch
+          //@ts-expect-error redux type problems
+          store.dispatch,
         );
       }
     }
@@ -90,10 +90,13 @@ export const queueMiddleware: Middleware<QueueDispatch, RootState> = (
         queues[key] = queue;
 
         queue.push((next, ...args) => {
-          action.handler(() => {
-            resolve();
-            next();
-          }, ...args);
+          action.handler(
+            () => {
+              resolve();
+              next();
+            },
+            ...args,
+          );
         });
 
         if (queue.length === 1) {

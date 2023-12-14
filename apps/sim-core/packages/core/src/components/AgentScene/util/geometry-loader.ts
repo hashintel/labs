@@ -9,12 +9,12 @@ export type RawGeometry = [THREE.BufferGeometry, THREE.Material];
 
 export const loadGeometryMesh = async (
   userMeshName: string,
-  num: number
+  num: number,
 ): Promise<RawGeometry> => {
   switch (userMeshName) {
     case "box":
       return geoHelper("BoxBufferGeometry", num, [1, 1, 1]);
-    case "cone":
+    case "cone": {
       const [geo, mat] = geoHelper("ConeBufferGeometry", num, [0.5, 1, 30]);
       // Our cones point in the forward direction
       // Cones normally point up
@@ -22,13 +22,16 @@ export const loadGeometryMesh = async (
       geo.rotateX(Math.PI);
       geo.rotateY(Math.PI / 2);
       return [geo, mat];
-    case "flatplane":
-      const [geoPlane, matPlane] = geoHelper("PlaneBufferGeometry", num, [
-        1,
-        1,
-      ]);
+    }
+    case "flatplane": {
+      const [geoPlane, matPlane] = geoHelper(
+        "PlaneBufferGeometry",
+        num,
+        [1, 1],
+      );
       geoPlane.translate(0, 0, -0.5);
       return [geoPlane, matPlane];
+    }
     case "cylinder":
       return geoHelper("CylinderBufferGeometry", num, [0.5, 0.5]);
     case "dodecahedron":
@@ -77,7 +80,7 @@ type SupportedShapes =
 const geoHelper = (
   geoType: SupportedShapes,
   numMeshes: number,
-  args: number[]
+  args: number[],
 ): RawGeometry => {
   const geometry = new THREE[geoType](...args);
   geometry.computeVertexNormals();
@@ -134,9 +137,8 @@ export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
 
   const { rotX, rotY, rotZ } = builtin;
 
-  const { folderPath, objectUrl, materialUrl } = await fetchPolyFromBuiltinDb(
-    meshName
-  );
+  const { folderPath, objectUrl, materialUrl } =
+    await fetchPolyFromBuiltinDb(meshName);
 
   // Three has built-in loaders that know how to fetch from URLs, but the most reliable
   // method is to just fetch the texts manually and have the loaders parse them
@@ -170,7 +172,7 @@ export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
   mergedMaterials.concat(Object.values(materials.materials));
   const geometry = BufferGeometryUtils.mergeBufferGeometries(
     mergedGeometries,
-    true
+    true,
   );
 
   // Yes, it's deprecated, but it's the only way to get material merging to work
@@ -201,17 +203,17 @@ export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
   return [geometry, material];
 };
 
-const fetchPolyFromBuiltinDb = async (slug: string) => {
+const fetchPolyFromBuiltinDb = (slug: string) => {
   const { folderPath, resourceUrls } = BUILTIN_MODELS_DB.find((model) => {
     return model.slug === slug;
-  }) || { folderPath: null, resourceUrls: [] };
+  }) ?? { folderPath: null, resourceUrls: [] };
 
   if (!folderPath) {
     throw new Error("No folderPath found for built-in model " + slug);
   }
 
   const objectUrl = resourceUrls.find((url) =>
-    url.toLowerCase().endsWith(".obj")
+    url.toLowerCase().endsWith(".obj"),
   );
 
   if (!objectUrl) {
@@ -219,7 +221,7 @@ const fetchPolyFromBuiltinDb = async (slug: string) => {
   }
 
   const materialUrl = resourceUrls.find((url) =>
-    url.toLowerCase().endsWith(".mtl")
+    url.toLowerCase().endsWith(".mtl"),
   );
 
   if (!materialUrl) {

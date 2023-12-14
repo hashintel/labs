@@ -24,17 +24,14 @@ export const ExperimentsRunner: FC = () => {
     RawExperimentType | undefined
   >();
 
-  const [
-    openCreateExperimentModal,
-    hideCreateExperimentModal,
-  ] = useModal(
+  const [openCreateExperimentModal, hideCreateExperimentModal] = useModal(
     () => (
       <ExperimentModal
         onClose={hideCreateExperimentModal}
         experiment={currentExperiment}
       />
     ),
-    [currentExperiment]
+    [currentExperiment],
   );
 
   if (!shouldShowExperiments) {

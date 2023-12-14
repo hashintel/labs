@@ -18,7 +18,7 @@ it("renders without crashing", () => {
       action="Create"
       placeholder="Name your new file"
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

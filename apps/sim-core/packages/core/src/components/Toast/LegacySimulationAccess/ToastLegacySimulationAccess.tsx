@@ -28,7 +28,7 @@ export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
       trackEvent({
         action: "Legacy Simulation URL Accessed",
         label: projectUrl,
-      })
+      }),
     );
   }, [dispatch, projectUrl]);
 

@@ -30,7 +30,7 @@ enum RefreshAction {
 
 function refreshReducer(
   state: typeof refreshInitialState,
-  action: RefreshAction
+  action: RefreshAction,
 ) {
   switch (action) {
     case RefreshAction.OPEN_PROPERTIES:
@@ -67,7 +67,7 @@ export const HashCoreTourStepRefresh: FC = () => {
 
   const resetButton = useMemo(
     () => document.querySelector<HTMLElement>(".reset.simulation-control"),
-    []
+    [],
   );
 
   return (
@@ -87,6 +87,7 @@ export const HashCoreTourStepRefresh: FC = () => {
         <a
           href="https://docs.hash.ai/core/creating-simulations/configuration/basic-properties"
           target="_blank"
+          rel="noreferrer"
         >
           globals.json is where you define global properties
         </a>{" "}
@@ -97,6 +98,7 @@ export const HashCoreTourStepRefresh: FC = () => {
         <a
           href="https://docs.hash.ai/core/creating-simulations/anatomy-of-an-agent/context"
           target="_blank"
+          rel="noreferrer"
         >
           context
         </a>

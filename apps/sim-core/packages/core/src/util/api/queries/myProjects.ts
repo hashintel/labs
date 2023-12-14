@@ -6,13 +6,13 @@ import {
 import { preparePartialSimulationProject } from "../../../features/project/utils";
 import { query } from "../query";
 
-type MyProjects = {
+interface MyProjects {
   me: {
     projects: {
       results: UnpreparedPartialSimulationProject[];
     };
   };
-};
+}
 
 export const UserProjectsFragment = /* GraphQL */ `
   fragment UserProjectsFragment on User {
@@ -36,10 +36,10 @@ const queryString = /* GraphQL */ `
 `;
 
 export const prepareUserProjects = (
-  projects: UnpreparedPartialSimulationProject[]
+  projects: UnpreparedPartialSimulationProject[],
 ) => projects.map(preparePartialSimulationProject);
 
 export const myProjects = async (): Promise<PartialSimulationProject[]> =>
   prepareUserProjects(
-    (await query<MyProjects>(queryString)).me.projects.results
+    (await query<MyProjects>(queryString)).me.projects.results,
   );

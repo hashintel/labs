@@ -15,7 +15,7 @@ export class AnalyzerRunner {
         return {
           type: "analyze",
           outputs: Object.values(request.data).map((a) =>
-            this.analyzer.analyze(a)
+            this.analyzer.analyze(a),
           ),
         };
 

@@ -21,14 +21,14 @@ let datasetNamespace: PyProxy | null = null;
  */
 export async function fetchDatasetContent(
   datasets: FetchedDataset[],
-  cache: DatasetCache
+  cache: DatasetCache,
 ): Promise<Json> {
   const data: Record<string, Json> = {};
 
   const kvps: DataKeyValuePair[] = await Promise.all<DataKeyValuePair | null>(
     datasets.map((dataset) => {
       return Promise.resolve()
-        .then(() => {
+        .then(async () => {
           if (cache.has(dataset.s3Key)) {
             return Promise.resolve(cache.get(dataset.s3Key)?.data);
           }
@@ -37,7 +37,7 @@ export async function fetchDatasetContent(
             return fetchDataset(
               dataset.url,
               dataset.format,
-              dataset.inPlaceData
+              dataset.inPlaceData,
             );
           }
 
@@ -53,20 +53,20 @@ export async function fetchDatasetContent(
           console.error(
             "Unable to load dataset",
             dataset.shortname,
-            dataset.id
+            dataset.id,
           );
           return null;
         });
-    })
+    }),
   ).then((datakeys: (DataKeyValuePair | null)[]): DataKeyValuePair[] =>
     datakeys.filter<DataKeyValuePair>(
-      (kvp): kvp is DataKeyValuePair => kvp !== null
-    )
+      (kvp): kvp is DataKeyValuePair => kvp !== null,
+    ),
   );
 
   for (const kvp of kvps) {
     data[kvp.name] = kvp.value;
-    if (!cache.hasOwnProperty(kvp.s3Key)) {
+    if (!Object.prototype.hasOwnProperty.call(cache, kvp.s3Key)) {
       cache.set(kvp.s3Key, { data: kvp.value, name: kvp.name });
     }
   }
@@ -80,6 +80,9 @@ export async function fetchDatasetContent(
 export const refreshPyodideDatasetCache = async (cache: DatasetCache) => {
   if (datasetNamespace === null) {
     datasetNamespace = self.pyodide.toPy({});
+    if (datasetNamespace === null) {
+      throw new Error("Expected non-null namespace from pyodide");
+    }
   }
   // Cache datasets
   // Inject whatever datasets are not cached in the python side into pyodide
@@ -115,7 +118,7 @@ cached_dataset_names.append("${k}")
 cached_datasets["${name}"] = json.loads(pythonDatasetCache)
 pythonDatasetCache = ""
  `,
-        datasetNamespace
+        datasetNamespace,
       );
     }
   }

@@ -9,7 +9,7 @@ import { parse } from "papaparse";
  */
 export const parseCsvAsJson = (
   input: string | File | NodeJS.ReadableStream,
-  reportProgress?: { size: number; reporter: (progress: number) => void }
+  reportProgress?: { size: number; reporter: (progress: number) => void },
 ): Promise<string> =>
   new Promise((resolve, reject) => {
     let parsedString = "[";
@@ -33,7 +33,7 @@ export const parseCsvAsJson = (
           return;
         }
         reportProgress?.reporter(
-          Math.round((chunk.meta.cursor / reportProgress.size) * 100)
+          Math.round((chunk.meta.cursor / reportProgress.size) * 100),
         );
       },
       complete: () => {

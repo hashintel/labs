@@ -7,7 +7,7 @@ import { ModalExit } from "../ModalExit";
 
 import "./AnalysisModal.scss";
 
-type AnalysisModalProps = {
+interface AnalysisModalProps {
   onClose?: () => void;
   cancelButton?: boolean;
   className?: string;
@@ -15,7 +15,7 @@ type AnalysisModalProps = {
   footerLegend: ReactNode | string | null;
   submitButtonText: string;
   onSubmit: FormEventHandler<HTMLFormElement>;
-};
+}
 
 export const AnalysisModal: FC<AnalysisModalProps> = ({
   onClose,

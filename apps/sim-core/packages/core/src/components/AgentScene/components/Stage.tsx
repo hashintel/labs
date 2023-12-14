@@ -22,9 +22,10 @@ export const ViewerStage: FC = () => {
     pxMax,
     pxMin,
     pyMax,
-    pyMin
+    pyMin,
   );
 
+  /* eslint-disable react/no-unknown-property */
   return (
     <>
       <gridHelper
@@ -56,13 +57,14 @@ export const ViewerStage: FC = () => {
       <axesHelper args={[5]} visible={showAxes} />
     </>
   );
+  /* eslint-enable react/no-unknown-property */
 };
 
 function getStagePlacement(
   pxMax: number,
   pxMin: number,
   pyMax: number,
-  pyMin: number
+  pyMin: number,
 ) {
   const center: [number, number] = [
     Math.floor((pxMax + pxMin) / 2),

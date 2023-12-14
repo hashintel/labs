@@ -18,7 +18,7 @@ export const ExampleProjectsFragment = /* GraphQL */ `
 `;
 
 export const prepareExamples = (
-  examples: UnpreparedPartialSimulationProject[]
+  examples: UnpreparedPartialSimulationProject[],
 ) => examples.map(preparePartialSimulationProject);
 
 export const exampleSimulations = async (): Promise<
@@ -35,7 +35,7 @@ export const exampleSimulations = async (): Promise<
         
         ${PartialProjectFragment}
         ${ExampleProjectsFragment}
-      `
+      `,
     )
   ).specialProjects;
 

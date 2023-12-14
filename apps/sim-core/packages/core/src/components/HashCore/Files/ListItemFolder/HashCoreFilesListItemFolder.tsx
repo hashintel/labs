@@ -8,7 +8,7 @@ import { HcFile, HcFolder } from "../../../../features/files/types";
 
 import "./HashCoreFilesListItemFolder.css";
 
-type HashCoreFilesListItemFolderProps = {
+interface HashCoreFilesListItemFolderProps {
   scrollIntoViewRef?: MutableRefObject<VoidFunction | null>;
   childrenItems?: HcFile[] | HcFolder[]; // the files contained in the folder
   name: string; // the name of the current folder
@@ -17,9 +17,11 @@ type HashCoreFilesListItemFolderProps = {
   rootFolder?: boolean; // used only in HashCoreFiles to render a "virtual" root folder
   toggleOpen: (path: string) => void;
   openPaths: Record<string, boolean>;
-};
+}
 
-export const HashCoreFilesListItemFolder: FC<HashCoreFilesListItemFolderProps> = ({
+export const HashCoreFilesListItemFolder: FC<
+  HashCoreFilesListItemFolderProps
+> = ({
   scrollIntoViewRef,
   childrenItems = [],
   name,
@@ -31,10 +33,10 @@ export const HashCoreFilesListItemFolder: FC<HashCoreFilesListItemFolderProps> =
 }) => {
   const folderOpen = isOpen || openPaths[repoPath];
   const folders = childrenItems.filter(
-    (item) => item.children && item.children.length > 0
+    (item) => item.children && item.children.length > 0,
   );
   const files = childrenItems.filter(
-    (item) => item.children && item.children.length === 0
+    (item) => item.children && item.children.length === 0,
   );
 
   const id = `HashCoreFilesListItemFolder-${repoPath.replace(/\//g, "_")}`;
@@ -89,6 +91,6 @@ export const HashCoreFilesListItemFolder: FC<HashCoreFilesListItemFolderProps> =
 };
 
 // HashCoreFilesListItemFolder.whyDidYouRender = {
-//   // @ts-ignore
+//   // @ts-expect-error
 //   customName: "HashCoreFilesListItemFolder"
 // };

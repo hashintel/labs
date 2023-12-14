@@ -47,9 +47,8 @@ export interface HashTourConfigContextType {
   update(tourConfig: HashCoreTourConfig | null): void;
 }
 
-export const HashTourConfigContext = createContext<HashTourConfigContextType | null>(
-  null
-);
+export const HashTourConfigContext =
+  createContext<HashTourConfigContextType | null>(null);
 
 /**
  * @warning this only works once per mount– it will not update to reflect

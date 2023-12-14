@@ -42,7 +42,7 @@ export const BehaviorKeysProjection: FC<{
   const calculateDisplayState = () => {
     if (projectionRef.current && displayState.toCalculate) {
       const [header, collapsed, ...crumbs] = Array.from(
-        projectionRef.current.children
+        projectionRef.current.children,
       ) as HTMLElement[];
 
       if (crumbs.length === 0) {
@@ -78,7 +78,7 @@ export const BehaviorKeysProjection: FC<{
 
             return prev;
           },
-          { width: availableWidth, idx: Infinity, done: false }
+          { width: availableWidth, idx: Infinity, done: false },
         );
 
         if (idx < Infinity) {
@@ -108,7 +108,7 @@ export const BehaviorKeysProjection: FC<{
       projectionRef.current = node;
       setResizeObserver(node);
     },
-    [setResizeObserver]
+    [setResizeObserver],
   );
 
   return (

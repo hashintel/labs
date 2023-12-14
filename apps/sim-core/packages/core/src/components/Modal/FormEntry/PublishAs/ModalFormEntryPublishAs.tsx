@@ -6,14 +6,14 @@ import type { ReactSelectOption } from "../../../Dropdown/types";
 
 import "./ModalFormEntryPublishAs.css";
 
-type ModalFormEntryPublishAsProps = {
+interface ModalFormEntryPublishAsProps {
   buttonLabel: string;
   publishAsOptions: ReactSelectOption[];
   selectedPublishAs: ReactSelectOption;
   setSelectedPublishAs: (publishAs: ReactSelectOption) => void;
   disabled?: boolean;
   submitDisabled?: boolean;
-};
+}
 
 export const ModalFormEntryPublishAs: FC<ModalFormEntryPublishAsProps> = ({
   buttonLabel,

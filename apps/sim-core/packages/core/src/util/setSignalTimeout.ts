@@ -1,7 +1,7 @@
 export const setSignalTimeout = (
   handler: Function,
   ms: number,
-  signal: AbortSignal
+  signal: AbortSignal,
 ) => {
   const timeout = setTimeout(() => {
     if (!signal.aborted) {

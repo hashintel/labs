@@ -8,7 +8,7 @@ import { toHcFiles } from "../../../features/files/utils";
 
 export const prepareRemoteProject = (
   remoteProject: RemoteSimulationProject,
-  access: ProjectAccess
+  access: ProjectAccess,
 ): SimulationProjectWithHcFiles => {
   const project = {
     ...remoteProject,

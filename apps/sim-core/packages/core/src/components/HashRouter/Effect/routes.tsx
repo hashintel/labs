@@ -36,7 +36,7 @@ const routes: HookRouter.RouteObject = {
    * @todo route handlers should be side effect free – handle this elsewhere
    */
   "/:buildstamp/index.html": () => {
-    setImmediate(() => {
+    setTimeout(() => {
       /**
        * hookrouter's navigate has a bug where it incorrectly strips queries
        * included in the path, so we have to separate them.

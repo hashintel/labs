@@ -1,7 +1,7 @@
 import {
   CanUserEditProjectQuery,
   CanUserEditProjectQueryVariables,
-} from "../auto-types";
+} from "../types";
 import { query } from "../query";
 
 const queryString = /* GraphQL */ `
@@ -18,11 +18,11 @@ const queryString = /* GraphQL */ `
 
 export const canUserEditProject = async (
   pathWithNamespace: string,
-  ref: string
+  ref: string,
 ) =>
   (
     await query<CanUserEditProjectQuery, CanUserEditProjectQueryVariables>(
       queryString,
-      { pathWithNamespace, ref }
+      { pathWithNamespace, ref },
     )
   ).project;

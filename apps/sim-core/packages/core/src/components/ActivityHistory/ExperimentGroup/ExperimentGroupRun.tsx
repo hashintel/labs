@@ -53,11 +53,8 @@ export const ExperimentGroupRun: FC<{
   const finished = simulationComplete(run);
   const viewable = simulationViewable(run, finished);
 
-  const [
-    onContextMenu,
-    exportingTooltip,
-    exporting,
-  ] = useSimulationRunContextMenu(itemRef, id, viewable);
+  const [onContextMenu, exportingTooltip, exporting] =
+    useSimulationRunContextMenu(itemRef, id, viewable);
 
   if (!run?.steps) {
     return null;

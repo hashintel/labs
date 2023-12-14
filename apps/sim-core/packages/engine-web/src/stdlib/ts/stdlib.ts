@@ -15,12 +15,12 @@
  * ```
  */
 
-// @ts-ignore
+// @ts-expect-error
 import { jStat } from "jstat";
 import { number } from "prop-types";
 import { v4 as uuid } from "uuid";
 
-// @ts-ignore
+// @ts-expect-error
 export { jStat as stats } from "jstat";
 
 export function incr(n: number) {
@@ -52,7 +52,7 @@ export const init = {
   scatter: (
     count: number,
     topology: Topology,
-    template: PotentialAgent | Function
+    template: PotentialAgent | Function,
   ) => scatter(count, topology, template),
   stack: (count: number, template: PotentialAgent | Function) =>
     stack(count, template),
@@ -65,7 +65,7 @@ export const init = {
 function scatter(
   count: number,
   topology: Topology,
-  template: PotentialAgent | Function
+  template: PotentialAgent | Function,
 ) {
   const { x_bounds, y_bounds } = topology;
 
@@ -144,7 +144,7 @@ export function grid(topology: Topology, template: PotentialAgent | Function) {
 export function createLayout(
   layout: string[][],
   templates: { [key: string]: PotentialAgent },
-  offset: number[] = [0, 0, 0]
+  offset: number[] = [0, 0, 0],
 ) {
   const height = layout.length;
   const agents: { [key: string]: PotentialAgent[] } = {};
@@ -249,7 +249,7 @@ export function random() {
 export function distanceBetween(
   agentA: PotentialAgent,
   agentB: PotentialAgent,
-  distance = "euclidean"
+  distance = "euclidean",
 ) {
   interface IdFuncs {
     [index: string]: (a_pos: number[], b_pos: number[]) => number;
@@ -266,7 +266,7 @@ export function distanceBetween(
       sqrt(
         pow(a_pos[0] - b_pos[0], 2) +
           pow(a_pos[1] - b_pos[1], 2) +
-          pow(a_pos[2] - b_pos[2], 2)
+          pow(a_pos[2] - b_pos[2], 2),
       ),
     euclidean_sq: (a_pos: number[], b_pos: number[]) =>
       pow(a_pos[0] - b_pos[0], 2) +
@@ -276,7 +276,7 @@ export function distanceBetween(
       max(
         abs(a_pos[0] - b_pos[0]),
         abs(a_pos[1] - b_pos[1]),
-        abs(a_pos[2] - b_pos[2])
+        abs(a_pos[2] - b_pos[2]),
       ),
   };
 
@@ -297,7 +297,7 @@ export function distanceBetween(
  */
 export function normalizeVector(vec: number[]) {
   const magnitude = Math.sqrt(
-    vec.reduce((acc: number, val: number) => acc + val ** 2, 0)
+    vec.reduce((acc: number, val: number) => acc + val ** 2, 0),
   );
   return vec.map((v) => v / magnitude);
 }
@@ -313,7 +313,7 @@ export function randomPosition(
     x_bounds: number[] | undefined;
     y_bounds: number[] | undefined;
   },
-  z_plane = false
+  z_plane = false,
 ) {
   const { floor, random } = Math;
 
@@ -324,7 +324,7 @@ export function randomPosition(
     }
     z_pos = floor(
       random() * (topology.z_bounds[1] - topology.z_bounds[0]) +
-        topology.z_bounds[0]
+        topology.z_bounds[0],
     );
   }
   if (!topology.x_bounds || !topology.y_bounds) {
@@ -333,11 +333,11 @@ export function randomPosition(
   return [
     floor(
       random() * (topology.x_bounds[1] - topology.x_bounds[0]) +
-        topology.x_bounds[0]
+        topology.x_bounds[0],
     ),
     floor(
       random() * (topology.y_bounds[1] - topology.y_bounds[0]) +
-        topology.y_bounds[0]
+        topology.y_bounds[0],
     ),
     z_pos,
   ];
@@ -352,7 +352,7 @@ export function randomPosition(
  * */
 export function neighborsOnPosition(
   agentA: PotentialAgent,
-  neighbors: PotentialAgent[]
+  neighbors: PotentialAgent[],
 ) {
   return neighbors.filter((neighbor) => {
     const aPos: number[] | undefined =
@@ -389,7 +389,7 @@ export function neighborsInRadius(
   neighbors: PotentialAgent[],
   max_radius = 1,
   min_radius = 0,
-  z_axis = false
+  z_axis = false,
 ) {
   return neighbors.filter((neighbor) => {
     const aPos: number[] | undefined =
@@ -434,7 +434,7 @@ export function neighborsInRadius(
 export function neighborsInFront(
   agentA: PotentialAgent,
   neighbors: PotentialAgent[],
-  colinear = false
+  colinear = false,
 ) {
   return neighbors.filter((neighbor) => {
     const aPos: number[] | undefined =
@@ -521,7 +521,7 @@ export function neighborsInFront(
 export function neighborsBehind(
   agentA: PotentialAgent,
   neighbors: PotentialAgent[],
-  colinear = false
+  colinear = false,
 ) {
   return neighbors.filter((neighbor) => {
     const aPos: number[] | undefined =

@@ -8,14 +8,14 @@ import { ShrinkWrap } from "../../ShrinkWrap/ShrinkWrap";
 
 import "./ModalFormEntry.css";
 
-export type ModalFormEntryProps = {
+export interface ModalFormEntryProps {
   label?: ReactNode;
   optional?: boolean;
   flex?: boolean;
   error?: string;
   errorInline?: boolean;
   className?: string;
-};
+}
 
 export const ModalFormEntry: FC<ModalFormEntryProps> = ({
   label,

@@ -25,3 +25,7 @@ yarn-error.log
 # eslint cache
 .eslintcache
 packages/hashai/.eslintcache
+
+#ts cache
+tsconfig.tsbuildinfo
+.vercel

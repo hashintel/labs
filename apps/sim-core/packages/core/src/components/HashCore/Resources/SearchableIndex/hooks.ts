@@ -23,7 +23,7 @@ export const useSearchIndex = (): {
         | { type: "SEARCH"; payload: string }
         | { type: "BEGIN_SEARCH" }
         | { type: "FINISHED_SEARCHING"; payload: ResourceProject[] }
-        | { type: "ERROR" }
+        | { type: "ERROR" },
     ) => {
       switch (action.type) {
         case "SEARCH":
@@ -39,7 +39,7 @@ export const useSearchIndex = (): {
           return { ...state, loading: false, results: action.payload };
       }
     },
-    { loading: true, results: [], searchTerm: "" }
+    { loading: true, results: [], searchTerm: "" },
   );
 
   // migration shim

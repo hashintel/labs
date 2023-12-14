@@ -32,14 +32,14 @@ export const Indicator: FC<{
   position: "left-overlap" | "right-overlap" | "right";
 }> = ({ element, show, position }) => {
   const calculateRef = useRef<VoidFunction | null>(null);
-  const immediateIdRef = useRef<ReturnType<typeof setImmediate> | null>(null);
+  const immediateIdRef = useRef<number | null>(null);
 
   const calculateOnResize = () => {
     if (immediateIdRef.current !== null) {
-      clearImmediate(immediateIdRef.current);
+      clearTimeout(immediateIdRef.current);
     }
 
-    immediateIdRef.current = setImmediate(() => calculateRef.current?.());
+    immediateIdRef.current = setTimeout(() => calculateRef.current?.());
   };
 
   const setTargetObserverRef = useResizeObserver(calculateOnResize, {
@@ -156,7 +156,7 @@ export const Indicator: FC<{
     }
 
     indicator.classList[shouldShow ? "add" : "remove"](
-      "HashCoreTour-Indicator--showing"
+      "HashCoreTour-Indicator--showing",
     );
   }, [element, show, indicator]);
 
@@ -166,7 +166,7 @@ export const Indicator: FC<{
 export const PlayIndicator: FC<{ show: boolean }> = ({ show }) => {
   const element = useMemo(
     () => document.querySelector<HTMLElement>(".simulation-control.simulate"),
-    []
+    [],
   );
 
   return <Indicator element={element} show={show} position="right-overlap" />;

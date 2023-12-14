@@ -121,7 +121,7 @@ describe("files slice", () => {
     it("should append an open file id, if the file id exists", () => {
       const state = filesReducer(
         mockStateWithFile0,
-        setCurrentFileId(mockFiles[0].id)
+        setCurrentFileId(mockFiles[0].id),
       );
 
       expect(state.openFileIds.length).toEqual(1);
@@ -134,7 +134,7 @@ describe("files slice", () => {
           ...mockStateWithFile0,
           openFileIds: [mockFiles[0].id],
         },
-        setCurrentFileId(mockFiles[0].id)
+        setCurrentFileId(mockFiles[0].id),
       );
 
       expect(state.openFileIds.length).toEqual(1);
@@ -145,7 +145,7 @@ describe("files slice", () => {
       expect(() => {
         filesReducer(
           mockStateWithFile0,
-          setCurrentFileId(String(mockFiles.length))
+          setCurrentFileId(String(mockFiles.length)),
         );
       }).toThrowError("Cannot append file that does not exist");
     });
@@ -153,7 +153,7 @@ describe("files slice", () => {
     it("should make the opened file current", () => {
       const state = filesReducer(
         mockStateWithFile0,
-        setCurrentFileId(mockFiles[0].id)
+        setCurrentFileId(mockFiles[0].id),
       );
 
       expect(state.currentFileId).toEqual(mockFiles[0].id);
@@ -168,7 +168,7 @@ describe("files slice", () => {
             fileId: mockFiles[0].id,
           },
         },
-        setCurrentFileId(mockFiles[0].id)
+        setCurrentFileId(mockFiles[0].id),
       );
 
       expect(state.replaceProposal).toEqual(null);
@@ -189,7 +189,7 @@ describe("files slice", () => {
     it("should remove an open file id if the file id is 'open'", () => {
       const state = filesReducer(
         mockStateWithOpenFile0,
-        closeFile(mockFiles[0].id)
+        closeFile(mockFiles[0].id),
       );
 
       expect(state.openFileIds.length).toEqual(0);
@@ -199,7 +199,7 @@ describe("files slice", () => {
     it("should do nothing if the file id is not 'open'", () => {
       const state = filesReducer(
         mockStateWithOpenFile0,
-        closeFile(mockFiles[1].id)
+        closeFile(mockFiles[1].id),
       );
 
       expect(state.openFileIds.length).toEqual(1);
@@ -209,7 +209,7 @@ describe("files slice", () => {
     it("should deselect the current file id if the removed file was 'current'", () => {
       const state = filesReducer(
         mockStateWithOpenCurrentFile0,
-        closeFile(mockFiles[0].id)
+        closeFile(mockFiles[0].id),
       );
 
       expect(state.openFileIds.length).toEqual(0);
@@ -229,7 +229,7 @@ describe("files slice", () => {
           currentFileId: mockFiles[0].id,
           openFileIds: [mockFiles[0].id, mockFiles[1].id],
         },
-        closeFile(mockFiles[0].id)
+        closeFile(mockFiles[0].id),
       );
 
       expect(state.openFileIds.length).toEqual(1);
@@ -247,7 +247,7 @@ describe("files slice", () => {
     it("should leave only one two files opened", () => {
       const state = filesReducer(
         mockStateWithOpenFile0,
-        closeFilesToTheRight(mockFiles[1].id)
+        closeFilesToTheRight(mockFiles[1].id),
       );
       expect(state.openFileIds.length).toEqual(2);
       expect(state.openFileIds).toEqual([mockFiles[0].id, mockFiles[1].id]);
@@ -263,7 +263,7 @@ describe("files slice", () => {
     it("should leave only one file opened", () => {
       const state = filesReducer(
         mockStateWithOpenFile0,
-        closeOtherFiles(mockFiles[0].id)
+        closeOtherFiles(mockFiles[0].id),
       );
 
       expect(state.openFileIds.length).toEqual(1);
@@ -280,7 +280,7 @@ describe("files slice", () => {
     it("should leave no files opened", () => {
       const state = filesReducer(
         mockStateWithOpenFile0,
-        closeAllFiles(mockFiles[0].id)
+        closeAllFiles(mockFiles[0].id),
       );
 
       expect(state.openFileIds.length).toEqual(0);
@@ -298,7 +298,7 @@ describe("files slice", () => {
     it("should delete a file", () => {
       const state = filesReducer(
         mockStateWithFilesAndOpenFiles012,
-        deleteFile(mockFiles[0].id)
+        deleteFile(mockFiles[0].id),
       );
 
       expect(state.ids.length).toEqual(mockFiles.length - 1);
@@ -309,7 +309,7 @@ describe("files slice", () => {
     it("should track a delete action if the file is not a dependency", () => {
       const state = filesReducer(
         mockStateWithFilesAndOpenFiles012,
-        deleteFile(mockFiles[0].id)
+        deleteFile(mockFiles[0].id),
       );
 
       expect(state.actions).toEqual([
@@ -344,7 +344,7 @@ describe("files slice", () => {
             "@foo/other-dep/other_dep.js": "1.0.0",
           });
         }),
-        deleteFile("dep")
+        deleteFile("dep"),
       );
       expect(state.actions).toEqual([
         {
@@ -372,7 +372,7 @@ describe("files slice", () => {
           setReplaceProposal({
             fileId: mockFiles[0].id,
             nextContents: "NEXT CONTENTS",
-          })
+          }),
         );
         expect(state.currentFileId).toEqual(null);
       });
@@ -384,7 +384,7 @@ describe("files slice", () => {
         };
         const state = filesReducer(
           mockStateWithFiles,
-          setReplaceProposal(replaceProposal)
+          setReplaceProposal(replaceProposal),
         );
         expect(state.replaceProposal).toEqual(replaceProposal);
       });
@@ -421,7 +421,7 @@ describe("files slice", () => {
       it("removes the replace proposal", () => {
         const state = filesReducer(
           mockStateWithFiles,
-          setReplaceProposal(null)
+          setReplaceProposal(null),
         );
         expect(state.replaceProposal).toEqual(null);
       });
@@ -436,7 +436,7 @@ describe("files slice", () => {
         updateFile({
           id: mockFiles[0].id,
           contents: newContents,
-        })
+        }),
       );
 
       expect(state.entities[mockFiles[0].id]!.contents).toEqual(newContents);
@@ -469,7 +469,7 @@ describe("files slice", () => {
         updateFile({
           id: mockFiles[0].id,
           contents: newContents,
-        })
+        }),
       );
 
       expect(state.actions).toEqual([
@@ -518,7 +518,7 @@ describe("files slice", () => {
         updateFile({
           id: mockFiles[0].id,
           contents: newContents,
-        })
+        }),
       );
 
       expect(state.actions).toEqual([
@@ -563,7 +563,7 @@ describe("files slice", () => {
         updateFile({
           id: mockFiles[0].id,
           contents: newContents,
-        })
+        }),
       );
 
       expect(state.actions).toEqual([
@@ -608,7 +608,7 @@ describe("files slice", () => {
         updateFile({
           id: mockFiles[0].id,
           contents: newContents,
-        })
+        }),
       );
 
       expect(state.actions).toEqual([
@@ -635,7 +635,7 @@ describe("files slice", () => {
     const mockDependenciesState = (
       pendingDependencies: string[] = [],
       deps: DependenciesDescriptor = {},
-      fileEntities: Record<string, HcFile> = {}
+      fileEntities: Record<string, HcFile> = {},
     ) => ({
       ...mockInitialState,
       ids: ["dependencies", ...Object.keys(fileEntities)],
@@ -655,7 +655,7 @@ describe("files slice", () => {
         id: name,
         path: { formatted: name },
         ref: version,
-      } as HcFile);
+      }) as HcFile;
 
     describe("pending", () => {
       it("adds pending dependencies without duplicates", () => {
@@ -669,7 +669,7 @@ describe("files slice", () => {
                 e: "789",
               },
             },
-          }).pendingDependencies
+          }).pendingDependencies,
         ).toEqual(["a", "b", "c", "d", "e"]);
       });
     });
@@ -686,7 +686,7 @@ describe("files slice", () => {
                 e: "789",
               },
             },
-          }).pendingDependencies
+          }).pendingDependencies,
         ).toEqual(["c", "d"]);
       });
     });
@@ -701,7 +701,7 @@ describe("files slice", () => {
               mockDependency("b"),
               mockDependency("c"),
             ],
-          }).pendingDependencies
+          }).pendingDependencies,
         ).toEqual(["d", "e"]);
       });
 
@@ -715,7 +715,7 @@ describe("files slice", () => {
                   { abc: "123" },
                   {
                     abc: mockDependency("abc", "123"),
-                  }
+                  },
                 ),
                 openFileIds: ["abc", "ghi"],
               },
@@ -727,8 +727,8 @@ describe("files slice", () => {
                     id: "def",
                   },
                 ],
-              }
-            ).openFileIds
+              },
+            ).openFileIds,
           ).toEqual(["def", "ghi"]);
         });
 
@@ -741,7 +741,7 @@ describe("files slice", () => {
                   { abc: "123" },
                   {
                     abc: mockDependency("abc", "123"),
-                  }
+                  },
                 ),
                 currentFileId: "abc",
               },
@@ -753,8 +753,8 @@ describe("files slice", () => {
                     id: "def",
                   },
                 ],
-              }
-            ).currentFileId
+              },
+            ).currentFileId,
           ).toEqual("def");
         });
 
@@ -766,7 +766,7 @@ describe("files slice", () => {
                 { abc: "123" },
                 {
                   abc: mockDependency("abc", "123"),
-                }
+                },
               ),
               currentFileId: "abc",
             },
@@ -778,7 +778,7 @@ describe("files slice", () => {
                   id: "def",
                 },
               ],
-            }
+            },
           );
 
           expect(state.ids).not.toContain("abc");
@@ -798,7 +798,7 @@ describe("files slice", () => {
                 { abc: "123" },
                 {
                   abc: mockDependency("abc", "123"),
-                }
+                },
               ),
               currentFileId: "abc",
             },
@@ -809,8 +809,8 @@ describe("files slice", () => {
                   ...mockDependency("def", "123"),
                 },
               ],
-            }
-          ).entities.dependencies
+            },
+          ).entities.dependencies,
         ).toMatchInlineSnapshot(`
           Object {
             "contents": "{
@@ -836,11 +836,11 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.ids).toEqual(["foo_js_1_0_0"]);
-      expect(state.entities["foo_js_1_0_0"]).toEqual({
+      expect(state.entities.foo_js_1_0_0).toEqual({
         id: "foo_js_1_0_0",
         path: parse("foo.js"),
         repoPath: "src/behaviors/foo.js",
@@ -867,7 +867,7 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.openFileIds).toEqual(["foo_js_1_0_0"]);
@@ -882,7 +882,7 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.actions).toEqual([
@@ -906,7 +906,7 @@ describe("files slice", () => {
   describe("renameBehavior", () => {
     beforeEach(() => {
       mockMapFileId.mockImplementation((path, ...args) =>
-        path === "foo.js" ? "NEW_ID" : originalMapFileId(path, ...args)
+        path === "foo.js" ? "NEW_ID" : originalMapFileId(path, ...args),
       );
     });
 
@@ -916,7 +916,7 @@ describe("files slice", () => {
         renameBehavior({
           id: mockFiles[0].id,
           newName: "foo.js",
-        })
+        }),
       );
 
       expect(state.ids).not.toContain(mockFiles[0].id);
@@ -929,7 +929,7 @@ describe("files slice", () => {
         renameBehavior({
           id: mockFiles[0].id,
           newName: "foo.js",
-        })
+        }),
       );
 
       expect(state.entities.NEW_ID!.path).toEqual(parse("foo.js"));
@@ -941,7 +941,7 @@ describe("files slice", () => {
         renameBehavior({
           id: mockFiles[0].id,
           newName: "foo.js",
-        })
+        }),
       );
 
       expect(state.entities.NEW_ID!.repoPath).toEqual("src/behaviors/foo.js");
@@ -956,7 +956,7 @@ describe("files slice", () => {
         renameBehavior({
           id: mockFiles[0].id,
           newName: "foo.js",
-        })
+        }),
       );
 
       expect(state.openFileIds).toEqual(["abc", "def", "NEW_ID", "egh"]);
@@ -972,7 +972,7 @@ describe("files slice", () => {
         renameBehavior({
           id: mockFiles[0].id,
           newName: "foo.js",
-        })
+        }),
       );
 
       expect(state.currentFileId).toEqual("NEW_ID");
@@ -988,7 +988,7 @@ describe("files slice", () => {
         renameBehavior({
           id: mockFiles[0].id,
           newName: "foo.js",
-        })
+        }),
       );
 
       expect(state.currentFileId).toEqual("abc");
@@ -1000,7 +1000,7 @@ describe("files slice", () => {
         renameBehavior({
           id: mockFiles[0].id,
           newName: "foo.js",
-        })
+        }),
       );
 
       expect(state.actions).toEqual([
@@ -1042,7 +1042,7 @@ describe("files slice", () => {
         draft.entities.dependencies.contents = JSON.stringify({
           "@dep/foo/foo.js": "1.0.0",
         });
-      }
+      },
     );
 
     it("adds a file", () => {
@@ -1054,11 +1054,11 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.ids).toContain("foo_js_1_0_0");
-      expect(state.entities["foo_js_1_0_0"]).toEqual({
+      expect(state.entities.foo_js_1_0_0).toEqual({
         id: "foo_js_1_0_0",
         path: parse("foo.js"),
         repoPath: "src/behaviors/foo.js",
@@ -1077,7 +1077,7 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.openFileIds).toContain("foo_js_1_0_0");
@@ -1093,7 +1093,7 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.actions).toContainEqual({
@@ -1114,7 +1114,7 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.ids).not.toContain(dep.id);
@@ -1130,7 +1130,7 @@ describe("files slice", () => {
           project: {
             ref: "1.0.0",
           } as SimulationProject,
-        })
+        }),
       );
 
       expect(state.entities.dependencies!.contents).toEqual("{}");

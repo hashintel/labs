@@ -23,7 +23,7 @@ export function autoAtom<T>(options: Omit<AtomOptions<T>, "key">) {
 }
 
 export function autoSelector<T>(
-  options: Omit<ReadOnlySelectorOptions<T>, "key">
+  options: Omit<ReadOnlySelectorOptions<T>, "key">,
 ) {
   return recoilSelector({
     key: uuidv4(),
@@ -37,7 +37,7 @@ export function autoSelector<T>(
 }
 
 export function autoreadSelectorFamily<T, S extends SerializableParam>(
-  options: Omit<ReadOnlySelectorFamilyOptions<T, S>, "key">
+  options: Omit<ReadOnlySelectorFamilyOptions<T, S>, "key">,
 ) {
   return selectorFamily({
     key: uuidv4(),

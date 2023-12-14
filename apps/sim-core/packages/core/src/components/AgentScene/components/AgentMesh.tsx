@@ -9,13 +9,13 @@ import * as sceneState from "../state/SceneState";
 import { RawGeometry, loadGeometryMesh } from "../util/geometry-loader";
 import { lerpAnimValue } from "../util/anim";
 
-type PolyMeshProps = {
+interface PolyMeshProps {
   meshId: string;
   clock: {
     lastTime: number;
     animLength: number;
   };
-};
+}
 const tempObject = new THREE.Object3D();
 tempObject.up = new THREE.Vector3(0, 0, 1);
 
@@ -28,10 +28,10 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
   const ref = useRef<THREE.InstancedMesh>();
 
   const [hoveredAgentId, setHoveredAgentIds] = useRecoilState(
-    sceneState.HoveredAgent
+    sceneState.HoveredAgent,
   );
   const [selectedAgentIds, setSelectedAgentIds] = useRecoilState(
-    sceneState.SelectedAgentIds
+    sceneState.SelectedAgentIds,
   );
 
   // Only update the render agents when agents changes
@@ -53,7 +53,7 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
     // We know that the color buffer is a BufferGeometry, but that specificiy
     // is lost when injected into three. Our casting is a type narrowing
     const colorBuffer = (ref.current!.geometry as BufferGeometry).getAttribute(
-      "color"
+      "color",
     ) as InstancedBufferAttribute | undefined;
 
     const lerpVal =
@@ -119,6 +119,8 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
   });
 
   return (
+    /* eslint-disable react/no-unknown-property */
+
     <instancedMesh
       ref={ref}
       args={[geometry, material, bufferedMeshCount]}
@@ -133,6 +135,8 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
           }
         }
       }}
+      /* eslint-enable react/no-unknown-property */
+
       // Agent is being clicked
       onPointerDown={(evt) => {
         const id = evt.instanceId;
@@ -141,7 +145,7 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
           const [agentId] = renderAgents[id];
           const temp = { ...selectedAgentIds };
 
-          if (selectedAgentIds.hasOwnProperty(agentId)) {
+          if (Object.prototype.hasOwnProperty.call(selectedAgentIds, agentId)) {
             delete temp[agentId];
             setSelectedAgentIds(temp);
           } else {

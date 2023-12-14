@@ -17,7 +17,7 @@ const LazyOpenInCore = lazy(() =>
     /* webpackChunkName: "OpenInCore" */ "../../OpenInCore/OpenInCore"
   ).then((module) => ({
     default: module.OpenInCore,
-  }))
+  })),
 );
 
 export const HashCoreViewer: FC = () => {
@@ -34,10 +34,10 @@ export const HashCoreViewer: FC = () => {
     ({ width }) => {
       document.documentElement.style.setProperty(
         "--viewer-width",
-        `${Math.round(width)}px`
+        `${Math.round(width)}px`,
       );
     },
-    { onObserve: null }
+    { onObserve: null },
   );
 
   return (

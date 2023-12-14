@@ -13,7 +13,7 @@ it("renders without crashing", () => {
       selectedVersion="1.0.0"
       setSelectedVersion={() => {}}
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

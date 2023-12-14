@@ -1,8 +1,7 @@
 import type { ReleaseMeta } from "../types";
-import { query } from "../query";
 
 export const getReleaseMeta = (() => {
-  let lastRequest: Promise<ReleaseMeta> | null = null;
+  const lastRequest: Promise<ReleaseMeta> | null = null;
 
   return (): Promise<ReleaseMeta> => {
     if (lastRequest) {
@@ -16,35 +15,35 @@ export const getReleaseMeta = (() => {
       subjects: undefined,
     });
 
-    const currentRequest = query<ReleaseMeta>(
-      `
-        query getReleaseMeta {
-          keywords { name, count }
-          licenses {
-            id
-            name
-            description
-            url
-            default
-          }
-          subjects {
-            id
-            name
-            parentChain
-          }
-        }
-      `
-    );
+    // const currentRequest = query<ReleaseMeta>(
+    //   `
+    //     query getReleaseMeta {
+    //       keywords { name, count }
+    //       licenses {
+    //         id
+    //         name
+    //         description
+    //         url
+    //         default
+    //       }
+    //       subjects {
+    //         id
+    //         name
+    //         parentChain
+    //       }
+    //     }
+    //   `,
+    // );
 
-    lastRequest = currentRequest;
+    // lastRequest = currentRequest;
 
-    return currentRequest.catch((err) => {
-      if (err.name !== "AbortError") {
-        console.error("Unable to get release meta", err);
-        lastRequest = null;
-      }
+    // return currentRequest.catch((err) => {
+    //   if (err.name !== "AbortError") {
+    //     console.error("Unable to get release meta", err);
+    //     lastRequest = null;
+    //   }
 
-      throw err;
-    });
+    //   throw err;
+    // });
   };
 })();

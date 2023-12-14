@@ -83,9 +83,9 @@ type ValidateOutputOperationReturnType =
 // - an aggregate must have a valid 'by'
 // and so on, following the TypeScript typings in analysisJsonTypes.
 export const validateOutputOperation = (
-  operation?: Partial<OutputOperation>
+  operation?: Partial<OutputOperation>,
 ): ValidateOutputOperationReturnType => {
-  if (!operation || !operation.op) {
+  if (!operation?.op) {
     return new OutputOperationIsMissingOperationError();
   }
   const operationKeys = Object.keys(operation);
@@ -101,7 +101,7 @@ export const validateOutputOperation = (
         const extraFields = operationKeys.filter((key) => key !== "op");
         return new OutputOperationHasExtraFieldsError(
           operation.op,
-          extraFields
+          extraFields,
         );
       }
       break;
@@ -109,7 +109,7 @@ export const validateOutputOperation = (
 
     case CumulativeAggregateOperator.aggregate: {
       const aggregateOperation: CumulativeAggregationOperation = JSON.parse(
-        JSON.stringify(operation)
+        JSON.stringify(operation),
       );
       const aggregationOperations = Object.values(AggregatorOperator);
       if (!aggregateOperation.by) {
@@ -122,7 +122,7 @@ export const validateOutputOperation = (
         return new OutputOperationHasInvalidValuesError(
           operation.op,
           "by",
-          aggregationOperations
+          aggregationOperations,
         );
       }
       if (
@@ -137,27 +137,27 @@ export const validateOutputOperation = (
 
     case FilterOperator.filter: {
       const filterOperation: FilterOperation = JSON.parse(
-        JSON.stringify(operation)
+        JSON.stringify(operation),
       );
       const requiredFields = ["op", "field", "comparison", "value"];
 
       if (operationHasMissingFields(operationKeys, requiredFields)) {
         return new OutputOperationIsMissingRequiredFieldsError(
           operation.op,
-          getMissingFields(operationKeys, requiredFields)
+          getMissingFields(operationKeys, requiredFields),
         );
       }
       if (operationHasExtraFields(operationKeys, requiredFields)) {
         return new OutputOperationHasExtraFieldsError(
           operation.op,
-          getExtraFields(operationKeys, requiredFields)
+          getExtraFields(operationKeys, requiredFields),
         );
       }
 
       if (!isStringOrNumber(filterOperation.field)) {
         return new OutputOperationMustBeANumberOrStringError(
           operation.op,
-          "field"
+          "field",
         );
       }
 
@@ -173,7 +173,7 @@ export const validateOutputOperation = (
         return new OutputOperationHasInvalidValuesError(
           operation.op,
           "comparison",
-          validFilterComparators
+          validFilterComparators,
         );
       }
 
@@ -189,7 +189,7 @@ export const validateOutputOperation = (
         filterOperation.comparison !== FilterComparator.neq
       ) {
         return new OutputOperationGetBooleanFilterIsUsingWrongComparisonError(
-          filterOperation.comparison
+          filterOperation.comparison,
         );
       }
       // - "filter" on a non-any typed field must have a value of the same type
@@ -203,19 +203,19 @@ export const validateOutputOperation = (
       if (operationHasMissingFields(operationKeys, requiredFields)) {
         return new OutputOperationIsMissingRequiredFieldsError(
           operation.op,
-          getMissingFields(operationKeys, requiredFields)
+          getMissingFields(operationKeys, requiredFields),
         );
       }
       if (operationHasExtraFields(operationKeys, requiredFields)) {
         return new OutputOperationHasExtraFieldsError(
           operation.op,
-          getExtraFields(operationKeys, requiredFields)
+          getExtraFields(operationKeys, requiredFields),
         );
       }
       if (!isStringOrNumber(getOperation.field)) {
         return new OutputOperationMustBeANumberOrStringError(
           operation.op,
-          "field"
+          "field",
         );
       }
       break;
@@ -234,7 +234,7 @@ export const validateOutputOperation = (
  */
 export const validateOutput = (
   outputs?: Partial<OutputOperation[]>,
-  outputKey?: string
+  outputKey?: string,
 ) => {
   if (!Array.isArray(outputs)) {
     return new OperationChainMustBeAnArrayError(outputs, outputKey);
@@ -250,7 +250,7 @@ export const validateOutput = (
   }
   if (isAnAggregationOperation(outputs[0])) {
     return new OperationChainFirstOperationCanNotBeAnAggregationError(
-      outputKey
+      outputKey,
     );
   }
   for (let index = 0; index < outputs.length; index++) {
@@ -259,14 +259,14 @@ export const validateOutput = (
       index < outputs.length - 1
     ) {
       return new OperationChainCantHaveAnyOperationAfterAnAggregationOperationError(
-        outputKey
+        outputKey,
       );
     }
   }
   // 2. Run validateOutputOperation on each link in the chain.
   const results = outputs.map(validateOutputOperation);
   const errors = results.filter(
-    (result: any) => result instanceof OutputOperationError
+    (result: any) => result instanceof OutputOperationError,
   );
   return errors.length > 0 ? errors : true;
   // - "filter" on a non-any typed field must have a value of the same type ❓ <-- delayed until we have Behavior Keys data fed into this method.
@@ -274,7 +274,7 @@ export const validateOutput = (
 
 export const validatePlot = (
   plot?: Partial<Omit<Plot, "timeseries">>,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   if (!plot || !outputs) {
     // TODO: return error, but we shouldn't get to this situation
@@ -293,28 +293,25 @@ export const validatePlot = (
     return new PlotIsMissingLayoutComponentError(
       cleanPlot.title,
       cleanPlot.layout.height,
-      cleanPlot.layout.width
+      cleanPlot.layout.width,
     );
   }
   if (cleanPlot.position && (!cleanPlot.position.x || !cleanPlot.position.y)) {
     return new PlotIsMissingPositionComponentError(
       cleanPlot.title,
       cleanPlot.position.x,
-      cleanPlot.position.y
+      cleanPlot.position.y,
     );
   }
   if (!cleanPlot.type) {
     return new PlotHasNoTypeError(cleanPlot.title);
   }
-  // @ts-ignore it has been checked above
   if (!getValidPlotTypes().includes(cleanPlot.type)) {
-    // @ts-ignore
     return new UnhandledPlotTypeError(cleanPlot.title, cleanPlot.type);
   }
   if (!cleanPlot.data) {
     return new PlotHasNoDataError(cleanPlot.title);
   }
-  // @ts-ignore FIXME: since this went through standardizePlot, it's already an array
   for (const currentDataItem of cleanPlot.data) {
     if (Object.keys(currentDataItem).length === 0) {
       return new PlotHasEmptyDataObjectError(cleanPlot.title);
@@ -338,7 +335,7 @@ export const validatePlot = (
     //   return TwoParameterExperimentChartValidator(cleanPlot, outputs);
 
     case "timeseries": {
-      // @ts-ignore FIXME: this is a cryptic error
+      // @ts-expect-error FIXME: this is a cryptic error
       return TimeseriesValidator(cleanPlot, outputs);
     }
 
@@ -359,7 +356,7 @@ export const validatePlot = (
 const generateValidateAnalysisJsonResult = (
   success: boolean,
   warnings: any[],
-  errors: any[]
+  errors: any[],
 ) => ({
   success,
   warnings,
@@ -373,7 +370,7 @@ export const validateAnalysisJson = (parsedJson: UncheckedAnalysisJson) => {
     return generateValidateAnalysisJsonResult(
       false,
       [],
-      [new AnalysisJsonHasNoOutputsError()]
+      [new AnalysisJsonHasNoOutputsError()],
     );
   }
 
@@ -381,21 +378,21 @@ export const validateAnalysisJson = (parsedJson: UncheckedAnalysisJson) => {
     return generateValidateAnalysisJsonResult(
       false,
       [],
-      [new AnalysisJsonHasNoPlotsError()]
+      [new AnalysisJsonHasNoPlotsError()],
     );
   }
 
   const errors: any = [];
   const warnings = [];
-  // @ts-ignore: at this point we know plots is an array
+  // @ts-expect-error: at this point we know plots is an array
   if (!allOutputsAreUsedInPlots(outputs, plots)) {
     warnings.push(
-      new AnalysisJsonHasUnusedOutputsWarning(getUnusedOutputs(outputs, plots))
+      new AnalysisJsonHasUnusedOutputsWarning(getUnusedOutputs(outputs, plots)),
     );
   }
   // data is not an array
   const dataIsNotAnArrayWarnings = getNonArrayPlotDataWarnings(
-    (plots as unknown) as Partial<Plot & (Chart | Timeseries)[]>
+    plots as unknown as Partial<Plot & (Chart | Timeseries)[]>,
   );
   if (dataIsNotAnArrayWarnings.length > 0) {
     dataIsNotAnArrayWarnings.forEach((warning) => warnings.push(warning));

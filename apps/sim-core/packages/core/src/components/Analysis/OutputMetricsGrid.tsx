@@ -30,7 +30,7 @@ const reducer = (state: any, action: any) => {
       };
     default:
       throw new Error(
-        `OutputMetricsGrid: reducer received an unknown action: "${action.type}"`
+        `OutputMetricsGrid: reducer received an unknown action: "${action.type}"`,
       );
   }
 };
@@ -61,7 +61,7 @@ export const OutputMetricsGrid: FC<OutputMetricsGridProps> = ({
         existingMetricKeys={state.existingMetricKeys}
       />
     ),
-    [state, onOutputMetricsModalSave, onOutputMetricsModalDelete]
+    [state, onOutputMetricsModalSave, onOutputMetricsModalDelete],
   );
 
   if (!metrics) {
@@ -101,8 +101,9 @@ export const OutputMetricsGrid: FC<OutputMetricsGridProps> = ({
             className={classNames(
               "AnalysisViewer__OutputMetricsGrid__ListItem",
               {
-                "AnalysisViewer__OutputMetricsGrid__ListItem--readonly": readonly,
-              }
+                "AnalysisViewer__OutputMetricsGrid__ListItem--readonly":
+                  readonly,
+              },
             )}
             onClick={(evt) => {
               evt.preventDefault();

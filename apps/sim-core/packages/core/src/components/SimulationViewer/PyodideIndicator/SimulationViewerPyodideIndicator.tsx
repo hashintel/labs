@@ -25,6 +25,7 @@ export const SimulationViewerPyodideIndicator: FC<{
           <a
             href="https://docs.hash.ai/core/creating-simulations/experiments"
             target="_blank"
+            rel="noreferrer"
           >
             experiment
           </a>{" "}

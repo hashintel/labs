@@ -1,4 +1,5 @@
-// @ts-nocheck
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-nocheck types are loose in the testing world
 import {
   AggregatorOperator,
   AnalysisJson,
@@ -66,7 +67,7 @@ const expectErrorToBeAndContain = (
   error: any,
   parentErrorType: any,
   errorType: any,
-  messageShouldContain: string
+  messageShouldContain: string,
 ) => {
   expectErrorToBe(error, parentErrorType, errorType);
   expect(error.message).toContain(messageShouldContain);
@@ -76,7 +77,7 @@ const expectErrorToMatchExactly = (
   error: any,
   parentErrorType: any,
   errorType: any,
-  messageShouldBe: string
+  messageShouldBe: string,
 ) => {
   expectErrorToBe(error, parentErrorType, errorType);
   expect(error.message).toBe(messageShouldBe);
@@ -89,7 +90,7 @@ describe("validateOutputOperation", () => {
     expectErrorToBe(
       error,
       OutputOperationError,
-      OutputOperationIsMissingOperationError
+      OutputOperationIsMissingOperationError,
     );
   });
 
@@ -118,9 +119,9 @@ describe("validateOutputOperation", () => {
       expectErrorToBe(
         error,
         OutputOperationError,
-        OutputOperationHasExtraFieldsError
+        OutputOperationHasExtraFieldsError,
       );
-    }
+    },
   );
 
   test.each(singleOps)(
@@ -129,8 +130,8 @@ describe("validateOutputOperation", () => {
       expect(
         validateOutputOperation({
           op: operationName,
-        })
-      ).toBe(true)
+        }),
+      ).toBe(true),
   );
 
   // Operation is missing required fields (by)
@@ -142,7 +143,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationIsMissingRequiredFieldsError,
-      '"by"'
+      '"by"',
     ); // "by" is the field that is missing
   });
 
@@ -156,7 +157,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      '"by"'
+      '"by"',
     ); // "by" is the field that is missing
   });
 
@@ -171,7 +172,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationMustBeANumberError,
-      "range"
+      "range",
     ); // "range" is the field that has incorrect values
   });
 
@@ -180,7 +181,7 @@ describe("validateOutputOperation", () => {
       validateOutputOperation({
         op: CumulativeAggregateOperator.aggregate,
         by: AggregatorOperator.sum,
-      })
+      }),
     ).toBe(true));
 
   // the fields "field", "comparison" and "value" must be present
@@ -196,7 +197,7 @@ describe("validateOutputOperation", () => {
       expect(error).toBeInstanceOf(OutputOperationError);
       expect(error).toBeInstanceOf(OutputOperationIsMissingRequiredFieldsError);
       expect(error.message).not.toContain(`"${fieldName}"`);
-    }
+    },
   );
 
   // we must not have extra fields
@@ -212,7 +213,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationHasExtraFieldsError,
-      "iAmAnExtraField"
+      "iAmAnExtraField",
     );
   });
 
@@ -228,7 +229,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationMustBeANumberOrStringError,
-      '"field"'
+      '"field"',
     );
   });
 
@@ -244,44 +245,44 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      "comparison"
+      "comparison",
     );
     // should also show all the valid values
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      FilterComparator.eq
+      FilterComparator.eq,
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      FilterComparator.neq
+      FilterComparator.neq,
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      FilterComparator.gt
+      FilterComparator.gt,
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      FilterComparator.gte
+      FilterComparator.gte,
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      FilterComparator.lt
+      FilterComparator.lt,
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasInvalidValuesError,
-      FilterComparator.lte
+      FilterComparator.lte,
     );
   });
 
@@ -297,32 +298,32 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationHasComplexValuesError,
-      "value"
+      "value",
     );
     // should show valid values
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasComplexValuesError,
-      "string"
+      "string",
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasComplexValuesError,
-      "string[]"
+      "string[]",
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasComplexValuesError,
-      "number"
+      "number",
     );
     expectErrorToBeAndContain(
       error,
       OutputOperationError,
       OutputOperationHasComplexValuesError,
-      "number[]"
+      "number[]",
     );
   });
 
@@ -338,13 +339,13 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationGetBooleanFilterIsUsingWrongComparisonError,
-      message
+      message,
     );
   });
 
   // - "filter" on a non-any typed field must have a value of the same type
   test.todo(
-    "Filter: Throws OutputOperationFilterMustBeTheSameTypeAsTheValue. Missing implementation until we pass the Behavior Keys to this method"
+    "Filter: Throws OutputOperationFilterMustBeTheSameTypeAsTheValue. Missing implementation until we pass the Behavior Keys to this method",
   );
   test("Filter: success case", () =>
     expect(
@@ -353,7 +354,7 @@ describe("validateOutputOperation", () => {
         field: "age",
         comparison: FilterComparator.gte,
         value: 5,
-      })
+      }),
     ).toBe(true));
 
   test("Get: Throws OutputOperationIsMissingRequiredFieldsError (missing 'field' parameter)", () => {
@@ -364,7 +365,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationIsMissingRequiredFieldsError,
-      '"field"'
+      '"field"',
     ); // "field" is the field that is missing
   });
 
@@ -378,7 +379,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationHasExtraFieldsError,
-      "iAmAnExtraField"
+      "iAmAnExtraField",
     ); // "IAmAnExtraField" is the field that shouldn't be there
   });
 
@@ -391,7 +392,7 @@ describe("validateOutputOperation", () => {
       error,
       OutputOperationError,
       OutputOperationMustBeANumberOrStringError,
-      "field"
+      "field",
     ); // "field" is the field that has wrong values
   });
 
@@ -400,7 +401,7 @@ describe("validateOutputOperation", () => {
       validateOutputOperation({
         op: GetOperator.get,
         field: "age",
-      })
+      }),
     ).toBe(true);
   });
 });
@@ -413,7 +414,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainMustBeAnArrayError,
-      'The operation chain must be an array. You provided "object".'
+      'The operation chain must be an array. You provided "object".',
     );
   });
 
@@ -424,7 +425,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainMustContainAtLeastOneOperationError,
-      "The operation chain must contain at least one operation."
+      "The operation chain must contain at least one operation.",
     );
   });
 
@@ -439,7 +440,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainCantHaveAnyOperationAfterAnAggregationOperationError,
-      "The operation chain can't have any operation after an aggregation operation."
+      "The operation chain can't have any operation after an aggregation operation.",
     );
   });
 
@@ -454,7 +455,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainCantHaveAnyOperationAfterAnAggregationOperationError,
-      `The operation chain for the "outputKeyNameGoesHere" metric can't have any operation after an aggregation operation.`
+      `The operation chain for the "outputKeyNameGoesHere" metric can't have any operation after an aggregation operation.`,
     );
   });
 
@@ -465,7 +466,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainFirstGetFieldMustBeAStringError,
-      'Your first "get" operation must access the "field" using a string.'
+      'Your first "get" operation must access the "field" using a string.',
     );
   });
 
@@ -476,7 +477,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainFirstGetFieldMustBeAStringError,
-      'Your first "get" operation must access the "field" using a string.'
+      'Your first "get" operation must access the "field" using a string.',
     );
   });
 
@@ -487,7 +488,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainFirstGetFieldMustBeAStringError,
-      'Your first "get" operation must access the "field" using a string.'
+      'Your first "get" operation must access the "field" using a string.',
     );
   });
 
@@ -504,7 +505,7 @@ describe("validateOutput", () => {
       error,
       OperationChainError,
       OperationChainFirstOperationCanNotBeAnAggregationError,
-      message
+      message,
     );
   });
 
@@ -539,7 +540,7 @@ describe("validateAnalysisJson", () => {
       errors[0],
       AnalysisJsonError,
       AnalysisJsonHasNoOutputsError,
-      message
+      message,
     );
   });
 
@@ -567,14 +568,14 @@ describe("validateAnalysisJson", () => {
     const errors = validateAnalysisJson(parsedJson).warnings;
     const unusedOutputs = ["feature_2"];
     const message = `The following outputs are unused: "${unusedOutputs.join(
-      ","
+      ",",
     )}". Please remove them or use them in a plot.`;
     expect(errors.length).toBeGreaterThan(0);
     expectErrorToMatchExactly(
       errors[0],
       AnalysisJsonError,
       AnalysisJsonHasUnusedOutputsWarning,
-      message
+      message,
     );
   });
 
@@ -602,7 +603,7 @@ describe("validateAnalysisJson", () => {
       errors[0],
       OperationChainError,
       OperationChainMustBeAnArrayError,
-      message
+      message,
     );
   });
 
@@ -637,7 +638,7 @@ describe("validateAnalysisJson", () => {
       errors[0],
       PlotError,
       PlotHasNoTitleError,
-      message
+      message,
     );
   });
 
@@ -688,7 +689,7 @@ describe("validatePlot", () => {
       error,
       PlotError,
       PlotHasNoTitleError,
-      `The plot is either missing the required "title" property or it is an empty string.`
+      `The plot is either missing the required "title" property or it is an empty string.`,
     );
   });
 
@@ -699,33 +700,33 @@ describe("validatePlot", () => {
       error,
       PlotError,
       PlotIsMissingLayoutComponentError,
-      message
+      message,
     );
   });
 
   test("returns PlotIsMissingLayoutComponentError (missing height)", () => {
     const error = validatePlot(
       { title, layout: { width: "100%" } },
-      defaultOutputs
+      defaultOutputs,
     );
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingLayoutComponentError,
-      `The plot titled "${title}" is missing the "height" property.`
+      `The plot titled "${title}" is missing the "height" property.`,
     );
   });
 
   test("returns PlotIsMissingLayoutComponentError (missing width)", () => {
     const error = validatePlot(
       { title, layout: { height: "100%" } },
-      defaultOutputs
+      defaultOutputs,
     );
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingLayoutComponentError,
-      `The plot titled "${title}" is missing the "width" property.`
+      `The plot titled "${title}" is missing the "width" property.`,
     );
   });
 
@@ -736,42 +737,42 @@ describe("validatePlot", () => {
       error,
       PlotError,
       PlotIsMissingPositionComponentError,
-      message
+      message,
     );
   });
 
   test("returns PlotIsMissingPositionComponentError (missing x)", () => {
     const error = validatePlot(
       { title, position: { y: "50%" } },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is missing the "x" property. Valid values are percentages. Example: "50%".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingPositionComponentError,
-      message
+      message,
     );
   });
 
   test("returns PlotIsMissingPositionComponentError (missing y)", () => {
     const error = validatePlot(
       { title, position: { x: "50%" } },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is missing the "y" property. Valid values are percentages. Example: "50%".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingPositionComponentError,
-      message
+      message,
     );
   });
 
   test("returns PlotHasNoTypeError", () => {
     const error = validatePlot({ title }, defaultOutputs);
     const message = `The plot titled "${title}" does not have a "type" property. Valid values are "${getValidPlotTypes().join(
-      ","
+      ",",
     )}".`;
     expectErrorToMatchExactly(error, PlotError, PlotHasNoTypeError, message);
   });
@@ -779,16 +780,16 @@ describe("validatePlot", () => {
   test("returns UnhandledPlotTypeError", () => {
     const error = validatePlot(
       { title, type: "super invalid type right here" },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has an invalid value (super invalid type right here) for the "type" property. Valid values are "${getValidPlotTypes().join(
-      ","
+      ",",
     )}"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       UnhandledPlotTypeError,
-      message
+      message,
     );
   });
 
@@ -805,14 +806,14 @@ describe("validatePlot", () => {
         type: "bar",
         data: {},
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has an empty object in the "data" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasEmptyDataObjectError,
-      message
+      message,
     );
   });
 
@@ -829,14 +830,14 @@ describe("validatePlot", () => {
           },
         ],
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has extra fields under the "data" property. The shape of this object must match "YDataPoints".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasExtraDataFieldsError,
-      message
+      message,
     );
   });
 
@@ -857,14 +858,14 @@ describe("validatePlot", () => {
           { op: GetOperator.get, field: "a" },
           { op: AggregatorOperator.mean },
         ],
-      }
+      },
     );
     const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "YDataPoints" but you provided "XDataPoints"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasTheWrongKindOfDataError,
-      message
+      message,
     );
   });
 
@@ -880,14 +881,14 @@ describe("validatePlot", () => {
           },
         ],
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "YDataPoints" but you provided "ZDataPoints"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasTheWrongKindOfDataError,
-      message
+      message,
     );
   });
 
@@ -902,14 +903,14 @@ describe("validatePlot", () => {
           },
         ],
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is missing the "data.y" property, which must be of type "string".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingYDataPointsComponentError,
-      message
+      message,
     );
   });
 
@@ -923,14 +924,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "a" inside of the "data.y" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -958,7 +959,7 @@ describe("validatePlot", () => {
           },
           { op: GetOperator.get, field: "age " },
         ],
-      }
+      },
     );
 
     const message = `The plot titled "${title}" is using an incorrect type for the "data.y" property. It must be a string, but you provided "array".`;
@@ -966,7 +967,7 @@ describe("validatePlot", () => {
       error,
       PlotError,
       PlotHasTheWrongTypeForYDataPointComponentError,
-      message
+      message,
     );
   });
 
@@ -996,14 +997,14 @@ describe("validatePlot", () => {
           },
           { op: GetOperator.get, field: "age " },
         ],
-      }
+      },
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "hellu" inside of the "data.y" property. Did you mean "hello"?.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1033,14 +1034,14 @@ describe("validatePlot", () => {
           },
           { op: GetOperator.get, field: "age " },
         ],
-      }
+      },
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "arkansas" inside of the "data.y" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1067,7 +1068,7 @@ describe("validatePlot", () => {
           },
           { op: GetOperator.get, field: "age " },
         ],
-      }
+      },
     );
 
     const message = `The plot titled "${title}" is referencing the output "hello" which does not end in an Aggregation Operation. Valid values are "max, min, mean, sum, count".`;
@@ -1075,7 +1076,7 @@ describe("validatePlot", () => {
       error,
       PlotError,
       PlotUsedOutputMustEndInAggregationOperationError,
-      message
+      message,
     );
   });
 
@@ -1086,14 +1087,14 @@ describe("validatePlot", () => {
         type: "box",
         data: {},
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has an empty object in the "data" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasEmptyDataObjectError,
-      message
+      message,
     );
   });
 
@@ -1108,14 +1109,14 @@ describe("validatePlot", () => {
           extraProperty: "that shouldnt exist",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has extra fields under the "data" property. The shape of this object must match "YDataPoints".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasExtraDataFieldsError,
-      message
+      message,
     );
   });
 
@@ -1129,14 +1130,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "YDataPoints" but you provided "XDataPoints"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasTheWrongKindOfDataError,
-      message
+      message,
     );
   });
 
@@ -1150,14 +1151,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "YDataPoints" but you provided "ZDataPoints"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasTheWrongKindOfDataError,
-      message
+      message,
     );
   });
 
@@ -1170,14 +1171,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is missing the "data.y" property, which must be of type "string".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingYDataPointsComponentError,
-      message
+      message,
     );
   });
 
@@ -1191,14 +1192,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "a" inside of the "data.y" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1226,14 +1227,14 @@ describe("validatePlot", () => {
           },
           { op: GetOperator.get, field: "age " },
         ],
-      }
+      },
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "hellu" inside of the "data.y" property. Did you mean "hello"?.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1253,16 +1254,16 @@ describe("validatePlot", () => {
           type,
           data: {},
         },
-        defaultOutputs
+        defaultOutputs,
       );
       const message = `The plot titled "${title}" has an empty "data" property. It must contain an array of objects matching the shape of "ZDataPoints".`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotDataIsNotAnArrayError,
-        message
+        message,
       );
-    }
+    },
   );
   test.skip.each(TwoParameterExperimentTypes)(
     "Plot type: %s -> Throws PlotHasExtraDataFields",
@@ -1276,16 +1277,16 @@ describe("validatePlot", () => {
             extraProp: true,
           },
         },
-        defaultOutputs
+        defaultOutputs,
       );
       const message = `The plot titled "${title}" has extra fields under the "data" property. The shape of this object must match "ZDataPoints".`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotHasExtraDataFieldsError,
-        message
+        message,
       );
-    }
+    },
   );
 
   test.skip.each(TwoParameterExperimentTypes)(
@@ -1299,16 +1300,16 @@ describe("validatePlot", () => {
             x: "test",
           },
         },
-        defaultOutputs
+        defaultOutputs,
       );
       const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "ZDataPoints" but you provided "XDataPoints"`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotHasTheWrongKindOfDataError,
-        message
+        message,
       );
-    }
+    },
   );
 
   test.skip.each(TwoParameterExperimentTypes)(
@@ -1322,16 +1323,16 @@ describe("validatePlot", () => {
             y: "test",
           },
         },
-        defaultOutputs
+        defaultOutputs,
       );
       const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "ZDataPoints" but you provided "YDataPoints"`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotHasTheWrongKindOfDataError,
-        message
+        message,
       );
-    }
+    },
   );
 
   test.skip.each(TwoParameterExperimentTypes)(
@@ -1345,16 +1346,16 @@ describe("validatePlot", () => {
             z: "abracadabra",
           },
         },
-        defaultOutputs
+        defaultOutputs,
       );
       const message = `The plot titled "${title}" is referencing an non-existing output metric titled "abracadabra" inside of the "data.z" property.`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotIsReferencingNonExistingOutputError,
-        message
+        message,
       );
-    }
+    },
   );
 
   test.skip.each(TwoParameterExperimentTypes)(
@@ -1382,16 +1383,16 @@ describe("validatePlot", () => {
             },
             { op: GetOperator.get, field: "age " },
           ],
-        }
+        },
       );
       const message = `The plot titled "${title}" is referencing an non-existing output metric titled "countour" inside of the "data.z" property. Did you mean "contour"?.`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotIsReferencingNonExistingOutputError,
-        message
+        message,
       );
-    }
+    },
   );
 
   test.skip.each(TwoParameterExperimentTypes)(
@@ -1419,16 +1420,16 @@ describe("validatePlot", () => {
             },
             { op: GetOperator.get, field: "age " },
           ],
-        }
+        },
       );
       const message = `The plot titled "${title}" is referencing the output "contour" which does not end in an Aggregation Operation. Valid values are "max, min, mean, sum, count".`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotUsedOutputMustEndInAggregationOperationError,
-        message
+        message,
       );
-    }
+    },
   );
 
   test.todo("TwoParameterExperiment: PlotIsMissingZDataPointsComponent");
@@ -1458,10 +1459,10 @@ describe("validatePlot", () => {
             },
             { op: GetOperator.get, field: "age " },
           ],
-        }
+        },
       );
       expect(success).toBe(true);
-    }
+    },
   );
 
   test("Plot type: timeseries -> PlotDataIsNotAnArrayError", () => {
@@ -1471,14 +1472,14 @@ describe("validatePlot", () => {
         type: "timeseries",
         data: {},
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has an empty object in the "data" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasEmptyDataObjectError,
-      message
+      message,
     );
   });
 
@@ -1493,14 +1494,14 @@ describe("validatePlot", () => {
           extraProperty: "that shouldnt exist",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has extra fields under the "data" property. The shape of this object must match "YDataPoints".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasExtraDataFieldsError,
-      message
+      message,
     );
   });
 
@@ -1514,14 +1515,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "YDataPoints" but you provided "XDataPoints"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasTheWrongKindOfDataError,
-      message
+      message,
     );
   });
 
@@ -1535,14 +1536,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "YDataPoints" but you provided "ZDataPoints"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasTheWrongKindOfDataError,
-      message
+      message,
     );
   });
 
@@ -1556,14 +1557,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "a" inside of the "data.y" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1591,14 +1592,14 @@ describe("validatePlot", () => {
           },
           { op: GetOperator.get, field: "age " },
         ],
-      }
+      },
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "hellu" inside of the "data.y" property. Did you mean "hello"?.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1611,14 +1612,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is missing the "data.y" property, which must be of type "string" or "string[]".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingYDataPointsComponentError,
-      message
+      message,
     );
   });
 
@@ -1629,14 +1630,14 @@ describe("validatePlot", () => {
         type: "histogram",
         data: {},
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has an empty object in the "data" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasEmptyDataObjectError,
-      message
+      message,
     );
   });
 
@@ -1651,14 +1652,14 @@ describe("validatePlot", () => {
           extraProperty: "that shouldnt exist",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" has extra fields under the "data" property. The shape of this object must match "XDataPoints or YDataPoints".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasExtraDataFieldsError,
-      message
+      message,
     );
   });
 
@@ -1672,14 +1673,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is using an incorrect shape for the "data" property. It is expecting "XDataPoints or YDataPoints" but you provided "ZDataPoints"`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotHasTheWrongKindOfDataError,
-      message
+      message,
     );
   });
 
@@ -1693,14 +1694,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "a" inside of the "data.x" property.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1728,14 +1729,14 @@ describe("validatePlot", () => {
           },
           { op: GetOperator.get, field: "age " },
         ],
-      }
+      },
     );
     const message = `The plot titled "${title}" is referencing an non-existing output metric titled "hellu" inside of the "data.x" property. Did you mean "hello"?.`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsReferencingNonExistingOutputError,
-      message
+      message,
     );
   });
 
@@ -1748,14 +1749,14 @@ describe("validatePlot", () => {
           name: "a",
         },
       },
-      defaultOutputs
+      defaultOutputs,
     );
     const message = `The plot titled "${title}" is missing both "data.x" and "data.y" properties, though only one can be used at a time. The value must be of type "string".`;
     expectErrorToMatchExactly(
       error,
       PlotError,
       PlotIsMissingYAndXDataPointsComponentError,
-      message
+      message,
     );
   });
 
@@ -1767,11 +1768,11 @@ describe("validatePlot", () => {
           title,
           type,
         },
-        defaultOutputs
+        defaultOutputs,
       );
       const message = `The plot titled "${title}" is missing the required "data" property. Depending on the Plot Type, it must contain an array of either XDataPoints, YDataPoints or ZDataPoints.`;
       expectErrorToMatchExactly(error, PlotError, PlotHasNoDataError, message);
-    }
+    },
   );
 
   test.each(["line", "scatter"])(
@@ -1783,15 +1784,15 @@ describe("validatePlot", () => {
           type,
           data: {},
         },
-        defaultOutputs
+        defaultOutputs,
       );
       const message = `The plot titled "${title}" has an empty object in the "data" property.`;
       expectErrorToMatchExactly(
         error,
         PlotError,
         PlotHasEmptyDataObjectError,
-        message
+        message,
       );
-    }
+    },
   );
 });

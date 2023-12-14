@@ -37,14 +37,14 @@ export type SearchAction =
   | { type: "reset"; payload: { projectUrl: string | null } }
   | { type: "filesRemoved"; payload: string[] };
 
-export type SearchState = {
+export interface SearchState {
   query: SearchQuery;
   resultsMap: SearchResultsDictionary;
   results: SearchFileResult[];
   noResults: boolean;
   pending: boolean;
   projectUrl: string | null;
-};
+}
 
 export type SearchDispatch = Dispatch<SearchAction>;
 
@@ -73,7 +73,7 @@ const searchInitialState: SearchState = {
  */
 const setResults = (
   state: Draft<SearchState>,
-  results: SearchResultsDictionary | null
+  results: SearchResultsDictionary | null,
 ) => {
   state.resultsMap = results ?? {};
   state.results = results
@@ -87,11 +87,8 @@ const setResults = (
  * Typing explicitly because immer combined with useReducer seems to result in
  * some odd typing issues.
  */
-const searchReducer: (
-  state: SearchState,
-  action: SearchAction
-) => SearchState = produce(
-  (state: Draft<SearchState>, action: SearchAction) => {
+const searchReducer: (state: SearchState, action: SearchAction) => SearchState =
+  produce((state: Draft<SearchState>, action: SearchAction) => {
     if (action.type === "reset") {
       return {
         ...searchInitialState,
@@ -178,13 +175,12 @@ const searchReducer: (
           }
         }
     }
-  }
-);
+  });
 
 export const useSearchReducer = () => {
   const [searchState, searchDispatch] = useReducer(
     searchReducer,
-    searchInitialState
+    searchInitialState,
   );
 
   const projectUrl = useSelector(selectCurrentProjectUrl);

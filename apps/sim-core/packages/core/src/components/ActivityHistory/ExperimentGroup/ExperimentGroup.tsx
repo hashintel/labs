@@ -41,7 +41,7 @@ import "./ExperimentGroup.scss";
 const useReadyToShowExperiment = (
   selected: boolean,
   pending: boolean,
-  startedTime: number
+  startedTime: number,
 ) => {
   const alreadyReady =
     selected ||
@@ -96,7 +96,7 @@ const makeSelectExperimentById = (id: string) =>
       }
 
       return experimentRun;
-    }
+    },
   );
 
 export const ExperimentGroup: FC<{
@@ -125,7 +125,7 @@ export const ExperimentGroup: FC<{
 
       return simIds.some((id) => simulationViewable(simData[id]));
     },
-    [simIds]
+    [simIds],
   );
 
   const anySimsViewable = useSimulatorSelector(anySimsViewableSelector);
@@ -181,10 +181,10 @@ export const ExperimentGroup: FC<{
                   open
                     ? hovered
                       ? theme["dark-hover-hover"]
-                      : theme["black"]
+                      : theme.black
                     : hovered
-                    ? theme["dark-hover"]
-                    : theme["dark"]
+                      ? theme["dark-hover"]
+                      : theme.dark
                 }
               />
             </span>

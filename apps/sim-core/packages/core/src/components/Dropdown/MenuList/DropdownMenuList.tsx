@@ -3,9 +3,9 @@ import { VariableSizeList } from "react-window";
 
 import type { ReactSelectOption } from "../types";
 
-type DropdownMenuListProps = {
+interface DropdownMenuListProps {
   options: ReactSelectOption[];
-};
+}
 
 /**
  * these numbers are kinda magic numbers, it's known and tolerated for
@@ -40,8 +40,8 @@ export const DropdownMenuList: FC<DropdownMenuListProps> = ({
     return !subLabel || subLabel.length === 0
       ? SUB_LABEL_MIN_SIZE
       : subLabel.length < SUB_LABEL_AVG_LENGTH
-      ? SUB_LABEL_AVG_SIZE
-      : SUB_LABEL_MAX_SIZE;
+        ? SUB_LABEL_AVG_SIZE
+        : SUB_LABEL_MAX_SIZE;
   };
 
   return (

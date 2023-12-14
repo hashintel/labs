@@ -5,7 +5,7 @@ export const convertToObject = (value: any): any => {
     return value.map(convertToObject);
   } else if (value instanceof Map) {
     return Object.fromEntries(
-      Array.from(value.entries(), ([k, v]) => [k, convertToObject(v)])
+      Array.from(value.entries(), ([k, v]) => [k, convertToObject(v)]),
     );
   }
   return value;

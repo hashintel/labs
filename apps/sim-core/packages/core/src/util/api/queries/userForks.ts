@@ -3,7 +3,7 @@ import { query } from "../query";
 export const userForks = async (
   pathWithNamespace: string,
   accessCode?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) =>
   (
     await query<{ project: { userForkPaths: string[] } }>(
@@ -15,6 +15,6 @@ export const userForks = async (
           }
         `,
       { pathWithNamespace, accessCode },
-      signal
+      signal,
     )
   ).project.userForkPaths;

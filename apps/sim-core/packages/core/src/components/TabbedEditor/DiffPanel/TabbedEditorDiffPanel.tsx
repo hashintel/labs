@@ -9,16 +9,16 @@ import { getTextModelRequired, languageByExt } from "../../../features/monaco";
 import { parse } from "../../../util/files";
 import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 
-type TabbedEditorDiffPanelProps = {
+interface TabbedEditorDiffPanelProps {
   editorInstance: DiffEditorInstance | undefined;
   file: HcFile;
   nextContents: string;
-};
+}
 
 export const getDiffModel = (
   manifestId: string | null,
   file: HcFile,
-  nextContents: string
+  nextContents: string,
 ): DiffEditorModel => ({
   original: getTextModelRequired(file, manifestId),
   modified: editor.createModel(
@@ -28,8 +28,8 @@ export const getDiffModel = (
       parse({
         ...file.path,
         name: `${uuid()}`,
-      }).formatted
-    )
+      }).formatted,
+    ),
   ),
 });
 
@@ -43,7 +43,7 @@ export const TabbedEditorDiffPanel: FC<TabbedEditorDiffPanelProps> = ({
 
   const diffModel = useMemo(
     () => getDiffModel(projectUrl, file, nextContents),
-    [file, projectUrl, nextContents]
+    [file, projectUrl, nextContents],
   );
 
   useEffect(() => {

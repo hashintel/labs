@@ -15,7 +15,7 @@ export const getUiQueryParams = () => {
   } = getSafeQueryParams();
 
   return {
-    view: view === "plots" ? TabKind.Analysis : (view as string),
+    view: view === "plots" ? TabKind.Analysis : view,
     editor: editor !== "false",
     activity: activity !== "false",
     viewer: viewer !== "false",
@@ -27,7 +27,7 @@ export const useParameterisedUi = () => {
   // We don't want these to respond to changes
   const { view, editor, activity, tabs, viewer } = useMemo(
     getUiQueryParams,
-    []
+    [],
   );
   const dispatch = useDispatch();
 
@@ -39,7 +39,7 @@ export const useParameterisedUi = () => {
         activity,
         tabs,
         viewer,
-      })
+      }),
     );
   }, [activity, dispatch, editor, tabs, view, viewer]);
 };

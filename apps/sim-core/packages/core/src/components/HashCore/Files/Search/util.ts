@@ -17,7 +17,7 @@ import { yieldToBrowser } from "../../../../util/yieldToBrowser";
 
 const replaceTextInModel = (
   model: editor.ITextModel,
-  replacements: Replacement[]
+  replacements: Replacement[],
 ) => {
   model.pushEditOperations(
     [],
@@ -25,7 +25,7 @@ const replaceTextInModel = (
       range,
       text: replaceTerm,
     })),
-    () => []
+    () => [],
   );
 };
 
@@ -34,7 +34,7 @@ const getNextContentsModel = editor.createModel("");
 export const getNextContents = (
   file: HcFile,
   model: editor.ITextModel,
-  replacements: Replacement[]
+  replacements: Replacement[],
 ) => {
   getNextContentsModel.setValue(model.getValue());
   replaceTextInModel(getNextContentsModel, replacements);
@@ -46,10 +46,10 @@ export const getNextContents = (
   return nextContents;
 };
 
-export const replace = async (
+export const replace = (
   model: editor.ITextModel,
   file: HcFile,
-  replacements: { range: Range; replaceTerm: string }[]
+  replacements: { range: Range; replaceTerm: string }[],
 ) => {
   if (isReadOnly(file, true)) {
     throw new Error("Attempted to trigger replace on a readOnly file");
@@ -82,7 +82,7 @@ export const triggerSearch = async (
   allFiles: Dictionary<HcFile>,
   pattern: ReplacePattern | null,
   prevResults: SearchResultsDictionary,
-  signal: AbortSignal
+  signal: AbortSignal,
 ) => {
   let nextResults = prevResults;
 
@@ -110,7 +110,7 @@ export const triggerSearch = async (
         query.regex,
         query.caseSensitive,
         null,
-        true
+        true,
       );
 
       await yieldToBrowser();

@@ -53,7 +53,7 @@ export const FontsPreloader: FC = ({ children }) => {
               </Fragment>
             ))}
           </div>,
-          target
+          target,
         )}
     </>
   );

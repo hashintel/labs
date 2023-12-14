@@ -16,7 +16,7 @@ import { yieldToBrowser } from "../../util/yieldToBrowser";
 const mapLayout = (
   layout: Partial<Plotly.Layout>,
   currentStep: number,
-  hideStep: boolean | undefined
+  hideStep: boolean | undefined,
 ): Partial<Plotly.Layout> => {
   const cloned = JSON.parse(JSON.stringify(layout));
 
@@ -40,16 +40,16 @@ const mapLayout = (
               },
             },
           ]
-        : []
+        : [],
     ),
   };
 };
 
 const getLastOperationFromOperationChain = (
   definition: any,
-  outputs: { [index: string]: any[] },
+  outputs: Record<string, any[]>,
   axisToUse: "x" | "y",
-  index: number
+  index: number,
 ) => {
   const outputMetricKey = definition?.data?.[index][axisToUse];
   if (!outputMetricKey) {
@@ -65,18 +65,18 @@ const getLastOperationFromOperationChain = (
 const isAxisAvailable = (
   definition: any,
   index: number,
-  axisToUse: "x" | "y"
-) => !!(definition?.data?.[index] && definition.data[index][axisToUse]);
+  axisToUse: "x" | "y",
+) => !!definition?.data?.[index]?.[axisToUse];
 const doLastOperationTypesMatch = (
   definition: any,
-  outputs: { [index: string]: any[] },
-  index: number
+  outputs: Record<string, any[]>,
+  index: number,
 ) => {
   const x = isASingleStepAggregationOperation(
-    getLastOperationFromOperationChain(definition, outputs, "x", index)
+    getLastOperationFromOperationChain(definition, outputs, "x", index),
   );
   const y = isASingleStepAggregationOperation(
-    getLastOperationFromOperationChain(definition, outputs, "y", index)
+    getLastOperationFromOperationChain(definition, outputs, "y", index),
   );
   return x === y;
 };
@@ -89,9 +89,9 @@ const doLastOperationTypesMatch = (
  */
 const prepareDataBasedOnOutputMetricsLastOperation = async (
   definition: any,
-  outputs: { [index: string]: any[] },
+  outputs: Record<string, any[]>,
   clonedData: any,
-  currentStep: number
+  currentStep: number,
 ) => {
   const result = JSON.parse(JSON.stringify(clonedData));
   if (!definition.type) {
@@ -125,11 +125,10 @@ const prepareDataBasedOnOutputMetricsLastOperation = async (
           definition,
           outputs,
           "y",
-          index
+          index,
         );
-        const lastYOperationIsAnAggregationOperation = isASingleStepAggregationOperation(
-          lastOp
-        );
+        const lastYOperationIsAnAggregationOperation =
+          isASingleStepAggregationOperation(lastOp);
         if (!yAxisAvailable || xAxisAvailable) {
           continue;
         }
@@ -166,7 +165,7 @@ const prepareDataBasedOnOutputMetricsLastOperation = async (
           definition,
           outputs,
           axisToUse,
-          index
+          index,
         );
         if (!lastOperation) {
           continue;
@@ -192,7 +191,7 @@ const prepareDataBasedOnOutputMetricsLastOperation = async (
           // Covering Range case
           result[index][axisToUse] = clonedData[index][axisToUse].slice(
             0,
-            currentStep
+            currentStep,
           );
         }
         await yieldToBrowser();
@@ -208,11 +207,12 @@ const prepareDataBasedOnOutputMetricsLastOperation = async (
         const lastOperationsTypesAreMatching = doLastOperationTypesMatch(
           definition,
           outputs,
-          index
+          index,
         );
-        const lastXOperationIsAnAggregationOperation = isASingleStepAggregationOperation(
-          getLastOperationFromOperationChain(definition, outputs, "x", index)
-        );
+        const lastXOperationIsAnAggregationOperation =
+          isASingleStepAggregationOperation(
+            getLastOperationFromOperationChain(definition, outputs, "x", index),
+          );
         result[index].type = "scatter";
         result[index].mode =
           definition.type === "scatter" ? "markers" : "lines";
@@ -254,21 +254,21 @@ const prepareDataBasedOnOutputMetricsLastOperation = async (
 
 const usePreparePlotsObserver = (
   definition: any,
-  outputs: { [index: string]: any[] },
+  outputs: Record<string, any[]>,
   clonedData: any,
-  currentStep: number
+  currentStep: number,
 ) => {
   // @todo type this
   const ref = useRef<
     Subject<{
       definition: any;
-      outputs: { [index: string]: any[] };
+      outputs: Record<string, any[]>;
       clonedData: any;
       currentStep: number;
     }>
   >(null as any);
   // @todo type this
-  const [result, setResult] = useState<any | null>(null);
+  const [result, setResult] = useState<any>(null);
 
   if (!ref.current) {
     ref.current = new Subject();
@@ -282,9 +282,9 @@ const usePreparePlotsObserver = (
             obj.definition,
             obj.outputs,
             obj.clonedData,
-            obj.currentStep
-          )
-        )
+            obj.currentStep,
+          ),
+        ),
       )
       .subscribe((result) => {
         setResult(result);
@@ -325,10 +325,10 @@ export const OutputPlot: FC<
   onEdit,
 }) => {
   const [plotlyConfig, setPlotlyConfig] = useState(() =>
-    JSON.parse(JSON.stringify(config))
+    JSON.parse(JSON.stringify(config)),
   );
   const [plotlyLayout, setPlotlyLayout] = useState(
-    mapLayout({ ...layout, title: undefined }, currentStep, hideStep)
+    mapLayout({ ...layout, title: undefined }, currentStep, hideStep),
   );
 
   const clonedData = useMemo(() => JSON.parse(JSON.stringify(data)), [data]);
@@ -341,13 +341,13 @@ export const OutputPlot: FC<
     },
     {
       onObserve: null,
-    }
+    },
   );
 
   // if a new layout comes through, update the state
   useEffect(() => {
     setPlotlyLayout(
-      mapLayout({ ...layout, title: undefined }, currentStep, hideStep)
+      mapLayout({ ...layout, title: undefined }, currentStep, hideStep),
     );
   }, [currentStep, hideStep, layout]);
 
@@ -362,7 +362,7 @@ export const OutputPlot: FC<
     definition,
     outputs ?? {},
     clonedData,
-    currentStep
+    currentStep,
   );
 
   return (

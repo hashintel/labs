@@ -37,7 +37,7 @@ test("should run", async () => {
     {},
     behaviors,
     [],
-    analyzer
+    analyzer,
   );
 
   let i = 0;
@@ -58,6 +58,6 @@ test("should not reuse a dropped Simulation", async () => {
   await sim.drop();
 
   await expect(sim.next_state()).rejects.toEqual(
-    new Error("Cannot reuse a dropped Simulation")
+    new Error("Cannot reuse a dropped Simulation"),
   );
 });

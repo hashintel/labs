@@ -1,4 +1,4 @@
-import { CommitActionVerb } from "../../../../util/api/auto-types";
+import { CommitActionVerb } from "../../../../util/api/types";
 import { ProjectTemplate } from "./types";
 import { defaultJsBehaviorSrc } from "../../../../util/defaultJsBehaviorSrc";
 

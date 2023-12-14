@@ -95,7 +95,7 @@ export const GlobalsEditor: FC = () => {
         });
       }, 200);
     },
-    [dispatch, scheduleUpdate]
+    [dispatch, scheduleUpdate],
   );
 
   /**
@@ -115,7 +115,7 @@ export const GlobalsEditor: FC = () => {
             },
           }
         : globalConfigSchema,
-    [globals?.schema]
+    [globals?.schema],
   );
 
   if (!globals) {

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 
 export function usePromise<T>(
   getPromise: () => Promise<T>,
-  shouldFetch: boolean = true
+  shouldFetch = true,
 ) {
   const [value, setValue] = useState<T | null>(null);
   const [error, setError] = useState(null);

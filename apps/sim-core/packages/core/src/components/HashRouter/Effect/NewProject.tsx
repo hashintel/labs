@@ -25,7 +25,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
   const [{ namespace }] = useSafeQueryParams();
   const { canNewProject, canNewProjectIfSignedIn } = useScopes(
     Scope.newProject,
-    Scope.newProjectIfSignedIn
+    Scope.newProjectIfSignedIn,
   );
   const fatalError = useFatalError();
 
@@ -33,6 +33,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
     () => (
       <ModalNewProject
         onCancel={navigateAway}
+        //eslint-disable-next-line @typescript-eslint/require-await
         onSubmit={async (values) => {
           //migration shim
 
@@ -41,17 +42,19 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
             values.path,
             values.name,
             values.visibility,
-            template
+            template,
           );
 
           dispatch(
+            //@ts-expect-error redux problems
             trackEvent({
               action: "New Project: Core",
               label: project.pathWithNamespace,
-            })
+            }),
           );
 
           dispatch(addUserProject(preparePartialSimulationProject(project)));
+          //@ts-expect-error redux problems
           dispatch(setProjectWithMeta(project));
           navigate(urlFromProject(project), false, {}, true);
         }}
@@ -59,7 +62,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
         defaultNamespace={namespace}
       />
     ),
-    [dispatch, namespace, navigateAway]
+    [dispatch, namespace, navigateAway],
   );
 
   useEffect(() => {
@@ -73,7 +76,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
       forceLogIn(true);
     } else {
       fatalError(
-        "Should never not be able to new project if signed while at /new"
+        "Should never not be able to new project if signed while at /new",
       );
     }
   }, [

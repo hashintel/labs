@@ -41,7 +41,7 @@ const createPlotsObservers = (
   simulatorStore: SimulatorStore,
   appStore: AppStore,
   simIds: string[],
-  getExistingPlots?: () => Record<string, OutputPlots | null>
+  getExistingPlots?: () => Record<string, OutputPlots | null>,
 ): Observable<PlotsOutputEntry> => {
   const simObs = fromStore(simulatorStore);
   const appObs = fromStore(appStore);
@@ -51,9 +51,9 @@ const createPlotsObservers = (
   const analysisSrcObs = combineLatest([simObs, appObs]).pipe(
     map(
       ([simState, appState]) =>
-        selectAnalysisSelector(appState)(simState).analysis
+        selectAnalysisSelector(appState)(simState).analysis,
     ),
-    distinctUntilChanged()
+    distinctUntilChanged(),
   );
 
   const emptyPlotsObs = analysisSrcObs.pipe(
@@ -62,10 +62,10 @@ const createPlotsObservers = (
       from(refreshAnalysisSource(analysisSrc)).pipe(
         materialize(),
         filter((val) => !val.error),
-        dematerialize()
-      )
+        dematerialize(),
+      ),
     ),
-    share()
+    share(),
   );
 
   /**
@@ -75,7 +75,7 @@ const createPlotsObservers = (
     switchMap((emptyPlots) =>
       defer(() => {
         const lastPlots: Record<string, OutputPlots | null> = JSON.parse(
-          JSON.stringify(getExistingPlots?.() ?? {})
+          JSON.stringify(getExistingPlots?.() ?? {}),
         );
 
         return simObs.pipe(
@@ -85,43 +85,41 @@ const createPlotsObservers = (
               !simIds.some(
                 (id) =>
                   prev[id]?.steps !== next[id]?.steps ||
-                  prev[id]?.analysis !== next[id]?.analysis
-              )
+                  prev[id]?.analysis !== next[id]?.analysis,
+              ),
           ),
           exhaustMapWithTrailing((simulationData) =>
             of(...simIds).pipe(
-              concatMap(
-                (id): Promise<PlotsOutputEntry> => {
-                  const plots: OutputPlots =
-                    lastPlots[id] ?? JSON.parse(JSON.stringify(emptyPlots));
+              concatMap((id): Promise<PlotsOutputEntry> => {
+                const plots: OutputPlots =
+                  lastPlots[id] ?? JSON.parse(JSON.stringify(emptyPlots));
 
-                  const simData = simulationData[id];
+                const simData = simulationData[id];
 
-                  if (simData) {
-                    if (simData.analysis?.outputs) {
-                      plots.outputs = simData.analysis.outputs;
+                if (simData) {
+                  if (simData.analysis?.outputs) {
+                    plots.outputs = simData.analysis.outputs;
 
-                      mutatingPlotData(
-                        simData.analysis.outputs,
-                        plots.plots,
-                        Object.values(simData.analysis.outputs)[0]?.length ?? 0
-                      );
+                    mutatingPlotData(
+                      simData.analysis.outputs,
+                      plots.plots,
+                      Object.values(simData.analysis.outputs)[0]?.length ?? 0,
+                    );
 
-                      return Promise.resolve([id, plots]);
-                    } else {
-                      // @todo should take existing plots outputs
-                      return mutatingUpdatePlotsForSingleRun(
-                        simData.steps,
-                        plots,
-                        simData.stepsCount
-                      ).then((plots) => [id, plots] as const);
-                    }
+                    return Promise.resolve([id, plots]);
                   } else {
-                    return Promise.resolve([id, null] as const);
+                    // @todo should take existing plots outputs
+                    return mutatingUpdatePlotsForSingleRun(
+                      simData.steps,
+                      plots,
+                      simData.stepsCount,
+                    ).then((plots) => [id, plots] as const);
                   }
+                } else {
+                  return Promise.resolve([id, null] as const);
                 }
-              )
-            )
+              }),
+            ),
           ),
           tap(([id, plots]) => {
             lastPlots[id] = plots;
@@ -131,27 +129,29 @@ const createPlotsObservers = (
            * can be mutated by us and that needs to be invisible to the
            * consumer
            */
-          map(([id, plots]) => [id, JSON.parse(JSON.stringify(plots))] as const)
+          map(
+            ([id, plots]) => [id, JSON.parse(JSON.stringify(plots))] as const,
+          ),
         );
-      })
-    )
+      }),
+    ),
   );
 };
 
 export const createSubscriptionToDispatchPlotData = (
   simIds: string[],
-  getState: () => SimulatorRootState
+  getState: () => SimulatorRootState,
 ) =>
   createPlotsObservers(simulatorStore, store, simIds, () => {
     const simulationData = selectAllSimulationData(getState());
 
     return Object.fromEntries(
-      simIds?.map((id) => [id, simulationData[id].plots]) ?? []
+      simIds?.map((id) => [id, simulationData[id].plots]) ?? [],
     );
   }).pipe(
     tap(([simId, plots]) => {
       simulatorStore.dispatch(updatePlotData({ simId, plots }));
-    })
+    }),
   );
 
 /**
@@ -174,12 +174,10 @@ export const simulatorAnalysisMiddleware: Middleware<
       const res = next(action);
       const nextState = getState();
 
-      const prevAnalysisVisible = selectAnalysisTabVisibleInSimulator(
-        prevState
-      );
-      const nextAnalysisVisible = selectAnalysisTabVisibleInSimulator(
-        nextState
-      );
+      const prevAnalysisVisible =
+        selectAnalysisTabVisibleInSimulator(prevState);
+      const nextAnalysisVisible =
+        selectAnalysisTabVisibleInSimulator(nextState);
 
       const prevAnalysisMode = selectAnalysisMode(prevState);
       const nextAnalysisMode = selectAnalysisMode(nextState);
@@ -207,7 +205,7 @@ export const simulatorAnalysisMiddleware: Middleware<
           if (simIds?.length) {
             subscription = createSubscriptionToDispatchPlotData(
               simIds,
-              getState
+              getState,
             ).subscribe();
           }
         }

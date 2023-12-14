@@ -9,6 +9,7 @@ import {
 import type { DataLoaderParserReducer, DataLoaderParserState } from "../types";
 import { HcDatasetFile } from "../../../features/files/types";
 import { jsonToRows } from "../utils";
+import { getErrorMessage } from "../../../features/utils";
 
 export const loadingMessage = "Loading...";
 export const successMessage = "Success!";
@@ -56,7 +57,7 @@ const dataLoaderParserReducer: DataLoaderParserReducer = (state, action) => {
 
 export const useDataLoaderParser = (
   url: string,
-  file: HcDatasetFile
+  file: HcDatasetFile,
 ): DataLoaderParserState => {
   const [state, dispatch] = useReducer(dataLoaderParserReducer, {
     message: loadingMessage,
@@ -85,7 +86,7 @@ export const useDataLoaderParser = (
     } catch (error) {
       dispatch({
         type: "invalidUrl",
-        payload: { url, errorMessage: error.message },
+        payload: { url, errorMessage: getErrorMessage(error) },
       });
       return;
     }

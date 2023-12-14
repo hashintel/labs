@@ -21,10 +21,10 @@ import { validatePlot } from "../../../features/analysis/analysisJsonValidation"
 
 import "./ModalPlots.scss";
 
-type ModalPlotsProps = {
+interface ModalPlotsProps {
   onClose: VoidFunction;
   onSave: Function;
-  outputs: { [index: string]: any[] };
+  outputs: Record<string, any[]>;
   onDelete?: Function;
   plotKey?: number;
   plotTitle?: string;
@@ -39,14 +39,14 @@ type ModalPlotsProps = {
   XAxisItems?: XAxisItemType[];
   isCreate?: boolean;
   combinedHeightOfAllPlots?: number;
-};
+}
 
-type FormInputs = {
+interface FormInputs {
   title: string;
   chartType: ChartTypes;
   YAxisItems: YAxisItemType[];
   XAxisItems: XAxisItemType[];
-};
+}
 
 const chartTypeOptions: ReactSelectOption[] = [
   ChartTypes.area,
@@ -67,13 +67,13 @@ const plotSupportsXAxis = (type: ChartTypes) =>
   ["histogram", "scatter", "line"].includes(type);
 const plotSupportsYAxis = (type: ChartTypes) =>
   ["area", "box", "bar", "histogram", "timeseries", "scatter", "line"].includes(
-    type
+    type,
   );
 
 const shouldShowXAxis = (
   chartType: ChartTypes,
   _xAxisItems: XAxisItemType[] = [],
-  yAxisItems: XAxisItemType[] = []
+  yAxisItems: XAxisItemType[] = [],
 ) => {
   const plotSupportsIt = plotSupportsXAxis(chartType);
   if (!plotSupportsIt) {
@@ -89,7 +89,7 @@ const shouldShowXAxis = (
 const shouldShowYAxis = (
   chartType: ChartTypes,
   xAxisItems: XAxisItemType[] = [],
-  _yAxisItems: YAxisItemType[] = []
+  _yAxisItems: YAxisItemType[] = [],
 ) => {
   const plotSupportsIt = plotSupportsYAxis(chartType);
   if (!plotSupportsIt) {
@@ -122,20 +122,18 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
 }) => {
   const fatalError = useFatalError();
 
-  const [currentYAxisItems, setCurrentYAxisItems] = useState<YAxisItemType[]>(
-    YAxisItems
-  );
-  const [currentXAxisItems, setCurrentXAxisItems] = useState<XAxisItemType[]>(
-    XAxisItems
-  );
+  const [currentYAxisItems, setCurrentYAxisItems] =
+    useState<YAxisItemType[]>(YAxisItems);
+  const [currentXAxisItems, setCurrentXAxisItems] =
+    useState<XAxisItemType[]>(XAxisItems);
   const [chartType, setChartType] = useState<ReactSelectOption>(
     isCreate ?? !plotChartType
       ? chartTypeOptions[0]
-      : { label: String(plotChartType), value: String(plotChartType) }
+      : { label: String(plotChartType), value: String(plotChartType) },
   );
   const [hideLegend, setHideLegend] = useState(!!layout.hideLegend);
   const [hideCollatedLegend, setHideCollatedLegend] = useState(
-    !!layout.hideCollatedLegend
+    !!layout.hideCollatedLegend,
   );
   const [validationErrors, setValidationErrors] = useState<Error[]>([]);
 
@@ -182,7 +180,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
   const validate = (result: any) => {
     const validationResults = validatePlot(
       prepareDataForValidation(result),
-      outputs
+      outputs,
     );
 
     if (
@@ -192,14 +190,14 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
       setValidationErrors(
         !Array.isArray(validationResults)
           ? [validationResults]
-          : validationResults
+          : validationResults,
       );
       return false;
     }
     return true;
   };
 
-  const onSubmit = async (values: FormInputs) => {
+  const onSubmit = (values: FormInputs) => {
     const result = getFormState(values);
     if (!validate(result)) {
       return;
@@ -228,11 +226,11 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
   const deleteAxisItem = (axisToModify: "x" | "y", index: number) => {
     if (axisToModify === "x") {
       setCurrentXAxisItems(
-        currentXAxisItems.filter((_val, idx) => idx !== index)
+        currentXAxisItems.filter((_val, idx) => idx !== index),
       );
     } else {
       setCurrentYAxisItems(
-        currentYAxisItems.filter((_val, idx) => idx !== index)
+        currentYAxisItems.filter((_val, idx) => idx !== index),
       );
     }
   };
@@ -240,7 +238,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
   const updateAxisItem = (
     axisToUpdate: "x" | "y",
     index: number,
-    newValues: YAxisItemType | XAxisItemType
+    newValues: YAxisItemType,
   ) => {
     const items = axisToUpdate === "x" ? currentXAxisItems : currentYAxisItems;
     const newOps = [...items];
@@ -413,7 +411,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
         {shouldShowXAxis(
           chartType.value as ChartTypes,
           currentXAxisItems,
-          currentYAxisItems
+          currentYAxisItems,
         ) && (
           <>
             <div className="ModalFormEntry__Label">
@@ -466,7 +464,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
         {shouldShowYAxis(
           chartType.value as ChartTypes,
           currentXAxisItems,
-          currentYAxisItems
+          currentYAxisItems,
         ) && (
           <>
             <div className="ModalFormEntry__Label">

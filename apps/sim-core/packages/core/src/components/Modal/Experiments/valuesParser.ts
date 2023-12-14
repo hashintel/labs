@@ -18,7 +18,7 @@ const modifier = {
 const wrapSubstringInQuotes = (
   input: string,
   from: number,
-  to: number
+  to: number,
 ): string => {
   const checkedMin = Math.min(from, to, input.length);
   const checkedMax = Math.max(from, to, 0);
@@ -33,14 +33,14 @@ const wrapSubstringInQuotes = (
 
 const numberMatch = /([+-]?\d+(?:\.\d*)?|(?:\.\d+))/;
 const numberPat = new RegExp(
-  /^\s*/.source + numberMatch.source + /\s*$/.source
+  /^\s*/.source + numberMatch.source + /\s*$/.source,
 );
 const rangePat = new RegExp(
   /^\s*/.source +
     numberMatch.source +
     /\s*-\s*/.source +
     numberMatch.source +
-    /\s*$/.source
+    /\s*$/.source,
 );
 const isNumber = (value: string): boolean => numberPat.test(value);
 export const isRange = (value: string): boolean => rangePat.test(value);
@@ -89,17 +89,17 @@ const specialTransformers = {
       case "ArrayExpression":
         node.elements.forEach((element: any) =>
           gathered.push(
-            ...specialTransformers._gatherIndentifierRanges(element)
-          )
+            ...specialTransformers._gatherIndentifierRanges(element),
+          ),
         );
         break;
       case "ObjectExpression":
         node.properties.forEach((property: any) => {
           gathered.push(
-            ...specialTransformers._gatherIndentifierRanges(property.key)
+            ...specialTransformers._gatherIndentifierRanges(property.key),
           );
           gathered.push(
-            ...specialTransformers._gatherIndentifierRanges(property.value)
+            ...specialTransformers._gatherIndentifierRanges(property.value),
           );
         });
         break;
@@ -115,7 +115,9 @@ const convertParsedValueFromInput = (value: string): ParseResult<any> => {
   try {
     const obj = JSON.parse(value);
     return ok(obj);
-  } catch (error) {}
+  } catch (error) {
+    // Hide parsing errors.
+  }
 
   return ok(value.trim());
 };
@@ -125,6 +127,7 @@ const parseValues = (values: string): ParseResult<any[]> => {
   let modified = modifier.modify(values);
   let parsed: any[];
   let remainingRetries = 100;
+  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
       parsed = (Parser.parse(modified) as any).body[0].expression.expressions;
@@ -132,7 +135,7 @@ const parseValues = (values: string): ParseResult<any[]> => {
     } catch (error) {
       if (remainingRetries === 0) {
         console.warn(
-          `Exceeded number of retries for parsing values: ${values}`
+          `Exceeded number of retries for parsing values: ${values}`,
         );
         return err({ msg: "Invalid element data" });
       }
@@ -150,7 +153,7 @@ const parseValues = (values: string): ParseResult<any[]> => {
         const modPos = (error as any).pos as number;
         const position = modPos - 1; // Account for wrap
         return err({
-          msg: `Invalid value at character \'${modified[modPos]}\' [${position}]`,
+          msg: `Invalid value at character '${modified[modPos]}' [${position}]`,
         });
       }
 
@@ -160,15 +163,15 @@ const parseValues = (values: string): ParseResult<any[]> => {
 
   const mappedModified = parsed.map((value: any) =>
     specialTransformers.stringifyIdentifiers(
-      modified.slice(value.start, value.end)
-    )
+      modified.slice(value.start, value.end),
+    ),
   );
   return ok(modifier.unmodifyExpressionList(mappedModified));
 };
 
 export const parseValuesFromInput = (values: string): ParseResult<any[]> =>
   parseValues(values).andThen((arr) =>
-    combine(arr.map(convertParsedValueFromInput))
+    combine(arr.map(convertParsedValueFromInput)),
   );
 
 export const serializeParsedValues = (values: any[]): string =>

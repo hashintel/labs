@@ -22,7 +22,7 @@ const linkToBuild =
   getSafeQueryParams()?.forceRootEmbed !== "true" ? IS_DEV : false;
 
 const embedViewerTabs = viewerTabs.filter((tab) =>
-  embeddableTabs.includes(tab.kind)
+  embeddableTabs.includes(tab.kind),
 );
 
 const defaultParams: ModalShareViewsParams = {
@@ -33,7 +33,7 @@ const iframeSrcCode = (
   pathWithNamespace: string,
   ref: string,
   accessCode: string | null,
-  params: (readonly [string, string])[]
+  params: (readonly [string, string])[],
 ) => {
   const query: Record<string, string> = {
     project: pathWithNamespace,
@@ -47,9 +47,9 @@ const iframeSrcCode = (
 
   return `\
 <iframe src="${window.location.origin}/${
-    linkToBuild ? `${WEBPACK_BUILD_STAMP}/` : ""
+    linkToBuild ? `${BUILD_STAMP}/` : ""
   }embed.html?${new URLSearchParams(
-    query
+    query,
   ).toString()}" width="700" height="400" frameborder="0" scrolling="auto"></iframe>`;
 };
 
@@ -68,15 +68,16 @@ export const ModalShareEmbed: FC<{
 }) => {
   const { accessCode, requesting, requestAccessCode } = useRequestAccessCode(
     project,
-    "ReadEmbed"
+    "ReadEmbed",
   );
 
+  //@ts-expect-error Genuine type error here, please fix.
   const { params, setParams, changedParams } = useParams(defaultParams);
   const value = iframeSrcCode(
     project.pathWithNamespace,
     selectedRelease,
     accessCode,
-    changedParams
+    changedParams,
   );
 
   const isPrivate = projectIsPrivate(project);
@@ -131,6 +132,7 @@ export const ModalShareEmbed: FC<{
         <div className="ModalShare__BottomSections">
           <ModalShareViews
             params={params}
+            //@ts-expect-error Genuine type error here, please fix.
             onParamsChange={setParams}
             availableTabs={embedViewerTabs}
           />

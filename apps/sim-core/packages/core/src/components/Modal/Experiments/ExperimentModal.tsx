@@ -203,7 +203,7 @@ export const initialFormData = {
 };
 
 const getFieldsForMonteCarloDistribution = (
-  distribution: DistributionTypes
+  distribution: DistributionTypes,
 ): string[] => {
   switch (distribution) {
     case DistributionTypes.logNormal:
@@ -231,7 +231,7 @@ const optimizationFieldTemplate = () => ({
 });
 
 const prepareExperimentForFormData = (
-  experiment?: RawExperimentType
+  experiment?: RawExperimentType,
 ): FormDataType | undefined => {
   if (!experiment) {
     return;
@@ -246,11 +246,10 @@ const prepareExperimentForFormData = (
   clone.experimentType = convertToReactSelectOption(experimentType);
   if (experimentType === ExperimentTypes.values) {
     if (clone.dynamicFields[ExperimentTypes.values]) {
-      const originalValues = experiment.dynamicFields[ExperimentTypes.values]!
-        .values;
-      clone.dynamicFields[
-        ExperimentTypes.values
-      ]!.values = serializeParsedValues(originalValues);
+      const originalValues =
+        experiment.dynamicFields[ExperimentTypes.values]!.values;
+      clone.dynamicFields[ExperimentTypes.values]!.values =
+        serializeParsedValues(originalValues);
     }
   }
   if (experimentType === ExperimentTypes.optimization) {
@@ -262,9 +261,11 @@ const prepareExperimentForFormData = (
       if (cloneFields) {
         if (Array.isArray(cloneFields.fields) && cloneFields.fields.length) {
           // @todo remove this casting
-          cloneFields.fields = ((cloneFields as any) as RawExperimentOptimizationType).fields.map(
+          cloneFields.fields = (
+            cloneFields as any as RawExperimentOptimizationType
+          ).fields.map(
             (
-              field: RawExperimentOptimizationField
+              field: RawExperimentOptimizationField,
             ): FormDataDynamicFieldOptimizationFieldType => {
               const newField = {
                 name: field.name,
@@ -287,14 +288,14 @@ const prepareExperimentForFormData = (
               } else {
                 return { ...newField, value: "" };
               }
-            }
+            },
           );
         } else {
           cloneFields.fields = [optimizationFieldTemplate()];
         }
 
         if (originalFields?.metricName) {
-          cloneFields!.metricName = {
+          cloneFields.metricName = {
             value: originalFields.metricName,
             label: originalFields.metricName,
           };
@@ -305,12 +306,12 @@ const prepareExperimentForFormData = (
           originalFields?.metricObjective ===
             FormDataDynamicFieldOptimizationMetricObjective.max
         ) {
-          cloneFields!.metricObjective = {
+          cloneFields.metricObjective = {
             value: originalFields?.metricObjective,
             label: originalFields?.metricObjective,
           };
         } else {
-          cloneFields!.metricObjective =
+          cloneFields.metricObjective =
             initialFormDynamicFieldsData[
               ExperimentTypes.optimization
             ].metricObjective;
@@ -331,7 +332,7 @@ const prepareExperimentForFormData = (
     } else {
       value = null;
     }
-    clone.dynamicFields![experimentType]!.runs = value;
+    clone.dynamicFields[experimentType]!.runs = value;
     return clone;
   }
   const fieldValue = experiment.dynamicFields?.[experimentType]?.field;
@@ -340,14 +341,12 @@ const prepareExperimentForFormData = (
   const hasFieldTypeString = typeof fieldValue === "string";
   const hasDistributionTypeString = typeof distributionValue === "string"; // monte-carlo case
   if (hasFieldTypeString) {
-    clone.dynamicFields![experimentType]!.field = convertToReactSelectOption(
-      fieldValue
-    );
+    clone.dynamicFields[experimentType]!.field =
+      convertToReactSelectOption(fieldValue);
   }
   if (hasDistributionTypeString) {
-    clone.dynamicFields![
-      "monte-carlo"
-    ]!.distribution = convertToReactSelectOption(distributionValue);
+    clone.dynamicFields["monte-carlo"]!.distribution =
+      convertToReactSelectOption(distributionValue);
   }
   return clone;
 };
@@ -355,7 +354,7 @@ const prepareExperimentForFormData = (
 const onSubmitSpecificExperimentHandler = (
   experimentType: ExperimentTypes,
   formData: FormDataType,
-  fields: AllFormDataTypeDynamicFieldsType
+  fields: AllFormDataTypeDynamicFieldsType,
 ): Result<any, FormErrorsType> => {
   let clone = JSON.parse(JSON.stringify(fields));
   switch (experimentType) {
@@ -380,7 +379,7 @@ const onSubmitSpecificExperimentHandler = (
             formErrors.dynamicFields![experimentType]!.values =
               error.msg ?? "Error parsing values";
             return formErrors;
-          }
+          },
         );
         if (res.isOk()) {
           clone.values = res.unwrapOr([]);
@@ -397,17 +396,17 @@ const onSubmitSpecificExperimentHandler = (
       clone.runs = clone.runs?.map((run: ReactSelectOption) => run.value) ?? [];
       return ok(clone);
 
-    case ExperimentTypes.optimization:
+    case ExperimentTypes.optimization: {
       clone.metricName = clone.metricName.value;
       clone.metricObjective = clone.metricObjective.value;
       let formErrors: FormErrorsType | null = null;
       const results = clone.fields.map(
         (
           field: FormDataDynamicFieldOptimizationFieldType,
-          idx: number
+          idx: number,
         ): Result<RawExperimentOptimizationField, void> => {
           const parsedValue: ParseResult<any[]> = parseValuesFromInput(
-            field.value
+            field.value,
           );
 
           return parsedValue
@@ -425,7 +424,7 @@ const onSubmitSpecificExperimentHandler = (
               formErrors.dynamicFields![experimentType]!.fields![idx].value =
                 error.msg ?? "Error parsing values";
             });
-        }
+        },
       );
 
       const res = combine(results)
@@ -437,9 +436,9 @@ const onSubmitSpecificExperimentHandler = (
         return res;
       }
       return ok(clone);
-
+    }
     default:
-      if (clone.field && clone.field.value) {
+      if (clone.field?.value) {
         clone.field = clone.field.value;
       }
       return ok(clone);
@@ -453,29 +452,25 @@ export const ExperimentModal: FC<{
   // EFFECTS
   const [formErrors, setFormErrors] = useState<FormErrorsType>({});
   const [formData, setFormData] = useState<FormDataType>(
-    () => prepareExperimentForFormData(experiment) ?? initialFormData
+    () => prepareExperimentForFormData(experiment) ?? initialFormData,
   );
   const shouldRunExperimentAfterSaving = useRef(false);
   const dispatch = useDispatch();
   const simulationTarget = useSimulatorSelector(selectProviderTarget);
-  const [
-    newSimulationTarget,
-    setNewSimulationTarget,
-    newSimulationTargetRef,
-  ] = useRefState<ProviderTargetEnv>(simulationTarget);
+  const [newSimulationTarget, setNewSimulationTarget, newSimulationTargetRef] =
+    useRefState<ProviderTargetEnv>(simulationTarget);
   const simulatorDispatch = useSimulatorDispatch();
-  const experiments: [string, RawExperimentType][] | null = useSelector(
-    selectExperiments
-  );
+  const experiments: [string, RawExperimentType][] | null =
+    useSelector(selectExperiments);
   const globals = parseGlobals(useSelector(selectGlobals));
   const fieldOptions =
     (globals?.globals
       ? flattenObjectKeysIntoString(globals.globals).map((global: string) =>
-          convertToReactSelectOption(global)
+          convertToReactSelectOption(global),
         )
       : null) ?? [];
   const metricOptions = useSelector(selectParsedAnalysisMetricNames).map(
-    (name): ReactSelectOption => ({ value: name, label: name })
+    (name): ReactSelectOption => ({ value: name, label: name }),
   );
   const canUseCloud = false;
 
@@ -520,14 +515,14 @@ export const ExperimentModal: FC<{
     const experimentType: ExperimentTypes | string =
       formData.experimentType.value;
     let fields = JSON.parse(
-      //@ts-ignore
-      JSON.stringify(formData.dynamicFields[experimentType])
+      //@ts-expect-error tech debt
+      JSON.stringify(formData.dynamicFields[experimentType]),
     );
 
     const res = onSubmitSpecificExperimentHandler(
       experimentType as ExperimentTypes,
       formData,
-      fields
+      fields,
     ).mapErr((err) => {
       setFormErrors(err);
     });
@@ -590,18 +585,17 @@ export const ExperimentModal: FC<{
    */
   const onChange = (
     fieldName: string,
-    value: number | string | ReactSelectOption | ChangeEvent<HTMLInputElement>
+    value: number | string | ReactSelectOption | ChangeEvent<HTMLInputElement>,
   ): void => {
     const clone: any = JSON.parse(JSON.stringify(formData));
     const splitted = fieldName.split(".");
     if (splitted.length === 1) {
       clone[fieldName] = value;
-      // @ts-ignore
+      // @ts-expect-error tech debt
       if (fieldName === "experimentType" && value.value !== clone[fieldName]) {
         // we changed the experiment type, thus we have to rebuild the dynamicFields
-        const clonedDynamicFields: typeof initialFormData.dynamicFields = JSON.parse(
-          JSON.stringify(initialFormData.dynamicFields)
-        );
+        const clonedDynamicFields: typeof initialFormData.dynamicFields =
+          JSON.parse(JSON.stringify(initialFormData.dynamicFields));
 
         clonedDynamicFields.optimization.fields = [optimizationFieldTemplate()];
         clonedDynamicFields.optimization.metricName = metricOptions[0];
@@ -627,7 +621,7 @@ export const ExperimentModal: FC<{
     if (value !== "") {
       // clear errors for this field
       const newErrors: any = JSON.parse(JSON.stringify(formErrors));
-      if (newErrors.dynamicFields && newErrors.dynamicFields[experimentType]) {
+      if (newErrors.dynamicFields?.[experimentType]) {
         delete newErrors?.dynamicFields[experimentType][field];
       }
       setFormErrors(newErrors);
@@ -659,7 +653,7 @@ export const ExperimentModal: FC<{
         context: "experiments.json",
         timestamp: Date.now(),
         simulationId: null,
-      })
+      }),
     );
     onClose();
   }, [experiments, onClose, dispatch]);
@@ -673,7 +667,7 @@ export const ExperimentModal: FC<{
     : experiments
         ?.filter(
           (item: any) =>
-            item[1].type !== "multiparameter" && item[1].type !== "group"
+            item[1].type !== "multiparameter" && item[1].type !== "group",
         )
         .map((item: any) => convertToReactSelectOption(item[0])) ?? [];
 
@@ -686,7 +680,7 @@ export const ExperimentModal: FC<{
 
   const showMonteCarloNormal = shouldShowMonteCarlo(DistributionTypes.normal);
   const showMonteCarloLogNormal = shouldShowMonteCarlo(
-    DistributionTypes.logNormal
+    DistributionTypes.logNormal,
   );
   const showMonteCarloPoisson = shouldShowMonteCarlo(DistributionTypes.poisson);
   const showMonteCarloBeta = shouldShowMonteCarlo(DistributionTypes.beta);
@@ -757,7 +751,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryRequiredText
                   {...stepsInputProps}
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.values?.steps
+                    !!formErrors?.dynamicFields?.values?.steps,
                   )}
                   value={formData.dynamicFields?.values?.steps}
                   onChange={(evt) => onChange("values.steps", evt.target.value)}
@@ -765,12 +759,10 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="FIELD"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.values?.field
+                    !!formErrors?.dynamicFields?.values?.field,
                   )}
                   options={fieldOptions}
-                  value={
-                    formData.dynamicFields?.values?.field as ReactSelectOption
-                  }
+                  value={formData.dynamicFields?.values?.field}
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -782,7 +774,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryRequiredText
                   {...fieldInputProps}
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.values?.values
+                    !!formErrors?.dynamicFields?.values?.values,
                   )}
                   errorMessage={formErrors?.dynamicFields?.values?.values}
                   label="VALUES"
@@ -800,7 +792,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryRequiredText
                   {...stepsInputProps}
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.linspace?.steps
+                    !!formErrors?.dynamicFields?.linspace?.steps,
                   )}
                   value={formData.dynamicFields?.linspace?.steps}
                   onChange={(evt) =>
@@ -810,9 +802,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="FIELD"
                   options={fieldOptions}
-                  value={
-                    formData.dynamicFields?.linspace?.field as ReactSelectOption
-                  }
+                  value={formData.dynamicFields?.linspace?.field}
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -826,7 +816,7 @@ export const ExperimentModal: FC<{
                   min={0}
                   label="START"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.linspace?.start
+                    !!formErrors?.dynamicFields?.linspace?.start,
                   )}
                   value={formData.dynamicFields?.linspace?.start}
                   onChange={(evt) =>
@@ -840,7 +830,7 @@ export const ExperimentModal: FC<{
                   min={0}
                   label="STOP"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.linspace?.stop
+                    !!formErrors?.dynamicFields?.linspace?.stop,
                   )}
                   value={formData.dynamicFields?.linspace?.stop}
                   onChange={(evt) =>
@@ -853,7 +843,7 @@ export const ExperimentModal: FC<{
                   min={0}
                   label="SAMPLES"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.linspace?.samples
+                    !!formErrors?.dynamicFields?.linspace?.samples,
                   )}
                   value={formData.dynamicFields?.linspace?.samples}
                   onChange={(evt) =>
@@ -869,7 +859,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryRequiredText
                   {...stepsInputProps}
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.arange?.steps
+                    !!formErrors?.dynamicFields?.arange?.steps,
                   )}
                   value={formData.dynamicFields?.arange?.steps}
                   onChange={(evt) => onChange("arange.steps", evt.target.value)}
@@ -877,9 +867,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="FIELD"
                   options={fieldOptions}
-                  value={
-                    formData.dynamicFields?.arange?.field as ReactSelectOption
-                  }
+                  value={formData.dynamicFields?.arange?.field}
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -893,7 +881,7 @@ export const ExperimentModal: FC<{
                   min={0}
                   label="START"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.arange?.start
+                    !!formErrors?.dynamicFields?.arange?.start,
                   )}
                   value={formData.dynamicFields?.arange?.start}
                   onChange={(evt) => onChange("arange.start", evt.target.value)}
@@ -905,7 +893,7 @@ export const ExperimentModal: FC<{
                   min={0}
                   label="STOP"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.arange?.stop
+                    !!formErrors?.dynamicFields?.arange?.stop,
                   )}
                   value={formData.dynamicFields?.arange?.stop}
                   onChange={(evt) => onChange("arange.stop", evt.target.value)}
@@ -917,7 +905,7 @@ export const ExperimentModal: FC<{
                   min={0}
                   label="INCREMENT"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.arange?.increment
+                    !!formErrors?.dynamicFields?.arange?.increment,
                   )}
                   value={formData.dynamicFields?.arange?.increment}
                   onChange={(evt) =>
@@ -937,7 +925,7 @@ export const ExperimentModal: FC<{
                   min="1"
                   step="1"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.["monte-carlo"]?.steps
+                    !!formErrors?.dynamicFields?.["monte-carlo"]?.steps,
                   )}
                   value={formData.dynamicFields?.["monte-carlo"]?.steps}
                   errorMessage=""
@@ -948,10 +936,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="FIELD"
                   options={fieldOptions}
-                  value={
-                    formData.dynamicFields?.["monte-carlo"]
-                      ?.field as ReactSelectOption
-                  }
+                  value={formData.dynamicFields?.["monte-carlo"]?.field}
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -959,7 +944,7 @@ export const ExperimentModal: FC<{
                   }
                   data-testid="dropdown-monte-carlo-field"
                   className={getErrorClassname(
-                    !!formErrors.dynamicFields?.["monte-carlo"]?.field
+                    !!formErrors.dynamicFields?.["monte-carlo"]?.field,
                   )}
                 />
                 <ModalFormEntryRequiredText
@@ -967,7 +952,7 @@ export const ExperimentModal: FC<{
                   min={0}
                   label="SAMPLES"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.["monte-carlo"]?.samples
+                    !!formErrors?.dynamicFields?.["monte-carlo"]?.samples,
                   )}
                   value={formData.dynamicFields?.["monte-carlo"]?.samples}
                   onChange={(evt) =>
@@ -978,10 +963,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="DISTRIBUTION"
                   options={monteCarloDistributionOptions}
-                  value={
-                    formData.dynamicFields?.["monte-carlo"]
-                      ?.distribution as ReactSelectOption
-                  }
+                  value={formData.dynamicFields?.["monte-carlo"]?.distribution}
                   isSearchable={false}
                   onChange={(selectedOption) =>
                     onChange("monte-carlo.distribution", selectedOption)
@@ -996,7 +978,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="STD"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.std
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.std,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.std}
                       onChange={(evt) =>
@@ -1010,7 +992,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="MEAN"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.mean
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.mean,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.mean}
                       onChange={(evt) =>
@@ -1028,7 +1010,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="MU"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.mu
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.mu,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.mu}
                       onChange={(evt) =>
@@ -1042,7 +1024,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="SIGMA"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.sigma
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.sigma,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.sigma}
                       onChange={(evt) =>
@@ -1059,7 +1041,7 @@ export const ExperimentModal: FC<{
                     min={0}
                     label="RATE"
                     className={getErrorClassname(
-                      !!formErrors?.dynamicFields?.["monte-carlo"]?.rate
+                      !!formErrors?.dynamicFields?.["monte-carlo"]?.rate,
                     )}
                     value={formData.dynamicFields?.["monte-carlo"]?.rate}
                     onChange={(evt) =>
@@ -1076,7 +1058,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="ALPHA"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.alpha
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.alpha,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.alpha}
                       onChange={(evt) =>
@@ -1090,7 +1072,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="BETA"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.beta
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.beta,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.beta}
                       onChange={(evt) =>
@@ -1108,7 +1090,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="SHAPE"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.shape
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.shape,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.shape}
                       onChange={(evt) =>
@@ -1122,7 +1104,7 @@ export const ExperimentModal: FC<{
                       min={0}
                       label="SCALE"
                       className={getErrorClassname(
-                        !!formErrors?.dynamicFields?.["monte-carlo"]?.scale
+                        !!formErrors?.dynamicFields?.["monte-carlo"]?.scale,
                       )}
                       value={formData.dynamicFields?.["monte-carlo"]?.scale}
                       onChange={(evt) =>
@@ -1140,7 +1122,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryRequiredText
                   {...stepsInputProps}
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.group?.steps
+                    !!formErrors?.dynamicFields?.group?.steps,
                   )}
                   value={formData.dynamicFields?.group?.steps}
                   onChange={(evt) => onChange("group.steps", evt.target.value)}
@@ -1150,7 +1132,7 @@ export const ExperimentModal: FC<{
                   isMulti
                   label="RUNS"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.group?.runs
+                    !!formErrors?.dynamicFields?.group?.runs,
                   )}
                   options={
                     experimentTitlesMinusGroupsAndMultiparameterAsOptions
@@ -1159,7 +1141,7 @@ export const ExperimentModal: FC<{
                   onChange={(selectedOptions) => {
                     onChange(
                       "group.runs",
-                      selectedOptions === null ? [] : selectedOptions
+                      selectedOptions === null ? [] : selectedOptions,
                     );
                   }}
                   data-testid="dropdown-group-runs"
@@ -1172,7 +1154,7 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryRequiredText
                   {...stepsInputProps}
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.multiparameter?.steps
+                    !!formErrors?.dynamicFields?.multiparameter?.steps,
                   )}
                   value={formData.dynamicFields?.multiparameter?.steps}
                   onChange={(evt) =>
@@ -1184,7 +1166,7 @@ export const ExperimentModal: FC<{
                   isMulti
                   label="RUNS"
                   className={getErrorClassname(
-                    !!formErrors?.dynamicFields?.multiparameter?.runs
+                    !!formErrors?.dynamicFields?.multiparameter?.runs,
                   )}
                   options={
                     experimentTitlesMinusGroupsAndMultiparameterAsOptions
@@ -1193,7 +1175,7 @@ export const ExperimentModal: FC<{
                   onChange={(selectedOptions) => {
                     onChange(
                       "multiparameter.runs",
-                      selectedOptions === null ? [] : selectedOptions
+                      selectedOptions === null ? [] : selectedOptions,
                     );
                   }}
                   data-testid="dropdown-multiparameter-runs"
@@ -1214,18 +1196,18 @@ export const ExperimentModal: FC<{
                     step={1}
                     label="Max Runs"
                     className={getErrorClassname(
-                      !!formErrors?.dynamicFields?.optimization?.maxRuns
+                      !!formErrors?.dynamicFields?.optimization?.maxRuns,
                     )}
                     value={formData.dynamicFields?.optimization?.maxRuns}
                     onChange={(evt) =>
                       onChange(
                         "optimization.maxRuns",
-                        parseInt(evt.target.value, 10)
+                        parseInt(evt.target.value, 10),
                       )
                     }
                     // @todo this casting shouldn't be necessary
                     errorMessage={
-                      formErrors.dynamicFields?.optimization?.maxRuns!
+                      formErrors.dynamicFields?.optimization?.maxRuns
                     }
                   />
                   <ModalFormEntryRequiredText
@@ -1234,18 +1216,18 @@ export const ExperimentModal: FC<{
                     step={1}
                     label="Min Steps"
                     className={getErrorClassname(
-                      !!formErrors?.dynamicFields?.optimization?.minSteps
+                      !!formErrors?.dynamicFields?.optimization?.minSteps,
                     )}
                     value={formData.dynamicFields?.optimization?.minSteps}
                     onChange={(evt) =>
                       onChange(
                         "optimization.minSteps",
-                        parseInt(evt.target.value, 10)
+                        parseInt(evt.target.value, 10),
                       )
                     }
                     // @todo this casting shouldn't be necessary
                     errorMessage={
-                      formErrors.dynamicFields?.optimization?.minSteps!
+                      formErrors.dynamicFields?.optimization?.minSteps
                     }
                   />
                   <ModalFormEntryRequiredText
@@ -1254,13 +1236,13 @@ export const ExperimentModal: FC<{
                     step={1}
                     label="Max Steps"
                     className={getErrorClassname(
-                      !!formErrors?.dynamicFields?.optimization?.maxSteps
+                      !!formErrors?.dynamicFields?.optimization?.maxSteps,
                     )}
                     value={formData.dynamicFields?.optimization?.maxSteps}
                     onChange={(evt) =>
                       onChange(
                         "optimization.maxSteps",
-                        parseInt(evt.target.value, 10)
+                        parseInt(evt.target.value, 10),
                       )
                     }
                   />
@@ -1268,7 +1250,7 @@ export const ExperimentModal: FC<{
                     label="Metric"
                     options={metricOptions}
                     className={getErrorClassname(
-                      !!formErrors?.dynamicFields?.optimization?.metricName
+                      !!formErrors?.dynamicFields?.optimization?.metricName,
                     )}
                     value={
                       formData.dynamicFields?.[ExperimentTypes.optimization]
@@ -1285,7 +1267,8 @@ export const ExperimentModal: FC<{
                     isSearchable={false}
                     label="Metric Objective"
                     className={getErrorClassname(
-                      !!formErrors?.dynamicFields?.optimization?.metricObjective
+                      !!formErrors?.dynamicFields?.optimization
+                        ?.metricObjective,
                     )}
                     options={optimizationMetricObjectiveOptions}
                     value={
@@ -1341,7 +1324,7 @@ export const ExperimentModal: FC<{
                           onChange={(evt) =>
                             onChange(
                               `optimization.fields.${idx}.name`,
-                              evt.target.value
+                              evt.target.value,
                             )
                           }
                           required
@@ -1353,13 +1336,13 @@ export const ExperimentModal: FC<{
                           className={getErrorClassname(
                             !!formErrors?.dynamicFields?.optimization?.fields?.[
                               idx
-                            ]?.value
+                            ]?.value,
                           )}
                           value={field.value}
                           onChange={(evt) => {
                             onChange(
                               `optimization.fields.${idx}.value`,
-                              evt.target.value
+                              evt.target.value,
                             );
                           }}
                           placeholder="Value"
@@ -1376,7 +1359,7 @@ export const ExperimentModal: FC<{
                             onClick={(evt) => {
                               evt.preventDefault();
                               const clone: typeof formData = JSON.parse(
-                                JSON.stringify(formData)
+                                JSON.stringify(formData),
                               );
                               clone.dynamicFields[
                                 ExperimentTypes.optimization
@@ -1400,7 +1383,7 @@ export const ExperimentModal: FC<{
                 onClick={(evt) => {
                   evt.preventDefault();
                   const clone: typeof formData = JSON.parse(
-                    JSON.stringify(formData)
+                    JSON.stringify(formData),
                   );
                   const fields =
                     clone.dynamicFields[ExperimentTypes.optimization]?.fields ??
@@ -1408,10 +1391,10 @@ export const ExperimentModal: FC<{
 
                   fields.push(optimizationFieldTemplate());
                   setFormData(clone);
-                  setImmediate(() => {
+                  setTimeout(() => {
                     document
                       .querySelector<HTMLInputElement>(
-                        `[name="fields.${fields.length - 1}.name"]`
+                        `[name="fields.${fields.length - 1}.name"]`,
                       )
                       ?.focus();
                   });

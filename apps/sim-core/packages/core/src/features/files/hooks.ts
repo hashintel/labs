@@ -41,8 +41,8 @@ export const useSelectFileById = (fileId: string): HcFile => {
 
           return entity;
         },
-        [fileId]
-      )
+        [fileId],
+      ),
     );
   } catch (err) {
     /**
@@ -58,9 +58,10 @@ export const useSelectFileById = (fileId: string): HcFile => {
 
 export const useFileIsCurrent = (fileId: string) =>
   useSelector(
-    useCallback((state: RootState) => selectCurrentFileId(state) === fileId, [
-      fileId,
-    ])
+    useCallback(
+      (state: RootState) => selectCurrentFileId(state) === fileId,
+      [fileId],
+    ),
   );
 
 export const useExportFiles = () => {
@@ -106,7 +107,7 @@ export const useExportFiles = () => {
     const fileZip = await zip.generateAsync({ type: "blob" });
     saveAs(
       fileZip,
-      `${currentProject?.pathWithNamespace.split("/").pop()}.zip`
+      `${currentProject?.pathWithNamespace.split("/").pop()}.zip`,
     );
   };
 
@@ -185,7 +186,7 @@ export const useImportFiles = () => {
     for (const zipFile of zipFiles) {
       const contents = await zipFile.contentPromise;
       projectFiles.push({
-        name: zipFile.name.replace(/^.*[\\\/]/, ""),
+        name: zipFile.name.replace(/^.*[\\/]/, ""),
         path: zipFile.name,
         contents: contents,
         ref: "1.0",
@@ -229,13 +230,15 @@ export const useImportFiles = () => {
     };
 
     dispatch(
+      // @ts-expect-error redux problems
       trackEvent({
         action: "Import Project: Core",
         label: project.pathWithNamespace,
-      })
+      }),
     );
 
     dispatch(addUserProject(preparePartialSimulationProject(project)));
+    // @ts-expect-error redux problems
     dispatch(setProjectWithMeta(project));
     navigate(urlFromProject(project), false, {}, true);
     await dispatch(save());

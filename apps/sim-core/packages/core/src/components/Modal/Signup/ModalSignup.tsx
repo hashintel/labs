@@ -53,11 +53,19 @@ export const ModalSignup: FC<{ onClose: VoidFunction; route: string }> = ({
       <p className="ModalSignup__Legal">
         <span className="ModalSignup__Legal__Copyright">© HASH {year}</span> By
         continuing, you agree to our{" "}
-        <a href={urljoin(SITE_URL, "legal", "terms")} target="_blank">
+        <a
+          href={urljoin(SITE_URL, "legal", "terms")}
+          target="_blank"
+          rel="noreferrer"
+        >
           Terms of Service
         </a>{" "}
         and{" "}
-        <a href={urljoin(SITE_URL, "legal", "privacy")} target="_blank">
+        <a
+          href={urljoin(SITE_URL, "legal", "privacy")}
+          target="_blank"
+          rel="noreferrer"
+        >
           Privacy Policy
         </a>
         .

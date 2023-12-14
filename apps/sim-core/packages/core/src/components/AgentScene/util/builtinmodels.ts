@@ -1,13 +1,13 @@
-type PolyModel = {
+interface PolyModel {
   folderPath: string;
   resourceUrls: string[];
   slug: string;
-};
+}
 
-export const BUILTIN_MODELS: {
-  // rotation as degrees
-  [id: string]: { rotX?: number; rotY?: number; rotZ?: number };
-} = {
+export const BUILTIN_MODELS: Record<
+  string,
+  { rotX?: number; rotY?: number; rotZ?: number }
+> = {
   "elm-tree": {},
   "palm-tree": {},
   "spruce-tree": {},

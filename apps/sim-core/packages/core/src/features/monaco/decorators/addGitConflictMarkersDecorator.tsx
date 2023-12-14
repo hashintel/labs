@@ -10,15 +10,15 @@ enum ConflictMarkerTokenTypes {
   "EndHeading" = "EndHeading",
 }
 
-export type Conflict = {
+export interface Conflict {
   range: Range;
   options: editor.IModelDecorationOptions;
-};
+}
 
-type LineColumnInfo = {
+interface LineColumnInfo {
   line: number;
   col: number;
-};
+}
 
 const getResolvedCodeLensesKey = (range: Range) =>
   `${range.startLineNumber}:${range.startColumn}`;
@@ -43,19 +43,19 @@ const acceptCurrentChangeHandler = (
   startConflict: Range,
   divider: Range,
   _endConflict: Range,
-  endHeadingConflict: Range
+  endHeadingConflict: Range,
 ) => {
   const headingRange = new Range(
     headingConflict.startLineNumber,
     headingConflict.startColumn,
     startConflict.startLineNumber,
-    startConflict.startColumn
+    startConflict.startColumn,
   );
   const range = new Range(
     divider.startLineNumber,
     divider.startColumn,
     endHeadingConflict.endLineNumber + 1,
-    1
+    1,
   );
   executeEditsWithUndoStops(editorInstance, "", [
     { forceMoveMarkers: true, range: headingRange, text: null },
@@ -72,19 +72,19 @@ const acceptIncomingChangeHandler = (
   _startConflict: Range,
   _divider: Range,
   endConflict: Range,
-  endHeadingConflict: Range
+  endHeadingConflict: Range,
 ) => {
   const headingRange = new Range(
     headingConflict.startLineNumber,
     headingConflict.startColumn,
     endConflict.startLineNumber,
-    endConflict.startColumn
+    endConflict.startColumn,
   );
   const range = new Range(
     endHeadingConflict.startLineNumber,
     endHeadingConflict.startColumn,
     endHeadingConflict.endLineNumber + 1,
-    1
+    1,
   );
   executeEditsWithUndoStops(editorInstance, "", [
     { forceMoveMarkers: true, range: headingRange, text: null },
@@ -101,25 +101,25 @@ const acceptBothChangesHandler = (
   startConflict: Range,
   divider: Range,
   _endConflict: Range,
-  endHeadingConflict: Range
+  endHeadingConflict: Range,
 ) => {
   const headingRange = new Range(
     headingConflict.startLineNumber,
     headingConflict.startColumn,
     startConflict.startLineNumber,
-    startConflict.startColumn
+    startConflict.startColumn,
   );
   const dividerRange = new Range(
     divider.startLineNumber,
     divider.startColumn,
     divider.endLineNumber + 1,
-    1
+    1,
   );
   const endHeadingRange = new Range(
     endHeadingConflict.startLineNumber,
     endHeadingConflict.startColumn,
     endHeadingConflict.endLineNumber + 1,
-    1
+    1,
   );
   executeEditsWithUndoStops(editorInstance, "", [
     { forceMoveMarkers: true, range: headingRange, text: null },
@@ -136,32 +136,32 @@ let acceptBothChanges: IDisposable | null = null;
 const registerCommands = () => {
   acceptCurrentChange = editor.registerCommand(
     "acceptCurrentChange",
-    acceptCurrentChangeHandler
+    acceptCurrentChangeHandler,
   );
   acceptIncomingChange = editor.registerCommand(
     "acceptIncomingChange",
-    acceptIncomingChangeHandler
+    acceptIncomingChangeHandler,
   );
   acceptBothChanges = editor.registerCommand(
     "acceptBothChanges",
-    acceptBothChangesHandler
+    acceptBothChangesHandler,
   );
 };
 
 const filterByClassName = (
   conflicts: Conflict[],
-  expected: ConflictMarkerTokenTypes
+  expected: ConflictMarkerTokenTypes,
 ) =>
   conflicts.filter(
     (conflict) =>
       conflict.options.className ===
-      `HashCoreEditor__ConflictMarkers__${expected}`
+      `HashCoreEditor__ConflictMarkers__${expected}`,
   );
 
 const getLenses = (
   conflicts: Conflict[],
   resolvedCodeLenses: string[],
-  editorInstance: editor.ICodeEditor
+  editorInstance: editor.ICodeEditor,
 ) => {
   const result: {
     range: IRange;
@@ -175,23 +175,23 @@ const getLenses = (
 
   const headingConflicts = filterByClassName(
     conflicts,
-    ConflictMarkerTokenTypes.StartHeading
+    ConflictMarkerTokenTypes.StartHeading,
   );
   const startBlockConflicts = filterByClassName(
     conflicts,
-    ConflictMarkerTokenTypes.Start
+    ConflictMarkerTokenTypes.Start,
   );
   const divider = filterByClassName(
     conflicts,
-    ConflictMarkerTokenTypes.Divider
+    ConflictMarkerTokenTypes.Divider,
   );
   const endBlockConflicts = filterByClassName(
     conflicts,
-    ConflictMarkerTokenTypes.End
+    ConflictMarkerTokenTypes.End,
   );
   const endHeadingConflicts = filterByClassName(
     conflicts,
-    ConflictMarkerTokenTypes.EndHeading
+    ConflictMarkerTokenTypes.EndHeading,
   );
 
   headingConflicts.forEach((conflict: Conflict, index: number) => {
@@ -254,7 +254,7 @@ const cleanupResolvedCodeLenses = () => {
 const registerGitConflictCodeLensProviders = (
   editorInstance: editor.ICodeEditor,
   conflicts: Conflict[],
-  currentLanguage: string
+  currentLanguage: string,
 ) => {
   cleanupPreviousCodeLensProvider();
   if (conflicts.length === 0) {
@@ -281,11 +281,12 @@ const registerGitConflictCodeLensProviders = (
 // Old text
 // >>>>>>> 77976da35a11db4580b80ae27e8d65caf5208086:README.md
 // Try it on https://regex101.com/r/aw03un/1
-const GIT_CONFLICT_MARKERS_REGEX = /(^<<<<<<< \w+:\w+.+\s)((?:.|\s)*?)\s(=======\s)(^(?:.|\s)*?)(^>>>>>>> \w+:\w+.+\s)/gm;
+const GIT_CONFLICT_MARKERS_REGEX =
+  /(^<<<<<<< \w+:\w+.+\s)((?:.|\s)*?)\s(=======\s)(^(?:.|\s)*?)(^>>>>>>> \w+:\w+.+\s)/gm;
 
 const getOptions = (
   token: string,
-  hoverMessage: string
+  hoverMessage: string,
 ): editor.IModelDecorationOptions => ({
   isWholeLine: true,
   className: `HashCoreEditor__ConflictMarkers__${token}`,
@@ -299,13 +300,13 @@ const getOptions = (
 const startHeadingMatcher = (
   conflicts: Conflict[],
   lineData: LineColumnInfo,
-  match: string
+  match: string,
 ) => {
   conflicts.push({
     range: new Range(lineData.line, 1, lineData.line, match.length),
     options: getOptions(
-      ConflictMarkerTokenTypes["StartHeading"],
-      "Code in target"
+      ConflictMarkerTokenTypes.StartHeading,
+      "Code in target",
     ),
   });
 };
@@ -313,7 +314,7 @@ const startHeadingMatcher = (
 const startMatcher = (
   conflicts: Conflict[],
   lineData: LineColumnInfo,
-  match: string
+  match: string,
 ) => {
   const lineMatches = match.split("\n");
   conflicts.push({
@@ -321,7 +322,7 @@ const startMatcher = (
       lineData.line + 1,
       lineData.col,
       lineData.line + lineMatches.length,
-      lineMatches[lineMatches.length - 1].length
+      lineMatches[lineMatches.length - 1].length,
     ),
     options: getOptions(ConflictMarkerTokenTypes.Start, "Code in target"),
   });
@@ -346,7 +347,7 @@ const endMatcher = (conflicts: Conflict[], match: string) => {
       startingLineNumber,
       1,
       startingLineNumber + lineMatches.length - 2,
-      lineMatches[lineMatches.length - 2].length + 1
+      lineMatches[lineMatches.length - 2].length + 1,
     ),
     options: getOptions(ConflictMarkerTokenTypes.End, "Suggested change"),
   });
@@ -360,29 +361,29 @@ const endHeadingMatcher = (conflicts: Conflict[], match: string) => {
       conflictMarkerEndLine + 1,
       1,
       conflictMarkerEndLine + 1,
-      match.length
+      match.length,
     ),
     options: getOptions(
       ConflictMarkerTokenTypes.EndHeading,
-      "Suggested change"
+      "Suggested change",
     ),
   });
 };
 
 export const addGitConflictMarkersDecorator = (
   editorContent?: string,
-  editorInstance?: editor.ICodeEditor
+  editorInstance?: editor.ICodeEditor,
 ) => {
   if (typeof editorContent !== "string" || !editorInstance) {
     console.error(
-      "addGitConflictMarkersDecorator: !editorContent || !editorInstance, exiting"
+      "addGitConflictMarkersDecorator: !editorContent || !editorInstance, exiting",
     );
     return;
   }
   const currentLanguage = editorInstance?.getModel()?.getModeId();
   if (!currentLanguage) {
     console.error(
-      "addGitConflictMarkersDecorator: could not detect current language"
+      "addGitConflictMarkersDecorator: could not detect current language",
     );
     return;
   }
@@ -401,7 +402,7 @@ export const addGitConflictMarkersDecorator = (
       return;
     }
     const lineData = editorContentAsLineColumn.fromIndex(
-      currentRegexResult.index
+      currentRegexResult.index,
     );
     if (lineData === null) {
       console.error("useConflictMarkersDecorator: Could not parse line data");
@@ -420,7 +421,7 @@ export const addGitConflictMarkersDecorator = (
   registerGitConflictCodeLensProviders(
     editorInstance,
     conflicts,
-    currentLanguage
+    currentLanguage,
   );
   return editorInstance.deltaDecorations([], conflicts);
 };

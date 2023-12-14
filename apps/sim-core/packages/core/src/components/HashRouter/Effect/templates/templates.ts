@@ -24,11 +24,11 @@ export const createNewSimulationProjectFromTemplate = (
   path: string,
   name: string,
   visibility: ProjectVisibility,
-  template: string
+  template: string,
 ): SimulationProjectWithHcFiles => {
   if (!(namespace && path && name)) {
     throw Error(
-      "Namespace, path, and name must be specified when creating a project."
+      "Namespace, path, and name must be specified when creating a project.",
     );
   }
 

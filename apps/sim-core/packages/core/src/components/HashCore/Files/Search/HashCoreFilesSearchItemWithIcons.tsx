@@ -16,7 +16,7 @@ export const HashCoreFilesSearchItemWithIcons = forwardRef<
   HashCoreFilesSearchItemWithIconsProps
 >(function HashCoreFilesSearchItemWithIcons(
   { children, icons, ...props },
-  ref
+  ref,
 ) {
   return (
     <div className="HashCoreFilesSearchItemWithIcons">

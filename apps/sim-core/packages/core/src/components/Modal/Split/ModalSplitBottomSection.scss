@@ -38,7 +38,9 @@
   }
 }
 
-.ModalSplitBottomSection:not(.ModalSplitBottomSection--divide):not(:last-child) {
+.ModalSplitBottomSection:not(.ModalSplitBottomSection--divide):not(
+    :last-child
+  ) {
   padding-right: calc(var(--padding-horizontal) / 2);
 
   + .ModalSplitBottomSection {

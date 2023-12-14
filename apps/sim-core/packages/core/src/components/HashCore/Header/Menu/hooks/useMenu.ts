@@ -3,7 +3,7 @@ import { debounce } from "lodash";
 
 import { useClickOutside } from "./useClickOutside";
 
-type MenuInterface = {
+interface MenuInterface {
   menuRef: RefObject<HTMLUListElement>;
   openMenuItem: string;
   openSubmenuItem: string;
@@ -15,7 +15,7 @@ type MenuInterface = {
   }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterSubmenuItem: ({ target }: MouseEvent<HTMLLIElement>) => void;
   onMouseLeaveSubmenuItem: ({ target }: MouseEvent<HTMLLIElement>) => void;
-};
+}
 
 function isHtmlLabelElement(target: EventTarget): target is HTMLLabelElement {
   return target instanceof HTMLLabelElement;
@@ -112,7 +112,7 @@ export function useMenu(): MenuInterface {
         });
       },
     }),
-    [setOpenMenuItem, setOpenSubmenuItem]
+    [setOpenMenuItem, setOpenSubmenuItem],
   );
 
   // @todo use useOnClickOutside

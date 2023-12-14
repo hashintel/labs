@@ -10,12 +10,12 @@ import { ResourceProjectType } from "../../../features/project/types";
 
 import "./ResourceListItemButton.css";
 
-type ResourceListItemButtonProps = {
+interface ResourceListItemButtonProps {
   alreadyPresent: boolean;
   setIsPopoverOpen: Dispatch<SetStateAction<boolean>>;
   resourceName: string;
   resourceType: ResourceProjectType;
-};
+}
 
 export const ResourceListItemButtonIcon: FC<{ type: ResourceProjectType }> = ({
   type,
@@ -51,7 +51,7 @@ export const ResourceListItemButton = forwardRef<
       <div
         className={classNames(
           "ResourceListItemButton__details__line",
-          "ResourceListItemButton__details__line--name"
+          "ResourceListItemButton__details__line--name",
         )}
       >
         {resourceName}
@@ -59,7 +59,7 @@ export const ResourceListItemButton = forwardRef<
       <div
         className={classNames(
           "ResourceListItemButton__details__line",
-          "ResourceListItemButton__details__line--kind"
+          "ResourceListItemButton__details__line--kind",
         )}
       >
         {resourceType}

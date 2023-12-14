@@ -20,7 +20,7 @@ import { theme } from "../../util/theme";
 function timeseriesToData(
   timeseries: string[],
   series: OutputSeries,
-  step: number
+  step: number,
 ) {
   const data = [];
   for (const name of timeseries) {
@@ -47,22 +47,22 @@ function or(a: any, b: any) {
 function scatterToData(scatter: string[], series: OutputSeries, step: number) {
   const data = [];
   for (const name of scatter) {
-    if (!series[name] || !series[name][step]) {
+    if (!series[name]?.[step]) {
       continue;
     }
     const color = extractColor(name);
     data.push({
       name,
       x: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[0], a.x)
+        or(a.position[0], a.x),
       ),
       y: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[1], a.y)
+        or(a.position[1], a.y),
       ),
       mode: "markers",
       marker: {
         color: (series[name][step] as Datum[]).map(
-          (agent: any) => agent.color || agent.rgb || color
+          (agent: any) => agent.color || agent.rgb || color,
         ),
       },
       type: "scattergl",
@@ -74,29 +74,29 @@ function scatterToData(scatter: string[], series: OutputSeries, step: number) {
 function scatter3dToData(
   scatter: string[],
   series: OutputSeries,
-  step: number
+  step: number,
 ) {
   const data = [];
   for (const name of scatter) {
-    if (!series[name] || !series[name][step]) {
+    if (!series[name]?.[step]) {
       continue;
     }
     const color = extractColor(name);
     data.push({
       name,
       x: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[0], a.x)
+        or(a.position[0], a.x),
       ),
       y: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[1], a.y)
+        or(a.position[1], a.y),
       ),
       z: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[2], a.z)
+        or(a.position[2], a.z),
       ),
       mode: "markers",
       marker: {
         color: (series[name][step] as Datum[]).map(
-          (agent: any) => agent.color || agent.rgb || color
+          (agent: any) => agent.color || agent.rgb || color,
         ),
       },
       type: "scatter3d",
@@ -105,13 +105,17 @@ function scatter3dToData(
   return data;
 }
 
-const extractColor = (name: Color) =>
-  typeof name === "string"
-    ? name === "white"
-      ? "gray"
-      : `#${mapColor(name) ?? intToRGB(hashCode(name))}`
-    : name;
+const extractColor = (name: Color) => {
+  if (typeof name !== "string") {
+    return name;
+  }
 
+  if (name === "white") {
+    return "gray";
+  }
+  const colorHashCode = mapColor(name) ?? intToRGB(hashCode(name));
+  return `#${colorHashCode}`;
+};
 // https://stackoverflow.com/a/3426956
 function hashCode(str: string) {
   // java String#hashCode
@@ -189,7 +193,7 @@ export function buildPlots(def: PlotDefinition): OutputPlotProps {
     style,
     hideCollatedLegend: def.layout?.hideCollatedLegend,
     hideStep: ["bar", "box", "histogram", "line", "scatter"].includes(
-      def.type ?? ""
+      def.type ?? "",
     )
       ? true
       : def.hideStep,
@@ -211,7 +215,7 @@ const lineLens = m.Optional.fromNullableProp<HashPlotData>()("line");
 const colorLens = m.Optional.fromNullableProp<Partial<ScatterLine>>()("color");
 
 const flattenSlice = <K extends DatumKeys>(
-  series: OutputSeriesValue[]
+  series: OutputSeriesValue[],
 ): PlotData[K] =>
   pipe(
     series,
@@ -220,23 +224,23 @@ const flattenSlice = <K extends DatumKeys>(
       series === null || typeof series === "number"
         ? series
         : series.map((value) =>
-            value instanceof Array && value.length === 1 ? value[0] : value
-          )
+            value instanceof Array && value.length === 1 ? value[0] : value,
+          ),
   ) as PlotData[K];
 
-const mapAxis = <K extends DatumKeys>(series: OutputSeries, step: number) => (
-  value: HashDatum<K>
-): PlotData[K] =>
-  typeof value === "string"
-    ? (series[value].slice(0, step + 1) as PlotData[K])
-    : isOutputSlice(value)
-    ? flattenSlice(series[value.name].slice(...value.slice))
-    : (value as PlotData[K]);
+const mapAxis =
+  <K extends DatumKeys>(series: OutputSeries, step: number) =>
+  (value: HashDatum<K>): PlotData[K] =>
+    typeof value === "string"
+      ? (series[value].slice(0, step + 1) as PlotData[K])
+      : isOutputSlice(value)
+        ? flattenSlice(series[value.name].slice(...value.slice))
+        : value;
 
 export function buildData(
   def: PlotDefinition,
   series: OutputSeries,
-  step: number
+  step: number,
 ): Plotly.Data[] {
   if (def.timeseries) {
     return timeseriesToData(def.timeseries, series, step) as Plotly.Data[];
@@ -251,18 +255,18 @@ export function buildData(
         datumLenses.y.modify(mapAxis<"y">(series, step)),
         datumLenses.z.modify(mapAxis<"z">(series, step)),
         lineLens.compose(colorLens).modify(extractColor),
-        (plot) => Object.assign({ type: def.type }, plot) as PlotData
-      )
+        (plot) => Object.assign({ type: def.type }, plot) as PlotData,
+      ),
     );
   } else {
     return [];
   }
 }
 
-type SetPlotlyThemeProps = {
+interface SetPlotlyThemeProps {
   theme: "HASH_dark";
   layout: Partial<Plotly.Layout>;
-};
+}
 
 // Plotly.js doesn't have this function but plotly.py does
 // Colors taken from: https://github.com/plotly/plotly.py/blob/master/packages/python/plotly/templategen/definitions.py
@@ -319,7 +323,7 @@ const colorBars = {
 const plotlyClrs = {
   "HASH Light": theme.white,
   "Rhino Medium 2": theme["light-grey"],
-  "Rhino Medium 1": theme["grey"],
+  "Rhino Medium 1": theme.grey,
   "Rhino Dark": "#171b1f",
   "Rhino Core": "#2a3f5f",
 };
@@ -335,19 +339,19 @@ interface PlotStyle {
   table_cell_clr: string;
   table_header_clr: string;
   table_line_clr: string;
-  colorscale: Array<string>;
+  colorscale: string[];
 }
 
-const PlotStyles: { [name: string]: PlotStyle } = {
+const PlotStyles: Record<string, PlotStyle> = {
   HASH_dark: {
-    paper_clr: theme["dark"],
+    paper_clr: theme.dark,
     font_clr: plotlyClrs["HASH Light"],
     font_family: "Inter",
-    panel_background_clr: theme["dark"],
-    panel_grid_clr: theme["dark"],
+    panel_background_clr: theme.dark,
+    panel_grid_clr: theme.dark,
     axis_ticks_clr: plotlyClrs["Rhino Medium 1"],
     zerolinecolor_clr: plotlyClrs["Rhino Medium 2"],
-    table_cell_clr: theme["dark"],
+    table_cell_clr: theme.dark,
     table_header_clr: plotlyClrs["Rhino Core"],
     table_line_clr: "#000000",
     colorscale: colorBars.plasma,

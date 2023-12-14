@@ -27,41 +27,42 @@ export const setLocalStorageProject = (project: LocalStorageProject) => {
   setItem(localStorageProjectKey(project), project);
 };
 
-export const localStorageMiddleware: Middleware<{}, RootState> = ({
-  getState,
-}) => (next) => (action) => {
-  const prevState = getState();
-  const prevProject = selectCurrentProject(prevState);
-  const result = next(action);
-  const nextState = getState();
+export const localStorageMiddleware: Middleware<{}, RootState> =
+  ({ getState }) =>
+  (next) =>
+  (action) => {
+    const prevState = getState();
+    const prevProject = selectCurrentProject(prevState);
+    const result = next(action);
+    const nextState = getState();
 
-  const canSave = selectScope[Scope.save](nextState);
-  const project = selectCurrentProject(nextState);
-  const actions = selectFileActions(nextState);
-  const projectChange = prevProject !== project;
+    const canSave = selectScope[Scope.save](nextState);
+    const project = selectCurrentProject(nextState);
+    const actions = selectFileActions(nextState);
+    const projectChange = prevProject !== project;
 
-  if (
-    project &&
-    canSave &&
-    (selectFileActions(prevState) !== actions ||
-      selectProjectUpdated(prevState) !== selectProjectUpdated(nextState))
-  ) {
-    const files = selectAllFiles(nextState);
+    if (
+      project &&
+      canSave &&
+      (selectFileActions(prevState) !== actions ||
+        selectProjectUpdated(prevState) !== selectProjectUpdated(nextState))
+    ) {
+      const files = selectAllFiles(nextState);
 
-    if ((files.length && actions.length) || projectChange) {
-      setLocalStorageProject({
-        ...project,
-        actions,
-        files,
-      });
-    } else {
-      console.log(
-        "Removing project from localstorage",
-        project.pathWithNamespace
-      );
-      removeItem(localStorageProjectKey(project));
+      if ((files.length && actions.length) || projectChange) {
+        setLocalStorageProject({
+          ...project,
+          actions,
+          files,
+        });
+      } else {
+        console.log(
+          "Removing project from localstorage",
+          project.pathWithNamespace,
+        );
+        removeItem(localStorageProjectKey(project));
+      }
     }
-  }
 
-  return result;
-};
+    return result;
+  };

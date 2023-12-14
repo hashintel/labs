@@ -9,27 +9,27 @@ export const getViewer: Selector<RootState, ViewerSlice> = (state) =>
 
 export const selectCurrentTab = createSelector(
   getViewer,
-  (viewer) => viewer.currentTab
+  (viewer) => viewer.currentTab,
 );
 
 export const selectVisibleTabs = createSelector(
   getViewer,
-  (viewer) => viewer.visibleTabs
+  (viewer) => viewer.visibleTabs,
 );
 
 export const selectVisibleTabsInOrder = createSelector(
   [selectVisibleTabs],
-  (visibleTabs) => viewerTabs.filter((tab) => visibleTabs.includes(tab.kind))
+  (visibleTabs) => viewerTabs.filter((tab) => visibleTabs.includes(tab.kind)),
 );
 
 export const selectUserAlerts = createSelector(
   getViewer,
-  (viewer) => viewer.userAlerts
+  (viewer) => viewer.userAlerts,
 );
 
 export const selectCurrentProcessChart = createSelector(
   getViewer,
-  (viewer) => viewer.currentProcessChart
+  (viewer) => viewer.currentProcessChart,
 );
 
 /**
@@ -38,12 +38,12 @@ export const selectCurrentProcessChart = createSelector(
  */
 export const selectEditorVisible = createSelector(
   getViewer,
-  (viewer) => viewer.editor
+  (viewer) => viewer.editor,
 );
 
 export const selectViewerVisible = createSelector(
   getViewer,
-  (viewer) => viewer.viewer
+  (viewer) => viewer.viewer,
 );
 
 /**
@@ -52,7 +52,7 @@ export const selectViewerVisible = createSelector(
  */
 export const selectActivityVisible = createSelector(
   [getViewer, selectViewerVisible],
-  (viewer, viewerVisible) => viewer.activity && viewerVisible
+  (viewer, viewerVisible) => viewer.activity && viewerVisible,
 );
 
 /**
@@ -61,5 +61,5 @@ export const selectActivityVisible = createSelector(
  */
 export const selectEmbedded = createSelector(
   getViewer,
-  (viewer) => viewer.embedded
+  (viewer) => viewer.embedded,
 );

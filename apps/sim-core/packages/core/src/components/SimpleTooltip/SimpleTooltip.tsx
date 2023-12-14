@@ -66,9 +66,8 @@ export const SimpleTooltip: FC<SimpleTooltipProps> = ({
 }) => {
   const popoverRef = useRef<Popover>(null);
   const [open, setOpen, openRef] = useRefState(false);
-  const [clicked, setClicked, clickedRef] = useRefState<ClickedType>(
-    defaultClickedState
-  );
+  const [clicked, setClicked, clickedRef] =
+    useRefState<ClickedType>(defaultClickedState);
   const [width, setWidth] = useState(0);
 
   if (clicked !== defaultClickedState && !persistent) {
@@ -96,7 +95,7 @@ export const SimpleTooltip: FC<SimpleTooltipProps> = ({
           (target === tooltip || !!tooltip?.contains(target)))
       );
     },
-    [interactive, openRef]
+    [interactive, openRef],
   );
 
   const openTooltip = useCallback(() => {
@@ -134,7 +133,7 @@ export const SimpleTooltip: FC<SimpleTooltipProps> = ({
       const mouseEvent = (evt: MouseEvent | TouchEvent) => {
         const target = evt.target as HTMLElement;
         const clickedOpenState: boolean | null = clickedToOpen(
-          clickedRef.current
+          clickedRef.current,
         );
 
         const withinParent = isTargetWithinParent(target);
@@ -237,7 +236,7 @@ export const SimpleTooltip: FC<SimpleTooltipProps> = ({
           },
           {
             Modal__Tooltip: inModal,
-          }
+          },
         )}
         content={
           <div

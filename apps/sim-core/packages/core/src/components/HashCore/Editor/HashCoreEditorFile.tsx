@@ -58,7 +58,7 @@ export const HashCoreEditorFile: FC<{
   const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
   const { canModifyFile, canSaveFile } = useScopes(
     Scope.modifyFile,
-    Scope.saveFile
+    Scope.saveFile,
   );
 
   return file.kind === HcFileKind.Dataset ? (
@@ -86,7 +86,7 @@ export const HashCoreEditorFile: FC<{
               updateBehaviorKeysFile({
                 fileId: file.id,
                 keys,
-              })
+              }),
             );
           }}
         />

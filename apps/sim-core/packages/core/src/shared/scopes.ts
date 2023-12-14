@@ -7,7 +7,8 @@ export const ProjectAccessCodeAccessTypes = [
   "ReadEmbed",
 ] as const;
 
-export type ProjectAccessCodeAccessType = typeof ProjectAccessCodeAccessTypes[number];
+export type ProjectAccessCodeAccessType =
+  (typeof ProjectAccessCodeAccessTypes)[number];
 
 export enum ProjectAccessScope {
   Read = "Read",

@@ -11,7 +11,7 @@ it("renders without crashing", () => {
     <Provider store={store}>
       <HashCoreAccessGateNotFound requestedProject={null} embedded={false} />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

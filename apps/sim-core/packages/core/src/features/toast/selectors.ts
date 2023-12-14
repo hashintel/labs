@@ -8,9 +8,9 @@ export const selectToast: Selector<RootState, ToastSlice> = (state) =>
 
 export const selectToastKind = createSelector(
   selectToast,
-  (toast) => toast.kind
+  (toast) => toast.kind,
 );
 export const selectToastData = createSelector(
   selectToast,
-  (toast) => toast.data
+  (toast) => toast.data,
 );

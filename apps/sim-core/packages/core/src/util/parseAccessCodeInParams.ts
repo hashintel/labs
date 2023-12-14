@@ -6,14 +6,16 @@ import {
 } from "../shared/scopes";
 import { ProjectAccessParsed } from "../features/project/types";
 
-export type AccessCodeParam = { accessCode?: string | null };
+export interface AccessCodeParam {
+  accessCode?: string | null;
+}
 
-export type ParseAccessCodeParam = {
+export interface ParseAccessCodeParam {
   access?: ProjectAccessParsed;
-};
+}
 
 const isValidAccessLevel = (
-  level: string
+  level: string,
 ): level is ProjectAccessCodeAccessType =>
   ProjectAccessCodeAccessTypes.includes(level as any);
 
@@ -26,17 +28,17 @@ const parseAccessLevel = (level: string): ProjectAccessCodeAccessType => {
 };
 
 export const parseAccessCodeInParams = <
-  T extends Record<Exclude<any, "accessCode">, any>
+  T extends Record<Exclude<any, "accessCode">, any>,
 >(
   { accessCode, ...params }: AccessCodeParam & T,
-  requiredScope?: ProjectAccessScope
+  requiredScope?: ProjectAccessScope,
 ): ParseAccessCodeParam & T => {
   const castParams = params as T;
 
   if (accessCode) {
     try {
       const json = atob(accessCode);
-      const parsed = JSON.parse(json);
+      const parsed = JSON.parse(json) as { accessLevel: string };
       const accessLevel = parseAccessLevel(parsed.accessLevel);
 
       if (
@@ -54,9 +56,9 @@ export const parseAccessCodeInParams = <
       }
     } catch (err) {
       console.warn("Cannot parse access code", err);
-      return castParams as T;
+      return castParams;
     }
   }
 
-  return castParams as T;
+  return castParams;
 };

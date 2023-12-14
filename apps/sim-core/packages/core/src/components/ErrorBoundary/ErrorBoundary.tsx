@@ -1,13 +1,11 @@
 import React, {
   Component,
   createContext,
-  ErrorInfo,
   FC,
   useContext,
   useMemo,
   useState,
 } from "react";
-import * as Sentry from "@sentry/browser";
 import { customAlphabet } from "nanoid";
 
 import { BasicDiscordWidget } from "../DiscordWidget/DiscordWidget";
@@ -15,7 +13,6 @@ import { BigModal } from "../Modal";
 import { ErrorDetails } from "../ErrorDetails";
 import { FancyButton } from "../Fancy";
 import { IS_LOCAL } from "../../util/api";
-import { sentryConsoleLogAbortController } from "../../util/initSentry";
 
 import "./ErrorBoundary.css";
 
@@ -34,7 +31,7 @@ import "./ErrorBoundary.css";
 const quotableId = (() => {
   const generateHashEventId = customAlphabet(
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    6
+    6,
   );
 
   return () =>
@@ -44,8 +41,9 @@ const quotableId = (() => {
       .padStart(2, "0")}${generateHashEventId()}`;
 })();
 
-type ErrorBoundaryProps = {};
-type ErrorBoundaryState = {
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface ErrorBoundaryProps {}
+interface ErrorBoundaryState {
   didError: boolean;
   errorName?: string;
   errorMessage?: string;
@@ -53,7 +51,7 @@ type ErrorBoundaryState = {
   eventId: string | null;
   detailsHidden: boolean;
   hashEventId: string | null;
-};
+}
 
 type TErrorBoundaryContext = {
   handlePromiseRejection: (promise: Promise<any>) => void;
@@ -132,23 +130,6 @@ export class ErrorBoundary extends Component<
     hashEventId: null,
   };
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    const { hashEventId } = this.state;
-
-    /**
-     * Cancel the in-flight sentry log of this error caused by React calling
-     * console.error before notifying the error boundary
-     */
-    sentryConsoleLogAbortController.abort();
-
-    Sentry.withScope((scope) => {
-      scope.setTag("hashId", hashEventId);
-      scope.setExtras(errorInfo as any);
-      const eventId = Sentry.captureException(error);
-      this.setState({ eventId });
-    });
-  }
-
   render() {
     const {
       didError,
@@ -180,6 +161,7 @@ export class ErrorBoundary extends Component<
             <a
               href="https://docs.hash.ai/core/extra/troubleshooting#troubleshooting-crashes"
               target="_blank"
+              rel="noreferrer"
             >
               troubleshooting guide
             </a>

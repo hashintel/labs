@@ -21,7 +21,7 @@ import {
 import { useNameNewBehaviorModal } from "../../../Files/hooks";
 import { useSaveOrFork } from "../../../../../hooks/useSaveOrFork";
 
-type HashCoreHeaderMenuFilesProps = {
+interface HashCoreHeaderMenuFilesProps {
   openMenuItem: string;
   openSubmenuItem: string;
   clearAll: () => void;
@@ -34,7 +34,7 @@ type HashCoreHeaderMenuFilesProps = {
   onMouseLeaveSubmenuItem: ({ target }: MouseEvent<HTMLLIElement>) => void;
   userProjects: PartialSimulationProject[];
   exampleProjects: PartialSimulationProject[];
-};
+}
 
 /**
  * @todo most of these props do not need to be props – define them locally instead
@@ -60,7 +60,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     const showModalNewBehavior = useNameNewBehaviorModal();
     const [_showNewDatasetModal, hideNewDatasetModal] = useModal(
       () => <ModalNewDataset onClose={hideNewDatasetModal} />,
-      []
+      [],
     );
 
     const exportFiles = useExportFiles();
@@ -80,40 +80,39 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     // const isFork = !!project?.forkOf;
     // const mergeRequestUrl = project && isFork ? createMergeRequestUrl(project) : "";
 
-    const toListItem = (type: "Example" | "User") => (
-      item: PartialSimulationProject
-    ) => {
-      const href =
-        type === "User"
-          ? mainProjectPath(item.pathWithNamespace)
-          : urlFromProject(item);
+    const toListItem =
+      (type: "Example" | "User") => (item: PartialSimulationProject) => {
+        const href =
+          type === "User"
+            ? mainProjectPath(item.pathWithNamespace)
+            : urlFromProject(item);
 
-      return (
-        <li key={href}>
-          <Link
-            path={href}
-            onClick={() => {
-              dispatch(
-                trackEvent({
-                  action: "Open project",
-                  label: `${type} - ${item.pathWithNamespace} - ${item.ref} - From menu`,
-                  context: {
-                    type,
-                  },
-                })
-              );
+        return (
+          <li key={href}>
+            <Link
+              path={href}
+              onClick={() => {
+                dispatch(
+                  trackEvent({
+                    action: "Open project",
+                    label: `${type} - ${item.pathWithNamespace} - ${item.ref} - From menu`,
+                    context: {
+                      type,
+                    },
+                  }),
+                );
 
-              clearAll();
-            }}
-            className="HashCoreHeaderMenuProjectLink"
-          >
-            <span>{item.name}</span>
-            {item.visibility === "private" ? <IconLock size={16} /> : null}
-            {item.type === "Behavior" ? <IconBrain size={24} /> : null}
-          </Link>
-        </li>
-      );
-    };
+                clearAll();
+              }}
+              className="HashCoreHeaderMenuProjectLink"
+            >
+              <span>{item.name}</span>
+              {item.visibility === "private" ? <IconLock size={16} /> : null}
+              {item.type === "Behavior" ? <IconBrain size={24} /> : null}
+            </Link>
+          </li>
+        );
+      };
 
     return (
       <>
@@ -244,15 +243,15 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               accept=".zip"
               ref={importFileRef}
               style={{ display: "none" }}
-              onChange={async (evt: ChangeEvent<HTMLInputElement>) => {
+              onChange={(evt: ChangeEvent<HTMLInputElement>) => {
                 evt.preventDefault();
                 clearAll();
                 const files = evt.currentTarget.files;
                 if (files) {
                   importFiles(files).catch((err) =>
                     console.error(
-                      `Error importing project files: ${err.message}`
-                    )
+                      `Error importing project files: ${err.message}`,
+                    ),
                   );
                 }
               }}
@@ -301,13 +300,13 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
             <li className="HashCoreHeaderMenu-submenu-item">
               <Link
                 forceLogin={!userProfileUrl}
-                onClick={async (evt: MouseEvent<HTMLAnchorElement>) => {
+                onClick={(evt: MouseEvent<HTMLAnchorElement>) => {
                   evt.preventDefault();
                   clearAll();
                   exportFiles().catch((err) =>
                     console.error(
-                      `Error exporting project files: ${err.message}`
-                    )
+                      `Error exporting project files: ${err.message}`,
+                    ),
                   );
                 }}
               >
@@ -338,10 +337,10 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
         </ul>
       </>
     );
-  }
+  },
 );
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashCoreHeaderMenuFiles.whyDidYouRender = {
 //   customName: "HashCoreHeaderMenuFiles"
 // };

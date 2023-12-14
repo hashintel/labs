@@ -11,7 +11,7 @@ it("renders without crashing", () => {
       setCurrentPage={() => {}}
       totalPages={1}
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

@@ -2,11 +2,11 @@ import { AppThunk } from "./types";
 import { selectCurrentUser } from "./user/selectors";
 import { selectEmbedded } from "./viewer/selectors";
 
-type AnalyticsEventMeta = {
+interface AnalyticsEventMeta {
   action: string;
   label?: string;
   context?: any;
-};
+}
 
 export const trackEvent = (event: AnalyticsEventMeta) => trackEvents([event]);
 
@@ -15,33 +15,32 @@ export const trackEvent = (event: AnalyticsEventMeta) => trackEvents([event]);
  * We require a specific category, and an action for Google Analytics reporting.
  * Accepts an optional label (for display in GA) and arbitrary context object
  */
-export const trackEvents = (events: AnalyticsEventMeta[]): AppThunk => (
-  dispatch,
-  getState
-) => {
-  const state = getState();
+export const trackEvents =
+  (events: AnalyticsEventMeta[]): AppThunk =>
+  (dispatch, getState) => {
+    const state = getState();
 
-  const embedded = selectEmbedded(state);
-  const user = selectCurrentUser(state);
+    const embedded = selectEmbedded(state);
+    const user = selectCurrentUser(state);
 
-  // // Don't track events for staff members
-  if (user?.staffMember) {
-    return;
-  }
+    // // Don't track events for staff members
+    if (user?.staffMember) {
+      return;
+    }
 
-  const mappedEvents = embedded
-    ? events.map((event) => ({
-        ...event,
-        context: {
-          ...(event.context ?? {}),
-          embedded,
-        },
-      }))
-    : events;
+    const mappedEvents = embedded
+      ? events.map((event) => ({
+          ...event,
+          context: {
+            ...(event.context ?? {}),
+            embedded,
+          },
+        }))
+      : events;
 
-  // report to the API if any are of interest to it
-  reportEvents(mappedEvents);
-};
+    // report to the API if any are of interest to it
+    reportEvents(mappedEvents);
+  };
 
 const reportEvents = (events: AnalyticsEventMeta[]) => {
   // We want accurate reporting on these events.
@@ -63,7 +62,7 @@ const reportEvents = (events: AnalyticsEventMeta[]) => {
       }
       return eventsOfInterest;
     },
-    []
+    [],
   );
   if (eventsToReport.length > 0) {
     // migration shim

@@ -5,7 +5,7 @@ import { QueryError } from "../../../util/api";
 
 export const queryErrorToAccessGate = (
   { onlyErrorCode: code }: QueryError,
-  { requestedProject }: { requestedProject: LinkableProject }
+  { requestedProject }: { requestedProject: LinkableProject },
 ): HashCoreAccessGateKindWithProps | null => {
   /**
    * @todo Support access gates when there are multiple errors

@@ -14,10 +14,21 @@ import { ResourceListItemPopup } from "./ResourceListItemPopup";
 import { defaultBehaviorKeys } from "../../../features/files/utils";
 import { parse } from "../../../util/files";
 import { store } from "../../../features/store";
+import { noop } from "lodash";
 
 jest.mock("./util", () => ({ scrollBy: jest.fn() }));
 
-const mockRect = { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+const mockRect: ClientRect = {
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  width: 0,
+  height: 0,
+  x: 0,
+  y: 0,
+  toJSON: noop,
+};
 
 const datasetOne: HcSharedDatasetFile = {
   pathWithNamespace: "@publisher/dataset/one.csv",
@@ -100,7 +111,7 @@ it("renders without crashing with one dataset with none present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -142,7 +153,7 @@ it("renders without crashing with one dataset with it present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -183,7 +194,7 @@ it("renders without crashing with one trusted dataset with it present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -224,7 +235,7 @@ it("renders without crashing with two datasets with none present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -265,7 +276,7 @@ it("renders without crashing with two datasets with one present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -309,7 +320,7 @@ it("renders without crashing with two datasets with two present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -350,7 +361,7 @@ it("renders without crashing one behavior with none present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });
@@ -391,7 +402,7 @@ it("renders without crashing one behavior with one present", () => {
         }}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

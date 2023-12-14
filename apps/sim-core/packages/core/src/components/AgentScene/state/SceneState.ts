@@ -19,16 +19,16 @@ export const MappedTransitions = autoAtom({
 });
 
 export const SelectedAgentIds = autoAtom({
-  default: {} as {
-    [id: string]: true;
-  },
+  default: {} as Record<string, true>,
 });
 
 export const SelectedAgentData = autoreadSelectorFamily({
-  get: (agentId: string) => ({ get }): AgentTransition | null | undefined => {
-    const transitions = get(MappedTransitions);
-    return transitions[agentId];
-  },
+  get:
+    (agentId: string) =>
+    ({ get }): AgentTransition | null | undefined => {
+      const transitions = get(MappedTransitions);
+      return transitions[agentId];
+    },
 
   // Because we're selecting agent data, we *also* need to allow mutability
   dangerouslyAllowMutability: true,
@@ -54,11 +54,9 @@ export const SelectedMeshes = autoSelector({
 export const PositionedMeshes = autoSelector({
   get: ({ get }) => {
     const mappedTransitions = get(MappedTransitions);
-    const meshes: {
-      [meshType: string]: RenderSummary;
-    } = {};
+    const meshes: Record<string, RenderSummary> = {};
     for (const [id, agent] of Object.entries(mappedTransitions)) {
-      if (!meshes.hasOwnProperty(agent.shape)) {
+      if (!Object.prototype.hasOwnProperty.call(meshes, agent.shape)) {
         meshes[agent.shape] = {};
       }
       meshes[agent.shape][id] = agent;
@@ -67,29 +65,33 @@ export const PositionedMeshes = autoSelector({
   },
 });
 export const ShapedMeshes = autoreadSelectorFamily({
-  get: (shape: string) => ({ get }) => {
-    const meshes = get(PositionedMeshes);
-    if (shape === "pickedAgent") {
-      const selected = get(SelectedAgentIds);
-      const transitions = get(MappedTransitions);
-      const output: RenderSummary = {};
-      for (const id of Object.keys(selected)) {
-        const trans = transitions[id];
-        if (trans) {
-          output[id] = trans;
+  get:
+    (shape: string) =>
+    ({ get }) => {
+      const meshes = get(PositionedMeshes);
+      if (shape === "pickedAgent") {
+        const selected = get(SelectedAgentIds);
+        const transitions = get(MappedTransitions);
+        const output: RenderSummary = {};
+        for (const id of Object.keys(selected)) {
+          const trans = transitions[id];
+          if (trans) {
+            output[id] = trans;
+          }
         }
+        return output;
+      } else {
+        return meshes[shape] ?? {};
       }
-      return output;
-    } else {
-      return meshes[shape] ?? {};
-    }
-  },
+    },
 });
 export const ShapedMeshesEntries = autoreadSelectorFamily({
-  get: (shape: string) => ({ get }) => {
-    const meshes = get(ShapedMeshes(shape));
-    return Object.entries(meshes);
-  },
+  get:
+    (shape: string) =>
+    ({ get }) => {
+      const meshes = get(ShapedMeshes(shape));
+      return Object.entries(meshes);
+    },
 });
 
 type HoveredAgent = string | null;
@@ -101,61 +103,62 @@ export const HoveredAgent = autoAtom({
 
 // For each setting, store the lastSet value plus any project-specific value
 type ViewerSettingValue = number | string | boolean;
-type ViewerSettingsStorageObject = {
+interface ViewerSettingsStorageObject {
   lastSet: ViewerSettingValue;
   [projectPath: string]: ViewerSettingValue;
-};
+}
 
 // Persist and retrieve 3D settings state to localStorage,
 // for settings configurable in SceneSettings
-const localStorageSyncEffect = <T extends ViewerSettingValue>(
-  settingName: string
-) => ({ setSelf, onSet }: Parameters<AtomEffect<T>>[0]) => {
-  const storageKey = `sceneSettings.${settingName}`;
+const localStorageSyncEffect =
+  <T extends ViewerSettingValue>(settingName: string) =>
+  ({ setSelf, onSet }: Parameters<AtomEffect<T>>[0]) => {
+    const storageKey = `sceneSettings.${settingName}`;
 
-  const getProjectPath = () => selectProjectPathWithNamespace(store.getState());
+    const getProjectPath = () =>
+      selectProjectPathWithNamespace(store.getState());
 
-  const loadValueFromLocalStorage = () => {
-    const currentProjectPath = getProjectPath();
+    const loadValueFromLocalStorage = () => {
+      const currentProjectPath = getProjectPath();
 
-    // Get the last used value for this setting, if any
-    const savedSettings = getItem<ViewerSettingsStorageObject>(storageKey);
-    let savedSetting = savedSettings?.lastSet;
+      // Get the last used value for this setting, if any
+      const savedSettings = getItem<ViewerSettingsStorageObject>(storageKey);
+      let savedSetting = savedSettings?.lastSet;
 
-    // If we have a project-specific value for this setting, prefer it
-    if (currentProjectPath && savedSettings?.[currentProjectPath]) {
-      savedSetting = savedSettings[currentProjectPath];
-    }
+      // If we have a project-specific value for this setting, prefer it
+      if (currentProjectPath && savedSettings?.[currentProjectPath]) {
+        savedSetting = savedSettings[currentProjectPath];
+      }
 
-    if (savedSetting != null) {
-      setSelf(savedSetting as T);
-    }
-  };
-
-  projectChangeObservable(store).subscribe(() => {
-    loadValueFromLocalStorage();
-  });
-
-  // Called when the atom is updated from elsewhere (e.g. on user input)
-  onSet((newValue) => {
-    const currentProjectPath = getProjectPath();
-
-    // Store the value as last set and (if project scoped) project-specific
-    const savedSettings: ViewerSettingsStorageObject = {
-      ...(getItem(storageKey) ?? {}),
-      lastSet: newValue as ViewerSettingValue,
+      if (savedSetting != null) {
+        setSelf(savedSetting as T);
+      }
     };
-    if (currentProjectPath) {
-      savedSettings[currentProjectPath] = newValue as ViewerSettingValue;
-    }
 
-    setItem(storageKey, savedSettings);
-  });
-};
+    projectChangeObservable(store).subscribe(() => {
+      loadValueFromLocalStorage();
+    });
+
+    // Called when the atom is updated from elsewhere (e.g. on user input)
+    onSet((newValue) => {
+      const currentProjectPath = getProjectPath();
+
+      // Store the value as last set and (if project scoped) project-specific
+      const savedSettings: ViewerSettingsStorageObject = {
+        ...(getItem(storageKey) ?? {}),
+        lastSet: newValue as ViewerSettingValue,
+      };
+      if (currentProjectPath) {
+        savedSettings[currentProjectPath] = newValue as ViewerSettingValue;
+      }
+
+      setItem(storageKey, savedSettings);
+    });
+  };
 
 const settingAtom = <T extends ViewerSettingValue>(
   key: string,
-  defaultValue: T
+  defaultValue: T,
 ) =>
   autoAtom<T>({
     default: defaultValue,

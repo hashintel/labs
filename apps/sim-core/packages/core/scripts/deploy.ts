@@ -29,7 +29,7 @@ function getNotifier(notifySlack: boolean) {
     if (notifySlack) {
       await request.post(
         "https://hooks.slack.com/services/T5Z49HZPW/B01QB9PQNE8/4Ur5MWKteJFdxvGYCCxiD",
-        { json: { text: `${logging_prefix} ${message}` } }
+        { json: { text: `${logging_prefix} ${message}` } },
       );
     }
   };
@@ -40,7 +40,7 @@ function getNotifier(notifySlack: boolean) {
  *
  * @return {string} The build stamp
  */
-async function buildAndStageAssets(): Promise<string> {
+function buildAndStageAssets(): Promise<string> {
   // 1. clean build:
   exec("yarn clean");
   exec("yarn build");
@@ -56,7 +56,7 @@ async function buildAndStageAssets(): Promise<string> {
     throw "Couldn't find a manifest.";
   }
   const manifest = JSON.parse(cat(manifests[0]));
-  if (!manifest || !manifest.BUILD_STAMP) {
+  if (!manifest?.BUILD_STAMP) {
     throw "Build stamp not found in manifest, aborting.";
   }
   const stamp = manifest.BUILD_STAMP;
@@ -78,7 +78,7 @@ async function buildAndStageAssets(): Promise<string> {
 
       // Copy the wasm file onto itself so we can mutate its metadata to set content-type wasm
       exec(
-        `aws s3 cp ${s3Path} ${s3Path} --content-type application/wasm --metadata-directive REPLACE`
+        `aws s3 cp ${s3Path} ${s3Path} --content-type application/wasm --metadata-directive REPLACE`,
       );
 
       // Check our work:
@@ -86,11 +86,7 @@ async function buildAndStageAssets(): Promise<string> {
     });
 
   // 4. Notify relevant apps:
-  // Notify Sentry.io that a new deploy exists
-  await request.post(
-    "https://sentry.io/api/hooks/release/builtin/1509252/efc0273443d500ecd145d41ac4e0b48999648d378b828dca8b4a1b8fb3d42ef8/",
-    { json: { version: stamp } }
-  );
+  // (nothing to do at the moment)
 
   return stamp;
 }
@@ -114,7 +110,7 @@ async function buildAndStageAssets(): Promise<string> {
  *
  * @param stamp -- build stamp to deploy (should already be present in s3)
  */
-async function setLive(stamp: string) {
+function setLive(stamp: string) {
   const rootIndexPath = `s3://${S3_BUCKET}/index.html`;
   const manifestIndexPath = `s3://${S3_BUCKET}/${stamp}/index.html`;
   const rootEmbedPath = `s3://${S3_BUCKET}/embed.html`;
@@ -122,20 +118,20 @@ async function setLive(stamp: string) {
 
   try {
     exec(
-      `aws s3api head-object --bucket ${S3_BUCKET} --key ${stamp}/index.html`
+      `aws s3api head-object --bucket ${S3_BUCKET} --key ${stamp}/index.html`,
     );
   } catch (err) {
     console.error("Build stamp not found in s3", stamp);
     process.exit(1);
   }
   exec(
-    `aws s3 cp ${manifestIndexPath} ${rootIndexPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`
+    `aws s3 cp ${manifestIndexPath} ${rootIndexPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`,
   );
 
   // Older builds may not have an embed.html (linked to when embedding hCore)
   try {
     exec(
-      `aws s3 cp ${manifestEmbedPath} ${rootEmbedPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`
+      `aws s3 cp ${manifestEmbedPath} ${rootEmbedPath} --cache-control no-cache --content-type text/html --metadata-directive REPLACE`,
     );
   } catch (err) {
     console.warn("*** Build does not contain an embed.html! ***");
@@ -179,12 +175,12 @@ async function run() {
           `Built from: \`${commitUrl}\` ${
             localChanges ? "(plus local modifications)" : ""
           }`,
-        ].join("\n")
+        ].join("\n"),
       );
     }
   } catch (err) {
     console.error(`Deploy failed with error:`);
-    console.error("```" + err.toString() + "```");
+    console.error(`\`\`\`${String(err)}\`\`\``);
     process.exit(1);
   }
 }

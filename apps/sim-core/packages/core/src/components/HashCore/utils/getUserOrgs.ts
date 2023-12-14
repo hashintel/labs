@@ -14,7 +14,7 @@ export const getUserOrgs: (u: User | null) => Org[] = (currentUser) =>
             id,
             shortname,
             name,
-          })
-        )
+          }),
+        ),
       )
     : [];

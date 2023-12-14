@@ -31,16 +31,16 @@ const SimulatorReduxContext: Context<
 > = createContext(null) as any;
 
 export const useSimulatorStore: () => typeof simulatorStore = createStoreHook(
-  SimulatorReduxContext
+  SimulatorReduxContext,
 );
 
 export const useSimulatorSelector: <TSelected = unknown>(
   selector: (state: SimulatorRootState) => TSelected,
-  equalityFn?: (left: TSelected, right: TSelected) => boolean
+  equalityFn?: (left: TSelected, right: TSelected) => boolean,
 ) => TSelected = createSelectorHook(SimulatorReduxContext);
 
 export const useSimulatorDispatch: () => SimulatorDispatch = createDispatchHook(
-  SimulatorReduxContext
+  SimulatorReduxContext,
 );
 
 export const SimulatorProvider: FC = ({ children }) => (

@@ -25,8 +25,8 @@ const projectAccessScopes = (project: SimulationProject) =>
   project.access
     ? projectAccessLevelScopes[project.access.level]
     : project.canUserEdit
-    ? projectAccessLevelScopes.Write
-    : projectAccessLevelScopes.Read;
+      ? projectAccessLevelScopes.Write
+      : projectAccessLevelScopes.Read;
 
 const projectEditable = (project?: SimulationProject | null) =>
   project
@@ -35,7 +35,7 @@ const projectEditable = (project?: SimulationProject | null) =>
 
 const loggedInOrEditable = (
   loggedIn: boolean,
-  project: SimulationProject | null | undefined
+  project: SimulationProject | null | undefined,
 ) => {
   const editable = projectEditable(project);
 
@@ -45,11 +45,11 @@ const loggedInOrEditable = (
 const helpers = (() => {
   const selectLoggedIn = createSelector(
     selectUserSlice,
-    (user) => user.isLoggedIn
+    (user) => user.isLoggedIn,
   );
 
   const selectAccessScopes = createSelector(selectCurrentProject, (project) =>
-    project ? projectAccessScopes(project) : null
+    project ? projectAccessScopes(project) : null,
   );
 
   return {
@@ -61,25 +61,25 @@ const helpers = (() => {
       [selectCurrentFile, selectLoggedIn, selectCurrentProject],
       (currentFile, loggedIn, project) =>
         !!currentFile &&
-        !isReadOnly(currentFile, loggedInOrEditable(loggedIn, project))
+        !isReadOnly(currentFile, loggedInOrEditable(loggedIn, project)),
     ),
 
     projectEditable: createSelector([selectCurrentProject], projectEditable),
 
     projectLatest: createSelector(
       [selectCurrentProject],
-      (project) => !!project && isProjectLatest(project)
+      (project) => !!project && isProjectLatest(project),
     ),
 
     projectWithoutAccess: createSelector(
       [selectHasProject, selectProjectAccess],
-      (hasProject, access) => hasProject && !access
+      (hasProject, access) => hasProject && !access,
     ),
 
     projectWithoutEmbedOnlyAccess: createSelector(
       [selectHasProject, selectAccessScopes],
       (hasProject, scopes) =>
-        hasProject && (scopes?.includes(ProjectAccessScope.Read) ?? false)
+        hasProject && (scopes?.includes(ProjectAccessScope.Read) ?? false),
     ),
   };
 })();
@@ -196,28 +196,26 @@ type ScopeSelectorOrAlias = ScopeSelector | Scope;
 
 type ScopeSelectorList = ScopeSelectorOrAlias[];
 
-const createSelectorForSelectorChain = <T>(
+const createSelectorForSelectorChain = <T extends object>(
   selectorChain: ScopeSelectorList,
-  existingSelectors: T
+  existingSelectors: T,
 ): ScopeSelector =>
   createSelector(
-    selectorChain.map(
-      (selector): ScopeSelector => {
-        if (typeof selector === "function") {
-          return selector;
-        } else if (
-          typeof selector === "string" &&
-          selector in existingSelectors
-        ) {
-          return (existingSelectors as any)[selector];
-        }
-
-        throw new Error(
-          "Attempting to use scope as an alias for a selector before it has been defined defined"
-        );
+    selectorChain.map((selector): ScopeSelector => {
+      if (typeof selector === "function") {
+        return selector;
+      } else if (
+        typeof selector === "string" &&
+        selector in existingSelectors
+      ) {
+        return (existingSelectors as any)[selector];
       }
-    ),
-    (...results) => results.every((result) => result)
+
+      throw new Error(
+        "Attempting to use scope as an alias for a selector before it has been defined defined",
+      );
+    }),
+    (...results) => results.every((result) => result),
   );
 
 /**
@@ -230,22 +228,22 @@ export const batchedScopes = (() => {
   /**
    * @todo look into executing these separately
    */
-  const scopesForProject = (loggedIn: boolean, editorVisible: boolean) => (
-    project: SimulationProject | null | undefined
-  ) => ({
-    [Scope.edit]: loggedInOrEditable(loggedIn, project) && editorVisible,
-    [Scope.mutate]: projectEditable(project),
-  });
+  const scopesForProject =
+    (loggedIn: boolean, editorVisible: boolean) =>
+    (project: SimulationProject | null | undefined) => ({
+      [Scope.edit]: loggedInOrEditable(loggedIn, project) && editorVisible,
+      [Scope.mutate]: projectEditable(project),
+    });
 
   const selectScopes = createSelector(
     [helpers.loggedIn, selectEditorVisible],
-    scopesForProject
+    scopesForProject,
   );
 
   const selectScopesForCurrentProject = createSelector(
     [selectScopes, selectCurrentProject],
     (selectScopesForProject, currentProject) =>
-      selectScopesForProject(currentProject)
+      selectScopesForProject(currentProject),
   );
 
   const makeSelectScope = (scope: Scope.edit | Scope.mutate) =>
@@ -334,16 +332,14 @@ const scopeEntries = Object.entries(scopes) as [Scope, ScopeSelectorList][];
 export const selectScope: Record<Scope, ScopeSelector> = scopeEntries.reduce(
   <T, S extends Scope>(
     existingSelectors: T,
-    [scope, selectorChain]: [S, ScopeSelectorList]
+    [scope, selectorChain]: [S, ScopeSelectorList],
   ): T & { [key in S]: ScopeSelector } =>
     ({
       ...existingSelectors,
-      [scope as S]: createSelectorForSelectorChain(
-        selectorChain,
-        existingSelectors
-      ),
-    } as any),
-  {} as any
+      //@ts-expect-error Genuine type error here, please fix.
+      [scope]: createSelectorForSelectorChain(selectorChain, existingSelectors),
+    }) as any,
+  {} as any,
 );
 
 /**
@@ -352,7 +348,7 @@ export const selectScope: Record<Scope, ScopeSelector> = scopeEntries.reduce(
  */
 const selectVisualGlobalsVisibleOverwrite = createSelector(
   [selectScope[Scope.edit]],
-  (canEdit) => !canEdit
+  (canEdit) => !canEdit,
 );
 
 /**
@@ -361,7 +357,7 @@ const selectVisualGlobalsVisibleOverwrite = createSelector(
  */
 export const selectVisualGlobalsVisible = createSelector(
   [selectVisualGlobalsVisibleOverwrite, selectFilesSlice],
-  (visible, filesSlice) => visible || filesSlice.visualGlobals
+  (visible, filesSlice) => visible || filesSlice.visualGlobals,
 );
 
 /**
@@ -370,7 +366,7 @@ export const selectVisualGlobalsVisible = createSelector(
  */
 export const selectCanToggleVisualGlobals = createSelector(
   [selectVisualGlobalsVisibleOverwrite, selectCurrentFileId],
-  (visible, currentFileId) => !visible && currentFileId === globalsFileId
+  (visible, currentFileId) => !visible && currentFileId === globalsFileId,
 );
 
 /**
@@ -380,12 +376,12 @@ export const selectCanToggleVisualGlobals = createSelector(
 export const selectShouldShowExperimentsButton = createSelector(
   [selectEmbedded, selectScope[Scope.edit], selectExperiments],
   (embedded, canEdit, experiments) =>
-    !embedded && (canEdit || Object.keys(experiments ?? {}).length > 0)
+    !embedded && (canEdit || Object.keys(experiments ?? {}).length > 0),
 );
 
 export const useScope = (scope: Scope) => useSelector(selectScope[scope]);
 
-type FilterArrayKeys<Key> = Key extends keyof Array<any> ? never : Key;
+type FilterArrayKeys<Key> = Key extends keyof any[] ? never : Key;
 type ScopesReturn<T extends readonly Scope[]> = {
   [K in FilterArrayKeys<keyof T> as `can${Capitalize<T[K] & string>}`]: boolean;
 };
@@ -398,8 +394,8 @@ const makeSpecificSelectScopes = <T extends readonly Scope[]>(list: T) =>
         list.map((key, idx) => [
           `can${key.slice(0, 1).toUpperCase()}${key.slice(1)}`,
           results[idx],
-        ])
-      ) as ScopesReturn<T>
+        ]),
+      ) as ScopesReturn<T>,
   );
 
 /**

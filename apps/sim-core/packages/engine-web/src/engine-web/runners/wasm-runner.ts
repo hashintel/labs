@@ -36,7 +36,7 @@ export interface RunnerState {
 
 export const WasmRequestHandler = async (
   request: RunnerRequest,
-  runner: RunnerState
+  runner: RunnerState,
 ): Promise<RunnerStatus> => {
   let includeSteps = false;
 
@@ -51,7 +51,7 @@ export const WasmRequestHandler = async (
               numSteps: request.numSteps,
               includeSteps: request.includeSteps,
             },
-            runner
+            runner,
           );
           includeSteps = request.includeSteps;
         }
@@ -81,7 +81,7 @@ export const WasmRequestHandler = async (
     }
   } catch (err) {
     console.error("Failed handling request", err);
-    runner.runnerError = err;
+    runner.runnerError = err instanceof Error ? err : null;
   }
 
   if (runner.runnerError) {
@@ -98,8 +98,8 @@ export const WasmRequestHandler = async (
       JSON.stringify(
         runner.runnerError,
         // JSON.stringify doesn't work by default on error types – this makes it work
-        Object.getOwnPropertyNames(runner.runnerError)
-      )
+        Object.getOwnPropertyNames(runner.runnerError),
+      ),
     );
   }
 

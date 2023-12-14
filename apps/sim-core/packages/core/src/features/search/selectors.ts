@@ -8,5 +8,5 @@ export const selectSearch: Selector<RootState, SearchSlice> = (state) =>
 
 export const selectSearchOpen = createSelector(
   selectSearch,
-  (search) => search.open
+  (search) => search.open,
 );

@@ -21,7 +21,7 @@ export class JsCustomBehaviors {
       [cacheStep]: 0,
     };
     this.behaviors = behaviors.map(
-      (b) => new JsCustomBehavior(b, properties, datasets, this.agentCache)
+      (b) => new JsCustomBehavior(b, properties, datasets, this.agentCache),
     );
   }
 

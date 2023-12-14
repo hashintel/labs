@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import { Canvas } from "react-three-fiber";
 import * as THREE from "three";
 import { Json, SerializableAgentState } from "@hashintel/engine-web";
-import { Stats } from "drei";
+// import { Stats } from "@react-three/drei";
 import {
   useRecoilBridgeAcrossReactRoots_UNSTABLE,
   useRecoilCallback,
@@ -29,7 +29,7 @@ import "./AgentScene.css";
 // - https://threejs.org/examples/#webgl_trails
 // - https://github.com/mrdoob/three.js/blob/master/examples/webgl_buffergeometry_drawrange.html
 
-export type SimulationStepProps = {
+export interface SimulationStepProps {
   simulationRunId: string | undefined;
   properties: Json;
   simulationStep: SerializableAgentState[] | null;
@@ -37,7 +37,7 @@ export type SimulationStepProps = {
   visible: boolean;
   resetting: boolean;
   errored: boolean;
-};
+}
 
 THREE.Object3D.DefaultUp.set(0, 0, 1);
 
@@ -59,12 +59,12 @@ export const AgentScene = ({
   simulationRunId,
 }: SimulationStepProps) => {
   const [mappedTransitions, setMappedTransitions] = useRecoilState(
-    SceneState.MappedTransitions
+    SceneState.MappedTransitions,
   );
 
   // Stats element
-  const showStats = useRecoilValue(SceneState.StatsEnabled);
-  const statsContainerRef = useRef(null);
+  // const showStats = useRecoilValue(SceneState.StatsEnabled);
+  // const statsContainerRef = useRef(null);
 
   const updatesEnabled = useRecoilValue(SceneState.UpdatesEnabled);
   const edgesEnabled = useRecoilValue(SceneState.EdgesEnabled);
@@ -78,10 +78,7 @@ export const AgentScene = ({
    * whenever you want to schedule an update to the stage, and it'll wait until
    * the last update was done.
    */
-  const stageUpdateChainRef = useRef<Promise<unknown>>(null as any);
-  if (!stageUpdateChainRef.current) {
-    stageUpdateChainRef.current = Promise.resolve();
-  }
+  const stageUpdateChainRef = useRef<Promise<unknown>>(Promise.resolve());
 
   const { resetViewer, updateTransitionMap } = use3DViewer();
   useEffect(() => {
@@ -115,7 +112,7 @@ export const AgentScene = ({
           console.error(err);
         })
         .then(() =>
-          updateTransitionMap(mappedTransitions, simulationStep ?? [])
+          updateTransitionMap(mappedTransitions, simulationStep ?? []),
         );
     }
   }, [resetting, simulationStep, updateTransitionMap]);
@@ -135,13 +132,13 @@ export const AgentScene = ({
 
   return (
     <div className="AgentScene">
-      <div
+      {/* <div
         className="StatsContainer"
         hidden={!showStats}
         ref={statsContainerRef}
       >
         <Stats className={"StatsMonitor"} parent={statsContainerRef} />
-      </div>
+      </div> */}
 
       <Canvas
         /**
@@ -170,6 +167,8 @@ export const AgentScene = ({
         onCreated={({ gl }) => gl.setClearColor("#0e0d15")}
         invalidateFrameloop={!updatesEnabled}
       >
+        {/* eslint-disable react/no-unknown-property */}
+
         <RecoilBridge>
           <fog args={["white", 50000, 3000000]} attach="fog" />
           <ViewerControls
@@ -185,6 +184,7 @@ export const AgentScene = ({
           <AgentRenderer mappedTransitions={mappedTransitions} />
           <HoveredAgent transitions={mappedTransitions} />
         </RecoilBridge>
+        {/* eslint-disable react/no-unknown-property */}
       </Canvas>
       {!embedded && <SceneSettings />}
     </div>

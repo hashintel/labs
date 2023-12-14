@@ -17,7 +17,7 @@ import { PlotDataIsNotAnArrayWarning } from "./errors";
 // TODO: fix types
 export const getUnusedOutputs = (
   outputs: Partial<Output>,
-  plots?: any
+  plots?: any,
 ): string[] => {
   const outputKeys = Object.keys(outputs);
   const usedKeys: string[] = [];
@@ -61,17 +61,17 @@ export const getUnusedOutputs = (
 
 export const allOutputsAreUsedInPlots = (
   outputs: Partial<Output>,
-  plots?: Partial<Plot>[]
+  plots?: Partial<Plot>[],
 ): boolean => getUnusedOutputs(outputs, plots).length === 0;
 
 export const doesOutputExist = (
   outputName?: string,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ): boolean => Object.keys(outputs ?? {}).includes(outputName ?? "");
 
 export const getClosestMatchingOutputName = (
   outputName: string,
-  outputs?: Partial<Output>
+  outputs?: Partial<Output>,
 ) => {
   if (!outputs) {
     return false;
@@ -98,7 +98,7 @@ export const getClosestMatchingOutputName = (
 
 export const getFirstGetOperation = (operations: any) => {
   const result: GetOperation[] = operations.filter(
-    (operation: GetOperation) => operation.op === GetOperator.get
+    (operation: GetOperation) => operation.op === GetOperator.get,
   );
   return result.length === 0 ? false : result[0];
 };
@@ -115,7 +115,7 @@ export const isAnAggregationOperation = (op?: Partial<OutputOperation>) => {
 };
 
 export const isASingleStepAggregationOperation = (
-  op: Partial<OutputOperation>
+  op: Partial<OutputOperation>,
 ) => isAnAggregationOperation(op) || op.op === CountOperator.count;
 
 export const getExtraFields = (allProps: string[], validFields: string[]) =>
@@ -123,17 +123,17 @@ export const getExtraFields = (allProps: string[], validFields: string[]) =>
 
 export const operationHasExtraFields = (
   operationKeys: string[],
-  requiredFields: string[]
+  requiredFields: string[],
 ) => getExtraFields(operationKeys, requiredFields).length > 0;
 
 export const getMissingFields = (
   allProps: string[],
-  requiredFields: string[]
+  requiredFields: string[],
 ) => difference(requiredFields, allProps);
 
 export const operationHasMissingFields = (
   allProps: string[],
-  requiredFields: string[]
+  requiredFields: string[],
 ) => getMissingFields(allProps, requiredFields).length > 0;
 
 export const isComplexValue = (input: any) => {
@@ -160,7 +160,7 @@ export const standardizePlot = (input: Plot) => {
     cleanPlot.type = "timeseries";
     const keys = Object.values(cleanPlot.timeseries);
     cleanPlot.data = keys.map((key) => ({ y: key, name: key }));
-    delete cleanPlot[`timeseries`];
+    delete cleanPlot.timeseries;
   }
   // if users provide an object for the data attribute, standardize it as an array
   if (cleanPlot.data && !Array.isArray(cleanPlot.data)) {
@@ -170,16 +170,13 @@ export const standardizePlot = (input: Plot) => {
 };
 
 export const getNonArrayPlotDataWarnings = (
-  plots?: Partial<Plot & (Chart | Timeseries)[]>
+  plots?: Partial<Plot & (Chart | Timeseries)[]>,
 ) =>
   Array.isArray(plots)
     ? plots
         .map((plot) => {
           if (plot?.data && !Array.isArray(plot?.data)) {
-            return (
-              // @ts-ignore
-              new PlotDataIsNotAnArrayWarning(plot.title, plot.data)
-            );
+            return new PlotDataIsNotAnArrayWarning(plots.title, plot.data);
           }
         })
         .filter((item) => item)

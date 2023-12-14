@@ -13,7 +13,7 @@ const makeSelectPlots = (simIds: string[]) =>
     const plots = simIds
       .map(
         (simId) =>
-          [simId, Object.values(data[simId].plots?.plots ?? {})] as const
+          [simId, Object.values(data[simId].plots?.plots ?? {})] as const,
       )
       .filter(([_, plots]) => plots?.length);
 

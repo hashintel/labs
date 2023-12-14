@@ -1,7 +1,7 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import { CanvasProps, useThree } from "react-three-fiber";
 import * as THREE from "three";
-import { MapControls, OrbitControls } from "drei";
+import { MapControls, OrbitControls } from "@react-three/drei";
 import { useRecoilValue } from "recoil";
 
 import * as sceneState from "../state/SceneState";
@@ -73,7 +73,7 @@ export const ViewerControls: FC<{
       camera.lookAt(0, 0, 0);
 
       // Flatten the camera
-      // @ts-ignore
+      // @ts-expect-error 'fov' does in fact exist.
       camera.fov = 1;
       camera.updateProjectionMatrix();
 
@@ -110,7 +110,7 @@ export const ViewerControls: FC<{
     const { pxMax, pxMin, pyMax, pyMin } = dimensions;
     const box = new THREE.Box3(
       new THREE.Vector3(pxMin, pyMin, 0),
-      new THREE.Vector3(pxMax, pyMax, 1)
+      new THREE.Vector3(pxMax, pyMax, 1),
     );
 
     const size = box.getSize(new THREE.Vector3());

@@ -55,15 +55,13 @@ test("random position", () => {
 
 test("normalize direction of [1,1]", () => {
   expect(normalizeVector(a.direction)).toEqual([
-    0.7071067811865475,
-    0.7071067811865475,
+    0.7071067811865475, 0.7071067811865475,
   ]);
 });
 
 test("normalize direction of [1,3]", () => {
   expect(normalizeVector(b.direction)).toEqual([
-    0.31622776601683794,
-    0.9486832980505138,
+    0.31622776601683794, 0.9486832980505138,
   ]);
 });
 
@@ -97,11 +95,11 @@ test("find neighbors within a radius of 3", () => {
 });
 
 test("find neighbors within a max radius of 4 and min radius of 3", () => {
+  expect(neighborsInRadius(ng, [na, nb, nc, nd, nf, nh, ni, nj], 4, 3)).toEqual(
+    [{ position: [3, 2, 0] }, { position: [3, 2, 2] }],
+  );
   expect(
-    neighborsInRadius(ng, [na, nb, nc, nd, nf, nh, ni, nj], 4, 3)
-  ).toEqual([{ position: [3, 2, 0] }, { position: [3, 2, 2] }]);
-  expect(
-    neighborsInRadius(ng, [na, nb, nc, nd, nf, nh, ni, nj], 4, 3, true)
+    neighborsInRadius(ng, [na, nb, nc, nd, nf, nh, ni, nj], 4, 3, true),
   ).toEqual([{ position: [3, 2, 2] }]);
 });
 
@@ -114,13 +112,13 @@ test("find neighbors in front of agent tests", () => {
     { position: [3, 2, 2] },
   ]),
     expect(
-      neighborsInFront(na, [nb, nc, ne, nf, ng, nh, nj, nk, nl], true)
+      neighborsInFront(na, [nb, nc, ne, nf, ng, nh, nj, nk, nl], true),
     ).toEqual([{ position: [3, 1, 0] }]),
     expect(
-      neighborsInFront(nl, [na, nb, nc, ne, nf, ng, nh, nj, nk], true)
+      neighborsInFront(nl, [na, nb, nc, ne, nf, ng, nh, nj, nk], true),
     ).toEqual([{ position: [3, 2, 2] }]),
     expect(
-      neighborsInFront(nb, [na, nc, ne, nf, ng, nh, nj, nk], true)
+      neighborsInFront(nb, [na, nc, ne, nf, ng, nh, nj, nk], true),
     ).toEqual([{ position: [2, 3, 0] }]);
 });
 
@@ -137,7 +135,7 @@ test("find neighbors located behind agent tests", () => {
       { position: [0, 1, 0] },
     ]);
   expect(
-    neighborsBehind(nl, [na, nb, nc, ne, ng, nh, nj, nm, nn], true)
+    neighborsBehind(nl, [na, nb, nc, ne, ng, nh, nj, nm, nn], true),
   ).toEqual([{ position: [0, -1, -1] }]);
 });
 
@@ -176,7 +174,7 @@ const scatterAgents = init.scatter(numAgents, initTopology, agent);
 const scatterAgentsFunction = init.scatter(
   numAgents,
   initTopology,
-  agentFunction
+  agentFunction,
 );
 function scatterTest(a: { [key: string]: any }) {
   expect(a.position[0]).toBeGreaterThanOrEqual(initTopology.x_bounds[0]);

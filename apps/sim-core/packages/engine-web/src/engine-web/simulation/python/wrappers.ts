@@ -51,7 +51,7 @@ export class PyContextWrapper {
     const ret = this.context
       ?.neighbors()
       .filter(
-        (neighbor) => neighbor.agent_id && ids.includes(neighbor.agent_id)
+        (neighbor) => neighbor.agent_id && ids.includes(neighbor.agent_id),
       )
       .map((n) => JSON.stringify(n));
     return ret;
@@ -63,7 +63,7 @@ export class PyContextWrapper {
       | undefined;
 
     return JSON.stringify(
-      neighbors?.find((neighbor) => neighbor.agent_id === id)?.[key]
+      neighbors?.find((neighbor) => neighbor.agent_id === id)?.[key],
     );
   }
 

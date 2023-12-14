@@ -15,7 +15,7 @@ it("renders without crashing", () => {
         files={[{ path: parse("@foo/bar/baz.js") } as HcSharedBehaviorFile]}
       />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

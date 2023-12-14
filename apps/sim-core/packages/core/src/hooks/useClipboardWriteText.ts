@@ -4,7 +4,7 @@ import { useCallback } from "react";
  * typescript thinks writeText is always defined and thinks this ternary is
  * unnecessary, but it's not because writeText is a relatively new API
  */
-// @ts-ignore
+// @ts-expect-error see above
 const clipboardPromise = navigator.clipboard?.writeText
   ? Promise.resolve(navigator.clipboard)
   : import(
@@ -15,5 +15,5 @@ export const useClipboardWriteText = () =>
   useCallback(
     (text: string) =>
       clipboardPromise.then((clipboard) => clipboard.writeText(text)),
-    []
+    [],
   );

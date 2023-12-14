@@ -17,7 +17,7 @@ export class WebWorkerRunner implements ExperimentRunner {
   worker: PromiseWorker;
 
   constructor(runnerId: string, fileName: string, devMode = false) {
-    this.rawWorker = new Worker(fileName, { name: runnerId });
+    this.rawWorker = new Worker(fileName, { name: runnerId, type: "module" });
     this.worker = new PromiseWorker(this.rawWorker);
   }
 

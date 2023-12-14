@@ -17,7 +17,7 @@ import { validateTitle } from "../../../features/analysis/validation";
 
 import "./ModalOutputMetrics.scss";
 
-type ModalOutputMetricsProps = {
+interface ModalOutputMetricsProps {
   onClose: VoidFunction;
   onSave: Function;
   onDelete?: Function;
@@ -25,12 +25,12 @@ type ModalOutputMetricsProps = {
   metricKey?: string;
   operations?: Operation[];
   isCreate?: boolean;
-};
+}
 
-type FormInputs = {
+interface FormInputs {
   title: string;
   operations: Operation[];
-};
+}
 
 export const defaultNewOperation: Operation = {
   op: OperationTypes.get,
@@ -79,7 +79,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
 
   const validate = () => {
     const validationResults = validateOutput(
-      currentOperations as OutputOperation[]
+      currentOperations as OutputOperation[],
     );
     if (
       validationResults instanceof Error ||
@@ -88,7 +88,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
       setValidationErrors(
         Array.isArray(validationResults)
           ? validationResults
-          : [validationResults]
+          : [validationResults],
       );
       return false;
     }
@@ -96,7 +96,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
     return true;
   };
 
-  const onSubmit = async (values: FormInputs) => {
+  const onSubmit = (values: FormInputs) => {
     const result = {
       ...values,
       operations: currentOperations,
@@ -128,7 +128,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
   const deleteOperationItem = (index: number) => {
     setIsFormDirty(true);
     setCurrentOperations(
-      currentOperations.filter((_val: Operation, idx: number) => idx !== index)
+      currentOperations.filter((_val: Operation, idx: number) => idx !== index),
     );
   };
   const updateOperationItem = (index: number, newValues: Operation) => {
@@ -157,7 +157,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
   const safeOnClose = useSafeOnClose(!isFormDirty, true, onClose);
   const localBehaviorKeys = useSelector(
     selectLocalBehaviorKeyFieldNames,
-    shallowEqual
+    shallowEqual,
   );
   const behaviorKeys = [...localBehaviorKeys, ...RESERVED_BUILT_IN_KEYS].sort();
   const behaviorKeysOptions: ReactSelectOption[] = behaviorKeys.map((key) => ({

@@ -19,12 +19,12 @@ export type ExperimentGroupSectionItemStatus =
  * @todo clean this up
  */
 export const collapseExperimentOrSimulationRunStatus = (
-  status: ExperimentRun["status"] | SimulationData["status"]
+  status: ExperimentRun["status"] | SimulationData["status"],
 ): ExperimentGroupSectionItemStatus =>
   status === "downloading"
     ? "downloading"
     : status === "queued"
-    ? "queued"
-    : status === "paused" || status === "stopping"
-    ? "running"
-    : status;
+      ? "queued"
+      : status === "paused" || status === "stopping"
+        ? "running"
+        : status;

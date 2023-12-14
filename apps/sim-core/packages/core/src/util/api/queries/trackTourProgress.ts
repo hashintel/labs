@@ -15,6 +15,6 @@ export const trackTourProgress = async (progress: TourProgress) =>
           }
         }
       `,
-      progress
+      progress,
     )
   ).updateMe.id;

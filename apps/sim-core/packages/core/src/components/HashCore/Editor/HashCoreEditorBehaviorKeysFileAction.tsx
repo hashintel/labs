@@ -22,7 +22,7 @@ export const HashCoreEditorBehaviorKeysFileAction = () => {
 
   return (
     <button
-      onClick={async (evt) => {
+      onClick={(evt) => {
         evt.preventDefault();
 
         dispatch(toggleBehaviorKeysEditor({ fileId: currentFile.id }));

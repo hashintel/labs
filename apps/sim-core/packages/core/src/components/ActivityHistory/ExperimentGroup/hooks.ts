@@ -33,7 +33,7 @@ const humanFileSize = (bytes: number, si = false, decimalPlaces = 1) => {
 const buildJsonString = async (
   steps: SimulationStates,
   stepCount: number,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) => {
   let str = "";
 
@@ -61,7 +61,7 @@ const defaultSteps = {};
 
 export const useFileSize = (
   experimentFinished: boolean,
-  run: SimulationData | null | undefined
+  run: SimulationData | null | undefined,
 ) => {
   const steps = run?.steps ?? defaultSteps;
   const stepCount = run?.stepsCount ?? 0;
@@ -71,7 +71,7 @@ export const useFileSize = (
     run?.status === "errored" && !viewable ? "N/A" : defaultSize;
 
   const [size, setSize] = useState<string>(
-    (canCalculateSize ? stepsMap.get(steps) : null) ?? currentDefaultSize
+    (canCalculateSize ? stepsMap.get(steps) : null) ?? currentDefaultSize,
   );
 
   useEffect(() => {
@@ -93,7 +93,7 @@ export const useFileSize = (
               const str = await buildJsonString(
                 steps,
                 stepCount,
-                controller.signal
+                controller.signal,
               );
 
               if (typeof str !== "string") {

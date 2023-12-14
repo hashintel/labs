@@ -7,7 +7,7 @@ import {
 } from "./FileNameWithShortnameInner";
 
 export const FileNameWithShortname: FC<FileNameWithShortnameProps> = (
-  props
+  props,
 ) => (
   <FileName>
     <FileNameWithShortnameInner {...props} />

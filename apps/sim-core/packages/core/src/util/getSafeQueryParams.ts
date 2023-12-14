@@ -1,7 +1,7 @@
 import { memoize } from "lodash";
 
 const memoizedSafeGetQueryParams = memoize((search: string) =>
-  Object.fromEntries(new URLSearchParams(search))
+  Object.fromEntries(new URLSearchParams(search)),
 );
 
 /**

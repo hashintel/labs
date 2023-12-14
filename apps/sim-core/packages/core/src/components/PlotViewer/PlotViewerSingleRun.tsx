@@ -27,7 +27,7 @@ export const PlotViewerSingleRun: FC<PlotViewerProps> = ({
 }) => {
   const runId = useSimulatorSelector(selectCurrentSimulationId);
   const { retentionPolicy } = useSimulatorSelector(
-    selectCurrentSimStepRetention
+    selectCurrentSimStepRetention,
   );
   const plots = usePlots()[runId];
 
@@ -77,9 +77,9 @@ export const PlotViewerSingleRun: FC<PlotViewerProps> = ({
             return null;
           }
           const definedKeys: string[] =
-            plot.definition.data?.map((item) => String(item.y)) || [];
+            plot.definition.data?.map((item) => String(item.y)) ?? [];
           const missingKeys: string[] = definedKeys?.filter(
-            (key) => !metricKeys.includes(key)
+            (key) => !metricKeys.includes(key),
           );
           return { plot, missingKeys };
         })
@@ -129,7 +129,7 @@ export const PlotViewerSingleRun: FC<PlotViewerProps> = ({
                     <ErrorNotification
                       plots={invalidPlots.filter(
                         (inv) =>
-                          inv?.plot.outputProps.key === plot.outputProps.key
+                          inv?.plot.outputProps.key === plot.outputProps.key,
                       )}
                     />
                   )}

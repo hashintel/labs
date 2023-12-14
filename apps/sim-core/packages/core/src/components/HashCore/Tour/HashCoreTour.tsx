@@ -47,9 +47,9 @@ const useTourPosition = (tour: Tour): [number, number, boolean] => {
   const [{ activeIdx, prevIdx, stepId }, update] = useReducer(
     <S extends { activeIdx: number; prevIdx: number; stepId: string | null }>(
       state: S,
-      action: S
+      action: S,
     ) => ({ ...state, ...action }),
-    { activeIdx: TOUR_HIDDEN_IDX, prevIdx: TOUR_HIDDEN_IDX, stepId: null }
+    { activeIdx: TOUR_HIDDEN_IDX, prevIdx: TOUR_HIDDEN_IDX, stepId: null },
   );
 
   const isVisible = activeIdx !== TOUR_HIDDEN_IDX;
@@ -110,10 +110,8 @@ const useAutoTriggerTour = (tour: Tour, isVisible: boolean) => {
   const projectLoaded = useSelector(selectProjectLoaded);
   const tourProgress = useSelector(selectTourProgress);
 
-  const [
-    { triggerTour, fromOnboardingRoute },
-    setQueryParams,
-  ] = useSafeQueryParams();
+  const [{ triggerTour, fromOnboardingRoute }, setQueryParams] =
+    useSafeQueryParams();
 
   const gettingStartedSim = useGettingStartedProject();
   const gettingStarted = [
@@ -188,12 +186,12 @@ const useSyncProgressBar = (activeIdx: number, prevIdx: number) => {
   useEffect(() => {
     document.documentElement.style.setProperty(
       "--tour-progress",
-      `${((activeIdx + 1) / steps.length) * 100}%`
+      `${((activeIdx + 1) / steps.length) * 100}%`,
     );
 
     document.documentElement.style.setProperty(
       "--tour-prev-progress",
-      `${((prevIdx + 1) / steps.length) * 100}%`
+      `${((prevIdx + 1) / steps.length) * 100}%`,
     );
   }, [activeIdx, prevIdx]);
 };
@@ -212,7 +210,7 @@ const useHashTourConfig = (isVisible: boolean): HashTourConfigContextType => {
             ...action,
           }
         : initialState,
-    initialState
+    initialState,
   );
 
   useEffect(() => {
@@ -233,14 +231,14 @@ const useHashTourConfig = (isVisible: boolean): HashTourConfigContextType => {
         shouldCenter,
       },
     }),
-    [shouldCenter, shouldShowBackdrop, tourShowcase, isVisible]
+    [shouldCenter, shouldShowBackdrop, tourShowcase, isVisible],
   );
 };
 
 const useIsCompleted = (
   tour: Tour,
   tourProgress: TourProgress | null,
-  activeIdx: number
+  activeIdx: number,
 ) => {
   const { completed = false } = tourProgress ?? {};
   const [isCompleted, setIsCompleted] = useState(completed);
@@ -264,7 +262,7 @@ const useTrackProgress = (
   tour: Tour,
   activeIdx: number,
   prevIdx: number,
-  isCompleted: boolean
+  isCompleted: boolean,
 ) => {
   const dispatch = useDispatch();
 
@@ -285,7 +283,7 @@ const useTrackProgress = (
         completed: isCompleted,
         version: VERSION,
         lastStepViewed,
-      })
+      }),
     );
   }, [activeIdx, dispatch, isCompleted, prevIdx, tour]);
 };
@@ -328,11 +326,11 @@ const TourWithBackdrop: FC = () => {
                     ref,
                   })}
                 />
-              )
+              ),
             )}
           </div>
         </>,
-        document.body
+        document.body,
       )}
       {steps.map((step, idx) => (
         <Fragment key={idx}>
@@ -343,7 +341,7 @@ const TourWithBackdrop: FC = () => {
                 {step.jsx}
               </>
             ) : null,
-            step.text
+            step.text,
           )}
         </Fragment>
       ))}

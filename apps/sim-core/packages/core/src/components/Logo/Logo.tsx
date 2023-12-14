@@ -4,12 +4,12 @@ import classNames from "classnames";
 
 import "./Logo.css";
 
-type LogoProps = {
+interface LogoProps {
   size?: number;
   logoSize?: number;
   textSize?: number;
   className?: string;
-};
+}
 
 export const Logo: FC<LogoProps> = ({
   size = 1,

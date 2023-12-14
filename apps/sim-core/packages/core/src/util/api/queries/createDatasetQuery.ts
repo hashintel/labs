@@ -3,7 +3,7 @@ import { query } from "../query";
 export const createDatasetQuery = async (
   projectPath: string,
   filename: string,
-  datasetName: string
+  datasetName: string,
 ) => {
   const { dataset, postForm } = (
     await query<{
@@ -44,7 +44,7 @@ export const createDatasetQuery = async (
         projectPath: projectPath,
         filename: filename,
         name: datasetName,
-      }
+      },
     )
   ).addDataset;
 

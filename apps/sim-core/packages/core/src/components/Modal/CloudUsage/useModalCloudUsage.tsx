@@ -6,7 +6,7 @@ import { ModalCloudUsage } from "./ModalCloudUsage";
 export const useModalCloudUsage = () => {
   const [showModal, hideModal] = useModal(
     () => <ModalCloudUsage onCancel={hideModal} />,
-    []
+    [],
   );
   return [showModal, hideModal];
 };

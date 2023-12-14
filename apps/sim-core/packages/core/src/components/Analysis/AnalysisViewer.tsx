@@ -37,10 +37,8 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
   const embedded = useSelector(selectEmbedded);
   const canEdit = useScope(Scope.edit);
 
-  const {
-    analysis: analysisString,
-    readonly: analysisReadOnly,
-  } = useAnalysisSrcForCurrentActivityItem();
+  const { analysis: analysisString, readonly: analysisReadOnly } =
+    useAnalysisSrcForCurrentActivityItem();
   const [analysisState, setAnalysis] = useParseAnalysis(analysisString);
 
   // @todo remove this any
@@ -48,7 +46,7 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
 
   // TODO: discuss if we also need the useCancellableDebounce trick here
 
-  const outputs = (analysis && analysis.outputs) || {};
+  const outputs = analysis?.outputs || {};
   const metricKeys = Object.keys(outputs);
   const analysisOutputMetricsDataAvailable = metricKeys.length > 0;
   const analysisPlotsDataAvailable = analysis?.plots?.length > 0;
@@ -56,8 +54,8 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
     ? 0
     : sum(
         analysis.plots.map((plot: Plot) =>
-          parseInt(plot.layout?.height?.replace?.("%", "") ?? 0, 10)
-        )
+          parseInt(plot.layout?.height?.replace?.("%", "") ?? 0, 10),
+        ),
       );
 
   // @todo collapse state
@@ -67,8 +65,8 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
   const currentTab = hasTouchedCurrentTab
     ? _currentTab
     : !embedded && analysisPlotsDataAvailable
-    ? 1
-    : 0;
+      ? 1
+      : 0;
 
   const onOutputMetricsModalSaveHandler = useCallback(
     (data: any, previousKey?: string) =>
@@ -80,7 +78,7 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
         data,
         previousKey,
       }),
-    [dispatch, setAnalysis, analysis, analysisString]
+    [dispatch, setAnalysis, analysis, analysisString],
   );
 
   const onOutputMetricsModalDeleteHandler = (keyToDelete: string) =>
@@ -111,7 +109,7 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
         dispatch,
         setAnalysis,
       }),
-    [analysis, analysisString, dispatch]
+    [analysis, analysisString, dispatch],
   );
 
   const onPlotsModalDeleteHandler = (indexToDelete: number) =>
@@ -132,7 +130,7 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
         existingMetricKeys={metricKeys}
       />
     ),
-    [metricKeys, onOutputMetricsModalSaveHandler]
+    [metricKeys, onOutputMetricsModalSaveHandler],
   );
 
   const [showPlotsModal, hidePlotsModal] = useModal(
@@ -145,38 +143,39 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
         combinedHeightOfAllPlots={combinedHeightOfAllPlots}
       />
     ),
-    [outputs, onPlotsModalSaveHandler, combinedHeightOfAllPlots]
+    [outputs, onPlotsModalSaveHandler, combinedHeightOfAllPlots],
   );
 
   const tabContainerWidthObserver = useResizeObserver(
     ({ width }) => {
       document.documentElement.style.setProperty(
         "--analysis-tab-container-width",
-        `${Math.floor(width)}px`
+        `${Math.floor(width)}px`,
       );
     },
-    { onObserve: null }
+    { onObserve: null },
   );
 
   useEffect(() => {
     if (analysisOutputMetricsDataAvailable && currentTab === 0 && !embedded) {
       const viewerSecondaryPane = document.querySelector<HTMLDivElement>(
-        ".HashCoreSection-splitter > .splitter-layout > .layout-pane:not(.layout-pane-primary)"
+        ".HashCoreSection-splitter > .splitter-layout > .layout-pane:not(.layout-pane-primary)",
       );
 
-      const analysisSecondaryPane = viewerSecondaryPane?.querySelector<HTMLDivElement>(
-        ".HashCoreViewer > .splitter-layout > .layout-pane:not(.layout-pane-primary)"
-      );
+      const analysisSecondaryPane =
+        viewerSecondaryPane?.querySelector<HTMLDivElement>(
+          ".HashCoreViewer > .splitter-layout > .layout-pane:not(.layout-pane-primary)",
+        );
 
       viewerSecondaryPane?.classList.add("AnalysisViewerSplitterController");
       viewerSecondaryPane?.style.setProperty(
         "--avsc-analysis-width",
-        `${analysisSecondaryPane?.getBoundingClientRect().width ?? 0}px`
+        `${analysisSecondaryPane?.getBoundingClientRect().width ?? 0}px`,
       );
 
       return () => {
         viewerSecondaryPane?.classList.remove(
-          "AnalysisViewerSplitterController"
+          "AnalysisViewerSplitterController",
         );
         viewerSecondaryPane?.style.removeProperty("--avsc-analysis-width");
       };
@@ -223,7 +222,8 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
               AnalysisViewer__TabPanel: true,
               "react-tabs__tab-panel--selected": true,
               AnalysisViewer__LoggedOut: true,
-              "AnalysisViewer__TabPanel__Plots--nodata": !analysisPlotsDataAvailable,
+              "AnalysisViewer__TabPanel__Plots--nodata":
+                !analysisPlotsDataAvailable,
             })}
           >
             {plotsTab}
@@ -269,7 +269,8 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
         <TabPanel
           className={classNames({
             AnalysisViewer__TabPanel: true,
-            "AnalysisViewer__TabPanel--nodata": !analysisOutputMetricsDataAvailable,
+            "AnalysisViewer__TabPanel--nodata":
+              !analysisOutputMetricsDataAvailable,
           })}
         >
           <OutputMetricsTab

@@ -8,7 +8,7 @@ export enum DatasetFormat {
 
 export const datasetFormat = (
   ext: string,
-  rawCsv: boolean | undefined
+  rawCsv: boolean | undefined,
 ): DatasetFormat | null => {
   switch (ext) {
     case ".json":
@@ -38,7 +38,7 @@ export async function fetchDataset(
   url: string,
   format: DatasetFormat,
   inPlaceData: string | null,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<string | any[][]> {
   let responseText = null;
   if (inPlaceData) {
@@ -55,7 +55,7 @@ export async function fetchDataset(
 
     if (!response.ok) {
       throw new DatasetRequestError(
-        `${response.status}: ${response.statusText}`
+        `${response.status}: ${response.statusText}`,
       );
     }
 

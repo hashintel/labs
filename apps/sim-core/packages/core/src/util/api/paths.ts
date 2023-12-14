@@ -11,10 +11,9 @@ export const IS_STAGING =
 export const IS_LOCAL = process.env.NODE_ENV !== "production";
 
 export const SITE_URL = "http://localhost:8080";
-export const API_LOGIN_URL =
-  typeof LOCAL_API !== "undefined" && LOCAL_API
-    ? "http://localhost:5000"
-    : "https://api.hash.ai";
+
+export const API_LOGIN_URL = "http://localhost:5000";
+
 export const API_URL = urljoin(API_LOGIN_URL, "graphql");
 
 export const ACCOUNT_URL = urljoin(SITE_URL, "account");

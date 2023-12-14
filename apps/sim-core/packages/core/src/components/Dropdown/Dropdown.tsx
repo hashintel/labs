@@ -12,7 +12,7 @@ import "./Dropdown.scss";
 const caseInsensitiveIsValidNewOption = (
   inputValue: string,
   _selectValue: ReactSelectOption[],
-  selectOptions: ReactSelectOption[]
+  selectOptions: ReactSelectOption[],
 ) => {
   const exactValueExists = selectOptions.find((el) => el.value === inputValue);
   // Without this, it will show create option for empty values.
@@ -62,7 +62,7 @@ export const Dropdown: FC<DropdownProps> = ({
   const handleSearchInput = (inputValue: string, { action }: any) => {
     if (action === "input-change") {
       let foundOptions = options.filter((option) =>
-        option.label.toLowerCase().includes(inputValue.toLowerCase())
+        option.label.toLowerCase().includes(inputValue.toLowerCase()),
       );
       if (inputValue !== "") {
         foundOptions = foundOptions.sort((a, b) => {

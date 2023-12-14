@@ -4,7 +4,7 @@ import type { FilePathParts, ParsedPath } from "./types";
 /**
  * @todo can probably generate this
  */
-const extByMatch: { [match: string]: Ext } = {
+const extByMatch: Record<string, Ext> = {
   ".bpmn": Ext.Bpmn,
   ".csv": Ext.Csv,
   ".csv.json": Ext.CsvJson,
@@ -21,7 +21,7 @@ const extByMatch: { [match: string]: Ext } = {
   ".txt": Ext.Txt,
 };
 
-export const extByName: { [name: string]: Ext } = {
+export const extByName: Record<string, Ext> = {
   README: Ext.Md,
   init: Ext.Json,
   globals: Ext.Json,
@@ -31,7 +31,7 @@ export const extByName: { [name: string]: Ext } = {
   loading: Ext.Txt,
 };
 
-export const nameByMatch: { [match: string]: string } = {
+export const nameByMatch: Record<string, string> = {
   description: "README",
   initialState: "init",
   properties: "globals",

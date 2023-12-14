@@ -15,11 +15,11 @@ const licenceToOption: FunctionN<[License], ReactSelectOption> = ({
 
 export const useLicenses = (
   licenses?: License[],
-  setDefaultLicense?: Pick<License, "id"> | null
+  setDefaultLicense?: Pick<License, "id"> | null,
 ): [
   ReactSelectOption[],
   ReactSelectOption,
-  (option: ReactSelectOption) => void
+  (option: ReactSelectOption) => void,
 ] => {
   const options = licenses?.map(licenceToOption) ?? [];
   const defaultLicense =

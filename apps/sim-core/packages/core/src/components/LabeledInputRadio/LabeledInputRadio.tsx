@@ -3,14 +3,14 @@ import classNames from "classnames";
 
 import "./LabeledInputRadio.css";
 
-type LabeledInputRadioProps = {
+interface LabeledInputRadioProps {
   label: string;
   group: string;
   isChecked: (htmlFor: string) => boolean;
   onClick?: (event: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnter?: (event: MouseEvent<HTMLLabelElement>) => void;
   disabled?: boolean;
-};
+}
 
 export const LabeledInputRadio: FC<LabeledInputRadioProps> = ({
   label,

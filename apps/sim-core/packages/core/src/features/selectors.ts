@@ -20,7 +20,7 @@ export const selectDefaultLinkableProject = createSelector(
           ref: userProjects.length ? "main" : project.ref,
         }
       : null;
-  }
+  },
 );
 
 export const selectDisplayEditorSection = createSelector(
@@ -44,5 +44,5 @@ export const selectDisplayEditorSection = createSelector(
     } catch (err) {
       return true;
     }
-  }
+  },
 );

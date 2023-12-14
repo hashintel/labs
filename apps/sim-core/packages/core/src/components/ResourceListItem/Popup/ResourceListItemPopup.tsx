@@ -22,13 +22,13 @@ import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObs
 
 import "./ResourceListItemPopup.css";
 
-type ResourceListItemPopupProps = {
+interface ResourceListItemPopupProps {
   position: Position;
   targetRect: ClientRect;
   popoverRect: ClientRect;
   resource: ResourceProject;
   presentItems: string[];
-};
+}
 
 const style = { opacity: "0.95" };
 
@@ -60,11 +60,11 @@ const useRepositionPopoverOnElementResize = () =>
        */
       scrollBy(0, 1);
 
-      setImmediate(() => {
+      setTimeout(() => {
         scrollBy(0, -1);
       });
     },
-    { onObserve: null }
+    { onObserve: null },
   );
 
 const infoTextByType: { [type in ResourceProjectType]: string } = {
@@ -92,7 +92,7 @@ export function linkShortnames(text?: string): string {
 
   for (let idx = 1; idx < parts.length; idx += 2) {
     parts[idx] = ` [${parts[idx].slice(1)}](https://hash.ai/${parts[idx].slice(
-      1
+      1,
     )})`;
   }
   return parts.join("");
@@ -106,11 +106,9 @@ const ResourceMarkdownDescription: FC<{
   description: string;
   trusted: boolean;
 }> = ({ description, trusted }) => (
-  <ReactMarkdown
-    children={linkShortnames(description)}
-    skipHtml={!trusted}
-    linkTarget="_blank noreferrer noopener"
-  />
+  <ReactMarkdown skipHtml={!trusted} linkTarget="_blank noreferrer noopener">
+    {linkShortnames(description)}
+  </ReactMarkdown>
 );
 
 export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
@@ -125,7 +123,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
   const [deselectedItems, setDeselectedItems] = useState<string[]>([]);
 
   const selectableItems = resource.files.filter(
-    (file) => !presentItems.includes(file.path.formatted)
+    (file) => !presentItems.includes(file.path.formatted),
   );
   const selectableItemsCount = selectableItems.length;
   const addButtonDisabled = deselectedItems.length === selectableItemsCount;
@@ -144,7 +142,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
           trackEvent({
             action: "Import Dataset",
             label: `${resource.name} - ${resource.pathWithNamespace}`,
-          })
+          }),
         );
 
         break;
@@ -153,7 +151,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
           trackEvent({
             action: "Import Behavior",
             label: `${resource.name} - ${resource.pathWithNamespace}`,
-          })
+          }),
         );
         break;
     }
@@ -165,11 +163,11 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
             .filter(
               (files) =>
                 !deselectedItems.includes(files.path.formatted) &&
-                !presentItems.includes(files.path.formatted)
+                !presentItems.includes(files.path.formatted),
             )
-            .map((item) => [item.path.formatted, tag])
-        )
-      )
+            .map((item) => [item.path.formatted, tag]),
+        ),
+      ),
     );
   };
 
@@ -213,7 +211,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
               deselectedItems={deselectedItems}
               onDeselectAllItems={() => {
                 setDeselectedItems(
-                  selectableItems.map((item) => item.path.formatted)
+                  selectableItems.map((item) => item.path.formatted),
                 );
               }}
               onDeselectItem={(itemId: string) => {
@@ -224,7 +222,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
               }}
               onSelectItem={(itemPath: string) => {
                 setDeselectedItems(
-                  deselectedItems.filter((path) => path !== itemPath)
+                  deselectedItems.filter((path) => path !== itemPath),
                 );
               }}
               presentItems={presentItems}
@@ -254,6 +252,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
                         <a
                           href={`${SITE_URL}/schemas/${subject.name}`}
                           target="_blank"
+                          rel="noreferrer"
                         >
                           {subject.name}
                         </a>

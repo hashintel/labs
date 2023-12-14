@@ -20,13 +20,13 @@ export interface Pyodide {
   loadPackage(
     names: string | string[],
     messageCallback?: MessageCallback,
-    errorCallback?: ErrorCallback
+    errorCallback?: ErrorCallback,
   ): Promise<void>;
 
   loadPackagesFromImports(
     code: string,
     messageCallback?: MessageCallback,
-    errorCallback?: ErrorCallback
+    errorCallback?: ErrorCallback,
   ): Promise<void>;
 
   loadedPackages: object;
@@ -36,7 +36,7 @@ export interface Pyodide {
   runPythonAsync(
     script: string,
     messageCallback?: MessageCallback,
-    errorCallback?: ErrorCallback
+    errorCallback?: ErrorCallback,
   ): Promise<any>;
 
   registerJsModule(name: string, module: object): void;

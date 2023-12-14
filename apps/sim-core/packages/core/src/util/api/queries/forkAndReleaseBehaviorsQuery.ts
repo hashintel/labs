@@ -1,5 +1,5 @@
 import { FilesFragment } from "./unpreparedProjectByPath";
-import { ForkAndReleaseBehaviorsMutation } from "../auto-types";
+import { ForkAndReleaseBehaviorsMutation } from "../types";
 import { ProjectVisibility } from "../../../features/project/types";
 import { query } from "../query";
 import { toHcFiles } from "../../../features/files/utils";

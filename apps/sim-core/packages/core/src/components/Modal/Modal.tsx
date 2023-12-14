@@ -9,7 +9,7 @@ import classNames from "classnames";
 
 import "./Modal.css";
 
-export type ModalProps = {
+export interface ModalProps {
   onClose?: () => void;
   modalClassName?: string;
   backdropClassName?: string;
@@ -18,7 +18,7 @@ export type ModalProps = {
   containerClassName?: string;
   children?: ReactNode | null;
   onClick?: HTMLProps<HTMLDivElement>["onClick"];
-};
+}
 
 export const Modal = forwardRef<HTMLDivElement, ModalProps>(
   (
@@ -32,17 +32,16 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
       containerClassName,
       onClick,
     },
-    ref
+    ref,
   ) => {
+    function handler(evt: KeyboardEvent) {
+      if (evt.key === "Escape") {
+        evt.preventDefault();
+        onClose?.();
+      }
+    }
     useEffect(() => {
       if (esc) {
-        function handler(evt: KeyboardEvent) {
-          if (evt.key === "Escape") {
-            evt.preventDefault();
-            onClose?.();
-          }
-        }
-
         window.addEventListener("keydown", handler);
 
         return () => {
@@ -81,5 +80,5 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
         <div className={`Modal-backdrop ${backdropClassName}`} />
       </>
     );
-  }
+  },
 );

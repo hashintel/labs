@@ -1,10 +1,7 @@
-import urljoin from "url-join";
-
 import { IS_DEV } from "../../../util/api";
 import { SimulationProvider } from "./provider";
 import { getLocalStorageSimulatorTarget } from "./target";
-
-const workerUrl = urljoin(WEBPACK_PUBLIC_PATH, "simulationworker.js");
+import workerUrl from "../../../workers/simulation-worker/index?worker&url";
 
 /**
  * This "magic number" might need to be more sophisticated as time goes on
@@ -21,7 +18,7 @@ const numThreads = (window.navigator.hardwareConcurrency ?? 4) + 1;
  * Spin up a new simulation provider and then dispatch an update to the Ui
  */
 export const simulationProvider = new SimulationProvider(
-  getLocalStorageSimulatorTarget()
+  getLocalStorageSimulatorTarget(),
 );
 
 /**

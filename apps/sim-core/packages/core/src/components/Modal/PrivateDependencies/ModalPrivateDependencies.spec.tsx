@@ -10,13 +10,14 @@ import { store } from "../../../features/store";
 it("renders without crashing", () => {
   const div = document.createElement("div");
 
+  //@ts-expect-error redux problems
   store.dispatch(setProjectWithMeta(mockProject));
 
   ReactDOM.render(
     <Provider store={store}>
       <ModalPrivateDependencies onClose={() => {}} />
     </Provider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

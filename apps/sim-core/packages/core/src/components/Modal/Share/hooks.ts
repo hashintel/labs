@@ -12,7 +12,7 @@ import { requestPrivateProjectAccessCode } from "../../../util/api/queries/reque
 export const useSelectableRelease = (
   project: LinkableProject,
   access: ProjectAccess,
-  onError?: VoidFunction
+  onError?: VoidFunction,
 ) => {
   const [reducerState, dispatch] = useReducer(
     (
@@ -24,7 +24,7 @@ export const useSelectableRelease = (
       },
       action:
         | { type: "RESULTS"; payload: string[] }
-        | { type: "CHOOSE"; payload: string }
+        | { type: "CHOOSE"; payload: string },
     ) => {
       switch (action.type) {
         case "RESULTS":
@@ -48,7 +48,7 @@ export const useSelectableRelease = (
       releases: [] as string[],
       selectedRelease: "stable",
       hasReleases: false,
-    }
+    },
   );
 
   const onErrorRef = useRef(onError);
@@ -65,11 +65,11 @@ export const useSelectableRelease = (
           project.pathWithNamespace,
           project.ref,
           access?.code,
-          abortController.signal
+          abortController.signal,
         );
         dispatch({ type: "RESULTS", payload: releases });
       } catch (err) {
-        if (err?.name !== "AbortError") {
+        if (err instanceof Error && err?.name !== "AbortError") {
           console.error(err);
           onErrorRef.current?.();
         }
@@ -92,14 +92,14 @@ export const useSelectableRelease = (
 
 export const useRequestAccessCode = (
   project: SimulationProject,
-  level: ProjectAccessCodeAccessType
+  level: ProjectAccessCodeAccessType,
 ) => {
   const [{ accessCode, requesting }, accessCodeDispatch] = useReducer(
     (
       state: { accessCode: string | null; requesting: boolean },
       action:
         | { type: "requesting" }
-        | { type: "requested"; result: string | null }
+        | { type: "requested"; result: string | null },
     ) => {
       switch (action.type) {
         case "requesting":
@@ -111,7 +111,7 @@ export const useRequestAccessCode = (
     {
       accessCode: project.access?.code ?? null,
       requesting: false,
-    }
+    },
   );
 
   if (project.access?.code && !accessCode) {

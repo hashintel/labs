@@ -1,4 +1,2 @@
 coverage
-
-# auto-generated types for API queries
-src/util/api/auto-types.ts
+dist

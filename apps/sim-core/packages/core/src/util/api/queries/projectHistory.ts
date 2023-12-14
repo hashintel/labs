@@ -4,7 +4,7 @@ import {
   ProjectHistoryItemType,
   ProjectHistoryQueryVariables,
   ProjectHistoryReturn,
-} from "../auto-types";
+} from "../types";
 import {
   LinkableProject,
   ReleaseDescription,
@@ -23,7 +23,9 @@ export type ProjectHistoryItemItem =
   | CommitGroup
   | APIExperimentRun;
 
-type ProjectHistoryItemShared = { createdAt: string };
+interface ProjectHistoryItemShared {
+  createdAt: string;
+}
 
 export type ProjectHistoryItemExperimentRun = ProjectHistoryItemShared & {
   itemType: ProjectHistoryItemType.ExperimentRun;
@@ -115,7 +117,7 @@ export const projectHistory = async (
   pageToCurrent: boolean,
   createdBefore?: string | null,
   accessCode?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) =>
   (
     await query<
@@ -131,6 +133,6 @@ export const projectHistory = async (
         createdBefore,
         pageToCurrent,
       },
-      signal
+      signal,
     )
   ).project.history;

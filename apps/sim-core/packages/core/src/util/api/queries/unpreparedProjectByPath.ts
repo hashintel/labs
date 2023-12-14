@@ -1,4 +1,4 @@
-import { ProjectByPathQuery, ProjectByPathQueryVariables } from "../auto-types";
+import { ProjectByPathQuery, ProjectByPathQueryVariables } from "../types";
 import { query } from "../query";
 
 export const FilesFragment = /* GraphQL */ `
@@ -84,7 +84,7 @@ export const unpreparedProjectByPath = async (
   pathWithNamespace: string,
   version: string,
   accessCode?: string | undefined,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) => {
   const { project } = await query<
     ProjectByPathQuery,

@@ -2,7 +2,6 @@ import {
   AnyAction,
   createAction,
   createSlice,
-  current,
   Draft,
   EntityId,
   freeze,
@@ -16,10 +15,9 @@ import {
   RunnerStatus,
   SimulationStates,
 } from "@hashintel/engine-web";
-import { addBreadcrumb } from "@sentry/browser";
 
 import { AnalysisMode } from "./enum";
-import { Commit, ProjectHistoryItemType } from "../../../util/api/auto-types";
+import { Commit, ProjectHistoryItemType } from "../../../util/api/types";
 import { CommitWithoutStats } from "../../../util/api/queries/commitActions";
 import {
   DEFAULT_STEPS_PER_SECOND,
@@ -88,7 +86,7 @@ const immutableSetters = {
    */
   cleanupAfterRemovingSimulation(
     state: SimulatorSlice,
-    id: string
+    id: string,
   ): SimulatorSlice {
     const currentSimulation =
       id === state.currentSimulation ? null : state.currentSimulation;
@@ -103,7 +101,7 @@ const immutableSetters = {
 
 const getCurrentSimFromState = (
   state: Draft<SimulatorSlice>,
-  errorMessage: string
+  errorMessage: string,
 ) => {
   if (
     !state.currentSimulation ||
@@ -117,7 +115,7 @@ const getCurrentSimFromState = (
 
 const sortSimulationIds = (
   state: SimulatorSlice | Draft<SimulatorSlice>,
-  experiment: ExperimentRun
+  experiment: ExperimentRun,
 ) =>
   [...experiment.simulationIds].sort((a, b) => {
     const firstRun = state.simulationData[a];
@@ -148,7 +146,7 @@ const setters = {
   setPresentingSim(
     state: Draft<SimulatorSlice>,
     sim: Draft<SimulationData>,
-    presenting: boolean
+    presenting: boolean,
   ) {
     sim.presenting = presenting;
   },
@@ -171,8 +169,8 @@ const setters = {
       state,
       getCurrentSimFromState(
         state,
-        "Cannot start presenting a non existent sim"
-      )
+        "Cannot start presenting a non existent sim",
+      ),
     );
   },
 
@@ -191,7 +189,10 @@ const setters = {
   stopPresentingCurrentSim(state: Draft<SimulatorSlice>) {
     setters.stopPresentingSim(
       state,
-      getCurrentSimFromState(state, "Cannot stop presenting a non existent sim")
+      getCurrentSimFromState(
+        state,
+        "Cannot stop presenting a non existent sim",
+      ),
     );
   },
 
@@ -200,7 +201,7 @@ const setters = {
     state: Draft<SimulatorSlice>,
     sim: Draft<SimulationData>,
     step: number | null,
-    pause = true
+    pause = true,
   ) {
     const maxStepIndex = sim.stepsCount - 1;
 
@@ -230,27 +231,27 @@ const setters = {
   setScrubbedStepCurrentSim(
     state: Draft<SimulatorSlice>,
     step: number | null,
-    pause = true
+    pause = true,
   ) {
     setters.setScrubbedStepSim(
       state,
       getCurrentSimFromState(
         state,
-        "Cannot set scrubbed step on non existent sim"
+        "Cannot set scrubbed step on non existent sim",
       ),
       step,
-      pause
+      pause,
     );
   },
 
   setScrubbedStepWithTrackingCurrentSim(
     state: Draft<SimulatorSlice>,
     step: number | null,
-    pause = true
+    pause = true,
   ) {
     const sim = getCurrentSimFromState(
       state,
-      "Cannot stop presenting a non existent sim"
+      "Cannot stop presenting a non existent sim",
     );
 
     setters.setScrubbedStepSim(
@@ -260,7 +261,7 @@ const setters = {
         (step >= sim.stepsCount - 1 && sim.mode === "computeAndPlayback")
         ? null
         : step,
-      pause
+      pause,
     );
   },
 
@@ -278,7 +279,7 @@ const setters = {
   setSimulationMode(
     state: Draft<SimulatorSlice>,
     sim: Draft<SimulationData>,
-    mode: SimulationData["mode"]
+    mode: SimulationData["mode"],
   ) {
     if (sim.mode === "historic") {
       throw new Error("Cannot set mode on a historic sim");
@@ -317,7 +318,7 @@ const setters = {
     state: Draft<SimulatorSlice>,
     simId: string | undefined | null,
     running: boolean,
-    speed?: number | "live"
+    speed?: number | "live",
   ) {
     if (!simId || !state.simulationData[simId]) {
       if (running) {
@@ -416,7 +417,7 @@ const { reducer, actions } = createSlice({
     incrementStep(state, action: PayloadAction<number>) {
       const sim = getCurrentSimFromState(
         state,
-        "Cannot increment a non existent sim"
+        "Cannot increment a non existent sim",
       );
 
       // @todo this will increment back to the start if we're currently live + handle that
@@ -432,7 +433,7 @@ const { reducer, actions } = createSlice({
     setPresentingSpeed(state, action: PayloadAction<number>) {
       const sim = getCurrentSimFromState(
         state,
-        "Cannot set presenting speed a non existent sim"
+        "Cannot set presenting speed a non existent sim",
       );
 
       sim.presentingSpeed = action.payload;
@@ -457,7 +458,7 @@ const { reducer, actions } = createSlice({
       if (action.payload?.speed !== undefined) {
         const sim = getCurrentSimFromState(
           state,
-          "Cannot set presenting speed on non-existent sim"
+          "Cannot set presenting speed on non-existent sim",
         );
         sim.presentingSpeed = action.payload.speed;
       }
@@ -465,13 +466,13 @@ const { reducer, actions } = createSlice({
 
     simulationRunFailed(
       state,
-      action: PayloadAction<{ simulationId: string; errorMessage: string }>
+      action: PayloadAction<{ simulationId: string; errorMessage: string }>,
     ) {
       const run = state.simulationData[action.payload.simulationId];
       if (run) {
         run.status = simulationErrorOrCompleteStatus(
           action.payload.errorMessage,
-          run as SimulationData
+          run as SimulationData,
         );
       }
     },
@@ -482,7 +483,7 @@ const { reducer, actions } = createSlice({
         simId: string;
         selected?: boolean;
         latest?: boolean;
-      }>
+      }>,
     ) {
       if (action.payload.selected ?? true) {
         // @todo there should be a separate action for toggling a selected sim
@@ -491,23 +492,6 @@ const { reducer, actions } = createSlice({
           state.analysisMode === AnalysisMode.SingleRun
             ? null
             : action.payload.simId;
-
-        const currentState = current(state);
-
-        /**
-         * @todo remove when sentry issue is solved
-         * @see https://sentry.io/organizations/hashintel/issues/2237610017
-         */
-        addBreadcrumb({
-          message: "Setting simulation as selected",
-          data: {
-            currentSimulation: currentState.currentSimulation,
-            analysisMode: currentState.analysisMode,
-            payloadSimId: action.payload.simId,
-            payloadLatest: action.payload.latest ?? false,
-            simId,
-          },
-        });
 
         state.currentSimulation = simId;
         state.analysisMode = simId ? AnalysisMode.SingleRun : null;
@@ -542,7 +526,7 @@ const { reducer, actions } = createSlice({
             delete state.simulationData[id];
             historyAdapter.removeOne(
               state.history,
-              getHistoryItemId.singleRun(sim)
+              getHistoryItemId.singleRun(sim),
             );
           } else {
             setters.stopPresentingSim(state, sim);
@@ -562,13 +546,13 @@ const { reducer, actions } = createSlice({
         running: boolean;
         simId?: string;
         speed?: number | "live";
-      }>
+      }>,
     ) {
       setters.setSimulationRunning(
         state,
         action.payload.simId ?? state.currentSimulation,
         action.payload.running,
-        action.payload.speed
+        action.payload.speed,
       );
     },
 
@@ -577,13 +561,13 @@ const { reducer, actions } = createSlice({
       action: PayloadAction<{
         simId?: string;
         speed?: number | "live";
-      }>
+      }>,
     ) {
       setters.setSimulationRunning(
         state,
         action.payload.simId ?? state.currentSimulation,
         true,
-        action.payload.speed
+        action.payload.speed,
       );
     },
 
@@ -594,12 +578,12 @@ const { reducer, actions } = createSlice({
             simId?: string;
           }
         | undefined
-      >
+      >,
     ) {
       setters.setSimulationRunning(
         state,
         action.payload?.simId ?? state.currentSimulation,
-        false
+        false,
       );
     },
 
@@ -620,7 +604,7 @@ const { reducer, actions } = createSlice({
     toggleCurrentSimulationMode(state) {
       const sim = getCurrentSimFromState(
         state,
-        "Cannot toggle mode on non existent sim"
+        "Cannot toggle mode on non existent sim",
       );
 
       if (sim.mode === "historic") {
@@ -630,17 +614,17 @@ const { reducer, actions } = createSlice({
       setters.setSimulationMode(
         state,
         sim,
-        sim.mode === "playback" ? "computeAndPlayback" : "playback"
+        sim.mode === "playback" ? "computeAndPlayback" : "playback",
       );
     },
 
     setSimulationStepRetention(
       state,
-      action: PayloadAction<SimulationData["stepRetention"]>
+      action: PayloadAction<SimulationData["stepRetention"]>,
     ) {
       const sim = getCurrentSimFromState(
         state,
-        "Cannot set step retention on non existent sim"
+        "Cannot set step retention on non existent sim",
       );
 
       const { retentionPolicy } = action.payload;
@@ -661,12 +645,12 @@ const { reducer, actions } = createSlice({
 
     removeSimulationData(state, action: PayloadAction<string>) {
       const id = action.payload;
-      if (state.simulationData.hasOwnProperty(id)) {
+      if (Object.prototype.hasOwnProperty.call(state.simulationData, id)) {
         const simulation = state.simulationData[id];
         delete state.simulationData[id];
         historyAdapter.removeOne(
           state.history,
-          getHistoryItemId.singleRun(simulation)
+          getHistoryItemId.singleRun(simulation),
         );
 
         const simActive = state.currentSimulation === id;
@@ -678,11 +662,14 @@ const { reducer, actions } = createSlice({
 
         if (
           simulation.experimentId &&
-          state.experimentRuns.hasOwnProperty(simulation.experimentId)
+          Object.prototype.hasOwnProperty.call(
+            state.experimentRuns,
+            simulation.experimentId,
+          )
         ) {
           const experiment = state.experimentRuns[simulation.experimentId];
           const nextSimIds = experiment.simulationIds.filter(
-            (simId) => simId !== id
+            (simId) => simId !== id,
           );
 
           const index = experiment.simulationIds.indexOf(id);
@@ -706,7 +693,7 @@ const { reducer, actions } = createSlice({
             delete state.experimentRuns[experiment.experimentId];
             historyAdapter.removeOne(
               state.history,
-              getHistoryItemId.experiment(experiment)
+              getHistoryItemId.experiment(experiment),
             );
 
             if (state.selectedExperimentId === experiment.experimentId) {
@@ -722,18 +709,18 @@ const { reducer, actions } = createSlice({
       action: PayloadAction<{
         history: ProjectHistoryReturnWithCustomItem;
         project: LinkableProject;
-      }>
+      }>,
     ) {
       const { history, project } = action.payload;
 
       const experiments = history.items.filter(
         (item): item is ProjectHistoryItemExperimentRun =>
-          item.itemType === ProjectHistoryItemType.ExperimentRun
+          item.itemType === ProjectHistoryItemType.ExperimentRun,
       );
 
       const releases = history.items.filter(
         (item): item is ProjectHistoryItemRelease =>
-          item.itemType === ProjectHistoryItemType.Release
+          item.itemType === ProjectHistoryItemType.Release,
       );
 
       historyAdapter.addMany(
@@ -744,13 +731,13 @@ const { reducer, actions } = createSlice({
             createdAt: new Date(release.createdAt).getTime(),
             item: { tag: release.item.tag },
             historyId: getHistoryItemId.release(release.item),
-          })
-        )
+          }),
+        ),
       );
 
       const commitGroups = history.items.filter(
         (item): item is ProjectHistoryItemCommitGroup =>
-          item.itemType === ProjectHistoryItemType.CommitGroup
+          item.itemType === ProjectHistoryItemType.CommitGroup,
       );
 
       const historyItemsForCommits = commitGroups.map(
@@ -759,14 +746,14 @@ const { reducer, actions } = createSlice({
           createdAt: new Date(commitGroup.createdAt).getTime(),
           item: { commits: commitGroup.item.commits },
           historyId: getHistoryItemId.commitGroup(commitGroup.item),
-        })
+        }),
       );
       historyAdapter.addMany(state.history, historyItemsForCommits);
 
       const groupForProjectRef = historyItemsForCommits.find((group) =>
         group.item.commits.some(
-          (commit) => commit.id === action.payload.project.ref
-        )
+          (commit) => commit.id === action.payload.project.ref,
+        ),
       );
 
       if (groupForProjectRef) {
@@ -777,7 +764,7 @@ const { reducer, actions } = createSlice({
       }
 
       const filteredExperiments = experiments.filter(
-        (item) => item.item.simulationRuns.length > 0
+        (item) => item.item.simulationRuns.length > 0,
       );
 
       if (project) {
@@ -792,8 +779,8 @@ const { reducer, actions } = createSlice({
                 id: item.item.id,
               },
               createdAt: new Date(item.item.createdAt).getTime(),
-            })
-          )
+            }),
+          ),
         );
 
         const filteredRuns = filteredExperiments.map((item) => item.item);
@@ -831,7 +818,9 @@ const { reducer, actions } = createSlice({
           }
 
           const statuses = new Set(
-            run.simulationRuns.map((run) => state.simulationData[run.id].status)
+            run.simulationRuns.map(
+              (run) => state.simulationData[run.id].status,
+            ),
           );
 
           const experimentRun: ExperimentRun = {
@@ -846,8 +835,8 @@ const { reducer, actions } = createSlice({
             status: statuses.has("errored")
               ? "errored"
               : statuses.has("running")
-              ? "running"
-              : "completed",
+                ? "running"
+                : "completed",
             definition: run.experimentSrc[run.name],
             simulationIds: run.simulationRuns.map((run) => run.id),
             plan: Object.fromEntries(
@@ -856,7 +845,7 @@ const { reducer, actions } = createSlice({
                 {
                   fields: sim.propertyValues,
                 },
-              ])
+              ]),
             ),
             startedTime,
           };
@@ -928,7 +917,7 @@ const { reducer, actions } = createSlice({
 
     commitCreated(
       state,
-      action: PayloadAction<{ commit: CommitWithoutStats; createdAt: number }>
+      action: PayloadAction<{ commit: CommitWithoutStats; createdAt: number }>,
     ) {
       const commit = action.payload.commit as Commit;
       const commitGroup: SimulatorHistoryItemCommitGroup["item"] = {
@@ -941,7 +930,7 @@ const { reducer, actions } = createSlice({
       if (existingGroup) {
         if (existingGroup.itemType !== SimulatorHistoryItemType.CommitGroup) {
           throw new Error(
-            "Cannot add commit to existing recents group as it is not a commit group"
+            "Cannot add commit to existing recents group as it is not a commit group",
           );
         }
 
@@ -977,7 +966,7 @@ const { reducer, actions } = createSlice({
 
     experimentSimulationsCreated(
       state,
-      action: PayloadAction<{ plan: ExperimentPlan; experimentId: string }>
+      action: PayloadAction<{ plan: ExperimentPlan; experimentId: string }>,
     ) {
       const { experimentId, plan } = action.payload;
 
@@ -1020,7 +1009,7 @@ const { reducer, actions } = createSlice({
 
     updatePendingExperimentTime(
       state,
-      action: PayloadAction<{ pendingId: string; time: number }>
+      action: PayloadAction<{ pendingId: string; time: number }>,
     ) {
       const pendingExperiment =
         state.pendingExperimentRuns[action.payload.pendingId];
@@ -1074,23 +1063,23 @@ export const {
 } = actions;
 
 export const experimentFinished = createAction<string>(
-  "simulator/experimentFinished"
+  "simulator/experimentFinished",
 );
 
 export const simulationRunStarted = createAction<string>(
-  "simulator/simulationRunStarted"
+  "simulator/simulationRunStarted",
 );
 
 export const simulationRunUpdated = createAction<RunnerStatus>(
-  "simulator/simulationRunUpdated"
+  "simulator/simulationRunUpdated",
 );
 
 export const removeExperiment = createAction<string>(
-  "simulator/removeExperiment"
+  "simulator/removeExperiment",
 );
 
 export const setSelectedExperiment = createAction<string | null>(
-  "simulator/setSelectedExperiment"
+  "simulator/setSelectedExperiment",
 );
 
 export const setSimulationStatus = createAction<{
@@ -1099,11 +1088,11 @@ export const setSimulationStatus = createAction<{
 }>("simulator/setSimulationStatus");
 
 export const addPendingExperiment = createAction<PendingExperimentRun>(
-  "simulator/addPendingExperiment"
+  "simulator/addPendingExperiment",
 );
 
 export const experimentFailed = createAction<string>(
-  "simulator/experimentFailed"
+  "simulator/experimentFailed",
 );
 
 export const initializeExperiment = createAction<{
@@ -1112,7 +1101,7 @@ export const initializeExperiment = createAction<{
 }>("simulator/initializeExperiment");
 
 export const showCollatedAnalysisForExperiment = createAction<string>(
-  "simulator/showCollatedAnalysisForExperiment"
+  "simulator/showCollatedAnalysisForExperiment",
 );
 
 export const prepareForNewProject = createAction<{
@@ -1142,12 +1131,12 @@ export const setSimulationAnalysis = createAction<{
 }>("simulator/setSimulationAnalysis");
 
 export const setAnalysisVisible = createAction<boolean>(
-  "simulator/setAnalysisVisible"
+  "simulator/setAnalysisVisible",
 );
 
 const simulationErrorOrCompleteStatus = (
   errorMessage: string,
-  run: SimulationData | null | undefined
+  run: SimulationData | null | undefined,
 ) =>
   // TODO: Don't know why errorMessage ends up being undefined in some cases.
   typeof errorMessage === "string" &&
@@ -1158,7 +1147,7 @@ const simulationErrorOrCompleteStatus = (
 
 const simulationStatus = (
   simData: SimulationData | null | undefined,
-  runner: RunnerStatus
+  runner: RunnerStatus,
 ): SimulationData["status"] => {
   const existingStatus = simData?.status;
 
@@ -1178,7 +1167,7 @@ const simulationStatus = (
 
   if (
     simData?.experimentId &&
-    (simData?.stepsCount > 0 || simData.analysis || simData.stepsLink)
+    (simData?.stepsCount > 0 || (simData.analysis ?? simData.stepsLink))
   ) {
     return "completed";
   }
@@ -1205,7 +1194,7 @@ const simulationStatus = (
  */
 export const simulationReducer: typeof reducer = (
   state: SimulatorSlice = initialSimulatorState,
-  action: AnyAction
+  action: AnyAction,
 ): SimulatorSlice => {
   if (experimentFinished.match(action)) {
     const experiment = state.experimentRuns[action.payload];
@@ -1326,7 +1315,7 @@ export const simulationReducer: typeof reducer = (
             if (focusedTab === TabKind.Analysis && simHasPlots) {
               retainFromStep = Math.min(
                 Object.keys(updatedSimData.plots?.rawOutputs ?? {}).length,
-                retainFromStep
+                retainFromStep,
               );
             }
 
@@ -1346,7 +1335,7 @@ export const simulationReducer: typeof reducer = (
                     ...updatedSimData.steps,
                     ...accumulatedSteps,
                   }
-                : accumulatedSteps!
+                : accumulatedSteps,
             );
           }
         }
@@ -1367,17 +1356,17 @@ export const simulationReducer: typeof reducer = (
               //    last tick given the playback speed, but weren't available
               const stepAfterDebtPaid = Math.min(
                 updatedSimData.stepsCount,
-                updatedSimData.scrubbedStep + updatedSimData.owedSteps
+                updatedSimData.scrubbedStep + updatedSimData.owedSteps,
               );
               updatedSimData.scrubbedStep = Math.max(
                 stepAfterDebtPaid,
-                stepDataAvailableFrom
+                stepDataAvailableFrom,
               );
               updatedSimData.owedSteps = 0;
             } else if (stepRetention.retentionPolicy === "some") {
               updatedSimData.scrubbedStep = Math.max(
                 updatedSimData.scrubbedStep,
-                stepDataAvailableFrom
+                stepDataAvailableFrom,
               );
             }
           } else {
@@ -1425,7 +1414,7 @@ export const simulationReducer: typeof reducer = (
 
           if (!updatedSimData.experimentId || !experiment) {
             throw new Error(
-              "Cannot find experiment to apply optimization result to"
+              "Cannot find experiment to apply optimization result to",
             );
           }
 
@@ -1491,7 +1480,7 @@ export const simulationReducer: typeof reducer = (
          */
         history: historyAdapter.removeOne(
           state.history,
-          getHistoryItemId.experiment(experiment)
+          getHistoryItemId.experiment(experiment),
         ),
       };
     }
@@ -1565,7 +1554,7 @@ export const simulationReducer: typeof reducer = (
 
     let newHistory = historyAdapter.removeOne(
       state.history,
-      getHistoryItemId.experiment(pendingExperiment)
+      getHistoryItemId.experiment(pendingExperiment),
     );
 
     newHistory = historyAdapter.addOne(newHistory, {
@@ -1632,7 +1621,7 @@ export const simulationReducer: typeof reducer = (
   } else if (showCollatedAnalysisForExperiment.match(action)) {
     if (!state.experimentRuns[action.payload]) {
       throw new Error(
-        "Cannot show collated plots for experiment which does not exist"
+        "Cannot show collated plots for experiment which does not exist",
       );
     }
 
@@ -1662,7 +1651,7 @@ export const simulationReducer: typeof reducer = (
     const experiment = state.experimentRuns[action.payload.experimentId];
     if (!experiment || !simData) {
       throw new Error(
-        "Cannot receive steps for experiment that does not exist"
+        "Cannot receive steps for experiment that does not exist",
       );
     }
 
@@ -1685,7 +1674,7 @@ export const simulationReducer: typeof reducer = (
 
     if (
       !experiment.simulationIds.some(
-        (id) => !newState.simulationData[id].stepsCount
+        (id) => !newState.simulationData[id].stepsCount,
       )
     ) {
       newState = {
@@ -1773,7 +1762,7 @@ export const simulationReducer: typeof reducer = (
 
           case SimulatorHistoryItemType.CommitGroup:
             return item.item.commits.some(
-              (commit) => commit.id === nextProject.ref
+              (commit) => commit.id === nextProject.ref,
             );
         }
 

@@ -16,6 +16,7 @@ export const HashRouter: FC = memo(function HashApp() {
   const routeEffect = useRouteEffect();
 
   useEffect(() => {
+    //@ts-expect-error redux problems
     handlePromiseRejection(dispatch(bootstrapApp()));
   }, [handlePromiseRejection, dispatch]);
 
@@ -31,7 +32,7 @@ export const HashRouter: FC = memo(function HashApp() {
   );
 });
 
-// // @ts-ignore
+// // @ts-expect-error
 // HashApp.whyDidYouRender = {
 //   customName: "HashApp"
 // };

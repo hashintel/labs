@@ -26,7 +26,7 @@ export const FancyAnchor: FC<FancyAnchorProps> = ({
 
   if (numChildren > 2) {
     throw new Error(
-      `FancyAnchor expected no more than 2 children, got ${numChildren}`
+      `FancyAnchor expected no more than 2 children, got ${numChildren}`,
     );
   }
 
@@ -35,7 +35,7 @@ export const FancyAnchor: FC<FancyAnchorProps> = ({
       {...props}
       className={classNames(
         `Fancy FancyAnchor Fancy-${theme} Fancy-${size}`,
-        className
+        className,
       )}
       style={{
         ...style,
