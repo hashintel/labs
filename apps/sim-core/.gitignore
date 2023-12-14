@@ -28,3 +28,4 @@ packages/hashai/.eslintcache
 
 #ts cache
 tsconfig.tsbuildinfo
+.vercel
