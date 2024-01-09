@@ -124,7 +124,12 @@ export const useImportFiles = () => {
     }
     const file = files[0];
 
-    if (file.type !== "application/zip") {
+    const zipMimeTypes = [
+      "application/zip",
+      "application/zip-compressed",
+      "application/x-zip-compressed",
+    ];
+    if (!zipMimeTypes.includes(file.type)) {
       throw "Please upload a .zip file";
     }
 
