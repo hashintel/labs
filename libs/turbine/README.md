@@ -57,3 +57,7 @@ replacement = "your-org"
 matches = "alice"
 replacement = "your-org"
 ```
+
+## Credit
+
+Developed by [Bilal Mahmoud](https://github.com/indietyp).
