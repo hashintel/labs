@@ -73,3 +73,7 @@ fn main() {
     ]);
 }
 ```
+
+## Credit
+
+Developed by [Bilal Mahmoud](https://github.com/indietyp).
