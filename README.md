@@ -25,6 +25,13 @@ The [HASH] app seeks to enable its users to make better decisions by utilizing a
 - [`sim-core-plugins`](apps/sim-core-plugins) contains an example external plugin developed for hCore, which provides a visual interface for process modeling
 - [`sim-engine`](apps/sim-engine) contains [HASH Engine], a versatile agent-based simulation engine written in Rust (with support for TypeScript & Python sims)
 
+## Libs
+
+### Block Protocol Libraries
+
+- [`turbine`](libs/turbine)
+- [`turbine-transformer`](libs/turbine-transformer) 
+
 ## POCs
 
 The `pocs` folder contains **proof of concepts** and other one-off experiments.

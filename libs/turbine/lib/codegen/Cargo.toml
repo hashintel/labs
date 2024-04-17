@@ -1,0 +1,31 @@
+[package]
+name = "codegen"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+itertools = "0.10.5"
+quote = "1.0.26"
+proc-macro2 = "1.0.56"
+reqwest = "0.11.16"
+serde_json = "1.0.96"
+thiserror = "1.0.40"
+error-stack = { workspace = true }
+serde = { version = "1.0.160", features = ['derive'] }
+serde_regex = "1.1.0"
+petgraph = "0.6.3"
+tracing = "0.1.37"
+ciclo = "0.1.0"
+indexmap = "1.9.3"
+heck = "0.4.1"
+once_cell = "1.17.1"
+regex = "1.8.1"
+syn = "2.0.15"
+drop_bomb = "0.1.5"
+
+type-system = { git = "https://github.com/blockprotocol/blockprotocol", rev = "cdde490" }
+
+[dev-dependencies]
+similar-asserts = "1.4.2"
