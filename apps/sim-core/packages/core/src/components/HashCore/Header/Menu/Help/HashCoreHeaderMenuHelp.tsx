@@ -38,7 +38,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
         <ul className="HashCoreHeaderMenu-submenu">
           <li className="HashCoreHeaderMenu-submenu-item">
             <a
-              href="https://docs.hash.ai/core/"
+              href="https://hash.dev/docs/simulation"
               target="_blank"
               onClick={() =>
                 dispatch(
@@ -56,7 +56,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
           {/* {canUseAccount ? (
             <li className="HashCoreHeaderMenu-submenu-item">
               <a href={ACCOUNT_URL} target="_blank">
-                My Account
+                My account
               </a>
             </li>
           ) : null} */}
@@ -71,15 +71,15 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
                   tour.start();
                 }}
               >
-                New User Tour
+                New user tour
               </a>
             </li>
           ) : null}
-          <li className="HashCoreHeaderMenu-submenu-item">
+          {/* <li className="HashCoreHeaderMenu-submenu-item">
             <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
-              Community Discord
+              Community forum
             </a>
-          </li>
+          </li> */}
           <li className="HashCoreHeaderMenu-submenu-item">
             <a
               href={"https://github.com/hashintel/labs/issues/new/choose"}
