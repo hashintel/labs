@@ -5,7 +5,7 @@
 _Thank you for your interest in contributing to the HASH Engine (aka. hEngine)_
 
 We've provided the following guidelines to help you with contributions, in addition to the ones described below, we've
-also established a set of [community guidelines](https://hash.ai/legal/community) to enable as many people as possible
+also established a set of [community guidelines](https://hash.ai/legal/trust-safety/community?utm_medium=organic&utm_source=github_readme_labs-repo_sim-engine-contributing-guide) to enable as many people as possible
 to contribute to and benefit from HASH. Please follow these when interacting with this repo.
 
 ## Table Of Contents
@@ -32,7 +32,7 @@ to contribute to and benefit from HASH. Please follow these when interacting wit
 
 ## I have a question, where do I go?
 
-If you have a question, you can ask it on our [community forum](https://hash.community/) or join our public [Discord server](https://hash.ai/discord) (requires a HASH account). Please don't use GitHub issues for general help or discussions. You can also get in touch with us directly via any of the methods outlined on [our site](https://hash.ai/contact).
+If you have an issue, you can [open an issue](https://github.com/hashintel/labs/issues) in our [`labs` repository](https://github.com/hashintel/labs). If you have a general question, you can also [create a discussion](https://github.com/hashintel/labs/discussions) in the same repository, although we monitor these less frequently. Finally, you can also get in touch with us directly via any of the methods outlined on [our site](https://hash.ai/contact?utm_medium=organic&utm_source=github_readme_labs-repo_sim-engine-contributing-guide).
 
 ## Getting started, what do I need to know?
 
@@ -76,7 +76,7 @@ So you've found a bug, next up is collecting useful information to give us to in
 
 ### Suggesting Enhancements
 
-If you have ideas of how to improve the hEngine, feel free to submit them on the [Product Feedback section of our community forum](https://community.hash.ai/c/product-feedback/2). If you want a more informal discussion around your ideas feel free to start a conversation on the Discord!
+If you have ideas of how to improve the hEngine, feel free to submit them as GitHub issues on this repository.
 
 <!--
 The following sections are comments until the wishlist section of the new website is live
@@ -153,4 +153,4 @@ cargo clippy
 
 ### Hiring
 
-**We're growing the team behind HASH.** If you like what we've built, have contributed to the repo, or are otherwise interested in a full-time role, check out our [open opportunities](https://hash.ai/careers).
+**We're growing the team behind HASH.** If you like what we've built, have contributed to the repo, or are otherwise interested in a full-time role, check out our [open opportunities](https://hash.ai/careers?utm_medium=organic&utm_source=github_readme_labs-repo_sim-engine-contributing-guide).
