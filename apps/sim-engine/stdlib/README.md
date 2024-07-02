@@ -1,10 +1,10 @@
 # HASH Standard Library
 
-[HASH](https://hash.ai) is a platform for building and running simulations, and the [standard library](https://docs.hash.ai/core/libraries) contains helper functions for simulations.
+[HASH](https://hash.ai/?utm_medium=organic&utm_source=github_readme_labs-repo_sim-engine-stdlib) is a platform for building and running simulations, and the [standard library](https://hash.dev/docs/simulations/create/libraries?utm_medium=organic&utm_source=github_readme_labs-repo_sim-engine-stdlib) contains helper functions for simulations.
 
-The HASH Standard Library (or **stdlib**) is available by default within HASH's browser-based IDE, [hCore](https://hash.ai/platform/core).
+The HASH Standard Library (or **stdlib**) is available by default within HASH's browser-based IDE, [hCore](https://hash.ai/platform/core?utm_medium=organic&utm_source=github_readme_labs-repo_sim-engine-stdlib).
 
-You can call HASH stdlib functions from within [behaviors](https://docs.hash.ai/core/behaviors) using `hstd.[function name]`. For example, to get the distance between two agents in JavaScript, use `hstd.distanceBetween(agentA, agentB)`.
+You can call HASH stdlib functions from within [behaviors](https://hash.dev/docs/simulations/create/behaviors?utm_medium=organic&utm_source=github_readme_labs-repo_sim-engine-stdlib) using `hstd.[function name]`. For example, to get the distance between two agents in JavaScript, use `hstd.distanceBetween(agentA, agentB)`.
 
 ## Developing
 
@@ -56,4 +56,4 @@ mypy ./src/py
 
 ## Discussion
 
-You can get support with or discuss HASH and the HASH stdlib on our [support forum](https://hash.community/) or community [Discord server](https://hash.ai/discord).
+You can open an [issue](https://github.com/hashintel/labs/issues) or create a [discussion](https://github.com/hashintel/labs/discussions) on our public [`labs` repository](https://github.com/hashintel/labs) to get support with or discuss HASH and the HASH stdlib.
