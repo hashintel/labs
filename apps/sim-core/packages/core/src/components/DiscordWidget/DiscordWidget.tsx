@@ -12,7 +12,13 @@ import { selectActivityVisible } from "../../features/viewer/selectors";
 
 import "./DiscordWidget.css";
 
-export const DISCORD_URL = "https://discord.gg/BPMrGAhjPh";
+export const DISCORD_URL = "https://github.com/hashintel/labs/discussions";
+
+/**
+ * On 2024-07-02 our Discord was deprecated. As a temporary patch, we're simply
+ * changing the link here to point to the discussions page in our `labs` GitHub
+ * repository, to ensure there is some public space users can comment.
+ */
 
 /**
  * @warning This component specifically does not rely on a Redux store being in

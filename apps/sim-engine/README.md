@@ -3,7 +3,6 @@
 </p>
 <div align="center">
  <a href="https://github.com/hashintel/labs/blob/main/apps/engine/LICENSE.md"><img src="https://cdn-us1.hash.ai/assets/license-badge-elastic.svg" alt="Elastic License v2" /></a>
- <a href="https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine"><img src="https://img.shields.io/discord/840573247803097118" alt="Join HASH on Discord" /></a>
  <a href="https://github.com/hashintel/labs#"><img src="https://img.shields.io/github/stars/hashintel/labs?label=Star%20on%20GitHub&style=social" alt="Star on GitHub"></a>
 </div>
 
@@ -44,17 +43,13 @@ Our ultimate intention is to migrate both hCore and hCloud to use the engine und
 
 ## Issue Tracking
 
-We use [GitHub Issues](https://github.com/hashintel/labs/issues) to help prioritize and track bugs and feature requests. Please use the [HASH Engine Issue form](https://github.com/hashintel/labs/issues/new?assignees=&labels=A-engine%2CC-bug&template=bug-report-hash-engine.yml) to help us deal with your report most effectively. If you're unsure about something or need help, you can also ask questions and get support on our public [Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine).
+We use [GitHub Issues](https://github.com/hashintel/labs/issues) to help prioritize and track bugs and feature requests. Please use the [HASH Engine Issue form](https://github.com/hashintel/labs/issues/new?assignees=&labels=A-engine%2CC-bug&template=bug-report-hash-engine.yml) to help us deal with your report most effectively.
 
 ## Additional Documentation
 
 Our [user guide for simulation](https://hash.ai/docs/simulation?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) contains a beginner's introduction as well as in-depth tutorials for **hCore** today.
 
 The [HASH glossary](https://hash.ai/glossary?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) contains helpful explainers around key modeling, simulation and AI-related terms and concepts.
-
-## Questions & Support
-
-We're building a community of people who care about enabling better decision-making through modeling and simulation. Our [support forum](https://hash.community/?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) and [HASH community Discord server](https://hash.ai/discord?utm_medium=organic&utm_source=github_readme_labs-repo_apps-sim-engine) (requires login) are both great places to meet other modelers and get help.
 
 ## The State of Development
 
