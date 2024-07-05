@@ -38,7 +38,7 @@ The `pocs` folder contains **proof of concepts** and other one-off experiments.
 
 - [`distributed_collab`](pocs/distributed_collab) - **Distributed Collab**: a BEAM VM based system for publishing/subscribing to JSON Patches with core logic implemented in Rust
 - [`hash-agents`](pocs/hash-agents) - **HASH Agents**: an experimental setup for writing Python-based 'agents' that interface with LLMs
-- [`hash_helm_chart`](pocs/hash_helm_chart) - **HASH Helm Charts**: An experimental [Helm](https://helm.sh) chart for deploying an instance of HASH on Kubernetes
+- [`hash_helm_chart`](pocs/hash_helm_chart) - **HASH Helm Charts**: An experimental [Helm](https://helm.sh) chart for deploying (now outdated, legacy) instances of HASH on Kubernetes
 
 A number of older POCs can be found in our `hasharchives` organization, including:
 - [`wasm-ts-esm-in-node-jest-and-nextjs`](https://github.com/hasharchives/wasm-ts-esm-in-node-jest-and-nextjs) - A **Wasm + TypeScript + ESM in Node.js, Jest and Next.js 13** example project
