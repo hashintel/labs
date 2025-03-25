@@ -7,7 +7,7 @@
     "apps/sim-core/",
     "apps/sim-core-plugins/",
     "apps/sim-engine/",
+    "libs/",
     "pocs/"
-  ],
-  "enabled": false
+  ]
 }
