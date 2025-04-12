@@ -74,7 +74,7 @@ jobs:
           working-directory: ${{ matrix.directory }}
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@e207df5d269b42b69c8bc5101da26f7d31feddb4 # v2.6.2
+        uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
         with:
           workspaces: ${{ matrix.directory }}
           save-if: ${{ !startsWith(github.ref, 'refs/heads/gh-readonly-queue') }}
@@ -158,7 +158,7 @@ jobs:
           working-directory: ${{ matrix.directory }}
 
       - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@e207df5d269b42b69c8bc5101da26f7d31feddb4 # v2.6.2
+        uses: Swatinem/rust-cache@9d47c6ad4b02e050fd481d890b2ea34778fd09d6 # v2.7.8
         with:
           workspaces: ${{ matrix.directory }}
           key: ${{ matrix.profile }}
