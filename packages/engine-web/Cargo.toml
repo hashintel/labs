@@ -1,0 +1,24 @@
+[package]
+name = "hashintel-core-wasm"                         # this name is here only because it is mandatory
+version = "0.1.0"
+authors = ["HASH <careers@hash.dev>"]
+description = "WASM Bindings for hashintel-core"
+repository = "https://github.com/hashintel/internal"
+license = "SSPL-1.0"
+edition = "2018"
+
+[lib]
+path = "rust/lib.rs"
+crate-type = ["cdylib", "rlib"]
+bench = false
+
+[dependencies]
+futures = "0.3.4"
+serde = { version = "1", features = ["derive"] }
+hashintel-core = { path = "../engine" }
+serde_json = "1.0.41"
+wasm-bindgen = { version = "0.2.74", features = ["serde-serialize"] }
+wasm-bindgen-futures = { version = "0.4.24" }
+js-sys = "0.3.31"
+console_error_panic_hook = "0.1.6"
+uuid = { version = "0.8", features = ["v4"] }
