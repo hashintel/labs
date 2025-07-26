@@ -22,7 +22,7 @@ export const getOnboardingProject =
     //     `
     // );
     const onBoardingProject = {
-      pathWithNamespace: "@hash/wildfires-regrowth",
+      pathWithNamespace: "@imported/consensus-algorithms",
       name: "Wildfires - Regrowth",
       updatedAt: "2022-05-19T13:57:26.000Z",
       type: "Simulation",

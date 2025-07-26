@@ -141,7 +141,7 @@ const bootstrapQueryResponse = () => {
         // Migration shim--
         // HASH will select the top item in this list as the default simulation.
         // Keep this present to align with our `BUILTIN_SIMULATIONS`.
-        pathWithNamespace: "@hash/wildfires-regrowth",
+        pathWithNamespace: "@imported/consensus-algorithms",
         name: "Wildfires - Regrowth",
         updatedAt: "2022-05-19T13:57:26.000Z",
         type: ProjectTypeName.Simulation,
