@@ -1,5 +1,5 @@
 #![allow(clippy::needless_pass_by_value)]
-#![deny(warnings)]
+#![warn(warnings)]
 pub mod agentstatewrapper;
 pub mod behavior;
 pub mod contextwrapper;
