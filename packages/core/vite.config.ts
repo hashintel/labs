@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 8080,
+      allowedHosts: ["localhost", process.env.VITE_ALLOWED_HOST],
     },
     preview: {
       port: 8080,
