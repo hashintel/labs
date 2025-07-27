@@ -8,7 +8,7 @@
   "private": true,
   "scripts": {
     "clean": "rimraf dist",
-    "serve": "yarn dev-env vite serve",
+    "serve": "yarn dev-env vite serve --host",
     "prod-env": "cross-env-shell NODE_OPTIONS=\"--max_old_space_size=8192 --openssl-legacy-provider\" NODE_ENV=production",
     "dev-env": "cross-env-shell NODE_OPTIONS=\"--max_old_space_size=4096 --openssl-legacy-provider\" NODE_ENV=development",
     "build": "yarn prod-env vite build",
