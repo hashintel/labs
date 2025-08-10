@@ -1,23 +1,12 @@
 version: '3.8'
 
 services:
-  # Production build
-  hash-core-prod:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: production
-    ports:
-      - "8080:80"
-    profiles:
-      - production
-
   # Development build
   hash-core-dev:
     build:
       context: .
       dockerfile: Dockerfile
-      target: development
+      target: yarn-server
     ports:
       - "3000:8080"
     volumes:
@@ -28,7 +17,3 @@ services:
       - NODE_ENV=development
     profiles:
       - development
-
-networks:
-  default:
-    name: hash-core-network 
