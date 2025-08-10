@@ -37,6 +37,10 @@ RUN --mount=type=cache,target=/usr/local/share/.cache/yarn \
 # Copy full source
 COPY . .
 
+# Build workspaces that provide compiled outputs needed at runtime
+# We installed with --ignore-scripts earlier for caching speed, so run builds now
+RUN yarn build:utils && yarn build:engine-web
+
 # --- Dev/server image ---
 FROM builder AS yarn-server
 WORKDIR /app
