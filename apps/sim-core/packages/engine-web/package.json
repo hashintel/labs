@@ -36,7 +36,7 @@
 		"promise-worker-transferable": "github:hashdeps/promise-worker-transferable",
 		"rxjs": "6.6.6"
 	},
-	"main": "dist/index.js",
+	"main": "dist-node/index.js",
 	"module": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"devDependencies": {}
