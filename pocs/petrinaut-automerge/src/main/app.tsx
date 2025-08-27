@@ -31,13 +31,13 @@ function App({ rootDocUrl }: { rootDocUrl: AutomergeUrl }) {
 
 	const repo = useRepo();
 
-	console.log("Before useDocument, rootDocUrl", rootDocUrl);
+	console.log("Before useDocument in app.tsx, rootDocUrl", rootDocUrl);
 
 	const [rootDoc, changeRootDoc] = useDocument<RootDocument>(rootDocUrl, {
 		suspense: true,
 	});
 
-	console.log({ rootDoc });
+	console.log("loaded rootDoc in app.tsx", rootDoc);
 
 	const petriNetUrls = useMemo(() => {
 		return rootDoc?.petriNetUrls ?? [];
@@ -73,12 +73,12 @@ function App({ rootDocUrl }: { rootDocUrl: AutomergeUrl }) {
 		return null;
 	}
 
-	console.log("Before useDocument, selectedDocUrl", selectedDocUrl);
+	console.log("Before useDocument in app.tsx, selectedDocUrl", selectedDocUrl);
 
 	const [selectedPetriNetDoc, changeSelectedPetriNetDoc] =
 		useDocument<PetriNet>(selectedDocUrl, { suspense: true });
 
-	console.log({ selectedPetriNetDoc });
+	console.log("loaded selectedPetriNetDoc in app.tsx", selectedPetriNetDoc);
 
 	return (
 		<PetrinautWrapper

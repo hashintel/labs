@@ -10,6 +10,7 @@ import {
 } from "@automerge/react";
 import {
 	type MinimalNetMetadata,
+	type ParentNet,
 	Petrinaut,
 	type PetriNetDefinitionObject,
 } from "@hashintel/petrinaut";
@@ -65,14 +66,12 @@ export const PetrinautWrapper = ({
 	selectedPetriNetUrl: AutomergeUrl;
 	selectedPetriNetDoc: Doc<PetriNet>;
 }) => {
-	console.log("Rendered PetrinautWrapper");
-
 	console.log(
 		"Before useDocuments, rootDoc.petriNetUrls",
 		rootDoc.petriNetUrls,
 	);
 	const [petriNetDocs] = useDocuments<PetriNet>(rootDoc.petriNetUrls);
-	console.log({ petriNetDocs });
+	console.log("loaded petriNetDocs", petriNetDocs);
 
 	const minimalPetriNets = useMemo(() => {
 		const nets: MinimalNetMetadata[] = [];
@@ -86,6 +85,26 @@ export const PetrinautWrapper = ({
 
 		return nets;
 	}, [petriNetDocs]);
+
+	const parentNet = useMemo<ParentNet | null>(() => {
+		if (!selectedPetriNetUrl) {
+			return null;
+		}
+
+		for (const [automergeUrl, doc] of petriNetDocs.entries()) {
+			for (const node of doc.petriNetDefinition.nodes) {
+				if (node.data.type !== "transition") {
+					continue;
+				}
+
+				if (node.data.childNet?.childNetId === selectedPetriNetUrl) {
+					return { parentNetId: automergeUrl, title: doc.title };
+				}
+			}
+		}
+
+		return null;
+	}, [selectedPetriNetUrl, petriNetDocs]);
 
 	const handle = useDocHandle<PetriNet>(selectedPetriNetUrl);
 
@@ -114,15 +133,18 @@ export const PetrinautWrapper = ({
 
 		const latestPatches = getPatches(handle);
 
-		console.log({ latestPatches });
+		console.log("%c PATCH HISTORY", "color: red; font-weight: bold", {
+			latestPatches,
+		});
 	});
 
 	return (
 		<Petrinaut
+			key={selectedPetriNetUrl}
 			petriNetId={selectedPetriNetUrl}
 			existingNets={minimalPetriNets}
 			createNewNet={createAndSelectPetriNet}
-			parentNet={null}
+			parentNet={parentNet}
 			petriNetDefinition={selectedPetriNetDoc.petriNetDefinition}
 			mutatePetriNetDefinition={(definitionMutationFn) => {
 				changePetriNetDoc((petriNet) => {
