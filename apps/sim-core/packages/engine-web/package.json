@@ -1,47 +1,43 @@
 {
-  "name": "@hashintel/engine-web",
-  "version": "0.1.1",
-  "description": "HASH Core JavaScript bindings",
-  "repository": "https://github.com/hashintel/labs",
-  "license": "AGPL-3.0-only",
-  "scripts": {
-    "clean": "rimraf dist dist-node wasm/bundler wasm/node",
-    "prebuild": "wasm-pack build --target bundler --out-dir wasm/bundler --out-name hash",
-    "build": "npx tsc",
-    "prebuild:node": "wasm-pack build --target nodejs --out-dir wasm/node --out-name hash",
-    "build:node": "tsc --module commonjs --outdir dist-node",
-    "fmt": "prettier --write --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet --fix \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"",
-    "lint": "prettier --check --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"  && eslint --quiet \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && tsc --noEmit",
-    "pretest": "yarn prebuild:node",
-    "test": "jest",
-    "prepare": "npx npm-run-all clean build build:node",
-    "prod-env": "cross-env-shell NODE_OPTIONS=\"--max_old_space_size=4096 --openssl-legacy-provider\" NODE_ENV=production",
-    "dev-env": "cross-env-shell NODE_OPTIONS=\"--max_old_space_size=4096 --openssl-legacy-provider\" NODE_ENV=development",
-    "build-stdlib": "yarn prod-env webpack --mode production",
-    "build-stdlib-dev": "yarn dev-env webpack --mode development"
-  },
-  "files": [
-    "dist/**/*",
-    "dist-node/**/*",
-    "wasm/**/*"
-  ],
-  "jest": {
-    "preset": "ts-jest/presets/js-with-babel",
-    "testEnvironment": "node",
-    "globals": {
-      "ts-jest": {
-        "babelConfig": true
-      }
-    }
-  },
-  "dependencies": {
-    "jstat": "1.9.4",
-    "node-fetch": "2.6.1",
-    "promise-worker-transferable": "github:hashdeps/promise-worker-transferable",
-    "rxjs": "6.6.6"
-  },
-  "main": "dist-node/index.js",
-  "module": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "devDependencies": {}
+	"name": "@hashintel/engine-web",
+	"version": "0.1.1",
+	"description": "HASH Core JavaScript bindings",
+	"repository": "https://github.com/hashintel/labs",
+	"license": "AGPL-3.0-only",
+	"scripts": {
+		"clean": "rimraf dist dist-node wasm/bundler wasm/node",
+		"prebuild": "wasm-pack build --target bundler --out-dir wasm/bundler --out-name hash",
+		"build": "npx tsc",
+		"prebuild:node": "wasm-pack build --target nodejs --out-dir wasm/node --out-name hash",
+		"build:node": "tsc --module commonjs --outdir dist-node",
+		"fmt": "prettier --write --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet --fix \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"",
+		"lint": "prettier --check --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"  && eslint --quiet \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && tsc --noEmit",
+		"pretest": "yarn prebuild:node",
+		"test": "jest",
+		"prepare": "npx npm-run-all clean build build:node",
+		"prod-env": "cross-env-shell NODE_OPTIONS=\"--max_old_space_size=4096 --openssl-legacy-provider\" NODE_ENV=production",
+		"dev-env": "cross-env-shell NODE_OPTIONS=\"--max_old_space_size=4096 --openssl-legacy-provider\" NODE_ENV=development",
+		"build-stdlib": "yarn prod-env webpack --mode production",
+		"build-stdlib-dev": "yarn dev-env webpack --mode development"
+	},
+	"files": ["dist/**/*", "dist-node/**/*", "wasm/**/*"],
+	"jest": {
+		"preset": "ts-jest/presets/js-with-babel",
+		"testEnvironment": "node",
+		"globals": {
+			"ts-jest": {
+				"babelConfig": true
+			}
+		}
+	},
+	"dependencies": {
+		"jstat": "1.9.4",
+		"node-fetch": "2.6.1",
+		"promise-worker-transferable": "github:hashdeps/promise-worker-transferable",
+		"rxjs": "6.6.6"
+	},
+	"main": "dist-node/index.js",
+	"module": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"devDependencies": {}
 }
