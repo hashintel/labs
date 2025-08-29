@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import wasm from "vite-plugin-wasm";
 
 export default defineConfig({
+<<<<<<< HEAD
 	build: {
 		target: "esnext",
 	},
@@ -14,4 +15,19 @@ export default defineConfig({
 		format: "es",
 		plugins: () => [wasm()],
 	},
+=======
+  // customize this to your repo name for github pages deploy
+  // base: "/automerge-repo-quickstart/",
+
+  build: {
+    target: "esnext",
+  },
+
+  plugins: [wasm(), react()],
+
+  worker: {
+    format: "es",
+    plugins: () => [wasm()],
+  },
+>>>>>>> main
 });
