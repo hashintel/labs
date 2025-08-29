@@ -7,8 +7,11 @@ import {
 import { useHash } from "react-use";
 import type { RootDocument } from "../rootDoc";
 import { useCallback, useMemo, useState } from "react";
-import { type PetriNet, PetrinautWrapper } from "./app/petrinaut-wrapper";
-import { defaultTokenTypes } from "@hashintel/petrinaut";
+import {
+	type PetriNet,
+	PetrinautAutomergeWrapper,
+} from "./app-automerge/petrinaut-automerge-wrapper";
+import { defaultTokenTypes } from "./vendor/petrinaut";
 
 const createDefaultPetriNet = (): PetriNet => ({
 	petriNetDefinition: {
@@ -19,7 +22,7 @@ const createDefaultPetriNet = (): PetriNet => ({
 	title: "New Petri Net",
 });
 
-function App({ rootDocUrl }: { rootDocUrl: AutomergeUrl }) {
+export const AppAutomerge = ({ rootDocUrl }: { rootDocUrl: AutomergeUrl }) => {
 	const [hash, setHash] = useHash();
 	const cleanHash = hash.slice(1); // Remove the leading '#'
 	const selectedDocUrl =
@@ -73,25 +76,14 @@ function App({ rootDocUrl }: { rootDocUrl: AutomergeUrl }) {
 		return null;
 	}
 
-	console.log("Before useDocument in app.tsx, selectedDocUrl", selectedDocUrl);
-
-	const [selectedPetriNetDoc, changeSelectedPetriNetDoc] =
-		useDocument<PetriNet>(selectedDocUrl, { suspense: true });
-
-	console.log("loaded selectedPetriNetDoc in app.tsx", selectedPetriNetDoc);
-
 	return (
-		<PetrinautWrapper
-			changePetriNetDoc={changeSelectedPetriNetDoc}
+		<PetrinautAutomergeWrapper
 			createAndSelectPetriNet={createAndSelectPetriNet}
 			loadPetriNetFromUrl={(url) => {
 				setHash(url);
 			}}
 			rootDoc={rootDoc}
 			selectedPetriNetUrl={selectedDocUrl}
-			selectedPetriNetDoc={selectedPetriNetDoc}
 		/>
 	);
-}
-
-export default App;
+};

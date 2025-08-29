@@ -1,21 +1,20 @@
 import {
 	type AutomergeUrl,
 	useDocuments,
-	type Doc,
-	type ChangeFn,
 	updateText,
 	useDocHandle,
 	type Patch,
 	type DocHandle,
+	useDocument,
 } from "@automerge/react";
+import { useEffect, useMemo, useRef } from "react";
+import type { RootDocument } from "../../rootDoc";
 import {
+	type PetriNetDefinitionObject,
 	type MinimalNetMetadata,
 	type ParentNet,
 	Petrinaut,
-	type PetriNetDefinitionObject,
-} from "@hashintel/petrinaut";
-import { useEffect, useMemo, useRef } from "react";
-import type { RootDocument } from "../../rootDoc";
+} from "../vendor/petrinaut";
 
 export type PetriNet = {
 	petriNetDefinition: PetriNetDefinitionObject;
@@ -51,21 +50,35 @@ const getPatches = (handle: DocHandle<PetriNet>) => {
 	return patchesByVersion;
 };
 
-export const PetrinautWrapper = ({
-	changePetriNetDoc,
+/**
+ * A wrapper around Petrinaut which uses Automerge to manage the Petri net definition.
+ *
+ * In contrast to the Patchwork wrapper, supports:
+ * 1. loading other documents into Petrinaut as options for child net selection, or for switching to another net
+ * 2. Displaying and changing the net title
+ * 3. Creating new nets, exporting to and importing from PNML
+ */
+export const PetrinautAutomergeWrapper = ({
 	createAndSelectPetriNet,
 	loadPetriNetFromUrl,
 	rootDoc,
 	selectedPetriNetUrl,
-	selectedPetriNetDoc,
 }: {
-	changePetriNetDoc: (changeFn: ChangeFn<PetriNet>) => void;
 	createAndSelectPetriNet: (petriNet: PetriNet | null) => void;
 	loadPetriNetFromUrl: (url: AutomergeUrl) => void;
 	rootDoc: RootDocument;
 	selectedPetriNetUrl: AutomergeUrl;
-	selectedPetriNetDoc: Doc<PetriNet>;
 }) => {
+	console.log(
+		"Before useDocument in app.tsx, selectedDocUrl",
+		selectedPetriNetUrl,
+	);
+
+	const [selectedPetriNetDoc, changeSelectedPetriNetDoc] =
+		useDocument<PetriNet>(selectedPetriNetUrl, { suspense: true });
+
+	console.log("loaded selectedPetriNetDoc in app.tsx", selectedPetriNetDoc);
+
 	console.log(
 		"Before useDocuments, rootDoc.petriNetUrls",
 		rootDoc.petriNetUrls,
@@ -144,10 +157,11 @@ export const PetrinautWrapper = ({
 			petriNetId={selectedPetriNetUrl}
 			existingNets={minimalPetriNets}
 			createNewNet={createAndSelectPetriNet}
+			hideNetManagementControls={false}
 			parentNet={parentNet}
 			petriNetDefinition={selectedPetriNetDoc.petriNetDefinition}
 			mutatePetriNetDefinition={(definitionMutationFn) => {
-				changePetriNetDoc((petriNet) => {
+				changeSelectedPetriNetDoc((petriNet) => {
 					definitionMutationFn(petriNet.petriNetDefinition);
 				});
 			}}
@@ -155,7 +169,7 @@ export const PetrinautWrapper = ({
 				loadPetriNetFromUrl(url as AutomergeUrl);
 			}}
 			setTitle={(newTitle) => {
-				changePetriNetDoc((petriNet) => {
+				changeSelectedPetriNetDoc((petriNet) => {
 					updateText(petriNet, ["title"], newTitle);
 				});
 			}}

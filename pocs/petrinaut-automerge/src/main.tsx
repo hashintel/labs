@@ -12,10 +12,10 @@ import { CssBaseline, ThemeProvider } from "@mui/material";
 import { CacheProvider } from "@emotion/react";
 import { createEmotionCache, theme } from "@hashintel/design-system/theme";
 
-import App from "./main/app.tsx";
 import "./index.css";
 
 import { getOrCreateRoot, type RootDocument } from "./rootDoc.ts";
+import { AppPatchwork } from "./main/app-patchwork.tsx";
 
 const repo = new Repo({
 	network: [
@@ -50,7 +50,8 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
 				<CacheProvider value={emotionCache}>
 					<ThemeProvider theme={theme}>
 						<CssBaseline />
-						<App rootDocUrl={window.handle.url} />
+						{/* <AppAutomerge rootDocUrl={window.handle.url} /> */}
+						<AppPatchwork rootDocUrl={window.handle.url} />
 					</ThemeProvider>
 				</CacheProvider>
 			</RepoContext.Provider>
