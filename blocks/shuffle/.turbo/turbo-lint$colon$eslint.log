@@ -1,0 +1,174 @@
+[2K[1G[1myarn run v1.22.22[22m
+[2K[1G[2m$ eslint --report-unused-disable-directives .[22m
+=============
+
+WARNING: You are currently running a version of TypeScript which is not officially supported by @typescript-eslint/typescript-estree.
+
+You may find that it works just fine, or you may not.
+
+SUPPORTED TYPESCRIPT VERSIONS: >=4.7.4 <5.5.0
+
+YOUR TYPESCRIPT VERSION: 5.5.3
+
+Please only submit bug reports when using the officially supported version.
+
+=============
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/components/item-list.tsx[24m[0m
+[0m    [2m1:1[22m   [31merror[39m  Run autofix to sort these imports!                                                                                    [2msimple-import-sort/imports[22m[0m
+[0m    [2m1:54[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@dnd-kit/core/dist/index.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m   [2m10:8[22m   [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@dnd-kit/core/dist/index.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m   [2m17:40[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times        [2mimport/no-duplicates[22m[0m
+[0m   [2m18:8[22m   [31merror[39m  'React' is defined but never used. Allowed unused vars must match /^_/u                                               [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m18:50[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times        [2mimport/no-duplicates[22m[0m
+[0m   [2m21:1[22m   [31merror[39m  There should be at least one empty line between import groups                                                         [2mimport/order[22m[0m
+[0m   [2m25:6[22m   [31merror[39m  Use an `interface` instead of a `type`                                                                                [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m118:9[22m   [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function    [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m120:7[22m   [31merror[39m  Multiline props must be listed after all other props                                                                  [2mreact/jsx-sort-props[22m[0m
+[0m  [2m120:7[22m   [31merror[39m  Callbacks must be listed after all other props                                                                        [2mreact/jsx-sort-props[22m[0m
+[0m  [2m126:11[22m  [31merror[39m  Expected blank line before this statement                                                                             [2m@stylistic/padding-line-between-statements[22m[0m
+[0m  [2m129:27[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function    [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m145:49[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function    [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m146:33[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function    [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m147:15[22m  [31merror[39m  Callbacks must be listed after all other props                                                                        [2mreact/jsx-sort-props[22m[0m
+[0m  [2m147:31[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function    [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m150:31[22m  [31merror[39m  use `Boolean(item[propertyIds.linkEntityId])` instead                                                                 [2mno-implicit-coercion[22m[0m
+[0m  [2m158:17[22m  [31merror[39m  Multiline props must be listed after all other props                                                                  [2mreact/jsx-sort-props[22m[0m
+[0m  [2m173:33[22m  [31merror[39m  use `Boolean(activeItem[propertyIds.linkEntityId])` instead                                                           [2mno-implicit-coercion[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/components/item.styled.ts[24m[0m
+[0m  [2m13:14[22m  [31merror[39m  Variable name `SListItem` must match one of the following formats: camelCase, UPPER_CASE, StrictPascalCase         [2m@typescript-eslint/naming-convention[22m[0m
+[0m  [2m20:14[22m  [31merror[39m  Variable name `SPaper` must match one of the following formats: camelCase, UPPER_CASE, StrictPascalCase            [2m@typescript-eslint/naming-convention[22m[0m
+[0m  [2m32:14[22m  [31merror[39m  Variable name `SLinkIconWrapper` must match one of the following formats: camelCase, UPPER_CASE, StrictPascalCase  [2m@typescript-eslint/naming-convention[22m[0m
+[0m  [2m45:14[22m  [31merror[39m  Variable name `STextField` must match one of the following formats: camelCase, UPPER_CASE, StrictPascalCase        [2m@typescript-eslint/naming-convention[22m[0m
+[0m  [2m59:14[22m  [31merror[39m  Variable name `SButtonsWrapper` must match one of the following formats: camelCase, UPPER_CASE, StrictPascalCase   [2m@typescript-eslint/naming-convention[22m[0m
+[0m  [2m63:14[22m  [31merror[39m  Variable name `SIconButton` must match one of the following formats: camelCase, UPPER_CASE, StrictPascalCase       [2m@typescript-eslint/naming-convention[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/components/item.tsx[24m[0m
+[0m    [2m1:1[22m   [31merror[39m  Run autofix to sort these imports!                                                                                  [2msimple-import-sort/imports[22m[0m
+[0m    [2m5:30[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@mui/material/index.d.ts' imported multiple times     [2mimport/no-duplicates[22m[0m
+[0m    [2m6:25[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@mui/material/index.d.ts' imported multiple times     [2mimport/no-duplicates[22m[0m
+[0m    [2m7:47[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times      [2mimport/no-duplicates[22m[0m
+[0m    [2m8:8[22m   [31merror[39m  'React' is defined but never used. Allowed unused vars must match /^_/u                                             [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m    [2m8:45[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times      [2mimport/no-duplicates[22m[0m
+[0m   [2m19:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m   [2m36:21[22m  [31merror[39m  Component definition is missing display name                                                                        [2mreact/display-name[22m[0m
+[0m   [2m52:5[22m   [31merror[39m  Move this optional parameter to a destructured parameter                                                            [2mfsecond/prefer-destructured-optionals[22m[0m
+[0m   [2m59:28[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function  [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m   [2m60:9[22m   [31merror[39m  Callbacks must be listed after all other props                                                                      [2mreact/jsx-sort-props[22m[0m
+[0m   [2m60:27[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function  [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m   [2m67:28[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m   [2m69:36[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m   [2m77:21[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m   [2m82:13[22m  [31merror[39m  Callbacks must be listed after all other props                                                                      [2mreact/jsx-sort-props[22m[0m
+[0m   [2m91:17[22m  [31merror[39m  Callbacks must be listed after all other props                                                                      [2mreact/jsx-sort-props[22m[0m
+[0m  [2m103:37[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m113:17[22m  [31merror[39m  Shorthand props must be listed before all other props                                                               [2mreact/jsx-sort-props[22m[0m
+[0m  [2m116:45[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m116:59[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/components/sortable-item.tsx[24m[0m
+[0m  [2m1:1[22m   [31merror[39m  Run autofix to sort these imports!                                                                                        [2msimple-import-sort/imports[22m[0m
+[0m  [2m1:43[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@dnd-kit/sortable/dist/index.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m  [2m2:58[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@dnd-kit/sortable/dist/index.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m  [2m4:40[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times            [2mimport/no-duplicates[22m[0m
+[0m  [2m5:8[22m   [31merror[39m  'React' is defined but never used. Allowed unused vars must match /^_/u                                                   [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m  [2m5:19[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times            [2mimport/no-duplicates[22m[0m
+[0m  [2m7:32[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/components/item.tsx' imported multiple times          [2mimport/no-duplicates[22m[0m
+[0m  [2m8:22[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/components/item.tsx' imported multiple times          [2mimport/no-duplicates[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/components/tooltip-button.tsx[24m[0m
+[0m  [2m1:34[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/libs/@hashintel/design-system/src/components.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m  [2m2:24[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/libs/@hashintel/design-system/src/components.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/dev.tsx[24m[0m
+[0m   [2m5:1[22m   [31merror[39m  Run autofix to sort these imports!                                                          [2msimple-import-sort/imports[22m[0m
+[0m   [2m9:1[22m   [31merror[39m  There should be at least one empty line between import groups                               [2mimport/order[22m[0m
+[0m  [2m10:1[22m   [31merror[39m  There should be at least one empty line between import groups                               [2mimport/order[22m[0m
+[0m  [2m10:1[22m   [31merror[39m  `./index` import should occur after type import of `./types/generated/block-entity`         [2mimport/order[22m[0m
+[0m  [2m17:23[22m  [31merror[39m  Prefer `.querySelector()` over `.getElementById()`                                          [2municorn/prefer-query-selector[22m[0m
+[0m  [2m73:7[22m   [31merror[39m  Fast refresh only works when a file has exports. Move your component(s) to a separate file  [2mreact-refresh/only-export-components[22m[0m
+[0m  [2m85:7[22m   [31merror[39m  Shorthand props must be listed before all other props                                       [2mreact/jsx-sort-props[22m[0m
+[0m  [2m90:12[22m  [31merror[39m  Forbidden non-null assertion                                                                [2m@typescript-eslint/no-non-null-assertion[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/index.ts[24m[0m
+[0m  [2m1:1[22m  [31merror[39m  Definition for rule 'canonical/filename-no-index' was not found  [2mcanonical/filename-no-index[22m[0m
+[0m  [2m8:1[22m  [31merror[39m  Use `export…from` to re-export `default`                         [2municorn/prefer-export-from[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/shuffle.tsx[24m[0m
+[0m    [2m1:1[22m   [31merror[39m  Run autofix to sort these imports!                                                                                                                           [2msimple-import-sort/imports[22m[0m
+[0m    [2m1:37[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/node_modules/@blockprotocol/graph/dist/cjs/non-temporal/react.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m    [2m5:8[22m   [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/node_modules/@blockprotocol/graph/dist/cjs/non-temporal/react.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m   [2m15:8[22m   [31merror[39m  Using exported name 'produce' as identifier for default export                                                                                               [2mimport/no-named-as-default[22m[0m
+[0m   [2m17:8[22m   [31merror[39m  'React' is defined but never used. Allowed unused vars must match /^_/u                                                                                      [2m@typescript-eslint/no-unused-vars[22m[0m
+[0m   [2m49:10[22m  [31merror[39m  The variable `prevItems` should be named `previousItems`. A more descriptive name will do too                                                                [2municorn/prevent-abbreviations[22m[0m
+[0m   [2m49:21[22m  [31merror[39m  The variable `setPrevItems` should be named `setPreviousItems`. A more descriptive name will do too                                                          [2municorn/prevent-abbreviations[22m[0m
+[0m   [2m77:5[22m   [31merror[39m  Move this optional parameter to a destructured parameter                                                                                                     [2mfsecond/prefer-destructured-optionals[22m[0m
+[0m   [2m87:5[22m   [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                           [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m   [2m90:9[22m   [31merror[39m  Expected blank line before this statement                                                                                                                    [2m@stylistic/padding-line-between-statements[22m[0m
+[0m  [2m111:32[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                           [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m120:9[22m   [31merror[39m  Expected blank line before this statement                                                                                                                    [2m@stylistic/padding-line-between-statements[22m[0m
+[0m  [2m130:5[22m   [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                           [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m140:5[22m   [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                           [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m154:9[22m   [31merror[39m  Expected blank line before this statement                                                                                                                    [2m@stylistic/padding-line-between-statements[22m[0m
+[0m  [2m168:3[22m   [31merror[39m  Sentences should start with an uppercase character                                                                                                           [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m  [2m168:3[22m   [31merror[39m  Sentences must end with a period                                                                                                                             [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m  [2m205:37[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                                [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m205:58[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                                [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m207:22[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                                [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m207:39[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                                [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m208:34[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                                [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m213:21[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                                [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m214:13[22m  [31merror[39m  Callbacks must be listed after all other props                                                                                                               [2mreact/jsx-sort-props[22m[0m
+[0m  [2m221:21[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                                [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m222:13[22m  [31merror[39m  Callbacks must be listed after all other props                                                                                                               [2mreact/jsx-sort-props[22m[0m
+[0m  [2m223:23[22m  [31merror[39m  Use `.length === 0` when checking length is zero                                                                                                             [2municorn/explicit-length-check[22m[0m
+[0m  [2m234:9[22m   [31merror[39m  Callbacks must be listed after all other props                                                                                                               [2mreact/jsx-sort-props[22m[0m
+[0m  [2m235:19[22m  [31merror[39m  use `Boolean(readonly)` instead                                                                                                                              [2mno-implicit-coercion[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/src/types/generated/block-entity.ts[24m[0m
+[0m   [2m5:1[22m   [31merror[39m  All imports in the declaration are only used as types. Use `import type`                                                                                                                                                                                                                                                                                                                                                                            [2m@typescript-eslint/consistent-type-imports[22m[0m
+[0m  [2m17:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m18:3[22m   [31merror[39m  Don't use `{}` as a type. `{}` actually means "any non-nullish value".[0m
+[0m- If you want a type meaning "any object", you probably want `object` instead.[0m
+[0m- If you want a type meaning "any value", you probably want `unknown` instead.[0m
+[0m- If you want a type meaning "empty object", you probably want `Record<string, never>` instead.[0m
+[0m- If you really want a type meaning "any non-nullish value", you probably want `NonNullable<unknown>` instead  [2m@typescript-eslint/ban-types[22m[0m
+[0m  [2m21:1[22m   [31merror[39m  Sentences must end with a period                                                                                                                                                                                                                                                                                                                                                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m  [2m28:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m28:60[22m  [31merror[39m  Don't use `{}` as a type. `{}` actually means "any non-nullish value".[0m
+[0m- If you want a type meaning "any object", you probably want `object` instead.[0m
+[0m- If you want a type meaning "any value", you probably want `unknown` instead.[0m
+[0m- If you want a type meaning "empty object", you probably want `Record<string, never>` instead.[0m
+[0m- If you really want a type meaning "any non-nullish value", you probably want `NonNullable<unknown>` instead  [2m@typescript-eslint/ban-types[22m[0m
+[0m  [2m34:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m34:51[22m  [31merror[39m  Don't use `{}` as a type. `{}` actually means "any non-nullish value".[0m
+[0m- If you want a type meaning "any object", you probably want `object` instead.[0m
+[0m- If you want a type meaning "any value", you probably want `unknown` instead.[0m
+[0m- If you want a type meaning "empty object", you probably want `Record<string, never>` instead.[0m
+[0m- If you really want a type meaning "any non-nullish value", you probably want `NonNullable<unknown>` instead  [2m@typescript-eslint/ban-types[22m[0m
+[0m  [2m36:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m36:30[22m  [31merror[39m  Don't use `{}` as a type. `{}` actually means "any non-nullish value".[0m
+[0m- If you want a type meaning "any object", you probably want `object` instead.[0m
+[0m- If you want a type meaning "any value", you probably want `unknown` instead.[0m
+[0m- If you want a type meaning "empty object", you probably want `Record<string, never>` instead.[0m
+[0m- If you really want a type meaning "any non-nullish value", you probably want `NonNullable<unknown>` instead  [2m@typescript-eslint/ban-types[22m[0m
+[0m  [2m40:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m58:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m67:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m74:1[22m   [31merror[39m  Sentences must end with a period                                                                                                                                                                                                                                                                                                                                                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m  [2m74:35[22m  [31merror[39m  tsdoc-at-sign-in-word: The "@" character looks like part of a TSDoc tag; use a backslash to escape it                                                                                                                                                                                                                                                                                                                                               [2mtsdoc/syntax[22m[0m
+[0m  [2m76:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m78:1[22m   [31merror[39m  Invalid JSDoc tag name "minItems"                                                                                                                                                                                                                                                                                                                                                                                                                   [2mjsdoc/check-tag-names[22m[0m
+[0m  [2m78:6[22m   [31merror[39m  tsdoc-undefined-tag: The TSDoc tag "@minItems" is not defined in this configuration                                                                                                                                                                                                                                                                                                                                                                 [2mtsdoc/syntax[22m[0m
+[0m  [2m84:1[22m   [31merror[39m  Sentences must end with a period                                                                                                                                                                                                                                                                                                                                                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/shuffle/theme-override.d.ts[24m[0m
+[0m  [2m1:1[22m  [31merror[39m  Unused eslint-disable directive (no problems were reported from 'no-restricted-imports')[0m
+[0m  [2m2:8[22m  [31merror[39m  Unable to resolve path to module '@hashintel/design-system/theme-override'                [2mimport/no-unresolved[22m[0m
+[0m[0m
+[0m[31m[1m✖ 117 problems (117 errors, 0 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  83 errors and 0 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m
+[2K[1G[31merror[39m Command failed with exit code 1.
+[2K[1G[34minfo[39m Visit [1mhttps://yarnpkg.com/en/docs/cli/run[22m for documentation about this command.

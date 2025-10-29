@@ -1,0 +1,152 @@
+[2K[1G[1myarn run v1.22.22[22m
+[2K[1G[2m$ eslint --report-unused-disable-directives .[22m
+=============
+
+WARNING: You are currently running a version of TypeScript which is not officially supported by @typescript-eslint/typescript-estree.
+
+You may find that it works just fine, or you may not.
+
+SUPPORTED TYPESCRIPT VERSIONS: >=4.7.4 <5.5.0
+
+YOUR TYPESCRIPT VERSION: 5.5.3
+
+Please only submit bug reports when using the officially supported version.
+
+=============
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/declarations.d.ts[24m[0m
+[0m  [2m3:3[22m  [31merror[39m  Expected blank line before this statement  [2m@stylistic/padding-line-between-statements[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/app.tsx[24m[0m
+[0m    [2m1:1[22m   [31merror[39m  Run autofix to sort these imports!                                                                                                                        [2msimple-import-sort/imports[22m[0m
+[0m    [2m1:37[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/node_modules/@blockprotocol/graph/dist/cjs/non-temporal/react.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m    [2m5:8[22m   [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/node_modules/@blockprotocol/graph/dist/cjs/non-temporal/react.d.ts' imported multiple times  [2mimport/no-duplicates[22m[0m
+[0m   [2m13:35[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/utils.ts' imported multiple times                                                        [2mimport/no-duplicates[22m[0m
+[0m   [2m14:27[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/utils.ts' imported multiple times                                                        [2mimport/no-duplicates[22m[0m
+[0m   [2m42:9[22m   [31merror[39m  useState call is not destructured into value + setter pair                                                                                                [2mreact/hook-use-state[22m[0m
+[0m   [2m84:5[22m   [31merror[39m  Expected blank line before this statement                                                                                                                 [2m@stylistic/padding-line-between-statements[22m[0m
+[0m   [2m98:26[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                        [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m   [2m99:9[22m   [31merror[39m  Expected blank line before this statement                                                                                                                 [2m@stylistic/padding-line-between-statements[22m[0m
+[0m  [2m103:33[22m  [31merror[39m  Expected { after 'if' condition                                                                                                                           [2mcurly[22m[0m
+[0m  [2m109:28[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                        [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m112:14[22m  [31merror[39m  The catch parameter `err` should be named `error`                                                                                                         [2municorn/catch-error-name[22m[0m
+[0m  [2m112:14[22m  [31merror[39m  The variable `err` should be named `error`. A more descriptive name will do too                                                                           [2municorn/prevent-abbreviations[22m[0m
+[0m  [2m113:7[22m   [31merror[39m  Unused eslint-disable directive (no problems were reported from 'no-console')[0m
+[0m  [2m128:28[22m  [31merror[39m  use `Boolean(localData[propertyIds.caption]?.length)` instead                                                                                             [2mno-implicit-coercion[22m[0m
+[0m  [2m133:26[22m  [31merror[39m  use `Boolean(captionRef.current?.value.length)` instead                                                                                                   [2mno-implicit-coercion[22m[0m
+[0m  [2m146:16[22m  [31merror[39m  The variable `evt` should be named `event`. A more descriptive name will do too                                                                           [2municorn/prevent-abbreviations[22m[0m
+[0m  [2m146:24[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                        [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m158:20[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                             [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m160:23[22m  [31merror[39m  Promise-returning function provided to attribute where a void return was expected                                                                         [2m@typescript-eslint/no-misused-promises[22m[0m
+[0m  [2m166:22[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                             [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m181:11[22m  [31merror[39m  Multiline props must be listed after all other props                                                                                                      [2mreact/jsx-sort-props[22m[0m
+[0m  [2m182:13[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                        [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m187:11[22m  [31merror[39m  Callbacks must be listed after all other props                                                                                                            [2mreact/jsx-sort-props[22m[0m
+[0m  [2m187:25[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                        [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m  [2m188:21[22m  [31merror[39m  use `Boolean(readonly)` instead                                                                                                                           [2mno-implicit-coercion[22m[0m
+[0m  [2m195:21[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                                                             [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m197:9[22m   [31merror[39m  Multiline props must be listed after all other props                                                                                                      [2mreact/jsx-sort-props[22m[0m
+[0m  [2m197:20[22m  [31merror[39m  The variable `evt` should be named `event`. A more descriptive name will do too                                                                           [2municorn/prevent-abbreviations[22m[0m
+[0m  [2m198:11[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function                                        [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/dev.tsx[24m[0m
+[0m   [2m5:1[22m   [31merror[39m  Run autofix to sort these imports!                                                                                          [2msimple-import-sort/imports[22m[0m
+[0m   [2m9:1[22m   [31merror[39m  There should be at least one empty line between import groups                                                               [2mimport/order[22m[0m
+[0m  [2m10:1[22m   [31merror[39m  There should be at least one empty line between import groups                                                               [2mimport/order[22m[0m
+[0m  [2m10:1[22m   [31merror[39m  `./index` import should occur after type import of `./types/generated/block-entity`                                         [2mimport/order[22m[0m
+[0m  [2m14:23[22m  [31merror[39m  Prefer `.querySelector()` over `.getElementById()`                                                                          [2municorn/prefer-query-selector[22m[0m
+[0m  [2m17:4[22m   [31merror[39m  tsdoc-undefined-tag: The TSDoc tag "@type" is not defined in this configuration                                             [2mtsdoc/syntax[22m[0m
+[0m  [2m17:10[22m  [31merror[39m  tsdoc-malformed-inline-tag: Expecting a TSDoc tag starting with "{@"                                                        [2mtsdoc/syntax[22m[0m
+[0m  [2m17:11[22m  [31merror[39m  tsdoc-malformed-inline-tag: Expecting a TSDoc tag starting with "{@"                                                        [2mtsdoc/syntax[22m[0m
+[0m  [2m17:70[22m  [31merror[39m  tsdoc-escape-right-brace: The "}" character should be escaped using a backslash to avoid confusion with a TSDoc inline tag  [2mtsdoc/syntax[22m[0m
+[0m  [2m17:71[22m  [31merror[39m  tsdoc-escape-right-brace: The "}" character should be escaped using a backslash to avoid confusion with a TSDoc inline tag  [2mtsdoc/syntax[22m[0m
+[0m  [2m34:7[22m   [31merror[39m  Fast refresh only works when a file has exports. Move your component(s) to a separate file                                  [2mreact-refresh/only-export-components[22m[0m
+[0m  [2m40:7[22m   [31merror[39m  Multiline props must be listed after all other props                                                                        [2mreact/jsx-sort-props[22m[0m
+[0m  [2m46:7[22m   [31merror[39m  Shorthand props must be listed before all other props                                                                       [2mreact/jsx-sort-props[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/editor.tsx[24m[0m
+[0m    [2m1:1[22m   [31merror[39m  Run autofix to sort these imports!                                                                                  [2msimple-import-sort/imports[22m[0m
+[0m    [2m2:60[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times      [2mimport/no-duplicates[22m[0m
+[0m    [2m3:48[22m  [31merror[39m  '/Users/bmahmoud/Sync/projects/contribution/hash/node_modules/@types/react/index.d.ts' imported multiple times      [2mimport/no-duplicates[22m[0m
+[0m    [2m8:6[22m   [31merror[39m  Use an `interface` instead of a `type`                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m   [2m29:41[22m  [31merror[39m  Expected { after 'if' condition                                                                                     [2mcurly[22m[0m
+[0m   [2m30:28[22m  [31merror[39m  Forbidden non-null assertion                                                                                        [2m@typescript-eslint/no-non-null-assertion[22m[0m
+[0m   [2m34:3[22m   [31merror[39m  Sentences must end with a period                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m   [2m39:65[22m  [31merror[39m  Expected { after 'if' condition                                                                                     [2mcurly[22m[0m
+[0m   [2m45:3[22m   [31merror[39m  Sentences must end with a period                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m   [2m49:11[22m  [31merror[39m  The variable `textAreaEl` should be named `textAreaElement`. A more descriptive name will do too                    [2municorn/prevent-abbreviations[22m[0m
+[0m   [2m50:11[22m  [31merror[39m  The variable `preEl` should be named `preElement`. A more descriptive name will do too                              [2municorn/prevent-abbreviations[22m[0m
+[0m   [2m51:5[22m   [31merror[39m  Expected blank line before this statement                                                                           [2m@stylistic/padding-line-between-statements[22m[0m
+[0m   [2m51:32[22m  [31merror[39m  Expected { after 'if' condition                                                                                     [2mcurly[22m[0m
+[0m   [2m62:3[22m   [31merror[39m  Use a useEventListener hook from a hooks library instead of manually adding and removing event listeners            [2mfsecond/valid-event-listener[22m[0m
+[0m   [2m62:3[22m   [31merror[39m  Missing a matching removeEventListener                                                                              [2mfsecond/valid-event-listener[22m[0m
+[0m   [2m69:18[22m  [31merror[39m  Returning a void expression from an arrow function shorthand is forbidden. Please add braces to the arrow function  [2m@typescript-eslint/no-confusing-void-expression[22m[0m
+[0m   [2m77:25[22m  [31merror[39m  The variable `evt` should be named `event`. A more descriptive name will do too                                     [2municorn/prevent-abbreviations[22m[0m
+[0m   [2m81:26[22m  [31merror[39m  The variable `evt` should be named `event`. A more descriptive name will do too                                     [2municorn/prevent-abbreviations[22m[0m
+[0m   [2m82:31[22m  [31merror[39m  Expected { after 'if' condition                                                                                     [2mcurly[22m[0m
+[0m   [2m92:13[22m  [31merror[39m  Prefer `String#slice()` over `String#substring()`                                                                   [2municorn/prefer-string-slice[22m[0m
+[0m   [2m96:25[22m  [31merror[39m  Prefer `String#slice()` over `String#substring()`                                                                   [2municorn/prefer-string-slice[22m[0m
+[0m   [2m99:13[22m  [31merror[39m  Prefer `String#slice()` over `String#substring()`                                                                   [2municorn/prefer-string-slice[22m[0m
+[0m  [2m103:25[22m  [31merror[39m  Prefer `String#slice()` over `String#substring()`                                                                   [2municorn/prefer-string-slice[22m[0m
+[0m  [2m106:15[22m  [31merror[39m  Prefer `String#slice()` over `String#substring()`                                                                   [2municorn/prefer-string-slice[22m[0m
+[0m  [2m124:14[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m125:13[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m129:9[22m   [31merror[39m  Callbacks must be listed after all other props                                                                      [2mreact/jsx-sort-props[22m[0m
+[0m  [2m133:9[22m   [31merror[39m  Callbacks must be listed after all other props                                                                      [2mreact/jsx-sort-props[22m[0m
+[0m  [2m134:20[22m  [31merror[39m  Need to wrap this literal in a JSX expression                                                                       [2mreact/jsx-curly-brace-presence[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/icons.tsx[24m[0m
+[0m   [2m6:15[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m   [2m7:12[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m   [2m8:13[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m11:24[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m12:23[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m13:21[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m14:16[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m15:14[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m16:11[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m17:18[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m18:18[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m21:24[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m22:23[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m23:21[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m24:16[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m25:14[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m26:11[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m27:18[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m  [2m28:18[22m  [31merror[39m  Need to wrap this literal in a JSX expression  [2mreact/jsx-curly-brace-presence[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/index.ts[24m[0m
+[0m  [2m1:1[22m  [31merror[39m  Definition for rule 'canonical/filename-no-index' was not found  [2mcanonical/filename-no-index[22m[0m
+[0m  [2m8:1[22m  [31merror[39m  Use `export…from` to re-export `default`                         [2municorn/prefer-export-from[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/types/generated/block-entity.ts[24m[0m
+[0m   [2m5:1[22m   [31merror[39m  All imports in the declaration are only used as types. Use `import type`                                                                                                                                                                                                                                                                                                                                                                            [2m@typescript-eslint/consistent-type-imports[22m[0m
+[0m  [2m23:1[22m   [31merror[39m  Sentences must end with a period                                                                                                                                                                                                                                                                                                                                                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m  [2m29:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m29:56[22m  [31merror[39m  Don't use `{}` as a type. `{}` actually means "any non-nullish value".[0m
+[0m- If you want a type meaning "any object", you probably want `object` instead.[0m
+[0m- If you want a type meaning "any value", you probably want `unknown` instead.[0m
+[0m- If you want a type meaning "empty object", you probably want `Record<string, never>` instead.[0m
+[0m- If you really want a type meaning "any non-nullish value", you probably want `NonNullable<unknown>` instead  [2m@typescript-eslint/ban-types[22m[0m
+[0m  [2m34:1[22m   [31merror[39m  Sentences must end with a period                                                                                                                                                                                                                                                                                                                                                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m  [2m34:35[22m  [31merror[39m  tsdoc-at-sign-in-word: The "@" character looks like part of a TSDoc tag; use a backslash to escape it                                                                                                                                                                                                                                                                                                                                               [2mtsdoc/syntax[22m[0m
+[0m  [2m36:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m43:1[22m   [31merror[39m  Sentences must end with a period                                                                                                                                                                                                                                                                                                                                                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m  [2m45:13[22m  [31merror[39m  Use an `interface` instead of a `type`                                                                                                                                                                                                                                                                                                                                                                                                              [2m@typescript-eslint/consistent-type-definitions[22m[0m
+[0m  [2m45:30[22m  [31merror[39m  Don't use `{}` as a type. `{}` actually means "any non-nullish value".[0m
+[0m- If you want a type meaning "any object", you probably want `object` instead.[0m
+[0m- If you want a type meaning "any value", you probably want `unknown` instead.[0m
+[0m- If you want a type meaning "empty object", you probably want `Record<string, never>` instead.[0m
+[0m- If you really want a type meaning "any non-nullish value", you probably want `NonNullable<unknown>` instead  [2m@typescript-eslint/ban-types[22m[0m
+[0m  [2m48:1[22m   [31merror[39m  Sentences must end with a period                                                                                                                                                                                                                                                                                                                                                                                                                    [2mjsdoc/require-description-complete-sentence[22m[0m
+[0m[0m
+[0m[4m/Users/bmahmoud/Sync/projects/contribution/hash/blocks/code/src/utils.ts[24m[0m
+[0m   [2m434:3[22m   [31merror[39m  The property `j` should be named `index`. A more descriptive name will do too  [2municorn/prevent-abbreviations[22m[0m
+[0m  [2m1068:30[22m  [31merror[39m  'languages' is already declared in the upper scope on line 1073 column 14      [2m@typescript-eslint/no-shadow[22m[0m
+[0m[0m
+[0m[31m[1m✖ 107 problems (107 errors, 0 warnings)[22m[39m[0m
+[0m[31m[1m[22m[39m[31m[1m  86 errors and 0 warnings potentially fixable with the `--fix` option.[22m[39m[0m
+[0m[31m[1m[22m[39m[0m
+[2K[1G[31merror[39m Command failed with exit code 1.
+[2K[1G[34minfo[39m Visit [1mhttps://yarnpkg.com/en/docs/cli/run[22m for documentation about this command.
