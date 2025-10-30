@@ -1,8 +1,5 @@
 import type { PetriNetDefinitionObject } from "@hashintel/petrinaut";
-import type {
-	SimulationState,
-	TokenCounts,
-} from "@hashintel/petrinaut/dist/petrinaut/types";
+import type { SimulationState } from "@hashintel/petrinaut/dist/petrinaut/types";
 import { useCallback, useEffect, useState } from "react";
 
 export type MessageToHazel =
