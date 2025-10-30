@@ -1,3 +1,8 @@
+import type { PetriNetDefinitionObject } from "@hashintel/petrinaut";
+import type {
+	SimulationState,
+	TokenCounts,
+} from "@hashintel/petrinaut/dist/petrinaut/types";
 import { useCallback, useEffect, useState } from "react";
 
 export type MessageToHazel =
@@ -35,6 +40,11 @@ type HazelIntegrationConfig = {
 	onInit: (value: string) => void;
 };
 
+export type HazelValue = {
+	netDefinition: PetriNetDefinitionObject;
+	simulationState: SimulationState | undefined;
+};
+
 const sendToHazel = (message: MessageToHazel, targetOrigin: string) => {
 	if (window.parent && window.parent !== window) {
 		console.log("Sending message to Hazel", message);
@@ -43,7 +53,7 @@ const sendToHazel = (message: MessageToHazel, targetOrigin: string) => {
 };
 
 /**
- * Core Hazel integration for SolidJS - handles protocol, messaging, and setup
+ * Core Hazel integration - handles protocol, messaging, and setup
  */
 export const useHazelIntegration = (config: HazelIntegrationConfig) => {
 	const { id, codec, onInit } = config;
@@ -53,8 +63,11 @@ export const useHazelIntegration = (config: HazelIntegrationConfig) => {
 		new URLSearchParams(window.location.search).get("parentOrigin") || "*";
 
 	const setSyntax = useCallback(
-		(value: string) => {
-			sendToHazel({ type: "setSyntax", id, codec, value }, targetOrigin);
+		(value: HazelValue) => {
+			sendToHazel(
+				{ type: "setSyntax", id, codec, value: JSON.stringify(value) },
+				targetOrigin,
+			);
 		},
 		[id, codec, targetOrigin],
 	);
@@ -89,7 +102,7 @@ export const useHazelIntegration = (config: HazelIntegrationConfig) => {
 		return () => {
 			window.removeEventListener("message", handleMessage);
 		};
-	});
+	}, [hasInit, id, onInit, targetOrigin]);
 
 	return {
 		setSyntax,
