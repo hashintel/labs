@@ -1,2 +1,0 @@
-$ eslint --report-unused-disable-directives .
-DeprecationWarning: 'originalKeywordKind' has been deprecated since v5.0.0 and will no longer be usable after v5.2.0. Use 'identifierToKeywordKind(identifier)' instead.
