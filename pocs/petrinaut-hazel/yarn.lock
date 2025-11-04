@@ -508,10 +508,10 @@
     echarts "5.6.0"
     react-loading-skeleton "3.5.0"
 
-"@hashintel/petrinaut@0.0.5-state-reporting-variant.2":
-  version "0.0.5-state-reporting-variant.2"
-  resolved "https://registry.yarnpkg.com/@hashintel/petrinaut/-/petrinaut-0.0.5-state-reporting-variant.2.tgz#54cdc1ce36f27a72e132ee1384adb992d0b15045"
-  integrity sha512-Mmp95R78X0aGn16i7qehzpxvONidVKqWdBxNNjpN2J0D6Dq/rQs/LLZK+IOAncO9ILpn9M0XkmuGLIo2X31Z6w==
+"@hashintel/petrinaut@0.0.5-state-reporting-variant.3":
+  version "0.0.5-state-reporting-variant.3"
+  resolved "https://registry.yarnpkg.com/@hashintel/petrinaut/-/petrinaut-0.0.5-state-reporting-variant.3.tgz#4b6745e8421d7a27b92253893ca5300223f12d8f"
+  integrity sha512-kWKpihGdhYnrCyZ3j8RhOOtPHvbk/XqyEdBm1J3ptX1FQBy550X9krAlFBDYQ6RoVqRv6N9sR0g2i9dgBNTRRA==
   dependencies:
     "@fortawesome/free-solid-svg-icons" "6.7.2"
     "@hashintel/block-design-system" "0.0.5"
