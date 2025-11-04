@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
 	Petrinaut,
 	defaultTokenTypes,
 	type PetriNetDefinitionObject,
 } from "@hashintel/petrinaut";
-import { useHazelIntegration } from "./app/use-hazel-integration";
+import {
+	useHazelIntegration,
+	type HazelValue,
+} from "./app/use-hazel-integration";
 import { produce } from "immer";
+import type { MinimalNetMetadata, SimulationState } from "@hashintel/petrinaut";
 
 const createDefaultNetDefinition = (): PetriNetDefinitionObject => {
 	return {
@@ -14,6 +18,8 @@ const createDefaultNetDefinition = (): PetriNetDefinitionObject => {
 		tokenTypes: structuredClone(defaultTokenTypes),
 	};
 };
+
+const existingNets: MinimalNetMetadata[] = [];
 
 /**
  * An incomplete type guard to check if a value is a valid Petri net definition.
@@ -42,6 +48,22 @@ const isValidNetDefinition = (
 };
 
 /**
+ * Hazel errors if sent an empty array at the root of an object value returned, e.g. { simulationState: [] }.
+ */
+const stripEmptyTuple = (
+	simulationState: SimulationState,
+): HazelValue["simulationState"] => {
+	if (
+		simulationState.length === 0 ||
+		Object.keys(simulationState[0]).length === 0
+	) {
+		return undefined;
+	}
+
+	return simulationState;
+};
+
+/**
  * Wraps Petrinaut with the event handlers necessary for a Hazel Livelit.
  */
 export const App = () => {
@@ -50,6 +72,7 @@ export const App = () => {
 
 	const [netDefinition, setNetDefinition] =
 		useState<PetriNetDefinitionObject | null>(null);
+	const [simulationState, setSimulationState] = useState<SimulationState>([]);
 
 	const { setSyntax } = useHazelIntegration({
 		id,
@@ -60,13 +83,18 @@ export const App = () => {
 			try {
 				const parsedValue = JSON.parse(value);
 
-				if (isValidNetDefinition(parsedValue)) {
-					setNetDefinition(parsedValue);
+				if (isValidNetDefinition(parsedValue.netDefinition)) {
+					setNetDefinition(parsedValue.netDefinition);
+					setSimulationState(parsedValue.simulationState ?? []);
 				} else {
-					console.error("Invalid net definition", parsedValue);
+					console.error("Invalid net definition", parsedValue.netDefinition);
 					const defaultNetDefinition = createDefaultNetDefinition();
 					setNetDefinition(defaultNetDefinition);
-					setSyntax(JSON.stringify(defaultNetDefinition));
+
+					setSyntax({
+						netDefinition: defaultNetDefinition,
+						simulationState: stripEmptyTuple(simulationState),
+					});
 				}
 			} catch (error) {
 				console.error("Error parsing net definition as JSON", error);
@@ -74,43 +102,70 @@ export const App = () => {
 		},
 	});
 
+	const reportSimulationState = useCallback(
+		(simulationState: SimulationState) => {
+			console.log("Simulation state reported");
+			setSimulationState(simulationState);
+
+			setSyntax({
+				netDefinition: netDefinition as PetriNetDefinitionObject,
+				simulationState: stripEmptyTuple(simulationState),
+			});
+		},
+		[netDefinition, setSyntax],
+	);
+
+	const mutatePetriNetDefinition = useCallback(
+		(definitionMutationFn: (definition: PetriNetDefinitionObject) => void) => {
+			setNetDefinition((existingDefinition) => {
+				const newDefinition = produce(existingDefinition, definitionMutationFn);
+				setSyntax({
+					netDefinition: newDefinition as PetriNetDefinitionObject,
+					simulationState: stripEmptyTuple(simulationState),
+				});
+				return newDefinition;
+			});
+		},
+		[setSyntax, simulationState],
+	);
+
 	if (!netDefinition) {
+		if (typeof window !== "undefined" && window.self === window.top) {
+			return (
+				<p style={{ padding: 15 }}>
+					This application is designed to be run in an iFrame.
+				</p>
+			);
+		}
 		return null;
 	}
 
 	return (
 		<Petrinaut
 			key={id}
-			hideNetManagementControls
+			hideNetManagementControls="includeLoadExampleOnly"
 			petriNetId={id}
 			petriNetDefinition={netDefinition}
-			existingNets={[]}
-			mutatePetriNetDefinition={(definitionMutationFn) => {
-				setNetDefinition((existingDefinition) => {
-					const newDefinition = produce(
-						existingDefinition,
-						definitionMutationFn,
-					);
-
-					setSyntax(JSON.stringify(newDefinition));
-
-					return newDefinition;
-				});
-			}}
+			existingNets={existingNets}
+			mutatePetriNetDefinition={mutatePetriNetDefinition}
 			parentNet={null}
-			createNewNet={() => {
-				throw new Error(
-					"Petrinaut should not be attemping to create new nets when wrapped by Patchwork",
-				);
+			createNewNet={({ petriNetDefinition }) => {
+				setNetDefinition(petriNetDefinition);
+				setSimulationState([]);
+				setSyntax({
+					netDefinition: petriNetDefinition,
+					simulationState: undefined,
+				});
 			}}
 			loadPetriNet={() => {
 				throw new Error(
-					"Petrinaut should not be attemping to load other nets when wrapped by Patchwork",
+					"Petrinaut should not be attemping to load other nets when used as a Hazel livelit",
 				);
 			}}
+			reportSimulationState={reportSimulationState}
 			setTitle={() => {
 				throw new Error(
-					"Petrinaut should not be attemping to set the net title when wrapped by Patchwork",
+					"Petrinaut should not be attemping to set the net title when used as a Hazel livelit",
 				);
 			}}
 			title={""}
