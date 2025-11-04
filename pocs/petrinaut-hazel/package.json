@@ -15,7 +15,7 @@
 		"@fortawesome/free-solid-svg-icons": "6.7.2",
 		"@hashintel/block-design-system": "0.0.5",
 		"@hashintel/design-system": "0.0.9-canary.2",
-		"@hashintel/petrinaut": "0.0.5-state-reporting-variant.2",
+		"@hashintel/petrinaut": "0.0.5-state-reporting-variant.3",
 		"@mui/material": "5.18.0",
 		"@mui/system": "5.18.0",
 		"immer": "10.1.3",
