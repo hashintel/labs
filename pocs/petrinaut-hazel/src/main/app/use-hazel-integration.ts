@@ -1,5 +1,7 @@
-import type { PetriNetDefinitionObject } from "@hashintel/petrinaut";
-import type { SimulationState } from "@hashintel/petrinaut/dist/petrinaut/types";
+import type {
+	PetriNetDefinitionObject,
+	TokenCounts,
+} from "@hashintel/petrinaut";
 import { useCallback, useEffect, useState } from "react";
 
 export type MessageToHazel =
@@ -37,9 +39,13 @@ type HazelIntegrationConfig = {
 	onInit: (value: string) => void;
 };
 
+export type HazelSimulationState = Array<
+	Array<{ placeId: string; marking: TokenCounts; placeLabel: string }>
+>;
+
 export type HazelValue = {
 	netDefinition: PetriNetDefinitionObject;
-	simulationState: SimulationState | undefined;
+	simulationState: HazelSimulationState | undefined;
 };
 
 const sendToHazel = (message: MessageToHazel, targetOrigin: string) => {
