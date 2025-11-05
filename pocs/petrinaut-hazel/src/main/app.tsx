@@ -6,6 +6,7 @@ import {
 } from "@hashintel/petrinaut";
 import {
 	useHazelIntegration,
+	type HazelSimulationState,
 	type HazelValue,
 } from "./app/use-hazel-integration";
 import { produce } from "immer";
@@ -48,19 +49,35 @@ const isValidNetDefinition = (
 };
 
 /**
- * Hazel errors if sent an empty array at the root of an object value returned, e.g. { simulationState: [] }.
+ * Converts SimulationState to a 2D array format.
+ * Each step becomes an array of objects with placeId, marking, and placeLabel.
  */
-const stripEmptyTuple = (
+const simulationStateTo2DArray = (
+	simulationState: SimulationState,
+): HazelSimulationState => {
+	return simulationState.map((step) => {
+		return Object.entries(step).map(([placeId, { marking, placeLabel }]) => ({
+			placeId,
+			marking,
+			placeLabel,
+		}));
+	});
+};
+
+const convertSimulationStateForHazel = (
 	simulationState: SimulationState,
 ): HazelValue["simulationState"] => {
 	if (
 		simulationState.length === 0 ||
 		Object.keys(simulationState[0]).length === 0
 	) {
+		/**
+		 * Hazel errors if sent an empty array at the root of an object value returned, e.g. { simulationState: [] }.
+		 */
 		return undefined;
 	}
 
-	return simulationState;
+	return simulationStateTo2DArray(simulationState);
 };
 
 /**
@@ -83,17 +100,19 @@ export const App = () => {
 			try {
 				const parsedValue = JSON.parse(value);
 
-				if (isValidNetDefinition(parsedValue.netDefinition)) {
-					setNetDefinition(parsedValue.netDefinition);
-					setSimulationState(parsedValue.simulationState ?? []);
+				const { netDefinition, simulationState } = parsedValue;
+
+				if (isValidNetDefinition(netDefinition)) {
+					setNetDefinition(netDefinition);
+					setSimulationState(simulationState ?? []);
 				} else {
-					console.error("Invalid net definition", parsedValue.netDefinition);
+					console.error("Invalid net definition", netDefinition);
 					const defaultNetDefinition = createDefaultNetDefinition();
 					setNetDefinition(defaultNetDefinition);
 
 					setSyntax({
 						netDefinition: defaultNetDefinition,
-						simulationState: stripEmptyTuple(simulationState),
+						simulationState: convertSimulationStateForHazel(simulationState),
 					});
 				}
 			} catch (error) {
@@ -109,7 +128,7 @@ export const App = () => {
 
 			setSyntax({
 				netDefinition: netDefinition as PetriNetDefinitionObject,
-				simulationState: stripEmptyTuple(simulationState),
+				simulationState: convertSimulationStateForHazel(simulationState),
 			});
 		},
 		[netDefinition, setSyntax],
@@ -121,7 +140,7 @@ export const App = () => {
 				const newDefinition = produce(existingDefinition, definitionMutationFn);
 				setSyntax({
 					netDefinition: newDefinition as PetriNetDefinitionObject,
-					simulationState: stripEmptyTuple(simulationState),
+					simulationState: convertSimulationStateForHazel(simulationState),
 				});
 				return newDefinition;
 			});
