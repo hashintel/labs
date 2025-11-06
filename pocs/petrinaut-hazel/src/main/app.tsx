@@ -51,14 +51,19 @@ const isValidNetDefinition = (
 /**
  * Converts SimulationState to a 2D array format.
  * Each step becomes an array of objects with placeId, marking, and placeLabel.
+ *
+ * Marking is also converted to a representation of an association list.
  */
-const simulationStateTo2DArray = (
+const simulationStateToHazelFormat = (
 	simulationState: SimulationState,
 ): HazelSimulationState => {
 	return simulationState.map((step) => {
 		return Object.entries(step).map(([placeId, { marking, placeLabel }]) => ({
 			placeId,
-			marking,
+			marking: Object.entries(marking).map(([tokenId, count]) => ({
+				0: tokenId,
+				1: count,
+			})),
 			placeLabel,
 		}));
 	});
@@ -77,7 +82,7 @@ const convertSimulationStateForHazel = (
 		return undefined;
 	}
 
-	return simulationStateTo2DArray(simulationState);
+	return simulationStateToHazelFormat(simulationState);
 };
 
 /**
@@ -95,8 +100,6 @@ export const App = () => {
 		id,
 		codec: "json",
 		onInit: (value) => {
-			console.log("Received value", value);
-
 			try {
 				const parsedValue = JSON.parse(value);
 
@@ -123,7 +126,6 @@ export const App = () => {
 
 	const reportSimulationState = useCallback(
 		(simulationState: SimulationState) => {
-			console.log("Simulation state reported");
 			setSimulationState(simulationState);
 
 			setSyntax({
