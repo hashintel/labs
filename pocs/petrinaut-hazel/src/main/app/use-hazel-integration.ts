@@ -1,7 +1,4 @@
-import type {
-	PetriNetDefinitionObject,
-	TokenCounts,
-} from "@hashintel/petrinaut";
+import type { PetriNetDefinitionObject } from "@hashintel/petrinaut";
 import { useCallback, useEffect, useState } from "react";
 
 export type MessageToHazel =
@@ -40,7 +37,14 @@ type HazelIntegrationConfig = {
 };
 
 export type HazelSimulationState = Array<
-	Array<{ placeId: string; marking: TokenCounts; placeLabel: string }>
+	Array<{
+		placeId: string;
+		/**
+		 * Marking represented as a association list where the tokenId is the key and the count is the value, represented in the format Hazel expects.
+		 */
+		marking: Array<{ 0: string; 1: number }>;
+		placeLabel: string;
+	}>
 >;
 
 export type HazelValue = {
