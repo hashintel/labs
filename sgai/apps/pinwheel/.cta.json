@@ -1,0 +1,22 @@
+{
+  "initialized": true,
+  "mode": "file-router",
+  "projectName": "pinwheel",
+  "typescript": true,
+  "tailwind": true,
+  "git": true,
+  "addOnOptions": {},
+  "packageManager": "yarn",
+  "version": 1,
+  "framework": "react-cra",
+  "chosenAddOns": [
+    "compiler",
+    "mcp",
+    "start",
+    "store",
+    "tanstack-query",
+    "tanchat",
+    "eslint",
+    "nitro"
+  ]
+}

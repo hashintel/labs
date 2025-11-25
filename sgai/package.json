@@ -1,0 +1,11 @@
+{
+  "name": "sgai",
+  "packageManager": "yarn@4.9.2",
+  "workspaces": [
+    "apps/*",
+    "libs/*"
+  ],
+  "devDependencies": {
+    "tsdown": "^0.16.7"
+  }
+}
