@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { anthropic } from '@ai-sdk/anthropic'
 import { convertToModelMessages, stepCountIs, streamText } from 'ai'
 
+import { haiku } from '@/lib/openrouter'
 import getTools from '@/utils/demo.tools'
 
 const SYSTEM_PROMPT = `You are a helpful assistant for a store that sells guitars.
@@ -22,7 +22,7 @@ export const Route = createFileRoute('/demo/api/tanchat')({
           const tools = await getTools()
 
           const result = await streamText({
-            model: anthropic('claude-haiku-4-5'),
+            model: haiku,
             messages: convertToModelMessages(messages),
             temperature: 0.7,
             stopWhen: stepCountIs(5),

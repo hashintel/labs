@@ -20,6 +20,9 @@ importers:
       '@modelcontextprotocol/sdk':
         specifier: ^1.8.0
         version: 1.23.0(zod@4.1.13)
+      '@openrouter/ai-sdk-provider':
+        specifier: ^1.2.6
+        version: 1.2.6(ai@5.0.102(zod@4.1.13))(zod@4.1.13)
       '@tailwindcss/vite':
         specifier: ^4.0.6
         version: 4.1.17(vite@7.2.4(@types/node@22.19.1)(jiti@2.6.1)(lightningcss@1.30.2)(tsx@4.20.6))
@@ -682,6 +685,16 @@ packages:
   '@oozcitak/util@9.0.4':
     resolution: {integrity: sha512-kmx1hRJlsvxiTCpK97off59LqSEOtkWOPe4rdfFL8TjZtihYSTVNObIfc86jtLngfnuIuuTRt+TUCgRS220RSQ==}
     engines: {node: '>=20.0'}
+
+  '@openrouter/ai-sdk-provider@1.2.6':
+    resolution: {integrity: sha512-DExO4FXod5vEdLFpQGsyNva8u3FWHj2IPaP8to+zEGsBEUY7lu5t24uIMxmmLKZ0sYYWAtmTLSV4Y9uOVqQoAg==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      ai: ^5.0.0
+      zod: ^3.24.1 || ^v4
+
+  '@openrouter/sdk@0.1.27':
+    resolution: {integrity: sha512-RH//L10bSmc81q25zAZudiI4kNkLgxF2E+WU42vghp3N6TEvZ6F0jK7uT3tOxkEn91gzmMw9YVmDENy7SJsajQ==}
 
   '@opentelemetry/api@1.9.0':
     resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
@@ -4758,6 +4771,16 @@ snapshots:
       '@oozcitak/util': 9.0.4
 
   '@oozcitak/util@9.0.4': {}
+
+  '@openrouter/ai-sdk-provider@1.2.6(ai@5.0.102(zod@4.1.13))(zod@4.1.13)':
+    dependencies:
+      '@openrouter/sdk': 0.1.27
+      ai: 5.0.102(zod@4.1.13)
+      zod: 4.1.13
+
+  '@openrouter/sdk@0.1.27':
+    dependencies:
+      zod: 4.1.13
 
   '@opentelemetry/api@1.9.0': {}
 
