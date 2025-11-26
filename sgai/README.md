@@ -6,4 +6,5 @@ This is an area for experiments and prototypes related to ARIA SGAI.
 
 - Build tooling preference is for [VoidZero](https://voidzero.dev/) stuff.
 - TS and React libraries initialized with [tsdown](https://tsdown.dev/).
-- 
+
+## 

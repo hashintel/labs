@@ -6675,7 +6675,7 @@ __metadata:
     vite-tsconfig-paths: "npm:^5.1.4"
     vitest: "npm:^3.0.5"
     web-vitals: "npm:^5.1.0"
-    zod: "npm:^4.1.11"
+    zod: "npm:^4.1.13"
   languageName: unknown
   linkType: soft
 
@@ -8820,7 +8820,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"zod@npm:^4.1.11":
+"zod@npm:^4.1.13":
   version: 4.1.13
   resolution: "zod@npm:4.1.13"
   checksum: 10c0/d7e74e82dba81a91ffc3239cd85bc034abe193a28f7087a94ab258a3e48e9a7ca4141920cac979a0d781495b48fc547777394149f26be04c3dc642f58bbc3941
