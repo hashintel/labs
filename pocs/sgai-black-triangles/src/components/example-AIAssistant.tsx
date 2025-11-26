@@ -26,7 +26,7 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
 
   if (!messages.length) {
     return (
-      <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+      <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
         Ask me anything! I'm here to help.
       </div>
     )
@@ -48,15 +48,15 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
               return (
                 <div className="flex items-start gap-2 px-4">
                   {role === 'assistant' ? (
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 flex items-center justify-center text-xs font-medium text-white flex-shrink-0">
+                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-red-600 text-xs font-medium text-white">
                       AI
                     </div>
                   ) : (
-                    <div className="w-6 h-6 rounded-lg bg-gray-700 flex items-center justify-center text-xs font-medium text-white flex-shrink-0">
+                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-gray-700 text-xs font-medium text-white">
                       Y
                     </div>
                   )}
-                  <div className="flex-1 min-w-0 text-white prose dark:prose-invert max-w-none prose-sm">
+                  <div className="prose dark:prose-invert prose-sm max-w-none min-w-0 flex-1 text-white">
                     <Streamdown>{part.text}</Streamdown>
                   </div>
                 </div>
@@ -68,7 +68,7 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
               (part.output as { id: string })?.id
             ) {
               return (
-                <div key={id} className="max-w-[80%] mx-auto">
+                <div key={id} className="mx-auto max-w-[80%]">
                   <GuitarRecommendation
                     id={(part.output as { id: string })?.id}
                   />
@@ -95,32 +95,32 @@ export default function AIAssistant() {
     <div className="relative z-50">
       <button
         onClick={() => showAIAssistant.setState((state) => !state)}
-        className="w-full flex items-center justify-between px-4 py-2.5 rounded-lg bg-gradient-to-r from-orange-500 to-red-600 text-white hover:opacity-90 transition-opacity"
+        className="flex w-full items-center justify-between rounded-lg bg-gradient-to-r from-orange-500 to-red-600 px-4 py-2.5 text-white transition-opacity hover:opacity-90"
       >
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-lg bg-white/20 flex items-center justify-center text-xs font-medium">
+          <div className="flex h-5 w-5 items-center justify-center rounded-lg bg-white/20 text-xs font-medium">
             AI
           </div>
           <span className="font-medium">AI Assistant</span>
         </div>
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="h-4 w-4" />
       </button>
 
       {isOpen && (
-        <div className="absolute bottom-0 left-full ml-2 w-[700px] h-[600px] bg-gray-900 rounded-lg shadow-xl border border-orange-500/20 flex flex-col">
-          <div className="flex items-center justify-between p-3 border-b border-orange-500/20">
+        <div className="absolute bottom-0 left-full ml-2 flex h-[600px] w-[700px] flex-col rounded-lg border border-orange-500/20 bg-gray-900 shadow-xl">
+          <div className="flex items-center justify-between border-b border-orange-500/20 p-3">
             <h3 className="font-semibold text-white">AI Assistant</h3>
             <button
               onClick={() => showAIAssistant.setState((state) => !state)}
-              className="text-gray-400 hover:text-white transition-colors"
+              className="text-gray-400 transition-colors hover:text-white"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
           <Messages messages={messages} />
 
-          <div className="p-3 border-t border-orange-500/20">
+          <div className="border-t border-orange-500/20 p-3">
             <form
               onSubmit={(e) => {
                 e.preventDefault()
@@ -133,7 +133,7 @@ export default function AIAssistant() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Type your message..."
-                  className="w-full rounded-lg border border-orange-500/20 bg-gray-800/50 pl-3 pr-10 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-transparent resize-none overflow-hidden"
+                  className="w-full resize-none overflow-hidden rounded-lg border border-orange-500/20 bg-gray-800/50 py-2 pr-10 pl-3 text-sm text-white placeholder-gray-400 focus:border-transparent focus:ring-2 focus:ring-orange-500/50 focus:outline-none"
                   rows={1}
                   style={{ minHeight: '36px', maxHeight: '120px' }}
                   onInput={(e) => {
@@ -153,9 +153,9 @@ export default function AIAssistant() {
                 <button
                   type="submit"
                   disabled={!input.trim()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-orange-500 hover:text-orange-400 disabled:text-gray-500 transition-colors focus:outline-none"
+                  className="absolute top-1/2 right-2 -translate-y-1/2 p-1.5 text-orange-500 transition-colors hover:text-orange-400 focus:outline-none disabled:text-gray-500"
                 >
-                  <Send className="w-4 h-4" />
+                  <Send className="h-4 w-4" />
                 </button>
               </div>
             </form>

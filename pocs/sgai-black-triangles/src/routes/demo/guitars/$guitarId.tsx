@@ -16,32 +16,32 @@ function RouteComponent() {
   const guitar = Route.useLoaderData()
 
   return (
-    <div className="relative min-h-[100vh] flex items-center bg-black text-white p-5">
-      <div className="relative z-10 w-[60%] bg-gray-900/60 backdrop-blur-md rounded-2xl p-8 border border-gray-800/50 shadow-xl">
+    <div className="relative flex min-h-[100vh] items-center bg-black p-5 text-white">
+      <div className="relative z-10 w-[60%] rounded-2xl border border-gray-800/50 bg-gray-900/60 p-8 shadow-xl backdrop-blur-md">
         <Link
           to="/demo/guitars"
-          className="inline-block mb-4 text-emerald-400 hover:text-emerald-300"
+          className="mb-4 inline-block text-emerald-400 hover:text-emerald-300"
         >
           &larr; Back to all guitars
         </Link>
-        <h1 className="text-3xl font-bold mb-4">{guitar.name}</h1>
-        <p className="text-gray-300 mb-6">{guitar.description}</p>
+        <h1 className="mb-4 text-3xl font-bold">{guitar.name}</h1>
+        <p className="mb-6 text-gray-300">{guitar.description}</p>
         <div className="flex items-center justify-between">
           <div className="text-2xl font-bold text-emerald-400">
             ${guitar.price}
           </div>
-          <button className="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg transition-colors">
+          <button className="rounded-lg bg-emerald-600 px-6 py-2 text-white transition-colors hover:bg-emerald-500">
             Add to Cart
           </button>
         </div>
       </div>
 
-      <div className="absolute top-0 right-0 w-[55%] h-full z-0">
-        <div className="w-full h-full overflow-hidden rounded-2xl border-4 border-gray-800 shadow-2xl">
+      <div className="absolute top-0 right-0 z-0 h-full w-[55%]">
+        <div className="h-full w-full overflow-hidden rounded-2xl border-4 border-gray-800 shadow-2xl">
           <img
             src={guitar.image}
             alt={guitar.name}
-            className="w-full h-full object-cover guitar-image"
+            className="guitar-image h-full w-full object-cover"
           />
         </div>
       </div>

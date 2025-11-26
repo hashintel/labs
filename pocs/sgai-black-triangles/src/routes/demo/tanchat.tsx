@@ -13,12 +13,12 @@ import './tanchat.css'
 
 function InitalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex-1 flex items-center justify-center px-4">
-      <div className="text-center max-w-3xl mx-auto w-full">
-        <h1 className="text-6xl font-bold mb-4 bg-linear-to-r from-orange-500 to-red-600 text-transparent bg-clip-text uppercase">
+    <div className="flex flex-1 items-center justify-center px-4">
+      <div className="mx-auto w-full max-w-3xl text-center">
+        <h1 className="mb-4 bg-linear-to-r from-orange-500 to-red-600 bg-clip-text text-6xl font-bold text-transparent uppercase">
           <span className="text-white">TanStack</span> Chat
         </h1>
-        <p className="text-gray-400 mb-6 w-2/3 mx-auto text-lg">
+        <p className="mx-auto mb-6 w-2/3 text-lg text-gray-400">
           You can ask me about anything, I might or might not have a good
           answer, but you can still ask.
         </p>
@@ -30,8 +30,8 @@ function InitalLayout({ children }: { children: React.ReactNode }) {
 
 function ChattingLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="sticky bottom-0 left-0 right-0 bg-gray-900/80 backdrop-blur-sm border-t border-orange-500/10 z-10">
-      <div className="max-w-3xl mx-auto w-full px-4 py-3">{children}</div>
+    <div className="sticky right-0 bottom-0 left-0 z-10 border-t border-orange-500/10 bg-gray-900/80 backdrop-blur-sm">
+      <div className="mx-auto w-full max-w-3xl px-4 py-3">{children}</div>
     </div>
   )
 }
@@ -53,9 +53,9 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
   return (
     <div
       ref={messagesContainerRef}
-      className="flex-1 overflow-y-auto pb-4 min-h-0"
+      className="min-h-0 flex-1 overflow-y-auto pb-4"
     >
-      <div className="max-w-3xl mx-auto w-full px-4">
+      <div className="mx-auto w-full max-w-3xl px-4">
         {messages.map(({ id, role, parts }) => (
           <div
             key={id}
@@ -65,13 +65,13 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
                 : 'bg-transparent'
             }`}
           >
-            <div className="flex items-start gap-4 max-w-3xl mx-auto w-full">
+            <div className="mx-auto flex w-full max-w-3xl items-start gap-4">
               {role === 'assistant' ? (
-                <div className="w-8 h-8 rounded-lg bg-linear-to-r from-orange-500 to-red-600 mt-2 flex items-center justify-center text-sm font-medium text-white flex-shrink-0">
+                <div className="mt-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-linear-to-r from-orange-500 to-red-600 text-sm font-medium text-white">
                   AI
                 </div>
               ) : (
-                <div className="w-8 h-8 rounded-lg bg-gray-700 flex items-center justify-center text-sm font-medium text-white flex-shrink-0">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-700 text-sm font-medium text-white">
                   Y
                 </div>
               )}
@@ -80,7 +80,7 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
                   if (part.type === 'text') {
                     return (
                       <div
-                        className="flex-1 min-w-0 prose dark:prose-invert max-w-none prose-sm"
+                        className="prose dark:prose-invert prose-sm max-w-none min-w-0 flex-1"
                         key={index}
                       >
                         <Streamdown>{part.text}</Streamdown>
@@ -93,7 +93,7 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
                     (part.output as { id: string })?.id
                   ) {
                     return (
-                      <div key={index} className="max-w-[80%] mx-auto">
+                      <div key={index} className="mx-auto max-w-[80%]">
                         <GuitarRecommendation
                           id={(part.output as { id: string })?.id}
                         />
@@ -122,7 +122,7 @@ function ChatPage() {
 
   return (
     <div className="relative flex h-[calc(100vh-80px)] bg-gray-900">
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex min-h-0 flex-1 flex-col">
         <Messages messages={messages} />
 
         <Layout>
@@ -133,12 +133,12 @@ function ChatPage() {
               setInput('')
             }}
           >
-            <div className="relative max-w-xl mx-auto">
+            <div className="relative mx-auto max-w-xl">
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type something clever..."
-                className="w-full rounded-lg border border-orange-500/20 bg-gray-800/50 pl-4 pr-12 py-3 text-sm text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-orange-500/50 focus:border-transparent resize-none overflow-hidden shadow-lg"
+                className="w-full resize-none overflow-hidden rounded-lg border border-orange-500/20 bg-gray-800/50 py-3 pr-12 pl-4 text-sm text-white placeholder-gray-400 shadow-lg focus:border-transparent focus:ring-2 focus:ring-orange-500/50 focus:outline-none"
                 rows={1}
                 style={{ minHeight: '44px', maxHeight: '200px' }}
                 onInput={(e) => {
@@ -158,9 +158,9 @@ function ChatPage() {
               <button
                 type="submit"
                 disabled={!input.trim()}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-orange-500 hover:text-orange-400 disabled:text-gray-500 transition-colors focus:outline-none"
+                className="absolute top-1/2 right-2 -translate-y-1/2 p-2 text-orange-500 transition-colors hover:text-orange-400 focus:outline-none disabled:text-gray-500"
               >
-                <Send className="w-4 h-4" />
+                <Send className="h-4 w-4" />
               </button>
             </div>
           </form>
