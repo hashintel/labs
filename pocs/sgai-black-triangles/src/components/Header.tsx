@@ -228,7 +228,7 @@ export default function Header() {
           </Link>
 
           <Link
-            to="/example/guitars"
+            to="/demo/guitars"
             onClick={() => setIsOpen(false)}
             className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-800 transition-colors mb-2"
             activeProps={{

@@ -31,7 +31,7 @@ export default function GuitarRecommendation({ id }: { id: string }) {
           <button
             onClick={() => {
               navigate({
-                to: '/example/guitars/$guitarId',
+                to: '/demo/guitars/$guitarId',
                 params: { guitarId: guitar.id.toString() },
               })
               showAIAssistant.setState(() => false)

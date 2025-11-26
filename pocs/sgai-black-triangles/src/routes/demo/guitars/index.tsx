@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import guitars from '../../data/example-guitars'
+import guitars from '@/data/example-guitars'
 
-export const Route = createFileRoute('/example/guitars/')({
+export const Route = createFileRoute('/demo/guitars/')({
   component: GuitarsIndex,
 })
 
@@ -16,7 +16,7 @@ function GuitarsIndex() {
             className="w-full md:w-[calc(50%-1.5rem)] xl:w-[calc(33.333%-2rem)] relative mb-24"
           >
             <Link
-              to="/example/guitars/$guitarId"
+              to="/demo/guitars/$guitarId"
               params={{
                 guitarId: guitar.id.toString(),
               }}

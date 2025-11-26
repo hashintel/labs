@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import guitars from '../../data/example-guitars'
+import guitars from '@/data/example-guitars'
 
-export const Route = createFileRoute('/example/guitars/$guitarId')({
+export const Route = createFileRoute('/demo/guitars/$guitarId')({
   component: RouteComponent,
   loader: async ({ params }) => {
     const guitar = guitars.find((guitar) => guitar.id === +params.guitarId)
@@ -19,7 +19,7 @@ function RouteComponent() {
     <div className="relative min-h-[100vh] flex items-center bg-black text-white p-5">
       <div className="relative z-10 w-[60%] bg-gray-900/60 backdrop-blur-md rounded-2xl p-8 border border-gray-800/50 shadow-xl">
         <Link
-          to="/example/guitars"
+          to="/demo/guitars"
           className="inline-block mb-4 text-emerald-400 hover:text-emerald-300"
         >
           &larr; Back to all guitars
