@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 
 export default defineConfig(
   {
-    ignores: ['.output/**', 'node_modules/**'],
+    ignores: ['.output/**', 'build/**', 'node_modules/**'],
   },
   eslint.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
@@ -19,7 +19,7 @@ export default defineConfig(
     },
   },
   {
-    files: ['*.config.js'],
+    files: ['*.config.js', '.ladle/*'],
     ...tseslint.configs.disableTypeChecked,
   },
 )

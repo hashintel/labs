@@ -11,4 +11,7 @@ count.txt
 mcp-todos.json.output
 .vinxi
 todos.json
+
+# build outputs
 .output
+build

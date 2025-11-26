@@ -2,11 +2,13 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
+    "**/*.mjs",
     "eslint.config.js",
     "prettier.config.js",
-    "vite.config.js"
+    "vite.config.js",
+    ".ladle/**/*.mjs"
   ],
-  "exclude": [".output", "node_modules"],
+  "exclude": [".output", "build", "node_modules"],
 
   "compilerOptions": {
     "target": "ES2022",
