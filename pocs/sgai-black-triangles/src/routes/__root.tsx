@@ -10,7 +10,7 @@ import Header from '../components/Header'
 
 import StoreDevtools from '../lib/demo-store-devtools'
 
-import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
+import TanStackQueryDevtools from '../devtools/query-devtools'
 
 import appCss from '../styles.css?url'
 
