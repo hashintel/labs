@@ -1,0 +1,40 @@
+{
+	"name": "@patchwork/petrinaut",
+	"version": "0.0.1",
+	"description": "Petrinaut – Petri Net editor",
+	"type": "module",
+	"main": "src/index.ts",
+	"exports": {
+		".": "./dist/index.js"
+	},
+	"scripts": {
+		"build": "vite build",
+		"push": "pnpm build && patchwork push",
+		"watch": "nodemon --watch src -e js,tsx,ts,tsx,css,json --exec 'pnpm build && pnpm push'"
+	},
+	"keywords": [],
+	"author": "Ink & Switch",
+	"dependencies": {
+		"@automerge/automerge-repo-react-hooks": "2.0.0-alpha.22",
+		"@hashintel/petrinaut": "0.0.6-canary.0",
+		"react": "18.3.1",
+		"react-dom": "18.3.1",
+		"uuid": "11.1.0",
+		"zod": "^4.1.12"
+	},
+	"devDependencies": {
+		"@types/react": "18.3.12",
+		"@types/react-dom": "18.3.1",
+		"@vitejs/plugin-react": "4.3.3",
+		"eslint": "8.45.0",
+		"eslint-plugin-react-hooks": "4.6.0",
+		"eslint-plugin-react-refresh": "0.4.3",
+		"nodemon": "^3.1.9",
+		"typescript": "5.7.3",
+		"typescript-eslint": "7.3.1",
+		"vite": "5",
+		"vite-plugin-css-injected-by-js": "^3.5.2",
+		"vite-plugin-top-level-await": "^1.4.2"
+	},
+	"packageManager": "pnpm@10.6.0+sha512.df0136e797db0cfa7ec1084e77f3bdf81bacbae9066832fbf95cba4c2140ad05e64f316cde51ce3f99ea00a91ffc702d6aedd3c0f450f895e3e7c052fe573cd8"
+}

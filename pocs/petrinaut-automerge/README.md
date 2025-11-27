@@ -1,10 +1,6 @@
 # Petrinaut x Automerge / Petrinaut x Patchwork
 
-This is a POC of [Petrinaut](https://github.com/hashintel/hash/tree/main/libs/%40hashintel/petrinaut) (a Petri net editor) either:
-1. with an [Automerge](https://automerge.org/) backend.
-2. suitable for use as a Patchwork tool (wrapped in a minimal Automerge dev harness to load a document)
-
-You can switch between them by editing `src/main.tsx`.
+This is a POC of [Petrinaut](https://github.com/hashintel/hash/tree/main/libs/%40hashintel/petrinaut) (a Petri net editor) with an [Automerge](https://automerge.org/) backend.
 
 ## Setup
 

@@ -14,7 +14,7 @@ import {
 	type MinimalNetMetadata,
 	type ParentNet,
 	Petrinaut,
-} from "../vendor/petrinaut";
+} from "@hashintel/petrinaut";
 
 export type PetriNet = {
 	petriNetDefinition: PetriNetDefinitionObject;
