@@ -4,8 +4,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --port 3000",
-    "build": "vite build",
+    "build": "ladle build && vite build",
+    "build:ladle": "ladle build",
     "serve": "vite preview",
+    "sketches": "ladle serve",
     "test": "vitest run",
     "lint": "eslint",
     "format": "prettier",
