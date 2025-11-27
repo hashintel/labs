@@ -3,83 +3,56 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Save, Check, Eye, EyeOff } from 'lucide-react'
 
 const STORAGE_KEY = 'openrouter-api-key'
-const STORAGE_IV_KEY = 'openrouter-api-key-iv'
-const ENCRYPTION_SECRET = 'change_this_secret_to_a_long_random_string'
 
-// Utility: get cryptoKey from the (static) ENCRYPTION_SECRET string
-async function getCryptoKey() {
-  const enc = new TextEncoder();
-  const keyData = enc.encode(ENCRYPTION_SECRET);
-  return await window.crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'AES-GCM' },
-    false,
-    ['encrypt', 'decrypt']
-  );
+interface EncryptedData {
+  cipherText: string
+  iv: string
+  authTag: string
 }
 
-// Utility: Encrypt the API key
-async function encryptData(value: string): Promise<{cipherText: string, iv: string}> {
-  const enc = new TextEncoder();
-  const iv = window.crypto.getRandomValues(new Uint8Array(12));
-  const cryptoKey = await getCryptoKey();
-  const encrypted = await window.crypto.subtle.encrypt(
-    { name: 'AES-GCM', iv },
-    cryptoKey,
-    enc.encode(value)
-  );
-  return {
-    cipherText: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
-    iv: btoa(String.fromCharCode(...iv))
-  };
+async function encryptViaServer(value: string): Promise<EncryptedData> {
+  const res = await fetch('/demo/api/encrypt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value }),
+  })
+  if (!res.ok) throw new Error('Encryption failed')
+  return res.json() as Promise<EncryptedData>
 }
 
-// Utility: Decrypt the API key
-async function decryptData(cipherText: string, iv: string): Promise<string> {
-  const dec = new TextDecoder();
-  const cryptoKey = await getCryptoKey();
-  const cipherArray = Uint8Array.from(atob(cipherText), c=>c.charCodeAt(0));
-  const ivArray = Uint8Array.from(atob(iv), c=>c.charCodeAt(0));
-  const decrypted = await window.crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: ivArray },
-    cryptoKey,
-    cipherArray
-  );
-  return dec.decode(decrypted);
+async function decryptViaServer(data: EncryptedData): Promise<string> {
+  const res = await fetch('/demo/api/decrypt', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error('Decryption failed')
+  const result = (await res.json()) as { value: string }
+  return result.value
 }
 
-// Async version for getting stored API key
 export async function getStoredApiKey(): Promise<string | null> {
-  if (typeof window === 'undefined') return null;
-  const cipherText = localStorage.getItem(STORAGE_KEY);
-  const iv = localStorage.getItem(STORAGE_IV_KEY);
-  if (cipherText && iv) {
-    try {
-      return await decryptData(cipherText, iv);
-    } catch (_e) {
-      // Possibly old/cleartext, cleaning it up
-      localStorage.removeItem(STORAGE_KEY);
-      localStorage.removeItem(STORAGE_IV_KEY);
-      return null;
-    }
+  if (typeof window === 'undefined') return null
+  const stored = localStorage.getItem(STORAGE_KEY)
+  if (!stored) return null
+  try {
+    const data = JSON.parse(stored) as EncryptedData
+    return await decryptViaServer(data)
+  } catch {
+    localStorage.removeItem(STORAGE_KEY)
+    return null
   }
-  return null;
 }
 
-// Async version for setting stored API key
 export async function setStoredApiKey(key: string): Promise<void> {
-  if (typeof window === 'undefined') return;
+  if (typeof window === 'undefined') return
   if (key) {
-    const { cipherText, iv } = await encryptData(key);
-    localStorage.setItem(STORAGE_KEY, cipherText);
-    localStorage.setItem(STORAGE_IV_KEY, iv);
+    const encrypted = await encryptViaServer(key)
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(encrypted))
   } else {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(STORAGE_IV_KEY);
+    localStorage.removeItem(STORAGE_KEY)
   }
 }
-  const [loading, setLoading] = useState(true)
 
 function ConfigPage() {
   const [apiKey, setApiKey] = useState('')
@@ -87,26 +60,27 @@ function ConfigPage() {
   const [showKey, setShowKey] = useState(false)
 
   useEffect(() => {
-    let isMounted = true;
-    async function loadKey() {
-      const stored = await getStoredApiKey();
-      if (isMounted && stored) setApiKey(stored);
-      setLoading(false);
+    let isMounted = true
+    void (async () => {
+      const stored = await getStoredApiKey()
+      if (isMounted && stored) setApiKey(stored)
+    })()
+    return () => {
+      isMounted = false
     }
-    loadKey();
-    return () => { isMounted = false }
-  }, []);
+  }, [])
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault()
-    await setStoredApiKey(apiKey)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+    void setStoredApiKey(apiKey).then(() => {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    })
   }
 
-  const handleClear = async () => {
+  const handleClear = () => {
     setApiKey('')
-    await setStoredApiKey('')
+    void setStoredApiKey('')
     setSaved(false)
   }
 

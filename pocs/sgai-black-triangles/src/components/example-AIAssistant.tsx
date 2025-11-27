@@ -84,20 +84,22 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
 }
 
 function ChatInterface({ onClose }: { onClose: () => void }) {
-  const apiKey = getStoredApiKey()
-  const headers: Record<string, string> = {}
-  if (apiKey) {
-    headers['x-openrouter-key'] = apiKey
-  }
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: '/demo/api/tanchat',
-        headers,
-      }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  )
+  const [apiKey, setApiKey] = useState<string | null>(null)
+
+  useEffect(() => {
+    void getStoredApiKey().then(setApiKey)
+  }, [])
+
+  const transport = useMemo(() => {
+    const headers: Record<string, string> = {}
+    if (apiKey) {
+      headers['x-openrouter-key'] = apiKey
+    }
+    return new DefaultChatTransport({
+      api: '/demo/api/tanchat',
+      headers,
+    })
+  }, [apiKey])
 
   const { messages, sendMessage } = useChat({ transport })
   const [input, setInput] = useState('')

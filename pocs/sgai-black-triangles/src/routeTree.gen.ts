@@ -26,6 +26,8 @@ import { Route as DemoApiTqTodosRouteImport } from './routes/demo/api.tq-todos'
 import { Route as DemoApiTanchatRouteImport } from './routes/demo/api.tanchat'
 import { Route as DemoApiNamesRouteImport } from './routes/demo/api.names'
 import { Route as DemoApiMcpTodosRouteImport } from './routes/demo/api.mcp-todos'
+import { Route as DemoApiEncryptRouteImport } from './routes/demo/api.encrypt'
+import { Route as DemoApiDecryptRouteImport } from './routes/demo/api.decrypt'
 import { Route as DemoStartSsrIndexRouteImport } from './routes/demo/start.ssr.index'
 import { Route as DemoStartSsrSpaModeRouteImport } from './routes/demo/start.ssr.spa-mode'
 import { Route as DemoStartSsrFullSsrRouteImport } from './routes/demo/start.ssr.full-ssr'
@@ -116,6 +118,16 @@ const DemoApiMcpTodosRoute = DemoApiMcpTodosRouteImport.update({
   path: '/api/mcp-todos',
   getParentRoute: () => DemoRoute,
 } as any)
+const DemoApiEncryptRoute = DemoApiEncryptRouteImport.update({
+  id: '/api/encrypt',
+  path: '/api/encrypt',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoApiDecryptRoute = DemoApiDecryptRouteImport.update({
+  id: '/api/decrypt',
+  path: '/api/decrypt',
+  getParentRoute: () => DemoRoute,
+} as any)
 const DemoStartSsrIndexRoute = DemoStartSsrIndexRouteImport.update({
   id: '/start/ssr/',
   path: '/start/ssr/',
@@ -147,6 +159,8 @@ export interface FileRoutesByFullPath {
   '/demo/tanchat': typeof DemoTanchatRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/': typeof DemoIndexRoute
+  '/demo/api/decrypt': typeof DemoApiDecryptRoute
+  '/demo/api/encrypt': typeof DemoApiEncryptRoute
   '/demo/api/mcp-todos': typeof DemoApiMcpTodosRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tanchat': typeof DemoApiTanchatRoute
@@ -169,6 +183,8 @@ export interface FileRoutesByTo {
   '/demo/tanchat': typeof DemoTanchatRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo': typeof DemoIndexRoute
+  '/demo/api/decrypt': typeof DemoApiDecryptRoute
+  '/demo/api/encrypt': typeof DemoApiEncryptRoute
   '/demo/api/mcp-todos': typeof DemoApiMcpTodosRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tanchat': typeof DemoApiTanchatRoute
@@ -193,6 +209,8 @@ export interface FileRoutesById {
   '/demo/tanchat': typeof DemoTanchatRoute
   '/demo/tanstack-query': typeof DemoTanstackQueryRoute
   '/demo/': typeof DemoIndexRoute
+  '/demo/api/decrypt': typeof DemoApiDecryptRoute
+  '/demo/api/encrypt': typeof DemoApiEncryptRoute
   '/demo/api/mcp-todos': typeof DemoApiMcpTodosRoute
   '/demo/api/names': typeof DemoApiNamesRoute
   '/demo/api/tanchat': typeof DemoApiTanchatRoute
@@ -218,6 +236,8 @@ export interface FileRouteTypes {
     | '/demo/tanchat'
     | '/demo/tanstack-query'
     | '/demo/'
+    | '/demo/api/decrypt'
+    | '/demo/api/encrypt'
     | '/demo/api/mcp-todos'
     | '/demo/api/names'
     | '/demo/api/tanchat'
@@ -240,6 +260,8 @@ export interface FileRouteTypes {
     | '/demo/tanchat'
     | '/demo/tanstack-query'
     | '/demo'
+    | '/demo/api/decrypt'
+    | '/demo/api/encrypt'
     | '/demo/api/mcp-todos'
     | '/demo/api/names'
     | '/demo/api/tanchat'
@@ -263,6 +285,8 @@ export interface FileRouteTypes {
     | '/demo/tanchat'
     | '/demo/tanstack-query'
     | '/demo/'
+    | '/demo/api/decrypt'
+    | '/demo/api/encrypt'
     | '/demo/api/mcp-todos'
     | '/demo/api/names'
     | '/demo/api/tanchat'
@@ -404,6 +428,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemoApiMcpTodosRouteImport
       parentRoute: typeof DemoRoute
     }
+    '/demo/api/encrypt': {
+      id: '/demo/api/encrypt'
+      path: '/api/encrypt'
+      fullPath: '/demo/api/encrypt'
+      preLoaderRoute: typeof DemoApiEncryptRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/api/decrypt': {
+      id: '/demo/api/decrypt'
+      path: '/api/decrypt'
+      fullPath: '/demo/api/decrypt'
+      preLoaderRoute: typeof DemoApiDecryptRouteImport
+      parentRoute: typeof DemoRoute
+    }
     '/demo/start/ssr/': {
       id: '/demo/start/ssr/'
       path: '/start/ssr'
@@ -442,6 +480,8 @@ interface DemoRouteChildren {
   DemoTanchatRoute: typeof DemoTanchatRoute
   DemoTanstackQueryRoute: typeof DemoTanstackQueryRoute
   DemoIndexRoute: typeof DemoIndexRoute
+  DemoApiDecryptRoute: typeof DemoApiDecryptRoute
+  DemoApiEncryptRoute: typeof DemoApiEncryptRoute
   DemoApiMcpTodosRoute: typeof DemoApiMcpTodosRoute
   DemoApiNamesRoute: typeof DemoApiNamesRoute
   DemoApiTanchatRoute: typeof DemoApiTanchatRoute
@@ -463,6 +503,8 @@ const DemoRouteChildren: DemoRouteChildren = {
   DemoTanchatRoute: DemoTanchatRoute,
   DemoTanstackQueryRoute: DemoTanstackQueryRoute,
   DemoIndexRoute: DemoIndexRoute,
+  DemoApiDecryptRoute: DemoApiDecryptRoute,
+  DemoApiEncryptRoute: DemoApiEncryptRoute,
   DemoApiMcpTodosRoute: DemoApiMcpTodosRoute,
   DemoApiNamesRoute: DemoApiNamesRoute,
   DemoApiTanchatRoute: DemoApiTanchatRoute,
