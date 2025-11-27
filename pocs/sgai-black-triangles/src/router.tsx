@@ -5,11 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { routeTree } from './routeTree.gen'
 
 function NotFound() {
-  console.log(
-    '[NotFound] triggered, current URL:',
-    typeof window !== 'undefined' ? window.location.href : 'SSR',
-  )
-  console.trace('[NotFound] stack trace')
   return (
     <div className="flex min-h-[50vh] items-center justify-center">
       <div className="text-center">

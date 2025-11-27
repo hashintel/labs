@@ -62,17 +62,17 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
             key={id}
             className={`p-4 ${
               role === 'assistant'
-                ? 'bg-gradient-to-r from-orange-500/5 to-red-600/5'
+                ? 'bg-linear-to-r from-orange-500/5 to-red-600/5'
                 : 'bg-transparent'
             }`}
           >
             <div className="mx-auto flex w-full max-w-3xl items-start gap-4">
               {role === 'assistant' ? (
-                <div className="mt-2 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-linear-to-r from-orange-500 to-red-600 text-sm font-medium text-white">
+                <div className="mt-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-r from-orange-500 to-red-600 text-sm font-medium text-white">
                   AI
                 </div>
               ) : (
-                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-gray-700 text-sm font-medium text-white">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gray-700 text-sm font-medium text-white">
                   Y
                 </div>
               )}
@@ -111,19 +111,27 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
   )
 }
 
-function ChatPage() {
-  const [apiKey] = useState<string | null>(() => getStoredApiKey())
+function ClientOnly({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
+  return mounted ? <>{children}</> : null
+}
 
-  const transport = useMemo(() => {
-    const headers: Record<string, string> = {}
-    if (apiKey) {
-      headers['x-openrouter-key'] = apiKey
-    }
-    return new DefaultChatTransport({
-      api: '/demo/api/tanchat',
-      headers,
-    })
-  }, [apiKey])
+function ChatInterface() {
+  const apiKey = getStoredApiKey()
+  const headers: Record<string, string> = {}
+  if (apiKey) {
+    headers['x-openrouter-key'] = apiKey
+  }
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/demo/api/tanchat',
+        headers,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  )
 
   const { messages, sendMessage } = useChat({ transport })
   const [input, setInput] = useState('')
@@ -139,7 +147,7 @@ function ChatPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault()
-              sendMessage({ text: input })
+              void sendMessage({ text: input })
               setInput('')
             }}
           >
@@ -160,7 +168,7 @@ function ChatPage() {
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
                     e.preventDefault()
-                    sendMessage({ text: input })
+                    void sendMessage({ text: input })
                     setInput('')
                   }
                 }}
@@ -177,6 +185,14 @@ function ChatPage() {
         </Layout>
       </div>
     </div>
+  )
+}
+
+function ChatPage() {
+  return (
+    <ClientOnly>
+      <ChatInterface />
+    </ClientOnly>
   )
 }
 
