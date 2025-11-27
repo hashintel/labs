@@ -17,6 +17,7 @@ import { Route as DemoTanstackQueryRouteImport } from './routes/demo/tanstack-qu
 import { Route as DemoTanchatRouteImport } from './routes/demo/tanchat'
 import { Route as DemoStoreRouteImport } from './routes/demo/store'
 import { Route as DemoMcpTodosRouteImport } from './routes/demo/mcp-todos'
+import { Route as DemoConfigRouteImport } from './routes/demo/config'
 import { Route as DemoGuitarsIndexRouteImport } from './routes/demo/guitars/index'
 import { Route as DemoStartServerFuncsRouteImport } from './routes/demo/start.server-funcs'
 import { Route as DemoStartApiRequestRouteImport } from './routes/demo/start.api-request'
@@ -68,6 +69,11 @@ const DemoStoreRoute = DemoStoreRouteImport.update({
 const DemoMcpTodosRoute = DemoMcpTodosRouteImport.update({
   id: '/mcp-todos',
   path: '/mcp-todos',
+  getParentRoute: () => DemoRoute,
+} as any)
+const DemoConfigRoute = DemoConfigRouteImport.update({
+  id: '/config',
+  path: '/config',
   getParentRoute: () => DemoRoute,
 } as any)
 const DemoGuitarsIndexRoute = DemoGuitarsIndexRouteImport.update({
@@ -135,6 +141,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/demo': typeof DemoRouteWithChildren
   '/mcp': typeof McpRoute
+  '/demo/config': typeof DemoConfigRoute
   '/demo/mcp-todos': typeof DemoMcpTodosRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanchat': typeof DemoTanchatRoute
@@ -156,6 +163,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/mcp': typeof McpRoute
+  '/demo/config': typeof DemoConfigRoute
   '/demo/mcp-todos': typeof DemoMcpTodosRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanchat': typeof DemoTanchatRoute
@@ -179,6 +187,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/demo': typeof DemoRouteWithChildren
   '/mcp': typeof McpRoute
+  '/demo/config': typeof DemoConfigRoute
   '/demo/mcp-todos': typeof DemoMcpTodosRoute
   '/demo/store': typeof DemoStoreRoute
   '/demo/tanchat': typeof DemoTanchatRoute
@@ -203,6 +212,7 @@ export interface FileRouteTypes {
     | '/'
     | '/demo'
     | '/mcp'
+    | '/demo/config'
     | '/demo/mcp-todos'
     | '/demo/store'
     | '/demo/tanchat'
@@ -224,6 +234,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/mcp'
+    | '/demo/config'
     | '/demo/mcp-todos'
     | '/demo/store'
     | '/demo/tanchat'
@@ -246,6 +257,7 @@ export interface FileRouteTypes {
     | '/'
     | '/demo'
     | '/mcp'
+    | '/demo/config'
     | '/demo/mcp-todos'
     | '/demo/store'
     | '/demo/tanchat'
@@ -327,6 +339,13 @@ declare module '@tanstack/react-router' {
       path: '/mcp-todos'
       fullPath: '/demo/mcp-todos'
       preLoaderRoute: typeof DemoMcpTodosRouteImport
+      parentRoute: typeof DemoRoute
+    }
+    '/demo/config': {
+      id: '/demo/config'
+      path: '/config'
+      fullPath: '/demo/config'
+      preLoaderRoute: typeof DemoConfigRouteImport
       parentRoute: typeof DemoRoute
     }
     '/demo/guitars/': {
@@ -417,6 +436,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface DemoRouteChildren {
+  DemoConfigRoute: typeof DemoConfigRoute
   DemoMcpTodosRoute: typeof DemoMcpTodosRoute
   DemoStoreRoute: typeof DemoStoreRoute
   DemoTanchatRoute: typeof DemoTanchatRoute
@@ -437,6 +457,7 @@ interface DemoRouteChildren {
 }
 
 const DemoRouteChildren: DemoRouteChildren = {
+  DemoConfigRoute: DemoConfigRoute,
   DemoMcpTodosRoute: DemoMcpTodosRoute,
   DemoStoreRoute: DemoStoreRoute,
   DemoTanchatRoute: DemoTanchatRoute,

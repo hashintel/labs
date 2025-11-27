@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Send } from 'lucide-react'
 import { Streamdown } from 'streamdown'
@@ -8,6 +8,7 @@ import { DefaultChatTransport } from 'ai'
 import type { UIMessage } from 'ai'
 
 import GuitarRecommendation from '@/components/example-GuitarRecommendation'
+import { getStoredApiKey } from '@/routes/demo/config'
 
 import './tanchat.css'
 
@@ -111,11 +112,20 @@ function Messages({ messages }: { messages: Array<UIMessage> }) {
 }
 
 function ChatPage() {
-  const { messages, sendMessage } = useChat({
-    transport: new DefaultChatTransport({
+  const [apiKey] = useState<string | null>(() => getStoredApiKey())
+
+  const transport = useMemo(() => {
+    const headers: Record<string, string> = {}
+    if (apiKey) {
+      headers['x-openrouter-key'] = apiKey
+    }
+    return new DefaultChatTransport({
       api: '/demo/api/tanchat',
-    }),
-  })
+      headers,
+    })
+  }, [apiKey])
+
+  const { messages, sendMessage } = useChat({ transport })
   const [input, setInput] = useState('')
 
   const Layout = messages.length ? ChattingLayout : InitalLayout

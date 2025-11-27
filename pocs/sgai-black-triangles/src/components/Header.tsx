@@ -11,6 +11,7 @@ import {
   Menu,
   MessagesSquare,
   Network,
+  Settings,
   SquareFunction,
   StickyNote,
   Store,
@@ -66,6 +67,7 @@ export default function Header() {
             to="/demo"
             onClick={() => setIsOpen(false)}
             className="mb-2 flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-800"
+            activeOptions={{ exact: true }}
             activeProps={{
               className:
                 'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
@@ -241,6 +243,19 @@ export default function Header() {
           </Link>
 
           {/* Demo Links End */}
+
+          <Link
+            to="/demo/config"
+            onClick={() => setIsOpen(false)}
+            className="mb-2 flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-gray-800"
+            activeProps={{
+              className:
+                'flex items-center gap-3 p-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 transition-colors mb-2',
+            }}
+          >
+            <Settings size={20} />
+            <span className="font-medium">Config</span>
+          </Link>
         </nav>
 
         <div className="flex flex-col gap-2 border-t border-gray-700 bg-gray-800 p-4">
