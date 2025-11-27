@@ -3,20 +3,83 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Save, Check, Eye, EyeOff } from 'lucide-react'
 
 const STORAGE_KEY = 'openrouter-api-key'
+const STORAGE_IV_KEY = 'openrouter-api-key-iv'
+const ENCRYPTION_SECRET = 'change_this_secret_to_a_long_random_string'
 
-export function getStoredApiKey(): string | null {
-  if (typeof window === 'undefined') return null
-  return localStorage.getItem(STORAGE_KEY)
+// Utility: get cryptoKey from the (static) ENCRYPTION_SECRET string
+async function getCryptoKey() {
+  const enc = new TextEncoder();
+  const keyData = enc.encode(ENCRYPTION_SECRET);
+  return await window.crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
 }
 
-export function setStoredApiKey(key: string): void {
-  if (typeof window === 'undefined') return
+// Utility: Encrypt the API key
+async function encryptData(value: string): Promise<{cipherText: string, iv: string}> {
+  const enc = new TextEncoder();
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+  const cryptoKey = await getCryptoKey();
+  const encrypted = await window.crypto.subtle.encrypt(
+    { name: 'AES-GCM', iv },
+    cryptoKey,
+    enc.encode(value)
+  );
+  return {
+    cipherText: btoa(String.fromCharCode(...new Uint8Array(encrypted))),
+    iv: btoa(String.fromCharCode(...iv))
+  };
+}
+
+// Utility: Decrypt the API key
+async function decryptData(cipherText: string, iv: string): Promise<string> {
+  const dec = new TextDecoder();
+  const cryptoKey = await getCryptoKey();
+  const cipherArray = Uint8Array.from(atob(cipherText), c=>c.charCodeAt(0));
+  const ivArray = Uint8Array.from(atob(iv), c=>c.charCodeAt(0));
+  const decrypted = await window.crypto.subtle.decrypt(
+    { name: 'AES-GCM', iv: ivArray },
+    cryptoKey,
+    cipherArray
+  );
+  return dec.decode(decrypted);
+}
+
+// Async version for getting stored API key
+export async function getStoredApiKey(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  const cipherText = localStorage.getItem(STORAGE_KEY);
+  const iv = localStorage.getItem(STORAGE_IV_KEY);
+  if (cipherText && iv) {
+    try {
+      return await decryptData(cipherText, iv);
+    } catch (_e) {
+      // Possibly old/cleartext, cleaning it up
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(STORAGE_IV_KEY);
+      return null;
+    }
+  }
+  return null;
+}
+
+// Async version for setting stored API key
+export async function setStoredApiKey(key: string): Promise<void> {
+  if (typeof window === 'undefined') return;
   if (key) {
-    localStorage.setItem(STORAGE_KEY, key)
+    const { cipherText, iv } = await encryptData(key);
+    localStorage.setItem(STORAGE_KEY, cipherText);
+    localStorage.setItem(STORAGE_IV_KEY, iv);
   } else {
-    localStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_IV_KEY);
   }
 }
+  const [loading, setLoading] = useState(true)
 
 function ConfigPage() {
   const [apiKey, setApiKey] = useState('')
@@ -24,20 +87,26 @@ function ConfigPage() {
   const [showKey, setShowKey] = useState(false)
 
   useEffect(() => {
-    const stored = getStoredApiKey()
-    if (stored) setApiKey(stored)
-  }, [])
+    let isMounted = true;
+    async function loadKey() {
+      const stored = await getStoredApiKey();
+      if (isMounted && stored) setApiKey(stored);
+      setLoading(false);
+    }
+    loadKey();
+    return () => { isMounted = false }
+  }, []);
 
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    setStoredApiKey(apiKey)
+    await setStoredApiKey(apiKey)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)
   }
 
-  const handleClear = () => {
+  const handleClear = async () => {
     setApiKey('')
-    setStoredApiKey('')
+    await setStoredApiKey('')
     setSaved(false)
   }
 
