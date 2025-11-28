@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@total-typescript/ts-reset':
+        specifier: ^0.6.1
+        version: 0.6.1
       react:
         specifier: ^19.2.0
         version: 19.2.0
@@ -655,6 +658,9 @@ packages:
         optional: true
       '@types/react-dom':
         optional: true
+
+  '@total-typescript/ts-reset@0.6.1':
+    resolution: {integrity: sha512-cka47fVSo6lfQDIATYqb/vO1nvFfbPw7uWLayIXIhGETj0wcOOlrlkobOMDNQOFr9QOafegUPq13V2+6vtD7yg==}
 
   '@ts-morph/common@0.28.1':
     resolution: {integrity: sha512-W74iWf7ILp1ZKNYXY5qbddNaml7e9Sedv5lvU1V8lftlitkc9Pq1A+jlH23ltDgWYeZFFEqGCD1Ies9hqu3O+g==}
@@ -2414,6 +2420,8 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.7
       '@types/react-dom': 19.2.3(@types/react@19.2.7)
+
+  '@total-typescript/ts-reset@0.6.1': {}
 
   '@ts-morph/common@0.28.1':
     dependencies:
