@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm add:*)",
+      "mcp__ide__getDiagnostics",
+      "Skill(skill-creator)",
+      "Bash(/Users/lunelson/.claude/plugins/marketplaces/anthropic-agent-skills/skill-creator/scripts/init_skill.py:*)",
+      "Bash(pnpm build:*)",
+      "Skill(tanstack-start)",
+      "Bash(pnpm build:ladle:*)",
+      "Bash(timeout 10 pnpm dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
