@@ -32,7 +32,7 @@ jobs:
       samples: ${{ steps.samples.outputs.samples }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
         with:
           fetch-depth: 2
 
@@ -65,7 +65,7 @@ jobs:
       matrix: ${{ fromJSON(needs.setup.outputs.lint) }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
@@ -149,7 +149,7 @@ jobs:
       PROFILE: ${{ matrix.profile }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@f43a0e5ff2bd294095638e18286ca9a3d1956744 # v3.6.0
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
 
       - name: Install Rust toolchain
         uses: ./.github/actions/install-rust-toolchain
