@@ -57,7 +57,7 @@
     "block-scripts": "0.3.4",
     "eslint": "9.39.1",
     "mock-block-dock": "0.1.9",
-    "prettier": "3.7.0",
+    "prettier": "3.7.1",
     "react": "19.1.1",
     "react-dom": "19.1.1",
     "typescript": "5.9.3"
