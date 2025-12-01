@@ -1,13 +1,10 @@
 import type { HasVersionControlMetadata } from "@patchwork/sdk/versionControl";
 import { type DataTypeImplementation, initFrom } from "@patchwork/sdk";
-import {
-	defaultTokenTypes,
-	type PetriNetDefinitionObject,
-} from "./main/vendor/petrinaut";
+import type { SDCPN } from "@hashintel/petrinaut";
 
 export type Doc = HasVersionControlMetadata<unknown, unknown> & {
 	title: string;
-	petriNetDefinition: PetriNetDefinitionObject;
+	petriNetDefinition: SDCPN;
 };
 
 export const markCopy = (doc: Doc) => {
@@ -26,9 +23,11 @@ export const init = (doc: Doc) => {
 	initFrom(doc, {
 		title: "Untitled Petri Net",
 		petriNetDefinition: {
-			nodes: [],
-			arcs: [],
-			tokenTypes: structuredClone(defaultTokenTypes),
+			places: [],
+			transitions: [],
+			types: [],
+			parameters: [],
+			differentialEquations: [],
 		},
 	});
 };

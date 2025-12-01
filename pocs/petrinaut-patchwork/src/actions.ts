@@ -1,55 +1,79 @@
 import type { DocHandle, Repo } from "@automerge/automerge-repo/slim";
+import type {
+	Color,
+	DifferentialEquation,
+	Parameter,
+	Place,
+	Transition,
+} from "@hashintel/petrinaut";
 import { z } from "zod";
 import type { Doc } from "./datatype";
+
+import { v4 as generateUuid } from "uuid";
 
 // ============================================================================
 // Helper functions to query document state
 // ============================================================================
 
-const getPlaces = (doc: Doc): PlaceNodeType[] => {
-	return doc.petriNetDefinition.nodes.filter(
-		(node): node is PlaceNodeType => node.type === "place",
-	);
+const getPlaces = (doc: Doc): Place[] => {
+	return doc.petriNetDefinition.places;
 };
 
-const getTransitions = (doc: Doc): TransitionNodeType[] => {
-	return doc.petriNetDefinition.nodes.filter(
-		(node): node is TransitionNodeType => node.type === "transition",
-	);
+const getTransitions = (doc: Doc): Transition[] => {
+	return doc.petriNetDefinition.transitions;
 };
 
-const getTokenTypes = (doc: Doc): TokenType[] => {
-	return doc.petriNetDefinition.tokenTypes || [];
+const getColors = (doc: Doc): Color[] => {
+	return doc.petriNetDefinition.types || [];
 };
 
-const findNodeById = (doc: Doc, nodeId: string) => {
-	return doc.petriNetDefinition.nodes.find((node) => node.id === nodeId);
+const getDifferentialEquations = (doc: Doc): DifferentialEquation[] => {
+	return doc.petriNetDefinition.differentialEquations;
 };
 
 // ============================================================================
 // Action: Add Place
 // ============================================================================
 
-// Base schema for place arguments (without id field)
 export const getPlaceBaseSchema = (doc: Doc) => {
-	const tokenTypes = getTokenTypes(doc);
+	const colors = getColors(doc);
+	const differentialEquations = getDifferentialEquations(doc);
+
+	const colorIds = colors.map((c) => c.id);
+	const diffEqIds = differentialEquations.map((de) => de.id);
 
 	const baseSchema: Record<string, z.ZodTypeAny> = {
-		label: z.string().describe("Label for the place"),
+		name: z.string().describe("Name for the place"),
 		x: z.number().optional().describe("X position (defaults to 100)"),
 		y: z.number().optional().describe("Y position (defaults to 100)"),
+		colorId:
+			colorIds.length > 0
+				? z
+						.enum(colorIds as [string, ...string[]])
+						.optional()
+						.describe("Color/type ID for the place")
+				: z.string().optional().describe("Color/type ID for the place"),
+		dynamicsEnabled: z
+			.boolean()
+			.optional()
+			.describe(
+				"Whether the place should have dynamics enabled (governed by differential equation) (defaults to false)",
+			),
+		differentialEquationId:
+			diffEqIds.length > 0
+				? z
+						.enum(diffEqIds as [string, ...string[]])
+						.optional()
+						.describe("ID for the differential equation governing dynamics")
+				: z
+						.string()
+						.optional()
+						.describe("ID for the differential equation governing dynamics"),
+		visualizerCode: z
+			.string()
+			.optional()
+			.describe("Custom visualizer code for the place"),
 	};
-
-	// Add optional initial token count fields for each token type
-	if (tokenTypes.length > 0) {
-		for (const tokenType of tokenTypes) {
-			baseSchema[`tokens_${tokenType.id}`] = z
-				.number()
-				.min(0)
-				.optional()
-				.describe(`Initial ${tokenType.name} tokens`);
-		}
-	}
 
 	return baseSchema;
 };
@@ -61,37 +85,32 @@ export const addPlaceArgsSchema = (doc: Doc) => {
 export async function addPlace(
 	handle: DocHandle<Doc>,
 	_repo: Repo,
-	args: { label: string; x?: number; y?: number; [key: string]: any },
+	args: {
+		name: string;
+		colorId?: string;
+		x?: number;
+		y?: number;
+		dynamicsEnabled?: boolean;
+		differentialEquationId?: string;
+		visualizerCode?: string;
+	},
 ) {
 	handle.change((doc) => {
-		const tokenTypes = getTokenTypes(doc);
-
-		// Build initial token counts from args
-		const initialTokenCounts: Record<string, number> = {};
-		for (const tokenType of tokenTypes) {
-			const key = `tokens_${tokenType.id}`;
-			initialTokenCounts[tokenType.id] = args[key] ?? 0;
-		}
-
-		const data: PlaceNodeData = {
-			type: "place",
-			label: args.label,
-		};
-
-		// Only add initialTokenCounts if there are token types defined
-		if (Object.keys(initialTokenCounts).length > 0) {
-			data.initialTokenCounts = initialTokenCounts;
-		}
-
-		const newPlace: PlaceNodeType = {
+		const newPlace: Place = {
 			id: generateUuid(),
-			type: "place",
-			position: { x: args.x ?? 100, y: args.y ?? 100 },
-			...nodeDimensions.place,
-			data,
+			name: args.name,
+			colorId: args.colorId ?? null,
+			dynamicsEnabled: args.dynamicsEnabled ?? false,
+			differentialEquationId: args.differentialEquationId ?? null,
+			x: args.x ?? 100,
+			y: args.y ?? 100,
 		};
 
-		doc.petriNetDefinition.nodes.push(newPlace as any);
+		if (args.visualizerCode) {
+			newPlace.visualizerCode = args.visualizerCode;
+		}
+
+		doc.petriNetDefinition.places.push(newPlace);
 	});
 }
 
@@ -99,62 +118,59 @@ export async function addPlace(
 // Action: Add Transition
 // ============================================================================
 
-// Base schema for transition arguments (without id field)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const getTransitionBaseSchema = (_doc: Doc) => {
 	return {
-		label: z.string().describe("Label for the transition"),
+		name: z.string().describe("Name for the transition"),
 		x: z.number().optional().describe("X position (defaults to 100)"),
 		y: z.number().optional().describe("Y position (defaults to 100)"),
-		delay: z
-			.number()
-			.min(0)
+		lambdaType: z
+			.enum(["predicate", "stochastic"])
 			.optional()
-			.describe("Transition delay in time units"),
-		description: z
+			.describe("Type of lambda function (defaults to 'predicate')"),
+		lambdaCode: z
 			.string()
 			.optional()
-			.describe("Description of what this transition does"),
+			.describe("Lambda code for the transition (defaults to empty string)"),
+		transitionKernelCode: z
+			.string()
+			.optional()
+			.describe(
+				"Transition kernel code for the transition (defaults to empty string)",
+			),
 	};
 };
 
-export const addTransitionArgsSchema = (_doc: Doc) => {
-	return z.object(getTransitionBaseSchema(_doc));
+export const addTransitionArgsSchema = (doc: Doc) => {
+	return z.object(getTransitionBaseSchema(doc));
 };
 
 export async function addTransition(
 	handle: DocHandle<Doc>,
 	_repo: Repo,
 	args: {
-		label: string;
+		name: string;
 		x?: number;
 		y?: number;
-		delay?: number;
-		description?: string;
+		lambdaType?: "predicate" | "stochastic";
+		lambdaCode?: string;
+		transitionKernelCode?: string;
 	},
 ) {
 	handle.change((doc) => {
-		const data: TransitionNodeData = {
-			type: "transition",
-			label: args.label,
-		};
-
-		// Only add optional fields if they are provided
-		if (args.delay !== undefined) {
-			data.delay = args.delay;
-		}
-		if (args.description !== undefined && args.description !== "") {
-			data.description = args.description;
-		}
-
-		const newTransition: TransitionNodeType = {
+		const newTransition: Transition = {
 			id: generateUuid(),
-			type: "transition",
-			position: { x: args.x ?? 100, y: args.y ?? 100 },
-			...nodeDimensions.transition,
-			data,
+			name: args.name,
+			inputArcs: [],
+			outputArcs: [],
+			lambdaType: args.lambdaType ?? "predicate",
+			lambdaCode: args.lambdaCode ?? "",
+			transitionKernelCode: args.transitionKernelCode ?? "",
+			x: args.x ?? 100,
+			y: args.y ?? 100,
 		};
 
-		doc.petriNetDefinition.nodes.push(newTransition as any);
+		doc.petriNetDefinition.transitions.push(newTransition);
 	});
 }
 
@@ -165,59 +181,50 @@ export async function addTransition(
 export const addArcArgsSchema = (doc: Doc) => {
 	const places = getPlaces(doc);
 	const transitions = getTransitions(doc);
-	const tokenTypes = getTokenTypes(doc);
 
-	// Create labels for places and transitions
-	const placeLabels = places.map((p) => p.data.label || p.id);
-	const transitionLabels = transitions.map((t) => t.data.label || t.id);
+	const placeOptions = places.map((p) => p.name || p.id);
+	const transitionOptions = transitions.map((t) => t.name || t.id);
 
-	// Build token weight schema
-	const tokenWeightSchema: Record<string, z.ZodTypeAny> = {};
-	for (const tokenType of tokenTypes) {
-		tokenWeightSchema[`weight_${tokenType.id}`] = z
-			.number()
-			.min(0)
-			.optional()
-			.describe(`Weight for ${tokenType.name} tokens (defaults to 0)`);
-	}
-
-	// Schema for place -> transition arcs
+	// Schema for place -> transition arcs (input arcs)
 	const placeToTransitionSchema = z.object({
 		direction: z.literal("place_to_transition"),
 		source_place:
-			placeLabels.length > 0
-				? z.enum(placeLabels as [string, ...string[]]).describe("Source place")
+			placeOptions.length > 0
+				? z
+						.enum(placeOptions as [string, ...string[]])
+						.describe("Source place (name or ID)")
 				: z.string().describe("Source place (no places available yet)"),
 		target_transition:
-			transitionLabels.length > 0
+			transitionOptions.length > 0
 				? z
-						.enum(transitionLabels as [string, ...string[]])
-						.describe("Target transition")
+						.enum(transitionOptions as [string, ...string[]])
+						.describe("Target transition (name or ID)")
 				: z
 						.string()
 						.describe("Target transition (no transitions available yet)"),
-		...tokenWeightSchema,
+		weight: z.number().min(1).optional().describe("Arc weight (defaults to 1)"),
 	});
 
-	// Schema for transition -> place arcs
+	// Schema for transition -> place arcs (output arcs)
 	const transitionToPlaceSchema = z.object({
 		direction: z.literal("transition_to_place"),
 		source_transition:
-			transitionLabels.length > 0
+			transitionOptions.length > 0
 				? z
-						.enum(transitionLabels as [string, ...string[]])
-						.describe("Source transition")
+						.enum(transitionOptions as [string, ...string[]])
+						.describe("Source transition (name or ID)")
 				: z
 						.string()
 						.describe("Source transition (no transitions available yet)"),
 		target_place:
-			placeLabels.length > 0
-				? z.enum(placeLabels as [string, ...string[]]).describe("Target place")
+			placeOptions.length > 0
+				? z
+						.enum(placeOptions as [string, ...string[]])
+						.describe("Target place (name or ID)")
 				: z.string().describe("Target place (no places available yet)"),
-		...tokenWeightSchema,
+		weight: z.number().min(1).optional().describe("Arc weight (defaults to 1)"),
 	});
 
-	// Return discriminated union based on direction
 	return z.discriminatedUnion("direction", [
 		placeToTransitionSchema,
 		transitionToPlaceSchema,
@@ -229,13 +236,13 @@ type AddArcArgs =
 			direction: "place_to_transition";
 			source_place: string;
 			target_transition: string;
-			[key: string]: any;
+			weight?: number;
 	  }
 	| {
 			direction: "transition_to_place";
 			source_transition: string;
 			target_place: string;
-			[key: string]: any;
+			weight?: number;
 	  };
 
 export async function addArc(
@@ -246,128 +253,202 @@ export async function addArc(
 	handle.change((doc) => {
 		const places = getPlaces(doc);
 		const transitions = getTransitions(doc);
-		const tokenTypes = getTokenTypes(doc);
-
-		// Find source and target based on direction
-		let sourceId: string;
-		let targetId: string;
 
 		if (args.direction === "place_to_transition") {
-			// Source is a place, target is a transition
+			// Find the source place
 			const sourcePlace = places.find(
-				(p) => p.data.label === args.source_place || p.id === args.source_place,
+				(p) => p.name === args.source_place || p.id === args.source_place,
 			);
-			const targetTransition = transitions.find(
-				(t) =>
-					t.data.label === args.target_transition ||
-					t.id === args.target_transition,
-			);
-
 			if (!sourcePlace) {
 				throw new Error(`Place "${args.source_place}" not found`);
 			}
+
+			// Find the target transition
+			const targetTransition = transitions.find(
+				(t) =>
+					t.name === args.target_transition || t.id === args.target_transition,
+			);
 			if (!targetTransition) {
 				throw new Error(`Transition "${args.target_transition}" not found`);
 			}
 
-			sourceId = sourcePlace.id;
-			targetId = targetTransition.id;
+			// Add input arc to the transition
+			targetTransition.inputArcs.push({
+				placeId: sourcePlace.id,
+				weight: args.weight ?? 1,
+			});
 		} else {
-			// Source is a transition, target is a place
+			// Find the source transition
 			const sourceTransition = transitions.find(
 				(t) =>
-					t.data.label === args.source_transition ||
-					t.id === args.source_transition,
+					t.name === args.source_transition || t.id === args.source_transition,
 			);
-			const targetPlace = places.find(
-				(p) => p.data.label === args.target_place || p.id === args.target_place,
-			);
-
 			if (!sourceTransition) {
 				throw new Error(`Transition "${args.source_transition}" not found`);
 			}
+
+			// Find the target place
+			const targetPlace = places.find(
+				(p) => p.name === args.target_place || p.id === args.target_place,
+			);
 			if (!targetPlace) {
 				throw new Error(`Place "${args.target_place}" not found`);
 			}
 
-			sourceId = sourceTransition.id;
-			targetId = targetPlace.id;
+			// Add output arc to the transition
+			sourceTransition.outputArcs.push({
+				placeId: targetPlace.id,
+				weight: args.weight ?? 1,
+			});
 		}
-
-		// Build token weights from args
-		const tokenWeights: Record<string, number> = {};
-		for (const tokenType of tokenTypes) {
-			const key = `weight_${tokenType.id}`;
-			tokenWeights[tokenType.id] = args[key] ?? 0;
-		}
-
-		const newArc = {
-			id: `${sourceId}-${targetId}`,
-			source: sourceId,
-			target: targetId,
-			type: "default" as const,
-			interactionWidth: 8,
-			data: {
-				tokenWeights,
-			},
-		};
-
-		doc.petriNetDefinition.arcs.push(newArc as any);
 	});
 }
 
 // ============================================================================
-// Action: Add Token Type
+// Action: Add Color (Type)
 // ============================================================================
 
-export const addTokenTypeArgsSchema = (_doc: Doc) => {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const addColorArgsSchema = (_doc: Doc) => {
 	return z.object({
-		name: z.string().describe("Name of the token type"),
-		color: z
+		name: z.string().describe("Name of the color/type"),
+		iconSlug: z
+			.string()
+			.optional()
+			.describe("Icon slug for the color (defaults to 'circle')"),
+		displayColor: z
 			.string()
 			.regex(/^#[0-9A-Fa-f]{6}$/)
-			.describe("Color as hex code (e.g., #3498db)"),
+			.describe("Display color as hex code (e.g., #3498db)"),
+		elements: z
+			.array(
+				z.object({
+					name: z.string().describe("Name of the element"),
+					type: z
+						.enum(["real", "integer", "boolean"])
+						.describe("Type of the element"),
+				}),
+			)
+			.optional()
+			.describe("Elements/fields for this color type"),
 	});
 };
 
-export async function addTokenType(
+export async function addColor(
 	handle: DocHandle<Doc>,
 	_repo: Repo,
-	args: { name: string; color: string },
+	args: {
+		name: string;
+		iconSlug?: string;
+		displayColor: string;
+		elements?: { name: string; type: "real" | "integer" | "boolean" }[];
+	},
 ) {
 	handle.change((doc) => {
-		const newTokenType: TokenType = {
+		const newColor: Color = {
 			id: generateUuid(),
 			name: args.name,
-			color: args.color,
+			iconSlug: args.iconSlug ?? "circle",
+			displayColor: args.displayColor,
+			elements: (args.elements ?? []).map((el) => ({
+				elementId: generateUuid(),
+				name: el.name,
+				type: el.type,
+			})),
 		};
 
-		doc.petriNetDefinition.tokenTypes.push(newTokenType as any);
-
-		// Initialize this token type in all existing places' initialTokenCounts
-		const places = getPlaces(doc);
-		for (const place of places) {
-			if (!place.data.initialTokenCounts) {
-				place.data.initialTokenCounts = {};
-			}
-			place.data.initialTokenCounts[newTokenType.id] = 0;
-		}
-
-		// Initialize this token type in all existing arcs' tokenWeights
-		for (const arc of doc.petriNetDefinition.arcs) {
-			if (!arc.data) {
-				arc.data = { tokenWeights: {} };
-			}
-			if (!arc.data.tokenWeights) {
-				arc.data.tokenWeights = {};
-			}
-			arc.data.tokenWeights[newTokenType.id] = 0;
-		}
+		doc.petriNetDefinition.types.push(newColor);
 	});
 }
 
 // ============================================================================
-// Action: Add Net
+// Action: Add Differential Equation
+// ============================================================================
+
+export const addDifferentialEquationArgsSchema = (doc: Doc) => {
+	const colors = getColors(doc);
+	const colorIds = colors.map((c) => c.id);
+
+	return z.object({
+		name: z.string().describe("Name for the differential equation"),
+		colorId:
+			colorIds.length > 0
+				? z
+						.enum(colorIds as [string, ...string[]])
+						.describe("Color/type ID this equation applies to")
+				: z.string().describe("Color/type ID this equation applies to"),
+		code: z
+			.string()
+			.describe("The differential equation code (mathematical expression)"),
+	});
+};
+
+export async function addDifferentialEquation(
+	handle: DocHandle<Doc>,
+	_repo: Repo,
+	args: {
+		name: string;
+		colorId: string;
+		code: string;
+	},
+) {
+	handle.change((doc) => {
+		const newDiffEq: DifferentialEquation = {
+			id: generateUuid(),
+			name: args.name,
+			colorId: args.colorId,
+			code: args.code,
+		};
+
+		doc.petriNetDefinition.differentialEquations.push(newDiffEq);
+	});
+}
+
+// ============================================================================
+// Action: Add Parameter
+// ============================================================================
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export const addParameterArgsSchema = (_doc: Doc) => {
+	return z.object({
+		name: z.string().describe("Display name for the parameter"),
+		variableName: z
+			.string()
+			.describe("Variable name to use in code (e.g., 'alpha', 'beta')"),
+		type: z
+			.enum(["real", "integer", "boolean"])
+			.describe("Type of the parameter"),
+		defaultValue: z
+			.string()
+			.describe("Default value for the parameter (as string)"),
+	});
+};
+
+export async function addParameter(
+	handle: DocHandle<Doc>,
+	_repo: Repo,
+	args: {
+		name: string;
+		variableName: string;
+		type: "real" | "integer" | "boolean";
+		defaultValue: string;
+	},
+) {
+	handle.change((doc) => {
+		const newParameter: Parameter = {
+			id: generateUuid(),
+			name: args.name,
+			variableName: args.variableName,
+			type: args.type,
+			defaultValue: args.defaultValue,
+		};
+
+		doc.petriNetDefinition.parameters.push(newParameter);
+	});
+}
+
+// ============================================================================
+// Action: Add Net Elements (batch operation)
 // ============================================================================
 
 export const addNetElementsArgsSchema = (doc: Doc) => {
@@ -377,7 +458,29 @@ export const addNetElementsArgsSchema = (doc: Doc) => {
 	const transitionBaseSchema = getTransitionBaseSchema(doc);
 	const transitionSchema = z.object(transitionBaseSchema);
 
-	const arcSchema = addArcArgsSchema(doc);
+	// Simplified arc schema for batch operations - uses names which will be resolved
+	const arcSchema = z.discriminatedUnion("direction", [
+		z.object({
+			direction: z.literal("place_to_transition"),
+			source_place: z.string().describe("Source place name"),
+			target_transition: z.string().describe("Target transition name"),
+			weight: z
+				.number()
+				.min(1)
+				.optional()
+				.describe("Arc weight (defaults to 1)"),
+		}),
+		z.object({
+			direction: z.literal("transition_to_place"),
+			source_transition: z.string().describe("Source transition name"),
+			target_place: z.string().describe("Target place name"),
+			weight: z
+				.number()
+				.min(1)
+				.optional()
+				.describe("Arc weight (defaults to 1)"),
+		}),
+	]);
 
 	return z.object({
 		places: z.array(placeSchema).optional().describe("Array of places to add"),
@@ -391,30 +494,34 @@ export const addNetElementsArgsSchema = (doc: Doc) => {
 
 type AddNetElementsArgs = {
 	places?: Array<{
-		label: string;
+		name: string;
+		colorId?: string;
 		x?: number;
 		y?: number;
-		[key: string]: any;
+		dynamicsEnabled?: boolean;
+		differentialEquationId?: string;
+		visualizerCode?: string;
 	}>;
 	transitions?: Array<{
-		label: string;
+		name: string;
 		x?: number;
 		y?: number;
-		delay?: number;
-		description?: string;
+		lambdaType?: "predicate" | "stochastic";
+		lambdaCode?: string;
+		transitionKernelCode?: string;
 	}>;
 	arcs?: Array<
 		| {
 				direction: "place_to_transition";
 				source_place: string;
 				target_transition: string;
-				[key: string]: any;
+				weight?: number;
 		  }
 		| {
 				direction: "transition_to_place";
 				source_transition: string;
 				target_place: string;
-				[key: string]: any;
+				weight?: number;
 		  }
 	>;
 };
@@ -424,134 +531,151 @@ export async function addNetElements(
 	_repo: Repo,
 	args: AddNetElementsArgs,
 ) {
-	// Map labels to real IDs
+	// Map names to IDs for newly created elements
 	const placeIdMap: Map<string, string> = new Map();
 	const transitionIdMap: Map<string, string> = new Map();
 
 	handle.change((doc) => {
-		// Create places and build label-to-ID mapping
+		// Create places and build name-to-ID mapping
 		if (args.places) {
 			for (const placeArgs of args.places) {
-				const tokenTypes = getTokenTypes(doc);
-
-				// Build initial token counts from args
-				const initialTokenCounts: Record<string, number> = {};
-				for (const tokenType of tokenTypes) {
-					const key = `tokens_${tokenType.id}`;
-					initialTokenCounts[tokenType.id] = placeArgs[key] ?? 0;
-				}
-
-				const data: PlaceNodeData = {
-					type: "place",
-					label: placeArgs.label,
-				};
-
-				// Only add initialTokenCounts if there are token types defined
-				if (Object.keys(initialTokenCounts).length > 0) {
-					data.initialTokenCounts = initialTokenCounts;
-				}
-
-				const newPlace: PlaceNodeType = {
+				const newPlace: Place = {
 					id: generateUuid(),
-					type: "place",
-					position: { x: placeArgs.x ?? 100, y: placeArgs.y ?? 100 },
-					...nodeDimensions.place,
-					data,
+					name: placeArgs.name,
+					colorId: placeArgs.colorId ?? null,
+					dynamicsEnabled: placeArgs.dynamicsEnabled ?? false,
+					differentialEquationId: placeArgs.differentialEquationId ?? null,
+					x: placeArgs.x ?? 100,
+					y: placeArgs.y ?? 100,
 				};
 
-				placeIdMap.set(placeArgs.label, newPlace.id);
-				doc.petriNetDefinition.nodes.push(newPlace as any);
+				if (placeArgs.visualizerCode) {
+					newPlace.visualizerCode = placeArgs.visualizerCode;
+				}
+
+				placeIdMap.set(placeArgs.name, newPlace.id);
+				doc.petriNetDefinition.places.push(newPlace);
 			}
 		}
 
-		// Create transitions and build label-to-ID mapping
+		// Create transitions and build name-to-ID mapping
 		if (args.transitions) {
 			for (const transitionArgs of args.transitions) {
-				const data: TransitionNodeData = {
-					type: "transition",
-					label: transitionArgs.label,
-				};
-
-				// Only add optional fields if they are provided
-				if (transitionArgs.delay !== undefined) {
-					data.delay = transitionArgs.delay;
-				}
-				if (
-					transitionArgs.description !== undefined &&
-					transitionArgs.description !== ""
-				) {
-					data.description = transitionArgs.description;
-				}
-
-				const newTransition: TransitionNodeType = {
+				const newTransition: Transition = {
 					id: generateUuid(),
-					type: "transition",
-					position: {
-						x: transitionArgs.x ?? 100,
-						y: transitionArgs.y ?? 100,
-					},
-					...nodeDimensions.transition,
-					data,
+					name: transitionArgs.name,
+					inputArcs: [],
+					outputArcs: [],
+					lambdaType: transitionArgs.lambdaType ?? "predicate",
+					lambdaCode: transitionArgs.lambdaCode ?? "",
+					transitionKernelCode: transitionArgs.transitionKernelCode ?? "",
+					x: transitionArgs.x ?? 100,
+					y: transitionArgs.y ?? 100,
 				};
 
-				transitionIdMap.set(transitionArgs.label, newTransition.id);
-				doc.petriNetDefinition.nodes.push(newTransition as any);
+				transitionIdMap.set(transitionArgs.name, newTransition.id);
+				doc.petriNetDefinition.transitions.push(newTransition);
+			}
+		}
+
+		// Add arcs to the appropriate transitions
+		if (args.arcs) {
+			for (const arcArgs of args.arcs) {
+				if (arcArgs.direction === "place_to_transition") {
+					// Find or resolve the place ID
+					let placeId = placeIdMap.get(arcArgs.source_place);
+					if (!placeId) {
+						// Try to find existing place by name
+						const existingPlace = doc.petriNetDefinition.places.find(
+							(p) =>
+								p.name === arcArgs.source_place ||
+								p.id === arcArgs.source_place,
+						);
+						if (!existingPlace) {
+							throw new Error(`Place "${arcArgs.source_place}" not found`);
+						}
+						placeId = existingPlace.id;
+					}
+
+					// Find or resolve the transition
+					let transitionId = transitionIdMap.get(arcArgs.target_transition);
+					if (!transitionId) {
+						// Try to find existing transition by name
+						const existingTransition = doc.petriNetDefinition.transitions.find(
+							(t) =>
+								t.name === arcArgs.target_transition ||
+								t.id === arcArgs.target_transition,
+						);
+						if (!existingTransition) {
+							throw new Error(
+								`Transition "${arcArgs.target_transition}" not found`,
+							);
+						}
+						transitionId = existingTransition.id;
+					}
+
+					// Find the transition and add the input arc
+					const transition = doc.petriNetDefinition.transitions.find(
+						(t) => t.id === transitionId,
+					);
+					if (transition) {
+						transition.inputArcs.push({
+							placeId,
+							weight: arcArgs.weight ?? 1,
+						});
+					}
+				} else {
+					// transition_to_place
+					// Find or resolve the transition ID
+					let transitionId = transitionIdMap.get(arcArgs.source_transition);
+					if (!transitionId) {
+						// Try to find existing transition by name
+						const existingTransition = doc.petriNetDefinition.transitions.find(
+							(t) =>
+								t.name === arcArgs.source_transition ||
+								t.id === arcArgs.source_transition,
+						);
+						if (!existingTransition) {
+							throw new Error(
+								`Transition "${arcArgs.source_transition}" not found`,
+							);
+						}
+						transitionId = existingTransition.id;
+					}
+
+					// Find or resolve the place
+					let placeId = placeIdMap.get(arcArgs.target_place);
+					if (!placeId) {
+						// Try to find existing place by name
+						const existingPlace = doc.petriNetDefinition.places.find(
+							(p) =>
+								p.name === arcArgs.target_place ||
+								p.id === arcArgs.target_place,
+						);
+						if (!existingPlace) {
+							throw new Error(`Place "${arcArgs.target_place}" not found`);
+						}
+						placeId = existingPlace.id;
+					}
+
+					// Find the transition and add the output arc
+					const transition = doc.petriNetDefinition.transitions.find(
+						(t) => t.id === transitionId,
+					);
+					if (transition) {
+						transition.outputArcs.push({
+							placeId,
+							weight: arcArgs.weight ?? 1,
+						});
+					}
+				}
 			}
 		}
 	});
-
-	// Create arcs with real IDs resolved from labels
-	if (args.arcs) {
-		for (const arcArgs of args.arcs) {
-			if (arcArgs.direction === "place_to_transition") {
-				// Resolve labels to real IDs
-				const sourceId = placeIdMap.get(arcArgs.source_place);
-				const targetId = transitionIdMap.get(arcArgs.target_transition);
-
-				if (!sourceId) {
-					throw new Error(
-						`Place with label "${arcArgs.source_place}" not found`,
-					);
-				}
-				if (!targetId) {
-					throw new Error(
-						`Transition with label "${arcArgs.target_transition}" not found`,
-					);
-				}
-
-				await addArc(handle, _repo, {
-					...arcArgs,
-					source_place: sourceId,
-					target_transition: targetId,
-				});
-			} else {
-				// Resolve labels to real IDs
-				const sourceId = transitionIdMap.get(arcArgs.source_transition);
-				const targetId = placeIdMap.get(arcArgs.target_place);
-
-				if (!sourceId) {
-					throw new Error(
-						`Transition with label "${arcArgs.source_transition}" not found`,
-					);
-				}
-				if (!targetId) {
-					throw new Error(
-						`Place with label "${arcArgs.target_place}" not found`,
-					);
-				}
-
-				await addArc(handle, _repo, {
-					...arcArgs,
-					source_transition: sourceId,
-					target_place: targetId,
-				});
-			}
-		}
-	}
 }
 
 // ============================================================================
-// Default export - you can choose which action to expose as default
+// Default export
 // ============================================================================
 
 export default addNetElements;
