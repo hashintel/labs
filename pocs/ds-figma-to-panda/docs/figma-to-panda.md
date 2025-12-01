@@ -1,1 +1,0 @@
-# figma to panda workflow
