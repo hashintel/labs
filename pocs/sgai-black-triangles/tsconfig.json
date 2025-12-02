@@ -4,9 +4,12 @@
     "**/*.tsx",
     "**/*.mjs",
     "eslint.config.js",
+    "panda.config.ts",
+    "postcss.config.cjs",
     "prettier.config.js",
     "vite.config.js",
-    ".ladle/**/*.mjs"
+    ".ladle/**/*.mjs",
+    "styled-system/**/*.mjs"
   ],
   "exclude": [".output", "build", "node_modules"],
 
@@ -32,7 +35,8 @@
     "noUncheckedSideEffectImports": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "styled-system": ["./styled-system"]
     },
 
     /* Other */

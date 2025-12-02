@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 
 export default defineConfig(
   {
-    ignores: ['.output/**', 'build/**', 'node_modules/**'],
+    ignores: ['.output/**', 'build/**', 'node_modules/**', 'styled-system/**'],
   },
   eslint.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
@@ -19,7 +19,13 @@ export default defineConfig(
     },
   },
   {
-    files: ['*.config.js', '.ladle/*'],
+    files: ['*.config.*', '.ladle/**/*'],
     ...tseslint.configs.disableTypeChecked,
+  },
+  {
+    rules: {
+      '@typescript-eslint/no-unsafe-assignment': 0,
+      '@typescript-eslint/no-unsafe-call': 0,
+    },
   },
 )

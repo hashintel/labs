@@ -1,3 +1,9 @@
+/* panda */
+
+@layer reset, base, tokens, recipes, utilities;
+
+/* tailwind */
+
 @import 'tailwindcss';
 
 body {

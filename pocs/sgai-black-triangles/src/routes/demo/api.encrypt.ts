@@ -10,7 +10,10 @@ export const Route = createFileRoute('/demo/api/encrypt')({
     handlers: {
       POST: async ({ request }) => {
         if (!ENCRYPTION_SECRET) {
-          return json({ error: 'Server encryption not configured' }, { status: 500 })
+          return json(
+            { error: 'Server encryption not configured' },
+            { status: 500 },
+          )
         }
 
         const { value } = await request.json()

@@ -1,5 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { convertToModelMessages, stepCountIs, streamText } from 'ai'
+import {
+  convertToModelMessages,
+  stepCountIs,
+  streamText,
+  type UIDataTypes,
+  type UIMessage,
+  type UITools,
+} from 'ai'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
 
 import { haiku } from '@/lib/openrouter'
@@ -27,11 +34,13 @@ export const Route = createFileRoute('/demo/api/tanchat')({
     handlers: {
       POST: async ({ request }) => {
         try {
-          const { messages } = await request.json()
+          const { messages } = (await request.json()) as {
+            messages: UIMessage<unknown, UIDataTypes, UITools>[]
+          }
 
           const tools = await getTools()
 
-          const result = await streamText({
+          const result = streamText({
             model: getModel(request),
             messages: convertToModelMessages(messages),
             temperature: 0.7,

@@ -10,12 +10,18 @@ export const Route = createFileRoute('/demo/api/decrypt')({
     handlers: {
       POST: async ({ request }) => {
         if (!ENCRYPTION_SECRET) {
-          return json({ error: 'Server encryption not configured' }, { status: 500 })
+          return json(
+            { error: 'Server encryption not configured' },
+            { status: 500 },
+          )
         }
 
         const { cipherText, iv, authTag } = await request.json()
         if (!cipherText || !iv || !authTag) {
-          return json({ error: 'Missing cipherText, iv, or authTag' }, { status: 400 })
+          return json(
+            { error: 'Missing cipherText, iv, or authTag' },
+            { status: 400 },
+          )
         }
 
         try {
@@ -26,7 +32,7 @@ export const Route = createFileRoute('/demo/api/decrypt')({
           const decipher = createDecipheriv(
             ALGORITHM,
             key,
-            Buffer.from(iv, 'base64')
+            Buffer.from(iv, 'base64'),
           )
           decipher.setAuthTag(Buffer.from(authTag, 'base64'))
 
