@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "",
   "keywords": [],
-  "license": "ISC",
+  "license": "(MIT OR Apache-2.0)",
   "type": "module",
   "scripts": {
     "build": "mastra build",
