@@ -15,7 +15,6 @@ npm run demo:plan
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/en/download) v22+
-- [Bun](https://bun.sh/) package manager
 - an OpenRouter API key
 
   ```sh
