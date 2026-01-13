@@ -30,10 +30,10 @@ import { validatePlan } from "../utils/plan-validator";
  * Zod schema for validation errors (matches ValidationError interface).
  */
 const zValidationError = z.object({
-  code: z.string(),
-  message: z.string(),
-  context: z.string().optional(),
-  details: z.record(z.string(), z.unknown()).optional(),
+	code: z.string(),
+	message: z.string(),
+	context: z.string().optional(),
+	details: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**
@@ -41,36 +41,36 @@ const zValidationError = z.object({
  * Input and output must match for dountil looping.
  */
 const revisionLoopSchema = z.object({
-  plan: zPlanSpec,
-  valid: z.boolean(),
-  attempts: z.number(),
-  maxAttempts: z.number(),
-  goal: z.string(),
-  context: z.string().optional(),
-  errors: z.array(zValidationError).optional(),
+	plan: zPlanSpec,
+	valid: z.boolean(),
+	attempts: z.number(),
+	maxAttempts: z.number(),
+	goal: z.string(),
+	context: z.string().optional(),
+	errors: z.array(zValidationError).optional(),
 });
 
 /**
  * Workflow input schema.
  */
 const planningInputSchema = z.object({
-  goal: z.string().describe("The goal to decompose into a plan"),
-  context: z.string().optional().describe("Additional context for planning"),
-  maxAttempts: z
-    .number()
-    .optional()
-    .default(3)
-    .describe("Maximum revision attempts"),
+	goal: z.string().describe("The goal to decompose into a plan"),
+	context: z.string().optional().describe("Additional context for planning"),
+	maxAttempts: z
+		.number()
+		.optional()
+		.default(3)
+		.describe("Maximum revision attempts"),
 });
 
 /**
  * Workflow output schema.
  */
 const planningOutputSchema = z.object({
-  plan: zPlanSpec,
-  valid: z.boolean(),
-  attempts: z.number(),
-  errors: z.array(zValidationError).optional(),
+	plan: zPlanSpec,
+	valid: z.boolean(),
+	attempts: z.number(),
+	errors: z.array(zValidationError).optional(),
 });
 
 // =============================================================================
@@ -88,56 +88,56 @@ const planningOutputSchema = z.object({
  * 4. Validate and update state
  */
 const planRevisionStep = createStep({
-  id: "plan-revision",
-  inputSchema: revisionLoopSchema,
-  outputSchema: revisionLoopSchema,
-  execute: async ({ inputData }) => {
-    const { plan, valid, attempts, maxAttempts, goal, context, errors } =
-      inputData;
+	id: "plan-revision",
+	inputSchema: revisionLoopSchema,
+	outputSchema: revisionLoopSchema,
+	execute: async ({ inputData }) => {
+		const { plan, valid, attempts, maxAttempts, goal, context, errors } =
+			inputData;
 
-    // If already valid or max attempts reached, pass through
-    if (valid || attempts >= maxAttempts) {
-      return inputData;
-    }
+		// If already valid or max attempts reached, pass through
+		if (valid || attempts >= maxAttempts) {
+			return inputData;
+		}
 
-    // Build revision feedback from ALL previous errors
-    let revisionFeedback: string | undefined;
+		// Build revision feedback from ALL previous errors
+		let revisionFeedback: string | undefined;
 
-    if (errors && errors.length > 0) {
-      // Convert zod-parsed errors back to ValidationError type
-      const validationErrors: ValidationError[] = errors.map((err) => ({
-        code: err.code as unknown as ValidationError["code"],
-        message: err.message,
-        context: err.context,
-        details: err.details,
-      }));
-      revisionFeedback = buildRevisionFeedback(plan, validationErrors);
-    }
+		if (errors && errors.length > 0) {
+			// Convert zod-parsed errors back to ValidationError type
+			const validationErrors: ValidationError[] = errors.map((err) => ({
+				code: err.code as unknown as ValidationError["code"],
+				message: err.message,
+				context: err.context,
+				details: err.details,
+			}));
+			revisionFeedback = buildRevisionFeedback(plan, validationErrors);
+		}
 
-    // Generate new plan with COMBINED context (original + revision feedback)
-    // This ensures the LLM has both the original context AND the fix instructions
-    const combinedContext = [context, revisionFeedback]
-      .filter(Boolean)
-      .join("\n\n");
+		// Generate new plan with COMBINED context (original + revision feedback)
+		// This ensures the LLM has both the original context AND the fix instructions
+		const combinedContext = [context, revisionFeedback]
+			.filter(Boolean)
+			.join("\n\n");
 
-    const result = await generatePlan({
-      goal,
-      context: combinedContext || undefined,
-    });
+		const result = await generatePlan({
+			goal,
+			context: combinedContext || undefined,
+		});
 
-    // Validate new plan
-    const validation = validatePlan(result.plan);
+		// Validate new plan
+		const validation = validatePlan(result.plan);
 
-    return {
-      plan: result.plan,
-      valid: validation.valid,
-      attempts: attempts + 1,
-      maxAttempts,
-      goal,
-      context,
-      errors: validation.valid ? undefined : validation.errors,
-    };
-  },
+		return {
+			plan: result.plan,
+			valid: validation.valid,
+			attempts: attempts + 1,
+			maxAttempts,
+			goal,
+			context,
+			errors: validation.valid ? undefined : validation.errors,
+		};
+	},
 });
 
 // =============================================================================
@@ -153,48 +153,48 @@ const planRevisionStep = createStep({
  * 3. `.map()` — Extract final result
  */
 export const planningWorkflow = createWorkflow({
-  id: "planning-workflow",
-  inputSchema: planningInputSchema,
-  outputSchema: planningOutputSchema,
+	id: "planning-workflow",
+	inputSchema: planningInputSchema,
+	outputSchema: planningOutputSchema,
 })
-  // Entry: Generate first plan and validate
-  .map(async ({ inputData }) => {
-    const { goal, context, maxAttempts = 3 } = inputData;
+	// Entry: Generate first plan and validate
+	.map(async ({ inputData }) => {
+		const { goal, context, maxAttempts = 3 } = inputData;
 
-    // Generate initial plan
-    const result = await generatePlan({ goal, context });
+		// Generate initial plan
+		const result = await generatePlan({ goal, context });
 
-    // Validate it
-    const validation = validatePlan(result.plan);
+		// Validate it
+		const validation = validatePlan(result.plan);
 
-    // Return loop-compatible schema
-    return {
-      plan: result.plan,
-      valid: validation.valid,
-      attempts: 1,
-      maxAttempts,
-      goal,
-      context,
-      errors: validation.valid ? undefined : validation.errors,
-    };
-  })
-  // Loop: Revise until valid or max attempts
-  // eslint-disable-next-line @typescript-eslint/require-await
-  .dountil(planRevisionStep, async ({ inputData }) => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing
-    return inputData.valid || inputData.attempts >= inputData.maxAttempts;
-  })
-  // Exit: Extract final result
-  // eslint-disable-next-line @typescript-eslint/require-await
-  .map(async ({ inputData }) => {
-    return {
-      plan: inputData.plan,
-      valid: inputData.valid,
-      attempts: inputData.attempts,
-      errors: inputData.errors,
-    };
-  })
-  .commit();
+		// Return loop-compatible schema
+		return {
+			plan: result.plan,
+			valid: validation.valid,
+			attempts: 1,
+			maxAttempts,
+			goal,
+			context,
+			errors: validation.valid ? undefined : validation.errors,
+		};
+	})
+	// Loop: Revise until valid or max attempts
+	// eslint-disable-next-line @typescript-eslint/require-await
+	.dountil(planRevisionStep, async ({ inputData }) => {
+		// eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
+		return inputData.valid || inputData.attempts >= inputData.maxAttempts;
+	})
+	// Exit: Extract final result
+	// eslint-disable-next-line @typescript-eslint/require-await
+	.map(async ({ inputData }) => {
+		return {
+			plan: inputData.plan,
+			valid: inputData.valid,
+			attempts: inputData.attempts,
+			errors: inputData.errors,
+		};
+	})
+	.commit();
 
 // =============================================================================
 // EXPORTS

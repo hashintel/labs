@@ -17,20 +17,20 @@
  */
 
 type JsonSchemaProperty = {
-  $id?: string;
-  title?: string;
-  description?: string;
-  oneOf?: unknown[];
-  items?: JsonSchemaProperty;
-  type?: string;
+	$id?: string;
+	title?: string;
+	description?: string;
+	oneOf?: unknown[];
+	items?: JsonSchemaProperty;
+	type?: string;
 };
 
 type JsonSchema = {
-  $id?: string;
-  title?: string;
-  description?: string;
-  properties?: Record<string, JsonSchemaProperty>;
-  type?: string;
+	$id?: string;
+	title?: string;
+	description?: string;
+	properties?: Record<string, JsonSchemaProperty>;
+	type?: string;
 };
 
 /**
@@ -38,45 +38,45 @@ type JsonSchema = {
  * Falls back through: description -> title -> "(no description)"
  */
 function getPropertyDescription(property: JsonSchemaProperty): string {
-  // Direct description
-  if (property.description) {
-    return property.description;
-  }
+	// Direct description
+	if (property.description) {
+		return property.description;
+	}
 
-  // Fall back to title
-  if (property.title) {
-    return property.title;
-  }
+	// Fall back to title
+	if (property.title) {
+		return property.title;
+	}
 
-  // For array types, try to get description from items
-  if (property.type === "array" && property.items) {
-    return getPropertyDescription(property.items);
-  }
+	// For array types, try to get description from items
+	if (property.type === "array" && property.items) {
+		return getPropertyDescription(property.items);
+	}
 
-  return "(no description)";
+	return "(no description)";
 }
 
 /**
  * Convert a single schema to YAML-like summary lines.
  */
 function schemaToLines(schema: JsonSchema): string[] {
-  const lines: string[] = [];
+	const lines: string[] = [];
 
-  const title = schema.title ?? "Unknown";
-  const description = schema.description ?? "";
+	const title = schema.title ?? "Unknown";
+	const description = schema.description ?? "";
 
-  lines.push(`- ${title}: ${description}`);
+	lines.push(`- ${title}: ${description}`);
 
-  if (schema.properties) {
-    lines.push("  properties:");
+	if (schema.properties) {
+		lines.push("  properties:");
 
-    for (const [key, property] of Object.entries(schema.properties)) {
-      const propDescription = getPropertyDescription(property);
-      lines.push(`    ${key}: ${propDescription}`);
-    }
-  }
+		for (const [key, property] of Object.entries(schema.properties)) {
+			const propDescription = getPropertyDescription(property);
+			lines.push(`    ${key}: ${propDescription}`);
+		}
+	}
 
-  return lines;
+	return lines;
 }
 
 /**
@@ -99,19 +99,19 @@ function schemaToLines(schema: JsonSchema): string[] {
  * ```
  */
 export function schemaToPromptSummary(
-  schemas: JsonSchema | JsonSchema[],
+	schemas: JsonSchema | JsonSchema[],
 ): string {
-  const schemaArray = Array.isArray(schemas) ? schemas : [schemas];
+	const schemaArray = Array.isArray(schemas) ? schemas : [schemas];
 
-  if (schemaArray.length === 0) {
-    return "";
-  }
+	if (schemaArray.length === 0) {
+		return "";
+	}
 
-  const lines: string[] = ["Entity Types:"];
+	const lines: string[] = ["Entity Types:"];
 
-  for (const schema of schemaArray) {
-    lines.push(...schemaToLines(schema));
-  }
+	for (const schema of schemaArray) {
+		lines.push(...schemaToLines(schema));
+	}
 
-  return lines.join("\n");
+	return lines.join("\n");
 }

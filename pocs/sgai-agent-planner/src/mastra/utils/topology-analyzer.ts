@@ -31,48 +31,48 @@ import type { PlanSpec, PlanStep } from "../schemas/plan-spec";
  * - May or may not be individually concurrent (check `concurrent` field)
  */
 export interface ParallelGroup {
-  /** Depth level (0 = entry points, 1 = depends on entry points, etc.) */
-  depth: number;
-  /** Step IDs in this group */
-  stepIds: string[];
-  /** Step IDs that are individually concurrent */
-  concurrentStepIds: string[];
+	/** Depth level (0 = entry points, 1 = depends on entry points, etc.) */
+	depth: number;
+	/** Step IDs in this group */
+	stepIds: string[];
+	/** Step IDs that are individually concurrent */
+	concurrentStepIds: string[];
 }
 
 /**
  * The critical path through the plan — the longest dependency chain.
  */
 export interface CriticalPath {
-  /** Step IDs in order from entry to exit */
-  stepIds: string[];
-  /** Total length of the path */
-  length: number;
+	/** Step IDs in order from entry to exit */
+	stepIds: string[];
+	/** Total length of the path */
+	length: number;
 }
 
 /**
  * Analysis result for a PlanSpec.
  */
 export interface TopologyAnalysis {
-  /** Steps in topological order (respects dependencies) */
-  topologicalOrder: string[];
+	/** Steps in topological order (respects dependencies) */
+	topologicalOrder: string[];
 
-  /** Groups of steps organized by dependency depth */
-  parallelGroups: ParallelGroup[];
+	/** Groups of steps organized by dependency depth */
+	parallelGroups: ParallelGroup[];
 
-  /** The longest dependency chain */
-  criticalPath: CriticalPath;
+	/** The longest dependency chain */
+	criticalPath: CriticalPath;
 
-  /** Steps with no dependencies (starting points) */
-  entryPoints: string[];
+	/** Steps with no dependencies (starting points) */
+	entryPoints: string[];
 
-  /** Steps that nothing depends on (ending points) */
-  exitPoints: string[];
+	/** Steps that nothing depends on (ending points) */
+	exitPoints: string[];
 
-  /** Dependency depth for each step (0 = entry point) */
-  depthMap: Map<string, number>;
+	/** Dependency depth for each step (0 = entry point) */
+	depthMap: Map<string, number>;
 
-  /** Number of steps that depend on each step */
-  dependentCount: Map<string, number>;
+	/** Number of steps that depend on each step */
+	dependentCount: Map<string, number>;
 }
 
 // =============================================================================
@@ -87,30 +87,30 @@ export interface TopologyAnalysis {
  * - dependents: step -> steps that depend on it
  */
 function buildGraphMaps(plan: PlanSpec): {
-  dependencies: Map<string, Set<string>>;
-  dependents: Map<string, Set<string>>;
+	dependencies: Map<string, Set<string>>;
+	dependents: Map<string, Set<string>>;
 } {
-  const stepIds = new Set(plan.steps.map((step) => step.id));
-  const dependencies = new Map<string, Set<string>>();
-  const dependents = new Map<string, Set<string>>();
+	const stepIds = new Set(plan.steps.map((step) => step.id));
+	const dependencies = new Map<string, Set<string>>();
+	const dependents = new Map<string, Set<string>>();
 
-  // Initialize maps
-  for (const stepId of stepIds) {
-    dependencies.set(stepId, new Set());
-    dependents.set(stepId, new Set());
-  }
+	// Initialize maps
+	for (const stepId of stepIds) {
+		dependencies.set(stepId, new Set());
+		dependents.set(stepId, new Set());
+	}
 
-  // Populate from step references
-  for (const step of plan.steps) {
-    const deps = step.dependencyIds.filter((ref) => stepIds.has(ref));
-    dependencies.set(step.id, new Set(deps));
+	// Populate from step references
+	for (const step of plan.steps) {
+		const deps = step.dependencyIds.filter((ref) => stepIds.has(ref));
+		dependencies.set(step.id, new Set(deps));
 
-    for (const dep of deps) {
-      dependents.get(dep)!.add(step.id);
-    }
-  }
+		for (const dep of deps) {
+			dependents.get(dep)!.add(step.id);
+		}
+	}
 
-  return { dependencies, dependents };
+	return { dependencies, dependents };
 }
 
 /**
@@ -120,43 +120,43 @@ function buildGraphMaps(plan: PlanSpec): {
  * Assumes the graph is acyclic (run validatePlan first).
  */
 function computeTopologicalOrder(
-  stepIds: Set<string>,
-  dependencies: Map<string, Set<string>>,
+	stepIds: Set<string>,
+	dependencies: Map<string, Set<string>>,
 ): string[] {
-  const result: string[] = [];
-  const inDegree = new Map<string, number>();
+	const result: string[] = [];
+	const inDegree = new Map<string, number>();
 
-  // Calculate in-degree for each node
-  for (const stepId of stepIds) {
-    inDegree.set(stepId, dependencies.get(stepId)!.size);
-  }
+	// Calculate in-degree for each node
+	for (const stepId of stepIds) {
+		inDegree.set(stepId, dependencies.get(stepId)!.size);
+	}
 
-  // Start with nodes that have no dependencies
-  const queue: string[] = [];
-  for (const [stepId, degree] of inDegree) {
-    if (degree === 0) {
-      queue.push(stepId);
-    }
-  }
+	// Start with nodes that have no dependencies
+	const queue: string[] = [];
+	for (const [stepId, degree] of inDegree) {
+		if (degree === 0) {
+			queue.push(stepId);
+		}
+	}
 
-  // Process nodes in BFS order
-  while (queue.length > 0) {
-    const current = queue.shift()!;
-    result.push(current);
+	// Process nodes in BFS order
+	while (queue.length > 0) {
+		const current = queue.shift()!;
+		result.push(current);
 
-    // Find all steps that depend on current
-    for (const stepId of stepIds) {
-      if (dependencies.get(stepId)!.has(current)) {
-        const newDegree = inDegree.get(stepId)! - 1;
-        inDegree.set(stepId, newDegree);
-        if (newDegree === 0) {
-          queue.push(stepId);
-        }
-      }
-    }
-  }
+		// Find all steps that depend on current
+		for (const stepId of stepIds) {
+			if (dependencies.get(stepId)!.has(current)) {
+				const newDegree = inDegree.get(stepId)! - 1;
+				inDegree.set(stepId, newDegree);
+				if (newDegree === 0) {
+					queue.push(stepId);
+				}
+			}
+		}
+	}
 
-  return result;
+	return result;
 }
 
 /**
@@ -166,61 +166,61 @@ function computeTopologicalOrder(
  * Entry points have depth 0.
  */
 function computeDepthMap(
-  topologicalOrder: string[],
-  dependencies: Map<string, Set<string>>,
+	topologicalOrder: string[],
+	dependencies: Map<string, Set<string>>,
 ): Map<string, number> {
-  const depthMap = new Map<string, number>();
+	const depthMap = new Map<string, number>();
 
-  for (const stepId of topologicalOrder) {
-    const deps = dependencies.get(stepId)!;
+	for (const stepId of topologicalOrder) {
+		const deps = dependencies.get(stepId)!;
 
-    if (deps.size === 0) {
-      // Entry point
-      depthMap.set(stepId, 0);
-    } else {
-      // Max depth of dependencies + 1
-      let maxDepth = 0;
-      for (const dep of deps) {
-        const depDepth = depthMap.get(dep) ?? 0;
-        maxDepth = Math.max(maxDepth, depDepth);
-      }
-      depthMap.set(stepId, maxDepth + 1);
-    }
-  }
+		if (deps.size === 0) {
+			// Entry point
+			depthMap.set(stepId, 0);
+		} else {
+			// Max depth of dependencies + 1
+			let maxDepth = 0;
+			for (const dep of deps) {
+				const depDepth = depthMap.get(dep) ?? 0;
+				maxDepth = Math.max(maxDepth, depDepth);
+			}
+			depthMap.set(stepId, maxDepth + 1);
+		}
+	}
 
-  return depthMap;
+	return depthMap;
 }
 
 /**
  * Group steps by their dependency depth.
  */
 function computeParallelGroups(
-  steps: PlanStep[],
-  depthMap: Map<string, number>,
+	steps: PlanStep[],
+	depthMap: Map<string, number>,
 ): ParallelGroup[] {
-  const groupsByDepth = new Map<number, ParallelGroup>();
+	const groupsByDepth = new Map<number, ParallelGroup>();
 
-  for (const step of steps) {
-    const depth = depthMap.get(step.id) ?? 0;
+	for (const step of steps) {
+		const depth = depthMap.get(step.id) ?? 0;
 
-    if (!groupsByDepth.has(depth)) {
-      groupsByDepth.set(depth, {
-        depth,
-        stepIds: [],
-        concurrentStepIds: [],
-      });
-    }
+		if (!groupsByDepth.has(depth)) {
+			groupsByDepth.set(depth, {
+				depth,
+				stepIds: [],
+				concurrentStepIds: [],
+			});
+		}
 
-    const group = groupsByDepth.get(depth)!;
-    group.stepIds.push(step.id);
+		const group = groupsByDepth.get(depth)!;
+		group.stepIds.push(step.id);
 
-    if (step.concurrent !== false) {
-      group.concurrentStepIds.push(step.id);
-    }
-  }
+		if (step.concurrent !== false) {
+			group.concurrentStepIds.push(step.id);
+		}
+	}
 
-  // Sort by depth and return as array
-  return Array.from(groupsByDepth.values()).sort((a, b) => a.depth - b.depth);
+	// Sort by depth and return as array
+	return Array.from(groupsByDepth.values()).sort((a, b) => a.depth - b.depth);
 }
 
 /**
@@ -229,102 +229,102 @@ function computeParallelGroups(
  * Uses dynamic programming on the topologically sorted nodes.
  */
 function computeCriticalPath(
-  topologicalOrder: string[],
-  dependencies: Map<string, Set<string>>,
+	topologicalOrder: string[],
+	dependencies: Map<string, Set<string>>,
 ): CriticalPath {
-  // Distance and predecessor for path reconstruction
-  const dist = new Map<string, number>();
-  const pred = new Map<string, string | null>();
+	// Distance and predecessor for path reconstruction
+	const dist = new Map<string, number>();
+	const pred = new Map<string, string | null>();
 
-  // Initialize
-  for (const stepId of topologicalOrder) {
-    dist.set(stepId, 0);
-    pred.set(stepId, null);
-  }
+	// Initialize
+	for (const stepId of topologicalOrder) {
+		dist.set(stepId, 0);
+		pred.set(stepId, null);
+	}
 
-  // Process in topological order
-  for (const stepId of topologicalOrder) {
-    const deps = dependencies.get(stepId)!;
-    for (const dep of deps) {
-      const newDist = dist.get(dep)! + 1;
-      if (newDist > dist.get(stepId)!) {
-        dist.set(stepId, newDist);
-        pred.set(stepId, dep);
-      }
-    }
-  }
+	// Process in topological order
+	for (const stepId of topologicalOrder) {
+		const deps = dependencies.get(stepId)!;
+		for (const dep of deps) {
+			const newDist = dist.get(dep)! + 1;
+			if (newDist > dist.get(stepId)!) {
+				dist.set(stepId, newDist);
+				pred.set(stepId, dep);
+			}
+		}
+	}
 
-  // Find the endpoint with maximum distance
-  let maxDist = 0;
-  let endNode: string | null = null;
+	// Find the endpoint with maximum distance
+	let maxDist = 0;
+	let endNode: string | null = null;
 
-  for (const [stepId, distance] of dist) {
-    if (distance >= maxDist) {
-      maxDist = distance;
-      endNode = stepId;
-    }
-  }
+	for (const [stepId, distance] of dist) {
+		if (distance >= maxDist) {
+			maxDist = distance;
+			endNode = stepId;
+		}
+	}
 
-  // Reconstruct path
-  const path: string[] = [];
-  let current = endNode;
+	// Reconstruct path
+	const path: string[] = [];
+	let current = endNode;
 
-  while (current !== null) {
-    path.push(current);
-    current = pred.get(current) ?? null;
-  }
+	while (current !== null) {
+		path.push(current);
+		current = pred.get(current) ?? null;
+	}
 
-  path.reverse();
+	path.reverse();
 
-  return {
-    stepIds: path,
-    length: path.length,
-  };
+	return {
+		stepIds: path,
+		length: path.length,
+	};
 }
 
 /**
  * Find entry points (steps with no dependencies).
  */
 function findEntryPoints(dependencies: Map<string, Set<string>>): string[] {
-  const entryPoints: string[] = [];
+	const entryPoints: string[] = [];
 
-  for (const [stepId, deps] of dependencies) {
-    if (deps.size === 0) {
-      entryPoints.push(stepId);
-    }
-  }
+	for (const [stepId, deps] of dependencies) {
+		if (deps.size === 0) {
+			entryPoints.push(stepId);
+		}
+	}
 
-  return entryPoints;
+	return entryPoints;
 }
 
 /**
  * Find exit points (steps that nothing depends on).
  */
 function findExitPoints(dependents: Map<string, Set<string>>): string[] {
-  const exitPoints: string[] = [];
+	const exitPoints: string[] = [];
 
-  for (const [stepId, deps] of dependents) {
-    if (deps.size === 0) {
-      exitPoints.push(stepId);
-    }
-  }
+	for (const [stepId, deps] of dependents) {
+		if (deps.size === 0) {
+			exitPoints.push(stepId);
+		}
+	}
 
-  return exitPoints;
+	return exitPoints;
 }
 
 /**
  * Count how many steps depend on each step.
  */
 function computeDependentCounts(
-  dependents: Map<string, Set<string>>,
+	dependents: Map<string, Set<string>>,
 ): Map<string, number> {
-  const counts = new Map<string, number>();
+	const counts = new Map<string, number>();
 
-  for (const [stepId, deps] of dependents) {
-    counts.set(stepId, deps.size);
-  }
+	for (const [stepId, deps] of dependents) {
+		counts.set(stepId, deps.size);
+	}
 
-  return counts;
+	return counts;
 }
 
 // =============================================================================
@@ -353,26 +353,26 @@ function computeDependentCounts(
  * ```
  */
 export function analyzePlanTopology(plan: PlanSpec): TopologyAnalysis {
-  const stepIds = new Set(plan.steps.map((step) => step.id));
-  const { dependencies, dependents } = buildGraphMaps(plan);
+	const stepIds = new Set(plan.steps.map((step) => step.id));
+	const { dependencies, dependents } = buildGraphMaps(plan);
 
-  const topologicalOrder = computeTopologicalOrder(stepIds, dependencies);
-  const depthMap = computeDepthMap(topologicalOrder, dependencies);
-  const parallelGroups = computeParallelGroups(plan.steps, depthMap);
-  const criticalPath = computeCriticalPath(topologicalOrder, dependencies);
-  const entryPoints = findEntryPoints(dependencies);
-  const exitPoints = findExitPoints(dependents);
-  const dependentCount = computeDependentCounts(dependents);
+	const topologicalOrder = computeTopologicalOrder(stepIds, dependencies);
+	const depthMap = computeDepthMap(topologicalOrder, dependencies);
+	const parallelGroups = computeParallelGroups(plan.steps, depthMap);
+	const criticalPath = computeCriticalPath(topologicalOrder, dependencies);
+	const entryPoints = findEntryPoints(dependencies);
+	const exitPoints = findExitPoints(dependents);
+	const dependentCount = computeDependentCounts(dependents);
 
-  return {
-    topologicalOrder,
-    parallelGroups,
-    criticalPath,
-    entryPoints,
-    exitPoints,
-    depthMap,
-    dependentCount,
-  };
+	return {
+		topologicalOrder,
+		parallelGroups,
+		criticalPath,
+		entryPoints,
+		exitPoints,
+		depthMap,
+		dependentCount,
+	};
 }
 
 /**
@@ -381,11 +381,11 @@ export function analyzePlanTopology(plan: PlanSpec): TopologyAnalysis {
  * This is the maximum number of concurrent steps in any single group.
  */
 export function getMaxParallelism(analysis: TopologyAnalysis): number {
-  let max = 0;
-  for (const group of analysis.parallelGroups) {
-    max = Math.max(max, group.concurrentStepIds.length);
-  }
-  return max;
+	let max = 0;
+	for (const group of analysis.parallelGroups) {
+		max = Math.max(max, group.concurrentStepIds.length);
+	}
+	return max;
 }
 
 /**
@@ -394,17 +394,17 @@ export function getMaxParallelism(analysis: TopologyAnalysis): number {
  * This is the maximum dependency depth + 1.
  */
 export function getLayerCount(analysis: TopologyAnalysis): number {
-  return analysis.parallelGroups.length;
+	return analysis.parallelGroups.length;
 }
 
 /**
  * Check if a step is on the critical path.
  */
 export function isOnCriticalPath(
-  analysis: TopologyAnalysis,
-  stepId: string,
+	analysis: TopologyAnalysis,
+	stepId: string,
 ): boolean {
-  return analysis.criticalPath.stepIds.includes(stepId);
+	return analysis.criticalPath.stepIds.includes(stepId);
 }
 
 /**
@@ -414,26 +414,26 @@ export function isOnCriticalPath(
  * (and any previously completed steps) are done.
  */
 export function getUnblockedSteps(
-  plan: PlanSpec,
-  completedStepIds: Set<string>,
+	plan: PlanSpec,
+	completedStepIds: Set<string>,
 ): string[] {
-  const stepIds = new Set(plan.steps.map((step) => step.id));
-  const unblocked: string[] = [];
+	const stepIds = new Set(plan.steps.map((step) => step.id));
+	const unblocked: string[] = [];
 
-  for (const step of plan.steps) {
-    // Skip if already completed
-    if (completedStepIds.has(step.id)) {
-      continue;
-    }
+	for (const step of plan.steps) {
+		// Skip if already completed
+		if (completedStepIds.has(step.id)) {
+			continue;
+		}
 
-    // Check if all dependencies are completed
-    const deps = step.dependencyIds.filter((ref) => stepIds.has(ref));
-    const allDepsCompleted = deps.every((dep) => completedStepIds.has(dep));
+		// Check if all dependencies are completed
+		const deps = step.dependencyIds.filter((ref) => stepIds.has(ref));
+		const allDepsCompleted = deps.every((dep) => completedStepIds.has(dep));
 
-    if (allDepsCompleted) {
-      unblocked.push(step.id);
-    }
-  }
+		if (allDepsCompleted) {
+			unblocked.push(step.id);
+		}
+	}
 
-  return unblocked;
+	return unblocked;
 }

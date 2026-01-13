@@ -9,13 +9,13 @@
  * @see docs/PLAN-task-decomposition.md for design documentation
  */
 
-import { Agent } from '@mastra/core/agent';
-import dedent from 'dedent';
+import { Agent } from "@mastra/core/agent";
+import dedent from "dedent";
 
-import { DEFAULT_MODEL } from '../constants';
-import type { PlanSpec } from '../schemas/plan-spec';
-import { zPlanSpec } from '../schemas/plan-spec';
-import { formatAgentsForPrompt } from '../utils/plan-executors';
+import { DEFAULT_MODEL } from "../constants";
+import type { PlanSpec } from "../schemas/plan-spec";
+import { zPlanSpec } from "../schemas/plan-spec";
+import { formatAgentsForPrompt } from "../utils/plan-executors";
 
 /**
  * System instructions for the planner agent.
@@ -93,13 +93,13 @@ const PLANNER_INSTRUCTIONS = dedent`
   - Use for: Building/implementing something, writing code, creating artifacts
   - Parallelizable: Sometimes - depends on dependencies
 
-## Unknowns Map
+## Knowledge Map
 
 Structure your uncertainties into four categories (all are required):
 
 1. **knownKnowns**: High-confidence facts you're building on
-2. **knownUnknowns**: Explicit questions you need to answer
-3. **unknownUnknowns**: What would surprise you (include detection signals)
+2. **knownUnknowns**: Explicit questions you need to answer (epistemic uncertainty)
+3. **ontologicalGaps**: Fundamental uncertainties about nature/categories (include detection signals)
 4. **communityCheck**: What others should scrutinize or independently verify
 
   ## Executor Assignment
@@ -138,30 +138,30 @@ Structure your uncertainties into four categories (all are required):
  * properly typed structured output.
  */
 export const plannerAgent = new Agent({
-  id: 'planner-agent',
-  name: 'Research & Development Planner',
-  instructions: PLANNER_INSTRUCTIONS,
-  model: DEFAULT_MODEL,
+	id: "planner-agent",
+	name: "Research & Development Planner",
+	instructions: PLANNER_INSTRUCTIONS,
+	model: DEFAULT_MODEL,
 });
 
 /**
  * Input for plan generation.
  */
 export interface PlanGenerationInput {
-  /** The goal to decompose */
-  goal: string;
-  /** Additional context to inform planning */
-  context?: string;
+	/** The goal to decompose */
+	goal: string;
+	/** Additional context to inform planning */
+	context?: string;
 }
 
 /**
  * Result of plan generation.
  */
 export interface PlanGenerationResult {
-  /** The generated plan (may be invalid - run validator) */
-  plan: PlanSpec;
-  /** Raw text response from the agent (for debugging) */
-  rawText?: string;
+	/** The generated plan (may be invalid - run validator) */
+	plan: PlanSpec;
+	/** Raw text response from the agent (for debugging) */
+	rawText?: string;
 }
 
 /**
@@ -183,16 +183,18 @@ export interface PlanGenerationResult {
  * }
  * ```
  */
-export async function generatePlan(input: PlanGenerationInput): Promise<PlanGenerationResult> {
-  const { goal, context } = input;
+export async function generatePlan(
+	input: PlanGenerationInput,
+): Promise<PlanGenerationResult> {
+	const { goal, context } = input;
 
-  // Build the user prompt
-  const userPrompt = dedent`
+	// Build the user prompt
+	const userPrompt = dedent`
     ## Goal
 
     ${goal}
 
-    ${context ? `## Context\n\n${context}` : ''}
+    ${context ? `## Context\n\n${context}` : ""}
 
     ## Available Executors
 
@@ -209,14 +211,14 @@ export async function generatePlan(input: PlanGenerationInput): Promise<PlanGene
     Generate the plan now.
   `;
 
-  const response = await plannerAgent.generate(userPrompt, {
-    structuredOutput: {
-      schema: zPlanSpec,
-    },
-  });
+	const response = await plannerAgent.generate(userPrompt, {
+		structuredOutput: {
+			schema: zPlanSpec,
+		},
+	});
 
-  return {
-    plan: response.object,
-    rawText: response.text,
-  };
+	return {
+		plan: response.object,
+		rawText: response.text,
+	};
 }
