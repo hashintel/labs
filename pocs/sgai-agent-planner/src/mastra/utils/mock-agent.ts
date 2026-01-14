@@ -15,6 +15,8 @@
 
 import type { StepType } from "../schemas/plan-spec";
 
+import { AVAILABLE_AGENTS, type AgentRef } from "./plan-executors";
+
 // =============================================================================
 // TYPES
 // =============================================================================
@@ -386,7 +388,7 @@ export class MockAgent {
 // =============================================================================
 
 /**
- * Creates a registry of mock agents matching the AVAILABLE_AGENTS in constants.ts.
+ * Creates a registry of mock agents matching the AVAILABLE_AGENTS in plan-executors.ts.
  *
  * This allows the compiler to resolve executor refs to mock agents for testing.
  *
@@ -402,20 +404,7 @@ export function createMockAgentRegistry(
   const registry = new Map<string, MockAgent>();
 
   // Create mock agents for all available agent refs
-  const agentRefs = [
-    "literature-searcher",
-    "paper-summarizer",
-    "concept-explainer",
-    "result-synthesizer",
-    "hypothesis-generator",
-    "progress-evaluator",
-    "experiment-designer",
-    "experiment-runner",
-    "code-explorer",
-    "code-writer",
-    "code-reviewer",
-    "documentation-writer",
-  ];
+  const agentRefs = Object.keys(AVAILABLE_AGENTS) as AgentRef[];
 
   for (const ref of agentRefs) {
     registry.set(

@@ -108,16 +108,19 @@ Structure your uncertainties into four categories (all are required):
 
   \`\`\`
   executor: {
-    kind: "agent" | "tool" | "workflow" | "human",
-    ref: "<executor-id>"  // Required for agent/tool/workflow
+	    kind: "agent",
+	    ref: "<agent-ref>" // Must be one of the available agents listed in the prompt
   }
   \`\`\`
 
+	  IMPORTANT: For now, ONLY "agent" executors are supported.
+	  Do not use kind: "tool", "workflow", or "human".
+
   IMPORTANT: The executor.kind is NOT the step type!
   - Step type = what kind of work (research, synthesize, experiment, develop)
-  - Executor kind = who performs it (agent, tool, workflow, human)
+	  - Executor kind = who performs it (currently only: agent)
 
-  For most steps, use kind: "agent" with a ref from the available agents list.
+	  Use kind: "agent" with a ref from the available agents list.
   Example: { kind: "agent", ref: "literature-searcher" }
 
   ## Output Requirements
@@ -196,7 +199,7 @@ export async function generatePlan(
 
     ${context ? `## Context\n\n${context}` : ""}
 
-    ## Available Executors
+	    ## Available Agents (Executor.kind must be "agent")
 
     ${formatAgentsForPrompt()}
 
@@ -205,7 +208,7 @@ export async function generatePlan(
     Decompose this goal into a structured plan. Ensure:
     - All step dependencies form a valid DAG (no cycles)
     - All references (hypothesisIds, requirementIds, dependencyIds) point to existing IDs
-    - Each step has an appropriate executor assigned
+	    - Each step has an appropriate executor assigned (use only { kind: "agent", ref: "..." })
     - The unknowns map captures your uncertainty honestly
 
     Generate the plan now.

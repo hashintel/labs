@@ -188,8 +188,6 @@ interface CompilerContext {
 const compiledWorkflowInputSchema = z.object({
   /** Runtime context to pass to steps */
   context: z.record(z.string(), z.unknown()).optional(),
-  /** Whether to emit streaming progress events */
-  streamProgress: z.boolean().optional().default(true),
 });
 
 /**
@@ -509,17 +507,12 @@ function buildWorkflowFromGroups(
 ): void {
   const { plan, topology } = ctx;
 
-  // Track execution for final output
-  const executionState = {
-    startTime: 0,
-    completedStepIds: [] as string[],
-    results: {} as Record<string, unknown>,
-    errors: [] as Array<{ stepId: string; error: string }>,
-  };
+  // Track timing for final output/event payloads
+  let startTimeMs = 0;
 
   // Entry: Emit plan start event and initialize state
   workflow.map(async ({ inputData, writer }) => {
-    executionState.startTime = Date.now();
+    startTimeMs = Date.now();
 
     await writer.custom({
       type: "data-plan-start",
@@ -629,25 +622,24 @@ function buildWorkflowFromGroups(
 
   // Exit: Emit plan complete event and collect results
   workflow.map(async ({ inputData, writer }) => {
-    const totalDurationMs = Date.now() - executionState.startTime;
+    const totalDurationMs = Date.now() - startTimeMs;
 
     await writer.custom({
       type: "data-plan-complete",
       data: {
         planId: plan.id,
-        success: executionState.errors.length === 0,
+        success: true,
         totalDurationMs,
-        stepsCompleted: plan.steps.length - executionState.errors.length,
-        stepsFailed: executionState.errors.length,
+        stepsCompleted: plan.steps.length,
+        stepsFailed: 0,
       },
     } satisfies PlanCompleteEvent);
 
     return {
       planId: plan.id,
-      success: executionState.errors.length === 0,
+      success: true,
       results: inputData as Record<string, unknown>,
-      errors:
-        executionState.errors.length > 0 ? executionState.errors : undefined,
+      errors: undefined,
       executionOrder: topology.topologicalOrder,
       totalDurationMs,
     };

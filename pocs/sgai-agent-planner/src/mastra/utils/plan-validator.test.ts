@@ -249,6 +249,19 @@ describe("Plan Validator — Negative Fixtures", () => {
     });
   });
 
+  describe("UNSUPPORTED_EXECUTOR_KIND", () => {
+    test("rejects step with tool executor", () => {
+      const plan = createBasePlan();
+      plan.steps[0].executor = { kind: "tool", ref: "some-tool" };
+
+      expectError(plan, "UNSUPPORTED_EXECUTOR_KIND");
+
+      const result = validatePlan(plan);
+      const errors = getErrorsByCode(result, "UNSUPPORTED_EXECUTOR_KIND");
+      expect(errors[0]?.details?.kind).toBe("tool");
+    });
+  });
+
   describe("EXECUTOR_CANNOT_HANDLE_STEP", () => {
     test("rejects research step assigned to develop-only agent", () => {
       const plan = createBasePlan();

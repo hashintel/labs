@@ -155,6 +155,15 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
       Use a valid executor from the available agents list provided in the prompt.
     `,
 
+    UNSUPPORTED_EXECUTOR_KIND: dedent`
+      Step "${error.context}" uses an executor kind that isn't supported yet.
+
+      For now, use only executor objects of the form:
+      { kind: "agent", ref: "<one of the available agents>" }
+
+      Replace any "tool", "workflow", or "human" executors with a valid agent.
+    `,
+
     EXECUTOR_CANNOT_HANDLE_STEP: dedent`
       Step "${error.context}" is assigned to an executor that cannot handle
       its step type.
