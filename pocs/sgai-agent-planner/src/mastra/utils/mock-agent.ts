@@ -152,7 +152,6 @@ export class MockAgent {
     prompt: string,
     _options?: unknown,
   ): Promise<{ text: string; object: MockResponse }> {
-    void _options;
     // Simulate processing delay
     if (this.simulatedDelayMs > 0) {
       await this.delay(this.simulatedDelayMs);

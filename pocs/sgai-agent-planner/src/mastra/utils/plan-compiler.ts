@@ -240,14 +240,11 @@ function buildInputSchema(planStep: PlanStep): z.ZodType<unknown> {
  * Build output schema from step artifacts.
  */
 function buildOutputSchema(_planStep: PlanStep): z.ZodType<unknown> {
-  void _planStep;
-  return z
-    .object({
-      stepId: z.string(),
-      result: z.unknown(),
-      durationMs: z.number(),
-    })
-    .passthrough();
+  return z.object({
+    stepId: z.string(),
+    result: z.unknown(),
+    durationMs: z.number(),
+  });
 }
 
 /**

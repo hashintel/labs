@@ -70,7 +70,6 @@ function stringifyDetail(value: unknown): string {
  * Get specific fix instructions based on the error code.
  */
 function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
-  void _step;
   const invalidRef = error.details?.invalidRef
     ? stringifyDetail(error.details.invalidRef)
     : undefined;
