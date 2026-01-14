@@ -25,12 +25,12 @@ import type { PlanningGoal } from "../../schemas/planning-goal";
  * Expected plan: Research → form hypothesis → design experiment → run → evaluate
  */
 export const hypothesisValidationFixture: PlanningGoal = {
-	input: {
-		id: "hypothesis-validation",
-		goal: `Test whether fine-tuning a small LLM (e.g., Llama 3 8B) on
+  input: {
+    id: "hypothesis-validation",
+    goal: `Test whether fine-tuning a small LLM (e.g., Llama 3 8B) on
            domain-specific data outperforms few-shot prompting with a
            larger model (e.g., GPT-4) for our entity extraction task.`,
-		context: `We have 5,000 labeled examples of entity extraction from
+    context: `We have 5,000 labeled examples of entity extraction from
               legal documents. Entities include: parties, dates, monetary
               amounts, contract terms, and obligations.
 
@@ -42,15 +42,15 @@ export const hypothesisValidationFixture: PlanningGoal = {
               The experiment should be rigorous enough to defend the
               recommendation. We suspect fine-tuning might win on accuracy
               but need to verify this hypothesis.`,
-	},
-	expected: {
-		shouldHaveHypotheses: true,
-		shouldHaveExperiments: true,
-		shouldHaveConcurrentResearch: false,
-		minSteps: 5,
-		maxSteps: 15,
-		expectedStepTypes: ["research", "experiment", "synthesize"],
-	},
+  },
+  expected: {
+    shouldHaveHypotheses: true,
+    shouldHaveExperiments: true,
+    shouldHaveConcurrentResearch: false,
+    minSteps: 5,
+    maxSteps: 15,
+    expectedStepTypes: ["research", "experiment", "synthesize"],
+  },
 };
 
 /**

@@ -6,7 +6,7 @@ import tseslint from "typescript-eslint";
 
 export default defineConfig(
 	{
-		ignores: [".output/**", "build/**", "node_modules/**"],
+		ignores: [".output/**", ".mastra/**", "build/**", "node_modules/**"],
 	},
 	eslint.configs.recommended,
 	tseslint.configs.recommendedTypeChecked,

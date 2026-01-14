@@ -30,14 +30,14 @@ import type { PlanningGoal } from "../../schemas/planning-goal";
  * Expected plan: Multi-phase R&D with research, experimentation, and development.
  */
 export const ctDatabaseGoalFixture: PlanningGoal = {
-	input: {
-		id: "ct-database-goal",
-		goal: `Create a backend language and database that is natively aligned
+  input: {
+    id: "ct-database-goal",
+    goal: `Create a backend language and database that is natively aligned
            with category-theoretical expressions. This should support
            objects, morphisms, functors, and natural transformations as
            first-class concepts, with query performance competitive with
            traditional databases.`,
-		context: `We're exploring whether category theory (CT) primitives can
+    context: `We're exploring whether category theory (CT) primitives can
               serve as a more natural foundation for data modeling than
               relational or document models.
 
@@ -59,15 +59,15 @@ export const ctDatabaseGoalFixture: PlanningGoal = {
               We're particularly interested in how functors could enable
               schema migrations and how natural transformations could
               express data transformations.`,
-	},
-	expected: {
-		shouldHaveHypotheses: true,
-		shouldHaveExperiments: true,
-		shouldHaveConcurrentResearch: true,
-		minSteps: 8,
-		maxSteps: 20,
-		expectedStepTypes: ["research", "experiment", "synthesize", "develop"],
-	},
+  },
+  expected: {
+    shouldHaveHypotheses: true,
+    shouldHaveExperiments: true,
+    shouldHaveConcurrentResearch: true,
+    minSteps: 8,
+    maxSteps: 20,
+    expectedStepTypes: ["research", "experiment", "synthesize", "develop"],
+  },
 };
 
 /**

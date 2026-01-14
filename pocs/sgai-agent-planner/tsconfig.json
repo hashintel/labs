@@ -35,6 +35,6 @@
 		},
 
 		/* Other */
-		"ignoreDeprecations": "6.0" // avoids warning about baseUrl usage
+		"ignoreDeprecations": "5.0" // avoids warning about baseUrl usage
 	}
 }
