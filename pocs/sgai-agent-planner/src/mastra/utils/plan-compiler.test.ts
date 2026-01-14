@@ -11,7 +11,15 @@
  * Uses mock agents throughout - no LLM calls.
  */
 
-import { describe, expect, test } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+  type MockInstance,
+} from "vitest";
 
 import type { PlanSpec } from "../schemas/plan-spec";
 import {
@@ -1074,6 +1082,25 @@ describe("Plan Compiler — Streaming Events", () => {
 // =============================================================================
 
 describe("Plan Compiler — Error Handling", () => {
+  let consoleErrorSpy: MockInstance | undefined;
+  let consoleWarnSpy: MockInstance | undefined;
+
+  beforeEach(() => {
+    // These tests intentionally trigger failures; Mastra may log them to stderr.
+    // Silence console noise so test output stays clean.
+    consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
+    consoleWarnSpy?.mockRestore();
+  });
+
   test("throws when executor ref not found in registry", async () => {
     const plan = createPlanWithInvalidExecutor();
     const workflow = compilePlanToWorkflow(plan, {
@@ -1115,6 +1142,14 @@ describe("Plan Compiler — Error Handling", () => {
     const errorEvent = errorEvents[0];
     expect(errorEvent?.data.stepId).toBe("S1");
     expect(errorEvent?.data.error).toContain("__THROW__");
+
+    // Plan completion event should reflect failure accurately
+    const completeEvent = events.find(
+      (evt) => evt.type === "data-plan-complete",
+    );
+    expect(completeEvent).toBeDefined();
+    expect(completeEvent?.data.success).toBe(false);
+    expect(completeEvent?.data.stepsFailed).toBeGreaterThanOrEqual(1);
   }, 10000);
 
   test("workflow status is failed when step throws", async () => {

@@ -209,7 +209,7 @@ export async function generatePlan(
     - All step dependencies form a valid DAG (no cycles)
     - All references (hypothesisIds, requirementIds, dependencyIds) point to existing IDs
 	    - Each step has an appropriate executor assigned (use only { kind: "agent", ref: "..." })
-    - The unknowns map captures your uncertainty honestly
+	    - The plan's knowledgeMap captures your uncertainty honestly (include knownKnowns, knownUnknowns, ontologicalGaps, communityCheck)
 
     Generate the plan now.
   `;

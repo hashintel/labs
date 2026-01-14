@@ -143,6 +143,11 @@ export type PlanExecutionEvent =
   | PlanDepthTransitionEvent
   | PlanCompleteEvent;
 
+/** Minimal interface for Mastra's event writer used by this compiler. */
+interface PlanEventWriter {
+  custom(event: PlanExecutionEvent): Promise<void>;
+}
+
 // =============================================================================
 // COMPILER TYPES
 // =============================================================================
@@ -180,6 +185,49 @@ interface CompilerContext {
   agentRegistry: Map<string, MockAgent>;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   steps: Map<string, Step<string, any, any, any, any, any>>;
+
+  /** Mutable execution state used for accurate plan completion reporting. */
+  executionState: ExecutionState;
+}
+
+interface ExecutionState {
+  startTimeMs: number;
+  completedStepIds: Set<string>;
+  errors: Array<{ stepId: string; error: string }>;
+
+  /** Ensures we emit a single plan-complete event even on failure paths. */
+  completeEmitted: boolean;
+}
+
+async function emitPlanCompleteIfNeeded(
+  writer: PlanEventWriter,
+  ctx: CompilerContext,
+  totalDurationMsOverride?: number,
+): Promise<void> {
+  if (ctx.executionState.completeEmitted) return;
+  ctx.executionState.completeEmitted = true;
+
+  // If the entry handler never ran (unexpected), fall back to now.
+  if (ctx.executionState.startTimeMs === 0) {
+    ctx.executionState.startTimeMs = Date.now();
+  }
+
+  const totalDurationMs =
+    totalDurationMsOverride ?? Date.now() - ctx.executionState.startTimeMs;
+  const stepsFailed = ctx.executionState.errors.length;
+  const stepsCompleted = ctx.executionState.completedStepIds.size;
+  const success = stepsFailed === 0;
+
+  await writer.custom({
+    type: "data-plan-complete",
+    data: {
+      planId: ctx.plan.id,
+      success,
+      totalDurationMs,
+      stepsCompleted,
+      stepsFailed,
+    },
+  } satisfies PlanCompleteEvent);
 }
 
 /**
@@ -461,6 +509,9 @@ function createMastraStep(planStep: PlanStep, ctx: CompilerContext) {
           },
         } satisfies PlanStepCompleteEvent);
 
+        // Track completion for accurate plan summary
+        ctx.executionState.completedStepIds.add(planStep.id);
+
         return {
           stepId: planStep.id,
           result,
@@ -468,6 +519,14 @@ function createMastraStep(planStep: PlanStep, ctx: CompilerContext) {
         };
       } catch (error) {
         const durationMs = Date.now() - startTime;
+        const errorMessage =
+          error instanceof Error ? error.message : String(error);
+
+        // Track failure for accurate plan summary
+        ctx.executionState.errors.push({
+          stepId: planStep.id,
+          error: errorMessage,
+        });
 
         // Emit step error event
         await writer.custom({
@@ -475,10 +534,14 @@ function createMastraStep(planStep: PlanStep, ctx: CompilerContext) {
           data: {
             stepId: planStep.id,
             stepType: planStep.type,
-            error: error instanceof Error ? error.message : String(error),
+            error: errorMessage,
             durationMs,
           },
         } satisfies PlanStepErrorEvent);
+
+        // Ensure the consumer always receives a terminal completion event,
+        // even when we fail-fast by throwing.
+        await emitPlanCompleteIfNeeded(writer, ctx);
 
         // Re-throw for fail-fast behavior
         throw error;
@@ -507,12 +570,13 @@ function buildWorkflowFromGroups(
 ): void {
   const { plan, topology } = ctx;
 
-  // Track timing for final output/event payloads
-  let startTimeMs = 0;
-
   // Entry: Emit plan start event and initialize state
   workflow.map(async ({ inputData, writer }) => {
-    startTimeMs = Date.now();
+    // Reset per-run state (workflow instances can be reused across runs)
+    ctx.executionState.startTimeMs = Date.now();
+    ctx.executionState.completedStepIds.clear();
+    ctx.executionState.errors.length = 0;
+    ctx.executionState.completeEmitted = false;
 
     await writer.custom({
       type: "data-plan-start",
@@ -622,24 +686,18 @@ function buildWorkflowFromGroups(
 
   // Exit: Emit plan complete event and collect results
   workflow.map(async ({ inputData, writer }) => {
-    const totalDurationMs = Date.now() - startTimeMs;
+    const totalDurationMs = Date.now() - ctx.executionState.startTimeMs;
+    const stepsFailed = ctx.executionState.errors.length;
+    const success = stepsFailed === 0;
 
-    await writer.custom({
-      type: "data-plan-complete",
-      data: {
-        planId: plan.id,
-        success: true,
-        totalDurationMs,
-        stepsCompleted: plan.steps.length,
-        stepsFailed: 0,
-      },
-    } satisfies PlanCompleteEvent);
+    // Use shared helper so we don't double-emit if a step already emitted on error.
+    await emitPlanCompleteIfNeeded(writer, ctx, totalDurationMs);
 
     return {
       planId: plan.id,
-      success: true,
+      success,
       results: inputData as Record<string, unknown>,
-      errors: undefined,
+      errors: stepsFailed > 0 ? ctx.executionState.errors : undefined,
       executionOrder: topology.topologicalOrder,
       totalDurationMs,
     };
@@ -698,6 +756,13 @@ export function compilePlanToWorkflow(
     options: normalizedOptions,
     agentRegistry: normalizedOptions.agentRegistry,
     steps: new Map(),
+
+    executionState: {
+      startTimeMs: 0,
+      completedStepIds: new Set<string>(),
+      errors: [],
+      completeEmitted: false,
+    },
   };
 
   // Phase 1: Create Mastra steps for each PlanStep
