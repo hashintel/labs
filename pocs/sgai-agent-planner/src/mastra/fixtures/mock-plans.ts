@@ -114,7 +114,7 @@ export const mockSummarizePapersPlan: PlanSpec = {
       executor: { kind: "agent", ref: "result-synthesizer" },
     },
   ],
-  unknownsMap: {
+  knowledgeMap: {
     knownKnowns: [
       "RAG combines retrieval with generation",
       "Multiple architectural approaches exist",
@@ -123,7 +123,7 @@ export const mockSummarizePapersPlan: PlanSpec = {
       "Which papers are most relevant to our use case",
       "How to fairly compare different evaluation metrics",
     ],
-    unknownUnknowns: [
+    ontologicalGaps: [
       {
         potentialSurprise: "All recent papers focus on same approach",
         detectionSignal:
@@ -294,7 +294,7 @@ export const mockExploreAndRecommendPlan: PlanSpec = {
       executor: { kind: "agent", ref: "progress-evaluator" },
     },
   ],
-  unknownsMap: {
+  knowledgeMap: {
     knownKnowns: [
       "HNSW is widely used for approximate nearest neighbor search",
       "IVF offers controllable accuracy-speed tradeoff",
@@ -305,7 +305,7 @@ export const mockExploreAndRecommendPlan: PlanSpec = {
       "Whether hybrid approaches are production-ready",
       "Actual memory requirements for our embedding dimensions",
     ],
-    unknownUnknowns: [
+    ontologicalGaps: [
       {
         potentialSurprise:
           "Our specific query patterns don't match benchmark assumptions",
@@ -537,7 +537,7 @@ export const mockHypothesisValidationPlan: PlanSpec = {
       executor: { kind: "agent", ref: "progress-evaluator" },
     },
   ],
-  unknownsMap: {
+  knowledgeMap: {
     knownKnowns: [
       "We have 5,000 high-quality labeled examples",
       "Legal NER includes: parties, dates, amounts, terms, obligations",
@@ -548,7 +548,7 @@ export const mockHypothesisValidationPlan: PlanSpec = {
       "Whether LoRA is sufficient or full fine-tuning needed",
       "Distribution shift between training and production documents",
     ],
-    unknownUnknowns: [
+    ontologicalGaps: [
       {
         potentialSurprise:
           "Legal documents have formatting that confuses the tokenizer",
@@ -847,7 +847,7 @@ export const mockCtDatabasePlan: PlanSpec = {
       executor: { kind: "agent", ref: "code-writer" },
     },
   ],
-  unknownsMap: {
+  knowledgeMap: {
     knownKnowns: [
       "Category theory has been applied to databases (Spivak et al.)",
       "CQL exists as prior art",
@@ -858,7 +858,7 @@ export const mockCtDatabasePlan: PlanSpec = {
       "User experience of CT-based query language",
       "Integration path with existing systems",
     ],
-    unknownUnknowns: [
+    ontologicalGaps: [
       {
         potentialSurprise: "CT abstraction level too high for practical use",
         detectionSignal: "Users struggle to express common queries",

@@ -11,7 +11,15 @@
  * Uses mock agents throughout - no LLM calls.
  */
 
-import { describe, expect, test } from "vitest";
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+  type MockInstance,
+} from "vitest";
 
 import type { PlanSpec } from "../schemas/plan-spec";
 import {
@@ -52,10 +60,10 @@ function createMinimalPlan(): PlanSpec {
         executor: { kind: "agent", ref: "literature-searcher" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["Test framework works"],
       knownUnknowns: ["All edge cases"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Unexpected behavior",
           detectionSignal: "Tests fail",
@@ -118,10 +126,10 @@ function createLinearPlan(): PlanSpec {
         executor: { kind: "agent", ref: "documentation-writer" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["Sequential flow works"],
       knownUnknowns: ["Performance characteristics"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Ordering issues",
           detectionSignal: "Wrong order",
@@ -201,10 +209,10 @@ function createParallelPlan(): PlanSpec {
         executor: { kind: "agent", ref: "result-synthesizer" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["Parallel execution supported"],
       knownUnknowns: ["Exact parallelism level"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Race conditions",
           detectionSignal: "Inconsistent results",
@@ -287,10 +295,10 @@ function createDiamondPlan(): PlanSpec {
         executor: { kind: "agent", ref: "result-synthesizer" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["Diamond patterns are valid DAGs"],
       knownUnknowns: ["Optimal parallel execution"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Merge conflicts",
           detectionSignal: "Data inconsistency",
@@ -353,10 +361,10 @@ function createMixedParallelismPlan(): PlanSpec {
         executor: { kind: "agent", ref: "documentation-writer" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["Mixed parallelism patterns exist"],
       knownUnknowns: ["Optimal handling strategy"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Scheduling issues",
           detectionSignal: "Unexpected order",
@@ -514,10 +522,10 @@ function createDeepDagPlan(): PlanSpec {
         executor: { kind: "agent", ref: "progress-evaluator" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["DAG structure is valid", "All step types are supported"],
       knownUnknowns: ["Optimal parallelization", "Integration complexity"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Unexpected dependencies between areas",
           detectionSignal: "Synthesis step fails to integrate",
@@ -554,10 +562,10 @@ function createPlanWithInvalidExecutor(): PlanSpec {
         executor: { kind: "agent", ref: "nonexistent-agent" }, // Invalid!
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: [],
       knownUnknowns: [],
-      unknownUnknowns: [],
+      ontologicalGaps: [],
       communityCheck: "",
     },
   };
@@ -589,10 +597,10 @@ function createPlanWithThrowingStep(): PlanSpec {
         executor: { kind: "agent", ref: "literature-searcher" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: [],
       knownUnknowns: [],
-      unknownUnknowns: [],
+      ontologicalGaps: [],
       communityCheck: "",
     },
   };
@@ -1074,6 +1082,25 @@ describe("Plan Compiler — Streaming Events", () => {
 // =============================================================================
 
 describe("Plan Compiler — Error Handling", () => {
+  let consoleErrorSpy: MockInstance | undefined;
+  let consoleWarnSpy: MockInstance | undefined;
+
+  beforeEach(() => {
+    // These tests intentionally trigger failures; Mastra may log them to stderr.
+    // Silence console noise so test output stays clean.
+    consoleErrorSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    consoleWarnSpy = vi
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    consoleErrorSpy?.mockRestore();
+    consoleWarnSpy?.mockRestore();
+  });
+
   test("throws when executor ref not found in registry", async () => {
     const plan = createPlanWithInvalidExecutor();
     const workflow = compilePlanToWorkflow(plan, {
@@ -1115,6 +1142,14 @@ describe("Plan Compiler — Error Handling", () => {
     const errorEvent = errorEvents[0];
     expect(errorEvent?.data.stepId).toBe("S1");
     expect(errorEvent?.data.error).toContain("__THROW__");
+
+    // Plan completion event should reflect failure accurately
+    const completeEvent = events.find(
+      (evt) => evt.type === "data-plan-complete",
+    );
+    expect(completeEvent).toBeDefined();
+    expect(completeEvent?.data.success).toBe(false);
+    expect(completeEvent?.data.stepsFailed).toBeGreaterThanOrEqual(1);
   }, 10000);
 
   test("workflow status is failed when step throws", async () => {

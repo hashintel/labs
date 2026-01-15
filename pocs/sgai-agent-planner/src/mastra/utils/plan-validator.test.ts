@@ -54,10 +54,10 @@ function createBasePlan(): PlanSpec {
         executor: { kind: "agent", ref: "literature-searcher" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["We know the test framework works"],
       knownUnknowns: ["We don't know all edge cases"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Unexpected validation behavior",
           detectionSignal: "Tests fail in unexpected ways",
@@ -172,7 +172,7 @@ describe("Plan Validator — Negative Fixtures", () => {
   describe("INVALID_STEP_REFERENCE", () => {
     test("rejects step with dependencyIds referencing non-existent step", () => {
       const plan = createBasePlan();
-      plan.steps[0]!.dependencyIds = ["S99"]; // Non-existent
+      plan.steps[0].dependencyIds = ["S99"]; // Non-existent
 
       expectError(plan, "INVALID_STEP_REFERENCE");
 
@@ -222,7 +222,7 @@ describe("Plan Validator — Negative Fixtures", () => {
   describe("INVALID_REQUIREMENT_REFERENCE", () => {
     test("rejects step referencing non-existent requirement", () => {
       const plan = createBasePlan();
-      plan.steps[0]!.requirementIds = ["R1", "R99"]; // R99 doesn't exist
+      plan.steps[0].requirementIds = ["R1", "R99"]; // R99 doesn't exist
 
       expectError(plan, "INVALID_REQUIREMENT_REFERENCE");
 
@@ -239,7 +239,7 @@ describe("Plan Validator — Negative Fixtures", () => {
   describe("INVALID_EXECUTOR_REFERENCE", () => {
     test("rejects step with unknown agent executor", () => {
       const plan = createBasePlan();
-      plan.steps[0]!.executor = { kind: "agent", ref: "unknown-agent" };
+      plan.steps[0].executor = { kind: "agent", ref: "unknown-agent" };
 
       expectError(plan, "INVALID_EXECUTOR_REFERENCE");
 
@@ -249,11 +249,24 @@ describe("Plan Validator — Negative Fixtures", () => {
     });
   });
 
+  describe("UNSUPPORTED_EXECUTOR_KIND", () => {
+    test("rejects step with tool executor", () => {
+      const plan = createBasePlan();
+      plan.steps[0].executor = { kind: "tool", ref: "some-tool" };
+
+      expectError(plan, "UNSUPPORTED_EXECUTOR_KIND");
+
+      const result = validatePlan(plan);
+      const errors = getErrorsByCode(result, "UNSUPPORTED_EXECUTOR_KIND");
+      expect(errors[0]?.details?.kind).toBe("tool");
+    });
+  });
+
   describe("EXECUTOR_CANNOT_HANDLE_STEP", () => {
     test("rejects research step assigned to develop-only agent", () => {
       const plan = createBasePlan();
       // documentation-writer can only handle "develop" steps
-      plan.steps[0]!.executor = { kind: "agent", ref: "documentation-writer" };
+      plan.steps[0].executor = { kind: "agent", ref: "documentation-writer" };
 
       expectError(plan, "EXECUTOR_CANNOT_HANDLE_STEP");
 
@@ -470,7 +483,7 @@ describe("Plan Validator — Negative Fixtures", () => {
   describe("CYCLE_DETECTED", () => {
     test("rejects plan with self-referencing step", () => {
       const plan = createBasePlan();
-      plan.steps[0]!.dependencyIds = ["S1"]; // Self-reference
+      plan.steps[0].dependencyIds = ["S1"]; // Self-reference
 
       expectError(plan, "CYCLE_DETECTED");
 
@@ -494,7 +507,7 @@ describe("Plan Validator — Negative Fixtures", () => {
         executor: { kind: "agent", ref: "result-synthesizer" },
       });
       // Create cycle: S1 -> S2 -> S1
-      plan.steps[0]!.dependencyIds = ["S2"];
+      plan.steps[0].dependencyIds = ["S2"];
 
       expectError(plan, "CYCLE_DETECTED");
 
@@ -537,7 +550,7 @@ describe("Plan Validator — Negative Fixtures", () => {
         },
       );
       // Create cycle: S1 -> S2 -> S3 -> S1
-      plan.steps[0]!.dependencyIds = ["S3"];
+      plan.steps[0].dependencyIds = ["S3"];
 
       expectError(plan, "CYCLE_DETECTED");
     });
@@ -635,10 +648,10 @@ describe("Plan Validator — Negative Fixtures", () => {
             executor: { kind: "agent", ref: "unknown-agent" }, // Invalid executor
           },
         ],
-        unknownsMap: {
+        knowledgeMap: {
           knownKnowns: [],
           knownUnknowns: [],
-          unknownUnknowns: [],
+          ontologicalGaps: [],
           communityCheck: "",
         },
       };
@@ -754,10 +767,10 @@ describe("Plan Validator — Negative Fixtures", () => {
             executor: { kind: "agent", ref: "progress-evaluator" },
           },
         ],
-        unknownsMap: {
+        knowledgeMap: {
           knownKnowns: ["X and Y are measurable", "Prior studies exist"],
           knownUnknowns: ["Exact mechanism", "Boundary conditions"],
-          unknownUnknowns: [
+          ontologicalGaps: [
             {
               potentialSurprise: "Relationship is non-linear",
               detectionSignal: "Poor model fit with linear assumptions",

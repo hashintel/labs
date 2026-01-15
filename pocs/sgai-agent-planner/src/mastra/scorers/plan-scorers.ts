@@ -8,7 +8,7 @@
  * - plan-structure: DAG validity, connectivity, parallelism opportunity
  * - plan-coverage: Requirements/hypothesis coverage by steps
  * - experiment-rigor: Preregistration, controls, testability
- * - unknowns-coverage: Epistemic completeness of unknowns map
+ * - knowledge-coverage: Epistemic completeness of knowledge map
  *
  * Each scorer returns a normalized score [0, 1] and detailed breakdown.
  */
@@ -402,16 +402,16 @@ export function scoreExperimentRigor(
 }
 
 // =============================================================================
-// UNKNOWNS COVERAGE SCORER
+// KNOWLEDGE COVERAGE SCORER
 // =============================================================================
 
-export interface UnknownsCoverageDetails {
+export interface KnowledgeCoverageDetails {
   /** Number of known-knowns documented */
   knownKnownsCount: number;
   /** Number of known-unknowns documented */
   knownUnknownsCount: number;
-  /** Number of unknown-unknowns with detection signals */
-  unknownUnknownsCount: number;
+  /** Number of ontological gaps with detection signals */
+  ontologicalGapsCount: number;
   /** Whether community check is substantive (>20 chars) */
   hasCommunityCheck: boolean;
   /** Total epistemic coverage score */
@@ -419,36 +419,37 @@ export interface UnknownsCoverageDetails {
 }
 
 /**
- * Score the epistemic completeness of the unknowns map.
+ * Score the epistemic completeness of the knowledge map.
  *
  * Evaluates:
  * - Known-knowns: What we're building on (should have some)
  * - Known-unknowns: Questions we need to answer (should have some)
- * - Unknown-unknowns: What would surprise us + detection signals (valuable)
+ * - Ontological gaps: Fundamental uncertainties + detection signals (valuable)
  * - Community check: What others need to verify claims (important for science)
  *
  * Scoring weights:
  * - Known-knowns presence: 20%
  * - Known-unknowns presence: 25%
- * - Unknown-unknowns with signals: 30%
+ * - Ontological gaps with signals: 30%
  * - Community check quality: 25%
  */
-export function scoreUnknownsCoverage(
+export function scoreKnowledgeCoverage(
   plan: PlanSpec,
-): ScorerResult<UnknownsCoverageDetails> {
-  const { unknownsMap } = plan;
+): ScorerResult<KnowledgeCoverageDetails> {
+  const { knowledgeMap } = plan;
 
-  // Unknown-unknowns: having 1-3 with detection signals is excellent
+  // Ontological gaps: having 1-3 with detection signals is excellent
   // Check that each has both potentialSurprise and detectionSignal
-  const validUnknownUnknowns = unknownsMap.unknownUnknowns.filter(
-    (uu) => uu.potentialSurprise.length > 10 && uu.detectionSignal.length > 10,
+  const validOntologicalGaps = knowledgeMap.ontologicalGaps.filter(
+    (gap) =>
+      gap.potentialSurprise.length > 10 && gap.detectionSignal.length > 10,
   );
 
-  const details: UnknownsCoverageDetails = {
-    knownKnownsCount: unknownsMap.knownKnowns.length,
-    knownUnknownsCount: unknownsMap.knownUnknowns.length,
-    unknownUnknownsCount: validUnknownUnknowns.length,
-    hasCommunityCheck: unknownsMap.communityCheck.length > 20,
+  const details: KnowledgeCoverageDetails = {
+    knownKnownsCount: knowledgeMap.knownKnowns.length,
+    knownUnknownsCount: knowledgeMap.knownUnknowns.length,
+    ontologicalGapsCount: validOntologicalGaps.length,
+    hasCommunityCheck: knowledgeMap.communityCheck.length > 20,
     epistemicCompleteness: 0,
   };
 
@@ -459,7 +460,7 @@ export function scoreUnknownsCoverage(
   // Known-unknowns: having 2-5 is good
   const knownUnknownsScore = Math.min(1, details.knownUnknownsCount / 3);
 
-  const unknownUnknownsScore = Math.min(1, validUnknownUnknowns.length / 2);
+  const ontologicalGapsScore = Math.min(1, validOntologicalGaps.length / 2);
 
   // Community check: should be substantive
   const communityCheckScore = details.hasCommunityCheck ? 1 : 0;
@@ -467,7 +468,7 @@ export function scoreUnknownsCoverage(
   const score =
     0.2 * knownKnownsScore +
     0.25 * knownUnknownsScore +
-    0.3 * unknownUnknownsScore +
+    0.3 * ontologicalGapsScore +
     0.25 * communityCheckScore;
 
   details.epistemicCompleteness = score;
@@ -475,7 +476,7 @@ export function scoreUnknownsCoverage(
   const reason =
     `Epistemic coverage: ${details.knownKnownsCount} known-knowns, ` +
     `${details.knownUnknownsCount} known-unknowns, ` +
-    `${details.unknownUnknownsCount} unknown-unknowns with detection signals. ` +
+    `${details.ontologicalGapsCount} ontological gaps with detection signals. ` +
     `Community check: ${details.hasCommunityCheck ? "present" : "missing/weak"}.`;
 
   return { score, reason, details };
@@ -492,7 +493,7 @@ export interface CompositePlanScore {
   structure: ScorerResult<PlanStructureDetails>;
   coverage: ScorerResult<PlanCoverageDetails>;
   experimentRigor: ScorerResult<ExperimentRigorDetails>;
-  unknownsCoverage: ScorerResult<UnknownsCoverageDetails>;
+  knowledgeCoverage: ScorerResult<KnowledgeCoverageDetails>;
 }
 
 /**
@@ -502,7 +503,7 @@ export interface CompositePlanScore {
  * - Structure: 25% (valid DAG, parallelism)
  * - Coverage: 30% (requirements, hypotheses)
  * - Experiment rigor: 25% (preregistration, criteria)
- * - Unknowns: 20% (epistemic completeness)
+ * - Knowledge: 20% (epistemic completeness)
  */
 export function scorePlanComposite(
   plan: PlanSpec,
@@ -510,14 +511,14 @@ export function scorePlanComposite(
     structure?: number;
     coverage?: number;
     experimentRigor?: number;
-    unknownsCoverage?: number;
+    knowledgeCoverage?: number;
   },
 ): CompositePlanScore {
   const rawWeights = {
     structure: weights?.structure ?? 0.25,
     coverage: weights?.coverage ?? 0.3,
     experimentRigor: weights?.experimentRigor ?? 0.25,
-    unknownsCoverage: weights?.unknownsCoverage ?? 0.2,
+    knowledgeCoverage: weights?.knowledgeCoverage ?? 0.2,
   };
 
   // Normalize weights to sum to 1.0
@@ -525,7 +526,7 @@ export function scorePlanComposite(
     rawWeights.structure +
     rawWeights.coverage +
     rawWeights.experimentRigor +
-    rawWeights.unknownsCoverage;
+    rawWeights.knowledgeCoverage;
 
   // Guard against division by zero (all weights are 0)
   const resolvedWeights =
@@ -534,31 +535,31 @@ export function scorePlanComposite(
           structure: 0.25,
           coverage: 0.3,
           experimentRigor: 0.25,
-          unknownsCoverage: 0.2,
+          knowledgeCoverage: 0.2,
         }
       : {
           structure: rawWeights.structure / weightSum,
           coverage: rawWeights.coverage / weightSum,
           experimentRigor: rawWeights.experimentRigor / weightSum,
-          unknownsCoverage: rawWeights.unknownsCoverage / weightSum,
+          knowledgeCoverage: rawWeights.knowledgeCoverage / weightSum,
         };
 
   const structure = scorePlanStructure(plan);
   const coverage = scorePlanCoverage(plan);
   const experimentRigor = scoreExperimentRigor(plan);
-  const unknownsCoverage = scoreUnknownsCoverage(plan);
+  const knowledgeCoverage = scoreKnowledgeCoverage(plan);
 
   const overall =
     resolvedWeights.structure * structure.score +
     resolvedWeights.coverage * coverage.score +
     resolvedWeights.experimentRigor * experimentRigor.score +
-    resolvedWeights.unknownsCoverage * unknownsCoverage.score;
+    resolvedWeights.knowledgeCoverage * knowledgeCoverage.score;
 
   return {
     overall,
     structure,
     coverage,
     experimentRigor,
-    unknownsCoverage,
+    knowledgeCoverage,
   };
 }

@@ -1,20 +1,18 @@
-/* eslint-disable canonical/filename-no-index */
-import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { chatRoute } from '@mastra/ai-sdk';
-import { Mastra } from '@mastra/core/mastra';
-import { LibSQLStore } from '@mastra/libsql';
-import { PinoLogger } from '@mastra/loggers';
-import { Observability } from '@mastra/observability';
+import { Mastra } from "@mastra/core/mastra";
+import { LibSQLStore } from "@mastra/libsql";
+import { PinoLogger } from "@mastra/loggers";
+import { Observability } from "@mastra/observability";
 
-import { plannerAgent } from './agents/planner-agent';
-import { planningWorkflow } from './workflows/planning-workflow';
-import { planLlmScorers } from './scorers/plan-llm-scorers';
+import { plannerAgent } from "./agents/planner-agent";
+import { planningWorkflow } from "./workflows/planning-workflow";
+import { planLlmScorers } from "./scorers/plan-llm-scorers";
 
 const metaFilename = fileURLToPath(import.meta.url);
 const metaDirname = path.dirname(metaFilename);
-const dbFilename = path.resolve(metaDirname, '../../data/mastra.db');
+const dbFilename = path.resolve(metaDirname, "../../data/mastra.db");
 
 export const mastra = new Mastra({
   workflows: { planningWorkflow },
@@ -24,7 +22,7 @@ export const mastra = new Mastra({
   scorers: { ...planLlmScorers },
   logger: new PinoLogger(),
   storage: new LibSQLStore({
-    id: 'mastra-storage',
+    id: "mastra-storage",
     url: pathToFileURL(dbFilename).toString(),
   }),
   observability: new Observability({

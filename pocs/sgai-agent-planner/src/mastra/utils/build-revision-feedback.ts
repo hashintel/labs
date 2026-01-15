@@ -8,10 +8,10 @@
  * @see docs/PLAN-task-decomposition.md for design documentation
  */
 
-import dedent from 'dedent';
+import dedent from "dedent";
 
-import type { PlanSpec, PlanStep } from '../schemas/plan-spec';
-import type { ValidationError, ValidationErrorCode } from './plan-validator';
+import type { PlanSpec, PlanStep } from "../schemas/plan-spec";
+import type { ValidationError, ValidationErrorCode } from "./plan-validator";
 
 // =============================================================================
 // HELPERS (defined first to avoid use-before-define)
@@ -31,16 +31,16 @@ function formatStepContext(step: PlanStep): string {
   };
 
   // Add type-specific fields
-  if (step.type === 'experiment') {
+  if (step.type === "experiment") {
     relevantFields.mode = step.mode;
     relevantFields.hypothesisIds = step.hypothesisIds;
     relevantFields.successCriteria = step.successCriteria;
-    if (step.mode === 'confirmatory') {
+    if (step.mode === "confirmatory") {
       relevantFields.preregisteredCommitments = step.preregisteredCommitments;
     }
-  } else if (step.type === 'synthesize') {
+  } else if (step.type === "synthesize") {
     relevantFields.mode = step.mode;
-    if (step.mode === 'evaluative') {
+    if (step.mode === "evaluative") {
       relevantFields.evaluateAgainst = step.evaluateAgainst;
     }
   }
@@ -58,9 +58,9 @@ function formatStepContext(step: PlanStep): string {
  */
 function stringifyDetail(value: unknown): string {
   if (value === undefined || value === null) {
-    return '';
+    return "";
   }
-  if (typeof value === 'string') {
+  if (typeof value === "string") {
     return value;
   }
   return JSON.stringify(value);
@@ -70,9 +70,15 @@ function stringifyDetail(value: unknown): string {
  * Get specific fix instructions based on the error code.
  */
 function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
-  const invalidRef = error.details?.invalidRef ? stringifyDetail(error.details.invalidRef) : undefined;
-  const agent = error.details?.agent ? stringifyDetail(error.details.agent) : undefined;
-  const stepType = error.details?.stepType ? stringifyDetail(error.details.stepType) : undefined;
+  const invalidRef = error.details?.invalidRef
+    ? stringifyDetail(error.details.invalidRef)
+    : undefined;
+  const agent = error.details?.agent
+    ? stringifyDetail(error.details.agent)
+    : undefined;
+  const stepType = error.details?.stepType
+    ? stringifyDetail(error.details.stepType)
+    : undefined;
 
   const instructions: Record<ValidationErrorCode, string> = {
     MISSING_PREREGISTERED_COMMITMENTS: dedent`
@@ -112,7 +118,7 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
 
     CYCLE_DETECTED: dedent`
       The plan contains a circular dependency:
-      ${error.details?.cycle ? `Cycle: ${stringifyDetail(error.details.cycle)}` : ''}
+      ${error.details?.cycle ? `Cycle: ${stringifyDetail(error.details.cycle)}` : ""}
 
       Review the \`dependencyIds\` references and ensure the plan forms
       a valid DAG (directed acyclic graph).
@@ -120,7 +126,7 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
 
     INVALID_STEP_REFERENCE: dedent`
       Step "${error.context}" references a step ID that doesn't exist.
-      ${invalidRef ? `Invalid reference: "${invalidRef}"` : ''}
+      ${invalidRef ? `Invalid reference: "${invalidRef}"` : ""}
 
       Check the \`dependencyIds\` field and ensure it references valid step IDs
       defined in the plan.
@@ -128,7 +134,7 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
 
     INVALID_HYPOTHESIS_REFERENCE: dedent`
       Step "${error.context}" references a hypothesis ID that doesn't exist.
-      ${invalidRef ? `Invalid reference: "${invalidRef}"` : ''}
+      ${invalidRef ? `Invalid reference: "${invalidRef}"` : ""}
 
       Check the \`hypothesisIds\` field and ensure it references valid hypothesis
       IDs defined in the plan's \`hypotheses\` array.
@@ -136,7 +142,7 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
 
     INVALID_REQUIREMENT_REFERENCE: dedent`
       Step "${error.context}" references a requirement ID that doesn't exist.
-      ${invalidRef ? `Invalid reference: "${invalidRef}"` : ''}
+      ${invalidRef ? `Invalid reference: "${invalidRef}"` : ""}
 
       Check the \`requirementIds\` field and ensure it references valid requirement
       IDs defined in the plan's \`requirements\` array.
@@ -144,16 +150,25 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
 
     INVALID_EXECUTOR_REFERENCE: dedent`
       Step "${error.context}" references an executor that doesn't exist.
-      ${invalidRef ? `Invalid executor ref: "${invalidRef}"` : ''}
+      ${invalidRef ? `Invalid executor ref: "${invalidRef}"` : ""}
 
       Use a valid executor from the available agents list provided in the prompt.
+    `,
+
+    UNSUPPORTED_EXECUTOR_KIND: dedent`
+      Step "${error.context}" uses an executor kind that isn't supported yet.
+
+      For now, use only executor objects of the form:
+      { kind: "agent", ref: "<one of the available agents>" }
+
+      Replace any "tool", "workflow", or "human" executors with a valid agent.
     `,
 
     EXECUTOR_CANNOT_HANDLE_STEP: dedent`
       Step "${error.context}" is assigned to an executor that cannot handle
       its step type.
-      ${agent ? `Agent: "${agent}"` : ''}
-      ${stepType ? `Step type: "${stepType}"` : ''}
+      ${agent ? `Agent: "${agent}"` : ""}
+      ${stepType ? `Step type: "${stepType}"` : ""}
 
       Assign an executor that supports the step type, or change the step type
       to match the executor's capabilities.
@@ -185,7 +200,7 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
 
   // Fallback for any unhandled error codes
   return dedent`
-    Fix the ${error.code} error${error.context ? ` on "${error.context}"` : ''}.
+    Fix the ${error.code} error${error.context ? ` on "${error.context}"` : ""}.
 
     Error message: ${error.message}
   `;
@@ -205,14 +220,19 @@ function getFixInstructions(error: ValidationError, _step?: PlanStep): string {
  * @param errors - All validation errors to fix
  * @returns A revision prompt string to append to the generation context
  */
-export function buildRevisionFeedback(plan: PlanSpec, errors: ValidationError[]): string {
+export function buildRevisionFeedback(
+  plan: PlanSpec,
+  errors: ValidationError[],
+): string {
   if (errors.length === 0) {
-    return '';
+    return "";
   }
 
   // Build error sections for all errors
   const errorSections = errors.map((error, index) => {
-    const stepContext = error.context ? plan.steps.find((step) => step.id === error.context) : undefined;
+    const stepContext = error.context
+      ? plan.steps.find((step) => step.id === error.context)
+      : undefined;
 
     const fixInstructions = getFixInstructions(error, stepContext);
 
@@ -220,7 +240,7 @@ export function buildRevisionFeedback(plan: PlanSpec, errors: ValidationError[])
       ### Error ${index + 1}: ${error.code}
       ${error.message}
 
-      ${stepContext ? formatStepContext(stepContext) : ''}
+      ${stepContext ? formatStepContext(stepContext) : ""}
 
       **Fix Required:**
       ${fixInstructions}
@@ -230,10 +250,10 @@ export function buildRevisionFeedback(plan: PlanSpec, errors: ValidationError[])
   return dedent`
     ## Revision Required
 
-    Your previous plan failed validation with ${errors.length} error${errors.length > 1 ? 's' : ''}.
+    Your previous plan failed validation with ${errors.length} error${errors.length > 1 ? "s" : ""}.
     Fix ALL errors in a single revision.
 
-    ${errorSections.join('\n\n---\n\n')}
+    ${errorSections.join("\n\n---\n\n")}
 
     ## Important Reminders
 

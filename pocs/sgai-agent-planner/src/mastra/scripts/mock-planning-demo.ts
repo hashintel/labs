@@ -17,7 +17,6 @@
  *   npx tsx src/mastra/scripts/demo-plan-execution.ts --mock --fast  # 100ms delay for testing
  */
 
-// eslint-disable-next-line id-length -- clack convention
 import * as p from "@clack/prompts";
 import color from "picocolors";
 
@@ -121,7 +120,7 @@ function parseCliArgs(): CliArgs {
     } else if (arg.startsWith("--fixture=")) {
       result.fixture = arg.split("=")[1];
     } else if (arg.startsWith("--delay=")) {
-      result.delay = Number.parseInt(arg.split("=")[1]!, 10);
+      result.delay = Number.parseInt(arg.split("=")[1], 10);
     }
   }
 
@@ -506,38 +505,38 @@ function displayPlanVisualization(plan: PlanSpec): void {
     }
   }
 
-  // Unknowns map - show all items
+  // Knowledge map - show all items
   writeLine("");
-  writeLine(color.bold("Unknowns Map:"));
+  writeLine(color.bold("Knowledge Map:"));
 
   // Known knowns
   writeLine(
-    `  ${color.green(`Known Knowns (${plan.unknownsMap.knownKnowns.length}):`)}`,
+    `  ${color.green(`Known Knowns (${plan.knowledgeMap.knownKnowns.length}):`)}`,
   );
-  for (const item of plan.unknownsMap.knownKnowns) {
+  for (const item of plan.knowledgeMap.knownKnowns) {
     writeLine(`    ${color.dim("•")} ${item}`);
   }
 
   // Known unknowns
   writeLine(
-    `  ${color.yellow(`Known Unknowns (${plan.unknownsMap.knownUnknowns.length}):`)}`,
+    `  ${color.yellow(`Known Unknowns (${plan.knowledgeMap.knownUnknowns.length}):`)}`,
   );
-  for (const item of plan.unknownsMap.knownUnknowns) {
+  for (const item of plan.knowledgeMap.knownUnknowns) {
     writeLine(`    ${color.dim("•")} ${item}`);
   }
 
-  // Unknown unknowns with detection signals
+  // Ontological gaps with detection signals
   writeLine(
-    `  ${color.red(`Unknown Unknowns (${plan.unknownsMap.unknownUnknowns.length}):`)}`,
+    `  ${color.red(`Ontological Gaps (${plan.knowledgeMap.ontologicalGaps.length}):`)}`,
   );
-  for (const uu of plan.unknownsMap.unknownUnknowns) {
-    writeLine(`    ${color.dim("•")} Surprise: ${uu.potentialSurprise}`);
-    writeLine(`      ${color.dim("Signal:")} ${uu.detectionSignal}`);
+  for (const gap of plan.knowledgeMap.ontologicalGaps) {
+    writeLine(`    ${color.dim("•")} Surprise: ${gap.potentialSurprise}`);
+    writeLine(`      ${color.dim("Signal:")} ${gap.detectionSignal}`);
   }
 
   // Community check
   writeLine(`  ${color.cyan("Community Check:")}`);
-  writeLine(`    ${color.dim(plan.unknownsMap.communityCheck)}`);
+  writeLine(`    ${color.dim(plan.knowledgeMap.communityCheck)}`);
 }
 
 // =============================================================================
@@ -611,10 +610,10 @@ function displayPlanScores(scores: CompositePlanScore): void {
       reason: scores.experimentRigor.reason,
     },
     {
-      name: "Unknowns",
+      name: "Knowledge",
       weight: "20%",
-      score: scores.unknownsCoverage.score,
-      reason: scores.unknownsCoverage.reason,
+      score: scores.knowledgeCoverage.score,
+      reason: scores.knowledgeCoverage.reason,
     },
   ];
 

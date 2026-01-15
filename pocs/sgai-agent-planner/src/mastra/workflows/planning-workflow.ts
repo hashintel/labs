@@ -181,7 +181,7 @@ export const planningWorkflow = createWorkflow({
   // Loop: Revise until valid or max attempts
   // eslint-disable-next-line @typescript-eslint/require-await
   .dountil(planRevisionStep, async ({ inputData }) => {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/prefer-nullish-coalescing
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-member-access
     return inputData.valid || inputData.attempts >= inputData.maxAttempts;
   })
   // Exit: Extract final result

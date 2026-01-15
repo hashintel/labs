@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Planning Workflow Tests
  *

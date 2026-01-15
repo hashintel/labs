@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 /**
  * Plan LLM Scorers Tests
  *
@@ -70,10 +69,10 @@ function createMinimalTestPlan(): PlanSpec {
         executor: { kind: "agent", ref: "result-synthesizer" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["RAG is a well-established technique"],
       knownUnknowns: ["Which papers are most relevant"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise:
             "RAG approaches may have fundamentally changed recently",
@@ -163,10 +162,10 @@ function createPlanWithHypotheses(): PlanSpec {
         executor: { kind: "agent", ref: "experiment-runner" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["Both approaches work to some degree"],
       knownUnknowns: ["Optimal fine-tuning hyperparameters"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Domain shift makes comparison invalid",
           detectionSignal: "High variance in results across entity types",

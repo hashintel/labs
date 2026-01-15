@@ -9,13 +9,13 @@
  * @see docs/PLAN-task-decomposition.md for design documentation
  */
 
-import { Agent } from '@mastra/core/agent';
-import dedent from 'dedent';
+import { Agent } from "@mastra/core/agent";
+import dedent from "dedent";
 
-import { DEFAULT_MODEL } from '../constants';
-import type { PlanSpec } from '../schemas/plan-spec';
-import { zPlanSpec } from '../schemas/plan-spec';
-import { formatAgentsForPrompt } from '../utils/plan-executors';
+import { DEFAULT_MODEL } from "../constants";
+import type { PlanSpec } from "../schemas/plan-spec";
+import { zPlanSpec } from "../schemas/plan-spec";
+import { formatAgentsForPrompt } from "../utils/plan-executors";
 
 /**
  * System instructions for the planner agent.
@@ -93,13 +93,13 @@ const PLANNER_INSTRUCTIONS = dedent`
   - Use for: Building/implementing something, writing code, creating artifacts
   - Parallelizable: Sometimes - depends on dependencies
 
-## Unknowns Map
+## Knowledge Map
 
 Structure your uncertainties into four categories (all are required):
 
 1. **knownKnowns**: High-confidence facts you're building on
-2. **knownUnknowns**: Explicit questions you need to answer
-3. **unknownUnknowns**: What would surprise you (include detection signals)
+2. **knownUnknowns**: Explicit questions you need to answer (epistemic uncertainty)
+3. **ontologicalGaps**: Fundamental uncertainties about nature/categories (include detection signals)
 4. **communityCheck**: What others should scrutinize or independently verify
 
   ## Executor Assignment
@@ -108,16 +108,19 @@ Structure your uncertainties into four categories (all are required):
 
   \`\`\`
   executor: {
-    kind: "agent" | "tool" | "workflow" | "human",
-    ref: "<executor-id>"  // Required for agent/tool/workflow
+	    kind: "agent",
+	    ref: "<agent-ref>" // Must be one of the available agents listed in the prompt
   }
   \`\`\`
 
+	  IMPORTANT: For now, ONLY "agent" executors are supported.
+	  Do not use kind: "tool", "workflow", or "human".
+
   IMPORTANT: The executor.kind is NOT the step type!
   - Step type = what kind of work (research, synthesize, experiment, develop)
-  - Executor kind = who performs it (agent, tool, workflow, human)
+	  - Executor kind = who performs it (currently only: agent)
 
-  For most steps, use kind: "agent" with a ref from the available agents list.
+	  Use kind: "agent" with a ref from the available agents list.
   Example: { kind: "agent", ref: "literature-searcher" }
 
   ## Output Requirements
@@ -138,8 +141,8 @@ Structure your uncertainties into four categories (all are required):
  * properly typed structured output.
  */
 export const plannerAgent = new Agent({
-  id: 'planner-agent',
-  name: 'Research & Development Planner',
+  id: "planner-agent",
+  name: "Research & Development Planner",
   instructions: PLANNER_INSTRUCTIONS,
   model: DEFAULT_MODEL,
 });
@@ -183,7 +186,9 @@ export interface PlanGenerationResult {
  * }
  * ```
  */
-export async function generatePlan(input: PlanGenerationInput): Promise<PlanGenerationResult> {
+export async function generatePlan(
+  input: PlanGenerationInput,
+): Promise<PlanGenerationResult> {
   const { goal, context } = input;
 
   // Build the user prompt
@@ -192,9 +197,9 @@ export async function generatePlan(input: PlanGenerationInput): Promise<PlanGene
 
     ${goal}
 
-    ${context ? `## Context\n\n${context}` : ''}
+    ${context ? `## Context\n\n${context}` : ""}
 
-    ## Available Executors
+	    ## Available Agents (Executor.kind must be "agent")
 
     ${formatAgentsForPrompt()}
 
@@ -203,8 +208,8 @@ export async function generatePlan(input: PlanGenerationInput): Promise<PlanGene
     Decompose this goal into a structured plan. Ensure:
     - All step dependencies form a valid DAG (no cycles)
     - All references (hypothesisIds, requirementIds, dependencyIds) point to existing IDs
-    - Each step has an appropriate executor assigned
-    - The unknowns map captures your uncertainty honestly
+	    - Each step has an appropriate executor assigned (use only { kind: "agent", ref: "..." })
+	    - The plan's knowledgeMap captures your uncertainty honestly (include knownKnowns, knownUnknowns, ontologicalGaps, communityCheck)
 
     Generate the plan now.
   `;

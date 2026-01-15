@@ -7,7 +7,7 @@
  * MVP scope:
  * - 4 step types: research, synthesize, experiment, develop
  * - No decision points (deferred to v2)
- * - Epistemically rigorous unknowns map
+ * - Epistemically rigorous knowledge map
  * - Confirmatory vs exploratory experiment modes
  *
  * @see docs/PLAN-task-decomposition.md for full design documentation
@@ -80,53 +80,56 @@ export const zHypothesis = z.object({
 export type Hypothesis = z.infer<typeof zHypothesis>;
 
 // =============================================================================
-// UNKNOWNS MAP (Epistemically Rigorous)
+// KNOWLEDGE MAP (Epistemically Rigorous)
 // =============================================================================
 
 /**
- * An unknown-unknown: something that would surprise us.
+ * An ontological gap: a fundamental lack of clarity about nature, categories, or definitions.
  *
- * The detectionSignal field forces explicit consideration of how we'd notice
- * if our assumptions are wrong — a key scientific practice.
+ * These represent risks from ontological uncertainty — things we don't even know
+ * we don't know. The detectionSignal field forces explicit consideration of how
+ * we'd notice if our assumptions are wrong — a key scientific practice.
  */
-export const zUnknownUnknown = z.object({
+export const zOntologicalGap = z.object({
   potentialSurprise: z.string().describe("What would surprise us"),
   detectionSignal: z
     .string()
     .describe("How would we notice? What would be the signal?"),
 });
 
-export type UnknownUnknown = z.infer<typeof zUnknownUnknown>;
+export type OntologicalGap = z.infer<typeof zOntologicalGap>;
 
 /**
- * Epistemically rigorous unknowns partition.
+ * Epistemically rigorous knowledge partition.
  *
  * Based on scientific uncertainty principles:
  * - knownKnowns: High-confidence facts we're building on
- * - knownUnknowns: Explicit questions we know we need to answer
- * - unknownUnknowns: What would surprise us + detection signals
+ * - knownUnknowns: Explicit questions we know we need to answer (epistemic uncertainty)
+ * - ontologicalGaps: Fundamental uncertainties about nature/categories + detection signals
  * - communityCheck: What others need to scrutinize our claims
  *
  * The partition forces the planner to surface uncertainty rather than
  * hallucinate confidence. The communityCheck ensures plans include what
  * others would need to verify claims (science depends on communal scrutiny).
  */
-export const zUnknownsMap = z.object({
+export const zKnowledgeMap = z.object({
   knownKnowns: z
     .array(z.string())
     .describe("High-confidence facts we're building on"),
   knownUnknowns: z
     .array(z.string())
     .describe("Explicit questions we know we need to answer"),
-  unknownUnknowns: z
-    .array(zUnknownUnknown)
-    .describe("What would surprise us and how we'd detect it"),
+  ontologicalGaps: z
+    .array(zOntologicalGap)
+    .describe(
+      "Fundamental uncertainties about nature/categories and how we'd detect them",
+    ),
   communityCheck: z
     .string()
     .describe("What others would need to see to scrutinize our claims"),
 });
 
-export type UnknownsMap = z.infer<typeof zUnknownsMap>;
+export type KnowledgeMap = z.infer<typeof zKnowledgeMap>;
 
 /**
  * A step artifact describing step inputs/outputs.
@@ -387,8 +390,8 @@ export const zPlanSpec = z.object({
     .array(zHypothesis)
     .describe("Hypotheses to be tested (may be empty for pure research)"),
   steps: z.array(zPlanStep).describe("Steps forming a DAG"),
-  unknownsMap: zUnknownsMap.describe(
-    "Epistemically rigorous unknowns partition",
+  knowledgeMap: zKnowledgeMap.describe(
+    "Epistemically rigorous knowledge partition",
   ),
 
   // Metadata

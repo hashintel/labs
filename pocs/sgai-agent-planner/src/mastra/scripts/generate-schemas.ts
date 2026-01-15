@@ -26,11 +26,11 @@
  *   bun workspace sgai-agent-planner generate-schemas
  */
 
-import { mkdir, writeFile } from 'node:fs/promises';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import $RefParser from '@apidevtools/json-schema-ref-parser';
+import $RefParser from "@apidevtools/json-schema-ref-parser";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -39,15 +39,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
  * Add new schemas here as needed.
  */
 const SCHEMA_URLS = [
-  'https://hash.ai/@h/types/entity-type/person/v/1',
-  'https://hash.ai/@h/types/entity-type/organization/v/3',
+  "https://hash.ai/@h/types/entity-type/person/v/1",
+  "https://hash.ai/@h/types/entity-type/organization/v/3",
 ];
 
 /**
  * Standard JSON Schema $schema to use in output files.
  * Using 2019-09 since that's what Block Protocol meta-schemas are based on.
  */
-const STANDARD_JSON_SCHEMA = 'https://json-schema.org/draft/2019-09/schema';
+const STANDARD_JSON_SCHEMA = "https://json-schema.org/draft/2019-09/schema";
 
 /**
  * Extract a simple name from a type schema URL.
@@ -61,21 +61,23 @@ const STANDARD_JSON_SCHEMA = 'https://json-schema.org/draft/2019-09/schema';
 function extractSchemaName(url: string): string {
   // URL format: .../{type-kind}/{name}/v/{version}
   // We want the segment before /v/
-  const parts = url.split('/');
-  const vIndex = parts.lastIndexOf('v');
+  const parts = url.split("/");
+  const vIndex = parts.lastIndexOf("v");
   if (vIndex > 0) {
-    return parts[vIndex - 1] ?? 'unknown';
+    return parts[vIndex - 1] ?? "unknown";
   }
   // Fallback: use last non-version segment
-  return parts[parts.length - 3] ?? 'unknown';
+  return parts[parts.length - 3] ?? "unknown";
 }
 
 /**
  * Replace custom Block Protocol $schema declarations with standard JSON Schema.
  * This allows the output to be validated by standard JSON Schema validators.
  */
-function normalizeRootSchema(schema: Record<string, unknown>): Record<string, unknown> {
-  if (typeof schema.$schema === 'string') {
+function normalizeRootSchema(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
+  if (typeof schema.$schema === "string") {
     return {
       ...schema,
       $schema: STANDARD_JSON_SCHEMA,
@@ -97,8 +99,8 @@ function normalizeRootSchema(schema: Record<string, unknown>): Record<string, un
  */
 function idToDefKey(id: string): string {
   return id
-    .replace(/^https?:\/\//, '') // Remove protocol
-    .replace(/[/@.]/g, '_'); // Replace /, @, . with underscores
+    .replace(/^https?:\/\//, "") // Remove protocol
+    .replace(/[/@.]/g, "_"); // Replace /, @, . with underscores
 }
 
 /**
@@ -124,7 +126,9 @@ function idToDefKey(id: string): string {
  * (Google AI Studio). The providers appear to not properly resolve $ref pointers.
  * Use the dereferenced output for LLM structured output until this is resolved.
  */
-function normalizeToDefsStructure(schema: Record<string, unknown>): Record<string, unknown> {
+function normalizeToDefsStructure(
+  schema: Record<string, unknown>,
+): Record<string, unknown> {
   const defs: Record<string, Record<string, unknown>> = {};
   const rootId = schema.$id as string | undefined;
 
@@ -133,7 +137,7 @@ function normalizeToDefsStructure(schema: Record<string, unknown>): Record<strin
    * Returns a new object with sub-schemas replaced by $ref pointers.
    */
   function processNode(node: unknown, isRoot = false): unknown {
-    if (node === null || typeof node !== 'object') {
+    if (node === null || typeof node !== "object") {
       return node;
     }
 
@@ -189,11 +193,11 @@ function normalizeToDefsStructure(schema: Record<string, unknown>): Record<strin
 }
 
 async function generateSchemas() {
-  const outputDir = path.join(__dirname, '../fixtures/entity-schemas');
+  const outputDir = path.join(__dirname, "../fixtures/entity-schemas");
 
   await mkdir(outputDir, { recursive: true });
 
-  console.log('Generating type schema fixtures...\n');
+  console.log("Generating type schema fixtures...\n");
 
   for (const url of SCHEMA_URLS) {
     const name = extractSchemaName(url);
@@ -206,15 +210,25 @@ async function generateSchemas() {
       // Generate dereferenced version (no $refs at all)
       // Largest file size but guaranteed LLM compatibility
       // USE THIS FOR LLM STRUCTURED OUTPUT
-      const normalizedDereferenced = normalizeRootSchema(dereferenced as Record<string, unknown>);
-      const dereferencedPath = path.join(outputDir, `${name}.dereferenced.json`);
-      await writeFile(dereferencedPath, JSON.stringify(normalizedDereferenced, null, 2));
+      const normalizedDereferenced = normalizeRootSchema(
+        dereferenced as Record<string, unknown>,
+      );
+      const dereferencedPath = path.join(
+        outputDir,
+        `${name}.dereferenced.json`,
+      );
+      await writeFile(
+        dereferencedPath,
+        JSON.stringify(normalizedDereferenced, null, 2),
+      );
       console.log(`  -> ${name}.dereferenced.json`);
 
       // Generate bundled version with proper $defs structure
       // Smaller file size, uses standard JSON Schema $ref/$defs format
       // NOTE: NOT YET WORKING with LLM providers - kept for future compatibility
-      const bundled = normalizeToDefsStructure(dereferenced as Record<string, unknown>);
+      const bundled = normalizeToDefsStructure(
+        dereferenced as Record<string, unknown>,
+      );
       const normalizedBundled = normalizeRootSchema(bundled);
       const bundledPath = path.join(outputDir, `${name}.bundled.json`);
       await writeFile(bundledPath, JSON.stringify(normalizedBundled, null, 2));
@@ -225,7 +239,7 @@ async function generateSchemas() {
     }
   }
 
-  console.log('\nDone!');
+  console.log("\nDone!");
 }
 
 await generateSchemas();

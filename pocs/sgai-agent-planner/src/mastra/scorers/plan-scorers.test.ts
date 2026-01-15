@@ -10,10 +10,10 @@ import { describe, expect, test } from "vitest";
 import type { PlanSpec } from "../schemas/plan-spec";
 import {
   scoreExperimentRigor,
+  scoreKnowledgeCoverage,
   scorePlanComposite,
   scorePlanCoverage,
   scorePlanStructure,
-  scoreUnknownsCoverage,
 } from "./plan-scorers";
 
 // =============================================================================
@@ -46,10 +46,10 @@ function createMinimalPlan(): PlanSpec {
         executor: { kind: "agent", ref: "literature-searcher" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["Fact 1", "Fact 2"],
       knownUnknowns: ["Question 1", "Question 2"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "Something unexpected could happen here",
           detectionSignal: "We would notice via this observable signal",
@@ -162,10 +162,10 @@ function createComplexPlan(): PlanSpec {
         executor: { kind: "agent", ref: "code-writer" },
       },
     ],
-    unknownsMap: {
+    knowledgeMap: {
       knownKnowns: ["We know X", "We know Y", "We know Z"],
       knownUnknowns: ["What is A?", "How does B work?", "Why does C happen?"],
-      unknownUnknowns: [
+      ontologicalGaps: [
         {
           potentialSurprise: "The relationship might be non-linear",
           detectionSignal: "Model residuals show systematic pattern",
@@ -198,7 +198,7 @@ describe("scorePlanStructure", () => {
 
   test("returns zero score for invalid DAG", () => {
     const plan = createMinimalPlan();
-    plan.steps[0]!.dependencyIds = ["S1"]; // Self-cycle
+    plan.steps[0].dependencyIds = ["S1"]; // Self-cycle
 
     const result = scorePlanStructure(plan);
 
@@ -289,8 +289,8 @@ describe("scorePlanCoverage", () => {
   test("weighs must requirements more than should", () => {
     // Plan with uncovered "must"
     const mustUncoveredPlan = createMinimalPlan();
-    mustUncoveredPlan.requirements[0]!.priority = "must";
-    mustUncoveredPlan.steps[0]!.requirementIds = []; // Don't cover it
+    mustUncoveredPlan.requirements[0].priority = "must";
+    mustUncoveredPlan.steps[0].requirementIds = []; // Don't cover it
 
     // Plan with uncovered "should"
     const shouldUncoveredPlan = createMinimalPlan();
@@ -466,58 +466,58 @@ describe("scoreExperimentRigor", () => {
 });
 
 // =============================================================================
-// UNKNOWNS COVERAGE SCORER TESTS
+// KNOWLEDGE COVERAGE SCORER TESTS
 // =============================================================================
 
-describe("scoreUnknownsCoverage", () => {
-  test("rewards comprehensive unknowns map", () => {
+describe("scoreKnowledgeCoverage", () => {
+  test("rewards comprehensive knowledge map", () => {
     const plan = createComplexPlan();
-    const result = scoreUnknownsCoverage(plan);
+    const result = scoreKnowledgeCoverage(plan);
 
     expect(result.score).toBeGreaterThan(0.8);
     expect(result.details.knownKnownsCount).toBe(3);
     expect(result.details.knownUnknownsCount).toBe(3);
-    expect(result.details.unknownUnknownsCount).toBe(2);
+    expect(result.details.ontologicalGapsCount).toBe(2);
     expect(result.details.hasCommunityCheck).toBe(true);
   });
 
-  test("penalizes empty unknowns map", () => {
+  test("penalizes empty knowledge map", () => {
     const plan = createMinimalPlan();
-    plan.unknownsMap = {
+    plan.knowledgeMap = {
       knownKnowns: [],
       knownUnknowns: [],
-      unknownUnknowns: [],
+      ontologicalGaps: [],
       communityCheck: "",
     };
 
-    const result = scoreUnknownsCoverage(plan);
+    const result = scoreKnowledgeCoverage(plan);
 
     expect(result.score).toBe(0);
     expect(result.details.hasCommunityCheck).toBe(false);
   });
 
-  test("requires substantive detection signals in unknown-unknowns", () => {
+  test("requires substantive detection signals in ontological gaps", () => {
     const plan = createMinimalPlan();
-    plan.unknownsMap.unknownUnknowns = [
+    plan.knowledgeMap.ontologicalGaps = [
       {
         potentialSurprise: "Short", // Too short
         detectionSignal: "Short", // Too short
       },
     ];
 
-    const result = scoreUnknownsCoverage(plan);
+    const result = scoreKnowledgeCoverage(plan);
 
-    // Should not count the weak unknown-unknown
+    // Should not count the weak ontological gap
     expect(result.score).toBeLessThan(1);
   });
 
   test("rewards presence of community check", () => {
     const withCheck = createMinimalPlan();
     const withoutCheck = createMinimalPlan();
-    withoutCheck.unknownsMap.communityCheck = ""; // Empty
+    withoutCheck.knowledgeMap.communityCheck = ""; // Empty
 
-    const withResult = scoreUnknownsCoverage(withCheck);
-    const withoutResult = scoreUnknownsCoverage(withoutCheck);
+    const withResult = scoreKnowledgeCoverage(withCheck);
+    const withoutResult = scoreKnowledgeCoverage(withoutCheck);
 
     expect(withResult.details.hasCommunityCheck).toBe(true);
     expect(withoutResult.details.hasCommunityCheck).toBe(false);
@@ -539,19 +539,19 @@ describe("scorePlanComposite", () => {
     expect(result.structure.score).toBeDefined();
     expect(result.coverage.score).toBeDefined();
     expect(result.experimentRigor.score).toBeDefined();
-    expect(result.unknownsCoverage.score).toBeDefined();
+    expect(result.knowledgeCoverage.score).toBeDefined();
   });
 
   test("overall is weighted average of components", () => {
     const plan = createComplexPlan();
     const result = scorePlanComposite(plan);
 
-    // Default weights: structure 0.25, coverage 0.3, experimentRigor 0.25, unknowns 0.2
+    // Default weights: structure 0.25, coverage 0.3, experimentRigor 0.25, knowledge 0.2
     const expectedOverall =
       0.25 * result.structure.score +
       0.3 * result.coverage.score +
       0.25 * result.experimentRigor.score +
-      0.2 * result.unknownsCoverage.score;
+      0.2 * result.knowledgeCoverage.score;
 
     expect(result.overall).toBeCloseTo(expectedOverall, 5);
   });
@@ -563,7 +563,7 @@ describe("scorePlanComposite", () => {
       structure: 0.5,
       coverage: 0.5,
       experimentRigor: 0,
-      unknownsCoverage: 0,
+      knowledgeCoverage: 0,
     });
 
     const expectedOverall =

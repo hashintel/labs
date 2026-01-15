@@ -39,6 +39,7 @@ export type ValidationErrorCode =
   | "INVALID_STEP_REFERENCE"
   | "INVALID_HYPOTHESIS_REFERENCE"
   | "INVALID_REQUIREMENT_REFERENCE"
+  | "UNSUPPORTED_EXECUTOR_KIND"
   | "INVALID_EXECUTOR_REFERENCE"
   | "EXECUTOR_CANNOT_HANDLE_STEP"
   | "MISSING_PREREGISTERED_COMMITMENTS"
@@ -238,6 +239,20 @@ function validateExecutors(plan: PlanSpec): ValidationError[] {
   for (const step of plan.steps) {
     const { executor } = step;
 
+    // For now, only agent executors are supported end-to-end.
+    // The schema allows other kinds, but the compiler/runtime does not.
+    if (executor.kind !== "agent") {
+      errors.push({
+        code: "UNSUPPORTED_EXECUTOR_KIND",
+        message:
+          `Step "${step.id}" uses unsupported executor kind "${executor.kind}". ` +
+          `Only "agent" executors are supported currently.`,
+        context: step.id,
+        details: { kind: executor.kind },
+      });
+      continue;
+    }
+
     if (executor.kind === "agent") {
       // Check agent exists
       if (!availableAgentRefs.has(executor.ref)) {
@@ -263,8 +278,6 @@ function validateExecutors(plan: PlanSpec): ValidationError[] {
         }
       }
     }
-    // Note: tool, workflow, and human executors are not validated against a list
-    // since they may be dynamically provided
   }
 
   return errors;
@@ -361,7 +374,7 @@ function detectCycle(plan: PlanSpec): string[] | null {
     const stack: string[] = [startId];
 
     while (stack.length > 0) {
-      const current = stack[stack.length - 1]!;
+      const current = stack[stack.length - 1];
       const currentColor = color.get(current);
 
       if (currentColor === WHITE) {
