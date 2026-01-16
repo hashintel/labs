@@ -81,7 +81,7 @@ jobs:
           cache-all-crates: true
 
       - name: Install tools
-        uses: taiki-e/install-action@b4b80945859e8ef89a9732a0f46499a443b196fe # v2.62.59
+        uses: taiki-e/install-action@30eab0fabba9ea3f522099957e668b21876aa39e # v2.66.6
         with:
           tool: cargo-hack@0.5.26,rust-script@0.23.0,clippy-sarif@0.3.7,sarif-fmt@0.3.7
 
@@ -166,7 +166,7 @@ jobs:
           cache-all-crates: true
 
       - name: Install tools
-        uses: taiki-e/install-action@b4b80945859e8ef89a9732a0f46499a443b196fe # v2.62.59
+        uses: taiki-e/install-action@30eab0fabba9ea3f522099957e668b21876aa39e # v2.66.6
         with:
           tool: cargo-nextest@0.9.37
 
