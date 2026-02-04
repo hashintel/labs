@@ -8,6 +8,7 @@ import path from 'node:path';
 import { promptForAgent, promptForProfile } from '../lib/prompts.js';
 import {
   MANAGED_ENVRC_FILENAME,
+  LEGACY_MANAGED_ENVRC_FILENAME,
   getActiveProfile,
   removeAgentBlock,
   hasAnyAgentBlocks,
@@ -64,7 +65,35 @@ export async function removeCommand(agent?: string, name?: string) {
 
   const cwd = process.cwd();
   const envrcPath = path.join(cwd, '.envrc');
-  const managedEnvrcPath = path.join(cwd, MANAGED_ENVRC_FILENAME);
+  const nextPath = path.join(cwd, MANAGED_ENVRC_FILENAME);
+  const legacyPath = path.join(cwd, LEGACY_MANAGED_ENVRC_FILENAME);
+  let managedEnvrcPath = nextPath;
+
+  try {
+    await fs.access(nextPath);
+    managedEnvrcPath = nextPath;
+  } catch {
+    try {
+      await fs.access(legacyPath);
+      try {
+        await fs.rename(legacyPath, nextPath);
+        managedEnvrcPath = nextPath;
+      } catch {
+        try {
+          const legacyContent = await fs.readFile(legacyPath, 'utf-8');
+          await fs.writeFile(nextPath, legacyContent);
+          await fs.unlink(legacyPath);
+          managedEnvrcPath = nextPath;
+        } catch {
+          // If migration fails, we'll fall back to attempting to read the legacy file directly.
+          managedEnvrcPath = legacyPath;
+        }
+      }
+    } catch {
+      // No managed envrc file in current directory, nothing to unset.
+      managedEnvrcPath = nextPath;
+    }
+  }
   try {
     const managedContent = await fs.readFile(managedEnvrcPath, 'utf-8');
     const activeProfile = getActiveProfile(managedContent, resolvedAgent);
