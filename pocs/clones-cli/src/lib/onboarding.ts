@@ -29,6 +29,19 @@ export async function loadConfig(): Promise<ClonesConfig | null> {
   }
 }
 
+export function expandTildePath(input: string): string {
+  if (input === '~') {
+    return os.homedir();
+  }
+  if (input.startsWith('~/')) {
+    return path.join(os.homedir(), input.slice(2));
+  }
+  if (input.startsWith('~')) {
+    return path.join(os.homedir(), input.slice(1));
+  }
+  return input;
+}
+
 export async function runOnboarding(options: { isRerun?: boolean } = {}): Promise<boolean> {
   const configDir = getConfigDir();
   const configPath = getConfigPath();
@@ -69,9 +82,7 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
   }
 
   let contentDir = contentDirChoice as string;
-  if (contentDir.startsWith('~')) {
-    contentDir = path.join(os.homedir(), contentDir.slice(1));
-  }
+  contentDir = expandTildePath(contentDir);
 
   const spinner = p.spinner();
   spinner.start('Creating directories...');
