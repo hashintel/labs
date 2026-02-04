@@ -212,6 +212,10 @@ agentprofiles unset claude --allow
 - `--allow` / `-y` — Auto-run `direnv allow` after modifying files (for `set` and `unset`)
 - `--quiet` / `-q` — Suppress the banner
 
+> **Note on `agentprofiles edit` and `$EDITOR`**
+>
+> The `agentprofiles edit` command uses the `$EDITOR` environment variable if it is set. This value may include arguments, and common patterns like `EDITOR="code --wait"` are supported. When present, the editor command (plus its arguments) is invoked with the profile directory path appended.
+
 ---
 
 ## How It Works

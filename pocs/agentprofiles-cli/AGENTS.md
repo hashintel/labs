@@ -200,6 +200,10 @@ Environment variables it sets (via direnv):
 - `CLAUDE_CONFIG_DIR` - Claude Code config directory
 - `OPENCODE_CONFIG_DIR` - OpenCode config directory
 
+> **Note on `edit` and `$EDITOR`**
+>
+> The `edit` command respects the `$EDITOR` environment variable if it is set. This value may include arguments (for example `EDITOR="code --wait"`), and the command is parsed so that the editor binary and its arguments are invoked with the profile directory path appended as the final argument.
+
 ### File Manipulation
 
 The tool manages two files in project directories:

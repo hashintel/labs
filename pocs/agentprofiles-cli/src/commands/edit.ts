@@ -7,6 +7,36 @@ import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { promptForAgent, promptForProfile } from '../lib/prompts.js';
 
+export function parseEditorValue(editor: string): { command: string; args: string[] } {
+  const trimmed = editor.trim();
+  if (!trimmed) {
+    return { command: '', args: [] };
+  }
+
+  const tokens = trimmed.match(/(".*?"|'.*?'|\S+)/g) ?? [];
+
+  if (tokens.length === 0) {
+    return { command: '', args: [] };
+  }
+
+  const stripQuotes = (value: string) => {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      return value.slice(1, -1);
+    }
+    return value;
+  };
+
+  const [commandToken, ...argTokens] = tokens;
+
+  return {
+    command: stripQuotes(commandToken),
+    args: argTokens.map(stripQuotes),
+  };
+}
+
 export async function editCommand(agent?: string, name?: string) {
   const resolvedAgent: string = agent ?? (await promptForAgent('Select agent:'));
 
@@ -35,13 +65,16 @@ export async function editCommand(agent?: string, name?: string) {
 
   const profileDir = path.join(config.getContentDir(), resolvedAgent, resolvedName);
 
-  const editor = process.env.EDITOR;
-  if (editor) {
-    const child = spawn(editor, [profileDir], { stdio: 'inherit' });
-    child.on('exit', () => {
-      outro('Editor closed');
-    });
-    return;
+  const editorEnv = process.env.EDITOR?.trim();
+  if (editorEnv) {
+    const { command, args } = parseEditorValue(editorEnv);
+    if (command) {
+      const child = spawn(command, [...args, profileDir], { stdio: 'inherit' });
+      child.on('exit', () => {
+        outro('Editor closed');
+      });
+      return;
+    }
   }
 
   const platform = process.platform;
