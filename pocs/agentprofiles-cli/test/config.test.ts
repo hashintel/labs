@@ -360,3 +360,60 @@ describe('ConfigManager symlink-based profile management', () => {
     expect(status).toBe('unmanaged');
   });
 });
+
+describe('release command flow', () => {
+  const ENV_KEYS = [
+    'AGENTPROFILES_CONFIG_DIR',
+    'AGENTPROFILES_CONTENT_DIR',
+    'XDG_CONFIG_HOME',
+    'HOME',
+  ];
+
+  let envSnapshot: Record<string, string | undefined>;
+  let tmpRoot: string;
+  let tmpHome: string;
+
+  beforeEach(async () => {
+    envSnapshot = snapshotEnv(ENV_KEYS);
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentprofiles-release-test-'));
+    tmpHome = path.join(tmpRoot, 'home');
+    await fs.mkdir(tmpHome, { recursive: true });
+
+    process.env.HOME = tmpHome;
+    process.env.AGENTPROFILES_CONFIG_DIR = path.join(tmpRoot, 'config');
+    process.env.AGENTPROFILES_CONTENT_DIR = path.join(tmpRoot, 'content');
+    delete process.env.XDG_CONFIG_HOME;
+  });
+
+  afterEach(async () => {
+    restoreEnv(envSnapshot);
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('unlinkProfile moves profile back to global location', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create and adopt base profile
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"key":"value"}');
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Verify it's managed
+    let status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('active');
+
+    // Release the agent
+    await config.unlinkProfile('claude');
+
+    // Verify it's now unmanaged
+    status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('unmanaged');
+
+    // Verify content is preserved
+    const settingsFile = path.join(globalPath, 'settings.json');
+    const content = await fs.readFile(settingsFile, 'utf-8');
+    expect(content).toBe('{"key":"value"}');
+  });
+});
