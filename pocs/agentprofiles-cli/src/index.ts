@@ -26,6 +26,7 @@ const knownSubcommands = [
   'rm',
   'set',
   'unset',
+  'status',
 ];
 
 const args = process.argv.slice(2);
@@ -63,6 +64,7 @@ if (!hasSubcommand && !isHelpOrVersion) {
       rm: () => import('./commands/rm.js').then((m) => m.default),
       set: () => import('./commands/set.js').then((m) => m.default),
       unset: () => import('./commands/unset.js').then((m) => m.default),
+      status: () => import('./commands/status.js').then((m) => m.default),
     },
   });
 

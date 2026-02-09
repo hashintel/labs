@@ -1,6 +1,6 @@
 import { defineCommand } from 'citty';
 import { ConfigManager } from '../lib/config.js';
-import { SUPPORTED_TOOLS } from '../types/index.js';
+import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
 
 export async function listCommand(agent?: string) {
@@ -25,6 +25,7 @@ export async function listCommand(agent?: string) {
 
   for (const a of agents) {
     const profiles = await config.getProfiles(a);
+    const activeProfile = await config.getActiveProfile(a);
     const tool = SUPPORTED_TOOLS[a];
     if (!tool) continue;
     console.log(color.bold(`\n${tool.description} Profiles:`));
@@ -32,8 +33,20 @@ export async function listCommand(agent?: string) {
       console.log(color.dim('  No profiles found'));
     } else {
       for (const p of profiles) {
-        const label = p.name !== p.slug ? `${p.name} (${p.slug})` : p.name;
-        console.log(`  ${color.cyan(label)} - ${p.description || 'No description'}`);
+        let label = p.name !== p.slug ? `${p.name} (${p.slug})` : p.name;
+
+        // Mark active profile
+        if (p.slug === activeProfile) {
+          label = `● ${label}`;
+        }
+
+        // Label _base profile
+        let description = p.description || 'No description';
+        if (p.slug === BASE_PROFILE_SLUG) {
+          description = 'Base profile';
+        }
+
+        console.log(`  ${color.cyan(label)} - ${description}`);
       }
     }
   }

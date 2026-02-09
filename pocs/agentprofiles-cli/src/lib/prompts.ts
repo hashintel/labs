@@ -1,5 +1,5 @@
 import { select, isCancel, cancel } from '@clack/prompts';
-import { SUPPORTED_TOOLS } from '../types/index.js';
+import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import { ConfigManager } from './config.js';
 
 export async function promptForAgent(message = 'Select an agent:'): Promise<string> {
@@ -33,13 +33,30 @@ export async function promptForProfile(
     return null;
   }
 
+  const activeProfile = await config.getActiveProfile(agent);
+
   const response = await select({
     message,
-    options: profiles.map((p) => ({
-      value: p.slug,
-      label: p.name,
-      hint: p.description,
-    })),
+    options: profiles.map((p) => {
+      let label = p.name;
+      let hint = p.description;
+
+      // Mark active profile
+      if (p.slug === activeProfile) {
+        label = `● ${label}`;
+      }
+
+      // Label _base profile
+      if (p.slug === BASE_PROFILE_SLUG) {
+        hint = 'Base profile';
+      }
+
+      return {
+        value: p.slug,
+        label,
+        hint,
+      };
+    }),
   });
 
   if (isCancel(response)) {

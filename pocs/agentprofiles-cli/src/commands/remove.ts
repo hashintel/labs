@@ -1,20 +1,11 @@
 import { defineCommand } from 'citty';
 import { outro, confirm, isCancel, cancel, note } from '@clack/prompts';
 import { ConfigManager } from '../lib/config.js';
-import { SUPPORTED_TOOLS } from '../types/index.js';
+import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { promptForAgent, promptForProfile } from '../lib/prompts.js';
-import {
-  MANAGED_ENVRC_FILENAME,
-  LEGACY_MANAGED_ENVRC_FILENAME,
-  getActiveProfile,
-  removeAgentBlock,
-  hasAnyAgentBlocks,
-  removeBootstrapBlock,
-  isEffectivelyEmpty,
-} from '../lib/envrc.js';
 
 export async function removeCommand(agent?: string, name?: string) {
   const resolvedAgent: string = agent ?? (await promptForAgent('Select agent:'));
@@ -45,6 +36,23 @@ export async function removeCommand(agent?: string, name?: string) {
     resolvedName = selected;
   }
 
+  // Block removal of _base
+  if (resolvedName === BASE_PROFILE_SLUG) {
+    console.error(color.red(`Cannot remove the base profile (${BASE_PROFILE_SLUG}).`));
+    process.exit(1);
+  }
+
+  // Block removal of active profile
+  const activeProfile = await config.getActiveProfile(resolvedAgent);
+  if (activeProfile === resolvedName) {
+    console.error(
+      color.red(
+        `Cannot remove the active profile. Switch to a different profile first.\nUse: agentprofiles set ${resolvedAgent} <profile-name>`
+      )
+    );
+    process.exit(1);
+  }
+
   const profileDir = path.join(config.getContentDir(), resolvedAgent, resolvedName);
   try {
     await fs.access(profileDir);
@@ -61,71 +69,6 @@ export async function removeCommand(agent?: string, name?: string) {
   if (isCancel(shouldDelete) || !shouldDelete) {
     cancel('Operation cancelled.');
     process.exit(0);
-  }
-
-  const cwd = process.cwd();
-  const envrcPath = path.join(cwd, '.envrc');
-  const nextPath = path.join(cwd, MANAGED_ENVRC_FILENAME);
-  const legacyPath = path.join(cwd, LEGACY_MANAGED_ENVRC_FILENAME);
-  let managedEnvrcPath = nextPath;
-
-  try {
-    await fs.access(nextPath);
-    managedEnvrcPath = nextPath;
-  } catch {
-    try {
-      await fs.access(legacyPath);
-      try {
-        await fs.rename(legacyPath, nextPath);
-        managedEnvrcPath = nextPath;
-      } catch {
-        try {
-          const legacyContent = await fs.readFile(legacyPath, 'utf-8');
-          await fs.writeFile(nextPath, legacyContent);
-          await fs.unlink(legacyPath);
-          managedEnvrcPath = nextPath;
-        } catch {
-          // If migration fails, we'll fall back to attempting to read the legacy file directly.
-          managedEnvrcPath = legacyPath;
-        }
-      }
-    } catch {
-      // No managed envrc file in current directory, nothing to unset.
-      managedEnvrcPath = nextPath;
-    }
-  }
-  try {
-    const managedContent = await fs.readFile(managedEnvrcPath, 'utf-8');
-    const activeProfile = getActiveProfile(managedContent, resolvedAgent);
-    if (activeProfile === resolvedName) {
-      const nextManaged = removeAgentBlock(managedContent, resolvedAgent);
-
-      if (!hasAnyAgentBlocks(nextManaged)) {
-        await fs.unlink(managedEnvrcPath);
-
-        try {
-          const envrcContent = await fs.readFile(envrcPath, 'utf-8');
-          const withoutBootstrap = removeBootstrapBlock(envrcContent);
-
-          if (isEffectivelyEmpty(withoutBootstrap)) {
-            await fs.unlink(envrcPath);
-          } else {
-            await fs.writeFile(envrcPath, withoutBootstrap + '\n');
-          }
-        } catch {
-          // No .envrc to update
-        }
-      } else {
-        await fs.writeFile(managedEnvrcPath, nextManaged);
-      }
-
-      note(
-        `Profile was active in this directory. Unset automatically.\nRun 'direnv allow' to apply changes.`,
-        'Auto-unset'
-      );
-    }
-  } catch {
-    // No managed envrc file in current directory, nothing to unset
   }
 
   await fs.rm(profileDir, { recursive: true, force: true });

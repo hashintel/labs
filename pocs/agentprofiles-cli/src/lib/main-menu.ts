@@ -1,12 +1,13 @@
 import { select, isCancel, cancel } from '@clack/prompts';
 
-type MenuAction = 'list' | 'add' | 'set' | 'unset' | 'edit' | 'remove';
+type MenuAction = 'status' | 'list' | 'add' | 'set' | 'unset' | 'edit' | 'remove';
 
 const menuOptions: Array<{ value: MenuAction; label: string; hint: string }> = [
+  { value: 'status', label: 'Status', hint: 'Show agent profile status' },
   { value: 'list', label: 'List profiles', hint: 'Show all profiles' },
   { value: 'add', label: 'Add profile', hint: 'Create a new profile' },
-  { value: 'set', label: 'Set profile', hint: 'Activate a profile for this directory' },
-  { value: 'unset', label: 'Unset profile', hint: 'Deactivate a profile for this directory' },
+  { value: 'set', label: 'Set profile', hint: 'Activate a profile for an agent' },
+  { value: 'unset', label: 'Unset profile', hint: 'Switch an agent to base profile' },
   { value: 'edit', label: 'Edit profile', hint: 'Open a profile in your editor' },
   { value: 'remove', label: 'Remove profile', hint: 'Delete a profile' },
 ];
@@ -25,6 +26,11 @@ export async function showMainMenu(): Promise<void> {
   const action = response as MenuAction;
 
   switch (action) {
+    case 'status': {
+      const { statusCommand } = await import('../commands/status.js');
+      await statusCommand();
+      break;
+    }
     case 'list': {
       const { listCommand } = await import('../commands/list.js');
       await listCommand();
