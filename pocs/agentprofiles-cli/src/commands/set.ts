@@ -7,6 +7,63 @@ import { validateProfileName, slugify } from '../lib/validation.js';
 import { generateName } from '@criblinc/docker-names';
 import { promptForAgent } from '../lib/prompts.js';
 
+async function batchSwitchAll(profileName: string): Promise<void> {
+  const config = new ConfigManager();
+  await config.init();
+
+  const results = {
+    switched: [] as string[],
+    skipped: [] as string[],
+    errors: [] as { agent: string; error: string }[],
+  };
+
+  for (const agent of Object.keys(SUPPORTED_TOOLS)) {
+    try {
+      // Check if agent is managed
+      const status = await config.getSymlinkStatus(agent);
+      if (status !== 'active' && status !== 'broken') {
+        results.skipped.push(`${agent} (not managed)`);
+        continue;
+      }
+
+      // Check if profile exists for this agent
+      const profiles = await config.getProfiles(agent);
+      const profileExists = profiles.some((p) => p.slug === profileName);
+
+      if (!profileExists) {
+        results.skipped.push(`${agent} (profile '${profileName}' not found)`);
+        continue;
+      }
+
+      // Switch the profile
+      await config.switchProfile(agent, profileName);
+      results.switched.push(agent);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      results.errors.push({ agent, error: message });
+    }
+  }
+
+  // Print summary
+  if (results.switched.length > 0) {
+    console.log(color.green(`✓ Switched ${results.switched.length} agent(s):`));
+    results.switched.forEach((agent) => console.log(`  - ${agent}`));
+  }
+
+  if (results.skipped.length > 0) {
+    console.log(color.dim(`⊘ Skipped ${results.skipped.length} agent(s):`));
+    results.skipped.forEach((msg) => console.log(`  - ${msg}`));
+  }
+
+  if (results.errors.length > 0) {
+    console.log(color.red(`✗ Errors (${results.errors.length}):`));
+    results.errors.forEach(({ agent, error }) => console.log(`  - ${agent}: ${error}`));
+    process.exit(1);
+  }
+
+  outro(`Activated ${color.cyan(profileName)} profile for ${results.switched.length} agent(s).`);
+}
+
 export async function setCommand(agent?: string, name?: string) {
   const resolvedAgent: string = agent ?? (await promptForAgent('Select agent to set profile for:'));
 
@@ -120,8 +177,35 @@ export default defineCommand({
       description: 'Profile name (or "base" for base profile)',
       required: false,
     },
+    all: {
+      type: 'boolean',
+      description: 'Switch all managed agents to the same profile',
+      required: false,
+    },
   },
   async run({ args }) {
+    // Handle --all flag: agentprofiles set --all <profile>
+    if (args.all) {
+      const profileName = args.agent; // When --all is used, first positional is the profile name
+      if (!profileName) {
+        console.error(color.red('Profile name is required when using --all flag'));
+        process.exit(1);
+      }
+      await batchSwitchAll(profileName);
+      return;
+    }
+
+    // Handle shorthand: agentprofiles set <profile> (no agent arg, treated as --all)
+    if (args.agent && !args.name) {
+      // Check if this looks like a profile name (not an agent name)
+      // If agent is not in SUPPORTED_TOOLS, treat it as a profile name for --all
+      if (!SUPPORTED_TOOLS[args.agent]) {
+        await batchSwitchAll(args.agent);
+        return;
+      }
+    }
+
+    // Normal flow: agentprofiles set <agent> [name]
     await setCommand(args.agent, args.name);
   },
 });

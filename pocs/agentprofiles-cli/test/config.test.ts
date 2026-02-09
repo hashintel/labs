@@ -417,3 +417,81 @@ describe('release command flow', () => {
     expect(content).toBe('{"key":"value"}');
   });
 });
+
+describe('batch profile switching', () => {
+  const ENV_KEYS = [
+    'AGENTPROFILES_CONFIG_DIR',
+    'AGENTPROFILES_CONTENT_DIR',
+    'XDG_CONFIG_HOME',
+    'HOME',
+  ];
+
+  let envSnapshot: Record<string, string | undefined>;
+  let tmpRoot: string;
+  let tmpHome: string;
+  let configDir: string;
+  let contentDir: string;
+
+  beforeEach(async () => {
+    envSnapshot = snapshotEnv(ENV_KEYS);
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentprofiles-batch-test-'));
+    tmpHome = path.join(tmpRoot, 'home');
+    configDir = path.join(tmpRoot, 'config');
+    contentDir = path.join(tmpRoot, 'content');
+
+    await fs.mkdir(tmpHome, { recursive: true });
+    process.env.HOME = tmpHome;
+    process.env.AGENTPROFILES_CONFIG_DIR = configDir;
+    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
+  });
+
+  afterEach(async () => {
+    restoreEnv(envSnapshot);
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('switchProfile works for multiple agents in sequence', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Set up two agents with profiles
+    const agents = ['claude', 'codex'];
+    for (const agent of agents) {
+      const globalPath = path.join(tmpHome, SUPPORTED_TOOLS[agent].globalConfigDir);
+      await fs.mkdir(globalPath, { recursive: true });
+      await config.adoptExisting(agent, BASE_PROFILE_SLUG);
+
+      // Create a 'work' profile
+      const workProfileDir = path.join(contentDir, agent, 'work');
+      await fs.mkdir(workProfileDir, { recursive: true });
+      await fs.writeFile(
+        path.join(workProfileDir, 'meta.json'),
+        JSON.stringify({ name: 'work', slug: 'work', agent }, null, 2)
+      );
+    }
+
+    // Switch both agents to 'work' profile
+    for (const agent of agents) {
+      await config.switchProfile(agent, 'work');
+    }
+
+    // Verify both are now on 'work'
+    for (const agent of agents) {
+      const activeProfile = await config.getActiveProfile(agent);
+      expect(activeProfile).toBe('work');
+    }
+  });
+
+  it('handles missing profiles gracefully', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Set up one agent
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Try to switch to non-existent profile
+    await expect(config.switchProfile('claude', 'nonexistent')).rejects.toThrow(/does not exist/);
+  });
+});
