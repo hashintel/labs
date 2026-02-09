@@ -71,12 +71,26 @@ export class ConfigManager {
     this.contentDir = this.resolveContentDir();
   }
 
+  private async saveConfig(): Promise<void> {
+    const configPath = path.join(this.configDir, 'config.json');
+    await fs.writeFile(configPath, JSON.stringify(this.cliConfig || {}, null, 2));
+  }
+
   getConfigDir(): string {
     return this.configDir;
   }
 
   getContentDir(): string {
     return this.contentDir;
+  }
+
+  async setContentDir(contentDir: string): Promise<void> {
+    if (!this.cliConfig) {
+      this.cliConfig = {};
+    }
+    this.cliConfig.contentDir = contentDir;
+    this.contentDir = contentDir;
+    await this.saveConfig();
   }
 
   async ensureConfigDir(): Promise<void> {
@@ -315,6 +329,16 @@ export class ConfigManager {
 
     // Move the real directory to profile location
     await moveDirectory(globalPath, profileDir);
+
+    // Create meta.json for the adopted profile
+    const meta: Meta = {
+      name: profileName,
+      slug: profileName,
+      agent,
+      description: 'Base profile (adopted from original config)',
+      created_at: new Date().toISOString(),
+    };
+    await fs.writeFile(path.join(profileDir, 'meta.json'), JSON.stringify(meta, null, 2));
 
     // Create symlink back to the profile
     await atomicSymlink(profileDir, globalPath);
