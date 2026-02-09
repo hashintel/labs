@@ -126,8 +126,18 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
       if (shouldAdopt === true) {
         try {
           await config.adoptExisting(agent, BASE_PROFILE_SLUG);
-          adoptedAgents.push(agent);
-          p.log.success(`Adopted ${toolDef.description} as _base profile`);
+
+          // Verify adoption was successful
+          const verified = await config.verifyAdoption(agent, BASE_PROFILE_SLUG);
+          if (!verified) {
+            p.log.warn(
+              `Adoption of ${agent} may have failed verification. ` +
+                `Please check that ${config.getGlobalConfigPath(agent)} is a symlink pointing to the correct profile.`
+            );
+          } else {
+            adoptedAgents.push(agent);
+            p.log.success(`Adopted ${toolDef.description} as _base profile`);
+          }
         } catch (error) {
           p.log.error(
             `Failed to adopt ${agent}: ${error instanceof Error ? error.message : String(error)}`
@@ -159,8 +169,18 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
       if (shouldAdopt === true) {
         try {
           await config.adoptSharedDir(name);
-          adoptedSharedDirs.push(name);
-          p.log.success(`Adopted ${sharedDir.description}`);
+
+          // Verify adoption was successful
+          const verified = (await config.getSharedDirStatus(name)) === 'active';
+          if (!verified) {
+            p.log.warn(
+              `Adoption of ${name} may have failed verification. ` +
+                `Please check that ${config.getSharedDirGlobalPath(name)} is a symlink pointing to the correct location.`
+            );
+          } else {
+            adoptedSharedDirs.push(name);
+            p.log.success(`Adopted ${sharedDir.description}`);
+          }
         } catch (error) {
           p.log.error(
             `Failed to adopt ${name}: ${error instanceof Error ? error.message : String(error)}`

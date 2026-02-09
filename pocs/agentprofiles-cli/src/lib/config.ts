@@ -302,6 +302,7 @@ export class ConfigManager {
    * Adopt an existing real directory as a managed profile.
    * Moves the directory to contentDir/<agent>/_base and creates a symlink back.
    * Throws if _base already exists.
+   * If symlink creation fails after move, rolls back by moving the directory back.
    */
   async adoptExisting(agent: string, profileName: string = '_base'): Promise<void> {
     const globalPath = this.getGlobalConfigPath(agent);
@@ -340,8 +341,53 @@ export class ConfigManager {
     };
     await fs.writeFile(path.join(profileDir, 'meta.json'), JSON.stringify(meta, null, 2));
 
-    // Create symlink back to the profile
-    await atomicSymlink(profileDir, globalPath);
+    // Create symlink back to the profile with rollback on failure
+    try {
+      await atomicSymlink(profileDir, globalPath);
+    } catch (err) {
+      // Rollback: move the directory back to its original location
+      try {
+        await moveDirectory(profileDir, globalPath);
+      } catch (rollbackErr) {
+        // If rollback fails, throw both errors
+        throw new Error(
+          `Failed to create symlink and rollback failed: ${err instanceof Error ? err.message : String(err)}. ` +
+            `Rollback error: ${rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)}`
+        );
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Verify that an adoption was successful.
+   * Checks that the symlink exists and points to the expected profile directory.
+   * Returns true if verification passes, false otherwise.
+   */
+  async verifyAdoption(agent: string, profileName: string = '_base'): Promise<boolean> {
+    const globalPath = this.getGlobalConfigPath(agent);
+    const expectedProfileDir = path.join(this.contentDir, agent, profileName);
+
+    // Check if global path is a symlink
+    const status = await this.getSymlinkStatus(agent);
+    if (status !== 'active') {
+      return false;
+    }
+
+    // Check if symlink points to the expected profile directory
+    const target = await readSymlinkTarget(globalPath);
+    if (!target) {
+      return false;
+    }
+
+    // Resolve target to absolute path for comparison
+    const absoluteTarget = path.isAbsolute(target)
+      ? target
+      : path.resolve(path.dirname(globalPath), target);
+
+    const absoluteExpected = path.resolve(expectedProfileDir);
+
+    return absoluteTarget === absoluteExpected;
   }
 
   /**
