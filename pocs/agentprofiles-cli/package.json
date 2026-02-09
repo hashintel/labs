@@ -4,7 +4,6 @@
   "description": "Manage configuration profiles for LLM agent tools",
   "keywords": [
     "cli",
-    "direnv",
     "llm",
     "agent",
     "configuration",

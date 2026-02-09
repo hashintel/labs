@@ -55,9 +55,12 @@ src/
 ├── index.ts              # CLI entry point (Citty setup)
 ├── commands/             # Command implementations
 │   ├── add.ts            # Create new profile
+│   ├── create.ts         # Alias for add
 │   ├── edit.ts           # Edit profile configuration
+│   ├── init.ts           # Alias for setup
 │   ├── list.ts           # List available profiles
 │   ├── remove.ts         # Remove a profile
+│   ├── rm.ts             # Alias for remove
 │   ├── set.ts            # Activate profile for current directory (creates symlinks)
 │   ├── setup.ts          # Initialize agentprofiles system
 │   ├── status.ts         # Show current profile status
