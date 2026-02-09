@@ -101,7 +101,7 @@ Just install the CLI and start creating profiles.
 
 ---
 
-## Getting Started
+## Quick Start
 
 ### 1. Install
 
@@ -136,30 +136,27 @@ agentprofiles add claude
 # Suggests a random name like "jolly-curie", or enter your own
 ```
 
-### 4. Activate profiles in a project
+### 4. Activate profiles
 
 ```sh
-cd /path/to/your/project
 agentprofiles set claude work
 agentprofiles set opencode work
 ```
 
-This creates/updates `.agentprofiles.json` and creates symlinks:
+This creates symlinks:
 
 - `~/.claude` → `~/.config/agentprofiles/claude/work`
 - `~/.config/opencode` → `~/.config/agentprofiles/opencode/work`
 
-### 5. Work normally
+The agents now read config from the active profiles.
 
-Now every time you enter that project, the symlinks point to the right profiles. When you switch projects, the symlinks update automatically.
-
-### 6. Switch or remove profiles
+### 5. Switch profiles
 
 ```sh
 # Switch to a different profile
 agentprofiles set claude personal
 
-# Remove a profile from this project (keeps the profile itself)
+# Switch back to base profile
 agentprofiles unset claude
 ```
 
@@ -199,34 +196,15 @@ agentprofiles unset claude
 
 ## How It Works
 
-### Project tracking
+### Symlink-based activation
 
-When you run `agentprofiles set claude work`, it creates/updates:
-
-**`.agentprofiles.json`** — Tracks active profiles:
-
-```json
-{
-  "profiles": {
-    "claude": "work",
-    "opencode": "personal"
-  }
-}
-```
-
-This file tells agentprofiles which profiles are active for this project.
-
-### Symlink management
-
-The tool creates symlinks in agent global config directories:
+When you run `agentprofiles set claude work`, the tool creates a symlink:
 
 ```
 ~/.claude → ~/.config/agentprofiles/claude/work
-~/.config/opencode → ~/.config/agentprofiles/opencode/personal
-~/.agents → ~/.config/agentprofiles/_agents/
 ```
 
-Each agent reads config from its standard directory. The symlinks point to the active profile.
+The agent reads config from its standard directory (`~/.claude`). The symlink points to the active profile, so switching profiles is just updating the symlink target.
 
 ### Profile storage
 
@@ -237,7 +215,7 @@ Profiles are stored in your config directory:
 ├── config.json
 ├── claude/
 │   ├── .gitignore          # Ignores runtime artifacts
-│   ├── _base/              # Template profile
+│   ├── _base/              # Base profile (default)
 │   │   └── meta.json
 │   ├── work/
 │   │   └── meta.json       # Profile metadata
@@ -255,6 +233,16 @@ Profiles are stored in your config directory:
 
 Each profile directory _is_ the config directory for that tool. When `~/.claude` points to `~/.config/agentprofiles/claude/work`, Claude Code reads its settings, history, and cache from there.
 
+### Shared directories
+
+The tool also manages shared resources:
+
+```
+~/.agents → ~/.config/agentprofiles/_agents/
+```
+
+This allows all agents to access shared skills, tools, and resources.
+
 ---
 
 ## Troubleshooting
@@ -264,9 +252,9 @@ Each profile directory _is_ the config directory for that tool. When `~/.claude`
 Debug checklist:
 
 1. Check the profile exists: `agentprofiles list claude`
-2. Verify the project directory: `pwd` and `cat .agentprofiles.json`
-3. Check symlink status: `ls -la ~/.claude`
-4. Verify permissions: Can you write to `~/.claude`?
+2. Check symlink status: `ls -la ~/.claude`
+3. Verify permissions: Can you write to `~/.`?
+4. Run `agentprofiles status` to see the current state
 
 ### "The agent isn't reading the right config"
 
@@ -296,18 +284,15 @@ agentprofiles set claude work
 
 Then migrate your config from the backup to the new location.
 
----
+### "How do I see what's currently active?"
 
-## What to Commit
+Use the `status` command:
 
-This depends on your team, but common approaches:
+```sh
+agentprofiles status
+```
 
-| File                  | Recommendation                                                                                                                       |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `.agentprofiles.json` | **Usually gitignore.** It contains profile names that may differ per developer. Have each developer run `agentprofiles set` locally. |
-| `.agentprofiles.json` | **Optionally commit** if your team standardizes on the same profiles (e.g., everyone uses "work" profile for work repos).            |
-
-If your team uses identical profile names (e.g., everyone uses "work" for work repos), committing `.agentprofiles.json` is fine.
+This shows which profiles are active for each agent and the status of all symlinks.
 
 ---
 
@@ -331,21 +316,29 @@ You can also set `contentDir` in `config.json` to point to a different location.
 
 ## Removing agentprofiles from a project
 
-To stop using agentprofiles in a specific project:
+To stop using agentprofiles for an agent:
 
 ```sh
-# Remove all agent profiles
+# Switch back to base profile (keeps the symlink, but points to base)
 agentprofiles unset claude
 agentprofiles unset opencode
-
-# Then delete the tracking file
-rm .agentprofiles.json
 ```
 
-Or manually:
+To completely remove agentprofiles (remove symlinks):
 
-1. Delete `.agentprofiles.json`
-2. Remove symlinks manually if needed: `rm ~/.claude`, `rm ~/.config/opencode`, etc.
+```sh
+# Manually remove symlinks
+rm ~/.claude
+rm ~/.config/opencode
+rm ~/.agents
+```
+
+Or use the `release` command (if available in your version):
+
+```sh
+agentprofiles release claude
+agentprofiles release opencode
+```
 
 ---
 
