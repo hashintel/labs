@@ -35,7 +35,7 @@
     "prepack": "RELEASE=true npm run build",
     "prepublishOnly": "npm test",
     "release": "np",
-    "smoke": "./scripts/smoke-envrc.sh",
+    "smoke": "./scripts/smoke.sh",
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",

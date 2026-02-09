@@ -46,7 +46,7 @@ vi.mock('../src/lib/prompts.js', () => ({
 
 vi.mock('../src/types/index.js', () => ({
   SUPPORTED_TOOLS: {
-    claude: { envVar: 'CLAUDE_CONFIG_DIR' },
+    claude: { globalConfigDir: '.claude', description: 'Claude Code' },
   },
   BASE_PROFILE_SLUG: '_base',
 }));
