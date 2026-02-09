@@ -174,6 +174,7 @@ agentprofiles unset claude
 | `set <agent> [name]`    | Activate a profile for the current directory        |
 | `unset <agent>`         | Deactivate a profile for the current directory      |
 | `status [agent]`        | Show current profile status for this directory      |
+| `release <agent>`       | Stop managing an agent (restore original config)    |
 
 ### Common flags
 
