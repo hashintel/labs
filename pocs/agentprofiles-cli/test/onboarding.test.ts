@@ -21,4 +21,3 @@ describe('expandTildePath (agentprofiles)', () => {
     expect(expandTildePath(withTildeInside)).toBe(withTildeInside);
   });
 });
-

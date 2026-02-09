@@ -14,12 +14,11 @@ describe('parseEditorValue', () => {
   });
 
   it('handles quoted editor path with arguments', () => {
-    const value =
-      '"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --wait';
+    const value = '"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --wait';
     const parsed = parseEditorValue(value);
 
     expect(parsed.command).toBe(
-      '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
+      '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code'
     );
     expect(parsed.args).toEqual(['--wait']);
   });

@@ -37,10 +37,7 @@ export async function isSymlink(linkPath: string): Promise<boolean> {
  * 1. Create temp symlink in parent dir
  * 2. Rename temp over target (atomic on POSIX)
  */
-export async function atomicSymlink(
-  target: string,
-  linkPath: string
-): Promise<void> {
+export async function atomicSymlink(target: string, linkPath: string): Promise<void> {
   const parentDir = path.dirname(linkPath);
   const linkName = path.basename(linkPath);
   const tempLinkName = `.${linkName}-tmp-${Date.now()}`;
@@ -74,11 +71,7 @@ export async function moveDirectory(src: string, dst: string): Promise<void> {
     await fs.rename(src, dst);
   } catch (err) {
     // Check if it's a cross-device error
-    if (
-      err instanceof Error &&
-      'code' in err &&
-      (err.code === 'EXDEV' || err.code === 'EACCES')
-    ) {
+    if (err instanceof Error && 'code' in err && err.code === 'EXDEV') {
       // Fall back to copy + delete
       await copyDirectory(src, dst);
       await fs.rm(src, { recursive: true, force: true });
@@ -111,4 +104,3 @@ async function copyDirectory(src: string, dst: string): Promise<void> {
     }
   }
 }
-

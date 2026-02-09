@@ -168,6 +168,12 @@ export async function setCommand(agent?: string, name?: string | SetOptions, opt
   }
 
   const envVar = SUPPORTED_TOOLS[resolvedAgent].envVar;
+  if (!envVar) {
+    console.error(
+      color.red(`Agent '${resolvedAgent}' does not have an environment variable configured`)
+    );
+    process.exit(1);
+  }
   const profilePath = toShellPath(profileDir);
   const nextManaged = updateAgentBlock(managedContent, resolvedAgent, envVar, profilePath);
   await fs.writeFile(managedEnvrcPath, nextManaged);

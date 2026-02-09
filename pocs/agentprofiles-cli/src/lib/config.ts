@@ -4,12 +4,7 @@ import os from 'node:os';
 import { CliConfig, Meta, SUPPORTED_TOOLS, SHARED_DIRECTORIES } from '../types/index.js';
 import { validateProfileName, slugify, validateSlug } from './validation.js';
 import { getAgentGitignore } from './gitignore.js';
-import {
-  readSymlinkTarget,
-  isSymlink,
-  atomicSymlink,
-  moveDirectory,
-} from './symlink.js';
+import { readSymlinkTarget, isSymlink, atomicSymlink, moveDirectory } from './symlink.js';
 
 // Resolution order for contentDir:
 // 1. AGENTPROFILES_CONTENT_DIR environment variable
@@ -223,22 +218,29 @@ export class ConfigManager {
   async getSymlinkStatus(agent: string): Promise<SymlinkStatus> {
     const globalPath = this.getGlobalConfigPath(agent);
 
-    // Check if path exists
+    // Use lstat to check the path itself (doesn't follow symlinks)
+    let stat;
     try {
-      await fs.access(globalPath);
+      stat = await fs.lstat(globalPath);
     } catch {
       return 'missing';
     }
 
-    // Check if it's a symlink
-    const isLink = await isSymlink(globalPath);
-    if (!isLink) {
+    // Not a symlink = real directory
+    if (!stat.isSymbolicLink()) {
       return 'unmanaged';
     }
 
-    // It's a symlink - check if target exists
+    // It's a symlink — check if target exists
     const target = await readSymlinkTarget(globalPath);
     if (!target) {
+      return 'broken';
+    }
+
+    // Check if target actually exists (follow the symlink)
+    try {
+      await fs.access(globalPath);
+    } catch {
       return 'broken';
     }
 
@@ -302,9 +304,7 @@ export class ConfigManager {
     // Check if profile already exists
     try {
       await fs.access(profileDir);
-      throw new Error(
-        `Cannot adopt: profile '${profileName}' already exists for agent '${agent}'`
-      );
+      throw new Error(`Cannot adopt: profile '${profileName}' already exists for agent '${agent}'`);
     } catch (err) {
       if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
         // Good, profile doesn't exist
@@ -354,9 +354,7 @@ export class ConfigManager {
     const status = await this.getSymlinkStatus(agent);
 
     if (status !== 'active') {
-      throw new Error(
-        `Cannot unlink: agent '${agent}' status is '${status}' (expected 'active')`
-      );
+      throw new Error(`Cannot unlink: agent '${agent}' status is '${status}' (expected 'active')`);
     }
 
     const activeProfile = await this.getActiveProfile(agent);
@@ -405,22 +403,29 @@ export class ConfigManager {
   async getSharedDirStatus(name: string): Promise<SymlinkStatus> {
     const globalPath = this.getSharedDirGlobalPath(name);
 
-    // Check if path exists
+    // Use lstat to check the path itself (doesn't follow symlinks)
+    let stat;
     try {
-      await fs.access(globalPath);
+      stat = await fs.lstat(globalPath);
     } catch {
       return 'missing';
     }
 
-    // Check if it's a symlink
-    const isLink = await isSymlink(globalPath);
-    if (!isLink) {
+    // Not a symlink = real directory
+    if (!stat.isSymbolicLink()) {
       return 'unmanaged';
     }
 
-    // It's a symlink - check if target exists
+    // It's a symlink — check if target exists
     const target = await readSymlinkTarget(globalPath);
     if (!target) {
+      return 'broken';
+    }
+
+    // Check if target actually exists (follow the symlink)
+    try {
+      await fs.access(globalPath);
+    } catch {
       return 'broken';
     }
 

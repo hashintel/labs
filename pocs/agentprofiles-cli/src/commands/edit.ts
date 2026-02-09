@@ -31,6 +31,10 @@ export function parseEditorValue(editor: string): { command: string; args: strin
 
   const [commandToken, ...argTokens] = tokens;
 
+  if (!commandToken) {
+    return { command: '', args: [] };
+  }
+
   return {
     command: stripQuotes(commandToken),
     args: argTokens.map(stripQuotes),
