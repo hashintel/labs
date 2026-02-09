@@ -107,7 +107,7 @@ export default defineCommand({
   args: {
     agent: {
       type: 'positional',
-      description: 'Agent name (claude/opencode)',
+      description: 'Agent name',
       required: false,
     },
     name: {

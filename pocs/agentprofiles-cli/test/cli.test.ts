@@ -9,6 +9,7 @@ describe('agentprofiles CLI', () => {
     expect(stdout).toContain('list');
     expect(stdout).toContain('add');
     expect(stdout).toContain('set');
+    expect(stdout).toContain('status');
   });
 
   it('should show version', async () => {

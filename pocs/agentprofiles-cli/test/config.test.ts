@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { ConfigManager } from '../src/lib/config.js';
-import { SUPPORTED_TOOLS } from '../src/types/index.js';
+import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG, SHARED_DIRECTORIES } from '../src/types/index.js';
 
 function snapshotEnv(keys: string[]) {
   const snapshot: Record<string, string | undefined> = {};
@@ -89,5 +89,236 @@ describe('ConfigManager contentDir resolution', () => {
     for (const agent of Object.keys(SUPPORTED_TOOLS)) {
       await expect(fs.access(path.join(contentDir, agent))).resolves.toBeUndefined();
     }
+  });
+});
+
+describe('ConfigManager symlink-based profile management', () => {
+  const ENV_KEYS = ['AGENTPROFILES_CONFIG_DIR', 'AGENTPROFILES_CONTENT_DIR', 'HOME'];
+
+  let envSnapshot: Record<string, string | undefined>;
+  let tmpRoot: string;
+  let tmpHome: string;
+  let configDir: string;
+  let contentDir: string;
+
+  beforeEach(async () => {
+    envSnapshot = snapshotEnv(ENV_KEYS);
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentprofiles-symlink-test-'));
+    tmpHome = path.join(tmpRoot, 'home');
+    configDir = path.join(tmpRoot, 'config');
+    contentDir = path.join(tmpRoot, 'content');
+
+    await fs.mkdir(tmpHome, { recursive: true });
+    process.env.HOME = tmpHome;
+    process.env.AGENTPROFILES_CONFIG_DIR = configDir;
+    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
+  });
+
+  afterEach(async () => {
+    restoreEnv(envSnapshot);
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('getSymlinkStatus returns "unmanaged" for real directory', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create a real directory at the global path
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+
+    const status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('unmanaged');
+  });
+
+  it('getSymlinkStatus returns "missing" when directory does not exist', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('missing');
+  });
+
+  it('adoptExisting moves real directory to _base and creates symlink back', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create a real directory with some content
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"key":"value"}');
+
+    // Adopt it
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Check that _base profile exists with the content
+    const baseProfileDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    const settingsFile = path.join(baseProfileDir, 'settings.json');
+    await expect(fs.readFile(settingsFile, 'utf-8')).resolves.toBe('{"key":"value"}');
+
+    // Check that global path is now a symlink
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+
+    // Check that symlink points to _base
+    const status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('active');
+  });
+
+  it('adoptExisting throws if directory is not unmanaged', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create a real directory
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+
+    // Adopt it once
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Try to adopt again (should fail)
+    await expect(config.adoptExisting('claude', BASE_PROFILE_SLUG)).rejects.toThrow(
+      /Cannot adopt.*status is 'active'/
+    );
+  });
+
+  it('switchProfile atomically swaps symlink to different profile', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create and adopt base profile
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"base":true}');
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Create another profile
+    const workProfileDir = path.join(contentDir, 'claude', 'work');
+    await fs.mkdir(workProfileDir, { recursive: true });
+    await fs.writeFile(path.join(workProfileDir, 'settings.json'), '{"work":true}');
+
+    // Switch to work profile
+    await config.switchProfile('claude', 'work');
+
+    // Verify symlink now points to work
+    const activeProfile = await config.getActiveProfile('claude');
+    expect(activeProfile).toBe('work');
+
+    // Verify we can read work settings
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+  });
+
+  it('getActiveProfile returns null when not managed', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const activeProfile = await config.getActiveProfile('claude');
+    expect(activeProfile).toBeNull();
+  });
+
+  it('getActiveProfile returns profile slug when managed', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create and adopt base profile
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    const activeProfile = await config.getActiveProfile('claude');
+    expect(activeProfile).toBe(BASE_PROFILE_SLUG);
+  });
+
+  it('unlinkProfile moves profile back to global location', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create and adopt base profile
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"key":"value"}');
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Unlink it
+    await config.unlinkProfile('claude');
+
+    // Check that global path is now a real directory
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isSymbolicLink()).toBe(false);
+    expect(stat.isDirectory()).toBe(true);
+
+    // Check that content is preserved
+    const settingsFile = path.join(globalPath, 'settings.json');
+    await expect(fs.readFile(settingsFile, 'utf-8')).resolves.toBe('{"key":"value"}');
+
+    // Check that status is now unmanaged
+    const status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('unmanaged');
+  });
+
+  it('getSharedDirStatus returns "unmanaged" for real directory', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create a real shared directory
+    const globalPath = path.join(tmpHome, '.agents');
+    await fs.mkdir(globalPath, { recursive: true });
+
+    const status = await config.getSharedDirStatus('agents');
+    expect(status).toBe('unmanaged');
+  });
+
+  it('adoptSharedDir moves directory and creates symlink back', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create a real shared directory with content
+    const globalPath = path.join(tmpHome, '.agents');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'test.txt'), 'shared content');
+
+    // Adopt it
+    await config.adoptSharedDir('agents');
+
+    // Check that content dir has the directory
+    const contentPath = path.join(contentDir, '_agents');
+    const testFile = path.join(contentPath, 'test.txt');
+    await expect(fs.readFile(testFile, 'utf-8')).resolves.toBe('shared content');
+
+    // Check that global path is now a symlink
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+
+    // Check status
+    const status = await config.getSharedDirStatus('agents');
+    expect(status).toBe('active');
+  });
+
+  it('unlinkSharedDir moves directory back to global location', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create and adopt shared directory
+    const globalPath = path.join(tmpHome, '.agents');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'test.txt'), 'shared content');
+    await config.adoptSharedDir('agents');
+
+    // Unlink it
+    await config.unlinkSharedDir('agents');
+
+    // Check that global path is now a real directory
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isSymbolicLink()).toBe(false);
+    expect(stat.isDirectory()).toBe(true);
+
+    // Check that content is preserved
+    const testFile = path.join(globalPath, 'test.txt');
+    await expect(fs.readFile(testFile, 'utf-8')).resolves.toBe('shared content');
+
+    // Check status
+    const status = await config.getSharedDirStatus('agents');
+    expect(status).toBe('unmanaged');
   });
 });
