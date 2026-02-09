@@ -3,6 +3,8 @@ import path from 'node:path';
 import os from 'node:os';
 import * as p from '@clack/prompts';
 import color from 'picocolors';
+import { ConfigManager } from './config.js';
+import { SUPPORTED_TOOLS, SHARED_DIRECTORIES, BASE_PROFILE_SLUG } from '../types/index.js';
 
 function getXdgConfigHome(): string {
   return process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
@@ -42,8 +44,7 @@ export async function isInitialized(): Promise<boolean> {
 }
 
 export async function runOnboarding(options: { isRerun?: boolean } = {}): Promise<boolean> {
-  const configDir = getDefaultConfigDir();
-  const configPath = getConfigPath();
+  const config = new ConfigManager();
 
   if (options.isRerun) {
     p.intro(color.cyan('Re-running agentprofiles setup'));
@@ -51,11 +52,12 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
     p.intro(color.cyan('Welcome to agentprofiles!'));
     p.note(
       `This tool manages configuration profiles for LLM agent tools.\n` +
-        `Profiles are stored as directories that can be activated per-project using direnv.`,
+        `Profiles are stored as symlinks to centralized directories.`,
       'About'
     );
   }
 
+  const configDir = config.getConfigDir();
   p.log.info(`Config directory: ${color.dim(configDir)}`);
 
   const defaultContentDir = configDir;
@@ -81,24 +83,16 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
   let contentDir = contentDirChoice as string;
   contentDir = expandTildePath(contentDir);
 
+  // If contentDir differs from configDir, set it in environment for ConfigManager
+  if (contentDir !== configDir) {
+    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
+  }
+
   const spinner = p.spinner();
   spinner.start('Creating directories...');
 
   try {
-    await fs.mkdir(configDir, { recursive: true });
-    await fs.mkdir(contentDir, { recursive: true });
-
-    const config = {
-      contentDir: contentDir === configDir ? undefined : contentDir,
-      createdAt: new Date().toISOString(),
-      version: 1,
-    };
-    await fs.writeFile(configPath, JSON.stringify(config, null, 2));
-
-    for (const tool of ['claude', 'opencode']) {
-      await fs.mkdir(path.join(contentDir, tool), { recursive: true });
-    }
-
+    await config.ensureConfigDir();
     spinner.stop('Directories created');
   } catch (error) {
     spinner.stop('Failed to create directories');
@@ -106,9 +100,92 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
     return false;
   }
 
-  p.outro(
-    color.green('Setup complete! Run `agentprofiles add <agent>` to create your first profile.')
-  );
+  // Scan agents for adoption
+  const adoptedAgents: string[] = [];
+  for (const [agent, toolDef] of Object.entries(SUPPORTED_TOOLS)) {
+    const status = await config.getSymlinkStatus(agent);
+
+    if (status === 'unmanaged') {
+      const globalPath = config.getGlobalConfigPath(agent);
+      const shouldAdopt = await p.confirm({
+        message: `Found existing ${toolDef.description} config at ${color.dim(globalPath)}. Adopt as _base profile?`,
+        initialValue: true,
+      });
+
+      if (p.isCancel(shouldAdopt)) {
+        p.cancel('Setup cancelled.');
+        return false;
+      }
+
+      if (shouldAdopt === true) {
+        try {
+          await config.adoptExisting(agent, BASE_PROFILE_SLUG);
+          adoptedAgents.push(agent);
+          p.log.success(`Adopted ${toolDef.description} as _base profile`);
+        } catch (error) {
+          p.log.error(
+            `Failed to adopt ${agent}: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+    } else if (status === 'active') {
+      p.log.info(`${toolDef.description} is already managed`);
+    }
+  }
+
+  // Scan shared directories for adoption
+  const adoptedSharedDirs: string[] = [];
+  for (const [name, sharedDir] of Object.entries(SHARED_DIRECTORIES)) {
+    const status = await config.getSharedDirStatus(name);
+
+    if (status === 'unmanaged') {
+      const globalPath = config.getSharedDirGlobalPath(name);
+      const shouldAdopt = await p.confirm({
+        message: `Found existing ${sharedDir.description} at ${color.dim(globalPath)}. Adopt?`,
+        initialValue: true,
+      });
+
+      if (p.isCancel(shouldAdopt)) {
+        p.cancel('Setup cancelled.');
+        return false;
+      }
+
+      if (shouldAdopt === true) {
+        try {
+          await config.adoptSharedDir(name);
+          adoptedSharedDirs.push(name);
+          p.log.success(`Adopted ${sharedDir.description}`);
+        } catch (error) {
+          p.log.error(
+            `Failed to adopt ${name}: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+    } else if (status === 'active') {
+      p.log.info(`${sharedDir.description} is already managed`);
+    }
+  }
+
+  // Show summary
+  let summary = color.green('Setup complete!');
+  if (adoptedAgents.length > 0 || adoptedSharedDirs.length > 0) {
+    summary += '\n\nAdopted:';
+    for (const agent of adoptedAgents) {
+      const toolDef = SUPPORTED_TOOLS[agent];
+      if (toolDef) {
+        summary += `\n  • ${toolDef.description} (_base profile)`;
+      }
+    }
+    for (const name of adoptedSharedDirs) {
+      const sharedDir = SHARED_DIRECTORIES[name];
+      if (sharedDir) {
+        summary += `\n  • ${sharedDir.description}`;
+      }
+    }
+  }
+  summary += `\n\nRun ${color.cyan('agentprofiles add <agent>')} to create additional profiles.`;
+
+  p.outro(summary);
   return true;
 }
 
@@ -119,7 +196,7 @@ export async function ensureInitialized(): Promise<boolean> {
 
   if (!process.stdout.isTTY) {
     console.error(color.red('agentprofiles is not initialized.'));
-    console.error(`Run ${color.cyan('agentprofiles init')} to set up.`);
+    console.error(`Run ${color.cyan('agentprofiles setup')} to set up.`);
     process.exit(1);
   }
 
