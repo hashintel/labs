@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { ConfigManager } from '../src/lib/config.js';
 import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG, SHARED_DIRECTORIES } from '../src/types/index.js';
+import * as symlinkModule from '../src/lib/symlink.js';
 
 function snapshotEnv(keys: string[]) {
   const snapshot: Record<string, string | undefined> = {};
@@ -493,5 +494,200 @@ describe('batch profile switching', () => {
 
     // Try to switch to non-existent profile
     await expect(config.switchProfile('claude', 'nonexistent')).rejects.toThrow(/does not exist/);
+  });
+});
+
+describe('adoption rollback safety', () => {
+  const ENV_KEYS = [
+    'AGENTPROFILES_CONFIG_DIR',
+    'AGENTPROFILES_CONTENT_DIR',
+    'XDG_CONFIG_HOME',
+    'HOME',
+  ];
+
+  let envSnapshot: Record<string, string | undefined>;
+  let tmpRoot: string;
+  let tmpHome: string;
+  let configDir: string;
+  let contentDir: string;
+
+  beforeEach(async () => {
+    envSnapshot = snapshotEnv(ENV_KEYS);
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentprofiles-rollback-test-'));
+    tmpHome = path.join(tmpRoot, 'home');
+    configDir = path.join(tmpRoot, 'config');
+    contentDir = path.join(tmpRoot, 'content');
+
+    await fs.mkdir(tmpHome, { recursive: true });
+    process.env.HOME = tmpHome;
+    process.env.AGENTPROFILES_CONFIG_DIR = configDir;
+    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
+  });
+
+  afterEach(async () => {
+    restoreEnv(envSnapshot);
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it('rolls back directory move if symlink creation fails', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create a real directory with content
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"key":"value"}');
+
+    // Mock atomicSymlink to throw an error
+    const originalAtomicSymlink = symlinkModule.atomicSymlink;
+    vi.spyOn(symlinkModule, 'atomicSymlink').mockRejectedValueOnce(
+      new Error('Simulated symlink creation failure')
+    );
+
+    // Try to adopt - should fail and rollback
+    await expect(config.adoptExisting('claude', BASE_PROFILE_SLUG)).rejects.toThrow(
+      /Simulated symlink creation failure/
+    );
+
+    // Verify the directory was rolled back to original location
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isDirectory()).toBe(true);
+    expect(stat.isSymbolicLink()).toBe(false);
+
+    // Verify content is still there
+    const settingsFile = path.join(globalPath, 'settings.json');
+    const content = await fs.readFile(settingsFile, 'utf-8');
+    expect(content).toBe('{"key":"value"}');
+
+    // Verify profile directory was not created
+    const profileDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await expect(fs.access(profileDir)).rejects.toThrow();
+
+    // Restore original function
+    vi.mocked(symlinkModule.atomicSymlink).mockRestore();
+  });
+
+  it('verifyAdoption returns true when symlink is correct', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create and adopt a profile
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Verify adoption
+    const verified = await config.verifyAdoption('claude', BASE_PROFILE_SLUG);
+    expect(verified).toBe(true);
+  });
+
+  it('verifyAdoption returns false when symlink is missing', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Don't create any symlink
+    const verified = await config.verifyAdoption('claude', BASE_PROFILE_SLUG);
+    expect(verified).toBe(false);
+  });
+
+  it('verifyAdoption returns false when symlink points to wrong location', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create a profile directory
+    const profileDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await fs.mkdir(profileDir, { recursive: true });
+
+    // Create a symlink pointing to wrong location
+    const wrongDir = path.join(contentDir, 'claude', 'wrong');
+    await fs.mkdir(wrongDir, { recursive: true });
+
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.symlink(wrongDir, globalPath);
+
+    // Verify should return false
+    const verified = await config.verifyAdoption('claude', BASE_PROFILE_SLUG);
+    expect(verified).toBe(false);
+  });
+});
+
+describe('doctor command - broken symlink detection', () => {
+  const ENV_KEYS = [
+    'AGENTPROFILES_CONFIG_DIR',
+    'AGENTPROFILES_CONTENT_DIR',
+    'XDG_CONFIG_HOME',
+    'HOME',
+  ];
+
+  let envSnapshot: Record<string, string | undefined>;
+  let tmpRoot: string;
+  let tmpHome: string;
+  let configDir: string;
+  let contentDir: string;
+
+  beforeEach(async () => {
+    envSnapshot = snapshotEnv(ENV_KEYS);
+    tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agentprofiles-doctor-test-'));
+    tmpHome = path.join(tmpRoot, 'home');
+    configDir = path.join(tmpRoot, 'config');
+    contentDir = path.join(tmpRoot, 'content');
+
+    await fs.mkdir(tmpHome, { recursive: true });
+    process.env.HOME = tmpHome;
+    process.env.AGENTPROFILES_CONFIG_DIR = configDir;
+    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
+  });
+
+  afterEach(async () => {
+    restoreEnv(envSnapshot);
+    await fs.rm(tmpRoot, { recursive: true, force: true });
+  });
+
+  it('detects broken symlinks', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Set up an agent with a profile
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Verify it's active
+    let status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('active');
+
+    // Delete the profile directory to break the symlink
+    const profileDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await fs.rm(profileDir, { recursive: true });
+
+    // Verify it's now broken
+    status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('broken');
+  });
+
+  it('can fix broken symlinks by removing them', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Set up an agent with a profile
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    // Delete the profile directory to break the symlink
+    const profileDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await fs.rm(profileDir, { recursive: true });
+
+    // Verify it's broken
+    let status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('broken');
+
+    // Remove the broken symlink
+    await fs.unlink(globalPath);
+
+    // Verify it's now missing
+    status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('missing');
   });
 });
