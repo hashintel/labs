@@ -6,6 +6,7 @@ import color from 'picocolors';
 import { validateProfileName, slugify } from '../lib/validation.js';
 import { generateName } from '@criblinc/docker-names';
 import { promptForAgent } from '../lib/prompts.js';
+import { copyDirectory } from '../lib/symlink.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -59,8 +60,8 @@ export async function addCommand(agent?: string, name?: string) {
     const baseDir = path.join(config.getContentDir(), resolvedAgent, BASE_PROFILE_SLUG);
     try {
       await fs.access(baseDir);
-      // _base exists, copy its contents to the new profile
-      await fs.cp(baseDir, profileDir, { recursive: true, force: true });
+      // _base exists, copy its contents to the new profile (preserving symlinks)
+      await copyDirectory(baseDir, profileDir);
       // Overwrite meta.json with the new profile's metadata
       const slug = slugify(name);
       const metaPath = path.join(profileDir, 'meta.json');

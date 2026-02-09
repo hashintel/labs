@@ -82,9 +82,9 @@ export async function moveDirectory(src: string, dst: string): Promise<void> {
 }
 
 /**
- * Recursively copy a directory.
+ * Recursively copy a directory, preserving symlinks as-is.
  */
-async function copyDirectory(src: string, dst: string): Promise<void> {
+export async function copyDirectory(src: string, dst: string): Promise<void> {
   await fs.mkdir(dst, { recursive: true });
 
   const entries = await fs.readdir(src, { withFileTypes: true });
