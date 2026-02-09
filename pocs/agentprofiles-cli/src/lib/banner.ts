@@ -22,7 +22,7 @@ export function renderInfo(pkg: { name: string; version: string; description?: s
   const devLabel = devMetaParts.length > 0 ? `dev ${devMetaParts.join(' ')}` : 'dev';
   const devTag = isDev ? color.yellow(` (${devLabel})`) : '';
   const info = `${color.dim(pkg.name)} ${color.cyan(`v${pkg.version}`)}${devTag}`;
-  // Use a clean description without direnv reference
+  // Use a clean description
   const desc = pkg.description
     ? color.dim(` — Manage configuration profiles for LLM agent tools`)
     : '';
