@@ -130,4 +130,82 @@ describe('addCommand symlink preservation', () => {
     expect(newMeta.slug).toBe('work');
     expect(newMeta.agent).toBe('claude');
   });
+
+  it('clones from arbitrary profile with --from flag', async () => {
+    // Setup: Create a source profile with specific content
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const sourceDir = path.join(contentDir, 'claude', 'work');
+    await fs.mkdir(sourceDir, { recursive: true });
+
+    // Create source profile content
+    await fs.writeFile(path.join(sourceDir, 'config.txt'), 'work config');
+    await fs.writeFile(path.join(sourceDir, 'settings.json'), '{"theme": "dark"}');
+
+    // Create a symlink in source
+    await fs.writeFile(path.join(sourceDir, 'shared-file.txt'), 'shared');
+    const symlinkPath = path.join(sourceDir, 'link-to-shared.txt');
+    await fs.symlink('./shared-file.txt', symlinkPath);
+
+    // Create meta.json for source
+    const sourceMetaPath = path.join(sourceDir, 'meta.json');
+    await fs.writeFile(
+      sourceMetaPath,
+      JSON.stringify(
+        {
+          name: 'work',
+          slug: 'work',
+          agent: 'claude',
+          created_at: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
+
+    // Act: Create a new profile from 'work' using --from flag
+    const { addCommand } = await import('../src/commands/add.js');
+    await addCommand('claude', 'staging', 'work');
+
+    // Assert: Verify the new profile was cloned from 'work'
+    const newProfileDir = path.join(contentDir, 'claude', 'staging');
+
+    // Check that files were copied
+    const configContent = await fs.readFile(path.join(newProfileDir, 'config.txt'), 'utf-8');
+    expect(configContent).toBe('work config');
+
+    const settingsContent = await fs.readFile(path.join(newProfileDir, 'settings.json'), 'utf-8');
+    expect(settingsContent).toBe('{"theme": "dark"}');
+
+    // Check that symlink was preserved
+    const newSymlinkPath = path.join(newProfileDir, 'link-to-shared.txt');
+    const stat = await fs.lstat(newSymlinkPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+
+    const target = await fs.readlink(newSymlinkPath);
+    expect(target).toBe('./shared-file.txt');
+
+    // Check that meta.json was overwritten with new profile metadata
+    const newMeta = JSON.parse(await fs.readFile(path.join(newProfileDir, 'meta.json'), 'utf-8'));
+    expect(newMeta.name).toBe('staging');
+    expect(newMeta.slug).toBe('staging');
+    expect(newMeta.agent).toBe('claude');
+  });
+
+  it('errors when --from profile does not exist', async () => {
+    // Setup: Create config but no source profile
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Act & Assert: Try to create profile from non-existent source
+    const { addCommand } = await import('../src/commands/add.js');
+    try {
+      await addCommand('claude', 'new-profile', 'nonexistent');
+      expect.fail('Should have thrown an error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('process.exit called');
+    }
+  });
 });

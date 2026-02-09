@@ -10,7 +10,7 @@ import { copyDirectory } from '../lib/symlink.js';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-export async function addCommand(agent?: string, name?: string) {
+export async function addCommand(agent?: string, name?: string, from?: string) {
   let resolvedAgent = agent;
 
   if (!resolvedAgent) {
@@ -56,12 +56,30 @@ export async function addCommand(agent?: string, name?: string) {
   try {
     const profileDir = await config.createProfile(resolvedAgent, name);
 
-    // Check if _base exists for this agent and copy its contents
-    const baseDir = path.join(config.getContentDir(), resolvedAgent, BASE_PROFILE_SLUG);
+    // Determine source profile directory
+    let sourceDir: string;
+    if (from) {
+      // Use the specified source profile
+      const sourceSlug = slugify(from);
+      sourceDir = path.join(config.getContentDir(), resolvedAgent, sourceSlug);
+      try {
+        await fs.access(sourceDir);
+      } catch {
+        console.error(
+          color.red(`Source profile '${from}' does not exist for agent '${resolvedAgent}'`)
+        );
+        process.exit(1);
+      }
+    } else {
+      // Default to _base
+      sourceDir = path.join(config.getContentDir(), resolvedAgent, BASE_PROFILE_SLUG);
+    }
+
+    // Copy from source profile if it exists
     try {
-      await fs.access(baseDir);
-      // _base exists, copy its contents to the new profile (preserving symlinks)
-      await copyDirectory(baseDir, profileDir);
+      await fs.access(sourceDir);
+      // Source exists, copy its contents to the new profile (preserving symlinks)
+      await copyDirectory(sourceDir, profileDir);
       // Overwrite meta.json with the new profile's metadata
       const slug = slugify(name);
       const metaPath = path.join(profileDir, 'meta.json');
@@ -73,7 +91,7 @@ export async function addCommand(agent?: string, name?: string) {
       };
       await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
     } catch {
-      // _base doesn't exist, that's fine
+      // Source doesn't exist, that's fine (only happens if --from not specified and _base doesn't exist)
     }
 
     outro(`Profile created at ${color.cyan(profileDir)}`);
@@ -116,8 +134,13 @@ export default defineCommand({
       description: 'Profile name',
       required: false,
     },
+    from: {
+      type: 'string',
+      description: 'Source profile to clone from (defaults to _base)',
+      required: false,
+    },
   },
   async run({ args }) {
-    await addCommand(args.agent, args.name);
+    await addCommand(args.agent, args.name, args.from);
   },
 });
