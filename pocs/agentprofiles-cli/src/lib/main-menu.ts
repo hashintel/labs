@@ -1,6 +1,6 @@
 import { select, isCancel, cancel } from '@clack/prompts';
 
-type MenuAction = 'status' | 'list' | 'add' | 'set' | 'unset' | 'edit' | 'remove';
+type MenuAction = 'status' | 'list' | 'add' | 'set' | 'unset' | 'edit' | 'remove' | 'release';
 
 const menuOptions: Array<{ value: MenuAction; label: string; hint: string }> = [
   { value: 'status', label: 'Status', hint: 'Show agent profile status' },
@@ -10,6 +10,7 @@ const menuOptions: Array<{ value: MenuAction; label: string; hint: string }> = [
   { value: 'unset', label: 'Unset profile', hint: 'Switch an agent to base profile' },
   { value: 'edit', label: 'Edit profile', hint: 'Open a profile in your editor' },
   { value: 'remove', label: 'Remove profile', hint: 'Delete a profile' },
+  { value: 'release', label: 'Release agent', hint: 'Stop managing an agent' },
 ];
 
 export async function showMainMenu(): Promise<void> {
@@ -59,6 +60,11 @@ export async function showMainMenu(): Promise<void> {
     case 'remove': {
       const { removeCommand } = await import('../commands/remove.js');
       await removeCommand();
+      break;
+    }
+    case 'release': {
+      const { releaseCommand } = await import('../commands/release.js');
+      await releaseCommand();
       break;
     }
   }
