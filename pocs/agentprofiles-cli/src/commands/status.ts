@@ -67,4 +67,3 @@ export default defineCommand({
     await statusCommand();
   },
 });
-

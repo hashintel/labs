@@ -22,8 +22,6 @@ const fsMocks = vi.hoisted(() => ({
 
 vi.mock('node:fs/promises', () => ({ default: fsMocks }));
 
-
-
 const configMocks = vi.hoisted(() => ({
   init: vi.fn(),
   getProfiles: vi.fn(),

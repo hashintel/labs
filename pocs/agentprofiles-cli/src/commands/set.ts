@@ -21,7 +21,9 @@ export async function setCommand(agent?: string, name?: string) {
   // Check that agent is managed
   const status = await config.getSymlinkStatus(resolvedAgent);
   if (status === 'unmanaged') {
-    console.error(color.red(`Agent '${resolvedAgent}' is not managed. Run 'agentprofiles setup' first.`));
+    console.error(
+      color.red(`Agent '${resolvedAgent}' is not managed. Run 'agentprofiles setup' first.`)
+    );
     process.exit(1);
   }
   if (status === 'missing') {
