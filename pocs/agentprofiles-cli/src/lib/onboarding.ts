@@ -93,6 +93,12 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
 
   try {
     await config.ensureConfigDir();
+
+    // Persist contentDir to config.json if it differs from configDir
+    if (contentDir !== configDir) {
+      await config.setContentDir(contentDir);
+    }
+
     spinner.stop('Directories created');
   } catch (error) {
     spinner.stop('Failed to create directories');

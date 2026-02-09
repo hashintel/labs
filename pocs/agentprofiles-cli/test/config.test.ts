@@ -90,6 +90,34 @@ describe('ConfigManager contentDir resolution', () => {
       await expect(fs.access(path.join(contentDir, agent))).resolves.toBeUndefined();
     }
   });
+
+  it('setContentDir persists contentDir to config.json', async () => {
+    const configDir = path.join(tmpRoot, 'config');
+    const contentDir = path.join(tmpRoot, 'content');
+
+    process.env.AGENTPROFILES_CONFIG_DIR = configDir;
+    delete process.env.AGENTPROFILES_CONTENT_DIR;
+
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Set a custom content directory
+    await config.setContentDir(contentDir);
+
+    // Verify it's in memory
+    expect(config.getContentDir()).toBe(contentDir);
+
+    // Verify it was written to config.json
+    const configPath = path.join(configDir, 'config.json');
+    const configContent = await fs.readFile(configPath, 'utf-8');
+    const savedConfig = JSON.parse(configContent);
+    expect(savedConfig.contentDir).toBe(contentDir);
+
+    // Create a new ConfigManager instance and verify it loads the contentDir from config.json
+    const config2 = new ConfigManager();
+    await config2.init();
+    expect(config2.getContentDir()).toBe(contentDir);
+  });
 });
 
 describe('ConfigManager symlink-based profile management', () => {
@@ -155,6 +183,16 @@ describe('ConfigManager symlink-based profile management', () => {
     const baseProfileDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
     const settingsFile = path.join(baseProfileDir, 'settings.json');
     await expect(fs.readFile(settingsFile, 'utf-8')).resolves.toBe('{"key":"value"}');
+
+    // Check that meta.json exists and has correct content
+    const metaFile = path.join(baseProfileDir, 'meta.json');
+    const metaContent = await fs.readFile(metaFile, 'utf-8');
+    const meta = JSON.parse(metaContent);
+    expect(meta.name).toBe(BASE_PROFILE_SLUG);
+    expect(meta.slug).toBe(BASE_PROFILE_SLUG);
+    expect(meta.agent).toBe('claude');
+    expect(meta.description).toBe('Base profile (adopted from original config)');
+    expect(meta.created_at).toBeDefined();
 
     // Check that global path is now a symlink
     const stat = await fs.lstat(globalPath);
