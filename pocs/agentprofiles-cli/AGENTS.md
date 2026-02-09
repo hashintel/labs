@@ -4,14 +4,15 @@ Guidelines for AI agents working in this codebase.
 
 ## Project Overview
 
-**agentprofiles-cli** is a Node.js CLI tool that manages per-project configuration profiles for LLM agent tools (Claude Code, OpenCode) via `direnv`. It creates isolated config directories for different profiles (work/personal/client) and uses direnv to automatically set the appropriate environment variables when entering a project directory.
+**agentprofiles-cli** is a Node.js CLI tool that manages per-project configuration profiles for LLM agent tools. It creates isolated config directories for different profiles (work/personal/client) and uses symlinks to automatically activate the right profile when entering a project directory.
 
 ### Key Concepts
 
 - **Profiles**: Named configurations stored under `~/.config/agentprofiles/<agent>/<profile-name>/`
-- **Agents**: Supported tools (currently `claude` and `opencode`) that read config from env vars
-- **Bootstrap block**: Section in `.envrc` that sources the managed file
-- **Managed file**: `.envrc.agentprofiles` containing per-agent export statements
+- **Agents**: Supported tools (claude, amp, opencode, codex, gemini, augment) that read config from symlinked directories
+- **Symlinks**: Per-agent symlinks in the agent's global config directory (e.g., `~/.claude` → `~/.config/agentprofiles/claude/work`)
+- **\_base profile**: Reserved profile created during setup; serves as template for new profiles
+- **Shared directories**: Cross-agent resources like `~/.agents/` symlinked to `contentDir/_agents/`
 
 ## Commands
 
@@ -51,30 +52,35 @@ npm run format:check && npm run lint && npm run typecheck && npm run test
 
 ```
 src/
-├── index.ts              # CLI entry point (Commander.js setup)
+├── index.ts              # CLI entry point (Citty setup)
 ├── commands/             # Command implementations
 │   ├── add.ts            # Create new profile
 │   ├── edit.ts           # Edit profile configuration
 │   ├── list.ts           # List available profiles
 │   ├── remove.ts         # Remove a profile
-│   ├── set.ts            # Activate profile for current directory
+│   ├── set.ts            # Activate profile for current directory (creates symlinks)
 │   ├── setup.ts          # Initialize agentprofiles system
-│   └── unset.ts          # Deactivate profile for current directory
+│   ├── status.ts         # Show current profile status
+│   └── unset.ts          # Deactivate profile for current directory (removes symlinks)
 ├── lib/                  # Shared utilities
 │   ├── config.ts         # ConfigManager class (profile CRUD, directory management)
-│   ├── direnv.ts         # direnv hook detection and shell hints
-│   ├── envrc.ts          # .envrc file manipulation (bootstrap blocks, agent blocks)
+│   ├── symlink.ts        # Symlink creation/removal and validation
 │   ├── gitignore.ts      # Agent-specific .gitignore templates
-│   └── validation.ts     # Profile name validation
+│   ├── validation.ts     # Profile name validation
+│   ├── banner.ts         # CLI banner and info rendering
+│   ├── onboarding.ts     # Setup wizard and interactive prompts
+│   ├── main-menu.ts      # Interactive main menu
+│   ├── prompts.ts        # Reusable prompt utilities
+│   └── update.ts         # Update notifier integration
 └── types/
-    └── index.ts          # TypeScript interfaces and SUPPORTED_TOOLS constant
+    └── index.ts          # TypeScript interfaces, SUPPORTED_TOOLS, SHARED_DIRECTORIES
 
 test/
 ├── cli.test.ts           # CLI integration tests (help, version)
 └── config.test.ts        # ConfigManager unit tests
 
 scripts/
-└── smoke-envrc.sh        # End-to-end smoke test for envrc generation
+└── smoke.sh              # End-to-end smoke test for symlink-based setup
 ```
 
 ## Code Patterns and Conventions
@@ -101,16 +107,29 @@ import { SUPPORTED_TOOLS } from '../types/index.js';
 
 ### CLI Framework
 
-Uses Commander.js for argument parsing:
+Uses Citty for argument parsing:
 
 ```typescript
-program
-  .command('set')
-  .description('Set the active profile for the current directory')
-  .argument('<agent>', 'Agent name')
-  .argument('[name]', 'Profile name')
-  .option('-y, --allow', 'Run direnv allow after updating files')
-  .action(setCommand);
+export const set = defineCommand({
+  meta: {
+    name: 'set',
+    description: 'Set the active profile for the current directory',
+  },
+  args: {
+    agent: {
+      type: 'string',
+      description: 'Agent name',
+      required: true,
+    },
+    name: {
+      type: 'string',
+      description: 'Profile name',
+    },
+  },
+  run: async ({ args }) => {
+    // Creates symlinks for the agent
+  },
+});
 ```
 
 ### Interactive Prompts
@@ -191,40 +210,42 @@ if (error) {
 
 Key environment variables this tool uses:
 
-- `AGENTPROFILES_CONFIG_DIR` - Override config directory location
-- `AGENTPROFILES_CONTENT_DIR` - Override content directory location
+- `AGENTPROFILES_CONFIG_DIR` - Override config directory location (where `config.json` lives)
+- `AGENTPROFILES_CONTENT_DIR` - Override content directory location (where profile directories are stored)
 - `XDG_CONFIG_HOME` - Standard XDG config location (defaults to `~/.config`)
 
-Environment variables it sets (via direnv):
+The tool does **not** set agent-specific environment variables. Instead, it manages symlinks:
 
-- `CLAUDE_CONFIG_DIR` - Claude Code config directory
-- `OPENCODE_CONFIG_DIR` - OpenCode config directory
+- Agents read config from their global config directory (e.g., `~/.claude`)
+- The tool creates symlinks pointing to the active profile
+- No shell hooks or environment variable management needed
 
 > **Note on `edit` and `$EDITOR`**
 >
 > The `edit` command respects the `$EDITOR` environment variable if it is set. This value may include arguments (for example `EDITOR="code --wait"`), and the command is parsed so that the editor binary and its arguments are invoked with the profile directory path appended as the final argument.
 
-### File Manipulation
+### Symlink-Based Profile Activation
 
-The tool manages two files in project directories:
+The tool manages symlinks in agent global config directories:
 
-1. **`.envrc`** - Contains bootstrap block between markers:
+1. **Agent symlinks** - When you run `agentprofiles set claude work`:
+   - Creates/updates `~/.claude` → `~/.config/agentprofiles/claude/work`
+   - The agent reads config from the symlinked directory
+   - No environment variables or shell hooks needed
 
-   ```sh
-   ### agentprofiles:begin
-   watch_file .envrc.agentprofiles
-   source_env_if_exists .envrc.agentprofiles
-   ### agentprofiles:end
-   ```
+2. **Shared directory symlinks** - For cross-agent resources:
+   - Creates/updates `~/.agents` → `~/.config/agentprofiles/_agents/`
+   - Accessible to all agents for shared skills, tools, etc.
 
-2. **`.envrc.agentprofiles`** - Contains agent-specific exports:
+3. **Project tracking** - Stores active profile info in `.agentprofiles.json`:
 
-   ```sh
-   # tool-generated; do not edit
-
-   ### agentprofiles:begin claude
-   export CLAUDE_CONFIG_DIR="$HOME/.config/agentprofiles/claude/work"
-   ### agentprofiles:end claude
+   ```json
+   {
+     "profiles": {
+       "claude": "work",
+       "opencode": "personal"
+     }
+   }
    ```
 
 ### Adding New Agents
@@ -235,13 +256,18 @@ To add support for a new agent tool:
 
    ```typescript
    newtool: {
-     envVar: 'NEWTOOL_CONFIG_DIR',
-     xdgCompliant: true,
+     globalConfigDir: '.newtool',  // Path relative to home directory
      description: 'New Tool',
+     envVar: 'NEWTOOL_CONFIG_DIR', // Optional: for reference/compatibility
    },
    ```
 
 2. Add gitignore template in `src/lib/gitignore.ts` if needed
+
+3. The tool automatically:
+   - Creates profile directories under `~/.config/agentprofiles/newtool/`
+   - Manages symlinks at `~/.newtool` when profiles are activated
+   - Handles the \_base profile template
 
 ## Testing
 
@@ -280,11 +306,12 @@ afterEach(async () => {
 
 ### Smoke Test
 
-The smoke test (`scripts/smoke-envrc.sh`) performs end-to-end testing:
+The smoke test (`scripts/smoke.sh`) performs end-to-end testing:
 
 - Creates isolated config directory
 - Tests profile creation, setting, and unsetting
-- Verifies file contents with assertions
+- Verifies symlink creation and removal
+- Verifies `.agentprofiles.json` tracking
 - Cleans up on exit
 
 Run with `npm run smoke` (requires `npm run build` first).
@@ -315,23 +342,26 @@ Run with `npm run smoke` (requires `npm run build` first).
 
 2. **ConfigManager.init()**: Must call `await config.init()` before using ConfigManager methods that depend on config.json
 
-3. **Shell paths**: Use `toShellPath()` to convert absolute paths to `$HOME`-based paths for portability in envrc files
+3. **Symlink permissions**: Ensure the user has write permissions to the agent's global config directory (e.g., `~/.claude`)
 
-4. **Legacy file migration**: The tool migrates `.envrc.agent` to `.envrc.agentprofiles` automatically
+4. **\_base profile**: This reserved profile is created during setup and serves as a template. Don't delete it.
 
-5. **direnv hook detection**: Check `isDirenvHookLoaded()` to warn users if direnv isn't properly configured
+5. **Shared directories**: The `_agents` directory in contentDir is symlinked to `~/.agents` for cross-agent resources
 
 6. **Random profile names**: Uses `@criblinc/docker-names` to generate suggested profile names (Docker-style: `adjective-scientist`)
+
+7. **Project tracking**: The `.agentprofiles.json` file tracks which profiles are active per project. Commit or gitignore based on your team's needs.
 
 ## Dependencies
 
 ### Runtime
 
-- `commander` - CLI argument parsing
+- `citty` - CLI argument parsing and command routing
 - `@clack/prompts` - Interactive prompts
 - `picocolors` - Terminal colors
-- `zod` - Schema validation (available but not heavily used yet)
+- `zod` - Schema validation
 - `@criblinc/docker-names` - Random name generation
+- `update-notifier` - Notify users of new versions
 
 ### Development
 
@@ -341,3 +371,4 @@ Run with `npm run smoke` (requires `npm run build` first).
 - `execa` - Process execution in tests
 - `eslint` + `typescript-eslint` - Linting
 - `prettier` - Formatting
+- `tsup` - TypeScript bundler for distribution

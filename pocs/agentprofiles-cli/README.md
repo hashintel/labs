@@ -1,47 +1,49 @@
 # agentprofiles-cli
 
-**Manage per-project configuration profiles for LLM agent tools via `direnv`.**
+**Manage per-project configuration profiles for LLM agent tools.**
 
-Currently supports [Claude Code](https://claude.ai/code) and [OpenCode](https://opencode.ai/).
+Supports 6 agents: [Claude Code](https://claude.ai/code), [Amp](https://amp.dev/), [OpenCode](https://opencode.ai/), [Codex](https://codex.dev/), [Gemini](https://gemini.google.com/), and [Augment](https://augment.dev/).
 
 ---
 
 ## The Problem
 
-You use an AI coding assistant. Maybe Claude Code, maybe OpenCode. You have multiple contexts where you work—personal projects, work repos, client codebases—and you want different settings, histories, or API keys for each.
+You use AI coding assistants. You have multiple contexts where you work—personal projects, work repos, client codebases—and you want different settings, histories, or API keys for each.
 
-**The tools support this.** Both Claude Code and OpenCode read their configuration from a directory specified by an environment variable (`CLAUDE_CONFIG_DIR`, `OPENCODE_CONFIG_DIR`). Point the variable at a different directory, and you get a completely isolated profile.
+**The tools support this.** Each agent reads its configuration from a directory. Point that directory at a different location, and you get a completely isolated profile.
 
 **But managing this manually is tedious:**
 
-- You can't just set the variable in your shell config—that's global, one profile for everything.
-- You can't add it to each project's dotfiles—that's not portable across projects with similar needs.
-- You don't want to remember to export variables before launching your editor every time.
+- You can't just set a global symlink—that's one profile for everything.
+- You can't add symlinks to each project's dotfiles—that's not portable across projects with similar needs.
+- You don't want to remember to update symlinks before launching your editor every time.
 
-**agentprofiles-cli solves this.** It gives you named profiles, stores them centrally, and uses `direnv` to automatically activate the right profile when you enter a project directory.
+**agentprofiles-cli solves this.** It gives you named profiles, stores them centrally, and automatically activates the right profile when you enter a project directory using symlinks.
 
 ```sh
 # Create profiles once
 agentprofiles add claude work
 agentprofiles add claude personal
+agentprofiles add opencode work
 
 # Activate per-project
 cd ~/work/client-project
-agentprofiles set claude work --allow
+agentprofiles set claude work
+agentprofiles set opencode work
 
 cd ~/personal/side-project
-agentprofiles set claude personal --allow
+agentprofiles set claude personal
 
-# Now "cd" handles everything. Enter a directory, get the right profile.
+# Now "cd" handles everything. Enter a directory, get the right profiles.
 ```
 
 ---
 
 ## FAQ
 
-### "Just use your global config"
+### "Just use your global symlink"
 
-**The problem:** There's only one global config. If you work across multiple contexts (personal/work/clients), you're constantly mixing histories, API keys, and settings that shouldn't mix.
+**The problem:** There's only one global symlink. If you work across multiple contexts (personal/work/clients), you're constantly mixing histories, API keys, and settings that shouldn't mix.
 
 Some people create separate user accounts on their machine for this. That works, but it's heavy-handed for what should be a simple configuration switch.
 
@@ -51,106 +53,75 @@ Some people create separate user accounts on their machine for this. That works,
 
 A profile should be defined once and _applied_ to projects, not duplicated into each one.
 
-### "Just set the env var before launching"
+### "Just update the symlink manually"
 
 **The problem:** This works for one-off commands, but breaks down for real workflows:
 
-- Interactive sessions that spawn subprocesses inherit the environment—but only if you remembered to set it.
-- Multiple terminals need the same treatment.
 - You have to remember which profile goes with which project, every time.
+- Multiple projects with the same profile need manual coordination.
+- Switching between projects means manually updating symlinks.
 
 Humans are bad at remembering things. Computers are good at it. Let the computer remember.
 
-### "Why direnv specifically?"
+### "Why symlinks instead of environment variables?"
 
-[direnv](https://direnv.net/) is a mature, widely-used tool for per-directory environment management. It:
+Symlinks are simpler and more direct:
 
-- Automatically loads/unloads environment variables when you `cd` in and out
-- Has a security model (`direnv allow`) so you explicitly trust changes
+- No shell hooks or environment variable management needed
 - Works with any shell (zsh, bash, fish, etc.)
-- Is already installed on many developer machines
-
-We didn't want to reinvent this. direnv does one job well; agentprofiles-cli just makes it easy to use for agent tool profiles.
+- Agents read config from their standard directory (e.g., `~/.claude`)
+- No need for external tools like direnv
+- Portable across machines (just update the symlink)
 
 ### "Do I really need another CLI tool?"
 
-Fair question. You could manage this yourself with handwritten `.envrc` files. agentprofiles-cli is worth it if you value:
+Fair question. You could manage this yourself with handwritten symlinks. agentprofiles-cli is worth it if you value:
 
 - **Named profiles** you can list, create, and remove
 - **Consistent file structure** without thinking about it
-- **Clean `.envrc` files** that only contain a small bootstrap block
-- **Guardrails** like profile name validation and direnv hook detection
+- **Automatic activation** when you enter a project directory
+- **Guardrails** like profile name validation and symlink verification
+- **Cross-agent support** for managing multiple tools at once
 
-If you're comfortable managing raw env vars yourself, you don't need this. But if you want the convenience of `agentprofiles set claude work`, this is for you.
+If you're comfortable managing raw symlinks yourself, you don't need this. But if you want the convenience of `agentprofiles set claude work`, this is for you.
 
 ---
 
 ## Requirements
 
-### Node.js 20+
+### Node.js 18+
 
 This is a Node.js CLI tool.
 
-### direnv (required)
+### No external dependencies
 
-agentprofiles-cli generates direnv-compatible files. Without direnv installed and hooked into your shell, those files won't do anything.
+agentprofiles-cli uses symlinks, which are built into all modern operating systems. No direnv, no environment variable management, no shell hooks needed.
 
-**Install direnv:**
-
-```sh
-# macOS
-brew install direnv
-
-# Ubuntu/Debian
-sudo apt install direnv
-
-# Or see https://direnv.net/docs/installation.html
-```
-
-**Hook it into your shell** (add to your shell's rc file):
-
-```sh
-# ~/.zshrc
-eval "$(direnv hook zsh)"
-
-# ~/.bashrc
-eval "$(direnv hook bash)"
-
-# ~/.config/fish/config.fish
-direnv hook fish | source
-```
-
-After adding the hook, restart your shell or source the rc file.
-
-**Verify it works:**
-
-```sh
-direnv --version
-```
-
-When you `cd` into a directory with an `.envrc`, you should see direnv print a message about loading or blocking the file.
-
----
-
-## Installation
-
-```sh
-npm install -g agentprofiles-cli
-```
+Just install the CLI and start creating profiles.
 
 ---
 
 ## Getting Started
 
-### 1. Initialize
+### 1. Install
+
+```sh
+npm install -g agentprofiles-cli
+```
+
+### 2. Initialize
 
 ```sh
 agentprofiles setup
 ```
 
-This creates the config directory (`~/.config/agentprofiles/` by default) and sets up subdirectories for each supported agent tool.
+This creates the config directory (`~/.config/agentprofiles/` by default) and sets up:
 
-### 2. Create profiles
+- Subdirectories for each supported agent tool
+- A `_base` profile template for each agent
+- Shared directories for cross-agent resources
+
+### 3. Create profiles
 
 ```sh
 agentprofiles add claude work
@@ -165,32 +136,31 @@ agentprofiles add claude
 # Suggests a random name like "jolly-curie", or enter your own
 ```
 
-### 3. Activate a profile in a project
+### 4. Activate profiles in a project
 
 ```sh
 cd /path/to/your/project
-agentprofiles set claude work --allow
+agentprofiles set claude work
+agentprofiles set opencode work
 ```
 
-This writes two files:
+This creates/updates `.agentprofiles.json` and creates symlinks:
 
-- `.envrc` — with a small bootstrap block
-- `.envrc.agentprofiles` — with the actual export statements
+- `~/.claude` → `~/.config/agentprofiles/claude/work`
+- `~/.config/opencode` → `~/.config/agentprofiles/opencode/work`
 
-The `--allow` flag runs `direnv allow` automatically. Without it, you'll need to run `direnv allow` manually.
+### 5. Work normally
 
-### 4. Work normally
+Now every time you enter that project, the symlinks point to the right profiles. When you switch projects, the symlinks update automatically.
 
-Now every time you `cd` into that project, direnv automatically exports `CLAUDE_CONFIG_DIR` pointing to your "work" profile. When you `cd` out, it unloads.
-
-### 5. Switch or remove profiles
+### 6. Switch or remove profiles
 
 ```sh
 # Switch to a different profile
-agentprofiles set claude personal --allow
+agentprofiles set claude personal
 
 # Remove a profile from this project (keeps the profile itself)
-agentprofiles unset claude --allow
+agentprofiles unset claude
 ```
 
 ---
@@ -206,11 +176,20 @@ agentprofiles unset claude --allow
 | `remove <agent> [name]` | Delete a profile (alias: `rm`)                      |
 | `set <agent> [name]`    | Activate a profile for the current directory        |
 | `unset <agent>`         | Deactivate a profile for the current directory      |
+| `status [agent]`        | Show current profile status for this directory      |
 
 ### Common flags
 
-- `--allow` / `-y` — Auto-run `direnv allow` after modifying files (for `set` and `unset`)
 - `--quiet` / `-q` — Suppress the banner
+
+### Supported agents
+
+- `claude` — Claude Code
+- `amp` — Amp
+- `opencode` — OpenCode
+- `codex` — Codex
+- `gemini` — Gemini
+- `augment` — Augment
 
 > **Note on `agentprofiles edit` and `$EDITOR`**
 >
@@ -220,30 +199,34 @@ agentprofiles unset claude --allow
 
 ## How It Works
 
-### Files in your project
+### Project tracking
 
 When you run `agentprofiles set claude work`, it creates/updates:
 
-**`.envrc`** — Contains a small bootstrap block:
+**`.agentprofiles.json`** — Tracks active profiles:
 
-```sh
-### agentprofiles:begin
-watch_file .envrc.agentprofiles
-source_env_if_exists .envrc.agentprofiles
-### agentprofiles:end
+```json
+{
+  "profiles": {
+    "claude": "work",
+    "opencode": "personal"
+  }
+}
 ```
 
-**`.envrc.agentprofiles`** — Contains the actual exports:
+This file tells agentprofiles which profiles are active for this project.
 
-```sh
-# tool-generated; do not edit
+### Symlink management
 
-### agentprofiles:begin claude
-export CLAUDE_CONFIG_DIR="$HOME/.config/agentprofiles/claude/work"
-### agentprofiles:end claude
+The tool creates symlinks in agent global config directories:
+
+```
+~/.claude → ~/.config/agentprofiles/claude/work
+~/.config/opencode → ~/.config/agentprofiles/opencode/personal
+~/.agents → ~/.config/agentprofiles/_agents/
 ```
 
-Only the block between `### agentprofiles:begin` and `### agentprofiles:end` in `.envrc` is managed by this tool. Your other environment variables are left alone.
+Each agent reads config from its standard directory. The symlinks point to the active profile.
 
 ### Profile storage
 
@@ -254,61 +237,64 @@ Profiles are stored in your config directory:
 ├── config.json
 ├── claude/
 │   ├── .gitignore          # Ignores runtime artifacts
+│   ├── _base/              # Template profile
+│   │   └── meta.json
 │   ├── work/
 │   │   └── meta.json       # Profile metadata
 │   └── personal/
 │       └── meta.json
-└── opencode/
-    ├── .gitignore
-    └── work/
-        └── meta.json
+├── opencode/
+│   ├── .gitignore
+│   ├── _base/
+│   │   └── meta.json
+│   └── work/
+│       └── meta.json
+└── _agents/                # Shared cross-agent resources
+    └── meta.json
 ```
 
-Each profile directory _is_ the config directory for that tool. When `CLAUDE_CONFIG_DIR` points to `~/.config/agentprofiles/claude/work`, Claude Code reads its settings, history, and cache from there.
+Each profile directory _is_ the config directory for that tool. When `~/.claude` points to `~/.config/agentprofiles/claude/work`, Claude Code reads its settings, history, and cache from there.
 
 ---
 
 ## Troubleshooting
 
-### "Nothing happens when I cd into the project"
-
-direnv isn't hooked into your shell.
-
-1. Verify direnv is installed: `direnv --version`
-2. Add the hook to your shell rc file (see [Requirements](#direnv-required))
-3. Restart your shell or source the rc file
-4. Re-enter the directory or run `direnv reload`
-
-### "direnv says the .envrc is blocked"
-
-This is direnv's security model. Run:
-
-```sh
-direnv allow
-```
-
-Or use `--allow` when running `agentprofiles set` or `agentprofiles unset`.
-
-### "The env var isn't set correctly"
+### "The symlink isn't being created"
 
 Debug checklist:
 
-1. Check the files exist: `cat .envrc` and `cat .envrc.agentprofiles`
-2. Verify direnv loaded: `direnv status`
-3. Check the variable: `echo $CLAUDE_CONFIG_DIR`
-4. Look for conflicts: Are you exporting the same variable elsewhere?
+1. Check the profile exists: `agentprofiles list claude`
+2. Verify the project directory: `pwd` and `cat .agentprofiles.json`
+3. Check symlink status: `ls -la ~/.claude`
+4. Verify permissions: Can you write to `~/.claude`?
 
-Force direnv to reload:
+### "The agent isn't reading the right config"
+
+1. Verify the symlink points to the right place: `ls -la ~/.claude`
+2. Check the profile directory exists: `ls -la ~/.config/agentprofiles/claude/work`
+3. Verify the agent is reading from the symlinked directory (check agent settings)
+
+### "I want to use a different config location"
+
+You can override the config directory:
 
 ```sh
-direnv reload
+export AGENTPROFILES_CONFIG_DIR=/path/to/config
+export AGENTPROFILES_CONTENT_DIR=/path/to/content
 ```
 
-### I already have a `.envrc`
+Or set `contentDir` in `config.json` to point to a different location.
 
-That's fine. agentprofiles only manages the section between its markers. Keep your existing content outside that block.
+### "I already have a symlink at ~/.claude"
 
-If you export the same variable elsewhere in the file, the last assignment wins.
+agentprofiles will overwrite it. If you have existing config there, move it first:
+
+```sh
+mv ~/.claude ~/.claude.backup
+agentprofiles set claude work
+```
+
+Then migrate your config from the backup to the new location.
 
 ---
 
@@ -316,12 +302,12 @@ If you export the same variable elsewhere in the file, the last assignment wins.
 
 This depends on your team, but common approaches:
 
-| File                   | Recommendation                                                                                                             |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `.envrc`               | **Commit it.** The bootstrap block is generic and portable.                                                                |
-| `.envrc.agentprofiles` | **Usually gitignore.** It contains paths that may differ per machine. Have each developer run `agentprofiles set` locally. |
+| File                  | Recommendation                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `.agentprofiles.json` | **Usually gitignore.** It contains profile names that may differ per developer. Have each developer run `agentprofiles set` locally. |
+| `.agentprofiles.json` | **Optionally commit** if your team standardizes on the same profiles (e.g., everyone uses "work" profile for work repos).            |
 
-If your team uses identical paths (e.g., everyone uses defaults), committing `.envrc.agentprofiles` is fine.
+If your team uses identical profile names (e.g., everyone uses "work" for work repos), committing `.agentprofiles.json` is fine.
 
 ---
 
@@ -348,19 +334,18 @@ You can also set `contentDir` in `config.json` to point to a different location.
 To stop using agentprofiles in a specific project:
 
 ```sh
-# Remove all agent blocks
-agentprofiles unset claude --allow
-agentprofiles unset opencode --allow
+# Remove all agent profiles
+agentprofiles unset claude
+agentprofiles unset opencode
 
-# Then manually remove the bootstrap block from .envrc
-# and delete .envrc.agentprofiles if it's now empty
+# Then delete the tracking file
+rm .agentprofiles.json
 ```
 
 Or manually:
 
-1. Delete the `### agentprofiles:begin` / `### agentprofiles:end` block from `.envrc`
-2. Delete `.envrc.agentprofiles`
-3. Run `direnv allow`
+1. Delete `.agentprofiles.json`
+2. Remove symlinks manually if needed: `rm ~/.claude`, `rm ~/.config/opencode`, etc.
 
 ---
 
