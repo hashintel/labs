@@ -150,6 +150,18 @@ Local state tracks:
 
 - Last sync run and per-repo last synced timestamps (machine-only)
 
+## Retrieval Roadmap
+
+`clones-cli` is adopting a local SQLite sidecar index to improve startup performance and enable hybrid retrieval.
+
+Planned phases:
+
+- Phase 1: chunked FTS5 search over README and high-signal files
+- Phase 2: vector embeddings and hybrid BM25 + semantic fusion
+- Phase 3: quality harness for resurfacing difficult starred repos
+
+`registry.toml` remains the portable source of truth; the local database is derived state and can be rebuilt.
+
 ## Configuration
 
 You can customize paths via environment variables:
