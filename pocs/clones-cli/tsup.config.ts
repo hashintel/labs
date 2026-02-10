@@ -28,7 +28,7 @@ export default defineConfig({
   sourcemap: true,
   dts: false,
   shims: true,
-  noExternal: [/^(?!simple-git|update-notifier).*/],
+  noExternal: [/^(?!simple-git|update-notifier|better-sqlite3).*/],
   banner: {
     js: '#!/usr/bin/env node',
   },
