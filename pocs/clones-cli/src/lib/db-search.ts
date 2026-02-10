@@ -58,7 +58,12 @@ export function indexReadme(
     return;
   }
 
-  // Delete old chunks for this repo
+  // Delete old FTS entries BEFORE deleting chunks (need rowids to reference)
+  db.prepare(
+    "INSERT INTO readme_fts(readme_fts, rowid, chunk_text) SELECT 'delete', rowid, chunk_text FROM readme_chunks WHERE repo_id = ?"
+  ).run(repoId);
+
+  // Now delete old chunks
   db.prepare('DELETE FROM readme_chunks WHERE repo_id = ?').run(repoId);
 
   // Insert new chunks

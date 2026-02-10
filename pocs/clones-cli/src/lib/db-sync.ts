@@ -8,11 +8,23 @@ import type { Registry } from '../types/index.js';
  */
 export function syncRegistryToDb(db: Database.Database, registry: Registry): void {
   const stmt = db.prepare(`
-    INSERT OR REPLACE INTO repos (
-      id, host, owner, repo, clone_url, description, tags,
-      default_remote_name, update_strategy, submodules, lfs, managed,
-      content_hash, readme_indexed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO repos (
+      id, host, owner, repo, cloneUrl, description, tags,
+      defaultRemoteName, updateStrategy, submodules, lfs, managed,
+      contentHash, readmeIndexedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+    ON CONFLICT(id) DO UPDATE SET
+      host = excluded.host,
+      owner = excluded.owner,
+      repo = excluded.repo,
+      cloneUrl = excluded.cloneUrl,
+      description = excluded.description,
+      tags = excluded.tags,
+      defaultRemoteName = excluded.defaultRemoteName,
+      updateStrategy = excluded.updateStrategy,
+      submodules = excluded.submodules,
+      lfs = excluded.lfs,
+      managed = excluded.managed
   `);
 
   const transaction = db.transaction(() => {
@@ -30,9 +42,7 @@ export function syncRegistryToDb(db: Database.Database, registry: Registry): voi
         entry.updateStrategy,
         entry.submodules,
         entry.lfs,
-        entry.managed ? 1 : 0,
-        null, // content_hash - will be set during indexing
-        null // readme_indexed_at - will be set during indexing
+        entry.managed ? 1 : 0
       );
     }
 
