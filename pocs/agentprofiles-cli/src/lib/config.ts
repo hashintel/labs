@@ -304,7 +304,11 @@ export class ConfigManager {
    * Throws if _base already exists.
    * If symlink creation fails after move, rolls back by moving the directory back.
    */
-  async adoptExisting(agent: string, profileName: string = '_base'): Promise<void> {
+  async adoptExisting(
+    agent: string,
+    profileName: string = '_base',
+    options: { replaceExisting?: boolean } = {}
+  ): Promise<void> {
     const globalPath = this.getGlobalConfigPath(agent);
     const status = await this.getSymlinkStatus(agent);
 
@@ -319,7 +323,13 @@ export class ConfigManager {
     // Check if profile already exists
     try {
       await fs.access(profileDir);
-      throw new Error(`Cannot adopt: profile '${profileName}' already exists for agent '${agent}'`);
+      if (options.replaceExisting) {
+        await fs.rm(profileDir, { recursive: true, force: true });
+      } else {
+        throw new Error(
+          `Cannot adopt: profile '${profileName}' already exists for agent '${agent}'`
+        );
+      }
     } catch (err) {
       if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
         // Good, profile doesn't exist
