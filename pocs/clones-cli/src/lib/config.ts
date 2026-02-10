@@ -96,6 +96,13 @@ export function getLocalStatePath(): string {
 }
 
 /**
+ * Get the path to clones.db (machine-specific SQLite database)
+ */
+export function getDbPath(): string {
+  return join(getConfigDir(), 'clones.db');
+}
+
+/**
  * Get the local path for a repository based on owner/repo
  */
 export function getRepoPath(owner: string, repo: string): string {

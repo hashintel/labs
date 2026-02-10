@@ -81,3 +81,12 @@ export type UpdateResult =
   | { status: 'updated'; commits: number; wasDirty: boolean }
   | { status: 'skipped'; reason: string }
   | { status: 'error'; error: string };
+
+/**
+ * Database row for a repository in the SQLite database
+ * Extends RegistryEntry with additional derived/indexed fields
+ */
+export interface DbRepoRow extends RegistryEntry {
+  contentHash?: string; // Hash of the repository content for change detection
+  readmeIndexedAt?: string; // ISO 8601 - when the README was last indexed
+}
