@@ -15,20 +15,23 @@ describe('db-search.ts', () => {
     // Create in-memory database for testing
     db = new Database(':memory:');
 
-    // Create repos table (from Task 1)
+    // Create repos table matching db.ts schema exactly
     db.exec(`
       CREATE TABLE repos (
         id TEXT PRIMARY KEY,
+        host TEXT NOT NULL,
         owner TEXT NOT NULL,
         repo TEXT NOT NULL,
-        url TEXT NOT NULL,
+        cloneUrl TEXT NOT NULL,
         description TEXT,
         tags TEXT,
-        update_strategy TEXT,
-        submodules TEXT,
-        lfs TEXT,
-        last_synced_at TEXT,
-        content_hash TEXT
+        defaultRemoteName TEXT NOT NULL,
+        updateStrategy TEXT NOT NULL,
+        submodules TEXT NOT NULL,
+        lfs TEXT NOT NULL,
+        managed INTEGER NOT NULL,
+        contentHash TEXT,
+        readmeIndexedAt TEXT
       )
     `);
 
@@ -69,11 +72,19 @@ describe('db-search.ts', () => {
       const chunks = chunkText(content, 100, 10);
 
       // Insert test repo
-      db.prepare('INSERT INTO repos (id, owner, repo, url) VALUES (?, ?, ?, ?)').run(
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
         repoId,
+        'github.com',
         'owner',
         'repo',
-        'https://example.com/repo'
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
       );
 
       indexReadme(db, repoId, content, hash, chunks);
@@ -88,11 +99,19 @@ describe('db-search.ts', () => {
       const hash = hashContent(content);
       const chunks = chunkText(content, 100, 10);
 
-      db.prepare('INSERT INTO repos (id, owner, repo, url) VALUES (?, ?, ?, ?)').run(
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
         repoId,
+        'github.com',
         'owner',
         'repo',
-        'https://example.com/repo'
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
       );
 
       // Index once
@@ -119,11 +138,19 @@ describe('db-search.ts', () => {
       const chunks1 = chunkText(content1, 100, 10);
       const chunks2 = chunkText(content2, 100, 10);
 
-      db.prepare('INSERT INTO repos (id, owner, repo, url) VALUES (?, ?, ?, ?)').run(
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
         repoId,
+        'github.com',
         'owner',
         'repo',
-        'https://example.com/repo'
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
       );
 
       indexReadme(db, repoId, content1, hash1, chunks1);
@@ -141,11 +168,19 @@ describe('db-search.ts', () => {
       const hash = hashContent(content);
       const chunks = chunkText(content, 100, 10);
 
-      db.prepare('INSERT INTO repos (id, owner, repo, url) VALUES (?, ?, ?, ?)').run(
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
         repoId,
+        'github.com',
         'owner',
         'repo',
-        'https://example.com/repo'
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
       );
 
       indexReadme(db, repoId, content, hash, chunks);
@@ -166,11 +201,19 @@ describe('db-search.ts', () => {
       const hash = hashContent(content);
       const chunks = chunkText(content, 50, 10);
 
-      db.prepare('INSERT INTO repos (id, owner, repo, url) VALUES (?, ?, ?, ?)').run(
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
         repoId,
+        'github.com',
         'owner',
         'repo',
-        'https://example.com/repo'
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
       );
 
       indexReadme(db, repoId, content, hash, chunks);
@@ -187,11 +230,19 @@ describe('db-search.ts', () => {
       const hash = hashContent(content);
       const chunks = chunkText(content, 100, 10);
 
-      db.prepare('INSERT INTO repos (id, owner, repo, url) VALUES (?, ?, ?, ?)').run(
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
         repoId,
+        'github.com',
         'owner',
         'repo',
-        'https://example.com/repo'
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
       );
 
       indexReadme(db, repoId, content, hash, chunks);

@@ -37,16 +37,16 @@ function setupDb(): Database.Database {
       host TEXT NOT NULL,
       owner TEXT NOT NULL,
       repo TEXT NOT NULL,
-      clone_url TEXT NOT NULL,
+      cloneUrl TEXT NOT NULL,
       description TEXT,
-      tags TEXT NOT NULL,
-      default_remote_name TEXT NOT NULL,
-      update_strategy TEXT NOT NULL,
+      tags TEXT,
+      defaultRemoteName TEXT NOT NULL,
+      updateStrategy TEXT NOT NULL,
       submodules TEXT NOT NULL,
       lfs TEXT NOT NULL,
       managed INTEGER NOT NULL,
-      content_hash TEXT,
-      readme_indexed_at TEXT
+      contentHash TEXT,
+      readmeIndexedAt TEXT
     )
   `);
   return db;
