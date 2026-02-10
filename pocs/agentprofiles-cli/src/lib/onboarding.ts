@@ -83,20 +83,15 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
   let contentDir = contentDirChoice as string;
   contentDir = expandTildePath(contentDir);
 
-  // If contentDir differs from configDir, set it in environment for ConfigManager
-  if (contentDir !== configDir) {
-    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
-  }
-
   const spinner = p.spinner();
   spinner.start('Creating directories...');
 
   try {
     await config.ensureConfigDir();
 
-    // Persist contentDir to config.json if it differs from configDir
     if (contentDir !== configDir) {
       await config.setContentDir(contentDir);
+      await config.ensureConfigDir();
     }
 
     spinner.stop('Directories created');
@@ -139,9 +134,43 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
             p.log.success(`Adopted ${toolDef.description} as _base profile`);
           }
         } catch (error) {
-          p.log.error(
-            `Failed to adopt ${agent}: ${error instanceof Error ? error.message : String(error)}`
-          );
+          const errorMsg = error instanceof Error ? error.message : String(error);
+
+          if (errorMsg.includes('already exists')) {
+            const replaceExisting = await p.confirm({
+              message: `A _base profile already exists for ${toolDef.description}. Replace it with the current config?`,
+              initialValue: false,
+            });
+
+            if (p.isCancel(replaceExisting)) {
+              p.cancel('Setup cancelled.');
+              return false;
+            }
+
+            if (replaceExisting === true) {
+              try {
+                await config.adoptExisting(agent, BASE_PROFILE_SLUG, { replaceExisting: true });
+                const verified = await config.verifyAdoption(agent, BASE_PROFILE_SLUG);
+                if (!verified) {
+                  p.log.warn(
+                    `Adoption of ${agent} may have failed verification. ` +
+                      `Please check that ${config.getGlobalConfigPath(agent)} is a symlink pointing to the correct profile.`
+                  );
+                } else {
+                  adoptedAgents.push(agent);
+                  p.log.success(`Replaced and adopted ${toolDef.description} as _base profile`);
+                }
+              } catch (retryError) {
+                p.log.error(
+                  `Failed to adopt ${agent}: ${retryError instanceof Error ? retryError.message : String(retryError)}`
+                );
+              }
+            } else {
+              p.log.info(`Skipped ${toolDef.description}`);
+            }
+          } else {
+            p.log.error(`Failed to adopt ${agent}: ${errorMsg}`);
+          }
         }
       }
     } else if (status === 'active') {
