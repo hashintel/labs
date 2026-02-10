@@ -7,6 +7,8 @@ import { getRepoPath } from '../lib/config.js';
 import { showBatchActions, type RepoInfo } from '../lib/browse/batch-actions.js';
 import { ExitRequestedError } from '../lib/browse/errors.js';
 import { showSingleRepoActions } from '../lib/browse/single-actions.js';
+import { openDb, closeDb } from '../lib/db.js';
+import { ensureSearchTables } from '../lib/db-search.js';
 import type { Registry } from '../types/index.js';
 
 function requestExit(): never {
@@ -71,6 +73,27 @@ async function browseRepos(registry: Registry): Promise<void> {
 
   s.stop(`${repos.length} repositories loaded`);
 
+  // Load README content map for enhanced filtering
+  const readmeMap: Map<string, string> = new Map();
+  try {
+    const db = await openDb();
+    try {
+      ensureSearchTables(db);
+      // Get all chunks grouped by repo
+      const chunks = db
+        .prepare('SELECT repo_id, chunk_text FROM readme_chunks ORDER BY repo_id, chunk_index')
+        .all() as { repo_id: string; chunk_text: string }[];
+      for (const chunk of chunks) {
+        const existing = readmeMap.get(chunk.repo_id) ?? '';
+        readmeMap.set(chunk.repo_id, existing + ' ' + chunk.chunk_text);
+      }
+    } finally {
+      closeDb();
+    }
+  } catch {
+    // DB not available, readmeMap stays empty - graceful degradation
+  }
+
   // Build options for autocomplete multiselect
   const options: Option<RepoInfo>[] = repos.map((r) => {
     const hints: string[] = [];
@@ -87,7 +110,7 @@ async function browseRepos(registry: Registry): Promise<void> {
     };
   });
 
-  // Custom filter that searches owner/repo, tags, and description
+  // Enhanced filter that searches owner/repo, tags, description, and README content
   const repoInfoFilter = (searchText: string, option: Option<RepoInfo>): boolean => {
     if (!searchText) return true;
     const term = searchText.toLowerCase();
@@ -95,7 +118,10 @@ async function browseRepos(registry: Registry): Promise<void> {
     const label = `${entry.owner}/${entry.repo}`.toLowerCase();
     const tags = entry.tags?.join(' ').toLowerCase() ?? '';
     const desc = entry.description?.toLowerCase() ?? '';
-    return label.includes(term) || tags.includes(term) || desc.includes(term);
+    const readme = readmeMap.get(entry.id)?.toLowerCase() ?? '';
+    return (
+      label.includes(term) || tags.includes(term) || desc.includes(term) || readme.includes(term)
+    );
   };
 
   const selected = await p.autocompleteMultiselect({
