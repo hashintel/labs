@@ -34,6 +34,10 @@ import { scanClonesDir, isNestedRepo } from '../lib/scan.js';
 import { parseGitUrl, generateRepoId } from '../lib/url-parser.js';
 import { fetchGitHubMetadata } from '../lib/github.js';
 import { normalizeConcurrency, runWithConcurrency } from '../lib/concurrency.js';
+import { openDb, closeDb } from '../lib/db.js';
+import { syncRegistryToDb } from '../lib/db-sync.js';
+import { ensureSearchTables, indexReadme } from '../lib/db-search.js';
+import { readReadmeContent, hashContent, chunkText } from '../lib/readme.js';
 import type { RegistryEntry, UpdateResult, Registry } from '../types/index.js';
 
 interface UpdateSummary {
@@ -399,6 +403,88 @@ export default defineCommand({
         // Update lastSyncRun and save local state
         localState = updateLastSyncRun(localState);
         await writeLocalState(localState);
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // PHASE 5: INDEX READMEs
+      // ═══════════════════════════════════════════════════════════════════
+      if (!dryRun && !noticeCancellation()) {
+        p.log.step('Phase 5: Indexing READMEs...');
+
+        try {
+          const db = await openDb();
+
+          try {
+            // Sync registry to DB
+            syncRegistryToDb(db, registry);
+
+            // Ensure search tables exist
+            ensureSearchTables(db);
+
+            // Get managed repos
+            const managedRepos = registry.repos.filter((r) => r.managed);
+
+            if (managedRepos.length === 0) {
+              p.log.info('  No managed repos to index');
+            } else {
+              const log = p.taskLog({
+                title: 'Indexing READMEs',
+                retainLog: true,
+                signal: syncOptions.signal,
+              });
+              let indexed = 0;
+              let skipped = 0;
+              let errors = 0;
+
+              for (const entry of managedRepos) {
+                if (cancellation.signal.aborted) {
+                  break;
+                }
+
+                const localPath = getRepoPath(entry.owner, entry.repo);
+                const name = `${entry.owner}/${entry.repo}`;
+
+                try {
+                  const content = await readReadmeContent(localPath);
+
+                  if (!content) {
+                    log.message(`  ○ ${name} (no README found)`);
+                    skipped += 1;
+                    continue;
+                  }
+
+                  const contentHash = hashContent(content);
+                  const chunks = chunkText(content);
+
+                  indexReadme(db, entry.id, content, contentHash, chunks);
+                  log.message(`  ✓ ${name} (indexed)`);
+                  indexed += 1;
+                } catch (error) {
+                  errors += 1;
+                  const message = error instanceof Error ? error.message : String(error);
+                  log.message(`  ✗ ${name} (${message})`);
+                }
+              }
+
+              const parts: string[] = [];
+              if (indexed > 0) parts.push(`${indexed} indexed`);
+              if (skipped > 0) parts.push(`${skipped} skipped`);
+              if (errors > 0) parts.push(`${errors} errors`);
+              const summary = parts.length > 0 ? parts.join(', ') : 'Indexing complete';
+
+              if (errors > 0) {
+                log.error(`Indexing completed with errors: ${summary}`);
+              } else {
+                log.success(summary);
+              }
+            }
+          } finally {
+            closeDb();
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          p.log.warn(`Phase 5 failed: ${message}`);
+        }
       }
 
       console.log();
