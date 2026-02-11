@@ -28,11 +28,12 @@ import {
   getCloneErrorHints,
   getRemoteUrl,
 } from '../lib/git.js';
-import { getRepoPath, DEFAULTS, getSyncConcurrency } from '../lib/config.js';
+import { getRepoPath, DEFAULTS, getSyncConcurrency, getGitHubConfig } from '../lib/config.js';
 import { createCancellationController } from '../lib/cancel.js';
 import { scanClonesDir, isNestedRepo } from '../lib/scan.js';
 import { parseGitUrl, generateRepoId } from '../lib/url-parser.js';
 import { fetchGitHubMetadata } from '../lib/github.js';
+import { fetchStarredRepos } from '../lib/github-stars.js';
 import { normalizeConcurrency, runWithConcurrency } from '../lib/concurrency.js';
 import { openDb, closeDb } from '../lib/db.js';
 import { syncRegistryToDb } from '../lib/db-sync.js';
@@ -127,6 +128,76 @@ export default defineCommand({
       let registry = await readRegistry();
       let localState = await readLocalState();
       const summaries: UpdateSummary[] = [];
+
+      // ═══════════════════════════════════════════════════════════════════
+      // PHASE 0: GITHUB STARS - Fetch and add starred repos
+      // ═══════════════════════════════════════════════════════════════════
+      const githubConfig = getGitHubConfig();
+      if (githubConfig.token && githubConfig.syncStars) {
+        if (!noticeCancellation()) {
+          try {
+            p.log.step('Phase 0: Syncing GitHub stars...');
+
+            const starredRepos = await fetchStarredRepos(githubConfig.token);
+            let newStars = 0;
+
+            for (const star of starredRepos) {
+              const repoId = generateRepoId({
+                host: 'github.com',
+                owner: star.owner,
+                repo: star.repo,
+                cloneUrl: star.cloneUrl,
+              });
+
+              // Check if already in registry
+              if (findEntry(registry, repoId)) {
+                continue;
+              }
+
+              if (!dryRun) {
+                const entry: RegistryEntry = {
+                  id: repoId,
+                  host: 'github.com',
+                  owner: star.owner,
+                  repo: star.repo,
+                  cloneUrl: star.cloneUrl,
+                  description: star.description ?? undefined,
+                  tags: star.topics.length > 0 ? star.topics : undefined,
+                  defaultRemoteName: DEFAULTS.defaultRemoteName,
+                  updateStrategy: DEFAULTS.updateStrategy,
+                  submodules: DEFAULTS.submodules,
+                  lfs: DEFAULTS.lfs,
+                  managed: true,
+                  source: 'github-star',
+                  starredAt: star.starredAt,
+                };
+
+                registry = addEntry(registry, entry);
+              }
+
+              newStars += 1;
+              summaries.push({
+                name: `${star.owner}/${star.repo}`,
+                action: 'adopted',
+                detail: 'from GitHub stars',
+              });
+            }
+
+            if (!dryRun && newStars > 0) {
+              await writeRegistry(registry);
+            }
+
+            if (newStars > 0) {
+              p.log.info(`  Found ${newStars} new starred repos`);
+            } else {
+              p.log.info('  No new starred repos');
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            p.log.warn(`Phase 0 failed: ${message}`);
+          }
+        }
+      }
 
       // ═══════════════════════════════════════════════════════════════════
       // PHASE 1: ADOPT - Discover untracked repos on disk
