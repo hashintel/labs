@@ -5,6 +5,8 @@ import {
   indexReadme,
   searchReadmes,
   clearAllChunks,
+  sanitizeFtsQuery,
+  rankReposByQuery,
 } from '../../src/lib/db-search.js';
 import { chunkText, hashContent } from '../../src/lib/readme.js';
 
@@ -253,6 +255,195 @@ describe('db-search.ts', () => {
         count: number;
       };
       expect(count.count).toBe(0);
+    });
+  });
+
+  describe('sanitizeFtsQuery', () => {
+    it('should return empty string for empty input', () => {
+      expect(sanitizeFtsQuery('')).toBe('');
+    });
+
+    it('should return empty string for whitespace-only input', () => {
+      expect(sanitizeFtsQuery('   ')).toBe('');
+    });
+
+    it('should return empty string for falsy input', () => {
+      expect(sanitizeFtsQuery(undefined as any)).toBe('');
+    });
+
+    it('should quote and add prefix * to single word', () => {
+      expect(sanitizeFtsQuery('kubernetes')).toBe('"kubernetes"*');
+    });
+
+    it('should quote multiple words and add * only to last word', () => {
+      expect(sanitizeFtsQuery('kubernetes deployment')).toBe('"kubernetes" "deployment"*');
+    });
+
+    it('should treat FTS5 keyword OR as literal when quoted', () => {
+      expect(sanitizeFtsQuery('OR')).toBe('"OR"*');
+    });
+
+    it('should treat FTS5 keyword AND as literal when quoted', () => {
+      expect(sanitizeFtsQuery('AND')).toBe('"AND"*');
+    });
+
+    it('should treat FTS5 keyword NOT as literal when quoted', () => {
+      expect(sanitizeFtsQuery('NOT')).toBe('"NOT"*');
+    });
+
+    it('should treat FTS5 keyword NEAR as literal when quoted', () => {
+      expect(sanitizeFtsQuery('NEAR')).toBe('"NEAR"*');
+    });
+
+    it('should escape embedded double quotes by doubling them', () => {
+      expect(sanitizeFtsQuery('say "hello"')).toBe('"say" """hello"""*');
+    });
+
+    it('should preserve special characters inside quotes', () => {
+      expect(sanitizeFtsQuery('c++')).toBe('"c++"*');
+    });
+
+    it('should preserve dashes inside quotes', () => {
+      expect(sanitizeFtsQuery('my-repo')).toBe('"my-repo"*');
+    });
+
+    it('should preserve caret inside quotes', () => {
+      expect(sanitizeFtsQuery('^prefix')).toBe('"^prefix"*');
+    });
+
+    it('should trim leading and trailing whitespace', () => {
+      expect(sanitizeFtsQuery('  hello  world  ')).toBe('"hello" "world"*');
+    });
+
+    it('should handle single character input', () => {
+      expect(sanitizeFtsQuery('a')).toBe('"a"*');
+    });
+
+    it('should have prefix * outside quotes (regression guard)', () => {
+      const result = sanitizeFtsQuery('test');
+      expect(result).toMatch(/"test"\*/);
+      expect(result).not.toMatch(/"test\*"/);
+    });
+  });
+
+  describe('rankReposByQuery', () => {
+    it('should return empty Map for empty query', () => {
+      const result = rankReposByQuery(db, '');
+      expect(result).toEqual(new Map());
+    });
+
+    it('should return empty Map for whitespace-only query', () => {
+      const result = rankReposByQuery(db, '   ');
+      expect(result).toEqual(new Map());
+    });
+
+    it('should return empty Map for no matches', () => {
+      const repoId = 'test-repo';
+      const content = 'This is test content about kubernetes';
+      const hash = hashContent(content);
+      const chunks = chunkText(content, 100, 10);
+
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        repoId,
+        'github.com',
+        'owner',
+        'repo',
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
+      );
+
+      indexReadme(db, repoId, content, hash, chunks);
+
+      const result = rankReposByQuery(db, 'nonexistent');
+      expect(result).toEqual(new Map());
+    });
+
+    it('should return Map with repo ID and negative rank for matching query', () => {
+      const repoId = 'test-repo';
+      const content = 'This is test content about kubernetes deployment';
+      const hash = hashContent(content);
+      const chunks = chunkText(content, 100, 10);
+
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        repoId,
+        'github.com',
+        'owner',
+        'repo',
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
+      );
+
+      indexReadme(db, repoId, content, hash, chunks);
+
+      const result = rankReposByQuery(db, 'kubernetes');
+      expect(result.has(repoId)).toBe(true);
+      expect(result.get(repoId)).toBeLessThan(0);
+    });
+
+    it('should handle invalid FTS5 syntax without throwing', () => {
+      const repoId = 'test-repo';
+      const content = 'Test content';
+      const hash = hashContent(content);
+      const chunks = chunkText(content, 100, 10);
+
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        repoId,
+        'github.com',
+        'owner',
+        'repo',
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
+      );
+
+      indexReadme(db, repoId, content, hash, chunks);
+
+      const result = rankReposByQuery(db, '""');
+      expect(result).toEqual(new Map());
+    });
+
+    it('should handle unclosed quotes without throwing', () => {
+      const repoId = 'test-repo';
+      const content = 'Test content';
+      const hash = hashContent(content);
+      const chunks = chunkText(content, 100, 10);
+
+      db.prepare(
+        'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        repoId,
+        'github.com',
+        'owner',
+        'repo',
+        'https://github.com/owner/repo.git',
+        'origin',
+        'hard-reset',
+        'none',
+        'auto',
+        1
+      );
+
+      indexReadme(db, repoId, content, hash, chunks);
+
+      const result = rankReposByQuery(db, '"unclosed');
+      expect(result).toEqual(new Map());
     });
   });
 });
