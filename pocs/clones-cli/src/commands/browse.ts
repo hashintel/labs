@@ -112,12 +112,24 @@ async function browseRepos(registry: Registry): Promise<void> {
     // Create getOptionId closure
     const getOptionId = (r: RepoInfo) => r.entry.id;
 
+    // Create metadataFilter that searches label, tags, and description
+    const metadataFilter = (searchText: string, option: Option<RepoInfo>): boolean => {
+      if (!searchText) return true;
+      const term = searchText.toLowerCase();
+      const entry = option.value.entry;
+      const label = `${entry.owner}/${entry.repo}`.toLowerCase();
+      const tags = entry.tags?.join(' ').toLowerCase() ?? '';
+      const desc = entry.description?.toLowerCase() ?? '';
+      return label.includes(term) || tags.includes(term) || desc.includes(term);
+    };
+
     const selected = await rankedAutocompleteMultiselect({
       message: 'Select repositories (type to filter, Tab to select)',
       options,
       placeholder: 'Type to search...',
       rankFn,
       getOptionId,
+      metadataFilter,
     });
 
     if (p.isCancel(selected) || !selected) {

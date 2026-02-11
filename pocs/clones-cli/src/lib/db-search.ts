@@ -139,12 +139,12 @@ export function sanitizeFtsQuery(input: string): string {
   }
 
   // Wrap each word in double quotes to treat as phrase
-  // Append * to last word for prefix matching
+  // Append * to last word for prefix matching (OUTSIDE the quotes)
   const quoted = words.map((w, i) => {
     // Escape any double quotes in the word
     const escaped = w.replace(/"/g, '""');
-    // Add * to last word for prefix matching
-    return i === words.length - 1 ? `"${escaped}*"` : `"${escaped}"`;
+    // Add * to last word for prefix matching (outside quotes for FTS5)
+    return i === words.length - 1 ? `"${escaped}"*` : `"${escaped}"`;
   });
 
   return quoted.join(' ');
