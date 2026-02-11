@@ -24,6 +24,10 @@ export interface RankedAutocompleteMultiSelectOptions<Value> {
   /** Map option value to its identifier for rankFn lookup.
    *  Defaults to using value directly if it's a string. */
   getOptionId?: (value: Value) => string;
+  /** Optional custom metadata filter. Called with (searchText, option).
+   *  Return true if the option matches on metadata (name, tags, description, etc.).
+   *  If not provided, defaults to label/hint substring match. */
+  metadataFilter?: (searchText: string, option: Option<Value>) => boolean;
 }
 
 export function rankedAutocompleteMultiselect<Value>(
@@ -79,11 +83,24 @@ export function rankedAutocompleteMultiselect<Value>(
   const filterFn = (searchText: string, option: Option<Value>): boolean => {
     if (!searchText) return true;
 
+    // If this option was matched by FTS ranking, always include it
+    if (opts.rankFn && opts.getOptionId) {
+      const lastRankMap = rankCache.get(searchText);
+      if (lastRankMap) {
+        const id = opts.getOptionId(option.value);
+        if (lastRankMap.has(id)) return true;
+      }
+    }
+
+    // Otherwise, use metadataFilter if provided, or default to label/hint match
+    if (opts.metadataFilter) {
+      return opts.metadataFilter(searchText, option);
+    }
+
+    // Default: label or hint substring match
     const term = searchText.toLowerCase();
     const label = (option.label ?? String(option.value)).toLowerCase();
     const hint = (option.hint ?? '').toLowerCase();
-
-    // Accept if label or hint contains search term
     return label.includes(term) || hint.includes(term);
   };
 
