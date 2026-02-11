@@ -1,5 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchStarredRepos, starRepo, isRepoStarred } from '../../src/lib/github-stars.js';
+import {
+  fetchStarredRepos,
+  starRepo,
+  unstarRepo,
+  isRepoStarred,
+} from '../../src/lib/github-stars.js';
 
 const mockToken = 'test-token-123';
 
@@ -192,6 +197,53 @@ describe('starRepo', () => {
     });
 
     await expect(starRepo(mockToken, 'owner', 'repo')).rejects.toThrow(
+      'GitHub API rate limit exceeded'
+    );
+  });
+});
+
+describe('unstarRepo', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('unstars a repository successfully', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      status: 204,
+      ok: true,
+    });
+
+    const result = await unstarRepo(mockToken, 'owner', 'repo');
+
+    expect(result).toBe(true);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://api.github.com/user/starred/owner/repo',
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${mockToken}`,
+          'User-Agent': 'clones-cli',
+        }),
+      })
+    );
+  });
+
+  it('throws on 401 unauthorized', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      status: 401,
+      ok: false,
+    });
+
+    await expect(unstarRepo(mockToken, 'owner', 'repo')).rejects.toThrow('Invalid GitHub token');
+  });
+
+  it('throws on 403 rate limit', async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce({
+      status: 403,
+      ok: false,
+    });
+
+    await expect(unstarRepo(mockToken, 'owner', 'repo')).rejects.toThrow(
       'GitHub API rate limit exceeded'
     );
   });
