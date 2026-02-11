@@ -27,6 +27,7 @@ const main = defineCommand({
   },
   subCommands: {
     add: () => import('./commands/add.js').then((m) => m.default),
+    auth: () => import('./commands/auth.js').then((m) => m.default),
     doctor: () => import('./commands/doctor.js').then((m) => m.default),
     init: () => import('./commands/init.js').then((m) => m.default),
     setup: () => import('./commands/init.js').then((m) => m.default),
