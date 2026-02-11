@@ -117,3 +117,74 @@ export function clearAllChunks(db: Database.Database): void {
   db.prepare('DELETE FROM readme_chunks').run();
   db.exec('DELETE FROM readme_fts');
 }
+
+/**
+ * Sanitize user input for FTS5 MATCH queries.
+ * Wraps each word in double quotes, appends * to last word for prefix matching.
+ * Returns empty string if no valid search terms.
+ */
+export function sanitizeFtsQuery(input: string): string {
+  if (!input || input.trim().length === 0) {
+    return '';
+  }
+
+  // Split on whitespace and filter out empty strings
+  const words = input
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 0);
+
+  if (words.length === 0) {
+    return '';
+  }
+
+  // Wrap each word in double quotes to treat as phrase
+  // Append * to last word for prefix matching
+  const quoted = words.map((w, i) => {
+    // Escape any double quotes in the word
+    const escaped = w.replace(/"/g, '""');
+    // Add * to last word for prefix matching
+    return i === words.length - 1 ? `"${escaped}*"` : `"${escaped}"`;
+  });
+
+  return quoted.join(' ');
+}
+
+/**
+ * Get BM25 scores per repo for a search query.
+ * Returns Map<repoId, bestRank> sorted by relevance (lower rank = better).
+ */
+export function rankReposByQuery(
+  db: Database.Database,
+  query: string,
+  limit = 100
+): Map<string, number> {
+  if (!query || query.trim().length === 0) {
+    return new Map();
+  }
+
+  try {
+    const results = db
+      .prepare(
+        `
+      SELECT rc.repo_id, MIN(rf.rank) as best_rank
+      FROM readme_fts rf
+      INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
+      WHERE rf.chunk_text MATCH ?
+      GROUP BY rc.repo_id
+      ORDER BY best_rank ASC
+      LIMIT ?
+    `
+      )
+      .all(query, limit) as { repo_id: string; best_rank: number }[];
+
+    const rankMap = new Map<string, number>();
+    for (const row of results) {
+      rankMap.set(row.repo_id, row.best_rank);
+    }
+    return rankMap;
+  } catch {
+    // If FTS query fails (invalid syntax, etc.), return empty map
+    return new Map();
+  }
+}

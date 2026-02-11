@@ -8,8 +8,10 @@ import { showBatchActions, type RepoInfo } from '../lib/browse/batch-actions.js'
 import { ExitRequestedError } from '../lib/browse/errors.js';
 import { showSingleRepoActions } from '../lib/browse/single-actions.js';
 import { openDb, closeDb } from '../lib/db.js';
-import { ensureSearchTables } from '../lib/db-search.js';
+import { ensureSearchTables, sanitizeFtsQuery, rankReposByQuery } from '../lib/db-search.js';
+import { rankedAutocompleteMultiselect } from '../lib/ranked-autocomplete.js';
 import type { Registry } from '../types/index.js';
+import type Database from 'better-sqlite3';
 
 function requestExit(): never {
   throw new ExitRequestedError();
@@ -73,27 +75,6 @@ async function browseRepos(registry: Registry): Promise<void> {
 
   s.stop(`${repos.length} repositories loaded`);
 
-  // Load README content map for enhanced filtering
-  const readmeMap: Map<string, string> = new Map();
-  try {
-    const db = await openDb();
-    try {
-      ensureSearchTables(db);
-      // Get all chunks grouped by repo
-      const chunks = db
-        .prepare('SELECT repo_id, chunk_text FROM readme_chunks ORDER BY repo_id, chunk_index')
-        .all() as { repo_id: string; chunk_text: string }[];
-      for (const chunk of chunks) {
-        const existing = readmeMap.get(chunk.repo_id) ?? '';
-        readmeMap.set(chunk.repo_id, existing + ' ' + chunk.chunk_text);
-      }
-    } finally {
-      closeDb();
-    }
-  } catch {
-    // DB not available, readmeMap stays empty - graceful degradation
-  }
-
   // Build options for autocomplete multiselect
   const options: Option<RepoInfo>[] = repos.map((r) => {
     const hints: string[] = [];
@@ -110,44 +91,57 @@ async function browseRepos(registry: Registry): Promise<void> {
     };
   });
 
-  // Enhanced filter that searches owner/repo, tags, description, and README content
-  const repoInfoFilter = (searchText: string, option: Option<RepoInfo>): boolean => {
-    if (!searchText) return true;
-    const term = searchText.toLowerCase();
-    const entry = option.value.entry;
-    const label = `${entry.owner}/${entry.repo}`.toLowerCase();
-    const tags = entry.tags?.join(' ').toLowerCase() ?? '';
-    const desc = entry.description?.toLowerCase() ?? '';
-    const readme = readmeMap.get(entry.id)?.toLowerCase() ?? '';
-    return (
-      label.includes(term) || tags.includes(term) || desc.includes(term) || readme.includes(term)
-    );
-  };
-
-  const selected = await p.autocompleteMultiselect({
-    message: 'Select repositories (type to filter, Tab to select)',
-    options,
-    placeholder: 'Type to search...',
-    filter: repoInfoFilter,
-  });
-
-  if (p.isCancel(selected)) {
-    requestExit();
+  // Open DB for ranking (graceful degradation if unavailable)
+  let db: Database.Database | null = null;
+  try {
+    db = await openDb();
+    ensureSearchTables(db);
+  } catch {
+    // DB not available, will use unranked fallback
   }
 
-  if (selected.length === 0) {
-    p.log.info('No repositories selected.');
-    return;
-  }
+  try {
+    // Create rankFn closure that uses the DB
+    const rankFn = db
+      ? (searchText: string) => {
+          const ftsQuery = sanitizeFtsQuery(searchText);
+          return rankReposByQuery(db!, ftsQuery);
+        }
+      : undefined;
 
-  // Branch based on selection count
-  if (selected.length === 1) {
-    const result = await showSingleRepoActions(selected[0], 'browse');
-    if (result === 'browse') {
+    // Create getOptionId closure
+    const getOptionId = (r: RepoInfo) => r.entry.id;
+
+    const selected = await rankedAutocompleteMultiselect({
+      message: 'Select repositories (type to filter, Tab to select)',
+      options,
+      placeholder: 'Type to search...',
+      rankFn,
+      getOptionId,
+    });
+
+    if (p.isCancel(selected) || !selected) {
+      requestExit();
+    }
+
+    if (selected!.length === 0) {
+      p.log.info('No repositories selected.');
       return;
     }
-    requestExit();
-  } else {
-    await showBatchActions(selected);
+
+    // Branch based on selection count
+    if (selected!.length === 1) {
+      const result = await showSingleRepoActions(selected![0], 'browse');
+      if (result === 'browse') {
+        return;
+      }
+      requestExit();
+    } else {
+      await showBatchActions(selected!);
+    }
+  } finally {
+    if (db) {
+      closeDb();
+    }
   }
 }

@@ -10,6 +10,8 @@
  */
 
 import * as p from '@clack/prompts';
+export { rankedAutocompleteMultiselect } from './ranked-autocomplete.js';
+export type { RankedAutocompleteMultiSelectOptions } from './ranked-autocomplete.js';
 
 export type { AutocompleteMultiSelectOptions, Option } from '@clack/prompts';
 
