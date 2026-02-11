@@ -27,6 +27,10 @@ export interface RegistryEntry {
   submodules: 'none' | 'recursive';
   lfs: 'auto' | 'always' | 'never';
 
+  // Source tracking
+  source?: 'manual' | 'github-star'; // Where this entry came from
+  starredAt?: string; // ISO 8601 - when starred on GitHub
+
   // Tracking
   // State
   managed: boolean; // If false, desired but not yet cloned
@@ -89,4 +93,24 @@ export type UpdateResult =
 export interface DbRepoRow extends RegistryEntry {
   contentHash?: string; // Hash of the repository content for change detection
   readmeIndexedAt?: string; // ISO 8601 - when the README was last indexed
+}
+
+/**
+ * GitHub authentication configuration
+ */
+export interface GitHubAuthConfig {
+  token?: string;
+  username?: string;
+  syncStars?: boolean;
+}
+
+/**
+ * GitHub Device Flow API response
+ */
+export interface DeviceCodeResponse {
+  device_code: string;
+  user_code: string;
+  verification_uri: string;
+  expires_in: number;
+  interval: number;
 }

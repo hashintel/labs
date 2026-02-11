@@ -10,6 +10,8 @@ import {
   removeTombstone,
   filterByTags,
   filterByPattern,
+  stringifyRegistryToml,
+  parseRegistryContent,
 } from '../../src/lib/registry.js';
 import type { Registry, RegistryEntry } from '../../src/types/index.js';
 
@@ -366,5 +368,106 @@ describe('filterByPattern', () => {
     const filtered = filterByPattern(registry, 'unknown/repo');
 
     expect(filtered).toHaveLength(0);
+  });
+});
+
+describe('TOML serialization with source and starredAt', () => {
+  it('includes source field when present', () => {
+    const entry = createTestEntry({
+      source: 'manual',
+    });
+    const registry: Registry = {
+      version: '1.0.0',
+      repos: [entry],
+      tombstones: [],
+    };
+
+    const toml = stringifyRegistryToml(registry);
+
+    expect(toml).toContain('source = "manual"');
+  });
+
+  it('includes starredAt field when present', () => {
+    const entry = createTestEntry({
+      starredAt: '2024-01-15T10:30:00Z',
+    });
+    const registry: Registry = {
+      version: '1.0.0',
+      repos: [entry],
+      tombstones: [],
+    };
+
+    const toml = stringifyRegistryToml(registry);
+
+    expect(toml).toContain('starredAt = "2024-01-15T10:30:00Z"');
+  });
+
+  it('omits source field when undefined', () => {
+    const entry = createTestEntry({
+      source: undefined,
+    });
+    const registry: Registry = {
+      version: '1.0.0',
+      repos: [entry],
+      tombstones: [],
+    };
+
+    const toml = stringifyRegistryToml(registry);
+
+    expect(toml).not.toContain('source');
+  });
+
+  it('omits starredAt field when undefined', () => {
+    const entry = createTestEntry({
+      starredAt: undefined,
+    });
+    const registry: Registry = {
+      version: '1.0.0',
+      repos: [entry],
+      tombstones: [],
+    };
+
+    const toml = stringifyRegistryToml(registry);
+
+    expect(toml).not.toContain('starredAt');
+  });
+
+  it('round-trip: parse TOML with new fields and serialize again', () => {
+    const entry = createTestEntry({
+      source: 'github-star',
+      starredAt: '2024-01-15T10:30:00Z',
+    });
+    const registry: Registry = {
+      version: '1.0.0',
+      repos: [entry],
+      tombstones: [],
+    };
+
+    // Serialize to TOML
+    const toml = stringifyRegistryToml(registry);
+
+    // Parse back from TOML
+    const parsed = parseRegistryContent(toml, 'toml', 'test.toml');
+
+    // Verify fields are preserved
+    expect((parsed as any).repos[0].source).toBe('github-star');
+    expect((parsed as any).repos[0].starredAt).toBe('2024-01-15T10:30:00Z');
+  });
+
+  it('handles both source and starredAt together', () => {
+    const entry = createTestEntry({
+      source: 'github-star',
+      starredAt: '2024-01-15T10:30:00Z',
+    });
+    const registry: Registry = {
+      version: '1.0.0',
+      repos: [entry],
+      tombstones: [],
+    };
+
+    const toml = stringifyRegistryToml(registry);
+
+    expect(toml).toContain('source = "github-star"');
+    expect(toml).toContain('starredAt = "2024-01-15T10:30:00Z"');
   });
 });
