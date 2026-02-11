@@ -77,6 +77,157 @@ describe('normalizeRegistry', () => {
     expect(normalized.data.tombstones).toEqual([]);
     expect(normalized.issues.length).toBeGreaterThan(0);
   });
+
+  it('normalizes source field with valid values', () => {
+    const raw = {
+      version: '1.0.0',
+      tombstones: [],
+      repos: [
+        {
+          id: 'github.com:owner/repo1',
+          host: 'github.com',
+          owner: 'owner',
+          repo: 'repo1',
+          cloneUrl: 'https://github.com/owner/repo1.git',
+          defaultRemoteName: 'origin',
+          updateStrategy: 'hard-reset',
+          submodules: 'none',
+          lfs: 'auto',
+          managed: true,
+          source: 'manual',
+        },
+        {
+          id: 'github.com:owner/repo2',
+          host: 'github.com',
+          owner: 'owner',
+          repo: 'repo2',
+          cloneUrl: 'https://github.com/owner/repo2.git',
+          defaultRemoteName: 'origin',
+          updateStrategy: 'hard-reset',
+          submodules: 'none',
+          lfs: 'auto',
+          managed: true,
+          source: 'github-star',
+        },
+      ],
+    };
+
+    const normalized = normalizeRegistry(raw);
+
+    expect(normalized.data.repos[0].source).toBe('manual');
+    expect(normalized.data.repos[1].source).toBe('github-star');
+    expect(normalized.issues.length).toBe(0);
+  });
+
+  it('drops invalid source values', () => {
+    const raw = {
+      version: '1.0.0',
+      tombstones: [],
+      repos: [
+        {
+          id: 'github.com:owner/repo',
+          host: 'github.com',
+          owner: 'owner',
+          repo: 'repo',
+          cloneUrl: 'https://github.com/owner/repo.git',
+          defaultRemoteName: 'origin',
+          updateStrategy: 'hard-reset',
+          submodules: 'none',
+          lfs: 'auto',
+          managed: true,
+          source: 'invalid-source',
+        },
+      ],
+    };
+
+    const normalized = normalizeRegistry(raw);
+
+    expect(normalized.data.repos[0].source).toBeUndefined();
+    expect(normalized.issues.some((issue) => issue.includes('dropped invalid source'))).toBe(true);
+  });
+
+  it('normalizes starredAt field with valid ISO 8601 string', () => {
+    const raw = {
+      version: '1.0.0',
+      tombstones: [],
+      repos: [
+        {
+          id: 'github.com:owner/repo',
+          host: 'github.com',
+          owner: 'owner',
+          repo: 'repo',
+          cloneUrl: 'https://github.com/owner/repo.git',
+          defaultRemoteName: 'origin',
+          updateStrategy: 'hard-reset',
+          submodules: 'none',
+          lfs: 'auto',
+          managed: true,
+          starredAt: '2024-01-15T10:30:00Z',
+        },
+      ],
+    };
+
+    const normalized = normalizeRegistry(raw);
+
+    expect(normalized.data.repos[0].starredAt).toBe('2024-01-15T10:30:00Z');
+    expect(normalized.issues.length).toBe(0);
+  });
+
+  it('drops invalid starredAt values', () => {
+    const raw = {
+      version: '1.0.0',
+      tombstones: [],
+      repos: [
+        {
+          id: 'github.com:owner/repo',
+          host: 'github.com',
+          owner: 'owner',
+          repo: 'repo',
+          cloneUrl: 'https://github.com/owner/repo.git',
+          defaultRemoteName: 'origin',
+          updateStrategy: 'hard-reset',
+          submodules: 'none',
+          lfs: 'auto',
+          managed: true,
+          starredAt: 123,
+        },
+      ],
+    };
+
+    const normalized = normalizeRegistry(raw);
+
+    expect(normalized.data.repos[0].starredAt).toBeUndefined();
+    expect(normalized.issues.some((issue) => issue.includes('dropped invalid starredAt'))).toBe(
+      true
+    );
+  });
+
+  it('handles missing source and starredAt fields (backward compatibility)', () => {
+    const raw = {
+      version: '1.0.0',
+      tombstones: [],
+      repos: [
+        {
+          id: 'github.com:owner/repo',
+          host: 'github.com',
+          owner: 'owner',
+          repo: 'repo',
+          cloneUrl: 'https://github.com/owner/repo.git',
+          defaultRemoteName: 'origin',
+          updateStrategy: 'hard-reset',
+          submodules: 'none',
+          lfs: 'auto',
+          managed: true,
+        },
+      ],
+    };
+
+    const normalized = normalizeRegistry(raw);
+
+    expect(normalized.data.repos[0].source).toBeUndefined();
+    expect(normalized.data.repos[0].starredAt).toBeUndefined();
+    expect(normalized.issues.length).toBe(0);
+  });
 });
 
 describe('normalizeLocalState', () => {

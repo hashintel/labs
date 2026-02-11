@@ -157,6 +157,13 @@ function buildRegistryPayload(registry: Registry): Record<string, unknown> {
     repo.lfs = entry.lfs;
     repo.managed = entry.managed;
 
+    if (entry.source !== undefined) {
+      repo.source = entry.source;
+    }
+    if (entry.starredAt !== undefined) {
+      repo.starredAt = entry.starredAt;
+    }
+
     return repo;
   });
 
