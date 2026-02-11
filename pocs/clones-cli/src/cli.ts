@@ -37,6 +37,7 @@ const main = defineCommand({
     rm: () => import('./commands/rm.js').then((m) => m.default),
     sync: () => import('./commands/sync.js').then((m) => m.default),
     search: () => import('./commands/search.js').then((m) => m.default),
+    stars: () => import('./commands/stars.js').then((m) => m.default),
   },
   // Default: run interactive browser when no subcommand given
   async run({ rawArgs }) {
