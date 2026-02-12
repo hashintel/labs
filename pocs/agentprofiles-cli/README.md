@@ -391,6 +391,12 @@ npm run format:check && npm run lint && npm run typecheck && npm run test
 
 ---
 
+## Contributors
+
+`agent-profiles-cli` was created by [Lu Nelson](https://github.com/lunelson). It is being developed in conjunction with [HASH](https://hash.dev/) as an open-source project. 
+
+If you have questions, please create a [discussion](https://github.com/orgs/hashintel/discussions). 
+
 ## License
 
-MIT
+`agent-profiles-cli` is available under either of the [Apache License, Version 2.0] or [MIT license] at your option. Please see the [LICENSE] file to review your options.

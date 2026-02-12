@@ -197,6 +197,12 @@ Failed operations roll back cleanly:
 - The registry only updates after successful operations
 - No partial state left behind
 
+## Contributors
+
+`clones-cli` was created by [Lu Nelson](https://github.com/lunelson). It is being developed in conjunction with [HASH](https://hash.dev/) as an open-source project. 
+
+If you have questions, please create a [discussion](https://github.com/orgs/hashintel/discussions). 
+
 ## License
 
-MIT
+`clones-cli` is available under either of the [Apache License, Version 2.0] or [MIT license] at your option. Please see the [LICENSE] file to review your options.
