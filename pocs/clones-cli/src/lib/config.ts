@@ -1,8 +1,11 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile, rename } from 'node:fs/promises';
 import { existsSync, readFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { assertPathInsideBase, assertSafePathSegment } from './path-utils.js';
+import type { GitHubAuthConfig } from '../types/index.js';
 
 function getConfigPath(): string {
   return join(getConfigDir(), 'config.json');
@@ -14,6 +17,7 @@ type ConfigFile = {
     concurrency?: number;
   };
   syncConcurrency?: number;
+  github?: GitHubAuthConfig;
 };
 
 function loadConfigSync(): ConfigFile | null {
@@ -96,6 +100,13 @@ export function getLocalStatePath(): string {
 }
 
 /**
+ * Get the path to clones.db (machine-specific SQLite database)
+ */
+export function getDbPath(): string {
+  return join(getConfigDir(), 'clones.db');
+}
+
+/**
  * Get the local path for a repository based on owner/repo
  */
 export function getRepoPath(owner: string, repo: string): string {
@@ -133,3 +144,78 @@ export const DEFAULTS = {
   lfs: 'auto' as const,
   defaultRemoteName: 'origin',
 };
+
+/**
+ * Get the GitHub token from config
+ */
+export function getGitHubToken(): string | null {
+  const config = loadConfigSync();
+  return config?.github?.token ?? null;
+}
+
+/**
+ * Get the GitHub username from config
+ */
+export function getGitHubUsername(): string | null {
+  const config = loadConfigSync();
+  return config?.github?.username ?? null;
+}
+
+/**
+ * Get all GitHub configuration
+ */
+export function getGitHubConfig(): GitHubAuthConfig {
+  const config = loadConfigSync();
+  return {
+    token: config?.github?.token,
+    username: config?.github?.username,
+    syncStars: config?.github?.syncStars ?? false,
+  };
+}
+
+/**
+ * Set the GitHub token and username in config atomically
+ */
+export async function setGitHubToken(token: string, username: string): Promise<void> {
+  await ensureConfigDir();
+
+  const configPath = getConfigPath();
+  const config = loadConfigSync() ?? {};
+
+  config.github = {
+    ...config.github,
+    token,
+    username,
+  };
+
+  const tempPath = join(dirname(configPath), `.config.${randomUUID()}.tmp`);
+
+  // Write to temp file
+  await writeFile(tempPath, JSON.stringify(config, null, 2), 'utf-8');
+
+  // Atomic rename
+  await rename(tempPath, configPath);
+}
+
+/**
+ * Clear the GitHub token from config atomically
+ */
+export async function clearGitHubToken(): Promise<void> {
+  await ensureConfigDir();
+
+  const configPath = getConfigPath();
+  const config = loadConfigSync() ?? {};
+
+  if (config.github) {
+    delete config.github.token;
+    delete config.github.username;
+  }
+
+  const tempPath = join(dirname(configPath), `.config.${randomUUID()}.tmp`);
+
+  // Write to temp file
+  await writeFile(tempPath, JSON.stringify(config, null, 2), 'utf-8');
+
+  // Atomic rename
+  await rename(tempPath, configPath);
+}

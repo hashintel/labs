@@ -20,6 +20,8 @@ const REGISTRY_ENTRY_KEYS = new Set([
   'submodules',
   'lfs',
   'managed',
+  'source',
+  'starredAt',
 ]);
 
 const LOCAL_STATE_KEYS = new Set(['version', 'lastSyncRun', 'repos']);
@@ -145,6 +147,21 @@ function normalizeRegistryEntry(
     changed = true;
   }
 
+  // Normalize source field
+  const source: RegistryEntry['source'] =
+    raw.source === 'manual' || raw.source === 'github-star' ? raw.source : undefined;
+  if (raw.source !== undefined && source === undefined) {
+    issues.push(`registry.repos[${index}] dropped invalid source`);
+    changed = true;
+  }
+
+  // Normalize starredAt field
+  const starredAt = typeof raw.starredAt === 'string' ? raw.starredAt : undefined;
+  if (raw.starredAt !== undefined && starredAt === undefined) {
+    issues.push(`registry.repos[${index}] dropped invalid starredAt`);
+    changed = true;
+  }
+
   const entry: RegistryEntry = {
     id,
     host,
@@ -158,6 +175,8 @@ function normalizeRegistryEntry(
     submodules,
     lfs,
     managed,
+    source,
+    starredAt,
   };
 
   return { entry, changed };

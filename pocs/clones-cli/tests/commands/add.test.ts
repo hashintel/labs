@@ -13,6 +13,8 @@ const getRepoStatus = vi.fn();
 class GitCloneError extends Error {}
 const getCloneErrorHints = vi.fn(() => []);
 const fetchGitHubMetadata = vi.fn();
+const starRepo = vi.fn();
+const isRepoStarred = vi.fn();
 
 const prompts = vi.hoisted(() => ({
   intro: vi.fn(),
@@ -70,11 +72,17 @@ vi.mock('../../src/lib/config.js', async () => {
     getRepoPath: () => '/tmp/owner/repo',
     getClonesDir: () => '/tmp',
     ensureClonesDir: vi.fn(),
+    getGitHubToken: vi.fn(),
   };
 });
 
 vi.mock('../../src/lib/github.js', () => ({
   fetchGitHubMetadata,
+}));
+
+vi.mock('../../src/lib/github-stars.js', () => ({
+  starRepo,
+  isRepoStarred,
 }));
 
 vi.mock('node:fs', () => ({
@@ -209,5 +217,309 @@ describe('clones add', () => {
     expect(browseActions.showSingleRepoActions).toHaveBeenCalledTimes(1);
     expect(prompts.confirm).not.toHaveBeenCalled();
     expect(prompts.outro).toHaveBeenCalled();
+  });
+
+  it('stars GitHub repo when authenticated and not already starred', async () => {
+    const { getGitHubToken } = await import('../../src/lib/config.js');
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+    (getGitHubToken as vi.Mock).mockReturnValue('test-token');
+    isRepoStarred.mockResolvedValue(false);
+    starRepo.mockResolvedValue(true);
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    expect(isRepoStarred).toHaveBeenCalledWith('test-token', 'owner', 'repo');
+    expect(starRepo).toHaveBeenCalledWith('test-token', 'owner', 'repo');
+    expect(prompts.log.info).toHaveBeenCalledWith('★ Starred on GitHub');
+  });
+
+  it('skips starring when repo is already starred', async () => {
+    const { getGitHubToken } = await import('../../src/lib/config.js');
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+    (getGitHubToken as vi.Mock).mockReturnValue('test-token');
+    isRepoStarred.mockResolvedValue(true);
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    expect(isRepoStarred).toHaveBeenCalledWith('test-token', 'owner', 'repo');
+    expect(starRepo).not.toHaveBeenCalled();
+  });
+
+  it('does not attempt to star when not authenticated', async () => {
+    const { getGitHubToken } = await import('../../src/lib/config.js');
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+    (getGitHubToken as vi.Mock).mockReturnValue(null);
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    expect(isRepoStarred).not.toHaveBeenCalled();
+    expect(starRepo).not.toHaveBeenCalled();
+  });
+
+  it('does not attempt to star non-GitHub repos', async () => {
+    const { getGitHubToken } = await import('../../src/lib/config.js');
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+    (getGitHubToken as vi.Mock).mockReturnValue('test-token');
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://gitlab.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    expect(isRepoStarred).not.toHaveBeenCalled();
+    expect(starRepo).not.toHaveBeenCalled();
+  });
+
+  it('logs warning and continues when starring fails', async () => {
+    const { getGitHubToken } = await import('../../src/lib/config.js');
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+    (getGitHubToken as vi.Mock).mockReturnValue('test-token');
+    isRepoStarred.mockResolvedValue(false);
+    starRepo.mockRejectedValue(new Error('API error'));
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    expect(prompts.log.warn).toHaveBeenCalledWith('Could not star on GitHub (continuing)');
+    expect(writeRegistry).toHaveBeenCalled();
+  });
+
+  it('sets source to manual on added entry', async () => {
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    const addedEntry = (addEntry as vi.Mock).mock.calls[0][1];
+    expect(addedEntry.source).toBe('manual');
   });
 });

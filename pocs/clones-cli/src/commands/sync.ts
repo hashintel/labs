@@ -28,12 +28,17 @@ import {
   getCloneErrorHints,
   getRemoteUrl,
 } from '../lib/git.js';
-import { getRepoPath, DEFAULTS, getSyncConcurrency } from '../lib/config.js';
+import { getRepoPath, DEFAULTS, getSyncConcurrency, getGitHubConfig } from '../lib/config.js';
 import { createCancellationController } from '../lib/cancel.js';
 import { scanClonesDir, isNestedRepo } from '../lib/scan.js';
 import { parseGitUrl, generateRepoId } from '../lib/url-parser.js';
 import { fetchGitHubMetadata } from '../lib/github.js';
+import { fetchStarredRepos } from '../lib/github-stars.js';
 import { normalizeConcurrency, runWithConcurrency } from '../lib/concurrency.js';
+import { openDb, closeDb } from '../lib/db.js';
+import { syncRegistryToDb } from '../lib/db-sync.js';
+import { ensureSearchTables, indexReadme } from '../lib/db-search.js';
+import { readReadmeContent, hashContent, chunkText } from '../lib/readme.js';
 import type { RegistryEntry, UpdateResult, Registry } from '../types/index.js';
 
 interface UpdateSummary {
@@ -123,6 +128,76 @@ export default defineCommand({
       let registry = await readRegistry();
       let localState = await readLocalState();
       const summaries: UpdateSummary[] = [];
+
+      // ═══════════════════════════════════════════════════════════════════
+      // PHASE 0: GITHUB STARS - Fetch and add starred repos
+      // ═══════════════════════════════════════════════════════════════════
+      const githubConfig = getGitHubConfig();
+      if (githubConfig.token && githubConfig.syncStars) {
+        if (!noticeCancellation()) {
+          try {
+            p.log.step('Phase 0: Syncing GitHub stars...');
+
+            const starredRepos = await fetchStarredRepos(githubConfig.token);
+            let newStars = 0;
+
+            for (const star of starredRepos) {
+              const repoId = generateRepoId({
+                host: 'github.com',
+                owner: star.owner,
+                repo: star.repo,
+                cloneUrl: star.cloneUrl,
+              });
+
+              // Check if already in registry
+              if (findEntry(registry, repoId)) {
+                continue;
+              }
+
+              if (!dryRun) {
+                const entry: RegistryEntry = {
+                  id: repoId,
+                  host: 'github.com',
+                  owner: star.owner,
+                  repo: star.repo,
+                  cloneUrl: star.cloneUrl,
+                  description: star.description ?? undefined,
+                  tags: star.topics.length > 0 ? star.topics : undefined,
+                  defaultRemoteName: DEFAULTS.defaultRemoteName,
+                  updateStrategy: DEFAULTS.updateStrategy,
+                  submodules: DEFAULTS.submodules,
+                  lfs: DEFAULTS.lfs,
+                  managed: true,
+                  source: 'github-star',
+                  starredAt: star.starredAt,
+                };
+
+                registry = addEntry(registry, entry);
+              }
+
+              newStars += 1;
+              summaries.push({
+                name: `${star.owner}/${star.repo}`,
+                action: 'adopted',
+                detail: 'from GitHub stars',
+              });
+            }
+
+            if (!dryRun && newStars > 0) {
+              await writeRegistry(registry);
+            }
+
+            if (newStars > 0) {
+              p.log.info(`  Found ${newStars} new starred repos`);
+            } else {
+              p.log.info('  No new starred repos');
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            p.log.warn(`Phase 0 failed: ${message}`);
+          }
+        }
+      }
 
       // ═══════════════════════════════════════════════════════════════════
       // PHASE 1: ADOPT - Discover untracked repos on disk
@@ -399,6 +474,88 @@ export default defineCommand({
         // Update lastSyncRun and save local state
         localState = updateLastSyncRun(localState);
         await writeLocalState(localState);
+      }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // PHASE 5: INDEX READMEs
+      // ═══════════════════════════════════════════════════════════════════
+      if (!dryRun && !noticeCancellation()) {
+        p.log.step('Phase 5: Indexing READMEs...');
+
+        try {
+          const db = await openDb();
+
+          try {
+            // Sync registry to DB
+            syncRegistryToDb(db, registry);
+
+            // Ensure search tables exist
+            ensureSearchTables(db);
+
+            // Get managed repos
+            const managedRepos = registry.repos.filter((r) => r.managed);
+
+            if (managedRepos.length === 0) {
+              p.log.info('  No managed repos to index');
+            } else {
+              const log = p.taskLog({
+                title: 'Indexing READMEs',
+                retainLog: true,
+                signal: syncOptions.signal,
+              });
+              let indexed = 0;
+              let skipped = 0;
+              let errors = 0;
+
+              for (const entry of managedRepos) {
+                if (cancellation.signal.aborted) {
+                  break;
+                }
+
+                const localPath = getRepoPath(entry.owner, entry.repo);
+                const name = `${entry.owner}/${entry.repo}`;
+
+                try {
+                  const content = await readReadmeContent(localPath);
+
+                  if (!content) {
+                    log.message(`  ○ ${name} (no README found)`);
+                    skipped += 1;
+                    continue;
+                  }
+
+                  const contentHash = hashContent(content);
+                  const chunks = chunkText(content);
+
+                  indexReadme(db, entry.id, content, contentHash, chunks);
+                  log.message(`  ✓ ${name} (indexed)`);
+                  indexed += 1;
+                } catch (error) {
+                  errors += 1;
+                  const message = error instanceof Error ? error.message : String(error);
+                  log.message(`  ✗ ${name} (${message})`);
+                }
+              }
+
+              const parts: string[] = [];
+              if (indexed > 0) parts.push(`${indexed} indexed`);
+              if (skipped > 0) parts.push(`${skipped} skipped`);
+              if (errors > 0) parts.push(`${errors} errors`);
+              const summary = parts.length > 0 ? parts.join(', ') : 'Indexing complete';
+
+              if (errors > 0) {
+                log.error(`Indexing completed with errors: ${summary}`);
+              } else {
+                log.success(summary);
+              }
+            }
+          } finally {
+            closeDb();
+          }
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          p.log.warn(`Phase 5 failed: ${message}`);
+        }
       }
 
       console.log();
