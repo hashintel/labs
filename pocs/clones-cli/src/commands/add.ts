@@ -10,8 +10,9 @@ import {
 } from '../lib/registry.js';
 import { readLocalState, writeLocalState, updateRepoLocalState } from '../lib/local-state.js';
 import { GitCloneError, cloneRepo, getCloneErrorHints, getRepoStatus } from '../lib/git.js';
-import { getRepoPath, DEFAULTS, ensureClonesDir } from '../lib/config.js';
+import { getRepoPath, DEFAULTS, ensureClonesDir, getGitHubToken } from '../lib/config.js';
 import { fetchGitHubMetadata } from '../lib/github.js';
+import { starRepo, isRepoStarred } from '../lib/github-stars.js';
 import type { Registry, LocalState, RegistryEntry } from '../types/index.js';
 import type { RepoInfo } from '../lib/browse/batch-actions.js';
 import { showSingleRepoActions } from '../lib/browse/single-actions.js';
@@ -124,6 +125,7 @@ async function cloneUrl(
       submodules,
       lfs,
       managed: true,
+      source: 'manual',
     };
 
     registry = addEntry(registry, entry);
@@ -139,6 +141,22 @@ async function cloneUrl(
 
     if (tags && tags.length > 0) {
       p.log.info(`Tags: ${tags.join(', ')}`);
+    }
+
+    // Star on GitHub if authenticated (best-effort)
+    if (parsed.host === 'github.com') {
+      const token = getGitHubToken();
+      if (token) {
+        try {
+          const alreadyStarred = await isRepoStarred(token, parsed.owner, parsed.repo);
+          if (!alreadyStarred) {
+            await starRepo(token, parsed.owner, parsed.repo);
+            p.log.info('★ Starred on GitHub');
+          }
+        } catch {
+          p.log.warn('Could not star on GitHub (continuing)');
+        }
+      }
     }
 
     return { context: { registry, localState }, added: { entry, localPath } };

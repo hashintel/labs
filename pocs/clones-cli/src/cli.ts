@@ -27,13 +27,17 @@ const main = defineCommand({
   },
   subCommands: {
     add: () => import('./commands/add.js').then((m) => m.default),
+    auth: () => import('./commands/auth.js').then((m) => m.default),
     doctor: () => import('./commands/doctor.js').then((m) => m.default),
     init: () => import('./commands/init.js').then((m) => m.default),
     setup: () => import('./commands/init.js').then((m) => m.default),
+    index: () => import('./commands/index.js').then((m) => m.default),
     list: () => import('./commands/list.js').then((m) => m.default),
     ls: () => import('./commands/list.js').then((m) => m.default),
     rm: () => import('./commands/rm.js').then((m) => m.default),
     sync: () => import('./commands/sync.js').then((m) => m.default),
+    search: () => import('./commands/search.js').then((m) => m.default),
+    stars: () => import('./commands/stars.js').then((m) => m.default),
   },
   // Default: run interactive browser when no subcommand given
   async run({ rawArgs }) {

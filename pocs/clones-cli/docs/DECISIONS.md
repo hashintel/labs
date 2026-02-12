@@ -2,6 +2,24 @@
 
 This document records durable decisions made during maintenance and remediation.
 
+## 2026-02-10: Add SQLite sidecar as derived state
+
+- Decision: Introduce a local SQLite database (`clones.db`) for indexed read paths and faster startup.
+- Rationale: Interactive browse/search should not require full registry hydration and full repo status probing on every launch.
+- Consequence: Two-state model: `registry.toml` remains portable intent; SQLite becomes machine-local derived state that can be rebuilt.
+
+## 2026-02-10: Adopt phased hybrid retrieval (BM25 + vector)
+
+- Decision: Implement search in phases: chunked FTS5 baseline, then embeddings + hybrid fusion.
+- Rationale: Weak or sparse README content causes low lexical recall; semantic retrieval improves resurfacing quality.
+- Consequence: Adds indexing complexity and embedding infrastructure, but materially improves recall on hard queries.
+
+## 2026-02-10: Keep retrieval semantics aligned with starbase-cli
+
+- Decision: Keep search modes and fusion strategy compatible with `/Users/lunelson/Code/lunelson/starbase-cli` (`bm25|vector|hybrid`, RRF, explain output).
+- Rationale: Reduces cognitive overhead and allows shared evaluation/tuning across both CLIs.
+- Consequence: Some implementation choices should prefer parity over per-project novelty.
+
 ## 2026-01-31: Canonical IDs and paths
 
 - Decision: Canonicalize `host`, `owner`, and `repo` to lowercase for IDs and on-disk paths.
