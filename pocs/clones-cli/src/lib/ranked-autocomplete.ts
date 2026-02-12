@@ -36,6 +36,9 @@ export function rankedAutocompleteMultiselect<Value>(
   // Build a cache for rank results to avoid redundant calls
   const rankCache = new Map<string, Map<string, number>>();
 
+  // Compute getOptionId once so both getOptions and filterFn use the same default
+  const getOptionId = opts.getOptionId || ((v: Value) => String(v));
+
   // Create the options function that will be called on every keystroke
   // This MUST be a regular function (not arrow) so `this` is properly bound
   function getOptions(this: AutocompletePrompt<Option<Value>>): Option<Value>[] {
@@ -55,7 +58,6 @@ export function rankedAutocompleteMultiselect<Value>(
     }
 
     // Separate ranked and unranked options
-    const getOptionId = opts.getOptionId || ((v: Value) => String(v));
     const ranked: Option<Value>[] = [];
     const unranked: Option<Value>[] = [];
 
@@ -84,10 +86,10 @@ export function rankedAutocompleteMultiselect<Value>(
     if (!searchText) return true;
 
     // If this option was matched by FTS ranking, always include it
-    if (opts.rankFn && opts.getOptionId) {
+    if (opts.rankFn) {
       const lastRankMap = rankCache.get(searchText);
       if (lastRankMap) {
-        const id = opts.getOptionId(option.value);
+        const id = getOptionId(option.value);
         if (lastRankMap.has(id)) return true;
       }
     }

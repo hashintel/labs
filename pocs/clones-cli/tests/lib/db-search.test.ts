@@ -299,15 +299,26 @@ describe('db-search.ts', () => {
       expect(sanitizeFtsQuery('say "hello"')).toBe('"say" """hello"""*');
     });
 
-    it('should preserve special characters inside quotes', () => {
+    it('should keep tokens containing letters even with punctuation like c++', () => {
       expect(sanitizeFtsQuery('c++')).toBe('"c++"*');
+    });
+
+    it('should return empty string for pure punctuation input', () => {
+      expect(sanitizeFtsQuery('++')).toBe('');
+      expect(sanitizeFtsQuery('( )')).toBe('');
+      expect(sanitizeFtsQuery(':')).toBe('');
+    });
+
+    it('should strip user-supplied asterisks', () => {
+      expect(sanitizeFtsQuery('test*')).toBe('"test"*');
+      expect(sanitizeFtsQuery('te*st')).toBe('"test"*');
     });
 
     it('should preserve dashes inside quotes', () => {
       expect(sanitizeFtsQuery('my-repo')).toBe('"my-repo"*');
     });
 
-    it('should preserve caret inside quotes', () => {
+    it('should preserve caret with letters inside quotes', () => {
       expect(sanitizeFtsQuery('^prefix')).toBe('"^prefix"*');
     });
 

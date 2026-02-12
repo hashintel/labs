@@ -128,23 +128,24 @@ export function sanitizeFtsQuery(input: string): string {
     return '';
   }
 
-  // Split on whitespace and filter out empty strings
-  const words = input
+  // Split on whitespace, strip user-supplied *, escape quotes,
+  // and drop tokens that contain no letters or numbers (punctuation-only
+  // tokens like "++", "(", ":" produce FTS5 syntax errors even when quoted)
+  const tokens = input
     .trim()
     .split(/\s+/)
-    .filter((w) => w.length > 0);
+    .map((w) => w.replace(/\*/g, ''))
+    .map((w) => w.replace(/"/g, '""'))
+    .filter((w) => /[\p{L}\p{N}]/u.test(w));
 
-  if (words.length === 0) {
+  if (tokens.length === 0) {
     return '';
   }
 
-  // Wrap each word in double quotes to treat as phrase
-  // Append * to last word for prefix matching (OUTSIDE the quotes)
-  const quoted = words.map((w, i) => {
-    // Escape any double quotes in the word
-    const escaped = w.replace(/"/g, '""');
-    // Add * to last word for prefix matching (outside quotes for FTS5)
-    return i === words.length - 1 ? `"${escaped}"*` : `"${escaped}"`;
+  // Wrap each token in double quotes to treat as literal phrase.
+  // Append * to last token for prefix matching (OUTSIDE the quotes).
+  const quoted = tokens.map((t, i) => {
+    return i === tokens.length - 1 ? `"${t}"*` : `"${t}"`;
   });
 
   return quoted.join(' ');
