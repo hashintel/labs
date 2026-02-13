@@ -45,8 +45,9 @@ export async function mapWithConcurrency<T, R>(
   fn: (item: T) => Promise<R>,
   concurrency: number
 ): Promise<R[]> {
+  const safeConcurrency = Math.max(1, Math.floor(concurrency));
   const results: R[] = new Array(items.length);
-  const pool = createPool(concurrency);
+  const pool = createPool(safeConcurrency);
 
   const promises = items.map((item, index) =>
     pool.add(async () => {

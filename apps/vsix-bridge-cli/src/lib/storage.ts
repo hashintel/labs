@@ -1,6 +1,6 @@
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 
 const APP_NAME = 'vsix-bridge';
 
@@ -9,9 +9,29 @@ export function getConfigDir(): string {
   return join(xdgConfig, APP_NAME);
 }
 
-export function getCacheDir(): string {
+function getDefaultCacheDir(): string {
   const xdgCache = process.env.XDG_CACHE_HOME || join(homedir(), '.cache');
   return join(xdgCache, APP_NAME);
+}
+
+export function getCacheDir(): string {
+  const configPath = getConfigPath();
+  if (!existsSync(configPath)) {
+    return getDefaultCacheDir();
+  }
+  try {
+    const content = readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(content) as { cacheDir?: string };
+    const cacheDir = config.cacheDir;
+    if (cacheDir && typeof cacheDir === 'string') {
+      return cacheDir.startsWith('~')
+        ? join(homedir(), cacheDir.slice(1))
+        : cacheDir;
+    }
+  } catch {
+    // fall through to default
+  }
+  return getDefaultCacheDir();
 }
 
 export function getVsixCacheDir(ideId: string): string {

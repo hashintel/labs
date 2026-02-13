@@ -59,5 +59,11 @@ describe('concurrency', () => {
         )
       ).rejects.toThrow('fail');
     });
+
+    it('clamps concurrency to at least 1', async () => {
+      const items = [1, 2];
+      const results = await mapWithConcurrency(items, async (n) => n, 0);
+      expect(results).toEqual([1, 2]);
+    });
   });
 });

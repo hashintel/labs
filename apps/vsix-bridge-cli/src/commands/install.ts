@@ -1,5 +1,5 @@
 import * as p from '@clack/prompts';
-import { execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import type { DetectedIDE } from '../types.js';
 import { detectAllIDEs, detectVSCode, getSettingsPath } from '../lib/ide-registry.js';
@@ -15,9 +15,7 @@ interface InstallOptions {
 
 function executeCliCommand(cli: string, args: string[]): boolean {
   try {
-    execSync(`${cli} ${args.join(' ')}`, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
+    execFileSync(cli, args, { stdio: ['pipe', 'pipe', 'pipe'] });
     return true;
   } catch {
     return false;
@@ -164,12 +162,10 @@ export async function runInstall(options: InstallOptions): Promise<void> {
         break;
       case 'disable':
         toDisable.push(action.extensionId);
-        ok = true;
-        break;
+        continue; // counted in batch below
       case 'enable':
         toEnable.push(action.extensionId);
-        ok = true;
-        break;
+        continue; // counted in batch below
     }
 
     if (ok) {
@@ -181,7 +177,12 @@ export async function runInstall(options: InstallOptions): Promise<void> {
 
   if (toDisable.length > 0 || toEnable.length > 0) {
     const settingsPath = getSettingsPath(targetIDE.dataFolderName);
-    updateDisabledExtensions(settingsPath, toDisable, toEnable);
+    const ok = updateDisabledExtensions(settingsPath, toDisable, toEnable);
+    if (ok) {
+      success += toDisable.length + toEnable.length;
+    } else {
+      failed += toDisable.length + toEnable.length;
+    }
   }
 
   spinner.stop('Installation complete');

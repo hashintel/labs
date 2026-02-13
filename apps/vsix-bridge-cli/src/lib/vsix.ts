@@ -72,8 +72,12 @@ export function cleanupStaleVsix(ideId: string, expectedFiles: Set<string>): str
   for (const file of files) {
     if (!expectedFiles.has(file)) {
       const fullPath = join(cacheDir, file);
-      unlinkSync(fullPath);
-      removed.push(file);
+      try {
+        unlinkSync(fullPath);
+        removed.push(file);
+      } catch {
+        // Skip undeletable files (permissions, concurrent access, etc.)
+      }
     }
   }
 

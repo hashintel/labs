@@ -146,8 +146,6 @@ export async function runSync(options: SyncOptions): Promise<void> {
       }
 
       const filename = getVsixFilename(ext.id, compatible.version);
-      expectedFiles.add(filename);
-
       const vsixPath = getVsixPath(ide.id, ext.id, compatible.version);
       downloadTasks.push({ ext, ideIndex: i, compatible, vsixPath, filename });
     }
@@ -163,6 +161,8 @@ export async function runSync(options: SyncOptions): Promise<void> {
 
       const result = results[task.ideIndex]!;
       if (success) {
+        const ide = targetIDEs[task.ideIndex]!;
+        expectedFilesByIde.get(ide.id)!.add(task.filename);
         result.synced++;
       } else {
         result.failed++;
@@ -171,6 +171,7 @@ export async function runSync(options: SyncOptions): Promise<void> {
     concurrency
   );
 
+  // expectedFiles populated only after successful downloads (see above)
   for (let i = 0; i < targetIDEs.length; i++) {
     const ide = targetIDEs[i]!;
     const result = results[i]!;

@@ -61,13 +61,10 @@ vsix-bridge install --dry-run       # Preview without making changes
 
 **Flags:**
 
-| Flag                | Description                                             |
-| ------------------- | ------------------------------------------------------- |
-| `--install-missing` | Install extensions not present in fork (but in VS Code) |
-| `--sync-removals`   | Uninstall extensions in fork that aren't in VS Code     |
-| `--sync-disabled`   | Match VS Code's disabled extension state                |
-| `--force`           | Enable all of the above (full sync)                     |
-| `--dry-run`         | Show what would be done without doing it                |
+| Flag              | Description                                             |
+| ----------------- | ------------------------------------------------------- |
+| `--sync-removals` | Uninstall extensions in fork that aren't in VS Code     |
+| `--dry-run`       | Show what would be done without doing it                |
 
 ## Supported IDEs
 

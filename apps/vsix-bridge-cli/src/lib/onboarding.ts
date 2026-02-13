@@ -95,7 +95,7 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
     await fs.mkdir(cacheDir, { recursive: true });
 
     const config: VsixBridgeConfig = {
-      cacheDir,
+      cacheDir, // used by storage.getCacheDir() for sync/install
       createdAt: existingConfig?.createdAt || new Date().toISOString(),
       version: 1,
     };
