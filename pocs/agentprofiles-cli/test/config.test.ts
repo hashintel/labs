@@ -3,7 +3,12 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { ConfigManager } from '../src/lib/config.js';
-import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG, SHARED_DIRECTORIES } from '../src/types/index.js';
+import {
+  SUPPORTED_TOOLS,
+  BASE_PROFILE_SLUG,
+  SHARED_DIRECTORIES,
+  SHARED_PROFILE_SLUG,
+} from '../src/types/index.js';
 import * as symlinkModule from '../src/lib/symlink.js';
 
 function snapshotEnv(keys: string[]) {
@@ -90,6 +95,21 @@ describe('ConfigManager contentDir resolution', () => {
     for (const agent of Object.keys(SUPPORTED_TOOLS)) {
       await expect(fs.access(path.join(contentDir, agent))).resolves.toBeUndefined();
     }
+  });
+
+  it('writes claude gitignore template with shared state ignore', async () => {
+    const configDir = path.join(tmpRoot, 'config');
+    const contentDir = path.join(tmpRoot, 'content');
+
+    process.env.AGENTPROFILES_CONFIG_DIR = configDir;
+    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
+
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const gitignorePath = path.join(contentDir, 'claude', '.gitignore');
+    const gitignore = await fs.readFile(gitignorePath, 'utf-8');
+    expect(gitignore).toContain('_shared/');
   });
 
   it('setContentDir persists contentDir to config.json', async () => {
@@ -246,6 +266,35 @@ describe('ConfigManager symlink-based profile management', () => {
     // Verify we can read work settings
     const stat = await fs.lstat(globalPath);
     expect(stat.isSymbolicLink()).toBe(true);
+  });
+
+  it('getProfiles excludes reserved shared directory', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const claudeDir = path.join(contentDir, 'claude');
+    await fs.mkdir(path.join(claudeDir, SHARED_PROFILE_SLUG), { recursive: true });
+
+    const workDir = path.join(claudeDir, 'work');
+    await fs.mkdir(workDir, { recursive: true });
+    await fs.writeFile(
+      path.join(workDir, 'meta.json'),
+      JSON.stringify({ name: 'Work', slug: 'work', agent: 'claude' }, null, 2)
+    );
+
+    const profiles = await config.getProfiles('claude');
+
+    expect(profiles.some((profile) => profile.slug === SHARED_PROFILE_SLUG)).toBe(false);
+    expect(profiles.some((profile) => profile.slug === 'work')).toBe(true);
+  });
+
+  it('switchProfile rejects reserved shared directory', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    await expect(config.switchProfile('claude', SHARED_PROFILE_SLUG)).rejects.toThrow(
+      /reserved and cannot be activated/
+    );
   });
 
   it('getActiveProfile returns null when not managed', async () => {

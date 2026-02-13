@@ -1,8 +1,14 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
-import { CliConfig, Meta, SUPPORTED_TOOLS, SHARED_DIRECTORIES } from '../types/index.js';
-import { validateProfileName, slugify, validateSlug } from './validation.js';
+import {
+  CliConfig,
+  Meta,
+  SUPPORTED_TOOLS,
+  SHARED_DIRECTORIES,
+  SHARED_PROFILE_SLUG,
+} from '../types/index.js';
+import { validateNewProfileName, slugify, validateSlug } from './validation.js';
 import { getAgentGitignore } from './gitignore.js';
 import { readSymlinkTarget, isSymlink, atomicSymlink, moveDirectory } from './symlink.js';
 
@@ -145,6 +151,7 @@ export class ConfigManager {
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
         const dirName = entry.name;
+        if (dirName === SHARED_PROFILE_SLUG) continue;
         if (validateSlug(dirName) !== null) continue;
 
         const metaPath = path.join(agentDir, dirName, 'meta.json');
@@ -174,7 +181,7 @@ export class ConfigManager {
     if (!this.tools[agent]) {
       throw new Error(`Unsupported agent: ${agent}`);
     }
-    const validationError = validateProfileName(name);
+    const validationError = validateNewProfileName(name);
     if (validationError) {
       throw new Error(validationError);
     }
@@ -405,6 +412,10 @@ export class ConfigManager {
    * Uses atomic pattern: create temp symlink, then rename over target.
    */
   async switchProfile(agent: string, profileSlug: string): Promise<void> {
+    if (profileSlug === SHARED_PROFILE_SLUG) {
+      throw new Error(`Profile '${SHARED_PROFILE_SLUG}' is reserved and cannot be activated.`);
+    }
+
     const globalPath = this.getGlobalConfigPath(agent);
     const profileDir = path.join(this.contentDir, agent, profileSlug);
 

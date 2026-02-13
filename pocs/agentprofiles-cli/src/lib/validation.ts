@@ -1,4 +1,7 @@
+import { RESERVED_PROFILE_SLUGS } from '../types/index.js';
+
 const SLUG_REGEX = /^[a-z0-9][a-z0-9._-]*$/;
+const RESERVED_SLUGS = new Set<string>(RESERVED_PROFILE_SLUGS);
 
 export function slugify(name: string): string {
   return name
@@ -17,6 +20,18 @@ export function validateProfileName(name: string): string | null {
   const slug = slugify(name);
   if (slug.length === 0) return 'Profile name must contain at least one letter or number.';
   if (slug.includes('..')) return 'Profile name must not include "..".';
+  return null;
+}
+
+export function validateNewProfileName(name: string): string | null {
+  const validationError = validateProfileName(name);
+  if (validationError) return validationError;
+
+  const slug = slugify(name);
+  if (RESERVED_SLUGS.has(slug)) {
+    return `Profile name '${slug}' is reserved and cannot be used.`;
+  }
+
   return null;
 }
 

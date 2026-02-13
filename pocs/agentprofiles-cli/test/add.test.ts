@@ -208,4 +208,18 @@ describe('addCommand symlink preservation', () => {
       expect((error as Error).message).toBe('process.exit called');
     }
   });
+
+  it('rejects reserved _shared profile name', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const { addCommand } = await import('../src/commands/add.js');
+    try {
+      await addCommand('claude', '_shared');
+      expect.fail('Should have thrown an error');
+    } catch (error) {
+      expect(error).toBeInstanceOf(Error);
+      expect((error as Error).message).toBe('process.exit called');
+    }
+  });
 });

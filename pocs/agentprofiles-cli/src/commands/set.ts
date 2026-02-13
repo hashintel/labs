@@ -3,7 +3,7 @@ import { outro, select, text, isCancel, cancel, note } from '@clack/prompts';
 import { ConfigManager } from '../lib/config.js';
 import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
-import { validateProfileName, slugify } from '../lib/validation.js';
+import { validateNewProfileName, validateProfileName, slugify } from '../lib/validation.js';
 import { generateName } from '@criblinc/docker-names';
 import { promptForAgent } from '../lib/prompts.js';
 
@@ -103,7 +103,7 @@ export async function setCommand(agent?: string, name?: string) {
         placeholder: suggestedName,
         initialValue: suggestedName,
         validate(value) {
-          return validateProfileName(value) || undefined;
+          return validateNewProfileName(value) || undefined;
         },
       });
 

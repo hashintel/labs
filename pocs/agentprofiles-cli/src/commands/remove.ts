@@ -1,7 +1,7 @@
 import { defineCommand } from 'citty';
 import { outro, confirm, isCancel, cancel, note } from '@clack/prompts';
 import { ConfigManager } from '../lib/config.js';
-import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
+import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG, SHARED_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -39,6 +39,12 @@ export async function removeCommand(agent?: string, name?: string) {
   // Block removal of _base
   if (resolvedName === BASE_PROFILE_SLUG) {
     console.error(color.red(`Cannot remove the base profile (${BASE_PROFILE_SLUG}).`));
+    process.exit(1);
+  }
+
+  // Block removal of reserved non-profile directories
+  if (resolvedName === SHARED_PROFILE_SLUG) {
+    console.error(color.red(`Cannot remove reserved directory (${SHARED_PROFILE_SLUG}).`));
     process.exit(1);
   }
 

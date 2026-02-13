@@ -134,14 +134,14 @@ also create a symlink from the named profile to `_base`.
 
 #### Per-agent filename mapping
 
-| Agent    | Rules filename | Notes                                        |
-| -------- | -------------- | -------------------------------------------- |
-| claude   | `CLAUDE.md`    | Primary; also reads `AGENTS.md` as fallback  |
-| amp      | `AGENTS.md`    | Primary; also reads `CLAUDE.md` as fallback  |
-| opencode | `AGENTS.md`    | Primary; also reads `CLAUDE.md` as fallback  |
-| codex    | —              | Not documented for global rules              |
-| gemini   | `GEMINI.md`    | Proprietary; no `AGENTS.md` fallback         |
-| augment  | —              | Not documented for global rules              |
+| Agent    | Rules filename | Notes                                       |
+| -------- | -------------- | ------------------------------------------- |
+| claude   | `CLAUDE.md`    | Primary; also reads `AGENTS.md` as fallback |
+| amp      | `AGENTS.md`    | Primary; also reads `CLAUDE.md` as fallback |
+| opencode | `AGENTS.md`    | Primary; also reads `CLAUDE.md` as fallback |
+| codex    | —              | Not documented for global rules             |
+| gemini   | `GEMINI.md`    | Proprietary; no `AGENTS.md` fallback        |
+| augment  | —              | Not documented for global rules             |
 
 #### Symlink chain design
 

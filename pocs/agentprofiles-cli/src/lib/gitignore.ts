@@ -20,6 +20,7 @@ session-env/
 # Local state and projects
 projects/
 todos/
+_shared/
 
 # Machine-specific and sensitive files
 .DS_Store

@@ -42,6 +42,8 @@ export const SHARED_DIRECTORIES: Record<string, SharedDirectory> = {
 };
 
 export const BASE_PROFILE_SLUG = '_base';
+export const SHARED_PROFILE_SLUG = '_shared';
+export const RESERVED_PROFILE_SLUGS = [BASE_PROFILE_SLUG, SHARED_PROFILE_SLUG] as const;
 
 export const SUPPORTED_TOOLS: Record<string, ToolDefinition> = {
   claude: {

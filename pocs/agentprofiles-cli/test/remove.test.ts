@@ -49,6 +49,7 @@ vi.mock('../src/types/index.js', () => ({
     claude: { globalConfigDir: '.claude', description: 'Claude Code' },
   },
   BASE_PROFILE_SLUG: '_base',
+  SHARED_PROFILE_SLUG: '_shared',
 }));
 
 describe('removeCommand', () => {
@@ -106,6 +107,18 @@ describe('removeCommand', () => {
     const { removeCommand } = await import('../src/commands/remove.js');
     try {
       await removeCommand('claude', 'default');
+    } catch {
+      // Expected to throw when process.exit is called
+    }
+
+    expect(fsMocks.rm).not.toHaveBeenCalled();
+    expect(process.exit).toHaveBeenCalledWith(1);
+  });
+
+  it('prevents removal of _shared reserved directory', async () => {
+    const { removeCommand } = await import('../src/commands/remove.js');
+    try {
+      await removeCommand('claude', '_shared');
     } catch {
       // Expected to throw when process.exit is called
     }

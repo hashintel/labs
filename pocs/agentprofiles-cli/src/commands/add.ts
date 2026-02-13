@@ -3,7 +3,7 @@ import { outro, text, isCancel, cancel, confirm } from '@clack/prompts';
 import { ConfigManager } from '../lib/config.js';
 import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
-import { validateProfileName, slugify } from '../lib/validation.js';
+import { validateNewProfileName, slugify } from '../lib/validation.js';
 import { generateName } from '@criblinc/docker-names';
 import { promptForAgent } from '../lib/prompts.js';
 import { copyDirectory } from '../lib/symlink.js';
@@ -29,7 +29,7 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
       placeholder: suggestedName,
       initialValue: suggestedName,
       validate(value) {
-        return validateProfileName(value) || undefined;
+        return validateNewProfileName(value) || undefined;
       },
     });
 
@@ -39,15 +39,9 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
     }
     name = response;
   }
-  const validationError = validateProfileName(name);
+  const validationError = validateNewProfileName(name);
   if (validationError) {
     console.error(color.red(validationError));
-    process.exit(1);
-  }
-
-  // Reject _base as a profile name (it's reserved)
-  if (name === BASE_PROFILE_SLUG || name.toLowerCase() === BASE_PROFILE_SLUG) {
-    console.error(color.red(`Profile name '${BASE_PROFILE_SLUG}' is reserved and cannot be used.`));
     process.exit(1);
   }
 
