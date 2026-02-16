@@ -15,8 +15,7 @@ const params = getEmbedParams();
 
 const projectPromise = unpreparedProjectByPath(
   params.project,
-  params.ref,
-  params.access?.code
+  params.ref
 );
 // @todo remove this
 const basicUserPromise = basicUser();

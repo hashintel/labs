@@ -41,9 +41,7 @@ export const bootEmbed = async (
     store.dispatch(
       fetchProject({
         project: { pathWithNamespace: params.project, ref: params.ref },
-        prefetchedRemoteProject: prefetchedProjectPromise,
         redirect: false,
-        access: params.access,
       })
     ),
     basicUserPromise.then((basicUser) => {

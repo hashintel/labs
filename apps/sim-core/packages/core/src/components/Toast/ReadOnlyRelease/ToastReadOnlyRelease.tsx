@@ -30,7 +30,6 @@ export const ToastReadOnlyRelease: FC<{
       <ToastAnchor
         icon="pencil"
         path={mainProjectPath(project.pathWithNamespace)}
-        query={project.access ? { accessCode: project.access.code } : {}}
       >
         OPEN WORKING COPY
       </ToastAnchor>

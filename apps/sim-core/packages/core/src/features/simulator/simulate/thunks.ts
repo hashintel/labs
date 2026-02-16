@@ -1,7 +1,7 @@
 import { ProviderTargetEnv } from "@hashintel/engine-web";
 
 import { AnyExperimentRun, SimulationData } from "./types";
-import { LinkableProject, ProjectAccess } from "../../project/types";
+import { LinkableProject } from "../../project/types";
 import { Scope, selectScope } from "../../scopes";
 import type { SimulatorThunk } from "../types";
 import { addUserAlert } from "../../viewer";
@@ -97,7 +97,6 @@ export const pauseAndNew = (
 
 export const fetchProjectHistory = (
   project: LinkableProject,
-  access: ProjectAccess,
   pageToCurrent: boolean,
   createdBefore?: string | null,
   signal?: AbortSignal
@@ -106,7 +105,7 @@ export const fetchProjectHistory = (
     project,
     pageToCurrent,
     createdBefore,
-    access?.code,
+    undefined,
     signal
   );
 
@@ -122,14 +121,12 @@ export const fetchProjectHistory = (
  */
 export const fetchProjectHistoryNextPage = (
   project: LinkableProject,
-  access: ProjectAccess,
   signal?: AbortSignal
 ): SimulatorThunk<Promise<void>> => async (dispatch, getState) => {
   const state = getState();
   await dispatch(
     fetchProjectHistory(
       project,
-      access,
       !selectHistoryReceivedCurrent(state),
       selectHistoryNextPage(state),
       signal

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, useState } from "react";
 import { useSelector } from "react-redux";
 
 import { Scope, useScope } from "../../../features/scopes";
@@ -55,29 +55,7 @@ export const ToastProjectPreview: FC<{
     numCopies: number;
     existingPath: string;
   } | null>(null);
-  const handlePromiseRejection = useHandlePromiseRejection();
-  const code = project.access?.code;
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    // Migration Shim
-    // handlePromiseRejection(
-    //   (async () => {
-    //     const signal = controller.signal;
-    //     const forks : String []= [];// await userForks(project.pathWithNamespace, code, signal);
-
-    //     setData({
-    //       numCopies: forks.length,
-    //       existingPath: forks[0],
-    //     });
-    //   })()
-    // );
-
-    return () => {
-      controller.abort();
-    };
-  }, [code, handlePromiseRejection, project.pathWithNamespace]);
+  const _handlePromiseRejection = useHandlePromiseRejection();
 
   if (!data) {
     return null;

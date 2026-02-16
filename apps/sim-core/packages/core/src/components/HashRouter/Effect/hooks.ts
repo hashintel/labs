@@ -6,7 +6,6 @@ import { LinkableProject } from "../../../features/project/types";
 import {
   selectAccessGate,
   selectCurrentProjectUrl,
-  selectProjectAccess,
 } from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
 
@@ -22,10 +21,8 @@ export const useNavigateAway = (defaultProject?: LinkableProject | null) => {
   const defaultUrl = defaultProject ? urlFromProject(defaultProject) : null;
   const accessGateUrl = useSelector(selectAccessGate)?.url;
   const projectUrl = useSelector(selectCurrentProjectUrl);
-  const access = useSelector(selectProjectAccess);
   const url = accessGateUrl ?? projectUrl ?? defaultUrl ?? "/";
-  const queryParams =
-    url === projectUrl && access ? { accessCode: access.code } : {};
+  const queryParams = {};
 
   const dataRef = useRef({ url, queryParams });
 

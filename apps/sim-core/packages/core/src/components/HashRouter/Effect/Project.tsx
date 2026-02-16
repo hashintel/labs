@@ -6,10 +6,8 @@ import type { AppDispatch } from "../../../features/types";
 import { HashRouterEffectFork } from "./Fork";
 import { HashRouterEffectNotFound } from "./NotFound";
 import { LinkableProject } from "../../../features/project/types";
-import { ProjectAccessScope } from "../../../shared/scopes";
 import { fetchProject } from "../../../features/project/slice";
 import { getSafeQueryParams } from "../../../util/getSafeQueryParams";
-import { parseAccessCodeInParams } from "../../../util/parseAccessCodeInParams";
 import { selectBootstrapped } from "../../../features/user/selectors";
 import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
@@ -51,18 +49,15 @@ const HashRouterEffectProjectFetch: FC<{
       return;
     }
 
-    const { fromLegacy, file, ...params } = getSafeQueryParams();
-    const { access, ...otherParams } = parseAccessCodeInParams(
-      params,
-      ProjectAccessScope.Read
-    );
+    const { fromLegacy, file, accessCode: _ac, ...otherParams } =
+      getSafeQueryParams();
 
     setQueryParams(
       {
         ...otherParams,
         fromLegacy: undefined,
         file: undefined,
-        accessCode: access?.code ?? undefined,
+        accessCode: undefined,
       },
       true
     );
@@ -77,7 +72,6 @@ const HashRouterEffectProjectFetch: FC<{
             project,
             fromLegacy: !!fromLegacy,
             file,
-            access,
           })
         ),
         controller.signal

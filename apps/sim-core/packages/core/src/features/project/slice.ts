@@ -8,7 +8,6 @@ import {
 } from "../../components/HashCore/AccessGate";
 import {
   LinkableProject,
-  ProjectAccess,
   ProjectSlice,
   ProjectUpdate,
   ReleaseDescription,
@@ -83,11 +82,7 @@ export const fetchProject = createAppAsyncThunk<
     project: LinkableProject;
     fromLegacy?: boolean;
     file?: string;
-    access?: ProjectAccess;
     redirect?: boolean;
-
-    // This is useful if you're prefetching – you won't need it in most cases
-    prefetchedRemoteProject?: Promise<RemoteSimulationProject>;
   }
 >(
   "project/fetchProject",
@@ -97,10 +92,8 @@ export const fetchProject = createAppAsyncThunk<
       fromLegacy = false,
       file,
       redirect = true,
-      access, // eslint-disable-line @typescript-eslint/no-unused-vars
-      prefetchedRemoteProject, // eslint-disable-line @typescript-eslint/no-unused-vars
     },
-    { dispatch, signal, getState } // eslint-disable-line @typescript-eslint/no-unused-vars
+    { dispatch, getState } // eslint-disable-line @typescript-eslint/no-unused-vars
   ) => {
     if (selectScope[Scope.save](getState())) {
       await dispatch(save());

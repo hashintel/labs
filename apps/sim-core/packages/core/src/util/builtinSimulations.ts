@@ -174,6 +174,5 @@ export const BUILTIN_SIMULATIONS: SimulationProjectWithHcFiles[] = remoteSimulat
     config: toHcConfig(project),
     files: toHcFiles(project),
     ref: project.ref ?? "main",
-    access: null,
   })
 );

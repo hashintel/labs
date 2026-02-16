@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { createSelector, Selector } from "@reduxjs/toolkit";
 
-import { ProjectAccessScope, projectAccessLevelScopes } from "../shared/scopes";
 import { RootState } from "./types";
 import { SimulationProject } from "./project/types";
 import { globalsFileId, isReadOnly } from "./files/utils";
@@ -15,23 +14,13 @@ import {
 import {
   selectCurrentProject,
   selectHasProject,
-  selectProjectAccess,
 } from "./project/selectors";
 import { selectEditorVisible, selectEmbedded } from "./viewer/selectors";
 import { selectExperiments } from "../components/SimulationRunner/Controls/Experiments/selectors";
 import { selectUserSlice } from "./user/selectors";
 
-const projectAccessScopes = (project: SimulationProject) =>
-  project.access
-    ? projectAccessLevelScopes[project.access.level]
-    : project.canUserEdit
-    ? projectAccessLevelScopes.Write
-    : projectAccessLevelScopes.Read;
-
 const projectEditable = (project?: SimulationProject | null) =>
-  project
-    ? projectAccessScopes(project).includes(ProjectAccessScope.Write)
-    : false;
+  project ? project.canUserEdit : false;
 
 const loggedInOrEditable = (
   loggedIn: boolean,
@@ -46,10 +35,6 @@ const helpers = (() => {
   const selectLoggedIn = createSelector(
     selectUserSlice,
     (user) => user.isLoggedIn
-  );
-
-  const selectAccessScopes = createSelector(selectCurrentProject, (project) =>
-    project ? projectAccessScopes(project) : null
   );
 
   return {
@@ -71,16 +56,7 @@ const helpers = (() => {
       (project) => !!project && isProjectLatest(project)
     ),
 
-    projectWithoutAccess: createSelector(
-      [selectHasProject, selectProjectAccess],
-      (hasProject, access) => hasProject && !access
-    ),
-
-    projectWithoutEmbedOnlyAccess: createSelector(
-      [selectHasProject, selectAccessScopes],
-      (hasProject, scopes) =>
-        hasProject && (scopes?.includes(ProjectAccessScope.Read) ?? false)
-    ),
+    hasProject: selectHasProject,
   };
 })();
 
@@ -264,7 +240,7 @@ const saveSelectors: ScopeSelectorList = [
 ];
 
 const forkSelectors: ScopeSelectorList = [
-  helpers.projectWithoutAccess,
+  helpers.hasProject,
   helpers.notEmbedded,
 ];
 
@@ -278,7 +254,7 @@ const scopes: Record<Scope, ScopeSelectorList> = {
 
   [Scope.useCloud]: [
     Scope.useAccount,
-    helpers.projectWithoutAccess,
+    helpers.hasProject,
     helpers.notEmbedded,
   ],
 
@@ -300,11 +276,11 @@ const scopes: Record<Scope, ScopeSelectorList> = {
   [Scope.fork]: [...forkSelectors, Scope.useAccount],
   [Scope.forkIfSignedIn]: [...forkSelectors, Scope.login],
 
-  [Scope.release]: [Scope.save, helpers.projectWithoutAccess],
+  [Scope.release]: [Scope.save, helpers.hasProject],
   [Scope.generateAccessCode]: [
     Scope.useAccount,
     Scope.mutate,
-    helpers.projectWithoutAccess,
+    helpers.hasProject,
   ],
 
   [Scope.forkBehavior]: [...forkSelectors, Scope.useAccount, Scope.mutate],
@@ -312,7 +288,7 @@ const scopes: Record<Scope, ScopeSelectorList> = {
   [Scope.uploadDataset]: [
     Scope.save,
     Scope.useAccount,
-    helpers.projectWithoutAccess,
+    helpers.hasProject,
   ],
 
   [Scope.modifyFile]: [selectEditorVisible, helpers.currentFileEditable],
@@ -320,10 +296,10 @@ const scopes: Record<Scope, ScopeSelectorList> = {
 
   [Scope.showOpenInCore]: [
     selectEmbedded,
-    helpers.projectWithoutEmbedOnlyAccess,
+    helpers.hasProject,
   ],
 
-  [Scope.linkToProjectInIndex]: [helpers.projectWithoutAccess],
+  [Scope.linkToProjectInIndex]: [helpers.hasProject],
 };
 
 const scopeEntries = Object.entries(scopes) as [Scope, ScopeSelectorList][];

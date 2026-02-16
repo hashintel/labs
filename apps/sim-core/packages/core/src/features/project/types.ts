@@ -2,8 +2,6 @@ import { FileAction, HcDependencyFile, HcFile } from "../files/types";
 import { HashCoreAccessGateKindWithProps } from "../../components/HashCore/AccessGate";
 import { License } from "../../util/api/types";
 import { PartialSimulationProjectFieldsTuple } from "./utils";
-import { ProjectAccessCodeAccessType } from "../../shared/scopes";
-
 export type ProjectFile = {
   name: string;
   path: string;
@@ -45,12 +43,6 @@ export type CanUserEditProject = {
   dependencies: Pick<Release, "pathWithNamespace" | "canUserEdit">[];
 };
 
-export type ProjectAccessParsed = {
-  code: string;
-  level: ProjectAccessCodeAccessType;
-};
-export type ProjectAccess = ProjectAccessParsed | null | undefined;
-
 /**
  * @todo rename this to Project
  */
@@ -76,13 +68,11 @@ export type SimulationProject = {
   license?: Pick<License, "id" | "name"> | null;
   keywords: string[];
   ownerType: "User" | "Org";
-  access: ProjectAccess;
 } & Omit<CanUserEditProject, "dependencies">;
 
-// @todo consider adding access to this
 export type RemoteSimulationProject = Omit<
   SimulationProject,
-  "config" | "ref" | "access"
+  "config" | "ref"
 > & {
   files: ProjectFile[];
   dependencies?: Release[];
@@ -100,7 +90,7 @@ export type LocalStorageProject = SimulationProjectWithHcFiles & {
 export type ResourceProjectType = Exclude<SimulationProjectType, "Simulation">;
 export type ResourceProject = Omit<
   SimulationProject,
-  "config" | "forkOf" | "files" | "type" | "ref" | "access"
+  "config" | "forkOf" | "files" | "type" | "ref"
 > & {
   type: ResourceProjectType;
   files: HcDependencyFile[];
@@ -130,7 +120,6 @@ export type UnpreparedPartialSimulationProject = Omit<
   "ref"
 > & { latestRelease?: ReleaseDescription | null };
 
-// @todo consider adding access to this
 export type LinkableProject = Pick<SimulationProject, "pathWithNamespace"> & {
   ref?: SimulationProject["ref"] | null;
 };

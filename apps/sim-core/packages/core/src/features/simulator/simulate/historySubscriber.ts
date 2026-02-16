@@ -4,10 +4,7 @@ import { LinkableProject } from "../../project/types";
 import { SimulatorDispatch, SimulatorRootState } from "../types";
 import { store as appStore } from "../../store";
 import { fetchProjectHistoryNextPage } from "./thunks";
-import {
-  selectCurrentProjectRequired,
-  selectProjectAccess,
-} from "../../project/selectors";
+import { selectCurrentProjectRequired } from "../../project/selectors";
 import {
   selectHistoryComplete,
   selectHistoryHasFilledScreen,
@@ -32,7 +29,6 @@ export const historySubscriber = (store: Store<SimulatorRootState>) => {
       await dispatch(
         fetchProjectHistoryNextPage(
           selectCurrentProjectRequired(appStore.getState()),
-          selectProjectAccess(appStore.getState()),
           signal
         )
       );

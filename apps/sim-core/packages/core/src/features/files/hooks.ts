@@ -225,7 +225,6 @@ export const useImportFiles = () => {
       config: toHcConfig(importedProject),
       files: toHcFiles(importedProject),
       ref: importedProject.ref ?? "main",
-      access: null,
     };
 
     dispatch(

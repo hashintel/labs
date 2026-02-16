@@ -77,11 +77,6 @@ export const selectLatestReleaseTag = createSelector(
   (project) => project?.latestRelease?.tag
 );
 
-export const selectProjectAccess = createSelector(
-  selectCurrentProject,
-  (project) => project?.access
-);
-
 export const selectForkCurrentProjectUrl = createSelector(
   [selectCurrentProject],
   (project) => (project ? forkUrlFromProject(project) : null)
