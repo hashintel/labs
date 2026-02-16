@@ -742,6 +742,11 @@ channel = "nightly-2022-08-08"  # 3+ YEARS OLD
 - [ ] Consider adding `cargo-deny` for license/advisory checks
 - [ ] Update to Rust Edition 2024 when stable (currently 2021)
 
+### Wishlist (after migration plan): Python Runner Environment (sim-engine)
+
+- [ ] **Repair Python runner for cross-platform testing** (consider after finishing the rest of the migration plan)  
+  The engine’s Python behavior runner (e.g. `lib/execution/src/runner/python/`, `setup.sh`, `requirements.txt`) is Unix-oriented and does not run reliably on Windows (spawn via `sh`/`run.sh`, no Windows path). Rather than maintaining a Windows-specific Python setup on every developer machine, **run Python runner tests stably inside a Docker container** so CI and contributors get a consistent environment (e.g. Linux + Python 3.10 in Docker) instead of requiring a local Python/venv on Windows or macOS.
+
 ---
 
 ## hash-agents (Python POC)
