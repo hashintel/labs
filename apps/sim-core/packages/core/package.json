@@ -18,7 +18,11 @@
     "fmt-check": "prettier \"*.{ts,tsx,js,jsx,json,css,scss}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss}\" --check || exit 1; eslint --quiet \"*.{ts,tsx,js}\" \"{scripts,src}/**/*.{ts,tsx,js}\"",
     "deploy": "ts-node --project scripts/tsconfig.json scripts/deploy.ts",
     "g": "ts-node --project scripts/tsconfig.json scripts/cli",
-    "test": "jest --forceExit --testPathIgnorePatterns '/node_modules/|/tests/e2e/'"
+    "test": "jest --forceExit --testPathIgnorePatterns '/node_modules/|/tests/e2e/'",
+    "test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test --config=tests/e2e/playwright.config.ts --ui",
+    "test:e2e:headed": "playwright test --config=tests/e2e/playwright.config.ts --headed",
+    "test:e2e:debug": "playwright test --config=tests/e2e/playwright.config.ts --debug"
   },
   "jest": {
     "preset": "ts-jest/presets/js-with-babel",
@@ -136,6 +140,7 @@
     "vega": "5.17.3"
   },
   "devDependencies": {
+    "@playwright/test": "^1.41.0",
     "@graphql-codegen/add": "2.0.2",
     "@graphql-codegen/cli": "1.21.1",
     "@graphql-codegen/typescript": "1.21.0",
