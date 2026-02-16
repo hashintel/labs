@@ -120,7 +120,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 - [x] Remove hCloud experiment runners (keep local runner)
 - [x] Remove server-side project save
 - [x] Remove sharing features (`ModalShare*`)
-- [ ] Remove access code system (partially: UI removed, parsing kept for URL compat)
+- [x] Remove access code system
 
 #### Phase 4: Remove Project Management
 - [x] Remove `ModalRelease*` components
@@ -131,26 +131,30 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 #### Phase 5: Simplify to Local Storage
 - [x] Implement localStorage-based project persistence
 - [x] Implement local project templates
-- [ ] Ensure import/export .zip works standalone
-- [ ] Test fully offline operation
+- [x] Ensure import/export .zip works standalone
+- [ ] Test fully offline operation (requires running the app)
 
 ### Packages to Remove (Feature-Related)
 
 ```
 # Auth/Cloud related
-- Remove API calls to HASH servers
-- Remove GraphQL queries for user data
+- (Done) Removed dead API query files: canUserEditProject, createNewSimulationProject,
+  forkProjectQuery, forkAndReleaseBehaviorsQuery, projectReleaseTags,
+  requestPrivateProjectAccessCode, userForks, commitActions,
+  createReleaseWithUpdate, registerEvents
+- (Done) Analytics no-opped (trackEvent/trackEvents are stubs)
+- (Done) getReleaseMeta returns empty data locally
 
 # Sharing
-- (ModalShare components deleted)
+- (Done) ModalShare components deleted
 
 # Analytics (already in plan)
-- @sentry/browser
-- @sentry/integrations  
-- @sentry/tracing
-- @sentry/fullstory
-- @sentry/webpack-plugin
-- @fullstory/browser
+- @sentry/browser (removed)
+- @sentry/integrations (removed)
+- @sentry/tracing (removed)
+- @sentry/fullstory (removed)
+- @sentry/webpack-plugin (removed)
+- @fullstory/browser (removed)
 ```
 
 ---
