@@ -79,6 +79,14 @@ impl fmt::Debug for Segment {
     }
 }
 
+// On Windows, shared_memory::Shmem uses raw pointers that are not Send/Sync by default.
+// Segment is always used behind synchronization (e.g. RwLock) or in single-threaded contexts;
+// the engine does not access the same mapping from multiple threads without locking.
+#[cfg(windows)]
+unsafe impl Send for Segment {}
+#[cfg(windows)]
+unsafe impl Sync for Segment {}
+
 impl Drop for Segment {
     fn drop(&mut self) {
         if self.data.is_owner() {
@@ -218,12 +226,22 @@ impl Segment {
 
     /// Resize the Shared Memory segment, also performs
     /// reloading
+    #[cfg(not(windows))]
     pub fn resize(&mut self, mut new_size: usize) -> Result<()> {
         new_size = Self::calculate_total_size(new_size, self.include_terminal_padding)?;
         tracing::trace!("Trying to resize memory to: {}", new_size);
         self.data.resize(new_size)?;
         self.size = new_size;
         Ok(())
+    }
+
+    /// Resize is not supported on Windows (underlying API does not support it).
+    #[cfg(windows)]
+    pub fn resize(&mut self, _new_size: usize) -> Result<()> {
+        Err(Error::from(
+            "Shared memory resize is not supported on Windows; set OS_MEMORY_ALLOC_OVERRIDE to a \
+             large enough size for your simulation",
+        ))
     }
 
     fn calculate_total_size(size: usize, include_terminal_padding: bool) -> Result<usize> {
@@ -237,8 +255,16 @@ impl Segment {
 
     /// Reload the shared memory segment when an
     /// external resize has happened
+    #[cfg(not(windows))]
     pub fn reload(&mut self) -> Result<()> {
         self.data.reload()?;
+        self.size = self.data.len();
+        Ok(())
+    }
+
+    /// On Windows, underlying shared memory cannot be resized; just refresh size from current len.
+    #[cfg(windows)]
+    pub fn reload(&mut self) -> Result<()> {
         self.size = self.data.len();
         Ok(())
     }
@@ -300,13 +326,13 @@ impl Segment {
         self.visitor_mut().set_data_length(data_length)
     }
 
-    // We can't resize memory on macos
-    #[cfg(target_os = "macos")]
+    // We can't resize memory on macOS or Windows
+    #[cfg(any(target_os = "macos", target_os = "windows"))]
     pub fn shrink_memory_with_data_length(&mut self, _data_length: usize) -> Result<BufferChange> {
         Ok(BufferChange::new(false, false))
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     pub fn shrink_memory_with_data_length(&mut self, data_length: usize) -> Result<BufferChange> {
         self.visitor_mut().shrink_with_data_length(data_length)
     }
