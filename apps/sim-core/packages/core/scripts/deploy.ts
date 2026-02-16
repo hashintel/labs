@@ -4,7 +4,6 @@
 /// <reference types="./types" />
 
 import randomEmoji from "random-emoji";
-import request from "request-promise-native";
 import { cat, config, echo, exec, ls, which } from "shelljs";
 import { trimStart } from "lodash";
 
@@ -27,9 +26,13 @@ function getNotifier(notifySlack: boolean) {
     echo(message);
 
     if (notifySlack) {
-      await request.post(
+      await fetch(
         "https://hooks.slack.com/services/T5Z49HZPW/B01QB9PQNE8/4Ur5MWKteJFdxvGYCCxiD",
-        { json: { text: `${logging_prefix} ${message}` } }
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: `${logging_prefix} ${message}` }),
+        }
       );
     }
   };
