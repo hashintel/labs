@@ -16,7 +16,7 @@ Before making changes, review [TODO.md](mdc:TODO.md) for:
 - Known compatibility issues
 
 Key warnings:
-- React 16.14 is severely outdated - don't partially upgrade React ecosystem
+- React 18.2 (upgraded from 16.14). react-three-fiber/drei still on old versions (need @react-three/* migration)
 - Python hash-agents uses completely outdated LangChain/OpenAI APIs
 - Rust nightly updated to 2024-12-01 but cargo build not yet verified on all targets
 
@@ -174,7 +174,7 @@ hashintel-labs/
 ## Tech Stack (Note: Many packages outdated - see TODO.md)
 
 sim-core Frontend:
-- React 16.14 (outdated - current is 18.x)
+- React 18.2.0 (upgraded from 16.14)
 - Redux Toolkit 1.5 (outdated - BEING REMOVED ENTIRELY)
 - TypeScript 5.3.3 (updated from 4.1; ~80 RTK type errors suppressed until Redux removal)
 - Webpack 4 (outdated - current is 5.x or Vite)

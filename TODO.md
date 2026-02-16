@@ -165,21 +165,18 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 | Package | Current | Latest | Action |
 |---------|---------|--------|--------|
-| `react` | 16.14.0 | 18.2+ | Upgrade |
-| `react-dom` | 16.14.0 | 18.2+ | Upgrade |
+| `react` | ~~16.14.0~~ **18.2.0** | ✅ Done | Upgraded via 16→17→18 |
+| `react-dom` | ~~16.14.0~~ **18.2.0** | ✅ Done | createRoot migrated |
 | `react-redux` | 7.2.4 | - | **REMOVE** (see Redux Removal below) |
 | `@reduxjs/toolkit` | 1.5.0 | - | **REMOVE** (see Redux Removal below) |
 | `redux` | * | - | **REMOVE** |
 | `recoil` | 0.4.1 | - | **REMOVE** |
 
-**React Migration Path**:
-1. Update React 16 → 17 (minimal changes, prep for 18)
-2. Update React 17 → 18 (createRoot, Concurrent features)
-
-**Blockers**:
-- Many class components may need refactoring
-- Legacy lifecycle methods (componentWillMount, etc.)
-- String refs need conversion to createRef/useRef
+**React Migration**: ✅ COMPLETE (16 → 17 → 18.2)
+- No legacy lifecycle methods found (0 instances)
+- Only 2 class components (ErrorBoundary, StepExplorer) — both compatible
+- Entry points migrated to createRoot API
+- Test files still use legacy ReactDOM.render (deprecated warnings; clean up with Jest 29)
 
 ---
 
@@ -813,7 +810,7 @@ All items completed in Migration Phases above (Phases 2–5).
 4. [ ] Update Jest 26 → 29 or migrate to Vitest
 
 ### Phase 4: React & State Management
-1. [ ] React 16 → 17 → 18 migration (no legacy lifecycle blockers found)
+1. [x] React 16 → 17 → 18.2 migration (no legacy lifecycle blockers; createRoot migrated)
 2. [ ] **Remove Redux entirely** (see detailed plan above)
    - [ ] Audit all state usage across slices
    - [ ] Create minimal Context providers for truly global state
