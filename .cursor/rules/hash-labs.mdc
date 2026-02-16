@@ -1,0 +1,156 @@
+---
+alwaysApply: true
+---
+# HASH Labs - AI Agent Guidelines
+
+## Project Overview
+
+This is HASH's labs monorepo containing experimental simulation tools and proof-of-concepts. The primary application is sim-core (hCore), an in-browser IDE for building and running agent-based simulations.
+
+## Important: Technical Debt Awareness
+
+Before making changes, review [TODO.md](mdc:TODO.md) for:
+- Outdated dependencies that should NOT be upgraded in isolation
+- Deprecated packages that need replacement
+- Planned modernization phases
+- Known compatibility issues
+
+Key warnings:
+- React 16.14 is severely outdated - don't partially upgrade React ecosystem
+- Rust nightly is 3+ years old - toolchain update is safe and recommended
+- Python hash-agents uses completely outdated LangChain/OpenAI APIs
+- hookrouter is abandoned - needs replacement with react-router
+
+## IMPORTANT: Application is Becoming Local-First
+
+This app is being transformed into a **free, fully-featured, local-only simulation IDE**.
+
+### Core Principles
+- **NO USER ACCOUNTS** - Don't add authentication or login flows
+- **NO CLOUD FEATURES** - Don't add cloud storage, sharing, or server-side features
+- **NO ANALYTICS** - Don't add Sentry, FullStory, or tracking code
+- **LOCAL STORAGE ONLY** - Use localStorage/IndexedDB for persistence
+- **GitHub sync is FUTURE** - Don't implement yet (post-migration)
+
+### Features Being REMOVED - DO NOT Extend
+- User authentication (ModalSignin, ModalSignup)
+- Cloud credits / CloudUsage
+- Project sharing (ModalShare*)
+- Access codes
+- Server project storage
+- Fork project
+- Project releases/versioning (ModalRelease*)
+- hCloud experiment runners
+- Sentry / FullStory analytics
+- Discord widget
+
+### Features to KEEP
+- All simulation execution (step, play, pause, reset)
+- All viewer tabs (3D, geospatial, analysis, process chart, raw output)
+- Code editing (Monaco, file tree, behaviors)
+- Local experiments (parameter sweeps, optimization)
+- hIndex shared behaviors library
+- Import/Export .zip
+- Onboarding tour
+
+## IMPORTANT: Redux is Being Removed
+
+Redux is being **completely removed** (not migrated to another library). DO NOT add any Redux code.
+
+Current state: Two Redux stores (App Store + Simulator Store)
+Target state: React built-in state management (Context + hooks)
+
+If you need to add new state management:
+- DON'T create new Redux slices
+- DON'T add new useSelector/useDispatch usage
+- DON'T add new state management libraries
+- DO use React's built-in useState, useReducer, useContext
+- DO keep state as local as possible (lift only when necessary)
+- DO use localStorage for persistence
+- See TODO.md for the full removal plan
+
+## Architecture Alignment
+
+Before implementing any feature or making significant changes:
+
+1. Review [ARCHITECTURE.md](mdc:ARCHITECTURE.md) to understand:
+   - How the component/feature fits into the overall system
+   - Existing patterns for similar functionality
+
+2. Check implementation decisions against established patterns:
+   - State management: Use React built-ins (useState, useContext, useReducer)
+   - Components: Should this follow the src/components/[Name]/ structure?
+   - Async operations: Use regular async functions (not Redux thunks)
+
+3. If deviating from architecture, document why in the PR/commit message.
+
+## Documentation Maintenance
+
+After completing significant changes, update:
+
+1. [ARCHITECTURE.md](mdc:ARCHITECTURE.md) - For structural changes
+2. [README.md](mdc:README.md) - For entry point/build changes
+3. [TODO.md](mdc:TODO.md) - For dependency updates or new tech debt
+4. This rules file - For convention changes
+
+## Repository Structure
+
+hashintel-labs/
+  apps/
+    sim-core/           - Primary: React/TypeScript simulation IDE
+    sim-engine/         - Standalone Rust simulation engine
+    sim-core-plugins/   - hCore plugins
+  pocs/                 - Proof of concepts (may be stale)
+  .github/              - CI/CD workflows
+
+## Tech Stack (Note: Many packages outdated - see TODO.md)
+
+sim-core Frontend:
+- React 16.14 (outdated - current is 18.x)
+- Redux Toolkit 1.5 (outdated - BEING REMOVED ENTIRELY)
+- TypeScript 4.1 (outdated - current is 5.x)
+- Webpack 4 (outdated - current is 5.x or Vite)
+- SCSS modules for styling
+
+sim-engine:
+- Rust nightly-2022-08-08 (severely outdated)
+- JavaScript and Python behavior support
+- FlatBuffers for IPC
+
+## Two Redux Stores Pattern (LEGACY - Being Deleted)
+
+App Store (features/store.ts) - General UI state
+Simulator Store (features/simulator/store.ts) - High-frequency simulation updates
+
+**DO NOT USE** - These are scheduled for complete removal. See TODO.md.
+
+## Build Commands
+
+sim-core:
+  yarn                  - Install and build
+  yarn serve:core       - Development server
+  yarn build:core       - Production build
+  yarn fmt:core         - Format code
+  yarn test:core        - Run tests
+
+sim-engine:
+  cargo build           - Build
+  cargo fmt             - Format
+  cargo clippy          - Lint
+  cargo test            - Test
+
+## Common Gotchas
+
+1. Redux is being removed - don't add any Redux code
+2. Don't upgrade React/Redux partially - ecosystem must stay in sync
+3. hookrouter is abandoned - routing changes need migration plan
+4. Legacy code from 2019-2020 - be cautious with refactoring
+5. NODE_OPTIONS=--openssl-legacy-provider indicates version conflicts
+
+## References
+
+- [sim-core README](mdc:apps/sim-core/README.md)
+- [sim-engine README](mdc:apps/sim-engine/README.md)
+- [ARCHITECTURE.md](mdc:ARCHITECTURE.md)
+- [TODO.md](mdc:TODO.md)
+- [CONTRIBUTING.md](mdc:.github/CONTRIBUTING.md)
