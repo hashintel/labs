@@ -84,6 +84,18 @@ Before implementing any feature or making significant changes:
 
 3. If deviating from architecture, document why in the PR/commit message.
 
+## Commit Discipline
+
+After completing each logical section of work (e.g. a migration phase, a feature, a bug fix):
+
+1. **Run `git status` at the repository root** to check for uncommitted changes
+2. **Stage and commit** all related changes before moving on to the next task
+3. Group changes into logical commits (one per phase/feature, not one giant commit)
+4. Never leave uncommitted work behind when finishing a task or phase
+5. If a task spans multiple phases, commit each phase separately with a clear message
+
+This prevents work from being lost and keeps the history clean and reviewable.
+
 ## Documentation Maintenance
 
 After completing significant changes, update:
