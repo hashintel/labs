@@ -248,45 +248,6 @@ const setters = {
         state.openFileIds.push(id);
       }
     } else {
-      /**
-       * Diagnostics to fix sentry issue
-       * "Cannot append file that does not exist: initialState"
-       * @see https://sentry.io/organizations/hashintel/issues/2371565370/events/fd45f2d27fad4b3ca12a2e60a910ecee/?project=1509252
-       * @todo remove this when above issue resolved
-       */
-      const currentState = current(state);
-      console.log("===== CURRENT STATE =====");
-      for (const [key, value] of Object.entries(currentState)) {
-        switch (key) {
-          case "actions":
-            console.log("===== ACTIONS =====");
-
-            for (const action of currentState.actions) {
-              console.log(JSON.stringify(action));
-            }
-
-            console.log("===== END ACTIONS =====");
-            break;
-          case "entities":
-            for (const entity of Object.values(currentState.entities)) {
-              console.log(JSON.stringify(entity));
-            }
-            break;
-          default:
-            console.log(key, JSON.stringify(value));
-            break;
-        }
-      }
-      console.log("===== LOCAL STORAGE =====");
-
-      try {
-        for (const [key, value] of Object.entries(localStorage)) {
-          console.log(key, value);
-        }
-      } catch (err) {
-        console.warn("Could not log localStorage", err);
-      }
-
       throw new Error(`Cannot append file that does not exist: ${id}`);
     }
   },

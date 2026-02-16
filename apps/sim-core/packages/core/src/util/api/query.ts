@@ -1,6 +1,3 @@
-import prettyStringify from "json-stringify-pretty-compact";
-import { Severity, addBreadcrumb } from "@sentry/browser";
-
 import { API_URL } from "./paths";
 
 const parseQueryForName = (graphql: string) =>
@@ -99,31 +96,11 @@ export async function query<T, V = {} | undefined>(
     signal
   );
 
-  const crumb = {
-    type: "query",
-    data: {
-      graphql,
-      variables: variables ? prettyStringify(variables) : "{}",
-      ...(errors ? { errors: prettyStringify(errors) } : {}),
-    },
-    category: "graphql",
-  };
-
   if (errors) {
-    addBreadcrumb({
-      ...crumb,
-      level: Severity.Warning,
-      message: `Unsuccessful query ${queryName}`,
-    });
     throw new QueryError({
       graphql,
       variables: variables || null,
       errors: errors as ApiError[],
-    });
-  } else {
-    addBreadcrumb({
-      ...crumb,
-      message: `Successful query ${queryName}`,
     });
   }
 

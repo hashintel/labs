@@ -6,7 +6,6 @@ const ForkTsCheckerWebpackPlugin = require("fork-ts-checker-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const ManifestPlugin = require("webpack-manifest-plugin");
 const MonacoWebpackPlugin = require("monaco-editor-webpack-plugin");
-const SentryWebpackPlugin = require("@sentry/webpack-plugin");
 const WebpackMessages = require("webpack-messages");
 const { RetryChunkLoadPlugin } = require("webpack-retry-chunk-load-plugin");
 const { UnusedModulesWebpackPlugin } = require("unused-modules-webpack-plugin");
@@ -299,22 +298,6 @@ module.exports = (_env, argv) => {
       }),
     ],
   };
-
-  // Migration shim
-  // Sentry disabled during hCore migration
-  if (isProduction && false) {
-    const sentryPlugin = new SentryWebpackPlugin({
-      authToken: process.env.SENTRY_AUTH_TOKEN,
-      include: `./dist/${BUILD_STAMP}`,
-      org: "hashintel",
-      project: "hash-core",
-      release: BUILD_STAMP,
-      urlPrefix: `~/${BUILD_STAMP}/`,
-    });
-    browserConfig.plugins.push(sentryPlugin);
-    simulationWorkerConfig.plugins.push(sentryPlugin);
-    analyzerWorkerConfig.plugins.push(sentryPlugin);
-  }
 
   return [browserConfig, simulationWorkerConfig, analyzerWorkerConfig];
 };

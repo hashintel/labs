@@ -143,7 +143,5 @@
   "resolutions": {
     "@types/react": "16.9.56"
   },
-  "dependencies": {
-    "@sentry/tracing": "6.3.6"
-  }
+  "dependencies": {}
 }

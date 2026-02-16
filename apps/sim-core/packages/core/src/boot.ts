@@ -3,7 +3,6 @@ import { enableMapSet } from "immer";
 import * as api from "./util/api";
 import { buildSimulationProvider } from "./features/simulator/simulate/buildprovider";
 import { configureMonaco } from "./util/monaco-config";
-import { initSentry } from "./util/initSentry";
 import { resizeObserverPromise } from "./util/resizeObserverPromise";
 import { simulatorStore } from "./features/simulator/store";
 import { store } from "./features/store";
@@ -25,7 +24,6 @@ export const boot = async (forExperiments: boolean) => {
     simulatorStore,
   });
 
-  initSentry();
   configureTheme();
   enableMapSet();
   configureMonaco();
