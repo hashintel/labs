@@ -105,10 +105,10 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 ### Migration Phases for Feature Removal
 
 #### Phase 1: Remove Analytics & Widgets
-- [ ] Remove Sentry (`@sentry/*` packages)
-- [ ] Remove FullStory (`@fullstory/browser`)
-- [ ] Remove Discord widget
-- [ ] Remove why-did-you-render
+- [x] Remove Sentry (`@sentry/*` packages)
+- [x] Remove FullStory (`@fullstory/browser`)
+- [x] Remove Discord widget
+- [x] Remove why-did-you-render
 
 #### Phase 2: Remove Auth & User System
 - [ ] Remove `ModalSignin`, `ModalSignup`
