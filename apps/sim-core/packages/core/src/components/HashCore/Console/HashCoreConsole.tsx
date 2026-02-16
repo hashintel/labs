@@ -1,4 +1,4 @@
-import React, { FC, memo, ReactNode, useEffect, useMemo } from "react";
+import React, { FC, memo, ReactNode, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import classnames from "classnames";
 import format from "date-fns/format";
@@ -10,7 +10,6 @@ import type { UserAlert } from "../../../features/viewer/types";
 import { clearUserAlerts } from "../../../features/viewer/slice";
 import { selectIdKindAndPathFromFiles } from "../../../features/files/selectors";
 import { selectUserAlerts } from "../../../features/viewer/selectors";
-import { useModalCloudUsage } from "../../Modal/CloudUsage";
 
 import "./HashCoreConsole.css";
 
@@ -36,18 +35,6 @@ export const HashCoreConsole: FC = memo(function HashCoreConsole() {
     () => Object.fromEntries(files.map((file) => [file.path.formatted, file])),
     [files]
   );
-
-  // Show a modal on more important alert messages
-  const [showModal, hideModal] = useModalCloudUsage();
-  useEffect(() => {
-    const errorContexts = userAlerts.map((err) => err.message);
-    if (errorContexts.includes("Out of cloud compute credits")) {
-      showModal();
-      return () => {
-        hideModal();
-      };
-    }
-  }, [userAlerts, showModal, hideModal]);
 
   return (
     <div

@@ -6,6 +6,5 @@ export {
 export {
   setTourProgress,
   userReducer,
-  setCloudCreditsRemaining,
 } from "./slice";
 export { tourProgress } from "./thunks";

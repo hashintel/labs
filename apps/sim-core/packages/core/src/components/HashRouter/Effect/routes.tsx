@@ -7,8 +7,7 @@ import { HashRouterEffectNewProject } from "./NewProject";
 import { HashRouterEffectNotFound } from "./NotFound";
 import { HashRouterEffectOnboard } from "./Onboard";
 import { HashRouterEffectProject } from "./Project";
-import { HashRouterEffectSignin } from "./Signin";
-import { HashRouterEffectSignup } from "./Signup";
+import { HashRouterEffectRedirectToRoot } from "./RedirectToRoot";
 import { getRouteFromQuery } from "../../../routes";
 
 const routes: HookRouter.RouteObject = {
@@ -27,8 +26,8 @@ const routes: HookRouter.RouteObject = {
     <HashRouterEffectLegacySimulation id={id} />
   ),
 
-  "/signup": () => <HashRouterEffectSignup />,
-  "/signin": () => <HashRouterEffectSignin />,
+  "/signup": () => <HashRouterEffectRedirectToRoot />,
+  "/signin": () => <HashRouterEffectRedirectToRoot />,
 
   "/@*": () => <HashRouterEffectProject />,
 

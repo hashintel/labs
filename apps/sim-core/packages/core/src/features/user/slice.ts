@@ -11,7 +11,6 @@ export const {
   reducer: userReducer,
   actions: {
     setTourProgress,
-    setCloudCreditsRemaining,
     addUserProject,
     setBasicUser,
   },
@@ -30,13 +29,6 @@ export const {
   reducers: {
     setTourProgress(state, { payload }: PayloadAction<TourProgress>) {
       state.tourProgress = payload;
-    },
-    setCloudCreditsRemaining(state, { payload }: PayloadAction<number>) {
-      if (state.currentUser === null) {
-        throw new Error("Tried to set cloud credits, but current user is null");
-      }
-
-      state.currentUser.cloudCredits = payload;
     },
     addUserProject(
       state,

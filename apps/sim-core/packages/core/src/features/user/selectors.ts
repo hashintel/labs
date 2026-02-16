@@ -33,11 +33,6 @@ export const selectTourProgress = createSelector(
   (user) => user.tourProgress
 );
 
-export const selectRemainingCloudCredits = createSelector(
-  selectCurrentUser,
-  (currentUser) => currentUser?.cloudCredits ?? 0
-);
-
 export const selectUserProjects = getSelectors<RootState>(selectUserSlice)
   .selectAll;
 

@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 import classNames from "classnames";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
-import { Link } from "../../../../Link/Link";
 import { Scope, useScopes } from "../../../../../features/scopes";
 import { TabKind } from "../../../../../features/viewer/enums";
 import { getMetaCharacter } from "../../../../../hooks/useKeyboardShortcuts";
@@ -38,7 +37,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
     clearAll,
   }) => {
     const dispatch = useDispatch();
-    const { canEdit, canLogin } = useScopes(Scope.edit, Scope.login);
+    const { canEdit } = useScopes(Scope.edit);
     const hasProject = useSelector(selectHasProject);
     const editorVisible = useSelector(selectEditorVisible);
     const activityVisible = useSelector(selectActivityVisible);
@@ -152,28 +151,6 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
         </li>
       </Fragment>
     );
-
-    if (canLogin) {
-      items.push(
-        <Fragment key="account">
-          {items.length ? (
-            <li>
-              <hr />
-            </li>
-          ) : null}
-          <li className="HashCoreHeaderMenu-submenu-item">
-            <Link path="/signup" onClick={clearAll}>
-              Sign up
-            </Link>
-          </li>
-          <li className="HashCoreHeaderMenu-submenu-item">
-            <Link path="/signin" onClick={clearAll}>
-              Sign in
-            </Link>
-          </li>
-        </Fragment>
-      );
-    }
 
     return (
       <>
