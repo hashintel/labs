@@ -1,5 +1,5 @@
 import React, { FC, forwardRef, HTMLProps } from "react";
-import { navigate } from "hookrouter";
+import { navigate } from "../../util/navigation";
 
 import { Scope } from "../../features/scopes";
 

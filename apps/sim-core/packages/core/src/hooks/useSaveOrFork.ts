@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from "react-redux";
-import { navigate } from "hookrouter";
+import { navigate } from "../util/navigation";
 
 import { AppDispatch } from "../features/types";
 import { Scope, useScopes } from "../features/scopes";

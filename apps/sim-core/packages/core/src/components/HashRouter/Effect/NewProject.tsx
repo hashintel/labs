@@ -1,7 +1,7 @@
 import React, { FC, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useModal } from "react-modal-hook";
-import { navigate } from "hookrouter";
+import { navigate } from "../../../util/navigation";
 
 import { AppDispatch } from "../../../features/types";
 import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";

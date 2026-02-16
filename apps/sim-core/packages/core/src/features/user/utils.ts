@@ -1,4 +1,4 @@
-import { navigate } from "hookrouter";
+import { navigate } from "../../util/navigation";
 
 import { getCurrentRoute } from "../../routes";
 

@@ -1,6 +1,6 @@
 import { FC, useEffect, useRef } from "react";
 import { useSelector, useStore } from "react-redux";
-import { navigate } from "hookrouter";
+import { navigate } from "../../../util/navigation";
 
 import { selectBootstrapped } from "../../../features/user/selectors";
 import { selectDefaultLinkableProject } from "../../../features/selectors";

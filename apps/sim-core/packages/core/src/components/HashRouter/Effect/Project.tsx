@@ -1,6 +1,8 @@
 import React, { FC, useEffect, useMemo } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
-import { HookRouter, setQueryParams, useRoutes } from "hookrouter";
+
+import { RouteMap, usePathRouter } from "../../../util/usePathRouter";
+import { setQueryParams } from "../../../util/navigation";
 
 import type { AppDispatch } from "../../../features/types";
 import { HashRouterEffectFork } from "./Fork";
@@ -25,7 +27,7 @@ const routeHandler = ({
   namespace,
   path,
   ref = "main",
-}: HookRouter.QueryParams): ProjectParams => ({
+}: Record<string, string>): ProjectParams => ({
   namespace: `@${namespace}`,
   path,
   ref,
@@ -88,15 +90,17 @@ const HashRouterEffectProjectFetch: FC<{
   return null;
 };
 
+const projectRoutes: RouteMap = {
+  "/@:namespace/:path": routeHandler,
+  "/@:namespace/:path/:ref": routeHandler,
+  "/@:namespace/:path/:ref/fork": (args: Record<string, string>) => ({
+    ...routeHandler(args),
+    fork: true,
+  }),
+};
+
 export const HashRouterEffectProject: FC = () => {
-  const routeResult: ProjectParams | null = useRoutes({
-    ":namespace/:path": routeHandler,
-    ":namespace/:path/:ref": routeHandler,
-    ":namespace/:path/:ref/fork": (args) => ({
-      ...routeHandler(args),
-      fork: true,
-    }),
-  });
+  const routeResult: ProjectParams | null = usePathRouter(projectRoutes);
 
   const pathWithNamespace = routeResult
     ? `${routeResult.namespace}/${routeResult.path}`

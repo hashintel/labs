@@ -412,9 +412,9 @@ const MyComponent = () => {
 
 | Package | Status | Replacement |
 |---------|--------|-------------|
-| `hookrouter` 1.2.3 | ⚠️ Abandoned (no updates since 2019) | `react-router` 6.x or `@tanstack/router` |
-| `request` 2.88.2 | ⚠️ Deprecated | `fetch` API or `axios` |
-| `request-promise-native` | ⚠️ Deprecated | `fetch` API or `axios` |
+| `hookrouter` 1.2.3 | ✅ Removed | Custom `usePathRouter` + `navigate` utilities |
+| `request` 2.88.2 | ✅ Removed | `fetch` API |
+| `request-promise-native` | ✅ Removed | `fetch` API |
 | `@material-ui/core` 4.11.4 | ⚠️ Renamed/Deprecated | `@mui/material` 5.x |
 | `@material-ui/lab` | ⚠️ Renamed/Deprecated | `@mui/lab` 5.x |
 | `react-three-fiber` 5.0.6 | ⚠️ Renamed | `@react-three/fiber` 8.x |
@@ -422,8 +422,8 @@ const MyComponent = () => {
 | `recoil` 0.4.1 | ⚠️ Unused | **Remove** (part of Redux removal) |
 
 **Action Items**:
-- [ ] Replace `hookrouter` with `react-router` 6.x
-- [ ] Replace `request`/`request-promise-native` with fetch or axios
+- [x] Replace `hookrouter` with custom `usePathRouter` + `navigate` utilities
+- [x] Replace `request`/`request-promise-native` with fetch
 - [ ] Migrate `@material-ui/*` to `@mui/*` 5.x
 - [ ] Migrate `react-three-fiber` to `@react-three/fiber`
 - [ ] Migrate `drei` to `@react-three/drei`
@@ -826,7 +826,7 @@ response = client.chat.completions.create(...)
    - [x] Remove Discord widget
    - [x] Remove why-did-you-render
 2. [x] Run security audits (npm audit: 113 vulns, all in transitive deps - need major upgrades of vega, webpack, cypress)
-3. [ ] Replace abandoned `hookrouter` with `react-router`
+3. [x] Replace abandoned `hookrouter` (custom usePathRouter + navigate utilities)
 4. [x] Replace deprecated `request` package (replaced with native fetch)
 5. [x] Update Rust nightly toolchain (nightly-2024-12-01, needs build verification)
 

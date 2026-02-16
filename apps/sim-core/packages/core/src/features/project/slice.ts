@@ -1,6 +1,6 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import omit from "lodash/omit";
-import { navigate } from "hookrouter";
+import { navigate } from "../../util/navigation";
 
 import {
   HashCoreAccessGateKind,

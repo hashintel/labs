@@ -1,4 +1,4 @@
-import { navigate } from "hookrouter";
+import { navigate } from "../../util/navigation";
 
 import { AsyncAppThunk } from "../types";
 import { NewProjectModalValues } from "../../components/Modal/NewProject/types";

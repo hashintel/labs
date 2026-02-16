@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import { navigate, setQueryParams } from "hookrouter";
+
+import { navigate, setQueryParams } from "../../../util/navigation";
 
 import { LinkableProject } from "../../../features/project/types";
 import {

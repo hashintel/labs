@@ -1,6 +1,6 @@
 import React, { FC, memo, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { navigate } from "hookrouter";
+import { navigate } from "../../util/navigation";
 
 import { HashCoreAccessGate } from "./AccessGate/HashCoreAccessGate";
 import { HashCoreHeader, HashCoreMain } from ".";

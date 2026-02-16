@@ -87,7 +87,6 @@
     "file-saver": "2.0.2",
     "fp-ts": "2.9.5",
     "gradient-path": "2.1.0",
-    "hookrouter": "1.2.3",
     "idb-keyval": "5.0.2",
     "js-levenshtein": "1.1.6",
     "json-stringify-pretty-compact": "2.0.0",

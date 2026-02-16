@@ -1,6 +1,6 @@
 import { FC, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { navigate } from "hookrouter";
+import { navigate } from "../../../util/navigation";
 
 import type { AppDispatch } from "../../../features/types";
 import { HashCoreAccessGateKind } from "../../HashCore/AccessGate";

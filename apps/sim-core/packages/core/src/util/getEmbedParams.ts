@@ -1,5 +1,3 @@
-import { HookRouter } from "hookrouter";
-
 import { getSafeQueryParams } from "./getSafeQueryParams";
 
 export type ValidatedEmbedParams = {
@@ -8,7 +6,7 @@ export type ValidatedEmbedParams = {
 };
 
 const validateEmbedParams = (
-  params: HookRouter.QueryParams
+  params: Record<string, string>
 ): params is ValidatedEmbedParams =>
   typeof params.project === "string" && typeof params.ref === "string";
 

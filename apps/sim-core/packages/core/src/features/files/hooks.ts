@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import JSZip from "jszip";
-import { navigate } from "hookrouter";
+import { navigate } from "../../util/navigation";
 import { saveAs } from "file-saver";
 
 import { AppDispatch, RootState } from "../types";
