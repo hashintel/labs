@@ -1,5 +1,5 @@
 import React from "react";
-import { render } from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { LoadingIcon } from "./components/LoadingIcon";
 import { basicUser } from "./util/api/queries/basicUser";
@@ -9,7 +9,8 @@ import { unpreparedProjectByPath } from "./util/api/queries/unpreparedProjectByP
 import "./styles.css";
 
 document.documentElement.classList.add("embed");
-render(<LoadingIcon fullScreen />, document.getElementById("root"));
+const root = createRoot(document.getElementById("root")!);
+root.render(<LoadingIcon fullScreen />);
 
 const params = getEmbedParams();
 

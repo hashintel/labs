@@ -1,5 +1,5 @@
 import React from "react";
-import { render } from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { App } from "./components/App";
 import { HashRouter } from "./components/HashRouter/HashRouter";
@@ -32,10 +32,10 @@ if (IS_STAGING) {
 console.log("HASH Core Version:", WEBPACK_BUILD_STAMP);
 
 boot(true).then(() => {
-  render(
+  const root = createRoot(document.getElementById("root")!);
+  root.render(
     <App store={store}>
       <HashRouter />
-    </App>,
-    document.getElementById("root")
+    </App>
   );
 });

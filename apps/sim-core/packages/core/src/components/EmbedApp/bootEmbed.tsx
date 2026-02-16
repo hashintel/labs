@@ -11,7 +11,7 @@ import "../../util/api";
 import "../OpenInCore/OpenInCore";
 
 import React from "react";
-import { render } from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { App } from "../App";
 import { BasicUser } from "../../util/api/types";
@@ -51,10 +51,10 @@ export const bootEmbed = async (
     }),
   ]);
 
-  render(
+  const root = createRoot(document.getElementById("root")!);
+  root.render(
     <App store={store}>
       <EmbedApp />
-    </App>,
-    document.getElementById("root")
+    </App>
   );
 };
