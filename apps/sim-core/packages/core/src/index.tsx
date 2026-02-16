@@ -14,13 +14,6 @@ import { store } from "./features/store";
 
 import "./styles.css";
 
-if (IS_LOCAL) {
-  const whyDidYouRender = require("@welldone-software/why-did-you-render");
-  whyDidYouRender(React, {
-    collapseGroups: true,
-  });
-}
-
 if (IS_STAGING) {
   const hashVersion = getBuildStampFromUrl();
   const storedVersion = localStorage.getItem(LocalStorageKey.CachedVersion);
