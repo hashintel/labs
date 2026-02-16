@@ -11,8 +11,3 @@ export {
 export { Modal } from "./Modal";
 export { ModalNameBehavior } from "./NameBehavior";
 export { ModalTwoColumn } from "./TwoColumn";
-export {
-  ModalReleaseCreate,
-  ModalReleaseUpdate,
-  ModalReleaseBehavior,
-} from "./Release";

@@ -29,7 +29,7 @@ import {
 } from "../actions";
 import { createAppAsyncThunk } from "../createAppAsyncThunk";
 import { createReleaseWithUpdate } from "../../util/api/queries/createReleaseWithUpdate";
-import { forkAndReleaseBehaviors, save } from "../thunks";
+import { save } from "../thunks";
 import { getLocalStorageProject } from "./utils";
 import {
   selectCurrentProjectRequired,
@@ -351,13 +351,6 @@ export const {
         }
 
         throw error;
-      })
-      .addCase(forkAndReleaseBehaviors.fulfilled, (state, action) => {
-        if (!state.currentProject) {
-          throw new Error("Cannot update project that does not exist");
-        }
-
-        state.currentProject.updatedAt = action.payload.updatedAt;
       });
   },
 });

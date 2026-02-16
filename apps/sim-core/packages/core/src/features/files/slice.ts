@@ -67,7 +67,7 @@ import { createAppAsyncThunk } from "../createAppAsyncThunk";
 import { createDatasetQuery } from "../../util/api/queries/createDatasetQuery";
 import { defaultJsBehaviorSrc } from "../../util/defaultJsBehaviorSrc";
 import { fetchDependencies } from "../../util/api/queries";
-import { forkAndReleaseBehaviors, save } from "../thunks";
+import { save } from "../thunks";
 import { isStoringProjectActions } from "../project/utils";
 import { parse } from "../../util/files";
 import { parseBehaviorKeysQuery } from "../../util/parseBehaviorKeysQuery";
@@ -1125,52 +1125,6 @@ export const {
             file.canUserEdit = map[file.pathWithNamespace];
           }
         }
-      })
-      .addCase(forkAndReleaseBehaviors.fulfilled, (draft, action) => {
-        const prevState = current(draft);
-
-        return createNextState(filesInitialState, (state) => {
-          const { arg } = action.meta;
-          const { files, forkedBehaviors } = action.payload;
-
-          const pairs = Object.fromEntries(
-            arg.behaviors.map((behavior) => {
-              const prevBehaviorId = mapFileId(behavior.filename, "main");
-              const nextBehavior = forkedBehaviors.find(
-                (file) => file.repoPath === behavior.path
-              );
-
-              if (!prevState.entities[prevBehaviorId]) {
-                throw new Error("Could not find original behavior in project");
-              }
-
-              if (!nextBehavior) {
-                throw new Error(
-                  "Could not find new behavior in forked project"
-                );
-              }
-
-              return [prevBehaviorId, nextBehavior.id];
-            })
-          );
-
-          setters.addFiles(state, files);
-
-          for (const id of prevState.openFileIds) {
-            setters.ensureFileOpen(state, pairs[id] ?? id);
-          }
-
-          if (prevState.currentFileId) {
-            if (pairs[prevState.currentFileId]) {
-              setters.setCurrentFileId(state, pairs[prevState.currentFileId]);
-            } else {
-              setters.setCurrentFileId(state, prevState.currentFileId);
-              state.behaviorKeys = prevState.behaviorKeys;
-            }
-          }
-
-          state.visualGlobals = prevState.visualGlobals;
-        });
       })
       .addCase(parseAndShowBehaviorKeys.fulfilled, (draft, action) => {
         const fileId = action.meta.arg.fileId;

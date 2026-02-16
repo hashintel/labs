@@ -1,7 +1,6 @@
 import React, { FC, lazy, Suspense, useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import TimeAgo from "react-timeago";
-import { useModal } from "react-modal-hook";
 import urljoin from "url-join";
 
 import { HashCoreHeaderMenu } from "..";
@@ -9,17 +8,11 @@ import { IS_STAGING, SITE_URL } from "../../../util/api";
 import { IconBrain } from "../../Icon/Brain";
 import { IconLock } from "../../Icon/Lock";
 import { Logo } from "../../Logo";
-import { ModalPrivateDependencies } from "../../Modal/PrivateDependencies";
-import { ModalReleaseCreate, ModalReleaseUpdate } from "../../Modal";
-import type { ReleaseMeta } from "../../../util/api/types";
 import { Scope, useScopes } from "../../../features/scopes";
 import { coreVersions } from "../../../util/api/queries";
 import { projectIsPrivate } from "../../../features/project/utils";
 import { selectCurrentProject } from "../../../features/project/selectors";
-import {
-  selectDidSave,
-  selectProjectHasPrivateDependencies,
-} from "../../../features/files/selectors";
+import { selectDidSave } from "../../../features/files/selectors";
 
 import "./HashCoreHeader.css";
 
@@ -50,25 +43,6 @@ export const HashCoreHeader: FC = () => {
     return controller.abort.bind(controller);
   }, []);
 
-  const [data, _setData] = useState<ReleaseMeta>();
-  const [_showCreateReleaseModal, hideCreateReleaseModal] = useModal(
-    () => <ModalReleaseCreate onClose={hideCreateReleaseModal} data={data} />,
-    [data]
-  );
-
-  const [_showUpdateInIndex, hideUpdateInIndex] = useModal(
-    () => <ModalReleaseUpdate onClose={hideUpdateInIndex} />,
-    []
-  );
-
-  const [_showPrivateDependencies, hidePrivateDependencies] = useModal(() => (
-    <ModalPrivateDependencies onClose={hidePrivateDependencies} />
-  ));
-
-  const _hasPrivateDependencies = useSelector(
-    selectProjectHasPrivateDependencies
-  );
-
   const projectUpdatedAtDate = project
     ? new Date(project.updatedAt)
     : undefined;
@@ -81,17 +55,8 @@ export const HashCoreHeader: FC = () => {
 
   const isBehaviorProject = project?.type === "Behavior";
 
-  const {
-    canLogin: _canLogin,
-    canRelease: _canRelease,
-    canSave,
-    canUseAccount: _canUseAccount,
-    canLinkToProjectInIndex,
-  } = useScopes(
-    Scope.login,
-    Scope.release,
+  const { canSave, canLinkToProjectInIndex } = useScopes(
     Scope.save,
-    Scope.useAccount,
     Scope.linkToProjectInIndex
   );
 

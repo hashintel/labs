@@ -18,8 +18,7 @@ import { HashCoreFilesListItem } from "../ListItem/HashCoreFilesListItem";
 import { HcFileKind } from "../../../../features/files/enums";
 import { IconAccountMultiple, IconTrash } from "../../../Icon";
 import { LinkBehavior } from "../../../Link/LinkBehavior";
-import { ModalConfirmFileDelete, ModalReleaseBehavior } from "../../../Modal";
-import { ReleaseMeta } from "../../../../util/api/types";
+import { ModalConfirmFileDelete } from "../../../Modal";
 import { SITE_URL } from "../../../../util/api/paths";
 import { Scope, useScope } from "../../../../features/scopes";
 import {
@@ -28,7 +27,6 @@ import {
   setCurrentFileId,
   updateFile,
 } from "../../../../features/files/slice";
-import { getReleaseMeta } from "../../../../util/api";
 import { isSharedDependency } from "../../../../features/files/utils";
 import {
   selectCurrentProject,
@@ -69,7 +67,6 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   const filePublished =
     fileIsBehavior && publishedFiles.includes(file.path.formatted);
   const canRename = canSave && fileIsBehavior && !filePublished;
-  const canPublish = canRename && project?.visibility === "public";
   const canDelete =
     canSave &&
     file.kind !== HcFileKind.Required &&
@@ -93,19 +90,6 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
     [title, dispatch, file.id]
   );
 
-  const [data, setData] = useState<ReleaseMeta | null>(null);
-  const [showReleaseBehaviorModal, hideReleaseBehaviorModal] = useModal(
-    () =>
-      data && file.kind === HcFileKind.Behavior ? (
-        <ModalReleaseBehavior
-          onHide={hideReleaseBehaviorModal}
-          data={data}
-          file={file}
-        />
-      ) : null,
-    [data, file]
-  );
-
   const showNameBehavior = useRenameBehaviorModal(file.id, file.path);
 
   const [contextMenuStyle, setContextMenuStyle] = useState<
@@ -117,18 +101,6 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   const [showContextMenu, hideContextMenu] = useModal(
     () => (
       <HashCoreContextMenu style={contextMenuStyle}>
-        {canSave && canPublish && (
-          <li>
-            <button
-              onClick={async () => {
-                setData(await getReleaseMeta());
-                showReleaseBehaviorModal();
-              }}
-            >
-              Publish a release of this behavior
-            </button>
-          </li>
-        )}
         {isSharedDependency(file) ? (
           <>
             <li>
@@ -219,12 +191,10 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
       contextMenuStyle,
       canDelete,
       file,
-      canPublish,
       canSave,
       canRename,
       showConfirmDelete,
       showNameBehavior,
-      showReleaseBehaviorModal,
       dispatch,
     ]
   );
