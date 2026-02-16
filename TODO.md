@@ -820,14 +820,14 @@ response = client.chat.completions.create(...)
 ## Recommended Prioritization
 
 ### Phase 1: Cleanup & Simplification
-1. [ ] **Remove Analytics & Widgets**
-   - [ ] Remove Sentry (`@sentry/*` packages)
-   - [ ] Remove FullStory (`@fullstory/browser`)
-   - [ ] Remove Discord widget
-   - [ ] Remove why-did-you-render
-2. [ ] Run security audits (`cargo audit`, `npm audit`, `pip audit`)
+1. [x] **Remove Analytics & Widgets**
+   - [x] Remove Sentry (`@sentry/*` packages)
+   - [x] Remove FullStory (`@fullstory/browser`)
+   - [x] Remove Discord widget
+   - [x] Remove why-did-you-render
+2. [x] Run security audits (npm audit: 113 vulns, all in transitive deps - need major upgrades of vega, webpack, cypress)
 3. [ ] Replace abandoned `hookrouter` with `react-router`
-4. [ ] Replace deprecated `request` package
+4. [x] Replace deprecated `request` package (replaced with native fetch)
 5. [x] Update Rust nightly toolchain (nightly-2024-12-01, needs build verification)
 
 ### Phase 2: Remove Auth & Cloud Features
