@@ -70,8 +70,6 @@
     "@juggle/resize-observer": "3.2.0",
     "@loaders.gl/core": "*",
     "@luma.gl/core": "8.3.1",
-    "@material-ui/core": "4.11.4",
-    "@material-ui/lab": "4.0.0-alpha.56",
     "@msrvida/sanddance-explorer": "3.1.0",
     "@reduxjs/toolkit": "1.5.0",
     "@svgr/core": "5.5.0",
