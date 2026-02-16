@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import classNames from "classnames";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
-import { Scope, useScopes } from "../../../../../features/scopes";
+import { Scope, useScope } from "../../../../../features/scopes";
 import { TabKind } from "../../../../../features/viewer/enums";
 import { getMetaCharacter } from "../../../../../hooks/useKeyboardShortcuts";
 import { openSearch } from "../../../../../features/search/slice";
@@ -37,7 +37,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
     clearAll,
   }) => {
     const dispatch = useDispatch();
-    const { canEdit } = useScopes(Scope.edit);
+    const canEdit = useScope(Scope.edit);
     const hasProject = useSelector(selectHasProject);
     const editorVisible = useSelector(selectEditorVisible);
     const activityVisible = useSelector(selectActivityVisible);

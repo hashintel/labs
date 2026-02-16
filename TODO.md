@@ -13,13 +13,13 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 |------|----------|--------|-------|
 | React & React Ecosystem | 🔴 Critical | High | React 16 → 18 is a major migration |
 | **Redux Removal** | 🔴 Critical | High | **Remove Redux entirely** (use React state/context) |
-| **Feature Removal** | 🟠 High | Medium | Remove cloud/auth/sharing features |
-| **Sentry Removal** | 🟠 High | Low | Remove Sentry + FullStory analytics |
-| **Dev Tooling Cleanup** | 🟢 Low | Low | Remove why-did-you-render, etc. |
+| ~~Feature Removal~~ | ✅ Done | — | Cloud/auth/sharing features removed |
+| ~~Sentry Removal~~ | ✅ Done | — | Sentry + FullStory analytics removed |
+| ~~Dev Tooling Cleanup~~ | ✅ Done | — | why-did-you-render removed |
 | Build Tooling | 🟠 High | Medium | Webpack 4 → 5/Vite |
-| Rust Toolchain | 🟠 High | Low | 3+ year old nightly |
+| ~~Rust Toolchain~~ | ✅ Done | — | Updated to nightly-2024-12-01, edition 2021 |
 | Python/LangChain | 🔴 Critical | Medium | Complete API rewrites |
-| Deprecated Packages | 🟠 High | Medium | Several abandoned dependencies |
+| Deprecated Packages | 🟡 Medium | Medium | hookrouter + request done; MUI, three.js, recoil remain |
 
 ---
 
@@ -242,66 +242,22 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 ---
 
-### 🟠 High: Sentry Removal
+### ✅ Done: Sentry Removal
 
-**Decision**: Remove Sentry and related analytics integrations.
-
-**Packages to Remove**:
-- `@sentry/browser` (6.2.0)
-- `@sentry/integrations` (6.2.0)
-- `@sentry/tracing` (6.3.6)
-- `@sentry/fullstory` (1.1.5)
-- `@sentry/webpack-plugin` (1.15.0)
-- `@fullstory/browser` (1.4.5) - FullStory integration
-
-**Files to Update**:
-- `src/boot.ts` - Remove `initSentry()` call
-- `src/util/initSentry.ts` - Delete file
-- `webpack.config.js` - Remove Sentry webpack plugin
-- Any error boundary components using Sentry
-
-**Code to Remove**:
-```typescript
-// boot.ts - remove this line
-initSentry();
-
-// Remove all Sentry imports and usage
-import * as Sentry from '@sentry/browser';
-Sentry.captureException(error);
-Sentry.addBreadcrumb({ ... });
-```
-
-**Estimated Effort**: 1-2 days
+Sentry and related analytics integrations have been removed:
+- `@sentry/browser`, `@sentry/integrations`, `@sentry/tracing`, `@sentry/fullstory`, `@sentry/webpack-plugin` removed
+- `@fullstory/browser` removed
+- `initSentry()` removed from `boot.ts`; `src/util/initSentry.ts` deleted
+- Sentry webpack plugin removed from `webpack.config.js`
+- `trackEvent`/`trackEvents` converted to no-op stubs
 
 ---
 
-### 🟢 Low: Unnecessary Dev Tooling Removal
+### ✅ Done: Dev Tooling Cleanup
 
-**Decision**: Remove dev tools that add complexity without sufficient value.
-
-**Packages to Remove**:
-
-| Package | Version | Reason for Removal |
-|---------|---------|-------------------|
-| `@welldone-software/why-did-you-render` | 6.0.3 | Primarily useful for Redux re-render debugging; unnecessary after Redux removal |
-
-**Files to Update**:
-- `src/index.tsx` - Remove why-did-you-render initialization
-
-**Code to Remove**:
-```typescript
-// src/index.tsx - remove this block
-if (IS_LOCAL) {
-  const whyDidYouRender = require("@welldone-software/why-did-you-render");
-  whyDidYouRender(React, {
-    collapseGroups: true,
-  });
-}
-```
-
-**Estimated Effort**: 1 hour
-
-**Note**: React DevTools (browser extension) provides sufficient debugging capabilities for modern React development.
+- `@welldone-software/why-did-you-render` removed
+- Initialization code removed from `src/index.tsx`
+- Discord widget removed from HashCore
 
 ---
 
@@ -830,27 +786,26 @@ response = client.chat.completions.create(...)
 4. [x] Replace deprecated `request` package (replaced with native fetch)
 5. [x] Update Rust nightly toolchain (nightly-2024-12-01, needs build verification)
 
-### Phase 2: Remove Auth & Cloud Features
-1. [ ] **Remove User Authentication System**
-   - [ ] Remove `ModalSignin`, `ModalSignup` components
-   - [ ] Remove authentication flows and API calls
-   - [ ] Simplify `features/user/` to local preferences only
-   - [ ] Remove cloud credits tracking (`CloudUsage`)
-2. [ ] **Remove Cloud Features**
-   - [ ] Remove hCloud experiment runners (keep local runner)
-   - [ ] Remove server-side project save
-   - [ ] Remove sharing features (`ModalShare*`)
-   - [ ] Remove access code system
-3. [ ] **Remove Project Management**
-   - [ ] Remove `ModalRelease*` components  
-   - [ ] Remove fork functionality
-   - [ ] Simplify new project to local templates
-   - [ ] Remove server metadata sync
+### Phase 1 Review Findings (Feb 2026)
+
+During Phase 1 verification, we discovered and fixed:
+- **Orphaned files**: `Modal/Release/` had leftover `.scss`, `.spec.tsx`, `util.ts`, and `VersionPicker/` after component deletion. All cleaned up.
+- **`bowser` dependency**: Was declared in `core/package.json` but only used by `engine-web`. Moved to `engine-web/package.json` where it belongs. This was a pre-existing build error.
+- **TypeScript errors from hookrouter migration**: `navigate()` type signature didn't accept boolean query params (hookrouter did). `RouteHandler` type was too strict. `useScopes` called with 1 arg after `Scope.login` removal (requires 2; switched to `useScope`). All fixed.
+- **Build verification**: webpack production build passes (exit 0, warnings only). Jest 124/124 suites pass, 369 tests pass.
+- **Pre-existing warnings**: wasm critical dependency warning in engine-web, asset size limit warnings — both pre-existing and not actionable without Webpack 5.
+
+### Phase 2: Remove Auth & Cloud Features — ✅ COMPLETE
+All items completed in Migration Phases above (Phases 2–5).
+- [x] Remove user authentication, signin/signup, cloud credits
+- [x] Remove hCloud runners, server-side save, sharing, access codes
+- [x] Remove ModalRelease, fork, server metadata sync
+- [x] Implement localStorage persistence, local templates, zip import/export
 
 ### Phase 3: Build System Modernization
-1. [ ] Upgrade Webpack 4 → 5 OR migrate to Vite
-2. [ ] Upgrade TypeScript 4.1 → 5.x
-3. [ ] Remove `--openssl-legacy-provider` workaround
+1. [ ] Upgrade TypeScript 4.1 → 5.x
+2. [ ] Upgrade Webpack 4 → 5 OR migrate to Vite
+3. [ ] Remove `--openssl-legacy-provider` workaround (blocked by Webpack 4)
 4. [ ] Update Jest 26 → 29 or migrate to Vitest
 
 ### Phase 4: React & State Management
@@ -865,18 +820,12 @@ response = client.chat.completions.create(...)
 4. [ ] @material-ui → @mui migration
 5. [ ] react-three-fiber → @react-three/fiber
 
-### Phase 5: Local Storage Implementation
-1. [ ] Implement localStorage-based project persistence
-2. [ ] Create local project templates system
-3. [ ] Ensure import/export .zip works fully offline
-4. [ ] Test complete offline operation
-
-### Phase 6: Future - GitHub Integration (Post-Migration)
+### Phase 5: Future - GitHub Integration (Post-Migration)
 - [ ] Design GitHub OAuth flow (no HASH account)
 - [ ] Implement save/load from user's GitHub repos
 - [ ] Add project sync functionality
 
-### Phase 7: Python Modernization (If Needed)
+### Phase 6: Python Modernization (If Needed)
 1. [ ] OpenAI 0.27 → 1.x migration
 2. [ ] Pydantic 1.x → 2.x migration
 3. [ ] LangChain complete rewrite to 0.1.x architecture

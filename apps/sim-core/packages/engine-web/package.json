@@ -35,6 +35,7 @@
     }
   },
   "dependencies": {
+    "bowser": "2.11.0",
     "jstat": "1.9.4",
     "node-fetch": "2.6.1",
     "promise-worker-transferable": "github:hashdeps/promise-worker-transferable",

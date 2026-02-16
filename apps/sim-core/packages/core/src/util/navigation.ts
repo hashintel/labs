@@ -33,11 +33,13 @@ const notifyListeners = () => {
 export const navigate = (
   url: string,
   replace = false,
-  queryParams: Record<string, string | undefined> = {},
+  queryParams: Record<string, string | boolean | undefined> = {},
   addToPath = false
 ) => {
   const filteredParams = Object.fromEntries(
-    Object.entries(queryParams).filter(([, v]) => v !== undefined)
+    Object.entries(queryParams)
+      .filter(([, v]) => v !== undefined)
+      .map(([k, v]) => [k, String(v)])
   ) as Record<string, string>;
 
   let fullUrl = url;

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { subscribeToNavigation } from "./navigation";
 
-type RouteHandler = (params: Record<string, string>) => any;
+type RouteHandler = (params: any) => any;
 export type RouteMap = Record<string, RouteHandler>;
 
 const matchRoute = (

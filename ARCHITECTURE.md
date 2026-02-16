@@ -92,16 +92,14 @@ flowchart TB
 
 **`src/index.tsx`** - Application bootstrap:
 ```typescript
-// 1. Initialize monitoring (why-did-you-render in dev)
-// 2. Handle version caching for staging
-// 3. Call boot() to initialize services
-// 4. Render React app with Redux Provider
+// 1. Handle version caching for staging
+// 2. Call boot() to initialize services
+// 3. Render React app with Redux Provider
 ```
 
 **`src/boot.ts`** - Service initialization:
 ```typescript
 export const boot = async (forExperiments: boolean) => {
-  initSentry();                              // Error tracking
   configureTheme();                          // CSS variables
   enableMapSet();                            // Immer support
   configureMonaco();                         // Code editor
@@ -109,6 +107,8 @@ export const boot = async (forExperiments: boolean) => {
   syncStores(store, simulatorStore);         // Redux sync
 };
 ```
+
+> **Note**: `initSentry()` and `why-did-you-render` were removed as part of the local-first migration (Phase 1).
 
 ### State Management
 
@@ -275,7 +275,6 @@ export const HashCore: FC = memo(function HashCore() {
         <HashCoreMain />
       </HashCoreAccessGate>
       <ToastManager />
-      <DiscordWidget />
       <HashCoreTour />
     </>
   );
@@ -507,7 +506,7 @@ flowchart TB
 | `src/components/HashCore/` | Main IDE shell | 148 |
 | `src/components/SimulationRunner/` | Playback controls | 23 |
 | `src/components/AgentScene/` | 3D visualization | 17 |
-| `src/components/Modal/` | Dialog system | 116 |
+| `src/components/Modal/` | Dialog system | ~80 |
 | `src/components/TabbedEditor/` | Code editor | 12 |
 
 ### Engine Integration
@@ -523,9 +522,15 @@ flowchart TB
 
 ## Feature Development Guide
 
-### Adding a New Feature to sim-core
+> **IMPORTANT**: Redux is scheduled for removal. Do NOT add new Redux slices, selectors, or thunks.
+> For new features, use React local state (`useState`), Context, or simple module-level state.
+> See [TODO.md](TODO.md) for the full migration plan.
 
-1. **Create the Redux slice**:
+### Legacy Pattern: Redux Slice (DO NOT ADD NEW ONES)
+
+The following shows the existing Redux patterns for reference when working with current code:
+
+1. **Create the Redux slice** (LEGACY — do not add new ones):
 
 ```typescript
 // src/features/myFeature/slice.ts
@@ -600,6 +605,32 @@ export const MyFeature: FC = () => {
 ---
 
 ## Common Patterns
+
+### Navigation / Routing
+
+The app uses custom lightweight routing utilities (replacing the abandoned `hookrouter` package):
+
+```typescript
+// Programmatic navigation (works in components, thunks, or any code)
+import { navigate, setQueryParams } from "../util/navigation";
+
+navigate("/path/to/page");                    // Push navigation
+navigate("/path", true);                      // Replace current entry
+navigate("/path", false, { key: "value" });   // With query params
+
+setQueryParams({ view: "3d" });               // Update query params only
+
+// Route matching in components
+import { usePathRouter, RouteMap } from "../util/usePathRouter";
+
+const routes: RouteMap = {
+  "/": () => <Home />,
+  "/project/:id": ({ id }) => <Project id={id} />,
+  "/@*": () => <ProjectByPath />,
+};
+
+const element = usePathRouter(routes);
+```
 
 ### Using the Correct Store
 

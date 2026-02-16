@@ -17,9 +17,8 @@ Before making changes, review [TODO.md](mdc:TODO.md) for:
 
 Key warnings:
 - React 16.14 is severely outdated - don't partially upgrade React ecosystem
-- Rust nightly is 3+ years old - toolchain update is safe and recommended
 - Python hash-agents uses completely outdated LangChain/OpenAI APIs
-- hookrouter is abandoned - needs replacement with react-router
+- Rust nightly updated to 2024-12-01 but cargo build not yet verified on all targets
 
 ## IMPORTANT: Application is Becoming Local-First
 
@@ -32,17 +31,18 @@ This app is being transformed into a **free, fully-featured, local-only simulati
 - **LOCAL STORAGE ONLY** - Use localStorage/IndexedDB for persistence
 - **GitHub sync is FUTURE** - Don't implement yet (post-migration)
 
-### Features Being REMOVED - DO NOT Extend
-- User authentication (ModalSignin, ModalSignup)
-- Cloud credits / CloudUsage
-- Project sharing (ModalShare*)
-- Access codes
-- Server project storage
-- Fork project
-- Project releases/versioning (ModalRelease*)
-- hCloud experiment runners
-- Sentry / FullStory analytics
-- Discord widget
+### Features Already REMOVED (do not re-introduce)
+- User authentication (ModalSignin, ModalSignup) — DELETED
+- Cloud credits / CloudUsage — DELETED
+- Project sharing (ModalShare*) — DELETED
+- Access codes — DELETED
+- Server project storage — DELETED
+- Fork project — DELETED
+- Project releases/versioning (ModalRelease*) — DELETED
+- hCloud experiment runners — DELETED
+- Sentry / FullStory analytics — DELETED
+- Discord widget — DELETED
+- hookrouter — REPLACED with custom `util/navigation.ts` + `util/usePathRouter.ts`
 
 ### Features to KEEP
 - All simulation execution (step, play, pause, reset)
@@ -84,6 +84,62 @@ Before implementing any feature or making significant changes:
 
 3. If deviating from architecture, document why in the PR/commit message.
 
+## Deletion Hygiene
+
+When deleting a component, module, or feature:
+
+1. **Find ALL sibling files** in the same directory — not just the main `.tsx`. Check for:
+   - `.scss` / `.css` stylesheets
+   - `.spec.tsx` / `.test.tsx` test files
+   - `util.ts`, `types.ts`, `index.ts` helper files
+   - Subdirectories (e.g. `VersionPicker/` inside `Modal/Release/`)
+2. **Search for imports** of the deleted module across the codebase (`grep` / `rg`) to find orphaned references.
+3. **Check shared stylesheets** for dead selectors that referenced the deleted component's CSS class names.
+4. **Check e2e / integration tests** for references to deleted UI elements (e.g. CSS selectors like `.ModalSignin__Frame`).
+
+## Dependency Awareness
+
+When removing or moving a package dependency:
+
+1. **Search the entire monorepo** for actual usage of the package (not just the package.json that declares it). Yarn/npm hoisting means a package declared in one workspace can be silently used by another.
+2. **After removing a dependency**, run the production build to verify nothing breaks from missing modules.
+3. **When moving a dependency** between workspace packages, run `yarn install` (with `--ignore-scripts` if needed) and verify the module resolves from the consuming package's directory.
+
+## Type Safety After Refactoring
+
+When replacing a library or changing function signatures:
+
+1. **Match the original API's type flexibility**. If the old library accepted `boolean | string`, the replacement must too. Read call sites, not just the old library's TypeScript types.
+2. **After modifying a type, interface, or function signature**, search for all call sites and verify they still type-check. Pay special attention to:
+   - Functions that lost a parameter (callers may still pass it)
+   - Functions that gained a required parameter (callers may pass too few)
+   - Functions whose parameter types narrowed (callers may pass wider types)
+3. **Run the TypeScript compiler / webpack build** after every batch of related changes — do NOT defer this to the end of a phase.
+
+## Build & Test Verification
+
+After every meaningful batch of changes (not just at the end of a phase):
+
+1. **Run tests**: `npx jest --forceExit --testPathIgnorePatterns "e2e"` in `apps/sim-core/packages/core`
+2. **Run production build**: `$env:NODE_OPTIONS='--openssl-legacy-provider --max_old_space_size=8192'; npx webpack --mode production` in `apps/sim-core/packages/core`
+3. **Check for errors explicitly**: pipe build output through `Select-String "ERROR"` — warnings are expected, errors are not.
+4. **Fix immediately** — do not accumulate errors across multiple changes. Each commit should leave the build green.
+
+## Major Phase Review (MANDATORY)
+
+After completing each major phase (e.g. "Phase 1: Cleanup & Simplification", "Phase 3: Build System Modernization"):
+
+1. **Full build verification**: Run production webpack build and confirm zero errors.
+2. **Full test suite**: Run all unit tests and confirm zero failures.
+3. **Orphan scan**: Search for files referencing deleted modules (spec files, scss files, e2e tests, stale comments).
+4. **Dependency audit**: Verify no packages were left dangling in the wrong package.json.
+5. **Documentation review**: Update TODO.md, ARCHITECTURE.md, this rules file, and README.md to reflect completed work.
+6. **Plan reassessment**: Based on what was learned during the phase, identify:
+   - Tasks that turned out easier or harder than expected
+   - New issues discovered
+   - Revised priority ordering for remaining phases
+7. **Propose cursor rules updates**: After each major review, draft specific additions or changes to THIS file and present them to the user for approval before applying.
+
 ## Commit Discipline
 
 After completing each logical section of work (e.g. a migration phase, a feature, a bug fix):
@@ -103,7 +159,7 @@ After completing significant changes, update:
 1. [ARCHITECTURE.md](mdc:ARCHITECTURE.md) - For structural changes
 2. [README.md](mdc:README.md) - For entry point/build changes
 3. [TODO.md](mdc:TODO.md) - For dependency updates or new tech debt
-4. This rules file - For convention changes
+4. This rules file - For convention changes (propose changes, get approval)
 
 ## Repository Structure
 
@@ -125,7 +181,7 @@ sim-core Frontend:
 - SCSS modules for styling
 
 sim-engine:
-- Rust nightly-2022-08-08 (severely outdated)
+- Rust nightly-2024-12-01 (updated), edition 2021
 - JavaScript and Python behavior support
 - FlatBuffers for IPC
 
@@ -155,9 +211,9 @@ sim-engine:
 
 1. Redux is being removed - don't add any Redux code
 2. Don't upgrade React/Redux partially - ecosystem must stay in sync
-3. hookrouter is abandoned - routing changes need migration plan
+3. Routing uses custom `util/navigation.ts` + `util/usePathRouter.ts` (not hookrouter or react-router)
 4. Legacy code from 2019-2020 - be cautious with refactoring
-5. NODE_OPTIONS=--openssl-legacy-provider indicates version conflicts
+5. NODE_OPTIONS=--openssl-legacy-provider required by Webpack 4 + Node 20 (resolves after Webpack 5 upgrade)
 
 ## References
 
