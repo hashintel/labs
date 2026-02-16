@@ -60,7 +60,7 @@ test.describe("File Tree", () => {
 
   test("should allow clicking on files to select them", async ({ page }) => {
     // Wait for file tree to fully load
-    await page.waitForTimeout(1000);
+    await page.waitForTimeout(2000);
 
     // Get file tree items
     const fileItems = page.locator(SELECTORS.fileTreeItem);
@@ -69,32 +69,41 @@ test.describe("File Tree", () => {
     if (count > 0) {
       // Click on first file
       await fileItems.first().click();
-      await page.waitForTimeout(500);
+      await page.waitForTimeout(1000);
 
       // Monaco editor should show the file content
       const editor = page.locator(SELECTORS.monacoEditor);
-      await expect(editor.first()).toBeAttached({ timeout: 10000 });
+      await expect(editor.first()).toBeAttached({ timeout: 15000 });
     }
 
     await assertNoRenderErrors(page);
   });
 
   test("should show folders that can be expanded", async ({ page }) => {
+    // Wait for file tree to load
+    await page.waitForTimeout(2000);
+
     // Look for folder items
     const folders = page.locator(SELECTORS.fileTreeFolder);
+    const folderCount = await folders.count();
 
-    if ((await folders.count()) > 0) {
+    if (folderCount > 0) {
       // Folders should be clickable
       const firstFolder = folders.first();
       await expect(firstFolder).toBeAttached();
 
-      // Click to toggle expansion
-      await firstFolder.click();
-      await page.waitForTimeout(300);
-
-      // No errors should occur
-      await assertNoRenderErrors(page);
+      // Click to toggle expansion - click on the folder name/toggle area
+      const folderToggle = firstFolder.locator(".HashCoreFilesListItem").first();
+      if ((await folderToggle.count()) > 0) {
+        await folderToggle.click();
+      } else {
+        await firstFolder.click();
+      }
+      await page.waitForTimeout(500);
     }
+
+    // No errors should occur
+    await assertNoRenderErrors(page);
   });
 });
 

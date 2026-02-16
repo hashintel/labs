@@ -25,3 +25,8 @@ yarn-error.log
 # eslint cache
 .eslintcache
 packages/hashai/.eslintcache
+
+# Playwright E2E test artifacts
+**/test-results/
+**/playwright-report/
+**/.playwright/

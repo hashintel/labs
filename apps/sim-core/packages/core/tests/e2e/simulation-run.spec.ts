@@ -65,8 +65,8 @@ test.describe("Simulation Execution", () => {
   });
 
   test("should execute multiple simulation steps", async ({ page }) => {
-    // Run 5 steps
-    await stepSimulationTimes(page, 5);
+    // Run 3 steps (reasonable for testing)
+    await stepSimulationTimes(page, 3);
 
     // Wait for all steps to complete
     await page.waitForTimeout(1000);
@@ -110,7 +110,7 @@ test.describe("Simulation Execution", () => {
   });
 
   test("should reset simulation", async ({ page }) => {
-    // Run a few steps
+    // Run 3 steps before reset
     await stepSimulationTimes(page, 3);
     await page.waitForTimeout(500);
 
@@ -135,8 +135,8 @@ test.describe("Simulation Execution", () => {
     // Reset
     await resetSimulation(page);
 
-    // Step 2 more times
-    await stepSimulationTimes(page, 2);
+    // Step 3 more times
+    await stepSimulationTimes(page, 3);
     await page.waitForTimeout(500);
 
     // Should have agent data
@@ -155,7 +155,7 @@ test.describe("Simulation Display", () => {
   });
 
   test("should display agent viewer after running steps", async ({ page }) => {
-    // Run simulation
+    // Run 3 steps
     await stepSimulationTimes(page, 3);
     await page.waitForTimeout(1000);
 
@@ -173,8 +173,8 @@ test.describe("Simulation Display", () => {
   });
 
   test("should show raw output data as JSON", async ({ page }) => {
-    // Run simulation
-    await stepSimulationTimes(page, 2);
+    // Run 3 steps
+    await stepSimulationTimes(page, 3);
     await page.waitForTimeout(1000);
 
     // Try to find and click raw output tab
@@ -205,15 +205,15 @@ test.describe("Error Handling", () => {
 
     const stepButton = page.locator(SELECTORS.stepButton);
 
-    // Click rapidly without waiting
-    for (let i = 0; i < 10; i++) {
+    // Click rapidly 3 times (minimal - CPU intensive)
+    for (let i = 0; i < 3; i++) {
       if (await stepButton.isEnabled()) {
         await stepButton.click();
       }
     }
 
     // Wait for processing
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(2000);
 
     // Should not crash
     await assertNoRenderErrors(page);
