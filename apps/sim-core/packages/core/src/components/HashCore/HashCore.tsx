@@ -2,7 +2,6 @@ import React, { FC, memo, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { navigate } from "hookrouter";
 
-import { DiscordWidget } from "../DiscordWidget";
 import { HashCoreAccessGate } from "./AccessGate/HashCoreAccessGate";
 import { HashCoreHeader, HashCoreMain } from ".";
 import { HashCoreTour } from "./Tour";
@@ -149,7 +148,6 @@ export const HashCore: FC = memo(function HashCore() {
       ) : project ? (
         <HashCoreMain />
       ) : null}
-      <DiscordWidget />
     </HashCoreTour>
   );
 });

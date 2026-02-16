@@ -1,1 +1,0 @@
-export { DiscordWidget } from "./DiscordWidget";

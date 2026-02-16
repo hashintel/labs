@@ -9,7 +9,6 @@ import React, {
 } from "react";
 import { customAlphabet } from "nanoid";
 
-import { BasicDiscordWidget } from "../DiscordWidget/DiscordWidget";
 import { BigModal } from "../Modal";
 import { ErrorDetails } from "../ErrorDetails";
 import { FancyButton } from "../Fancy";
@@ -195,7 +194,6 @@ export class ErrorBoundary extends Component<
               <strong>REFRESH PAGE</strong>
             </FancyButton>
           </footer>
-          <BasicDiscordWidget errored />
         </div>
       </BigModal>
     ) : (

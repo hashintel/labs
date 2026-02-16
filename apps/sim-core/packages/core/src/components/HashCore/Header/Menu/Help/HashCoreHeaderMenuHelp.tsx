@@ -1,7 +1,6 @@
 import React, { FC, memo, MouseEvent } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { DISCORD_URL } from "../../../../DiscordWidget/DiscordWidget";
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
 import { selectHasProject } from "../../../../../features/project/selectors";
 import { trackEvent } from "../../../../../features/analytics";
@@ -74,11 +73,6 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
               </a>
             </li>
           ) : null}
-          <li className="HashCoreHeaderMenu-submenu-item">
-            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
-              Community Discord
-            </a>
-          </li>
         </ul>
       </>
     );
