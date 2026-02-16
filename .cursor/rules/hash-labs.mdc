@@ -176,7 +176,7 @@ hashintel-labs/
 sim-core Frontend:
 - React 16.14 (outdated - current is 18.x)
 - Redux Toolkit 1.5 (outdated - BEING REMOVED ENTIRELY)
-- TypeScript 4.1 (outdated - current is 5.x)
+- TypeScript 5.3.3 (updated from 4.1; ~80 RTK type errors suppressed until Redux removal)
 - Webpack 4 (outdated - current is 5.x or Vite)
 - SCSS modules for styling
 

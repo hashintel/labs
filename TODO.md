@@ -380,10 +380,10 @@ const MyComponent = () => {
 **Action Items**:
 - [x] Replace `hookrouter` with custom `usePathRouter` + `navigate` utilities
 - [x] Replace `request`/`request-promise-native` with fetch
-- [ ] Migrate `@material-ui/*` to `@mui/*` 5.x
-- [ ] Migrate `react-three-fiber` to `@react-three/fiber`
-- [ ] Migrate `drei` to `@react-three/drei`
-- [ ] Evaluate replacing `recoil` with `jotai` or removing if underused
+- [x] Remove `@material-ui/*` (only used by deleted staging deploy tool)
+- [ ] Migrate `react-three-fiber` to `@react-three/fiber` (BLOCKED: requires React 18)
+- [ ] Migrate `drei` to `@react-three/drei` (BLOCKED: requires React 18)
+- [ ] Remove `recoil` (defer: 13/13 files are in AgentScene, do with three.js migration)
 
 ### 🟠 High: Build Tooling
 
@@ -392,9 +392,9 @@ const MyComponent = () => {
 | `webpack` | 4.44.2 | 5.90+ | Module federation, better tree-shaking |
 | `webpack-cli` | 3.3.12 | 5.1+ | |
 | `webpack-dev-server` | 3.11.0 | 4.15+ | |
-| `typescript` | 4.1.3 | 5.3+ | `satisfies`, const type params, decorators |
+| `typescript` | ~~4.1.3~~ **5.3.3** | ✅ Done | `satisfies`, const type params, decorators |
 | `jest` | 26.6.3 | 29.7+ | Or migrate to Vitest |
-| `ts-jest` | 26.4.4 | 29.1+ | |
+| `ts-jest` | ~~26.4.4~~ **removed** | ✅ Done | Switched to `babel-jest` (ts-jest 26 incompatible with TS 5) |
 | `babel-loader` | 8.2.1 | 9.1+ | Or consider SWC/esbuild |
 
 **Recommended Approach**:
@@ -803,22 +803,29 @@ All items completed in Migration Phases above (Phases 2–5).
 - [x] Implement localStorage persistence, local templates, zip import/export
 
 ### Phase 3: Build System Modernization
-1. [ ] Upgrade TypeScript 4.1 → 5.x
+1. [x] Upgrade TypeScript 4.1 → 5.3.3
+   - fork-ts-checker-webpack-plugin upgraded to 6.5.3
+   - Jest switched from ts-jest to babel-jest (ts-jest 26 incompatible with TS 5)
+   - ~80 RTK 1.5 dispatch type errors suppressed (resolve when Redux removed)
+   - `useUnknownInCatchVariables: false` set in tsconfig (re-enable after Redux removal)
 2. [ ] Upgrade Webpack 4 → 5 OR migrate to Vite
 3. [ ] Remove `--openssl-legacy-provider` workaround (blocked by Webpack 4)
 4. [ ] Update Jest 26 → 29 or migrate to Vitest
 
 ### Phase 4: React & State Management
-1. [ ] React 16 → 17 → 18 migration
+1. [ ] React 16 → 17 → 18 migration (no legacy lifecycle blockers found)
 2. [ ] **Remove Redux entirely** (see detailed plan above)
    - [ ] Audit all state usage across slices
    - [ ] Create minimal Context providers for truly global state
    - [ ] Migrate components to use Context/local state
    - [ ] Delete entire `src/features/` Redux infrastructure
    - [ ] Remove redux, react-redux, @reduxjs/toolkit packages
-3. [ ] Remove Recoil (unused)
-4. [ ] @material-ui → @mui migration
-5. [ ] react-three-fiber → @react-three/fiber
+   - [ ] Re-enable fork-ts-checker-webpack-plugin in prod builds
+   - [ ] Re-enable useUnknownInCatchVariables and fix catch clauses
+3. [ ] Remove Recoil (13 files, all in AgentScene — do with three.js migration)
+4. [x] ~~@material-ui → @mui migration~~ Removed (only used by deleted staging tool)
+5. [ ] react-three-fiber → @react-three/fiber (BLOCKED: requires React 18)
+6. [ ] drei → @react-three/drei (BLOCKED: requires React 18)
 
 ### Phase 5: Future - GitHub Integration (Post-Migration)
 - [ ] Design GitHub OAuth flow (no HASH account)
