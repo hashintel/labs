@@ -111,26 +111,26 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 - [x] Remove why-did-you-render
 
 #### Phase 2: Remove Auth & User System
-- [ ] Remove `ModalSignin`, `ModalSignup`
-- [ ] Remove user authentication flows
-- [ ] Simplify `features/user/` to local preferences only
-- [ ] Remove cloud credits tracking
+- [x] Remove `ModalSignin`, `ModalSignup`
+- [x] Remove user authentication flows
+- [x] Simplify `features/user/` to local preferences only
+- [x] Remove cloud credits tracking
 
 #### Phase 3: Remove Cloud Features  
-- [ ] Remove hCloud experiment runners (keep local runner)
-- [ ] Remove server-side project save
-- [ ] Remove sharing features (`ModalShare*`)
-- [ ] Remove access code system
+- [x] Remove hCloud experiment runners (keep local runner)
+- [x] Remove server-side project save
+- [x] Remove sharing features (`ModalShare*`)
+- [ ] Remove access code system (partially: UI removed, parsing kept for URL compat)
 
 #### Phase 4: Remove Project Management
-- [ ] Remove `ModalRelease*` components
-- [ ] Remove fork functionality
-- [ ] Simplify new project to local templates
-- [ ] Remove server metadata sync
+- [x] Remove `ModalRelease*` components
+- [x] Remove fork functionality (replaced with local fork)
+- [x] Simplify new project to local templates
+- [x] Remove server metadata sync
 
 #### Phase 5: Simplify to Local Storage
-- [ ] Implement localStorage-based project persistence
-- [ ] Implement local project templates
+- [x] Implement localStorage-based project persistence
+- [x] Implement local project templates
 - [ ] Ensure import/export .zip works standalone
 - [ ] Test fully offline operation
 
