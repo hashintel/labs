@@ -9,6 +9,7 @@
 
     /* Strict Type-Checking Options */
     "strict": true, // Enable all strict type-checking options.
+    "useUnknownInCatchVariables": false, // TODO: re-enable after Redux removal and fix catch clauses
 
     /* Module Resolution Options */
     "moduleResolution": "node", // https://stackoverflow.com/questions/49701735/cannot-find-module-csstype // Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6).

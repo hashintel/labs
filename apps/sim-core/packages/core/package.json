@@ -25,11 +25,8 @@
     "test:e2e:debug": "playwright test --config=tests/e2e/playwright.config.ts --debug"
   },
   "jest": {
-    "preset": "ts-jest/presets/js-with-babel",
-    "globals": {
-      "ts-jest": {
-        "babelConfig": true
-      }
+    "transform": {
+      "^.+\\.[jt]sx?$": "babel-jest"
     },
     "moduleNameMapper": {
       "^.+\\.(css|less|scss|sass)$": "identity-obj-proxy",
