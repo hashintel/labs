@@ -1,8 +1,5 @@
-import { HcBehaviorFile, HcFile, HcSharedBehaviorFile } from "./files/types";
-import { HcFileKind } from "./files/enums";
 import {
   PartialSimulationProject,
-  ProjectVisibility,
   SimulationProject,
 } from "./project/types";
 import { Scope, selectScope } from "./scopes";
@@ -12,21 +9,12 @@ import {
   canUserEditProjectUpdate,
   projectUpdated,
 } from "./actions";
-import {
-  behaviorKeysFileName,
-  mapFileId,
-  repoPathForBehavior,
-} from "./files/utils";
 import { bootstrapQuery } from "../util/api/queries";
-import { canUserEditProject } from "../util/api/queries/canUserEditProject";
-import { commitActions } from "../util/api/queries/commitActions";
 import { createActionQueue } from "./middleware/queue";
 import { createAppAsyncThunk } from "./createAppAsyncThunk";
-import { forkAndReleaseBehaviorsQuery } from "../util/api/queries/forkAndReleaseBehaviorsQuery";
 import { getReleaseMeta } from "../util/api";
 import { selectCurrentProject } from "./project/selectors";
-import { selectFileActions, selectLocalBehaviorFiles } from "./files/selectors";
-import { trackEvent } from "./analytics";
+import { selectFileActions } from "./files/selectors";
 
 export const bootstrapApp = createAppAsyncThunk<{
   user?: User;
@@ -45,13 +33,12 @@ export const bootstrapApp = createAppAsyncThunk<{
   const result = await bootstrapQuery();
   const currentProject = selectCurrentProject(getState());
   if (currentProject) {
+    // Local-first: all local projects are editable
     dispatch(
-      canUserEditProjectUpdate(
-        await canUserEditProject(
-          currentProject.pathWithNamespace,
-          currentProject.ref
-        )
-      )
+      canUserEditProjectUpdate({
+        canUserEdit: true,
+        dependencies: [],
+      })
     );
   }
 
@@ -91,116 +78,16 @@ export const save = () =>
         return;
       }
 
-      try {
-        dispatch(beginActionSave(actions.map((action) => action.uuid)));
-        const { result: updatedAt, commit } = await commitActions(
-          project.pathWithNamespace,
+      // Local-first: persist via localStorage middleware; no server save
+      dispatch(beginActionSave(actions.map((action) => action.uuid)));
+      dispatch(
+        projectUpdated({
+          updatedAt: new Date().toISOString(),
           actions,
-          false,
-          project.access?.code
-        );
-        dispatch(projectUpdated({ updatedAt, actions, commit }));
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error(err);
-          throw err;
-        }
-      }
+          commit: undefined,
+        })
+      );
     } finally {
       next();
     }
   });
-
-export const forkAndReleaseBehaviors = createAppAsyncThunk<
-  {
-    files: HcFile[];
-    updatedAt: string;
-    forkedBehaviors: HcSharedBehaviorFile[];
-  },
-  {
-    projectPath: string;
-    name: string;
-    namespace: string;
-    path: string;
-    behaviors: { filename: string; path: string }[];
-    projectDescription: string;
-    visibility: ProjectVisibility;
-    license: string;
-    keywords: string[];
-    // subjects: string[];
-  }
->(
-  "forkAndReleaseBehaviors",
-  async ({ behaviors, ...args }, { getState, dispatch }) => {
-    await dispatch(save());
-
-    const behaviorFiles = selectLocalBehaviorFiles(getState());
-
-    const record = Object.fromEntries(
-      behaviorFiles.map((file): [string, HcBehaviorFile] => [
-        file.repoPath,
-        file,
-      ])
-    );
-
-    const files = behaviors.flatMap((behavior) => {
-      const behaviorFile = record[behavior.path];
-
-      if (!behaviorFile) {
-        throw new Error("Cannot release behavior that does not exist");
-      }
-      return !behaviorFile.keys._trackCreation
-        ? [
-            behavior,
-            {
-              filename: behaviorKeysFileName(behaviorFile),
-              path: repoPathForBehavior(behaviorKeysFileName(behaviorFile)),
-            },
-          ]
-        : [behavior];
-    });
-
-    const result = await forkAndReleaseBehaviorsQuery({
-      ...args,
-      files,
-    });
-
-    const forkedBehaviors = behaviors.map((behavior) => {
-      const forkedBehaviorId = mapFileId(
-        `${result.behaviorPathWithNamespace}/${behavior.filename}`,
-        result.behaviorRef
-      );
-
-      const forkedBehavior = result.files.find(
-        (file): file is HcSharedBehaviorFile =>
-          file.id === forkedBehaviorId &&
-          file.kind === HcFileKind.SharedBehavior
-      );
-
-      if (!forkedBehavior) {
-        throw new Error("Could not find forked behavior");
-      }
-
-      return forkedBehavior;
-    });
-
-    dispatch(
-      trackEvent({
-        action: "New Release: Core",
-        label: `Behavior - ${forkedBehaviors
-          .map((behavior) => behavior.path.formatted)
-          .join(", ")} - 1.0.0`,
-        context: {
-          type: "Behavior",
-          forkOf: args.projectPath,
-        },
-      })
-    );
-
-    return {
-      files: result.files,
-      updatedAt: result.updatedAt,
-      forkedBehaviors,
-    };
-  }
-);

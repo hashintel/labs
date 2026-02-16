@@ -1,5 +1,4 @@
 import {
-  CloudExperimentRunner,
   ExperimentPromises,
   ExperimentRun,
   ExperimentRunner,
@@ -15,7 +14,6 @@ import {
   WebWorkerRunner,
 } from "@hashintel/engine-web";
 import { Observable } from "rxjs";
-import { v4 as uuid } from "uuid";
 
 /**
  * Manage connections to anything that can run experiments.
@@ -83,16 +81,8 @@ export class SimulationProvider implements ExperimentRunner {
     | Observable<ExperimentStreamResponse>
     | Promise<ExperimentRun & ExperimentPromises> {
     switch (this.target) {
-      case "cloud": {
-        // Create a new cloud connection and add it to the experimenter group
-        const experimenter = new CloudExperimentRunner(this.devMode);
-        const experiment = experimenter.queueExperiment(src);
-
-        // We don't know what the experiment id will be, so using uuid
-        this.targets!.cloud.experimentRunners.set(uuid(), experimenter);
-        return experiment;
-      }
-
+      case "cloud":
+        // hCloud removed: fall back to local web runner
       case "web": {
         // Selecting the first element isn't _great_ but it maintains consistency
         const experimenter: ExperimentRunner = this.targets!.web.experimentRunners.values().next()
