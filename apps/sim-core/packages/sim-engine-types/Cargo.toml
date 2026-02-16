@@ -2,7 +2,7 @@
 name = "hash_types"
 version = "0.1.0"
 authors = ["Haze Booth <hb@hash.ai>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 serde = { version = "1.0.111", features = ["derive"] }

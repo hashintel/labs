@@ -5,7 +5,7 @@ authors = ["HASH <careers@hash.dev>"]
 description = "WASM Bindings for hashintel-core"
 repository = "https://github.com/hashintel/internal"
 license = "SSPL-1.0"
-edition = "2018"
+edition = "2021"
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false

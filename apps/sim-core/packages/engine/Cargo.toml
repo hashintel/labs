@@ -5,7 +5,7 @@ authors = ["HASH <careers@hash.dev>"]
 description = "Legacy HASH agent-based modeling simulation runner"
 repository = "https://github.com/hashintel/hash"
 license = "SSPL-1.0"
-edition = "2018"
+edition = "2021"
 
 [lib]
 bench = false

@@ -735,17 +735,14 @@ The following features are being KEPT and are now covered by E2E tests:
 ### 🔴 Critical: Rust Toolchain
 
 ```toml
-# Current (rust-toolchain.toml)
-channel = "nightly-2022-08-08"  # 3+ YEARS OLD
+# Updated (rust-toolchain.toml)
+channel = "nightly-2024-12-01"  # Updated from nightly-2022-08-08
 ```
 
-**Issues**:
-- Missing 3+ years of compiler improvements
-- Missing 3+ years of security patches
-- Potential incompatibility with newer dependencies
-- Limited access to new language features
-
-**Action**: Update to recent nightly (e.g., `nightly-2024-12-01` or newer)
+**Status**: Toolchain updated. sim-core engine crates also updated from edition 2018 to 2021.
+- [ ] Verify `cargo build` succeeds with new toolchain (sim-engine)
+- [ ] Verify `wasm-pack build` succeeds (engine-web)
+- [ ] Run `cargo test` to check for regressions
 
 ### 🟠 High: Dependency Updates
 
@@ -831,7 +828,7 @@ response = client.chat.completions.create(...)
 2. [ ] Run security audits (`cargo audit`, `npm audit`, `pip audit`)
 3. [ ] Replace abandoned `hookrouter` with `react-router`
 4. [ ] Replace deprecated `request` package
-5. [ ] Update Rust nightly toolchain
+5. [x] Update Rust nightly toolchain (nightly-2024-12-01, needs build verification)
 
 ### Phase 2: Remove Auth & Cloud Features
 1. [ ] **Remove User Authentication System**
