@@ -6,20 +6,9 @@ import {
   HashCoreAccessGateKind,
   HashCoreAccessGateKindWithProps,
 } from "../../components/HashCore/AccessGate";
-import {
-  LinkableProject,
-  ProjectSlice,
-  ProjectUpdate,
-  ReleaseDescription,
-  RemoteSimulationProject,
-} from "./types";
+import { LinkableProject, ProjectSlice } from "./types";
 import { Scope, batchedScopes, selectScope } from "../scopes";
-import { ToastKind, displayToast } from "../toast";
-import {
-  behaviorKeysFileName,
-  globalsFileId,
-  repoPathForBehavior,
-} from "../files/utils";
+import { globalsFileId } from "../files/utils";
 import {
   canUserEditProjectUpdate,
   projectUpdated,
@@ -27,16 +16,9 @@ import {
   setProjectWithMeta,
 } from "../actions";
 import { createAppAsyncThunk } from "../createAppAsyncThunk";
-import { createReleaseWithUpdate } from "../../util/api/queries/createReleaseWithUpdate";
 import { save } from "../thunks";
 import { getLocalStorageProject } from "./utils";
-import {
-  selectCurrentProjectRequired,
-  selectProjectConfig,
-  selectProjectPublishedFiles,
-} from "./selectors";
-import { selectLocalBehaviorFiles } from "../files/selectors";
-import { trackEvent } from "../analytics";
+import { selectCurrentProjectRequired } from "./selectors";
 import { urlFromProject } from "../../routes";
 
 const projectSliceInitialState: ProjectSlice = {
@@ -177,97 +159,6 @@ export const fetchProject = createAppAsyncThunk<
       // }
       throw err;
     }
-  }
-);
-
-export const release = createAppAsyncThunk<
-  ReleaseDescription,
-  {
-    tag: string;
-    updateDescription: string;
-    update?: Omit<ProjectUpdate, "files">;
-    toPublish?: string[];
-  }
->(
-  "project/release",
-  async (
-    { tag, updateDescription, update = {}, toPublish = [] },
-    { dispatch, getState }
-  ) => {
-    await dispatch(save());
-
-    const state = getState();
-    const { pathWithNamespace, type } = selectCurrentProjectRequired(state);
-    const currentFiles = selectProjectPublishedFiles(state);
-    const config = selectProjectConfig(state);
-
-    if (!config) {
-      throw new Error("Cannot release project which has no config");
-    }
-
-    const withKeys = Object.fromEntries(
-      selectLocalBehaviorFiles(state).flatMap((file) =>
-        !file.keys._trackCreation ? [[file.path.base, file]] : []
-      )
-    );
-
-    const newFiles = [...new Set([...currentFiles, ...toPublish])].flatMap(
-      (filename) => {
-        const path = repoPathForBehavior(filename);
-        const file = { filename, path };
-
-        return withKeys[filename]
-          ? [
-              file,
-              {
-                filename: behaviorKeysFileName(withKeys[filename]),
-                path: repoPathForBehavior(
-                  behaviorKeysFileName(withKeys[filename])
-                ),
-              },
-            ]
-          : [file];
-      }
-    );
-
-    const { updatedAt, ...changes } = await createReleaseWithUpdate(
-      pathWithNamespace,
-      tag,
-      updateDescription,
-      {
-        ...update,
-        files: newFiles,
-      }
-    );
-
-    // @todo do this with .fulfilled
-    dispatch(
-      projectUpdated({
-        updatedAt,
-        update: {
-          ...changes,
-          config: {
-            ...config,
-            files: newFiles.map((file) => file.filename),
-          },
-        },
-      })
-    );
-
-    dispatch(
-      trackEvent({
-        action: "New Release: Core",
-        label: `${type} - ${pathWithNamespace} – ${tag}`,
-        context: {
-          type,
-        },
-      })
-    );
-
-    dispatch(displayToast({ kind: ToastKind.ReleaseSuccess }));
-    setTimeout(() => dispatch(displayToast({ kind: ToastKind.None })), 6_000);
-
-    return { tag, createdAt: updatedAt };
   }
 );
 

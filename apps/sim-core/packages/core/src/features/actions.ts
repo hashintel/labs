@@ -4,14 +4,16 @@
 import { createAction } from "@reduxjs/toolkit";
 
 import { AppThunk } from "./types";
+import type { Commit } from "../util/api/auto-types";
 import type {
   CanUserEditProject,
   LocalStorageProject,
   SimulationProject,
   SimulationProjectWithHcFiles,
 } from "./project/types";
-import { CommitWithoutStats } from "../util/api/queries/commitActions";
 import { FileAction } from "./files/types";
+
+export type CommitWithoutStats = Omit<Commit, "stats">;
 import { Scope, batchedScopes } from "./scopes";
 
 type SetProjectParams = {

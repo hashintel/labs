@@ -9,7 +9,7 @@ import {
 } from "@hashintel/engine-web";
 
 import { AnalysisMode } from "./enum";
-import { CommitWithoutStats } from "../../../util/api/queries/commitActions";
+import { CommitWithoutStats } from "../../actions";
 import { LinkableProject } from "../../project/types";
 import { OutputPlots } from "../../../components/PlotViewer/analyze";
 

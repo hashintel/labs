@@ -21,7 +21,6 @@ import {
   clearLocalPlotData,
   commitCreated,
   refetchHistory,
-  releaseCreated,
   setAnalysisVisible,
   setCloudDisabled,
   showCollatedAnalysisForExperiment,
@@ -31,7 +30,6 @@ import { exhaustMapWithTrailing } from "../../../util/exhaustMapWithTrailing";
 import { fromStore } from "../../../util/fromStore";
 import { projectChangeObservable } from "../../project/observables";
 import { projectUpdated } from "../../actions";
-import { release } from "../../project/slice";
 import { resetSimulationDataAndHistory, updateRunnerGlobals } from "./thunks";
 import { selectAnalysis, selectGlobals } from "../../files/selectors";
 import {
@@ -136,12 +134,6 @@ export const syncStores = (
     .pipe(debounceTime(0))
     .subscribe(() => {
       appStore.dispatch(openTab(TabKind.Analysis));
-    });
-
-  storeActionObservable
-    .pipe(filter(release.fulfilled.match))
-    .subscribe((action) => {
-      simulatorStore.dispatch(releaseCreated(action.payload));
     });
 
   storeActionObservable

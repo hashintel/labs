@@ -19,7 +19,7 @@ import {
 
 import { AnalysisMode } from "./enum";
 import { Commit, ProjectHistoryItemType } from "../../../util/api/auto-types";
-import { CommitWithoutStats } from "../../../util/api/queries/commitActions";
+import { CommitWithoutStats } from "../../actions";
 import {
   DEFAULT_STEPS_PER_SECOND,
   defaultSimulationData,
