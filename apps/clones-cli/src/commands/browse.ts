@@ -137,7 +137,6 @@ async function browseRepos(registry: Registry): Promise<void> {
     }
 
     if (selected!.length === 0) {
-      p.log.info('No repositories selected.');
       return;
     }
 

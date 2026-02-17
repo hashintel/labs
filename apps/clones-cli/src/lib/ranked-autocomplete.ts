@@ -30,7 +30,7 @@ export interface RankedAutocompleteMultiSelectOptions<Value> {
   metadataFilter?: (searchText: string, option: Option<Value>) => boolean;
 }
 
-export function rankedAutocompleteMultiselect<Value>(
+export async function rankedAutocompleteMultiselect<Value>(
   opts: RankedAutocompleteMultiSelectOptions<Value>
 ): Promise<Value[] | symbol | undefined> {
   // Build a cache for rank results to avoid redundant calls
@@ -185,6 +185,16 @@ export function rankedAutocompleteMultiselect<Value>(
     },
   });
 
-  // Cast to the correct type since we know multiple: true means it returns Value[] | symbol | undefined
-  return prompt.prompt() as Promise<Value[] | symbol | undefined>;
+  const result = await prompt.prompt();
+
+  if (typeof result === 'symbol' || result === undefined) {
+    return result as Value[] | symbol | undefined;
+  }
+
+  const selected = result as Value[];
+  if (selected.length === 0 && prompt.focusedValue !== undefined) {
+    return [prompt.focusedValue as Value];
+  }
+
+  return selected;
 }
