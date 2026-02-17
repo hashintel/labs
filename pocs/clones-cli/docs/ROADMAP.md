@@ -48,6 +48,30 @@ Keep retrieval semantics aligned with `/Users/lunelson/Code/lunelson/starbase-cl
 - Shared explain-output shape.
 - Similar chunk/profile indexing conventions.
 
+## UX Improvements
+
+### Multi-repo `clones add`
+
+Allow `clones add` to accept multiple repos as space-separated arguments
+(e.g., `clones add owner/a owner/b owner/c`). Process each in sequence.
+
+### Post-add action menu
+
+After adding a clone, don't exit immediately. Instead, present the same
+single-repo action menu shown after selecting a repo in browse mode
+(copy path, copy URL, open, etc.) with the option to exit.
+
+### Implicit single selection in browse multi-select
+
+When the user presses Enter in the browse multi-select without having
+toggled any items via Tab, treat the item under the active cursor as
+a single selection instead of submitting an empty set.
+
+### Copy remote URL action
+
+Add a "Copy remote URL" option to the single-repo and batch action menus
+in browse mode, alongside the existing "Copy path" options.
+
 ## Backlog
 
 ### Subgroup URL support (GitLab-style namespaces)
