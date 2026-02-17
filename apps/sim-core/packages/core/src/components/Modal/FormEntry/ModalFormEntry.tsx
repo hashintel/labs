@@ -1,4 +1,4 @@
-import React, { FC, ReactNode } from "react";
+import React, { FC, PropsWithChildren, ReactNode } from "react";
 import classNames from "classnames";
 import classnames from "classnames";
 
@@ -17,7 +17,7 @@ export type ModalFormEntryProps = {
   className?: string;
 };
 
-export const ModalFormEntry: FC<ModalFormEntryProps> = ({
+export const ModalFormEntry: FC<PropsWithChildren<ModalFormEntryProps>> = ({
   label,
   children,
   optional = false,

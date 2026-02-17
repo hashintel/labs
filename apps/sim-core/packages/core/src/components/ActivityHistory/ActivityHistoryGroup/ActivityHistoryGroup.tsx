@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import classnames from "classnames";
 
 import {
@@ -8,7 +8,7 @@ import {
 
 import "./ActivityHistoryGroup.scss";
 
-export const ActivityHistoryGroup: FC<ActivityHistoryItemProps> = ({
+export const ActivityHistoryGroup: FC<PropsWithChildren<ActivityHistoryItemProps>> = ({
   className,
   children,
   open,

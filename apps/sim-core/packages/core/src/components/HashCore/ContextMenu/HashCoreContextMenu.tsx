@@ -1,4 +1,4 @@
-import React, { FC, CSSProperties } from "react";
+import React, { FC, PropsWithChildren, CSSProperties } from "react";
 
 import "./HashCoreContextMenu.css";
 
@@ -6,7 +6,7 @@ type HashCoreContextMenuProps = {
   style: Pick<CSSProperties, "top" | "left">;
 };
 
-export const HashCoreContextMenu: FC<HashCoreContextMenuProps> = ({
+export const HashCoreContextMenu: FC<PropsWithChildren<HashCoreContextMenuProps>> = ({
   children,
   style,
 }) => (

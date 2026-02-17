@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "react";
+import React, { FC, PropsWithChildren, useEffect, useMemo, useRef, useState } from "react";
 
 import { getDomIdByFileId } from "../../Files/ListItemFile";
 import { pauseSimulator } from "../../../../features/simulator/simulate/slice";
@@ -180,15 +180,17 @@ export const ProgressIndicator: FC = () => {
   );
 };
 
-export const Buttons: FC = ({ children }) => (
+export const Buttons: FC<PropsWithChildren> = ({ children }) => (
   <div className="shepherd-footer">{children}</div>
 );
 
-export const Button: FC<{
-  type: "back" | "next";
-  className?: string;
-  disabled?: boolean;
-}> = ({ type, className = "", disabled = false, children }) => {
+export const Button: FC<
+  PropsWithChildren<{
+    type: "back" | "next";
+    className?: string;
+    disabled?: boolean;
+  }>
+> = ({ type, className = "", disabled = false, children }) => {
   const tour = useTour();
 
   return (

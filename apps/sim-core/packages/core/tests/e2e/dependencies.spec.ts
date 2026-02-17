@@ -146,13 +146,20 @@ test.describe("Behavior Keys", () => {
     await page.goto(BUILTIN_SIMULATIONS.wildfires);
     await waitForAppLoad(page);
 
-    // Behavior keys are typically accessible when editing behaviors
-    // Click on a behavior file
-    const fileItems = page.locator(SELECTORS.fileTreeItem);
-    const behaviorFile = fileItems.filter({ hasText: /\.js$|\.py$|behavior/i });
+    // Behavior files live inside the src/ folder which may be collapsed.
+    // First expand the src folder, then click a behavior file.
+    const srcFolder = page.locator(SELECTORS.fileTreeFolder).filter({ hasText: /^src$/i });
+    if ((await srcFolder.count()) > 0) {
+      await srcFolder.first().click();
+      await page.waitForTimeout(500);
+    }
 
-    if ((await behaviorFile.count()) > 0) {
-      await behaviorFile.first().click();
+    // Now look for a visible behavior file
+    const behaviorFile = page.locator(SELECTORS.fileTreeItem).filter({ hasText: /\.js$/i });
+    const visibleBehavior = behaviorFile.first();
+
+    if ((await behaviorFile.count()) > 0 && (await visibleBehavior.isVisible())) {
+      await visibleBehavior.click();
       await page.waitForTimeout(500);
 
       // Editor should load

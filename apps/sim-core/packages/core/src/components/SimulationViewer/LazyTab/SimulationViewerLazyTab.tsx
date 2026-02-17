@@ -1,13 +1,15 @@
-import React, { FC, Suspense, useEffect, useState } from "react";
+import React, { FC, PropsWithChildren, Suspense, useEffect, useState } from "react";
 
 import { LoadingIcon } from "../../LoadingIcon";
 
 import "./SimulationViewerLazyTab.css";
 
-export const SimulationViewerLazyTab: FC<{
-  visible?: boolean;
-  immediate?: boolean;
-}> = ({ visible = false, immediate, children }) => {
+export const SimulationViewerLazyTab: FC<
+  PropsWithChildren<{
+    visible?: boolean;
+    immediate?: boolean;
+  }>
+> = ({ visible = false, immediate, children }) => {
   const [hasBeenVisible, setHasBeenVisible] = useState(visible);
   const [shouldShowFallback, setShouldShowFallback] = useState(false);
 

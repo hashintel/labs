@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import { Provider } from "react-redux";
 import { ModalProvider } from "react-modal-hook";
 import { Store } from "@reduxjs/toolkit";
@@ -11,9 +11,9 @@ import { SimulatorProvider } from "../../features/simulator/context";
 
 import "./App.css";
 
-type AppProps = {
+type AppProps = PropsWithChildren<{
   store: Store;
-};
+}>;
 
 export const App: FC<AppProps> = ({ store, children }) => (
   <RecoilRoot>

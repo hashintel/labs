@@ -1,4 +1,4 @@
-import React, { FC, useState } from "react";
+import React, { FC, PropsWithChildren, useState } from "react";
 import classNames from "classnames";
 import { SerializableAgentState } from "@hashintel/engine-web";
 import { useRecoilState, useRecoilValue } from "recoil";
@@ -205,7 +205,7 @@ const AgentProperty: FC<{
   return null;
 };
 
-const InfoHeader: FC<{ name: string }> = ({ name, children }) => {
+const InfoHeader: FC<PropsWithChildren<{ name: string }>> = ({ name, children }) => {
   const [toggled, setToggled] = useState(false);
   const toggle = () => setToggled(!toggled);
 

@@ -3,6 +3,7 @@ import React, {
   createContext,
   ErrorInfo,
   FC,
+  PropsWithChildren,
   useContext,
   useMemo,
   useState,
@@ -76,7 +77,7 @@ export const useFatalError = () => useContext(ErrorBoundaryContext)!.fatalError;
  *
  * @see https://github.com/facebook/react/issues/14981#issuecomment-468460187
  */
-const ErrorBoundaryContextProvider: FC = ({ children }) => {
+const ErrorBoundaryContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const [, catchError] = useState();
   const contextValue = useMemo<TErrorBoundaryContext>(() => {
     const fatalError = (err: any) => {

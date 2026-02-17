@@ -1,6 +1,7 @@
 import React, {
   FC,
   Fragment,
+  PropsWithChildren,
   useEffect,
   useMemo,
   useReducer,
@@ -351,7 +352,7 @@ const TourWithBackdrop: FC = () => {
   );
 };
 
-export const HashCoreTour: FC = ({ children }) => (
+export const HashCoreTour: FC<PropsWithChildren> = ({ children }) => (
   <ShepherdTour steps={steps} tourOptions={tourOptions}>
     <TourWithBackdrop />
     {children}

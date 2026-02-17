@@ -1,4 +1,4 @@
-import React, { FC, FormEventHandler, ReactNode } from "react";
+import React, { FC, FormEventHandler, PropsWithChildren, ReactNode } from "react";
 import classNames from "classnames";
 
 import { IconHelpCircleOutline } from "../../Icon/HelpCircleOutline";
@@ -17,7 +17,7 @@ type AnalysisModalProps = {
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
-export const AnalysisModal: FC<AnalysisModalProps> = ({
+export const AnalysisModal: FC<PropsWithChildren<AnalysisModalProps>> = ({
   onClose,
   cancelButton = true,
   children,

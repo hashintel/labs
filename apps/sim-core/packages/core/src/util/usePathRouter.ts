@@ -45,7 +45,19 @@ const matchRoute = (
     if (pp.startsWith(":")) {
       params[pp.slice(1)] = decodeURIComponent(pathPart);
     } else if (pp !== pathPart) {
-      return null;
+      // Handle prefix+param patterns like "@:namespace" → match "@hash"
+      const colonIdx = pp.indexOf(":");
+      if (colonIdx > 0) {
+        const prefix = pp.slice(0, colonIdx);
+        const paramName = pp.slice(colonIdx + 1);
+        if (pathPart.startsWith(prefix)) {
+          params[paramName] = decodeURIComponent(pathPart.slice(prefix.length));
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
     }
   }
 

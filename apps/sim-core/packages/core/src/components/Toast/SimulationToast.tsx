@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import { useDispatch } from "react-redux";
 
 import { Toast } from ".";
@@ -10,7 +10,7 @@ type SimulationToastProps = Pick<ToastProps, "theme" | "isDismissable"> & {
   nextToast?: ToastKind;
 };
 
-export const SimulationToast: FC<SimulationToastProps> = ({
+export const SimulationToast: FC<PropsWithChildren<SimulationToastProps>> = ({
   theme = "info",
   isDismissable = true,
   children,

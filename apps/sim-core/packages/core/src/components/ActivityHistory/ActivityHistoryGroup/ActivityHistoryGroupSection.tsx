@@ -1,4 +1,4 @@
-import React, { FC, ReactNode } from "react";
+import React, { FC, PropsWithChildren, ReactNode } from "react";
 import classNames from "classnames";
 
 import { IconArrowDownDrop } from "../../Icon/ArrowDownDrop";
@@ -6,10 +6,12 @@ import { IconArrowDownDrop } from "../../Icon/ArrowDownDrop";
 import "./ActivityHistoryGroupSection.scss";
 
 export const ActivityHistoryGroupSection: FC<
-  {
-    open?: boolean;
-    onOpenChange?: (open: boolean) => void;
-  } & ({ title: ReactNode; loading?: false } | { loading: true; title?: null })
+  PropsWithChildren<
+    {
+      open?: boolean;
+      onOpenChange?: (open: boolean) => void;
+    } & ({ title: ReactNode; loading?: false } | { loading: true; title?: null })
+  >
 > = ({ open = false, onOpenChange, title, loading, children }) => (
   <div className="ActivityHistoryGroupSection">
     <h3

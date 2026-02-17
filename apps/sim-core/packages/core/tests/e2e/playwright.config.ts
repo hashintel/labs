@@ -9,23 +9,24 @@ import { defineConfig, devices } from "@playwright/test";
  * - Build tooling updates
  *
  * Run with: yarn test:e2e
+ *
+ * IMPORTANT: Tests run sequentially with 1 worker to avoid overwhelming
+ * the dev server and the host machine. The WASM simulation engine and
+ * WebGL 3D viewer are resource-intensive; parallel workers cause freezes.
  */
 export default defineConfig({
   testDir: ".",
   testMatch: "**/*.spec.ts",
 
-  /* Run tests in files in parallel - limited to avoid overwhelming dev server */
-  fullyParallel: false, // Disabled: simulation tests can interfere with each other
-  workers: 2, // Limit workers to reduce server load
+  /* Sequential execution — simulation tests are CPU-heavy (WASM + WebGL) */
+  fullyParallel: false,
+  workers: 1,
 
   /* Fail the build on CI if you accidentally left test.only in the source code */
   forbidOnly: !!process.env.CI,
 
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-
-  /* Opt out of parallel tests on CI */
-  workers: process.env.CI ? 1 : undefined,
+  /* Retry failed tests once (CI gets 2 retries) */
+  retries: process.env.CI ? 2 : 1,
 
   /* Reporter to use */
   reporter: [["html", { open: "never" }], ["list"]],
@@ -35,14 +36,14 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')` */
     baseURL: process.env.BASE_URL || "http://localhost:8080",
 
-    /* Collect trace when retrying the failed test */
+    /* Collect trace only when retrying — avoids overhead on first run */
     trace: "on-first-retry",
 
     /* Screenshot on failure */
     screenshot: "only-on-failure",
 
-    /* Video on failure */
-    video: "on-first-retry",
+    /* Disable video recording to reduce resource usage */
+    video: "off",
   },
 
   /* Configure projects for major browsers */
@@ -65,9 +66,6 @@ export default defineConfig({
 
   /* Timeout for each test - simulation can be slow */
   timeout: 90000,
-
-  /* Retry failed tests once */
-  retries: 1,
 
   /* Timeout for each expect() assertion */
   expect: {

@@ -1,11 +1,11 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import classNames from "classnames";
 
 import { SimpleTooltip } from "../SimpleTooltip";
 
 import "./ActivityHistoryItemTooltip.scss";
 
-export const ActivityHistoryItemTooltip: FC<{ className?: string }> = ({
+export const ActivityHistoryItemTooltip: FC<PropsWithChildren<{ className?: string }>> = ({
   children,
   className,
 }) => (

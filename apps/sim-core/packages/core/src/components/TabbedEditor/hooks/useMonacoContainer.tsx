@@ -1,6 +1,7 @@
 import React, {
   createContext,
   FC,
+  PropsWithChildren,
   RefCallback,
   useCallback,
   useContext,
@@ -187,7 +188,7 @@ const MonacoContext = createContext<{
   diff: DiffMonacoContainerHook;
 } | null>(null);
 
-export const MonacoContainerProvider: FC = ({ children }) => {
+export const MonacoContainerProvider: FC<PropsWithChildren> = ({ children }) => {
   const main = useMonacoContainer();
   const diff = useMonacoContainer(true);
   const hook = useMemo(() => ({ main, diff }), [main, diff]);

@@ -62,13 +62,13 @@ test.describe("File Tree", () => {
     // Wait for file tree to fully load
     await page.waitForTimeout(2000);
 
-    // Get file tree items
-    const fileItems = page.locator(SELECTORS.fileTreeItem);
-    const count = await fileItems.count();
+    // Only click on *visible* file tree items (files inside collapsed folders are in the DOM but hidden)
+    const visibleFiles = page.locator(`${SELECTORS.fileTreeItem}:visible`);
+    const count = await visibleFiles.count();
 
     if (count > 0) {
-      // Click on first file
-      await fileItems.first().click();
+      // Click on first visible file
+      await visibleFiles.first().click();
       await page.waitForTimeout(1000);
 
       // Monaco editor should show the file content
@@ -234,17 +234,17 @@ test.describe("Code Editing", () => {
   });
 
   test("should support multiple editor tabs", async ({ page }) => {
-    // Click on different files to open multiple tabs
-    const fileItems = page.locator(SELECTORS.fileTreeItem);
-    const count = await fileItems.count();
+    // Only click on *visible* file tree items (files inside collapsed folders are hidden)
+    const visibleFiles = page.locator(`${SELECTORS.fileTreeItem}:visible`);
+    const count = await visibleFiles.count();
 
     if (count >= 2) {
-      // Click first file
-      await fileItems.nth(0).click();
+      // Click first visible file
+      await visibleFiles.nth(0).click();
       await page.waitForTimeout(500);
 
-      // Click second file
-      await fileItems.nth(1).click();
+      // Click second visible file
+      await visibleFiles.nth(1).click();
       await page.waitForTimeout(500);
 
       // Should have editor tab area

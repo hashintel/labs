@@ -1,4 +1,4 @@
-import React, { FC, forwardRef, HTMLProps } from "react";
+import React, { FC, forwardRef, HTMLProps, PropsWithChildren } from "react";
 import { navigate } from "../../util/navigation";
 
 import { Scope } from "../../features/scopes";
@@ -21,7 +21,7 @@ const getHref = (route: string | undefined, query: Record<string, any>) =>
       : ""
   }`;
 
-export const Link: FC<LinkProps> = forwardRef<HTMLAnchorElement, LinkProps>(
+export const Link: FC<PropsWithChildren<LinkProps>> = forwardRef<HTMLAnchorElement, LinkProps>(
   function Link(
     {
       path,

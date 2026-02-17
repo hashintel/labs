@@ -120,18 +120,53 @@ When replacing a library or changing function signatures:
 
 After every meaningful batch of changes (not just at the end of a phase):
 
-1. **Run tests**: `npx jest --forceExit --testPathIgnorePatterns "e2e"` in `apps/sim-core/packages/core`
+1. **Run unit tests**: `npx jest --forceExit --testPathIgnorePatterns "e2e"` in `apps/sim-core/packages/core`
 2. **Run production build**: `$env:NODE_OPTIONS='--openssl-legacy-provider --max_old_space_size=8192'; npx webpack --mode production` in `apps/sim-core/packages/core`
 3. **Check for errors explicitly**: pipe build output through `Select-String "ERROR"` — warnings are expected, errors are not.
 4. **Fix immediately** — do not accumulate errors across multiple changes. Each commit should leave the build green.
+
+### TypeScript & Lint Error Policy
+
+After editing any source file, **always check for and fix TypeScript and lint errors** in the files you changed:
+
+1. **Use `ReadLints`** on every file you edited before considering the task done.
+2. **Run the TypeScript compiler** (`npx tsc --noEmit` from `apps/sim-core`) or check the dev server's `fork-ts-checker` output to catch type errors in changed files.
+3. **Fix all errors you introduced.** If a change causes new type errors in other files (e.g. changing a function signature breaks call sites), fix those too.
+4. **Deliberately skipping errors is OK** only when ALL of these are true:
+   - The error is in code that is **explicitly scheduled for removal** (e.g. Redux slices, `react-redux` Provider types)
+   - The error is **pre-existing** (not introduced by your change)
+   - The error is **documented** in TODO.md or this file
+5. **When skipping errors, state explicitly** which errors are being skipped and why (e.g. "Skipping 24 TS2769 dispatch errors in Redux code scheduled for removal per TODO.md").
+
+**Known pre-existing errors that are OK to skip:**
+- ~24 Redux dispatch TS2769 errors (RTK 1.5 / TS 5.3 incompatibility — resolves with Redux removal)
+- ~23 `children` prop errors from `react-redux` `Provider` and other third-party library types (resolves with Redux removal and library upgrades)
+- ~42 `children` errors in `.spec.tsx` test files using old render patterns (will update with Redux removal)
+
+### E2E Tests (MANDATORY after UI or routing changes)
+
+The E2E tests are Playwright-based regression tests that verify the full application renders and functions correctly. They **must** be run after:
+- Any change to routing (`usePathRouter.ts`, `navigation.ts`, route definitions)
+- Any change to the App bootstrap flow (`boot.ts`, `bootstrapQuery.ts`, `index.tsx`)
+- Any change to major UI containers (`HashCore`, `HashRouter`, `App`)
+- Any change to the file tree, simulation controls, or viewer tabs
+- React version upgrades or build tooling changes
+
+**Commands:**
+- Quick smoke check: `yarn test:e2e -- --grep "Smoke"` in `apps/sim-core/packages/core`
+- Full E2E suite: `yarn test:e2e` in `apps/sim-core/packages/core`
+- Tests run sequentially (1 worker) — the simulation engine is CPU-intensive
+
+**Important:** The E2E tests require either a running dev server (`yarn serve`) or will auto-start one via the Playwright config. If the dev server is already running, Playwright will reuse it.
 
 ## Major Phase Review (MANDATORY)
 
 After completing each major phase (e.g. "Phase 1: Cleanup & Simplification", "Phase 3: Build System Modernization"):
 
 1. **Full build verification**: Run production webpack build and confirm zero errors.
-2. **Full test suite**: Run all unit tests and confirm zero failures.
-3. **Orphan scan**: Search for files referencing deleted modules (spec files, scss files, e2e tests, stale comments).
+2. **Full unit test suite**: Run all unit tests and confirm zero failures.
+3. **Full E2E test suite**: Run `yarn test:e2e` and confirm all tests pass. Do NOT skip this.
+4. **Orphan scan**: Search for files referencing deleted modules (spec files, scss files, e2e tests, stale comments).
 4. **Dependency audit**: Verify no packages were left dangling in the wrong package.json.
 5. **Documentation review**: Update TODO.md, ARCHITECTURE.md, this rules file, and README.md to reflect completed work.
 6. **Plan reassessment**: Based on what was learned during the phase, identify:

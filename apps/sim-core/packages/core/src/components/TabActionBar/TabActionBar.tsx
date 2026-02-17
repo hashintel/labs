@@ -1,6 +1,7 @@
 import React, {
   FC,
   MutableRefObject,
+  PropsWithChildren,
   ReactNode,
   useCallback,
   useEffect,
@@ -13,19 +14,21 @@ import { useScrollState } from "../../hooks/useScrollState";
 
 import "./TabActionBar.scss";
 
-export const TabActionBar: FC<{
-  tabs: ReactNode;
-  actions: ReactNode[];
-  tabsRef: MutableRefObject<HTMLElement | null>;
-  selectedIndex: number;
-  onSelectedIndexChange?: (
-    tabIndex: number,
-    last: number,
-    event: Event
-  ) => void;
-  hidden?: boolean;
-  className?: string;
-}> = ({
+export const TabActionBar: FC<
+  PropsWithChildren<{
+    tabs: ReactNode;
+    actions: ReactNode[];
+    tabsRef: MutableRefObject<HTMLElement | null>;
+    selectedIndex: number;
+    onSelectedIndexChange?: (
+      tabIndex: number,
+      last: number,
+      event: Event
+    ) => void;
+    hidden?: boolean;
+    className?: string;
+  }>
+> = ({
   children,
   tabs,
   tabsRef,

@@ -1,8 +1,8 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 
 import "./ModalFormEntryLabel.scss";
 
-export const ModalFormEntryLabel: FC<{ optional?: boolean }> = ({
+export const ModalFormEntryLabel: FC<PropsWithChildren<{ optional?: boolean }>> = ({
   optional,
   children,
 }) => (

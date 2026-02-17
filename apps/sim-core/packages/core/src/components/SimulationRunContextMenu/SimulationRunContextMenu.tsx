@@ -1,4 +1,4 @@
-import React, { FC, CSSProperties } from "react";
+import React, { FC, PropsWithChildren, CSSProperties } from "react";
 
 import "./SimulationRunContextMenu.scss";
 
@@ -6,7 +6,9 @@ type SimulationRunContextMenuProps = {
   style: Pick<CSSProperties, "top" | "right">;
 };
 
-export const SimulationRunContextMenu: FC<SimulationRunContextMenuProps> = ({
+export const SimulationRunContextMenu: FC<
+  PropsWithChildren<SimulationRunContextMenuProps>
+> = ({
   children,
   style,
 }) => (

@@ -1,4 +1,4 @@
-import React, { Context, createContext, FC } from "react";
+import React, { Context, createContext, FC, PropsWithChildren } from "react";
 import {
   createDispatchHook,
   createSelectorHook,
@@ -43,7 +43,7 @@ export const useSimulatorDispatch: () => SimulatorDispatch = createDispatchHook(
   SimulatorReduxContext
 );
 
-export const SimulatorProvider: FC = ({ children }) => (
+export const SimulatorProvider: FC<PropsWithChildren> = ({ children }) => (
   <Provider store={simulatorStore} context={SimulatorReduxContext}>
     {children}
   </Provider>

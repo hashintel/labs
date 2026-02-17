@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import classNames from "classnames";
 
 import { Modal } from "./Modal";
@@ -13,7 +13,7 @@ type BigModalProps = {
   backdropClassName?: string;
 };
 
-export const BigModal: FC<BigModalProps> = ({
+export const BigModal: FC<PropsWithChildren<BigModalProps>> = ({
   onClose,
   cancelButton = true,
   children,

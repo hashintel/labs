@@ -1,4 +1,4 @@
-import React, { FC, useState, MouseEventHandler, useRef } from "react";
+import React, { FC, PropsWithChildren, useState, MouseEventHandler, useRef } from "react";
 import classNames from "classnames";
 
 import { Dropdown } from "../../Dropdown";
@@ -9,11 +9,13 @@ import { ReactSelectOption } from "../../Dropdown/types";
 import "./FancyButtonWithDropdown.scss";
 
 export const FancyButtonWithDropdown: FC<
-  Omit<FancyButtonProps, "onClick"> & {
-    dropdownOptions: ReactSelectOption[];
-    onClick: MouseEventHandler;
-    onOptionSelect: Function;
-  }
+  PropsWithChildren<
+    Omit<FancyButtonProps, "onClick"> & {
+      dropdownOptions: ReactSelectOption[];
+      onClick: MouseEventHandler;
+      onOptionSelect: Function;
+    }
+  >
 > = ({
   children,
   className,
