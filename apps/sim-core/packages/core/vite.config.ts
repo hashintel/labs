@@ -88,16 +88,46 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       exclude: [
         "@hashintel/engine-web",
-        // react-mapbox-gl has invalid ESM: assigns to mapbox-gl import
+        // react-mapbox-gl ESM assigns to mapbox-gl import (invalid ESM);
+        // exclude from optimizer so it's served via Vite's CJS transform
         "react-mapbox-gl",
         // drei must go through Vite transform (not esbuild optimizer)
         // so the fix-drei-stats plugin can rewrite its stats.min import
         "drei",
       ],
       include: [
-        // Force CJS→ESM conversion for libraries with issues
+        // Pre-bundle these deps upfront to avoid mid-session discovery
+        // that triggers page reloads and race conditions on cold cache.
         "plotly.js",
+        "react-plotly.js",
         "stats.js",
+        "mapbox-gl",
+        "promise-worker-transferable",
+        "promise-worker-transferable/register",
+        "recoil",
+        "react-three-fiber",
+        "react-shepherd",
+        "@reduxjs/toolkit",
+        "react-redux",
+        "rxjs",
+        "immer",
+        "@fluentui/react",
+        "simplebar-react",
+        "react-splitter-layout",
+        "react-tabs",
+        "react-transition-group",
+        "react-select",
+        "react-dropzone",
+        "react-hook-form",
+        "react-intersection-observer",
+        "monaco-editor",
+        "classnames",
+        "date-fns",
+        "uuid",
+        "lodash-es",
+        "jszip",
+        "file-saver",
+        "url-join",
       ],
     },
     worker: {
