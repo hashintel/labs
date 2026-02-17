@@ -17,9 +17,26 @@ export default defineConfig(({ mode }) => {
       .slice(0, 20),
   ].join("-");
 
+  // Plugin to fix drei's `import * as StatsImpl from 'three/examples/js/libs/stats.min'`
+  // then `new StatsImpl()`. The `import *` creates a namespace object, not a constructor.
+  // We rewrite it to `import StatsImpl from 'stats.js'` which gives the default export.
+  const fixDreiStats = {
+    name: "fix-drei-stats",
+    transform(code: string, id: string) {
+      if (id.includes("drei")) {
+        return code
+          .replace(
+            /import\s*\*\s*as\s+StatsImpl\s+from\s*['"]three\/examples\/js\/libs\/stats\.min['"]/g,
+            'import StatsImpl from "stats.js"'
+          );
+      }
+    },
+  };
+
   return {
     root: ".",
     plugins: [
+      fixDreiStats,
       react(),
       wasm(),
       topLevelAwait(),
@@ -37,13 +54,6 @@ export default defineConfig(({ mode }) => {
         "lodash.omit": "lodash-es/omit",
         "lodash.pick": "lodash-es/pick",
         "@juggle/resize-observer$": "empty-module",
-        // drei does `import * as StatsImpl from 'three/examples/js/libs/stats.min'`
-        // then `new StatsImpl()` — this only works with Webpack's CJS interop.
-        // Redirect to a shim that re-exports stats.js as a default export.
-        "three/examples/js/libs/stats.min": path.resolve(
-          __dirname,
-          "src/shims/stats-shim.js"
-        ),
       },
     },
     define: {
