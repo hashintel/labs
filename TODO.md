@@ -382,28 +382,45 @@ const MyComponent = () => {
 - [ ] Migrate `drei` to `@react-three/drei` (BLOCKED: requires React 18)
 - [ ] Remove `recoil` (defer: 13/13 files are in AgentScene, do with three.js migration)
 
-### 🟠 High: Build Tooling
+### 🟠 High: Build Tooling — Migrate Webpack 4 → Vite
 
-| Package | Current | Latest | Notes |
+| Package | Current | Action | Notes |
 |---------|---------|--------|-------|
-| `webpack` | 4.44.2 | 5.90+ | Module federation, better tree-shaking |
-| `webpack-cli` | 3.3.12 | 5.1+ | |
-| `webpack-dev-server` | 3.11.0 | 4.15+ | |
+| `webpack` | 4.44.2 | **REMOVE** | Replacing with Vite |
+| `webpack-cli` | 3.3.12 | **REMOVE** | |
+| `webpack-dev-server` | 3.11.0 | **REMOVE** | Vite dev server replaces this |
 | `typescript` | ~~4.1.3~~ **5.3.3** | ✅ Done | `satisfies`, const type params, decorators |
 | `jest` | 26.6.3 | 29.7+ | Or migrate to Vitest |
 | `ts-jest` | ~~26.4.4~~ **removed** | ✅ Done | Switched to `babel-jest` (ts-jest 26 incompatible with TS 5) |
-| `babel-loader` | 8.2.1 | 9.1+ | Or consider SWC/esbuild |
+| `babel-loader` | 8.2.1 | **REMOVE** | Vite uses esbuild for dev, Rollup for prod |
+| `Node.js` | ~~20.8.0~~ | **24.x LTS** | Upgrade to current LTS before Vite migration |
 
-**Recommended Approach**:
-- Option A: Upgrade Webpack 4 → 5 (lower risk, more work)
-- Option B: Migrate to Vite (higher risk, better DX, faster builds)
+**Decision**: Migrate to Vite (not Webpack 5). Benefits:
+- Sub-second dev server startup (vs 30s+ with Webpack 4)
+- Native ESM, HMR via esbuild
+- Eliminates `--openssl-legacy-provider` workaround
+- Modern toolchain, better DX
+- Simpler config (~30 lines vs ~300 lines)
 
-**Build Script Issues**:
-```bash
-# Current workaround indicates OpenSSL issues:
-NODE_OPTIONS=--openssl-legacy-provider
-```
-This suggests Node.js version conflicts. Upgrading to Webpack 5+ may resolve this.
+**Migration approach**:
+1. Upgrade Node.js 20 → 24 LTS first
+2. Install Vite + plugins (`@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`)
+3. Create `vite.config.ts` with resolve aliases, define globals, SCSS support
+4. Move HTML entry to project root (Vite convention), add module script tags
+5. Replace `!!raw-loader!` imports with Vite `?raw` suffix
+6. Refactor worker loading (currently uses `WEBPACK_PUBLIC_PATH` + filename strings)
+7. Verify WASM loading works via `vite-plugin-wasm`
+8. Remove webpack magic comments from dynamic imports
+9. Simplify build stamp system (no longer need timestamped public paths for local-first)
+10. Update npm scripts, verify build + tests, then remove all webpack infrastructure
+
+**Fallback**: If WASM-in-workers proves impossible with Vite, fall back to Webpack 4→5 upgrade.
+
+**Packages to add**: `vite`, `@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`
+
+**Packages to remove** (after migration verified): `webpack`, `webpack-cli`, `webpack-dev-server`, `html-webpack-plugin`, `webpack-manifest-plugin`, `webpack-messages`, `webpack-retry-chunk-load-plugin`, `unused-modules-webpack-plugin`, `url-loader`, `file-loader`, `raw-loader`, `css-loader`, `style-loader`, `babel-loader`, `source-map-loader`, `null-loader`, `monaco-editor-webpack-plugin`, `postcss-loader`, `sass-loader`, and potentially all `@babel/*` packages (Vite uses esbuild).
+
+**Note**: `engine-web/webpack.config.js` (stdlib build) is a separate concern — can stay on Webpack or be converted to esbuild later.
 
 ### 🟠 High: Significant Version Gaps
 
@@ -805,9 +822,19 @@ All items completed in Migration Phases above (Phases 2–5).
    - Jest switched from ts-jest to babel-jest (ts-jest 26 incompatible with TS 5)
    - ~80 RTK 1.5 dispatch type errors suppressed (resolve when Redux removed)
    - `useUnknownInCatchVariables: false` set in tsconfig (re-enable after Redux removal)
-2. [ ] Upgrade Webpack 4 → 5 OR migrate to Vite
-3. [ ] Remove `--openssl-legacy-provider` workaround (blocked by Webpack 4)
-4. [ ] Update Jest 26 → 29 or migrate to Vitest
+2. [ ] Upgrade Node.js 20 → 24 LTS
+3. [ ] Migrate Webpack 4 → Vite (see Build Tooling section for detailed plan)
+   - [ ] Install Vite + plugins, create vite.config.ts
+   - [ ] Create HTML entry files at project root
+   - [ ] Replace raw-loader imports with ?raw suffix
+   - [ ] Refactor worker loading for Vite
+   - [ ] Verify WASM loading in main thread and workers
+   - [ ] Remove webpack magic comments
+   - [ ] Simplify build stamp system
+   - [ ] Update scripts, verify build + tests
+   - [ ] Remove webpack infrastructure and dependencies
+4. [ ] Remove `--openssl-legacy-provider` workaround (resolved by Vite migration)
+5. [ ] Update Jest 26 → 29 or migrate to Vitest
 
 ### Phase 4: React & State Management
 1. [x] React 16 → 17 → 18.2 migration (no legacy lifecycle blockers; createRoot migrated)
