@@ -90,6 +90,9 @@ export default defineConfig(({ mode }) => {
         "@hashintel/engine-web",
         // react-mapbox-gl has invalid ESM: assigns to mapbox-gl import
         "react-mapbox-gl",
+        // drei must go through Vite transform (not esbuild optimizer)
+        // so the fix-drei-stats plugin can rewrite its stats.min import
+        "drei",
       ],
       include: [
         // Force CJS→ESM conversion for libraries with issues
