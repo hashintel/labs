@@ -26,6 +26,13 @@ export function formatPathsForClipboard(repos: RepoInfo[]): string {
 }
 
 /**
+ * Format multiple remote URLs for clipboard (newline-separated)
+ */
+export function formatUrlsForClipboard(repos: RepoInfo[]): string {
+  return repos.map((r) => r.entry.cloneUrl).join('\n');
+}
+
+/**
  * Format repos as JSON array
  */
 export function formatAsJson(repos: RepoInfo[]): string {
@@ -182,6 +189,7 @@ export async function showBatchActions(repos: RepoInfo[]): Promise<void> {
     message: `Batch actions for ${repos.length} repositories`,
     options: [
       { value: 'copy-paths', label: 'Copy as path strings', hint: 'newline-separated with ~' },
+      { value: 'copy-urls', label: 'Copy as remote URLs', hint: 'newline-separated' },
       { value: 'copy-json', label: 'Copy as JSON', hint: 'array of objects' },
       { value: 'copy-md-list', label: 'Copy as markdown list', hint: '- owner/repo' },
       { value: 'copy-md-table', label: 'Copy as markdown table', hint: '| repo | path | desc |' },
@@ -204,6 +212,13 @@ export async function showBatchActions(repos: RepoInfo[]): Promise<void> {
       const pathsText = formatPathsForClipboard(repos);
       await copyToClipboard(pathsText);
       p.log.success(`Copied ${repos.length} paths to clipboard`);
+      break;
+    }
+
+    case 'copy-urls': {
+      const urlsText = formatUrlsForClipboard(repos);
+      await copyToClipboard(urlsText);
+      p.log.success(`Copied ${repos.length} URLs to clipboard`);
       break;
     }
 

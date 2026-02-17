@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   formatPathsForClipboard,
+  formatUrlsForClipboard,
   formatAsJson,
   formatAsMarkdownList,
   formatAsMarkdownTable,
@@ -89,6 +90,27 @@ describe('formatPathsForClipboard', () => {
 
   it('handles empty array', () => {
     expect(formatPathsForClipboard([])).toBe('');
+  });
+});
+
+describe('formatUrlsForClipboard', () => {
+  it('formats a single URL', () => {
+    const repos = [mockRepoInfo({ entry: { cloneUrl: 'https://github.com/foo/bar.git' } })];
+    expect(formatUrlsForClipboard(repos)).toBe('https://github.com/foo/bar.git');
+  });
+
+  it('joins multiple URLs with newlines', () => {
+    const repos = [
+      mockRepoInfo({ entry: { cloneUrl: 'https://github.com/foo/bar.git' } }),
+      mockRepoInfo({ entry: { cloneUrl: 'https://github.com/baz/qux.git' } }),
+    ];
+    expect(formatUrlsForClipboard(repos)).toBe(
+      'https://github.com/foo/bar.git\nhttps://github.com/baz/qux.git'
+    );
+  });
+
+  it('handles empty array', () => {
+    expect(formatUrlsForClipboard([])).toBe('');
   });
 });
 

@@ -90,6 +90,15 @@ describe('showSingleRepoActions', () => {
     expect(copyToClipboard).not.toHaveBeenCalled();
   });
 
+  it('copies remote URL and exits', async () => {
+    prompts.select.mockResolvedValue('copy-url');
+
+    const result = await showSingleRepoActions(baseRepo, 'browse');
+
+    expect(result).toBe('exit');
+    expect(copyToClipboard).toHaveBeenCalledWith('https://github.com/owner/repo.git');
+  });
+
   it('returns add-another when chosen in add mode', async () => {
     prompts.select.mockResolvedValue('add-another');
 

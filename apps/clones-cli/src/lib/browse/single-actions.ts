@@ -53,6 +53,7 @@ export async function showSingleRepoActions(
 
   const options = [
     { value: 'copy', label: 'Copy path to clipboard' },
+    { value: 'copy-url', label: 'Copy remote URL' },
     { value: 'open', label: 'Open in editor' },
   ];
 
@@ -85,6 +86,12 @@ export async function showSingleRepoActions(
     const userPath = toUserPath(repo.localPath);
     await copyToClipboard(userPath);
     p.log.success(`Copied: ${userPath}`);
+    return 'exit';
+  }
+
+  if (action === 'copy-url') {
+    await copyToClipboard(repo.entry.cloneUrl);
+    p.log.success(`Copied: ${repo.entry.cloneUrl}`);
     return 'exit';
   }
 
