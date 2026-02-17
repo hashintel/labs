@@ -58,7 +58,7 @@ This section provides context for AI agents working with this codebase.
 ┌─────────────────────────────────────────────────────────────────┐
 │                        sim-core (hCore)                         │
 ├─────────────────────────────────────────────────────────────────┤
-│  React/Redux Frontend    │    WASM Engine (via Web Workers)    │
+│  React/Vite Frontend     │    WASM Engine (via Web Workers)    │
 │  ───────────────────     │    ──────────────────────────────   │
 │  • HashCore (IDE shell)  │    • engine-web bindings            │
 │  • SimulationRunner      │    • Rust → WASM compilation        │

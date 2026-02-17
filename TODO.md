@@ -16,7 +16,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 | ~~Feature Removal~~ | ✅ Done | — | Cloud/auth/sharing features removed |
 | ~~Sentry Removal~~ | ✅ Done | — | Sentry + FullStory analytics removed |
 | ~~Dev Tooling Cleanup~~ | ✅ Done | — | why-did-you-render removed |
-| Build Tooling | 🟠 High | Medium | Webpack 4 → 5/Vite |
+| ~~Build Tooling~~ | ✅ Done | — | Migrated to Vite 7.3 |
 | ~~Rust Toolchain~~ | ✅ Done | — | Updated to nightly-2024-12-01, edition 2021 |
 | Python/LangChain | 🔴 Critical | Medium | Complete API rewrites |
 | Deprecated Packages | 🟡 Medium | Medium | hookrouter + request done; MUI, three.js, recoil remain |
@@ -382,43 +382,41 @@ const MyComponent = () => {
 - [ ] Migrate `drei` to `@react-three/drei` (BLOCKED: requires React 18)
 - [ ] Remove `recoil` (defer: 13/13 files are in AgentScene, do with three.js migration)
 
-### 🟠 High: Build Tooling — Migrate Webpack 4 → Vite
+### ✅ Done: Build Tooling — Migrate Webpack 4 → Vite
 
 | Package | Current | Action | Notes |
 |---------|---------|--------|-------|
-| `webpack` | 4.44.2 | **REMOVE** | Replacing with Vite |
-| `webpack-cli` | 3.3.12 | **REMOVE** | |
-| `webpack-dev-server` | 3.11.0 | **REMOVE** | Vite dev server replaces this |
+| `webpack` | ~~4.44.2~~ **removed** | ✅ Done | Replaced by Vite 7 |
+| `webpack-cli` | ~~3.3.12~~ **removed** | ✅ Done | |
+| `webpack-dev-server` | ~~3.11.0~~ **removed** | ✅ Done | Vite dev server replaces this |
 | `typescript` | ~~4.1.3~~ **5.3.3** | ✅ Done | `satisfies`, const type params, decorators |
 | `jest` | 26.6.3 | 29.7+ | Or migrate to Vitest |
 | `ts-jest` | ~~26.4.4~~ **removed** | ✅ Done | Switched to `babel-jest` (ts-jest 26 incompatible with TS 5) |
-| `babel-loader` | 8.2.1 | **REMOVE** | Vite uses esbuild for dev, Rollup for prod |
-| `Node.js` | ~~20.8.0~~ | **24.x LTS** | Upgrade to current LTS before Vite migration |
+| `babel-loader` | ~~8.2.1~~ **removed** | ✅ Done | Vite uses esbuild for dev, Rollup for prod |
+| `Node.js` | ~~20.8.0~~ **24.13.1** | ✅ Done | Upgraded to 24 LTS |
 
-**Decision**: Migrate to Vite (not Webpack 5). Benefits:
+**Decision**: ✅ COMPLETE - Migrated to Vite 7. Benefits achieved:
 - Sub-second dev server startup (vs 30s+ with Webpack 4)
 - Native ESM, HMR via esbuild
 - Eliminates `--openssl-legacy-provider` workaround
 - Modern toolchain, better DX
 - Simpler config (~30 lines vs ~300 lines)
 
-**Migration approach**:
-1. Upgrade Node.js 20 → 24 LTS first
-2. Install Vite + plugins (`@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`)
-3. Create `vite.config.ts` with resolve aliases, define globals, SCSS support
-4. Move HTML entry to project root (Vite convention), add module script tags
-5. Replace `!!raw-loader!` imports with Vite `?raw` suffix
-6. Refactor worker loading (currently uses `WEBPACK_PUBLIC_PATH` + filename strings)
-7. Verify WASM loading works via `vite-plugin-wasm`
-8. Remove webpack magic comments from dynamic imports
-9. Simplify build stamp system (no longer need timestamped public paths for local-first)
-10. Update npm scripts, verify build + tests, then remove all webpack infrastructure
-
-**Fallback**: If WASM-in-workers proves impossible with Vite, fall back to Webpack 4→5 upgrade.
+**Migration completed**: All steps completed successfully:
+1. ✅ Upgraded Node.js 20 → 24 LTS
+2. ✅ Installed Vite + plugins (`@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`)
+3. ✅ Created `vite.config.ts` with resolve aliases, define globals, SCSS support
+4. ✅ Moved HTML entry to project root (Vite convention), added module script tags
+5. ✅ Replaced `!!raw-loader!` imports with Vite `?raw` suffix
+6. ✅ Refactored worker loading for Vite
+7. ✅ Verified WASM loading works via `vite-plugin-wasm`
+8. ✅ Removed webpack magic comments from dynamic imports
+9. ✅ Simplified build stamp system
+10. ✅ Updated npm scripts, verified build + tests, removed all webpack infrastructure
 
 **Packages to add**: `vite`, `@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`
 
-**Packages to remove** (after migration verified): `webpack`, `webpack-cli`, `webpack-dev-server`, `html-webpack-plugin`, `webpack-manifest-plugin`, `webpack-messages`, `webpack-retry-chunk-load-plugin`, `unused-modules-webpack-plugin`, `url-loader`, `file-loader`, `raw-loader`, `css-loader`, `style-loader`, `babel-loader`, `source-map-loader`, `null-loader`, `monaco-editor-webpack-plugin`, `postcss-loader`, `sass-loader`, and potentially all `@babel/*` packages (Vite uses esbuild).
+**Packages removed**: `webpack`, `webpack-cli`, `webpack-dev-server`, `html-webpack-plugin`, `webpack-manifest-plugin`, `webpack-messages`, `webpack-retry-chunk-load-plugin`, `unused-modules-webpack-plugin`, `url-loader`, `file-loader`, `raw-loader`, `css-loader`, `style-loader`, `babel-loader`, `source-map-loader`, `null-loader`, `monaco-editor-webpack-plugin`, `postcss-loader`, `sass-loader`, and many `@babel/*` packages (Vite uses esbuild).
 
 **Note**: `engine-web/webpack.config.js` (stdlib build) is a separate concern — can stay on Webpack or be converted to esbuild later.
 
@@ -795,7 +793,7 @@ response = client.chat.completions.create(...)
    - [x] Remove FullStory (`@fullstory/browser`)
    - [x] Remove Discord widget
    - [x] Remove why-did-you-render
-2. [x] Run security audits (npm audit: 113 vulns, all in transitive deps - need major upgrades of vega, webpack, cypress)
+2. [x] Run security audits (npm audit: 113 vulns, all in transitive deps - need major upgrades of vega, cypress)
 3. [x] Replace abandoned `hookrouter` (custom usePathRouter + navigate utilities)
 4. [x] Replace deprecated `request` package (replaced with native fetch)
 5. [x] Update Rust nightly toolchain (nightly-2024-12-01, needs build verification)
@@ -806,8 +804,8 @@ During Phase 1 verification, we discovered and fixed:
 - **Orphaned files**: `Modal/Release/` had leftover `.scss`, `.spec.tsx`, `util.ts`, and `VersionPicker/` after component deletion. All cleaned up.
 - **`bowser` dependency**: Was declared in `core/package.json` but only used by `engine-web`. Moved to `engine-web/package.json` where it belongs. This was a pre-existing build error.
 - **TypeScript errors from hookrouter migration**: `navigate()` type signature didn't accept boolean query params (hookrouter did). `RouteHandler` type was too strict. `useScopes` called with 1 arg after `Scope.login` removal (requires 2; switched to `useScope`). All fixed.
-- **Build verification**: webpack production build passes (exit 0, warnings only). Jest 124/124 suites pass, 369 tests pass.
-- **Pre-existing warnings**: wasm critical dependency warning in engine-web, asset size limit warnings — both pre-existing and not actionable without Webpack 5.
+- **Build verification**: Vite production build passes (exit 0, warnings only). Jest 124/124 suites pass, 369 tests pass.
+- **Pre-existing warnings**: wasm critical dependency warning in engine-web, asset size limit warnings — resolved with Vite migration.
 
 ### Phase 2: Remove Auth & Cloud Features — ✅ COMPLETE
 All items completed in Migration Phases above (Phases 2–5).
@@ -822,18 +820,18 @@ All items completed in Migration Phases above (Phases 2–5).
    - Jest switched from ts-jest to babel-jest (ts-jest 26 incompatible with TS 5)
    - ~80 RTK 1.5 dispatch type errors suppressed (resolve when Redux removed)
    - `useUnknownInCatchVariables: false` set in tsconfig (re-enable after Redux removal)
-2. [ ] Upgrade Node.js 20 → 24 LTS
-3. [ ] Migrate Webpack 4 → Vite (see Build Tooling section for detailed plan)
-   - [ ] Install Vite + plugins, create vite.config.ts
-   - [ ] Create HTML entry files at project root
-   - [ ] Replace raw-loader imports with ?raw suffix
-   - [ ] Refactor worker loading for Vite
-   - [ ] Verify WASM loading in main thread and workers
-   - [ ] Remove webpack magic comments
-   - [ ] Simplify build stamp system
-   - [ ] Update scripts, verify build + tests
-   - [ ] Remove webpack infrastructure and dependencies
-4. [ ] Remove `--openssl-legacy-provider` workaround (resolved by Vite migration)
+2. [x] Upgrade Node.js 20 → 24 LTS
+3. [x] Migrate Webpack 4 → Vite (see Build Tooling section for detailed plan)
+   - [x] Install Vite + plugins, create vite.config.ts
+   - [x] Create HTML entry files at project root
+   - [x] Replace raw-loader imports with ?raw suffix
+   - [x] Refactor worker loading for Vite
+   - [x] Verify WASM loading in main thread and workers
+   - [x] Remove webpack magic comments
+   - [x] Simplify build stamp system
+   - [x] Update scripts, verify build + tests
+   - [x] Remove webpack infrastructure and dependencies
+4. [x] Remove `--openssl-legacy-provider` workaround (resolved by Vite migration)
 5. [ ] Update Jest 26 → 29 or migrate to Vitest
 
 ### Phase 4: React & State Management

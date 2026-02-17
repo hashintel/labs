@@ -19,6 +19,7 @@ Key warnings:
 - React 18.2 (upgraded from 16.14). react-three-fiber/drei still on old versions (need @react-three/* migration)
 - Python hash-agents uses completely outdated LangChain/OpenAI APIs
 - Rust nightly updated to 2024-12-01 but cargo build not yet verified on all targets
+- Build tooling: Vite 7 (migrated from Webpack 4; engine-web stdlib still uses webpack)
 
 ## IMPORTANT: Application is Becoming Local-First
 
@@ -114,14 +115,14 @@ When replacing a library or changing function signatures:
    - Functions that lost a parameter (callers may still pass it)
    - Functions that gained a required parameter (callers may pass too few)
    - Functions whose parameter types narrowed (callers may pass wider types)
-3. **Run the TypeScript compiler / webpack build** after every batch of related changes — do NOT defer this to the end of a phase.
+3. **Run the TypeScript compiler / Vite build** after every batch of related changes — do NOT defer this to the end of a phase.
 
 ## Build & Test Verification
 
 After every meaningful batch of changes (not just at the end of a phase):
 
 1. **Run unit tests**: `npx jest --forceExit --testPathIgnorePatterns "e2e"` in `apps/sim-core/packages/core`
-2. **Run production build**: `$env:NODE_OPTIONS='--openssl-legacy-provider --max_old_space_size=8192'; npx webpack --mode production` in `apps/sim-core/packages/core`
+2. **Run production build**: `vite build` in `apps/sim-core/packages/core`
 3. **Check for errors explicitly**: pipe build output through `Select-String "ERROR"` — warnings are expected, errors are not.
 4. **Fix immediately** — do not accumulate errors across multiple changes. Each commit should leave the build green.
 
@@ -163,7 +164,7 @@ The E2E tests are Playwright-based regression tests that verify the full applica
 
 After completing each major phase (e.g. "Phase 1: Cleanup & Simplification", "Phase 3: Build System Modernization"):
 
-1. **Full build verification**: Run production webpack build and confirm zero errors.
+1. **Full build verification**: Run production build and confirm zero errors.
 2. **Full unit test suite**: Run all unit tests and confirm zero failures.
 3. **Full E2E test suite**: Run `yarn test:e2e` and confirm all tests pass. Do NOT skip this.
 4. **Orphan scan**: Search for files referencing deleted modules (spec files, scss files, e2e tests, stale comments).
@@ -212,7 +213,7 @@ sim-core Frontend:
 - React 18.2.0 (upgraded from 16.14)
 - Redux Toolkit 1.5 (outdated - BEING REMOVED ENTIRELY)
 - TypeScript 5.3.3 (updated from 4.1; ~80 RTK type errors suppressed until Redux removal)
-- Webpack 4 (outdated - current is 5.x or Vite)
+- Vite 7 (migrated from Webpack 4)
 - SCSS modules for styling
 
 sim-engine:
@@ -231,7 +232,7 @@ Simulator Store (features/simulator/store.ts) - High-frequency simulation update
 
 sim-core:
   yarn                  - Install and build
-  yarn serve:core       - Development server
+  yarn serve:core       - Vite dev server (not webpack-dev-server)
   yarn build:core       - Production build
   yarn fmt:core         - Format code
   yarn test:core        - Run tests
@@ -248,7 +249,7 @@ sim-engine:
 2. Don't upgrade React/Redux partially - ecosystem must stay in sync
 3. Routing uses custom `util/navigation.ts` + `util/usePathRouter.ts` (not hookrouter or react-router)
 4. Legacy code from 2019-2020 - be cautious with refactoring
-5. NODE_OPTIONS=--openssl-legacy-provider required by Webpack 4 + Node 20 (resolves after Webpack 5 upgrade)
+5. NODE_OPTIONS=--openssl-legacy-provider no longer needed (resolved by Vite migration)
 
 ## References
 
