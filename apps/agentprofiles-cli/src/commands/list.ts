@@ -30,23 +30,30 @@ export async function listCommand(agent?: string) {
     const tool = SUPPORTED_TOOLS[a];
     if (!tool) continue;
 
-    if (profiles.length === 0) {
+    // Filter out _base from the display list
+    const displayProfiles = profiles.filter((p) => p.slug !== BASE_PROFILE_SLUG);
+
+    if (displayProfiles.length === 0) {
       note(color.dim('No profiles found'), `${tool.description} Profiles`);
     } else {
-      const lines = profiles.map((p) => {
+      const lines = displayProfiles.map((p) => {
         let label = p.name !== p.slug ? `${p.name} (${p.slug})` : p.name;
 
         if (p.slug === activeProfile) {
           label = `● ${label}`;
         }
 
-        let description = p.description || 'No description';
-        if (p.slug === BASE_PROFILE_SLUG) {
-          description = 'Base profile';
+        if (p.description) {
+          return `${color.cyan(label)} ${color.dim('-')} ${p.description}`;
         }
-
-        return `${color.cyan(label)} ${color.dim('-')} ${description}`;
+        return color.cyan(label);
       });
+
+      // If active profile is _base, show an indicator at the end
+      if (activeProfile === BASE_PROFILE_SLUG) {
+        lines.push(`● ${color.dim('Base profile')}`);
+      }
+
       note(lines.join('\n'), `${tool.description} Profiles`);
     }
   }
