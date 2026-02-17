@@ -103,10 +103,9 @@ export async function pollForToken(
  * Open browser to GitHub device auth page
  */
 export async function openBrowserToAuth(verificationUri: string): Promise<void> {
-  // Try to open with 'open' command (macOS/Linux)
   try {
-    const { exec } = await import('node:child_process');
-    exec(`open "${verificationUri}"`);
+    const { execFile } = await import('node:child_process');
+    execFile('open', [verificationUri]);
   } catch {
     // Fallback: just print the URL
     p.log.info(`Please open this URL in your browser: ${verificationUri}`);
