@@ -35,6 +35,17 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Polyfill setImmediate (Node.js API used by codebase, Webpack polyfilled it)
+      if (typeof globalThis.setImmediate === "undefined") {
+        globalThis.setImmediate = function(fn) { return setTimeout(fn, 0); };
+        globalThis.clearImmediate = function(id) { clearTimeout(id); };
+      }
+      // Polyfill global (Node.js global used by some deps)
+      if (typeof globalThis.global === "undefined") {
+        globalThis.global = globalThis;
+      }
+    </script>
     <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>

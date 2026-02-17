@@ -20,6 +20,15 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      if (typeof globalThis.setImmediate === "undefined") {
+        globalThis.setImmediate = function(fn) { return setTimeout(fn, 0); };
+        globalThis.clearImmediate = function(id) { clearTimeout(id); };
+      }
+      if (typeof globalThis.global === "undefined") {
+        globalThis.global = globalThis;
+      }
+    </script>
     <script type="module" src="/src/embed.tsx"></script>
   </body>
 </html>

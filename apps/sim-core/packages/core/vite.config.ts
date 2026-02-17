@@ -37,6 +37,13 @@ export default defineConfig(({ mode }) => {
         "lodash.omit": "lodash-es/omit",
         "lodash.pick": "lodash-es/pick",
         "@juggle/resize-observer$": "empty-module",
+        // drei does `import * as StatsImpl from 'three/examples/js/libs/stats.min'`
+        // then `new StatsImpl()` — this only works with Webpack's CJS interop.
+        // Redirect to a shim that re-exports stats.js as a default export.
+        "three/examples/js/libs/stats.min": path.resolve(
+          __dirname,
+          "src/shims/stats-shim.js"
+        ),
       },
     },
     define: {
@@ -46,6 +53,8 @@ export default defineConfig(({ mode }) => {
       MAPBOX_API_TOKEN: JSON.stringify(
         process.env.MAPBOX_API_TOKEN ?? null
       ),
+      // Polyfill Node.js globals that Webpack 4 provided automatically
+      global: "globalThis",
     },
     css: {
       preprocessorOptions: {
@@ -69,9 +78,13 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       exclude: [
         "@hashintel/engine-web",
-        // react-mapbox-gl assigns to an ES import (mapbox-gl.accessToken)
-        // which esbuild's dep optimizer rejects as invalid ESM
+        // react-mapbox-gl has invalid ESM: assigns to mapbox-gl import
         "react-mapbox-gl",
+      ],
+      include: [
+        // Force CJS→ESM conversion for libraries with issues
+        "plotly.js",
+        "stats.js",
       ],
     },
     worker: {
