@@ -102,6 +102,9 @@ export default defineConfig(({ mode }) => {
         "react-plotly.js",
         "stats.js",
         "mapbox-gl",
+        // react-mapbox-gl transitive deps need optimization
+        "@turf/bbox",
+        "@turf/helpers",
         "promise-worker-transferable",
         "promise-worker-transferable/register",
         "recoil",

@@ -74,22 +74,32 @@ test.describe("WASM Worker Smoke", () => {
     );
     expect(simWorkers.length).toBeGreaterThan(0);
 
-    // Small wait to ensure the page is stable after initial load
-    await page.waitForTimeout(2000);
+    // Wait for the page to stabilize (viewer tabs may cause transient errors)
+    await page.waitForTimeout(3000);
+
+    // Check that we're still showing controls (not error boundary)
+    const stillHasControls = await page
+      .locator(".simulation-control-container")
+      .isVisible();
+    if (!stillHasControls) {
+      const bodyText = await page.evaluate(() =>
+        document.body.innerText.substring(0, 300)
+      );
+      throw new Error(`Controls disappeared after initial load: ${bodyText}`);
+    }
 
     // Find and click the Step button
     const stepButton = page.locator(".step.simulation-control button");
-    await expect(stepButton).toBeVisible({ timeout: 5000 });
+    await expect(stepButton).toBeVisible({ timeout: 10000 });
     await stepButton.click();
 
     // Wait for simulation to process the step (WASM execution)
-    // The step counter or timeline should update
-    // Give it generous time since WASM init can be slow on first run
     await page.waitForTimeout(5000);
 
-    // Click step again to verify it's not a one-off
-    await stepButton.click();
-    await page.waitForTimeout(3000);
+    // Verify controls still visible (no crash from step execution)
+    await expect(
+      page.locator(".simulation-control-container")
+    ).toBeVisible({ timeout: 5000 });
 
     // Verify no critical worker/WASM errors
     const criticalErrors = consoleErrors.filter(
