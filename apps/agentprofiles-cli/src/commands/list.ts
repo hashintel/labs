@@ -1,4 +1,5 @@
 import { defineCommand } from 'citty';
+import { log, note } from '@clack/prompts';
 import { ConfigManager } from '../lib/config.js';
 import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
@@ -15,11 +16,11 @@ export async function listCommand(agent?: string) {
   const configDir = config.getConfigDir();
   const contentDir = config.getContentDir();
 
-  console.log(color.bold('Configuration:'));
-  console.log(`  Config:  ${color.dim(configDir)}`);
+  const configLines = [`Config:  ${color.dim(configDir)}`];
   if (contentDir !== configDir) {
-    console.log(`  Content: ${color.dim(contentDir)}`);
+    configLines.push(`Content: ${color.dim(contentDir)}`);
   }
+  log.info(configLines.join('\n'));
 
   const agents = agent ? [agent] : Object.keys(SUPPORTED_TOOLS);
 
@@ -28,26 +29,25 @@ export async function listCommand(agent?: string) {
     const activeProfile = await config.getActiveProfile(a);
     const tool = SUPPORTED_TOOLS[a];
     if (!tool) continue;
-    console.log(color.bold(`\n${tool.description} Profiles:`));
+
     if (profiles.length === 0) {
-      console.log(color.dim('  No profiles found'));
+      note(color.dim('No profiles found'), `${tool.description} Profiles`);
     } else {
-      for (const p of profiles) {
+      const lines = profiles.map((p) => {
         let label = p.name !== p.slug ? `${p.name} (${p.slug})` : p.name;
 
-        // Mark active profile
         if (p.slug === activeProfile) {
           label = `● ${label}`;
         }
 
-        // Label _base profile
         let description = p.description || 'No description';
         if (p.slug === BASE_PROFILE_SLUG) {
           description = 'Base profile';
         }
 
-        console.log(`  ${color.cyan(label)} - ${description}`);
-      }
+        return `${color.cyan(label)} ${color.dim('-')} ${description}`;
+      });
+      note(lines.join('\n'), `${tool.description} Profiles`);
     }
   }
 }
