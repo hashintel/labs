@@ -186,3 +186,48 @@ The file should include:
 
 This file should be regenerated on each `setup` run to stay in sync with the
 current set of supported agents.
+
+---
+
+## UX Improvements
+
+### Fix banner to say "agentprofiles" (plural)
+
+The cfont banner currently renders "agentprofile" (singular). Update the
+text passed to cfont to read "agentprofiles" so the banner matches the
+CLI name.
+
+### Try `joyful` for profile name generation
+
+Replace `@criblinc/docker-names` with
+[`joyful`](https://github.com/haydenbleasel/joyful) for random profile
+name suggestions. Evaluate whether its output feels better for this use
+case.
+
+### Align `list` output with Clack visual style
+
+The `list` command currently prints plain `console.log` output that sits
+outside the Clack line-and-node decoration. Rewrite it to use
+`@clack/prompts` functions (e.g., `log.info`, `note`) so the output
+aligns with the vertical bar / dot pattern used by the rest of the
+interactive flow:
+
+```
+│
+◇  What would you like to do?
+│  List profiles
+│
+│  Configuration:
+│    Config:  ~/.config/agentprofiles
+│    Content: ~/Code/lunelson/dot-agents/profiles
+│
+│  Claude Code Profiles:
+│    beads-vanilla     - No description
+│    compound-eng      - No description
+│    …
+│
+│  OpenCode Profiles:
+│    compound-eng      - No description
+│    karpathy-one      - No description
+│    …
+```
