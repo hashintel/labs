@@ -94,13 +94,20 @@ export default defineConfig(({ mode }) => {
         // drei must go through Vite transform (not esbuild optimizer)
         // so the fix-drei-stats plugin can rewrite its stats.min import
         "drei",
+        // plotly.js accesses document during module init which fails
+        // when pre-bundled by esbuild; serve through normal Vite transform
+        "plotly.js",
+        "react-plotly.js",
       ],
       include: [
         // Pre-bundle these deps upfront to avoid mid-session discovery
         // that triggers page reloads and race conditions on cold cache.
-        "plotly.js",
-        "react-plotly.js",
+        // plotly.js excluded from include: its module-level code accesses
+        // document via a chain that fails when pre-bundled by esbuild.
+        // Loaded on-demand through normal Vite transform instead.
         "stats.js",
+        "bowser",
+        "jstat",
         "mapbox-gl",
         // react-mapbox-gl transitive deps need optimization
         "@turf/bbox",
