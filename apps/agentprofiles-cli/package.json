@@ -42,8 +42,8 @@
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
-    "@criblinc/docker-names": "^1.2.2",
     "citty": "^0.2.0",
+    "joyful": "^1.1.0",
     "picocolors": "^1.1.1",
     "update-notifier": "^7.3.1",
     "zod": "^4.3.5"

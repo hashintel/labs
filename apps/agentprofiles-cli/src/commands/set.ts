@@ -4,7 +4,7 @@ import { ConfigManager } from '../lib/config.js';
 import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
 import { validateNewProfileName, validateProfileName, slugify } from '../lib/validation.js';
-import { generateName } from '@criblinc/docker-names';
+import { joyful } from 'joyful';
 import { promptForAgent } from '../lib/prompts.js';
 
 async function batchSwitchAll(profileName: string): Promise<void> {
@@ -97,7 +97,7 @@ export async function setCommand(agent?: string, name?: string) {
     if (profiles.length === 0) {
       note(`No profiles found for ${resolvedAgent}. Let's create one.`, 'New Profile');
 
-      const suggestedName = generateName();
+      const suggestedName = joyful();
       const nameResponse = await text({
         message: 'Enter a name for this profile:',
         placeholder: suggestedName,

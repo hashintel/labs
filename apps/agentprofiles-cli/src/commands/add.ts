@@ -4,7 +4,7 @@ import { ConfigManager } from '../lib/config.js';
 import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
 import { validateNewProfileName, slugify } from '../lib/validation.js';
-import { generateName } from '@criblinc/docker-names';
+import { joyful } from 'joyful';
 import { promptForAgent } from '../lib/prompts.js';
 import { copyDirectory } from '../lib/symlink.js';
 import fs from 'node:fs/promises';
@@ -23,7 +23,7 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
   }
 
   if (!name) {
-    const suggestedName = generateName();
+    const suggestedName = joyful();
     const response = await text({
       message: 'Enter profile name:',
       placeholder: suggestedName,

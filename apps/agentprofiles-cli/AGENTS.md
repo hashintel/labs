@@ -351,7 +351,7 @@ Run with `npm run smoke` (requires `npm run build` first).
 
 5. **Shared directories**: The `_agents` directory in contentDir is symlinked to `~/.agents` for cross-agent resources
 
-6. **Random profile names**: Uses `@criblinc/docker-names` to generate suggested profile names (Docker-style: `adjective-scientist`)
+6. **Random profile names**: Uses `joyful` to generate suggested profile names (e.g. `amber-fox`)
 
 7. **Project tracking**: The `.agentprofiles.json` file tracks which profiles are active per project. Commit or gitignore based on your team's needs.
 
@@ -363,7 +363,7 @@ Run with `npm run smoke` (requires `npm run build` first).
 - `@clack/prompts` - Interactive prompts
 - `picocolors` - Terminal colors
 - `zod` - Schema validation
-- `@criblinc/docker-names` - Random name generation
+- `joyful` - Random name generation
 - `update-notifier` - Notify users of new versions
 
 ### Development
