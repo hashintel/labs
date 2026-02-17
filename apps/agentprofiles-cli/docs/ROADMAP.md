@@ -189,45 +189,79 @@ current set of supported agents.
 
 ---
 
+### 4. `_shared` directory for auth and state symlinks
+
+**Problem:** Some agents (e.g. `claude`, `codex`) store authentication
+tokens and session state inside their config directory, unlike agents
+like `amp` and `opencode` which keep state separate in XDG-compliant
+locations. When switching profiles, auth and state would be lost unless
+duplicated into every profile.
+
+**Current manual solution (in `dot-agents/profiles`):** A `_shared`
+directory exists alongside `_base` in each agent's content directory
+that needs it. It holds the actual auth/state files and directories.
+Each profile (including `_base`) symlinks these files back to `_shared`,
+so authentication and session state carry across profile switches.
+
+#### Example layout
+
+```
+<contentDir>/
+└── claude/
+    ├── _shared/
+    │   ├── credentials.json      ← real file (auth tokens)
+    │   ├── statsig/              ← real directory (session state)
+    │   └── ...
+    ├── _base/
+    │   ├── credentials.json      → ../_shared/credentials.json
+    │   ├── statsig/              → ../_shared/statsig/
+    │   └── ...
+    └── <profile>/
+        ├── credentials.json      → ../_shared/credentials.json
+        ├── statsig/              → ../_shared/statsig/
+        └── ...
+```
+
+#### Which agents need `_shared`
+
+| Agent    | Needs `_shared` | Reason                                    |
+| -------- | --------------- | ----------------------------------------- |
+| claude   | Yes             | Stores auth tokens and session state      |
+| codex    | Yes             | Stores auth tokens in config directory    |
+| amp      | No              | XDG-compliant; state kept separately      |
+| opencode | No              | XDG-compliant; state kept separately      |
+| gemini   | TBD             | Needs investigation                       |
+| augment  | TBD             | Needs investigation                       |
+
+#### Implementation notes
+
+- `_shared` is already a reserved slug (`SHARED_PROFILE_SLUG`) and is
+  filtered out of `getProfiles()` and the `list` command display.
+- `setup` should create `_shared` for agents that need it and populate
+  with the appropriate auth/state files.
+- `add` should create symlinks from the new profile to `_shared` for
+  each auth/state file.
+- The deny-all `.gitignore` (section 1) already ignores `_shared/`
+  contents — auth and state files must never be tracked.
+
+---
+
 ## UX Improvements
 
-### Fix banner to say "agentprofiles" (plural)
+### ~~Fix banner to say "agentprofiles" (plural)~~ ✅
 
-The cfont banner currently renders "agentprofile" (singular). Update the
-text passed to cfont to read "agentprofiles" so the banner matches the
-CLI name.
+~~The cfont banner currently renders "agentprofile" (singular).~~
+Done — banner regenerated with `cfonts "agentprofiles" -f tiny -c candy`.
 
-### Try `joyful` for profile name generation
+### ~~Try `joyful` for profile name generation~~ ✅
 
-Replace `@criblinc/docker-names` with
-[`joyful`](https://github.com/haydenbleasel/joyful) for random profile
-name suggestions. Evaluate whether its output feels better for this use
-case.
+~~Replace `@criblinc/docker-names` with `joyful`.~~
+Done — swapped to [`joyful`](https://github.com/haydenbleasel/joyful).
 
-### Align `list` output with Clack visual style
+### ~~Align `list` output with Clack visual style~~ ✅
 
-The `list` command currently prints plain `console.log` output that sits
-outside the Clack line-and-node decoration. Rewrite it to use
-`@clack/prompts` functions (e.g., `log.info`, `note`) so the output
-aligns with the vertical bar / dot pattern used by the rest of the
-interactive flow:
-
-```
-│
-◇  What would you like to do?
-│  List profiles
-│
-│  Configuration:
-│    Config:  ~/.config/agentprofiles
-│    Content: ~/Code/lunelson/dot-agents/profiles
-│
-│  Claude Code Profiles:
-│    beads-vanilla     - No description
-│    compound-eng      - No description
-│    …
-│
-│  OpenCode Profiles:
-│    compound-eng      - No description
-│    karpathy-one      - No description
-│    …
-```
+~~Rewrite `list` to use `@clack/prompts` functions.~~
+Done — uses `log.info` for config summary and `note` boxes for each
+agent's profiles. `_base` is hidden from the list; a `● Base profile`
+indicator appears when the active profile is `_base`. Descriptions are
+only shown when present.
