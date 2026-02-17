@@ -13,9 +13,7 @@ import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObs
 import "./HashCoreViewer.css";
 
 const LazyOpenInCore = lazy(() =>
-  import(
-    /* webpackChunkName: "OpenInCore" */ "../../OpenInCore/OpenInCore"
-  ).then((module) => ({
+  import("../../OpenInCore/OpenInCore").then((module) => ({
     default: module.OpenInCore,
   }))
 );

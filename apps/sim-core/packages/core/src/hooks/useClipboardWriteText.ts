@@ -7,9 +7,7 @@ import { useCallback } from "react";
 // @ts-ignore
 const clipboardPromise = navigator.clipboard?.writeText
   ? Promise.resolve(navigator.clipboard)
-  : import(
-      /* webpackChunkName: "clipboard-polyfill" */ "clipboard-polyfill"
-    ).then(({ writeText }) => ({ writeText }));
+  : import("clipboard-polyfill").then(({ writeText }) => ({ writeText }));
 
 export const useClipboardWriteText = () =>
   useCallback(

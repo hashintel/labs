@@ -1,10 +1,11 @@
-import urljoin from "url-join";
-
 import { IS_DEV } from "../../../util/api";
 import { SimulationProvider } from "./provider";
 import { getLocalStorageSimulatorTarget } from "./target";
 
-const workerUrl = urljoin(WEBPACK_PUBLIC_PATH, "simulationworker.js");
+const workerUrl = new URL(
+  "../../../workers/simulation-worker/index.ts",
+  import.meta.url
+);
 
 /**
  * This "magic number" might need to be more sophisticated as time goes on

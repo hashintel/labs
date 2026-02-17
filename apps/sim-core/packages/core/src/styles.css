@@ -1,7 +1,7 @@
 /* See theme.js for HASH theme colors. */
 @import "./styles/fonts.css";
 @import "./styles/splitter.css";
-@import "~react-tabs/style/react-tabs.css";
+@import "react-tabs/style/react-tabs.css";
 
 .splitter-layout .layout-pane.layout-pane-primary {
   /**

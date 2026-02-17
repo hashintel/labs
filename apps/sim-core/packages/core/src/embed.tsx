@@ -21,6 +21,6 @@ const projectPromise = unpreparedProjectByPath(
 // @todo remove this
 const basicUserPromise = basicUser();
 
-import(
-  /* webpackChunkName: "embed-boot" */ "./components/EmbedApp/bootEmbed"
-).then(({ bootEmbed }) => bootEmbed(params, projectPromise, basicUserPromise));
+import("./components/EmbedApp/bootEmbed").then(({ bootEmbed }) =>
+  bootEmbed(params, projectPromise, basicUserPromise)
+);
