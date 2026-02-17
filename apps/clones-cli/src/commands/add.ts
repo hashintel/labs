@@ -248,12 +248,43 @@ export default defineCommand({
       localState: await readLocalState(),
     };
 
-    if (urls.length > 0) {
-      for (const url of urls) {
-        const outcome = await cloneUrl(url, options, context);
-        context = outcome.context;
+    if (urls.length === 1) {
+      const outcome = await cloneUrl(urls[0], options, context);
+      context = outcome.context;
+
+      if (outcome.added) {
+        const status = await getRepoStatus(outcome.added.localPath);
+        const repoInfo: RepoInfo = {
+          entry: outcome.added.entry,
+          status,
+          localPath: outcome.added.localPath,
+        };
+        const action = await showSingleRepoActions(repoInfo, 'add');
+        if (action !== 'add-another') {
+          p.outro('Done!');
+          return;
+        }
+        // fall through to interactive loop
+      } else {
+        p.outro('Done!');
+        return;
       }
-      p.outro('Done!');
+    } else if (urls.length > 1) {
+      let added = 0;
+      let failed = 0;
+
+      for (let i = 0; i < urls.length; i++) {
+        p.log.step(`[${i + 1}/${urls.length}] ${urls[i]}`);
+        const outcome = await cloneUrl(urls[i], options, context);
+        context = outcome.context;
+        if (outcome.added) added++;
+        else failed++;
+      }
+
+      const parts: string[] = [];
+      if (added > 0) parts.push(`${added} added`);
+      if (failed > 0) parts.push(`${failed} failed`);
+      p.outro(parts.join(', '));
       return;
     }
 

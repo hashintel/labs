@@ -29,6 +29,7 @@ const prompts = vi.hoisted(() => ({
     error: vi.fn(),
     warn: vi.fn(),
     success: vi.fn(),
+    step: vi.fn(),
   },
 }));
 
@@ -104,6 +105,7 @@ describe('clones add', () => {
     vi.clearAllMocks();
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-26T00:00:00Z'));
+    browseActions.showSingleRepoActions.mockResolvedValue('exit');
   });
 
   afterEach(() => {
@@ -158,7 +160,7 @@ describe('clones add', () => {
     expect(prompts.confirm).not.toHaveBeenCalled();
     expect(removeTombstone).toHaveBeenCalled();
     expect(writeLocalState).toHaveBeenCalledTimes(1);
-    expect(browseActions.showSingleRepoActions).not.toHaveBeenCalled();
+    expect(browseActions.showSingleRepoActions).toHaveBeenCalledTimes(1);
     const writtenState = (writeLocalState as vi.Mock).mock.calls[0][0];
     expect(writtenState.repos['github.com:owner/repo'].lastSyncedAt).toBe(
       '2026-01-26T00:00:00.000Z'
@@ -521,5 +523,160 @@ describe('clones add', () => {
 
     const addedEntry = (addEntry as vi.Mock).mock.calls[0][1];
     expect(addedEntry.source).toBe('manual');
+  });
+
+  it('shows progress and summary for multi-URL add', async () => {
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo1',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+      rawArgs: ['https://github.com/owner/repo1', 'https://github.com/owner/repo2'],
+    } as any);
+
+    expect(cloneRepo).toHaveBeenCalledTimes(2);
+    expect(prompts.log.step).toHaveBeenCalledTimes(2);
+    expect(prompts.outro).toHaveBeenCalledWith('2 added');
+    expect(browseActions.showSingleRepoActions).not.toHaveBeenCalled();
+  });
+
+  it('shows action menu after single non-interactive add', async () => {
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    expect(browseActions.showSingleRepoActions).toHaveBeenCalledTimes(1);
+    const callArgs = browseActions.showSingleRepoActions.mock.calls[0];
+    expect(callArgs[1]).toBe('add');
+    expect(callArgs[0].entry.owner).toBe('owner');
+    expect(callArgs[0].entry.repo).toBe('repo');
+  });
+
+  it('falls through to interactive loop when add-another is chosen', async () => {
+    readRegistry.mockResolvedValue({ version: '1.0.0', repos: [], tombstones: [] });
+    findEntry.mockReturnValue(undefined);
+    getRepoStatus.mockResolvedValue({
+      exists: false,
+      isGitRepo: false,
+      currentBranch: null,
+      isDetached: false,
+      tracking: null,
+      ahead: 0,
+      behind: 0,
+      isDirty: false,
+    });
+    fetchGitHubMetadata.mockResolvedValue(null);
+    cloneRepo.mockResolvedValue(undefined);
+
+    const emptyLocalState = { version: '1.0.0', repos: {} };
+    readLocalState.mockResolvedValue(emptyLocalState);
+    updateRepoLocalState.mockImplementation((state: any, repoId: string, updates: any) => ({
+      ...state,
+      repos: {
+        ...state.repos,
+        [repoId]: { ...updates },
+      },
+    }));
+    addEntry.mockImplementation((registry: any, entry: any) => ({
+      ...registry,
+      repos: [...registry.repos, entry],
+    }));
+    removeTombstone.mockImplementation((registry: any) => registry);
+    browseActions.showSingleRepoActions.mockResolvedValue('add-another');
+    // After falling through to interactive loop, user cancels
+    const cancelSym = Symbol('cancel');
+    prompts.text.mockResolvedValueOnce(cancelSym);
+    prompts.isCancel.mockImplementation((v: unknown) => v === cancelSym);
+
+    await addCommand.run?.({
+      args: {
+        url: 'https://github.com/owner/repo',
+        tags: undefined,
+        description: undefined,
+        'update-strategy': undefined,
+        submodules: undefined,
+        lfs: undefined,
+        full: false,
+        'all-branches': false,
+      },
+    } as any);
+
+    expect(browseActions.showSingleRepoActions).toHaveBeenCalledTimes(1);
+    expect(prompts.text).toHaveBeenCalledTimes(1);
   });
 });
