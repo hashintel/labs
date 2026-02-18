@@ -1,5 +1,5 @@
 import React, { FC, useRef } from "react";
-import { useFrame } from "react-three-fiber";
+import { useFrame } from "@react-three/fiber";
 import usePromise from "react-promise-suspense";
 import * as THREE from "three";
 import { BufferGeometry, InstancedBufferAttribute } from "three";

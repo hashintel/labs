@@ -1,9 +1,9 @@
 import React, { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
-import { Canvas } from "react-three-fiber";
+import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Json, SerializableAgentState } from "@hashintel/engine-web";
-import { Stats } from "drei";
+import { Stats } from "@react-three/drei";
 import {
   useRecoilBridgeAcrossReactRoots_UNSTABLE,
   useRecoilCallback,
@@ -39,7 +39,7 @@ export type SimulationStepProps = {
   errored: boolean;
 };
 
-THREE.Object3D.DefaultUp.set(0, 0, 1);
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 /**
  * Provide some reducers/callbacks to modify groups of agent state

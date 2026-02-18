@@ -17,26 +17,9 @@ export default defineConfig(({ mode }) => {
       .slice(0, 20),
   ].join("-");
 
-  // Plugin to fix drei's `import * as StatsImpl from 'three/examples/js/libs/stats.min'`
-  // then `new StatsImpl()`. The `import *` creates a namespace object, not a constructor.
-  // We rewrite it to `import StatsImpl from 'stats.js'` which gives the default export.
-  const fixDreiStats = {
-    name: "fix-drei-stats",
-    transform(code: string, id: string) {
-      if (id.includes("drei")) {
-        return code
-          .replace(
-            /import\s*\*\s*as\s+StatsImpl\s+from\s*['"]three\/examples\/js\/libs\/stats\.min['"]/g,
-            'import StatsImpl from "stats.js"'
-          );
-      }
-    },
-  };
-
   return {
     root: ".",
     plugins: [
-      fixDreiStats,
       react(),
       wasm(),
       topLevelAwait(),
@@ -97,9 +80,6 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       exclude: [
         "@hashintel/engine-web",
-        // drei must go through Vite transform (not esbuild optimizer)
-        // so the fix-drei-stats plugin can rewrite its stats.min import
-        "drei",
         // react-plotly.js main entry pulls in all of plotly.js at module
         // scope. Source files use the factory pattern with plotly.js-dist-min
         // instead (the officially recommended Vite-compatible approach).
@@ -114,7 +94,8 @@ export default defineConfig(({ mode }) => {
         "plotly.js-dist-min",
         "lodash.omit",
         "lodash.pick",
-        "stats.js",
+        "@react-three/fiber",
+        "@react-three/drei",
         "bowser",
         "jstat",
         "mapbox-gl",
@@ -123,7 +104,6 @@ export default defineConfig(({ mode }) => {
         "promise-worker-transferable",
         "promise-worker-transferable/register",
         "recoil",
-        "react-three-fiber",
         "react-shepherd",
         "@reduxjs/toolkit",
         "react-redux",

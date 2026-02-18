@@ -45,7 +45,7 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
           rotation={tempObject.rotation}
           up={[0, 0, 1]}
         >
-          <boxBufferGeometry args={[1, 1, 1]} attach="geometry" />
+          <boxGeometry args={[1, 1, 1]} attach="geometry" />
           <meshStandardMaterial
             color={"white"}
             attach="material"

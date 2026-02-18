@@ -41,7 +41,7 @@ export const ViewerStage: FC = () => {
         position={[centerX, centerY, -0.1]}
         visible={showFloor}
       >
-        <planeBufferGeometry attach="geometry" args={[1, 1]} />
+        <planeGeometry attach="geometry" args={[1, 1]} />
         <meshPhongMaterial
           attach="material"
           color={stageColor}

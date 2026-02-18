@@ -370,16 +370,17 @@ const MyComponent = () => {
 | `request-promise-native` | ✅ Removed | `fetch` API |
 | `@material-ui/core` 4.11.4 | ⚠️ Renamed/Deprecated | `@mui/material` 5.x |
 | `@material-ui/lab` | ⚠️ Renamed/Deprecated | `@mui/lab` 5.x |
-| `react-three-fiber` 5.0.6 | ⚠️ Renamed | `@react-three/fiber` 8.x |
-| `drei` 1.5.7 | ⚠️ Renamed | `@react-three/drei` 9.x |
+| `react-three-fiber` 5.0.6 | ✅ Migrated | `@react-three/fiber` 8.18.0 |
+| `drei` 1.5.7 | ✅ Migrated | `@react-three/drei` 9.122.0 |
 | `recoil` 0.4.1 | ⚠️ Unused | **Remove** (part of Redux removal) |
 
 **Action Items**:
 - [x] Replace `hookrouter` with custom `usePathRouter` + `navigate` utilities
 - [x] Replace `request`/`request-promise-native` with fetch
 - [x] Remove `@material-ui/*` (only used by deleted staging deploy tool)
-- [ ] Migrate `react-three-fiber` to `@react-three/fiber` (BLOCKED: requires React 18)
-- [ ] Migrate `drei` to `@react-three/drei` (BLOCKED: requires React 18)
+- [x] Migrate `react-three-fiber` 5.0.6 to `@react-three/fiber` 8.18.0
+- [x] Migrate `drei` 1.5.7 to `@react-three/drei` 9.122.0
+- [x] Upgrade `three` 0.119.1 to 0.170.0
 - [ ] Remove `recoil` (defer: 13/13 files are in AgentScene, do with three.js migration)
 
 ### ✅ Done: Build Tooling — Migrate Webpack 4 → Vite
@@ -425,9 +426,9 @@ const MyComponent = () => {
 | Package | Current | Latest | Gap |
 |---------|---------|--------|-----|
 | `monaco-editor` | 0.25.2 | 0.45+ | 20 versions |
-| `three` | 0.119.1 | 0.160+ | 40+ versions |
+| `three` | ~~0.119.1~~ **0.170.0** | ✅ Done | Upgraded with @react-three/fiber v8 |
 | `rxjs` | 6.6.6 | 7.8+ | Major version |
-| `plotly.js` | 1.57.1 | 2.29+ | Major version |
+| `plotly.js` | ~~1.57.1~~ **3.3.1** | ✅ Done | Upgraded to `plotly.js-dist-min` (ESM-ready) |
 | `@sentry/browser` | 6.2.0 | - | **REMOVING** |
 | `@deck.gl/core` | 8.3.7 | 8.9+ | |
 | `graphql` | 15.5.0 | 16.8+ | Major version |

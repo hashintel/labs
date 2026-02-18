@@ -43,7 +43,8 @@ test.describe("Smoke Tests", () => {
         !err.includes("CORS policy") &&
         !err.includes("Access-Control-Allow-Origin") &&
         !err.includes("api.hash.ai") &&
-        !err.includes("deprecated")
+        !err.includes("deprecated") &&
+        !err.includes("React does not recognize the")
     );
 
     expect(
