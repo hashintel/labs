@@ -5,7 +5,6 @@ import { navigate } from "../../../util/navigation";
 
 import { AppDispatch } from "../../../features/types";
 import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
-import { addUserProject } from "../../../features/user/slice";
 import { createLocalProjectFromTemplate } from "../../../util/api/queries/createLocalProjectFromTemplate";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
 import { setProjectWithMeta } from "../../../features/actions";
@@ -14,11 +13,13 @@ import { trackEvent } from "../../../features/analytics";
 import { urlFromProject } from "../../../routes";
 import { useNavigateAway } from "./hooks";
 import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
+import { useUser } from "../../../features/user/UserContext";
 
 export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
   template = "empty",
 }) => {
   const dispatch = useDispatch<AppDispatch>();
+  const { addUserProject } = useUser();
   const navigateAway = useNavigateAway();
   const [{ namespace }] = useSafeQueryParams();
 
@@ -48,7 +49,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
           );
 
           if (!values.namespace) {
-            dispatch(addUserProject(preparePartialSimulationProject(project)));
+            addUserProject(preparePartialSimulationProject(project));
           }
 
           dispatch(setProjectWithMeta(project));
@@ -58,7 +59,7 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
         defaultNamespace={namespace}
       />
     ),
-    [actions, dispatch, namespace, navigateAway]
+    [actions, addUserProject, dispatch, namespace, navigateAway]
   );
 
   useEffect(() => {

@@ -1,13 +1,12 @@
 import React, { FC, useState } from "react";
-import { useSelector } from "react-redux";
 
 import { Scope, useScope } from "../../../features/scopes";
 import { SimulationProject } from "../../../features/project/types";
 import { SimulationToast } from "../SimulationToast";
 import { ToastAnchor } from "../Anchor";
 import { forkUrlFromProject, mainProjectPath } from "../../../routes";
-import { selectUserProfileUrl } from "../../../features/user/selectors";
 import { useHandlePromiseRejection } from "../../ErrorBoundary";
+import { useUser } from "../../../features/user/UserContext";
 
 // import { userForks } from "../../../util/api/queries/userForks";
 
@@ -15,7 +14,7 @@ const DriveButtons: FC<{
   numCopies: number;
   existingUrl: string;
 }> = ({ numCopies, existingUrl }) => {
-  const url = useSelector(selectUserProfileUrl);
+  const { userProfileUrl: url } = useUser();
 
   return numCopies === 1 ? (
     <ToastAnchor icon="pencil" path={existingUrl}>

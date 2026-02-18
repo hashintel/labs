@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 import urljoin from "url-join";
 
 import {
@@ -10,10 +9,10 @@ import {
   ProgressIndicator,
 } from "./util";
 import { SITE_URL } from "../../../../util/api/paths";
-import { selectUserProfileUrl } from "../../../../features/user/selectors";
+import { useUser } from "../../../../features/user/UserContext";
 
 export const HashCoreTourStepDatasets: FC = () => {
-  const url = useSelector(selectUserProfileUrl);
+  const { userProfileUrl: url } = useUser();
 
   return (
     <>

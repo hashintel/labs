@@ -13,7 +13,7 @@ import {
   RemoteSimulationProject,
   SimulationProjectWithHcFiles,
 } from "../project/types";
-import { addUserProject } from "../user/slice";
+import { addUserProject as addUserProjectRedux } from "../user/slice";
 import { fromFormatted } from "../../util/files/parse";
 import { preparePartialSimulationProject, toHcConfig } from "../project/utils";
 import { save } from "../thunks";
@@ -234,7 +234,7 @@ export const useImportFiles = () => {
       })
     );
 
-    dispatch(addUserProject(preparePartialSimulationProject(project)));
+    dispatch(addUserProjectRedux(preparePartialSimulationProject(project)));
     dispatch(setProjectWithMeta(project));
     navigate(urlFromProject(project), false, {}, true);
     await dispatch(save());

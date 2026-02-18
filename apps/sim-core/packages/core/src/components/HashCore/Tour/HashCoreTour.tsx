@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
 import { Avatar, CloseButton, VERSION, steps } from "./Step";
 import {
@@ -27,12 +27,11 @@ import {
   selectCurrentProject,
   selectProjectLoaded,
 } from "../../../features/project/selectors";
-import { selectTourProgress } from "../../../features/user/selectors";
-import { tourProgress } from "../../../features/user/thunks";
 import { urlFromProject } from "../../../routes";
 import { useGettingStartedProject } from "./util";
 import { usePromise } from "../../../hooks/usePromise";
 import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
+import { useUser } from "../../../features/user/UserContext";
 
 const tourOptions = {
   defaultStepOptions: {
@@ -109,7 +108,7 @@ const useTourPosition = (tour: Tour): [number, number, boolean] => {
 const useAutoTriggerTour = (tour: Tour, isVisible: boolean) => {
   const project = useSelector(selectCurrentProject);
   const projectLoaded = useSelector(selectProjectLoaded);
-  const tourProgress = useSelector(selectTourProgress);
+  const { tourProgress } = useUser();
 
   const [
     { triggerTour, fromOnboardingRoute },
@@ -267,33 +266,27 @@ const useTrackProgress = (
   prevIdx: number,
   isCompleted: boolean
 ) => {
-  const dispatch = useDispatch();
+  const { updateTourProgress } = useUser();
 
   useEffect(() => {
     if (!tour.isActive() || (activeIdx === 0 && prevIdx <= activeIdx)) {
       return;
     }
 
-    /**
-     * If we've previously completed it and are now just reviewing it,
-     * we don't want to overwrite their progress
-     */
     const currentStep = isCompleted ? tour.steps.length - 1 : activeIdx;
     const lastStepViewed = tour.steps[currentStep].options.id ?? "";
 
-    dispatch(
-      tourProgress({
-        completed: isCompleted,
-        version: VERSION,
-        lastStepViewed,
-      })
-    );
-  }, [activeIdx, dispatch, isCompleted, prevIdx, tour]);
+    updateTourProgress({
+      completed: isCompleted,
+      version: VERSION,
+      lastStepViewed,
+    });
+  }, [activeIdx, updateTourProgress, isCompleted, prevIdx, tour]);
 };
 
 const TourWithBackdrop: FC = () => {
   const tour = useTour();
-  const tourProgress = useSelector(selectTourProgress);
+  const { tourProgress } = useUser();
   const [activeIdx, prevIdx, isVisible] = useTourPosition(tour);
   const hashTourConfig = useHashTourConfig(isVisible);
   const isCompleted = useIsCompleted(tour, tourProgress, activeIdx);

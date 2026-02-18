@@ -4,16 +4,17 @@ import { useDispatch, useSelector } from "react-redux";
 import { SimulationToast } from "../";
 import { ToastButton } from "../Button";
 import { ToastKind } from "../../../features/toast/enums";
-import { displayToast } from "../../../features/toast/slice";
 import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 import { trackEvent } from "../../../features/analytics";
 import { useClipboardWriteText } from "../../../hooks/useClipboardWriteText";
+import { useToast } from "../../../features/toast/ToastContext";
 
 export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
   nextToast,
 }) => {
   const clipboardWriteText = useClipboardWriteText();
   const dispatch = useDispatch();
+  const { displayToast } = useToast();
   const projectUrl = useSelector(selectCurrentProjectUrl);
 
   const hasTrackedRef = useRef(false);
@@ -45,7 +46,7 @@ export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
             evt.preventDefault();
 
             await clipboardWriteText(window.location.href);
-            dispatch(displayToast({ kind: nextToast }));
+            displayToast({ kind: nextToast });
           }}
           icon="copy"
         >

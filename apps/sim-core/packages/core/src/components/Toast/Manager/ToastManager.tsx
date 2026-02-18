@@ -3,11 +3,7 @@ import { useSelector } from "react-redux";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 
 import { HcFileKind } from "../../../features/files/enums";
-import {
-  ToastKind,
-  selectToastData,
-  selectToastKind,
-} from "../../../features/toast";
+import { ToastKind } from "../../../features/toast";
 import { ToastLegacySimulationAccess } from "../LegacySimulationAccess";
 import { ToastProjectEditable } from "../ProjectEditable/ProjectEditable";
 import { ToastProjectForked } from "../ProjectForked";
@@ -16,7 +12,8 @@ import { ToastReadOnlyRelease } from "../ReadOnlyRelease";
 import { ToastReleaseBehaviorSuccess } from "../ReleaseBehaviorSuccess";
 import { ToastReleaseSuccess } from "../ReleaseSuccess";
 import { selectCurrentProject } from "../../../features/project/selectors";
-import { selectUserProjectsLoaded } from "../../../features/user/selectors";
+import { useToast } from "../../../features/toast/ToastContext";
+import { useUser } from "../../../features/user/UserContext";
 import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./ToastManager.css";
@@ -24,8 +21,7 @@ import "./ToastManager.css";
 const TOAST_TIMEOUT = 600;
 
 const useToastData = () => {
-  // @todo type this
-  const reduxData = useSelector(selectToastData);
+  const { toastData: reduxData } = useToast();
   const [data, setData] = useState<any>(null);
 
   if (reduxData && reduxData !== data) {
@@ -58,8 +54,8 @@ const useToastData = () => {
 export const ToastManager: FC = () => {
   // @todo this should come from the data
   const project = useSelector(selectCurrentProject);
-  const userProjectsLoaded = useSelector(selectUserProjectsLoaded);
-  const toastKind = useSelector(selectToastKind);
+  const { projectsLoaded: userProjectsLoaded } = useUser();
+  const { toastKind } = useToast();
   const { editorVisible } = useViewer();
   const data = useToastData();
 

@@ -1,16 +1,11 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 
-import {
-  selectUserImage,
-  selectUserProfileUrl,
-} from "../../../../features/user/selectors";
+import { useUser } from "../../../../features/user/UserContext";
 
 import "./HashCoreHeaderUserImage.css";
 
 export const HashCoreHeaderUserImage: FC = () => {
-  const url = useSelector(selectUserProfileUrl);
-  const image = useSelector(selectUserImage);
+  const { userProfileUrl: url, userImage: image } = useUser();
 
   if (!url) {
     throw new Error("Cannot display user image without profile to link to");

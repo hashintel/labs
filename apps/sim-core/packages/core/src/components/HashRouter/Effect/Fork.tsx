@@ -13,11 +13,11 @@ import { Scope, useScopes } from "../../../features/scopes";
 import { fetchProject } from "../../../features/project/slice";
 import { forceLogIn } from "../../../features/user/utils";
 import { forkProject } from "../../../features/project/thunks";
-import { selectBootstrapped } from "../../../features/user/selectors";
 import { selectCurrentProject } from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
 import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
 import { useNavigateAway } from "./hooks";
+import { useUser } from "../../../features/user/UserContext";
 
 const useEnsureProject = (
   project: LinkableProject,
@@ -25,7 +25,7 @@ const useEnsureProject = (
 ): SimulationProject | null => {
   const dispatch = useDispatch<AppDispatch>();
   const currentProject = useSelector(selectCurrentProject);
-  const bootstrapped = useSelector(selectBootstrapped);
+  const { bootstrapped } = useUser();
   const fatalError = useFatalError();
   const isCurrentProject =
     !!(project && currentProject) &&

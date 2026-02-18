@@ -1,10 +1,10 @@
 import { FC, useEffect, useRef } from "react";
-import { useSelector, useStore } from "react-redux";
+import { useStore } from "react-redux";
 import { navigate } from "../../../util/navigation";
 
-import { selectBootstrapped } from "../../../features/user/selectors";
 import { selectDefaultLinkableProject } from "../../../features/selectors";
 import { urlFromProject } from "../../../routes";
+import { useUser } from "../../../features/user/UserContext";
 
 export const HashRouterEffectDefaultProject: FC = () => {
   const store = useStore();
@@ -12,7 +12,7 @@ export const HashRouterEffectDefaultProject: FC = () => {
 
   storeRef.current = store;
 
-  const bootstrapped = useSelector(selectBootstrapped);
+  const { bootstrapped } = useUser();
 
   useEffect(() => {
     if (bootstrapped) {

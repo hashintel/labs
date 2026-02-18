@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useMemo } from "react";
-import { useDispatch, useSelector, useStore } from "react-redux";
+import { useDispatch, useStore } from "react-redux";
 
 import { RouteMap, usePathRouter } from "../../../util/usePathRouter";
 import { setQueryParams } from "../../../util/navigation";
@@ -10,10 +10,10 @@ import { HashRouterEffectNotFound } from "./NotFound";
 import { LinkableProject } from "../../../features/project/types";
 import { fetchProject } from "../../../features/project/slice";
 import { getSafeQueryParams } from "../../../util/getSafeQueryParams";
-import { selectBootstrapped } from "../../../features/user/selectors";
 import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
 import { useHandlePromiseRejection } from "../../ErrorBoundary";
+import { useUser } from "../../../features/user/UserContext";
 import { withSignal } from "../../../util/withSignal";
 
 type ProjectParams = {
@@ -38,7 +38,7 @@ const HashRouterEffectProjectFetch: FC<{
 }> = ({ project }) => {
   const dispatch = useDispatch<AppDispatch>();
   const handlePromiseRejection = useHandlePromiseRejection();
-  const bootstrapped = useSelector(selectBootstrapped);
+  const { bootstrapped } = useUser();
   const store = useStore();
 
   useEffect(() => {

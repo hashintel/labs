@@ -12,8 +12,8 @@ import { Scope } from "../../../../../features/scopes";
 import { descByUpdatedAt } from "../../../../../util/descByUpdatedAt";
 import { mainProjectPath, urlFromProject } from "../../../../../routes";
 import { selectCurrentProject } from "../../../../../features/project/selectors";
-import { selectUserProfileUrl } from "../../../../../features/user/selectors";
 import { trackEvent } from "../../../../../features/analytics";
+import { useUser } from "../../../../../features/user/UserContext";
 import {
   useExportFiles,
   useImportFiles,
@@ -52,7 +52,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     userProjects,
     exampleProjects: _exampleProjects,
   }) => {
-    const userProfileUrl = useSelector(selectUserProfileUrl);
+    const { userProfileUrl } = useUser();
     const project = useSelector(selectCurrentProject);
     const dispatch = useDispatch();
     // const forkUrl = project ? forkUrlFromProject(project) : null;

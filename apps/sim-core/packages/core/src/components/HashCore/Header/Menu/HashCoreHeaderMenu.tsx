@@ -1,13 +1,12 @@
 import React, { FC, memo, useCallback } from "react";
-import { useSelector } from "react-redux";
 
 import { HashCoreHeaderMenuExperiments } from "./Experiments";
 import { HashCoreHeaderMenuFiles } from "./Files";
 import { HashCoreHeaderMenuHelp } from "./Help";
 import { HashCoreHeaderMenuView } from "./View";
-import { selectExamples } from "../../../../features/examples/selectors";
-import { selectUserProjects } from "../../../../features/user/selectors";
+import { useExamples } from "../../../../features/examples/ExamplesContext";
 import { useMenu } from "./hooks";
+import { useUser } from "../../../../features/user/UserContext";
 import { useViewer } from "../../../../features/viewer/ViewerContext";
 
 import "./HashCoreHeaderMenu.scss";
@@ -16,8 +15,8 @@ import "./HashCoreHeaderMenu.scss";
  * @todo nathggns: Look into removing memo and useCallback in here
  */
 export const HashCoreHeaderMenu: FC = memo(() => {
-  const userProjects = useSelector(selectUserProjects);
-  const examples = useSelector(selectExamples);
+  const { userProjects } = useUser();
+  const { examples } = useExamples();
   const { openTab } = useViewer();
 
   const {

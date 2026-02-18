@@ -1,22 +1,22 @@
 import React, { FC, memo, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import type { AppDispatch } from "../../features/types";
 import { HashCore } from "../HashCore";
 import { LoadingIcon } from "../LoadingIcon";
 import { bootstrapApp } from "../../features/thunks";
-import { selectBootstrapped } from "../../features/user/selectors";
 import { useHandlePromiseRejection } from "../ErrorBoundary";
 import { useRouteEffect } from "./Effect";
+import { useUser } from "../../features/user/UserContext";
 
 export const HashRouter: FC = memo(function HashApp() {
   const dispatch = useDispatch<AppDispatch>();
-  const bootstrapped = useSelector(selectBootstrapped);
+  const { bootstrapped } = useUser();
   const handlePromiseRejection = useHandlePromiseRejection();
   const routeEffect = useRouteEffect();
 
   useEffect(() => {
-    handlePromiseRejection(dispatch(bootstrapApp()));
+    handlePromiseRejection(dispatch(bootstrapApp()) as any);
   }, [handlePromiseRejection, dispatch]);
 
   if (!(bootstrapped && routeEffect)) {
