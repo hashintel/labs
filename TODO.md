@@ -231,8 +231,12 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 - `@reduxjs/toolkit`
 - `react-redux`
 - `redux` (implicit dependency)
-- `recoil` (unused/redundant)
+- ~~`recoil` (unused/redundant)~~ ✅ Removed
 - `rxjs` (if only used for Redux store sync)
+
+**Redux Slices Removed**:
+- ✅ `search` — replaced with `SearchContext` (React Context)
+- Remaining: `examples`, `toast`, `user`, `viewer`, `files`, `project` + simulator store
 
 **Packages to Add**:
 - None (React 18 built-ins are sufficient)
