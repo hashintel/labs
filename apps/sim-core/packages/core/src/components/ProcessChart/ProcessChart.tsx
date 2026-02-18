@@ -1,10 +1,11 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { shallowEqual, useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { createProcessModelFile, updateFile } from "../../features/files/slice";
 import { getItem, setItem } from "../../hooks/useLocalStorage/utils";
 import { newProcessChartValue } from "./utils";
 import { selectProcessModelSourceFiles } from "../../features/files/selectors";
+import { useFilesSelector } from "../../features/files/FilesContext";
 import { useProject } from "../../features/project/ProjectContext";
 import { trackEvent } from "../../features/analytics";
 import { useViewer } from "../../features/viewer/ViewerContext";
@@ -42,7 +43,7 @@ export const ProcessChart: FC = () => {
   } = useViewer();
   const activityWasVisible = useRef(false);
 
-  const chartFiles = useSelector(selectProcessModelSourceFiles, shallowEqual);
+  const chartFiles = useFilesSelector(selectProcessModelSourceFiles);
   const [isDraft, setIsDraft] = useState(true);
   const [saving, setSaving] = useState(false);
 

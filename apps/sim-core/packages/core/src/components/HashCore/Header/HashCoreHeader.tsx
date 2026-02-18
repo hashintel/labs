@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 import TimeAgo from "react-timeago";
 
 import { HashCoreHeaderMenu } from "..";
@@ -9,13 +8,14 @@ import { Logo } from "../../Logo";
 import { Scope, useScope } from "../../../features/scopes";
 import { projectIsPrivate } from "../../../features/project/utils";
 import { selectDidSave } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
 import { useProject } from "../../../features/project/ProjectContext";
 
 import "./HashCoreHeader.css";
 
 export const HashCoreHeader: FC = () => {
   const { currentProject: project } = useProject();
-  const isSaved = useSelector(selectDidSave);
+  const isSaved = useFilesSelector(selectDidSave);
 
   const projectUpdatedAtDate = project
     ? new Date(project.updatedAt)

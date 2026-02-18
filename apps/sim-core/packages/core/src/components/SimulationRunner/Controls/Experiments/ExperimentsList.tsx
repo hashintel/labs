@@ -1,7 +1,6 @@
 import React, { Dispatch, FC, ReactNode, SetStateAction } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import { AppDispatch } from "../../../../features/types";
+import { useFiles, useFilesSelector } from "../../../../features/files/FilesContext";
 import { ExperimentsListError } from "./ExperimentsListError";
 import { IconPencil } from "../../../Icon/Pencil/IconPencil";
 import { IconRunFast } from "../../../Icon/RunFast";
@@ -12,7 +11,6 @@ import { experimentsFileId } from "../../../../features/files/utils";
 import { queueExperiment } from "../../../../features/simulator/simulate/queueExperiment";
 import { selectExperiments } from "./selectors";
 import { selectProviderTarget } from "../../../../features/simulator/simulate/selectors";
-import { setCurrentFileId } from "../../../../features/files/slice";
 import { trackEvent } from "../../../../features/analytics";
 import {
   useSimulatorDispatch,
@@ -37,9 +35,9 @@ export const ExperimentsList: FC<{
   openModal: VoidFunction;
   setCurrentExperiment: Dispatch<SetStateAction<RawExperimentType | undefined>>;
 }> = ({ onClose, openModal, setCurrentExperiment }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { setCurrentFileId } = useFiles();
   const simulatorDispatch = useSimulatorDispatch();
-  const entries = useSelector(selectExperiments);
+  const entries = useFilesSelector(selectExperiments);
   const target = useSimulatorSelector(selectProviderTarget);
 
   if (!entries) {
@@ -82,7 +80,7 @@ export const ExperimentsList: FC<{
                     onClick={(evt) => {
                       evt.preventDefault();
                       evt.stopPropagation();
-                      dispatch(setCurrentFileId(experimentsFileId));
+                      setCurrentFileId(experimentsFileId);
                       const dynamicFields: any = {};
                       dynamicFields[type] = other;
                       const newExperiment: RawExperimentType = {

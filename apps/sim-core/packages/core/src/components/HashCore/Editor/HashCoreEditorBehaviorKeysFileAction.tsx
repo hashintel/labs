@@ -1,16 +1,16 @@
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { AppDispatch } from "../../../features/types";
 import { HcFileKind } from "../../../features/files/enums";
 import { IconBrain } from "../../Icon";
 import { SimpleTooltip } from "../../SimpleTooltip";
 import { fileActionSize } from "./utils";
-import { selectCurrentFile } from "../../../features/files/selectors";
+import { useFiles } from "../../../features/files/FilesContext";
 import { toggleBehaviorKeysEditor } from "../../../features/files/slice";
 
 export const HashCoreEditorBehaviorKeysFileAction = () => {
-  const currentFile = useSelector(selectCurrentFile);
+  const { currentFile } = useFiles();
   const dispatch = useDispatch<AppDispatch>();
 
   if (

@@ -11,6 +11,7 @@ import { Tab, TabPanel } from "react-tabs";
 import { useModal } from "react-modal-hook";
 
 import { AppDispatch } from "../../../features/types";
+import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
 import { HashCoreContextMenu } from "../ContextMenu";
 import { HashCoreEditorBehaviorKeysFileAction } from "./HashCoreEditorBehaviorKeysFileAction";
 import { HashCoreEditorFile } from "./HashCoreEditorFile";
@@ -42,7 +43,6 @@ import {
   closeFile,
   closeFilesToTheRight,
   closeOtherFiles,
-  setCurrentFileId,
   toggleVisualGlobals,
 } from "../../../features/files/slice";
 import {
@@ -51,10 +51,6 @@ import {
   validateAnalysisJsonAndDispatchErrorsIfAny,
 } from "./utils";
 import {
-  selectCurrentFile,
-  selectCurrentFileId,
-  selectOpenFileIds,
-  selectOpenFiles,
   selectParsedAnalysis,
   selectReplaceProposal,
   selectShouldShowBehaviorKeys,
@@ -74,12 +70,9 @@ export const HashCoreEditor: FC = () => {
   const [, setMonacoContainer] = useMonacoContainerFromContext();
 
   const dispatch = useDispatch<AppDispatch>();
-  const openFiles = useSelector(selectOpenFiles);
-  const openFileIds = useSelector(selectOpenFileIds);
-  const currentFileId = useSelector(selectCurrentFileId);
-  const currentFile = useSelector(selectCurrentFile);
-  const replaceProposal = useSelector(selectReplaceProposal);
-  const analysis = useSelector(selectParsedAnalysis);
+  const { openFiles, openFileIds, currentFileId, currentFile, setCurrentFileId } = useFiles();
+  const replaceProposal = useFilesSelector(selectReplaceProposal);
+  const analysis = useFilesSelector(selectParsedAnalysis);
 
   const [
     diffEditorInstance,
@@ -155,7 +148,7 @@ export const HashCoreEditor: FC = () => {
     clearUserAlerts,
   } = useViewer();
   const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
-  const shouldShowBehaviorKeys = useSelector(selectShouldShowBehaviorKeys);
+  const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
   const section = getDocsSection(currentFile, shouldShowBehaviorKeys);
 
   const editorViewStates = useRef<ViewStates>({});
@@ -240,7 +233,7 @@ export const HashCoreEditor: FC = () => {
                 <Tab
                   key={file.id}
                   onClick={() => {
-                    dispatch(setCurrentFileId(file.id));
+                    setCurrentFileId(file.id);
                   }}
                   className={`react-tabs__tab tab-${file.id}`}
                   onContextMenu={(evt) => {

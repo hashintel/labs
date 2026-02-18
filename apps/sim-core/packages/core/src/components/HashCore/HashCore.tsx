@@ -1,5 +1,5 @@
 import React, { FC, memo, useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { navigate } from "../../util/navigation";
 
 import { HashCoreAccessGate } from "./AccessGate/HashCoreAccessGate";
@@ -13,6 +13,7 @@ import {
 } from "../../metaTags.json";
 import { localStorageProjectKey } from "../../util/localStorageProjectKey";
 import { selectDidSave, selectFileIds } from "../../features/files/selectors";
+import { useFilesSelector } from "../../features/files/FilesContext";
 import { useProject } from "../../features/project/ProjectContext";
 import { setProjectWithMeta } from "../../features/actions";
 import { trackEvent } from "../../features/analytics";
@@ -27,8 +28,8 @@ export const HashCore: FC = memo(function HashCore() {
   const dispatch = useDispatch();
 
   const { currentProject: project, accessGate } = useProject();
-  const fileIds = useSelector(selectFileIds);
-  const didSave = useSelector(selectDidSave);
+  const fileIds = useFilesSelector(selectFileIds);
+  const didSave = useFilesSelector(selectDidSave);
 
   useParameterisedUi();
 

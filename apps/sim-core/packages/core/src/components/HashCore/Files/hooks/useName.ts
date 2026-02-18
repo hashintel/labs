@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import produce, { Draft } from "immer";
 
 import { Ext } from "../../../../util/files/enums";
@@ -9,6 +8,7 @@ import type { ParsedPath } from "../../../../util/files/types";
 import type { ReactSelectOption } from "../../../Dropdown/types";
 import { destinationPathInUse, parse } from "../../../../util/files";
 import { selectIdKindAndPathFromFiles } from "../../../../features/files/selectors";
+import { useFilesSelector } from "../../../../features/files/FilesContext";
 import { validateFileName } from "../../../../util/validation";
 
 const extensionMap = {
@@ -121,7 +121,7 @@ const useValidate = (args: {
   id?: string;
   value: NameReducerState;
 }): ValidateHook => {
-  const files = useSelector(selectIdKindAndPathFromFiles);
+  const files = useFilesSelector(selectIdKindAndPathFromFiles);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const argsRef = useRef(args);

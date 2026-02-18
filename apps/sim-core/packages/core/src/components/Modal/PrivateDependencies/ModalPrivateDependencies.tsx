@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 import urljoin from "url-join";
 
 import { FancyButton } from "../../Fancy/Button";
@@ -10,6 +9,7 @@ import { Modal } from "../Modal";
 import { SITE_URL } from "../../../util/api/paths";
 import { Scope, useScope } from "../../../features/scopes";
 import { selectPrivateDependencies } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
 import { useProject } from "../../../features/project/ProjectContext";
 
 import "./ModalPrivateDependencies.css";
@@ -31,7 +31,7 @@ const getPrivateKindsMessage = (files: HcDependencyFile[]) => {
 export const ModalPrivateDependencies: FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
-  const privateDependencies = useSelector(selectPrivateDependencies);
+  const privateDependencies = useFilesSelector(selectPrivateDependencies);
   const privateKinds = getPrivateKindsMessage(privateDependencies);
   const project = useProject().currentProject!;
   const canLinkToProjectInIndex = useScope(Scope.linkToProjectInIndex);

@@ -1,13 +1,11 @@
 import React, { Dispatch, FC, SetStateAction } from "react";
-import { useDispatch } from "react-redux";
 
-import { AppDispatch } from "../../../../features/types";
 import { ExperimentsList } from "./ExperimentsList";
 import { IconExperimentsCreate } from "../../../Icon/ExperimentsCreate";
 import { RawExperimentType } from "../../../Modal/Experiments/types";
 import { Scope, useScope } from "../../../../features/scopes";
 import { SimpleTooltip } from "../../../SimpleTooltip";
-import { setCurrentFileId } from "../../../../features/files/slice";
+import { useFiles } from "../../../../features/files/FilesContext";
 import { useCloseTooltip } from "../../../SimpleTooltip/context";
 
 import "./ExperimentsMenu.css";
@@ -21,7 +19,7 @@ const ExperimentsMenuList: FC<ExperimentsMenuProps> = ({
   openModal,
   setCurrentExperiment,
 }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { setCurrentFileId } = useFiles();
   const closeTooltip = useCloseTooltip();
   const canEdit = useScope(Scope.edit);
 
@@ -37,7 +35,7 @@ const ExperimentsMenuList: FC<ExperimentsMenuProps> = ({
           <button
             onClick={(evt) => {
               evt.preventDefault();
-              dispatch(setCurrentFileId("experiments"));
+              setCurrentFileId("experiments");
               setCurrentExperiment(undefined);
               openModal();
               closeTooltip();

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { maxBy } from "lodash";
 
 import { AnalysisObject, Plot } from "../Analysis/types";
@@ -11,7 +11,7 @@ import {
 } from "../../features/files/slice";
 import { parse } from "../../util/files";
 import { pauseAndNew } from "../../features/simulator/simulate/thunks";
-import { selectAllFiles } from "../../features/files/selectors";
+import { useFiles } from "../../features/files/FilesContext";
 import { useProject } from "../../features/project/ProjectContext";
 import { selectCurrentSimulationData } from "../../features/simulator/simulate/selectors";
 import { toggleCurrentSimulator } from "../../features/simulator/simulate/slice";
@@ -81,7 +81,7 @@ const isPluginMessage = (
  */
 export const useInstructionReceiver = () => {
   const dispatch = useDispatch();
-  const files = useSelector(selectAllFiles);
+  const { allFiles: files } = useFiles();
   const handledMessages = useRef<string[]>([]);
   const { currentProject: project } = useProject();
 

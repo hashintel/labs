@@ -1,5 +1,4 @@
 import React, { FC, memo, ReactNode, useMemo } from "react";
-import { useSelector } from "react-redux";
 import classnames from "classnames";
 import format from "date-fns/format";
 
@@ -8,6 +7,7 @@ import { IconAlert, IconCheck, IconClose, IconStop } from "../../Icon";
 import { Scrollable } from "../../Scrollable";
 import type { UserAlert } from "../../../features/viewer/types";
 import { selectIdKindAndPathFromFiles } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
 import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./HashCoreConsole.css";
@@ -27,7 +27,7 @@ const errorIconMap: Record<UserAlert["type"], ReactNode> = {
 export const HashCoreConsole: FC = memo(function HashCoreConsole() {
   const { userAlerts, clearUserAlerts } = useViewer();
 
-  const files = useSelector(selectIdKindAndPathFromFiles);
+  const files = useFilesSelector(selectIdKindAndPathFromFiles);
 
   const filesMap = useMemo(
     () => Object.fromEntries(files.map((file) => [file.path.formatted, file])),

@@ -18,6 +18,7 @@ import { globalsFileId, stringifyGlobals } from "../../features/files/utils";
 import { parseGlobals } from "./utils";
 import { selectCanToggleVisualGlobals } from "../../features/scopes";
 import { selectGlobals } from "../../features/files/selectors";
+import { useFilesSelector } from "../../features/files/FilesContext";
 import { toggleVisualGlobals, updateFile } from "../../features/files/slice";
 import { useCancellableDebounce } from "../../hooks/useCancellableDebounce";
 
@@ -33,7 +34,7 @@ const skipSchema = (field: string) => field !== "schema";
 
 export const GlobalsEditor: FC = () => {
   const dispatch = useDispatch();
-  const globalsString = useSelector(selectGlobals);
+  const globalsString = useFilesSelector(selectGlobals);
   const canToggleVisualGlobals = useSelector(selectCanToggleVisualGlobals);
   const [globalsState, setGlobals] = useState(parseGlobals(globalsString));
 

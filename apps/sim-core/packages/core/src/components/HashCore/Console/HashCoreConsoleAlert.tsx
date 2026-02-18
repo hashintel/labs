@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import type { HcFile } from "../../../features/files/types";
 import { SIM_DOCS_URL } from "../../../util/api/paths";
 import type { UserAlertInState } from "../../../features/viewer/types";
-import { setCurrentFileId } from "../../../features/files/slice";
+import { useFiles } from "../../../features/files/FilesContext";
 import { trackEvent } from "../../../features/analytics";
 
 type HashCoreConsoleAlertProps = {
@@ -25,6 +25,7 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
   files,
 }) => {
   const dispatch = useDispatch();
+  const { setCurrentFileId } = useFiles();
 
   const message = useMemo(
     () =>
@@ -36,7 +37,7 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
             onClick={(evt) => {
               evt.preventDefault();
 
-              dispatch(setCurrentFileId(files[piece].id));
+              setCurrentFileId(files[piece].id);
             }}
           >
             {piece}
@@ -45,7 +46,7 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
           <Fragment key={idx}>{makeErrorMessageFriendlier(piece)}</Fragment>
         )
       ),
-    [files, alert.message, dispatch]
+    [files, alert.message, setCurrentFileId]
   );
 
   const messageIncludesFiles = useMemo(

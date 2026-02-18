@@ -6,7 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { ProviderTargetEnv } from "@hashintel/engine-web";
 import { Result, combine, ok } from "neverthrow";
 import { omit, pick } from "lodash";
@@ -63,6 +63,7 @@ import {
   selectGlobals,
   selectParsedAnalysisMetricNames,
 } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
 import { selectProviderTarget } from "../../../features/simulator/simulate/selectors";
 import { toggleProviderTarget } from "../../../features/simulator/simulate/thunks";
 import { updateFile } from "../../../features/files/slice";
@@ -465,17 +466,17 @@ export const ExperimentModal: FC<{
     newSimulationTargetRef,
   ] = useRefState<ProviderTargetEnv>(simulationTarget);
   const simulatorDispatch = useSimulatorDispatch();
-  const experiments: [string, RawExperimentType][] | null = useSelector(
+  const experiments: [string, RawExperimentType][] | null = useFilesSelector(
     selectExperiments
   );
-  const globals = parseGlobals(useSelector(selectGlobals));
+  const globals = parseGlobals(useFilesSelector(selectGlobals));
   const fieldOptions =
     (globals?.globals
       ? flattenObjectKeysIntoString(globals.globals).map((global: string) =>
           convertToReactSelectOption(global)
         )
       : null) ?? [];
-  const metricOptions = useSelector(selectParsedAnalysisMetricNames).map(
+  const metricOptions = useFilesSelector(selectParsedAnalysisMetricNames).map(
     (name): ReactSelectOption => ({ value: name, label: name })
   );
   const canUseCloud = false;

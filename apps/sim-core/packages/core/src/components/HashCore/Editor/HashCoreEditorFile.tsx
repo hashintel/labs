@@ -8,6 +8,7 @@ import React, {
 import { useDispatch, useSelector } from "react-redux";
 
 import { AppDispatch } from "../../../features/types";
+import { useFilesSelector } from "../../../features/files/FilesContext";
 import { BehaviorKeys } from "../../BehaviorKeys/BehaviorKeys";
 import { DataLoader } from "../../DataLoader/DataLoader";
 import { FileBannerWrapper } from "../../FileBanner";
@@ -54,7 +55,7 @@ export const HashCoreEditorFile: FC<{
 
   const dispatch = useDispatch<AppDispatch>();
   const { currentProjectUrl: projectUrl } = useProject();
-  const shouldShowBehaviorKeys = useSelector(selectShouldShowBehaviorKeys);
+  const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
   const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
   const { canModifyFile, canSaveFile } = useScopes(
     Scope.modifyFile,

@@ -1,5 +1,4 @@
 import React, { FC, useState } from "react";
-import { shallowEqual, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 
 import { AnalysisModal } from "./AnalysisModal";
@@ -11,6 +10,7 @@ import { OutputOperation } from "../../../features/analysis/analysisJsonTypes";
 import { RESERVED_BUILT_IN_KEYS } from "../../../features/files/validate";
 import { ReactSelectOption } from "../../Dropdown/types";
 import { selectLocalBehaviorKeyFieldNames } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
 import { useSafeOnClose } from "../../../hooks/useSafeOnClose";
 import { validateOutput } from "../../../features/analysis/analysisJsonValidation";
 import { validateTitle } from "../../../features/analysis/validation";
@@ -155,9 +155,8 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
   );
 
   const safeOnClose = useSafeOnClose(!isFormDirty, true, onClose);
-  const localBehaviorKeys = useSelector(
+  const localBehaviorKeys = useFilesSelector(
     selectLocalBehaviorKeyFieldNames,
-    shallowEqual
   );
   const behaviorKeys = [...localBehaviorKeys, ...RESERVED_BUILT_IN_KEYS].sort();
   const behaviorKeysOptions: ReactSelectOption[] = behaviorKeys.map((key) => ({

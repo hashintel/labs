@@ -11,6 +11,7 @@ import { useModal } from "react-modal-hook";
 import urljoin from "url-join";
 
 import { AppDispatch } from "../../../../features/types";
+import { useFiles } from "../../../../features/files/FilesContext";
 import { Ext } from "../../../../util/files/enums";
 import { FileNameWithShortnameIcon } from "../../../FileName/FileNameWithShortnameIcon";
 import { HashCoreContextMenu } from "../../ContextMenu";
@@ -24,7 +25,6 @@ import { Scope, useScope } from "../../../../features/scopes";
 import {
   deleteFile,
   renameInitFile,
-  setCurrentFileId,
   updateFile,
 } from "../../../../features/files/slice";
 import { isSharedDependency } from "../../../../features/files/utils";
@@ -55,6 +55,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
 }) => {
   const file = useSelectFileById(fileId);
   const dispatch = useDispatch<AppDispatch>();
+  const { setCurrentFileId } = useFiles();
   const publishedFiles = useSelector(selectProjectPublishedFiles);
   const canSave = useScope(Scope.save);
   const { currentProject: project } = useProject();
@@ -225,7 +226,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
       onClick={(evt) => {
         evt.stopPropagation(); // needed to avoid collapsing the parent folder
         evt.preventDefault();
-        dispatch(setCurrentFileId(fileId));
+        setCurrentFileId(fileId);
       }}
       onContextMenu={(evt) => {
         evt.preventDefault();

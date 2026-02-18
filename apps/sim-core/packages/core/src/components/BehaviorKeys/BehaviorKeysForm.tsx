@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { batch, useDispatch, useSelector } from "react-redux";
+import { batch, useDispatch } from "react-redux";
 import produce, { Draft } from "immer";
 
 import {
@@ -26,6 +26,7 @@ import {
   selectBehaviorKeysDynamicAccess,
   selectSharedBehaviorKeyFieldNames,
 } from "../../features/files/selectors";
+import { useFilesSelector } from "../../features/files/FilesContext";
 import { useAbortingDispatch } from "../../hooks/useAbortingDispatch";
 import { useScrollState } from "../../hooks/useScrollState";
 
@@ -68,9 +69,9 @@ export const BehaviorKeysForm: FC<{
   const onDataChangeRef = useRef(onDataChange);
   const clashes = calculateRowClashes(data.rows);
   const dispatch = useDispatch();
-  const dynamicAccess = useSelector(selectBehaviorKeysDynamicAccess);
+  const dynamicAccess = useFilesSelector(selectBehaviorKeysDynamicAccess);
 
-  const sharedBehaviorKeyNames = useSelector(selectSharedBehaviorKeyFieldNames);
+  const sharedBehaviorKeyNames = useFilesSelector(selectSharedBehaviorKeyFieldNames);
   const lockedNames = projection.length === 0 ? sharedBehaviorKeyNames : [];
   const formDisabled =
     projection.length === 0

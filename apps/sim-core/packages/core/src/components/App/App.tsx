@@ -5,6 +5,7 @@ import { Store } from "@reduxjs/toolkit";
 
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ExamplesProvider } from "../../features/examples/ExamplesContext";
+import { FilesProvider } from "../../features/files/FilesContext";
 import { FontsPreloader } from "../FontsPreloader";
 import { ProjectProvider } from "../../features/project/ProjectContext";
 import { MonacoContainerProvider } from "../TabbedEditor/hooks";
@@ -26,6 +27,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
     <Provider store={store}>
       <UserProvider>
       <ProjectProvider>
+      <FilesProvider>
       <ExamplesProvider>
       <SimulatorProvider>
         <SceneProvider>
@@ -45,6 +47,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
         </SceneProvider>
       </SimulatorProvider>
       </ExamplesProvider>
+      </FilesProvider>
       </ProjectProvider>
       </UserProvider>
     </Provider>

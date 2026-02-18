@@ -32,10 +32,8 @@ import {
   selectReplaceProposal,
 } from "../../../../features/files/selectors";
 import { selectCurrentProjectUrl } from "../../../../features/project/selectors";
-import {
-  setCurrentFileId,
-  setReplaceProposal,
-} from "../../../../features/files/slice";
+import { useFiles, useFilesSelector } from "../../../../features/files/FilesContext";
+import { setReplaceProposal } from "../../../../features/files/slice";
 import { setMonacoModel } from "../../../../features/monaco";
 import { useMonacoContainerFromContext } from "../../../TabbedEditor/hooks";
 
@@ -121,7 +119,7 @@ const useRemoveDeletedFilesFromResults = (
   resultsRef: RefObject<SearchResultsDictionary>,
   searchDispatch: SearchDispatch
 ) => {
-  const fileIds = useSelector(selectFileIds);
+  const fileIds = useFilesSelector(selectFileIds);
 
   useEffect(() => {
     if (!resultsRef.current) {
@@ -286,7 +284,7 @@ export const useReplaceProposal = (
   results: SearchFileResult[]
 ) => {
   const appDispatch = useDispatch<AppDispatch>();
-  const replaceProposal = useSelector(selectReplaceProposal);
+  const replaceProposal = useFilesSelector(selectReplaceProposal);
 
   const replacingFileId = replaceProposal.proposal?.fileId;
   const replacingFileIdRef = useRef(replacingFileId);
@@ -347,6 +345,7 @@ export const useRevealMatchInEditor = () => {
   const [editorInstance] = useMonacoContainerFromContext();
   const [diffEditorInstance] = useMonacoContainerFromContext(true);
   const appDispatch = useDispatch<AppDispatch>();
+  const { setCurrentFileId } = useFiles();
 
   return useCallback(
     (
@@ -380,7 +379,7 @@ export const useRevealMatchInEditor = () => {
         if (!editorInstance) {
           throw new Error("Cannot find editor instance to reveal file in");
         }
-        appDispatch(setCurrentFileId(file.id));
+        setCurrentFileId(file.id);
 
         setMonacoModel(editorInstance, model);
 
@@ -389,6 +388,6 @@ export const useRevealMatchInEditor = () => {
         }
       }
     },
-    [appDispatch, diffEditorInstance, editorInstance, projectUrl]
+    [appDispatch, diffEditorInstance, editorInstance, projectUrl, setCurrentFileId]
   );
 };

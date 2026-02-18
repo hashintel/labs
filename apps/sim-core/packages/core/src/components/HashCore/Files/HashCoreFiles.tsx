@@ -1,5 +1,4 @@
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 import { PayloadAction } from "@reduxjs/toolkit";
 import { filter } from "rxjs/operators";
@@ -20,9 +19,9 @@ import { addPreparedFile } from "../../../features/files/slice";
 import { useSearch } from "../../../features/search/SearchContext";
 import {
   selectCurrentFileRepoPath,
-  selectFolderTree,
   selectPendingDependencies,
 } from "../../../features/files/selectors";
+import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
 import { storeActionObservable } from "../../../features/actionObservable";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 
@@ -45,13 +44,13 @@ const calculateOpenFoldersForPath = (
     }, {});
 
 export const HashCoreFiles: FC = () => {
-  const pendingFiles = useSelector(selectPendingDependencies);
+  const pendingFiles = useFilesSelector(selectPendingDependencies);
   const { canSave, canEdit } = useScopes(
     Scope.save,
     Scope.uploadDataset,
     Scope.edit
   );
-  const currentRepoPath = useSelector(selectCurrentFileRepoPath);
+  const currentRepoPath = useFilesSelector(selectCurrentFileRepoPath);
   const { openSearch } = useSearch();
 
   const showNameBehavior = useNameNewBehaviorModal();
@@ -74,7 +73,7 @@ export const HashCoreFiles: FC = () => {
     [observerRef]
   );
 
-  const tree = useSelector(selectFolderTree);
+  const { folderTree: tree } = useFiles();
 
   const [openPaths, setOpenPaths] = useState<Record<string, boolean>>(() =>
     currentRepoPath ? calculateOpenFoldersForPath(currentRepoPath) : {}
