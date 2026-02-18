@@ -6,6 +6,7 @@ import { Store } from "@reduxjs/toolkit";
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ExamplesProvider } from "../../features/examples/ExamplesContext";
 import { FontsPreloader } from "../FontsPreloader";
+import { ProjectProvider } from "../../features/project/ProjectContext";
 import { MonacoContainerProvider } from "../TabbedEditor/hooks";
 import { SceneProvider } from "../AgentScene/state/SceneContext";
 import { SearchProvider } from "../../features/search/SearchContext";
@@ -24,6 +25,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
   <ErrorBoundary>
     <Provider store={store}>
       <UserProvider>
+      <ProjectProvider>
       <ExamplesProvider>
       <SimulatorProvider>
         <SceneProvider>
@@ -43,6 +45,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
         </SceneProvider>
       </SimulatorProvider>
       </ExamplesProvider>
+      </ProjectProvider>
       </UserProvider>
     </Provider>
   </ErrorBoundary>

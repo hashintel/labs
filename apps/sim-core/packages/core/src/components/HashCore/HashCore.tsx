@@ -12,11 +12,8 @@ import {
   image as defaultMetaImage,
 } from "../../metaTags.json";
 import { localStorageProjectKey } from "../../util/localStorageProjectKey";
-import {
-  selectAccessGate,
-  selectCurrentProject,
-} from "../../features/project/selectors";
 import { selectDidSave, selectFileIds } from "../../features/files/selectors";
+import { useProject } from "../../features/project/ProjectContext";
 import { setProjectWithMeta } from "../../features/actions";
 import { trackEvent } from "../../features/analytics";
 import { urlFromProject } from "../../routes";
@@ -29,9 +26,8 @@ import { useViewer } from "../../features/viewer/ViewerContext";
 export const HashCore: FC = memo(function HashCore() {
   const dispatch = useDispatch();
 
-  const project = useSelector(selectCurrentProject);
+  const { currentProject: project, accessGate } = useProject();
   const fileIds = useSelector(selectFileIds);
-  const accessGate = useSelector(selectAccessGate);
   const didSave = useSelector(selectDidSave);
 
   useParameterisedUi();

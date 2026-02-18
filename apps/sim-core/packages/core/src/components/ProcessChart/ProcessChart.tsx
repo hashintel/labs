@@ -4,8 +4,8 @@ import { shallowEqual, useDispatch, useSelector } from "react-redux";
 import { createProcessModelFile, updateFile } from "../../features/files/slice";
 import { getItem, setItem } from "../../hooks/useLocalStorage/utils";
 import { newProcessChartValue } from "./utils";
-import { selectCurrentProject } from "../../features/project/selectors";
 import { selectProcessModelSourceFiles } from "../../features/files/selectors";
+import { useProject } from "../../features/project/ProjectContext";
 import { trackEvent } from "../../features/analytics";
 import { useViewer } from "../../features/viewer/ViewerContext";
 
@@ -48,7 +48,7 @@ export const ProcessChart: FC = () => {
 
   const dispatch = useDispatch();
   const frameRef = useRef<HTMLIFrameElement>(null);
-  const project = useSelector(selectCurrentProject);
+  const { currentProject: project } = useProject();
   const projectRef = useRef<string>(
     `${project?.pathWithNamespace}:${project?.ref}`
   );

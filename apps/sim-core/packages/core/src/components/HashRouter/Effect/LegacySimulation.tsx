@@ -1,18 +1,16 @@
 import { FC, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { navigate } from "../../../util/navigation";
 
-import type { AppDispatch } from "../../../features/types";
 import { HashCoreAccessGateKind } from "../../HashCore/AccessGate";
 import { linkableProjectByLegacyId } from "../../../util/api/queries";
-import { setAccessGate } from "../../../features/project/slice";
 import { urlFromProject } from "../../../routes";
 import { useHandlePromiseRejection } from "../../ErrorBoundary";
+import { useProject } from "../../../features/project/ProjectContext";
 
 export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
   id,
 }) => {
-  const dispatch = useDispatch() as AppDispatch;
+  const { setAccessGate } = useProject();
   const handlePromiseRejection = useHandlePromiseRejection();
 
   useEffect(() => {
@@ -27,15 +25,13 @@ export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
 
         navigate(urlFromProject(simulation), true, { fromLegacy: true }, false);
       } catch (err) {
-        dispatch(
-          setAccessGate({
-            accessGate: {
-              kind: HashCoreAccessGateKind.NotFound,
-              props: { requestedProject: null },
-            },
-            url: window.location.pathname,
-          })
-        );
+        setAccessGate({
+          accessGate: {
+            kind: HashCoreAccessGateKind.NotFound,
+            props: { requestedProject: null },
+          },
+          url: window.location.pathname,
+        });
       }
     }
 
@@ -44,7 +40,7 @@ export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
     return () => {
       controller.abort();
     };
-  }, [dispatch, handlePromiseRejection, id]);
+  }, [setAccessGate, handlePromiseRejection, id]);
 
   return null;
 };

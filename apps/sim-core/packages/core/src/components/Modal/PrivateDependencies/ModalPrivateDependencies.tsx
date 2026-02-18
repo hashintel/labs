@@ -9,8 +9,8 @@ import { IconAlertOutline } from "../../Icon/AlertOutline";
 import { Modal } from "../Modal";
 import { SITE_URL } from "../../../util/api/paths";
 import { Scope, useScope } from "../../../features/scopes";
-import { selectCurrentProjectRequired } from "../../../features/project/selectors";
 import { selectPrivateDependencies } from "../../../features/files/selectors";
+import { useProject } from "../../../features/project/ProjectContext";
 
 import "./ModalPrivateDependencies.css";
 
@@ -33,7 +33,7 @@ export const ModalPrivateDependencies: FC<{
 }> = ({ onClose }) => {
   const privateDependencies = useSelector(selectPrivateDependencies);
   const privateKinds = getPrivateKindsMessage(privateDependencies);
-  const project = useSelector(selectCurrentProjectRequired);
+  const project = useProject().currentProject!;
   const canLinkToProjectInIndex = useScope(Scope.linkToProjectInIndex);
 
   const makeCurrentProjectPrivateText = (

@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import { Provider } from "react-redux";
 
 import { ModalPrivateDependencies } from "./ModalPrivateDependencies";
+import { ProjectProvider } from "../../../features/project/ProjectContext";
 import { mockProject } from "../../../features/project/mocks";
 import { setProjectWithMeta } from "../../../features/actions";
 import { store } from "../../../features/store";
@@ -14,7 +15,9 @@ it("renders without crashing", () => {
 
   ReactDOM.render(
     <Provider store={store}>
-      <ModalPrivateDependencies onClose={() => {}} />
+      <ProjectProvider>
+        <ModalPrivateDependencies onClose={() => {}} />
+      </ProjectProvider>
     </Provider>,
     div
   );

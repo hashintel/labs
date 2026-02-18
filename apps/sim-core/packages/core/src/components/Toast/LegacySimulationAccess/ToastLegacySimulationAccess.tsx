@@ -1,12 +1,12 @@
 import React, { FC, useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { SimulationToast } from "../";
 import { ToastButton } from "../Button";
 import { ToastKind } from "../../../features/toast/enums";
-import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 import { trackEvent } from "../../../features/analytics";
 import { useClipboardWriteText } from "../../../hooks/useClipboardWriteText";
+import { useProject } from "../../../features/project/ProjectContext";
 import { useToast } from "../../../features/toast/ToastContext";
 
 export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
@@ -15,7 +15,7 @@ export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
   const clipboardWriteText = useClipboardWriteText();
   const dispatch = useDispatch();
   const { displayToast } = useToast();
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProjectUrl: projectUrl } = useProject();
 
   const hasTrackedRef = useRef(false);
 

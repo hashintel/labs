@@ -1,5 +1,4 @@
 import React, { FC, useCallback, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import SplitterLayout from "react-splitter-layout";
 import classNames from "classnames";
 
@@ -19,8 +18,8 @@ import {
   historySelectors,
   selectHistoryComplete,
 } from "../../features/simulator/simulate/selectors";
-import { selectProjectRef } from "../../features/project/selectors";
 import { theme } from "../../util/theme";
+import { useProject } from "../../features/project/ProjectContext";
 import { useInfiniteScrollingHistory } from "./hooks";
 import { useScrollState } from "../../hooks/useScrollState";
 import { useSimulatorSelector } from "../../features/simulator/context";
@@ -46,7 +45,7 @@ export const ActivityHistory: FC<{ visible: boolean }> = ({ visible }) => {
     historyInitialized,
   ] = useInfiniteScrollingHistory(containerRef, visible);
   const canEdit = useScope(Scope.edit);
-  const projectRef = useSelector(selectProjectRef);
+  const { projectRef } = useProject();
 
   const historyItemsFromStore = useSimulatorSelector(
     historySelectors.selectAll

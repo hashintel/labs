@@ -1,5 +1,5 @@
 import React, { ChangeEvent, FC, memo, MouseEvent, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useModal } from "react-modal-hook";
 
 import { IconBrain } from "../../../../Icon/Brain";
@@ -11,8 +11,8 @@ import { PartialSimulationProject } from "../../../../../features/project/types"
 import { Scope } from "../../../../../features/scopes";
 import { descByUpdatedAt } from "../../../../../util/descByUpdatedAt";
 import { mainProjectPath, urlFromProject } from "../../../../../routes";
-import { selectCurrentProject } from "../../../../../features/project/selectors";
 import { trackEvent } from "../../../../../features/analytics";
+import { useProject } from "../../../../../features/project/ProjectContext";
 import { useUser } from "../../../../../features/user/UserContext";
 import {
   useExportFiles,
@@ -53,7 +53,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     exampleProjects: _exampleProjects,
   }) => {
     const { userProfileUrl } = useUser();
-    const project = useSelector(selectCurrentProject);
+    const { currentProject: project } = useProject();
     const dispatch = useDispatch();
     // const forkUrl = project ? forkUrlFromProject(project) : null;
 

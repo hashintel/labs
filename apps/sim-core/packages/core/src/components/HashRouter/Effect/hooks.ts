@@ -1,14 +1,10 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import { navigate, setQueryParams } from "../../../util/navigation";
 
 import { LinkableProject } from "../../../features/project/types";
-import {
-  selectAccessGate,
-  selectCurrentProjectUrl,
-} from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
+import { useProject } from "../../../features/project/ProjectContext";
 
 /**
  * Ideally we'd be able to know if we've navigated in-app or loaded this URL
@@ -20,8 +16,8 @@ import { urlFromProject } from "../../../routes";
  */
 export const useNavigateAway = (defaultProject?: LinkableProject | null) => {
   const defaultUrl = defaultProject ? urlFromProject(defaultProject) : null;
-  const accessGateUrl = useSelector(selectAccessGate)?.url;
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { accessGate, currentProjectUrl: projectUrl } = useProject();
+  const accessGateUrl = accessGate?.url;
   const url = accessGateUrl ?? projectUrl ?? defaultUrl ?? "/";
   const queryParams = {};
 

@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useLayoutEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { useModal } from "react-modal-hook";
 import { unwrapResult } from "@reduxjs/toolkit";
 
@@ -10,21 +10,19 @@ import {
 } from "../../../features/project/types";
 import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
 import { Scope, useScopes } from "../../../features/scopes";
-import { fetchProject } from "../../../features/project/slice";
 import { forceLogIn } from "../../../features/user/utils";
 import { forkProject } from "../../../features/project/thunks";
-import { selectCurrentProject } from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
 import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
 import { useNavigateAway } from "./hooks";
+import { useProject } from "../../../features/project/ProjectContext";
 import { useUser } from "../../../features/user/UserContext";
 
 const useEnsureProject = (
   project: LinkableProject,
   onCancel: VoidFunction
 ): SimulationProject | null => {
-  const dispatch = useDispatch<AppDispatch>();
-  const currentProject = useSelector(selectCurrentProject);
+  const { currentProject, fetchProject } = useProject();
   const { bootstrapped } = useUser();
   const fatalError = useFatalError();
   const isCurrentProject =
@@ -38,7 +36,7 @@ const useEnsureProject = (
 
   useEffect(() => {
     if (bootstrapped && !isCurrentProject && project) {
-      const promise = dispatch(fetchProject({ project, redirect: false }));
+      const promise = fetchProject({ project, redirect: false });
 
       (async () => {
         try {
@@ -58,7 +56,7 @@ const useEnsureProject = (
         promise.abort();
       };
     }
-  }, [bootstrapped, dispatch, fatalError, isCurrentProject, project]);
+  }, [bootstrapped, fetchProject, fatalError, isCurrentProject, project]);
 
   return isCurrentProject ? currentProject : null;
 };

@@ -12,7 +12,7 @@ import {
 import { parse } from "../../util/files";
 import { pauseAndNew } from "../../features/simulator/simulate/thunks";
 import { selectAllFiles } from "../../features/files/selectors";
-import { selectCurrentProject } from "../../features/project/selectors";
+import { useProject } from "../../features/project/ProjectContext";
 import { selectCurrentSimulationData } from "../../features/simulator/simulate/selectors";
 import { toggleCurrentSimulator } from "../../features/simulator/simulate/slice";
 import {
@@ -83,7 +83,7 @@ export const useInstructionReceiver = () => {
   const dispatch = useDispatch();
   const files = useSelector(selectAllFiles);
   const handledMessages = useRef<string[]>([]);
-  const project = useSelector(selectCurrentProject);
+  const { currentProject: project } = useProject();
 
   const simulatorDispatch = useSimulatorDispatch();
 

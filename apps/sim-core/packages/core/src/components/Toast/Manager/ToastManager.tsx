@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 
 import { HcFileKind } from "../../../features/files/enums";
@@ -11,7 +10,7 @@ import { ToastProjectPreview } from "../ProjectPreview";
 import { ToastReadOnlyRelease } from "../ReadOnlyRelease";
 import { ToastReleaseBehaviorSuccess } from "../ReleaseBehaviorSuccess";
 import { ToastReleaseSuccess } from "../ReleaseSuccess";
-import { selectCurrentProject } from "../../../features/project/selectors";
+import { useProject } from "../../../features/project/ProjectContext";
 import { useToast } from "../../../features/toast/ToastContext";
 import { useUser } from "../../../features/user/UserContext";
 import { useViewer } from "../../../features/viewer/ViewerContext";
@@ -53,7 +52,7 @@ const useToastData = () => {
 
 export const ToastManager: FC = () => {
   // @todo this should come from the data
-  const project = useSelector(selectCurrentProject);
+  const { currentProject: project } = useProject();
   const { projectsLoaded: userProjectsLoaded } = useUser();
   const { toastKind } = useToast();
   const { editorVisible } = useViewer();

@@ -28,10 +28,8 @@ import {
   updateFile,
 } from "../../../../features/files/slice";
 import { isSharedDependency } from "../../../../features/files/utils";
-import {
-  selectCurrentProject,
-  selectProjectPublishedFiles,
-} from "../../../../features/project/selectors";
+import { selectProjectPublishedFiles } from "../../../../features/project/selectors";
+import { useProject } from "../../../../features/project/ProjectContext";
 import { useClipboardWriteText } from "../../../../hooks/useClipboardWriteText";
 import {
   useFileIsCurrent,
@@ -59,7 +57,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   const dispatch = useDispatch<AppDispatch>();
   const publishedFiles = useSelector(selectProjectPublishedFiles);
   const canSave = useScope(Scope.save);
-  const project = useSelector(selectCurrentProject);
+  const { currentProject: project } = useProject();
   const current = useFileIsCurrent(fileId);
   const clipboardWriteText = useClipboardWriteText();
 

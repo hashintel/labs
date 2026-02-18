@@ -1,13 +1,12 @@
 import React, { FC, Fragment, memo, MouseEvent } from "react";
-import { useSelector } from "react-redux";
 import classNames from "classnames";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
 import { Scope, useScope } from "../../../../../features/scopes";
 import { TabKind } from "../../../../../features/viewer/enums";
 import { getMetaCharacter } from "../../../../../hooks/useKeyboardShortcuts";
+import { useProject } from "../../../../../features/project/ProjectContext";
 import { useSearch } from "../../../../../features/search/SearchContext";
-import { selectHasProject } from "../../../../../features/project/selectors";
 import { useViewer } from "../../../../../features/viewer/ViewerContext";
 import { viewerTabs } from "../../../../../features/viewer/utils";
 
@@ -29,7 +28,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
   }) => {
     const { openSearch } = useSearch();
     const canEdit = useScope(Scope.edit);
-    const hasProject = useSelector(selectHasProject);
+    const { hasProject } = useProject();
     const {
       editorVisible,
       activityVisible,

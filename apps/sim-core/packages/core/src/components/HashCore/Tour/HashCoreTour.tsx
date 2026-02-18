@@ -9,7 +9,6 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { useSelector } from "react-redux";
 
 import { Avatar, CloseButton, VERSION, steps } from "./Step";
 import {
@@ -23,11 +22,8 @@ import {
 } from "./react-shepherd-wrapper";
 import type { TourProgress } from "../../../util/api/types";
 import { getTourShowcase } from "../../../util/api";
-import {
-  selectCurrentProject,
-  selectProjectLoaded,
-} from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
+import { useProject } from "../../../features/project/ProjectContext";
 import { useGettingStartedProject } from "./util";
 import { usePromise } from "../../../hooks/usePromise";
 import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
@@ -106,8 +102,7 @@ const useTourPosition = (tour: Tour): [number, number, boolean] => {
 };
 
 const useAutoTriggerTour = (tour: Tour, isVisible: boolean) => {
-  const project = useSelector(selectCurrentProject);
-  const projectLoaded = useSelector(selectProjectLoaded);
+  const { currentProject: project, projectLoaded } = useProject();
   const { tourProgress } = useUser();
 
   const [

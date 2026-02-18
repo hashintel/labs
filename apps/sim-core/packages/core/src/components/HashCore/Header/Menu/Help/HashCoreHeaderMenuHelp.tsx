@@ -1,9 +1,9 @@
 import React, { FC, memo, MouseEvent } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
-import { selectHasProject } from "../../../../../features/project/selectors";
 import { trackEvent } from "../../../../../features/analytics";
+import { useProject } from "../../../../../features/project/ProjectContext";
 import { useTour } from "../../../Tour";
 
 type HashCoreHeaderMenuHelpProps = {
@@ -22,7 +22,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
   }) => {
     const tour = useTour();
     // const canUseAccount = useScope(Scope.useAccount);
-    const hasProject = useSelector(selectHasProject);
+    const { hasProject } = useProject();
     const dispatch = useDispatch();
 
     return (

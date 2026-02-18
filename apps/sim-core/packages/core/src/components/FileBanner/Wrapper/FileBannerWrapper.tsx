@@ -1,5 +1,5 @@
 import React, { FC } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { AppDispatch } from "../../../features/types";
 import { Ext } from "../../../util/files/enums";
@@ -23,11 +23,8 @@ import { getTextModelRequired } from "../../../features/monaco";
 import { isReadOnly } from "../../../features/files/utils";
 import { pyodideEnabled } from "../../../util/pyodideEnabled";
 import { selectAllFiles } from "../../../features/files/selectors";
-import {
-  selectCurrentProject,
-  selectCurrentProjectUrl,
-} from "../../../features/project/selectors";
 import { store } from "../../../features/store";
+import { useProject } from "../../../features/project/ProjectContext";
 
 type FileBannerWrapperProps = {
   file: HcFile;
@@ -41,8 +38,7 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
   setNextContents,
 }) => {
   const dispatch = useDispatch<AppDispatch>();
-  const project = useSelector(selectCurrentProject);
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProject: project, currentProjectUrl: projectUrl } = useProject();
   const { canEdit, canLogin } = useScopes(Scope.edit, Scope.login);
 
   /**

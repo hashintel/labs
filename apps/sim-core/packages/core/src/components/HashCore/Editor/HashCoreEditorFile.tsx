@@ -30,8 +30,8 @@ import {
   globalsFileId,
 } from "../../../features/files/utils";
 import { getTextModelRequired } from "../../../features/monaco";
-import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 import { selectShouldShowBehaviorKeys } from "../../../features/files/selectors";
+import { useProject } from "../../../features/project/ProjectContext";
 import { updateBehaviorKeysFile } from "../../../features/files/slice";
 
 export const HashCoreEditorFile: FC<{
@@ -53,7 +53,7 @@ export const HashCoreEditorFile: FC<{
   const [diffEditorInstance] = useMonacoContainerFromContext(true);
 
   const dispatch = useDispatch<AppDispatch>();
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProjectUrl: projectUrl } = useProject();
   const shouldShowBehaviorKeys = useSelector(selectShouldShowBehaviorKeys);
   const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
   const { canModifyFile, canSaveFile } = useScopes(

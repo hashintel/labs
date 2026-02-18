@@ -8,13 +8,13 @@ import { IconLock } from "../../Icon/Lock";
 import { Logo } from "../../Logo";
 import { Scope, useScope } from "../../../features/scopes";
 import { projectIsPrivate } from "../../../features/project/utils";
-import { selectCurrentProject } from "../../../features/project/selectors";
 import { selectDidSave } from "../../../features/files/selectors";
+import { useProject } from "../../../features/project/ProjectContext";
 
 import "./HashCoreHeader.css";
 
 export const HashCoreHeader: FC = () => {
-  const project = useSelector(selectCurrentProject);
+  const { currentProject: project } = useProject();
   const isSaved = useSelector(selectDidSave);
 
   const projectUpdatedAtDate = project
