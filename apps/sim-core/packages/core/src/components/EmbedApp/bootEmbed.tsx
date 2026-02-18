@@ -18,6 +18,9 @@ import { BasicUser } from "../../util/api/types";
 import { EmbedApp } from "./EmbedApp";
 import { RemoteSimulationProject } from "../../features/project/types";
 import { ValidatedEmbedParams } from "../../util/getEmbedParams";
+// TODO: activateEmbedded is dispatched outside React tree (no hooks available).
+// Migrate when Redux store is fully removed — will need ViewerProvider ref or
+// initialization prop passed into <App>.
 import { activateEmbedded } from "../../features/viewer/slice";
 import { boot } from "../../boot";
 import { fetchProject } from "../../features/project/slice";

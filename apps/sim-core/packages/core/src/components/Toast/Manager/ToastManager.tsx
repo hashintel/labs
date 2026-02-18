@@ -16,8 +16,8 @@ import { ToastReadOnlyRelease } from "../ReadOnlyRelease";
 import { ToastReleaseBehaviorSuccess } from "../ReleaseBehaviorSuccess";
 import { ToastReleaseSuccess } from "../ReleaseSuccess";
 import { selectCurrentProject } from "../../../features/project/selectors";
-import { selectEditorVisible } from "../../../features/viewer/selectors";
 import { selectUserProjectsLoaded } from "../../../features/user/selectors";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./ToastManager.css";
 
@@ -60,7 +60,7 @@ export const ToastManager: FC = () => {
   const project = useSelector(selectCurrentProject);
   const userProjectsLoaded = useSelector(selectUserProjectsLoaded);
   const toastKind = useSelector(selectToastKind);
-  const editorVisible = useSelector(selectEditorVisible);
+  const { editorVisible } = useViewer();
   const data = useToastData();
 
   const toast = project

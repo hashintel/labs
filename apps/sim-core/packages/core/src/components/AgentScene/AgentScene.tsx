@@ -1,5 +1,4 @@
 import React, { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Json, SerializableAgentState } from "@hashintel/engine-web";
@@ -13,7 +12,7 @@ import { SceneSettings } from "./components/SceneSettings";
 import { SimulationViewerLazyTab } from "../SimulationViewer/LazyTab/SimulationViewerLazyTab";
 import { ViewerControls, orthoCamera } from "./components/Controls";
 import { ViewerStage } from "./components/Stage";
-import { selectEmbedded } from "../../features/viewer/selectors";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
 import "./AgentScene.css";
 
@@ -52,7 +51,7 @@ export const AgentScene = ({
 
   const statsContainerRef = useRef(null);
 
-  const embedded = useSelector(selectEmbedded);
+  const { embedded } = useViewer();
 
   /**
    * Updating the stage is an async process, but it can only be done on at a

@@ -1,9 +1,8 @@
 import { useEffect, useMemo } from "react";
-import { useDispatch } from "react-redux";
 
 import { TabKind } from "../features/viewer/enums";
 import { getSafeQueryParams } from "../util/getSafeQueryParams";
-import { initialiseView } from "../features/viewer/slice";
+import { useViewer } from "../features/viewer/ViewerContext";
 
 export const getUiQueryParams = () => {
   const {
@@ -24,22 +23,19 @@ export const getUiQueryParams = () => {
 };
 
 export const useParameterisedUi = () => {
-  // We don't want these to respond to changes
   const { view, editor, activity, tabs, viewer } = useMemo(
     getUiQueryParams,
     []
   );
-  const dispatch = useDispatch();
+  const { initialiseView } = useViewer();
 
   useEffect(() => {
-    dispatch(
-      initialiseView({
-        tab: view,
-        editor,
-        activity,
-        tabs,
-        viewer,
-      })
-    );
-  }, [activity, dispatch, editor, tabs, view, viewer]);
+    initialiseView({
+      tab: view,
+      editor,
+      activity,
+      tabs,
+      viewer,
+    });
+  }, [activity, initialiseView, editor, tabs, view, viewer]);
 };

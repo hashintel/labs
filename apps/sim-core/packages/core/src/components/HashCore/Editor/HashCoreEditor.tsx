@@ -59,11 +59,8 @@ import {
   selectReplaceProposal,
   selectShouldShowBehaviorKeys,
 } from "../../../features/files/selectors";
-import {
-  selectEditorVisible,
-  selectEmbedded,
-} from "../../../features/viewer/selectors";
 import { trackEvent } from "../../../features/analytics";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 import { useNameNewBehaviorModal } from "../Files";
 import { useOnClickOutside } from "../../../hooks/useOnClickOutside";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
@@ -151,7 +148,12 @@ export const HashCoreEditor: FC = () => {
     ]
   );
 
-  const editorVisible = useSelector(selectEditorVisible);
+  const {
+    editorVisible,
+    embedded,
+    addUserAlert,
+    clearUserAlerts,
+  } = useViewer();
   const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
   const shouldShowBehaviorKeys = useSelector(selectShouldShowBehaviorKeys);
   const section = getDocsSection(currentFile, shouldShowBehaviorKeys);
@@ -220,8 +222,6 @@ export const HashCoreEditor: FC = () => {
   );
 
   useOnClickOutside(tabsRef, hideContextMenu);
-
-  const embedded = useSelector(selectEmbedded);
 
   const canSave = useScope(Scope.save);
   const canShowBehaviorKeys =
@@ -344,7 +344,7 @@ export const HashCoreEditor: FC = () => {
                   );
                   validateAnalysisJsonAndDispatchErrorsIfAny(
                     analysis as any,
-                    dispatch
+                    { addUserAlert, clearUserAlerts },
                   );
                 }
               }}

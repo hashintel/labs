@@ -1,15 +1,14 @@
 import React, { FC, memo, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
-import { AppDispatch } from "../../../../features/types";
 import { HashCoreHeaderMenuExperiments } from "./Experiments";
 import { HashCoreHeaderMenuFiles } from "./Files";
 import { HashCoreHeaderMenuHelp } from "./Help";
 import { HashCoreHeaderMenuView } from "./View";
-import { openTab } from "../../../../features/viewer/slice";
 import { selectExamples } from "../../../../features/examples/selectors";
 import { selectUserProjects } from "../../../../features/user/selectors";
 import { useMenu } from "./hooks";
+import { useViewer } from "../../../../features/viewer/ViewerContext";
 
 import "./HashCoreHeaderMenu.scss";
 
@@ -17,9 +16,9 @@ import "./HashCoreHeaderMenu.scss";
  * @todo nathggns: Look into removing memo and useCallback in here
  */
 export const HashCoreHeaderMenu: FC = memo(() => {
-  const dispatch = useDispatch<AppDispatch>();
   const userProjects = useSelector(selectUserProjects);
   const examples = useSelector(selectExamples);
+  const { openTab } = useViewer();
 
   const {
     menuRef,
@@ -35,9 +34,9 @@ export const HashCoreHeaderMenu: FC = memo(() => {
 
   const onAddView = useCallback(
     (tab) => {
-      dispatch(openTab(tab));
+      openTab(tab);
     },
-    [dispatch]
+    [openTab],
   );
 
   return (

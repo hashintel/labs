@@ -1,14 +1,13 @@
 import React, { FC, lazy, Suspense } from "react";
-import { useSelector } from "react-redux";
 
 import { ActivityHistory } from "../../ActivityHistory";
 import { Scope, useScope } from "../../../features/scopes";
 import { SimulationRunner } from "../../SimulationRunner/SimulationRunner";
 import { SimulationViewer } from "../../SimulationViewer";
 import { WrappedSplitterLayout } from "../../WrappedSplitterLayout/WrappedSplitterLayout";
-import { selectActivityVisible } from "../../../features/viewer/selectors";
 import { useInstructionReceiver } from "../useInstructionReceiver";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./HashCoreViewer.css";
 
@@ -19,7 +18,7 @@ const LazyOpenInCore = lazy(() =>
 );
 
 export const HashCoreViewer: FC = () => {
-  const activityVisible = useSelector(selectActivityVisible);
+  const { activityVisible } = useViewer();
   const canShowOpenInCore = useScope(Scope.showOpenInCore);
 
   const onSecondaryPaneSizeChange = (size: number) => {

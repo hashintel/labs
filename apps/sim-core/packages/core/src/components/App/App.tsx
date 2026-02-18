@@ -9,6 +9,7 @@ import { MonacoContainerProvider } from "../TabbedEditor/hooks";
 import { SceneProvider } from "../AgentScene/state/SceneContext";
 import { SearchProvider } from "../../features/search/SearchContext";
 import { SimulatorProvider } from "../../features/simulator/context";
+import { ViewerProvider } from "../../features/viewer/ViewerContext";
 
 import "./App.css";
 
@@ -21,6 +22,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
     <Provider store={store}>
       <SimulatorProvider>
         <SceneProvider>
+          <ViewerProvider>
           <SearchProvider>
           <ModalProvider>
             <FontsPreloader>
@@ -30,6 +32,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
             </FontsPreloader>
           </ModalProvider>
           </SearchProvider>
+          </ViewerProvider>
         </SceneProvider>
       </SimulatorProvider>
     </Provider>

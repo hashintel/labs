@@ -5,21 +5,15 @@ import { HashCoreEditorContainer } from "../EditorContainer/HashCoreEditorContai
 import { HashCoreViewer } from "../Viewer/HashCoreViewer";
 import { WrappedSplitterLayout } from "../../WrappedSplitterLayout/WrappedSplitterLayout";
 import { selectDisplayEditorSection } from "../../../features/selectors";
-import {
-  selectEditorVisible,
-  selectEmbedded,
-  selectViewerVisible,
-} from "../../../features/viewer/selectors";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./HashCoreSection.css";
 
 export const HashCoreSection: FC = () => {
-  const editorVisible = useSelector(selectEditorVisible);
+  const { editorVisible, embedded, viewerVisible } = useViewer();
   const displayEditorSection = useSelector(selectDisplayEditorSection);
-  const embedded = useSelector(selectEmbedded);
   const [vertical, setVertical] = useState(false);
-  const viewerVisible = useSelector(selectViewerVisible);
 
   const ref = useResizeObserver(({ width }) => setVertical(width <= 700), {
     onObserve: null,

@@ -18,17 +18,13 @@ import {
 } from "../../features/project/selectors";
 import { selectDidSave, selectFileIds } from "../../features/files/selectors";
 import { setProjectWithMeta } from "../../features/actions";
-import {
-  toggleActivity,
-  toggleEditor,
-  toggleViewer,
-} from "../../features/viewer/slice";
 import { trackEvent } from "../../features/analytics";
 import { urlFromProject } from "../../routes";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useParameterisedUi } from "../../hooks/useParameterisedUi";
 import { useSaveOrFork } from "../../hooks/useSaveOrFork";
 import { useShouldUnload } from "../../hooks/shouldUnload";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
 export const HashCore: FC = memo(function HashCore() {
   const dispatch = useDispatch();
@@ -101,6 +97,8 @@ export const HashCore: FC = memo(function HashCore() {
 
   const [saveOrFork] = useSaveOrFork();
 
+  const { toggleActivity, toggleEditor, toggleViewer } = useViewer();
+
   useKeyboardShortcuts({
     meta: {
       async s() {
@@ -109,13 +107,13 @@ export const HashCore: FC = memo(function HashCore() {
     },
     metaShift: {
       a() {
-        dispatch(toggleActivity());
+        toggleActivity();
       },
       e() {
-        dispatch(toggleEditor());
+        toggleEditor();
       },
       y() {
-        dispatch(toggleViewer());
+        toggleViewer();
       },
     },
   });

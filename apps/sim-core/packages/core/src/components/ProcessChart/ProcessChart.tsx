@@ -3,19 +3,11 @@ import { shallowEqual, useDispatch, useSelector } from "react-redux";
 
 import { createProcessModelFile, updateFile } from "../../features/files/slice";
 import { getItem, setItem } from "../../hooks/useLocalStorage/utils";
-import {
-  hideActivity,
-  setProcessChart,
-  showActivity,
-} from "../../features/viewer/slice";
 import { newProcessChartValue } from "./utils";
-import {
-  selectActivityVisible,
-  selectCurrentProcessChart,
-} from "../../features/viewer/selectors";
 import { selectCurrentProject } from "../../features/project/selectors";
 import { selectProcessModelSourceFiles } from "../../features/files/selectors";
 import { trackEvent } from "../../features/analytics";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
 import "./ProcessChart.scss";
 
@@ -41,11 +33,16 @@ const setLocalDrafts = (projectKey: string, drafts: LocalStorageDrafts) =>
   setItem(`process-charts-${projectKey}`, drafts);
 
 export const ProcessChart: FC = () => {
-  const activityVisible = useSelector(selectActivityVisible);
+  const {
+    activityVisible,
+    currentProcessChart: processChartOption,
+    hideActivity,
+    showActivity,
+    setProcessChart,
+  } = useViewer();
   const activityWasVisible = useRef(false);
 
   const chartFiles = useSelector(selectProcessModelSourceFiles, shallowEqual);
-  const processChartOption = useSelector(selectCurrentProcessChart);
   const [isDraft, setIsDraft] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -58,7 +55,7 @@ export const ProcessChart: FC = () => {
 
   useEffect(() => {
     if (chartFiles[0]) {
-      dispatch(setProcessChart(chartFiles[0].path.name));
+      setProcessChart(chartFiles[0].path.name);
     }
   }, []);
 
@@ -69,12 +66,12 @@ export const ProcessChart: FC = () => {
   // Hide activity on tab load, restore it on unload (if it was visible)
   useEffect(() => {
     if (activityVisible) {
-      dispatch(hideActivity());
+      hideActivity();
       activityWasVisible.current = true;
     }
     return () => {
       if (activityWasVisible.current) {
-        dispatch(showActivity());
+        showActivity();
       }
     };
   }, []);
@@ -116,7 +113,7 @@ export const ProcessChart: FC = () => {
           );
 
           // Update the tab to use the new name and clear the 'new' draft
-          dispatch(setProcessChart(data.processName));
+          setProcessChart(data.processName);
           const projectDrafts = getLocalDrafts(projectRef.current);
           delete projectDrafts[newProcessChartValue];
           setLocalDrafts(projectRef.current, projectDrafts);
@@ -157,7 +154,7 @@ export const ProcessChart: FC = () => {
     window.addEventListener("message", handleMessage);
 
     return () => window.removeEventListener("message", handleMessage);
-  }, [dispatch, isDraft, processChartOption, project, saving, savedChart]);
+  }, [dispatch, isDraft, processChartOption, project, saving, savedChart, setProcessChart]);
 
   const projectUid = `${project?.pathWithNamespace}:${project?.ref}`;
 
@@ -167,9 +164,7 @@ export const ProcessChart: FC = () => {
 
     if (projectRef.current !== projectUid) {
       // we've just switched project, default to the first defined chart
-      dispatch(
-        setProcessChart(chartFiles[0]?.path.name || newProcessChartValue)
-      );
+      setProcessChart(chartFiles[0]?.path.name || newProcessChartValue);
       projectRef.current = projectUid;
     } else {
       existingProcess = processChartOption !== newProcessChartValue;
@@ -221,7 +216,7 @@ export const ProcessChart: FC = () => {
           {isDraft && <span className="ProcessChart__DraftLabel">DRAFT</span>}
 
           <select
-            onChange={(event) => dispatch(setProcessChart(event.target.value))}
+            onChange={(event) => setProcessChart(event.target.value)}
             value={processChartOption}
           >
             <option value={newProcessChartValue}>New process</option>

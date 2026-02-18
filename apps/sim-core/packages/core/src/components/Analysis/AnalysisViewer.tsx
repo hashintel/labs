@@ -1,6 +1,6 @@
 import React, { FC, useCallback, useEffect, useState } from "react";
 import { unstable_batchedUpdates } from "react-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { useModal } from "react-modal-hook";
 import classNames from "classnames";
@@ -23,18 +23,18 @@ import {
   onPlotsModalSave,
 } from "./modals";
 import { selectAnalysisMode } from "../../features/simulator/simulate/selectors";
-import { selectEmbedded } from "../../features/viewer/selectors";
 import { useAnalysisSrcForCurrentActivityItem } from "../../hooks/useAnalysisSrcForCurrentActivityItem";
 import { useParseAnalysis } from "../../hooks/useParseAnalysis";
 import { useResizeObserver } from "../../hooks/useResizeObserver/useResizeObserver";
 import { useSimulatorSelector } from "../../features/simulator/context";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
 import "./AnalysisViewer.scss";
 
 export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
   const dispatch = useDispatch();
   const analysisMode = useSimulatorSelector(selectAnalysisMode);
-  const embedded = useSelector(selectEmbedded);
+  const { embedded } = useViewer();
   const canEdit = useScope(Scope.edit);
 
   const {

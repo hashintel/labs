@@ -1,5 +1,5 @@
 import React, { FC, Fragment, memo, MouseEvent } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import classNames from "classnames";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
@@ -7,17 +7,8 @@ import { Scope, useScope } from "../../../../../features/scopes";
 import { TabKind } from "../../../../../features/viewer/enums";
 import { getMetaCharacter } from "../../../../../hooks/useKeyboardShortcuts";
 import { useSearch } from "../../../../../features/search/SearchContext";
-import {
-  selectActivityVisible,
-  selectEditorVisible,
-  selectViewerVisible,
-} from "../../../../../features/viewer/selectors";
 import { selectHasProject } from "../../../../../features/project/selectors";
-import {
-  toggleActivity,
-  toggleEditor,
-  toggleViewer,
-} from "../../../../../features/viewer/slice";
+import { useViewer } from "../../../../../features/viewer/ViewerContext";
 import { viewerTabs } from "../../../../../features/viewer/utils";
 
 type HashCoreHeaderMenuViewProps = {
@@ -36,13 +27,17 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
     onAddView,
     clearAll,
   }) => {
-    const dispatch = useDispatch();
     const { openSearch } = useSearch();
     const canEdit = useScope(Scope.edit);
     const hasProject = useSelector(selectHasProject);
-    const editorVisible = useSelector(selectEditorVisible);
-    const activityVisible = useSelector(selectActivityVisible);
-    const viewerVisible = useSelector(selectViewerVisible);
+    const {
+      editorVisible,
+      activityVisible,
+      viewerVisible,
+      toggleActivity,
+      toggleEditor,
+      toggleViewer,
+    } = useViewer();
 
     const items = [];
 
@@ -89,7 +84,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
           <a
             onClick={() => {
               clearAll();
-              dispatch(toggleEditor());
+              toggleEditor();
             }}
           >
             <div className="HashCoreHeaderMenu__LabelWithHint">
@@ -106,7 +101,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
           <a
             onClick={() => {
               clearAll();
-              dispatch(toggleViewer());
+              toggleViewer();
             }}
           >
             <div className="HashCoreHeaderMenu__LabelWithHint">
@@ -130,7 +125,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             onClick={() => {
               if (viewerVisible) {
                 clearAll();
-                dispatch(toggleActivity());
+                toggleActivity();
               }
             }}
           >

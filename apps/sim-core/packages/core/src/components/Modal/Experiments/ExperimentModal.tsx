@@ -38,7 +38,7 @@ import { ModalExit } from "../ModalExit";
 import { ModalFormEntryLabel } from "../FormEntry/ModalFormEntryLabel";
 import { ReactSelectOption } from "../../Dropdown/types";
 import { RoundedSelect } from "../../Inputs/Select/RoundedSelect";
-import { addUserAlert } from "../../../features/viewer/slice";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 import {
   convertToReactSelectOption,
   convertToReactSelectOptions,
@@ -457,6 +457,7 @@ export const ExperimentModal: FC<{
   );
   const shouldRunExperimentAfterSaving = useRef(false);
   const dispatch = useDispatch();
+  const { addUserAlert } = useViewer();
   const simulationTarget = useSimulatorSelector(selectProviderTarget);
   const [
     newSimulationTarget,
@@ -652,17 +653,15 @@ export const ExperimentModal: FC<{
       return;
     }
     console.error("experiments.json is malformed, closing modal");
-    dispatch(
-      addUserAlert({
-        type: "error",
-        message: `You can't use the Experiments visual editor because your experiments file has a typo.`,
-        context: "experiments.json",
-        timestamp: Date.now(),
-        simulationId: null,
-      })
-    );
+    addUserAlert({
+      type: "error",
+      message: `You can't use the Experiments visual editor because your experiments file has a typo.`,
+      context: "experiments.json",
+      timestamp: Date.now(),
+      simulationId: null,
+    });
     onClose();
-  }, [experiments, onClose, dispatch]);
+  }, [experiments, onClose, addUserAlert]);
 
   const hasExperiments = experiments && experiments.length > 0;
   const experimentTitles = !hasExperiments
