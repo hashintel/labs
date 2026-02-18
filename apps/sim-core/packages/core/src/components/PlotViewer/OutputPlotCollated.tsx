@@ -2,8 +2,11 @@
 // to release this. Burn this file soon (written on 2021-03-09)
 
 import React, { FC, useEffect, useMemo, useRef, useState } from "react";
-import Plot, { Figure } from "react-plotly.js";
-import * as Plotly from "plotly.js";
+import createPlotlyComponent from "react-plotly.js/factory";
+import type { Figure } from "react-plotly.js";
+import Plotly from "plotly.js-dist-min";
+
+const Plot = createPlotlyComponent(Plotly);
 
 import { IconSpinner } from "../Icon";
 import { OutputPlotProps } from "./types";

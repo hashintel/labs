@@ -1,5 +1,5 @@
 import { MouseEvent } from "react";
-import { PlotParams } from "react-plotly.js";
+import type { PlotParams } from "react-plotly.js";
 
 import { AnalysisMode } from "../../features/simulator/simulate/enum";
 import { ReactSelectOption } from "../Dropdown/types";

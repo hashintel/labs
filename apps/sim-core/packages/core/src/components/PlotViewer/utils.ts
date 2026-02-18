@@ -1,5 +1,5 @@
 import * as m from "monocle-ts";
-import type { Color, Datum, PlotData, ScatterLine } from "plotly.js";
+import type { Color, Datum, PlotData, ScatterLine } from "plotly.js-dist-min";
 import {
   DatumKeys,
   HashDatum,

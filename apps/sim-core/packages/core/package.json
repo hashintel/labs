@@ -24,6 +24,7 @@
     "test:e2e:ui": "playwright test --config=tests/e2e/playwright.config.ts --ui",
     "test:e2e:headed": "playwright test --config=tests/e2e/playwright.config.ts --headed",
     "test:e2e:debug": "playwright test --config=tests/e2e/playwright.config.ts --debug",
+    "test:e2e:build": "cross-env E2E_USE_BUILD=1 playwright test --config=tests/e2e/playwright.config.ts",
     "test:all": "jest --forceExit --testPathIgnorePatterns '/node_modules/|/tests/e2e/' && playwright test --config=tests/e2e/playwright.config.ts"
   },
   "jest": {
@@ -95,7 +96,7 @@
     "monaco-themes": "0.3.3",
     "monocle-ts": "2.3.5",
     "neverthrow": "4.2.1",
-    "plotly.js": "1.57.1",
+    "plotly.js-dist-min": "^3.3.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-dropzone": "11.2.4",
@@ -104,7 +105,7 @@
     "react-mapbox-gl": "5.1.1",
     "react-markdown": "5.0.3",
     "react-modal-hook": "3.0.0",
-    "react-plotly.js": "2.5.0",
+    "react-plotly.js": "^2.6.0",
     "react-promise-suspense": "0.3.3",
     "react-redux": "7.2.4",
     "react-select": "3.1.0",
@@ -138,6 +139,7 @@
     "@testing-library/user-event": "^14.5.1",
     "@types/js-levenshtein": "^1.1.1",
     "@types/line-column": "^1.0.0",
+    "@types/plotly.js-dist-min": "^2.3.4",
     "@vitejs/plugin-react": "^5.1.4",
     "autoprefixer": "10.0.2",
     "dotenv": "^16.3.1",

@@ -89,6 +89,15 @@ export async function waitForAppLoad(page: Page): Promise<void> {
     timeout: 30000,
   });
 
+  // Fail fast if the app crashed (error boundary is showing)
+  const errorBoundary = page.locator(SELECTORS.errorBoundary);
+  if ((await errorBoundary.count()) > 0) {
+    const bodyText = await page.locator("body").textContent();
+    throw new Error(
+      `App hit error boundary during load: ${bodyText?.substring(0, 500) ?? "unknown"}`
+    );
+  }
+
   // Wait for any loading indicators to disappear
   const loadingIndicator = page.locator(SELECTORS.loadingIndicator);
   if ((await loadingIndicator.count()) > 0) {

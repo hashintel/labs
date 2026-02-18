@@ -10,8 +10,11 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Run with: yarn test:e2e
  *
+ * By default E2E uses the dev server (yarn serve). For production-build
+ * runs set E2E_USE_BUILD=1 or use yarn test:e2e:build.
+ *
  * IMPORTANT: Tests run sequentially with 1 worker to avoid overwhelming
- * the dev server and the host machine. The WASM simulation engine and
+ * the server and the host machine. The WASM simulation engine and
  * WebGL 3D viewer are resource-intensive; parallel workers cause freezes.
  */
 export default defineConfig({
@@ -72,13 +75,17 @@ export default defineConfig({
     timeout: 10000,
   },
 
-  /* Run local dev server before starting the tests */
+  /* Dev server by default; set E2E_USE_BUILD=1 for production build + preview */
   webServer: {
-    command: "yarn serve",
+    command:
+      process.env.E2E_USE_BUILD === "1"
+        ? "yarn build && vite preview"
+        : "yarn serve",
     cwd: __dirname.replace(/[\\\/]tests[\\\/]e2e$/, ""), // Run from packages/core directory
     url: "http://localhost:8080",
     reuseExistingServer: !process.env.CI,
-    timeout: 120000, // 2 minutes for WASM compilation
+    timeout:
+      process.env.E2E_USE_BUILD === "1" ? 300000 : 120000, // build is slower
     stdout: "pipe",
     stderr: "pipe",
   },

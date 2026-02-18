@@ -1,4 +1,4 @@
-import { PlotParams } from "react-plotly.js";
+import type { PlotParams } from "react-plotly.js";
 
 export type PlotViewerProps = {
   currentStep: number;

@@ -54,6 +54,11 @@ export default defineConfig(({ mode }) => {
         "lodash.omit": "lodash-es/omit",
         "lodash.pick": "lodash-es/pick",
         "@juggle/resize-observer$": "empty-module",
+        // Force CJS build: the ESM build (lib-esm) has mixed require() calls
+        // and assigns to the mapbox-gl namespace import, both invalid in ESM.
+        // CJS uses __importStar which creates a writable object, so the
+        // accessToken assignment works and esbuild can pre-bundle it cleanly.
+        "react-mapbox-gl": "react-mapbox-gl/lib/index.js",
       },
     },
     define: {
@@ -76,6 +81,10 @@ export default defineConfig(({ mode }) => {
       // SPA fallback — equivalent to webpack historyApiFallback
       // Vite does this automatically for the dev server
     },
+    preview: {
+      port: 8080,
+      // Match dev server port so E2E can use same baseURL for build+preview
+    },
     build: {
       outDir: "dist",
       rollupOptions: {
@@ -88,28 +97,27 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       exclude: [
         "@hashintel/engine-web",
-        // react-mapbox-gl ESM assigns to mapbox-gl import (invalid ESM);
-        // exclude from optimizer so it's served via Vite's CJS transform
-        "react-mapbox-gl",
         // drei must go through Vite transform (not esbuild optimizer)
         // so the fix-drei-stats plugin can rewrite its stats.min import
         "drei",
-        // plotly.js accesses document during module init which fails
-        // when pre-bundled by esbuild; serve through normal Vite transform
-        "plotly.js",
+        // react-plotly.js main entry pulls in all of plotly.js at module
+        // scope. Source files use the factory pattern with plotly.js-dist-min
+        // instead (the officially recommended Vite-compatible approach).
         "react-plotly.js",
       ],
       include: [
-        // Pre-bundle these deps upfront to avoid mid-session discovery
-        // that triggers page reloads and race conditions on cold cache.
-        // plotly.js excluded from include: its module-level code accesses
-        // document via a chain that fails when pre-bundled by esbuild.
-        // Loaded on-demand through normal Vite transform instead.
+        // Pre-bundle deps upfront so esbuild handles CJS↔ESM conversion
+        // and avoids mid-session discovery that triggers page reloads.
+        "react-mapbox-gl",
+        "deep-equal",
+        "react-plotly.js/factory",
+        "plotly.js-dist-min",
+        "lodash.omit",
+        "lodash.pick",
         "stats.js",
         "bowser",
         "jstat",
         "mapbox-gl",
-        // react-mapbox-gl transitive deps need optimization
         "@turf/bbox",
         "@turf/helpers",
         "promise-worker-transferable",
