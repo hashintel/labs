@@ -1,8 +1,7 @@
 import React, { FC, useMemo } from "react";
 import { ArrowHelper, Vector3 } from "three";
-import { useRecoilValue } from "recoil";
 
-import * as sceneState from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { RenderSummary } from "../util/anim";
 
 type NetworkEdgesProps = {
@@ -37,9 +36,7 @@ const isValidNetworkArray = (value: unknown): value is string[] =>
  * @todo Animate the transition between an arrow's previous position and its new one. Can use AgentMesh's useFrame (specifically, the position section) as a reference.
  */
 export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
-  // Which agents are hovered or selected? We'll highlight connected lines
-  const hoveredAgentId = useRecoilValue(sceneState.HoveredAgent);
-  const selectedAgents = useRecoilValue(sceneState.SelectedAgentIds);
+  const { hoveredAgent: hoveredAgentId, selectedAgentIds: selectedAgents } = useSceneContext();
   const selectedAgentIds = Object.keys(selectedAgents);
   const highlightedAgents = [hoveredAgentId, ...selectedAgentIds].filter(
     Boolean

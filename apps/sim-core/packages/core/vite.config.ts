@@ -103,7 +103,6 @@ export default defineConfig(({ mode }) => {
         "@turf/helpers",
         "promise-worker-transferable",
         "promise-worker-transferable/register",
-        "recoil",
         "react-shepherd",
         "@reduxjs/toolkit",
         "react-redux",

@@ -1,9 +1,8 @@
 import React, { FC } from "react";
 import * as THREE from "three";
 import { Vec3 } from "@hashintel/engine-web";
-import { useRecoilState } from "recoil";
 
-import * as sceneState from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { RenderSummary } from "../util/anim";
 
 const tempObject = new THREE.Object3D();
@@ -16,7 +15,7 @@ type HoveredAgentProps = {
  * Creates the appropriate ThreeJS representation of a "hovered" agent
  */
 export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
-  const [hoveredAgentId] = useRecoilState(sceneState.HoveredAgent);
+  const { hoveredAgent: hoveredAgentId } = useSceneContext();
 
   if (hoveredAgentId) {
     // HoveredAgentID might be stale (cursor improperly focused and ID gets outdated)

@@ -4,14 +4,8 @@ import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Json, SerializableAgentState } from "@hashintel/engine-web";
 import { Stats } from "@react-three/drei";
-import {
-  useRecoilBridgeAcrossReactRoots_UNSTABLE,
-  useRecoilCallback,
-  useRecoilState,
-  useRecoilValue,
-} from "recoil";
 
-import * as SceneState from "./state/SceneState";
+import { useSceneContext } from "./state/SceneContext";
 import { AgentRenderer } from "./components/AgentRenderer";
 import { HoveredAgent } from "./components/HoveredAgent";
 import { NetworkEdges } from "./components/NetworkEdges";
@@ -19,9 +13,7 @@ import { SceneSettings } from "./components/SceneSettings";
 import { SimulationViewerLazyTab } from "../SimulationViewer/LazyTab/SimulationViewerLazyTab";
 import { ViewerControls, orthoCamera } from "./components/Controls";
 import { ViewerStage } from "./components/Stage";
-import { resetViewer } from "./state/resetViewer";
 import { selectEmbedded } from "../../features/viewer/selectors";
-import { updateTransitionMap } from "./state/updateTransitionMap";
 
 import "./AgentScene.css";
 
@@ -41,34 +33,24 @@ export type SimulationStepProps = {
 
 THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
-/**
- * Provide some reducers/callbacks to modify groups of agent state
- */
-const use3DViewer = () => {
-  // No deps forces it to permanently memoize and therefore be free
-  return {
-    updateTransitionMap: useRecoilCallback(updateTransitionMap, []),
-    resetViewer: useRecoilCallback(resetViewer, []),
-  };
-};
-
 export const AgentScene = ({
   simulationStep,
   resetting,
   errored,
   simulationRunId,
 }: SimulationStepProps) => {
-  const [mappedTransitions, setMappedTransitions] = useRecoilState(
-    SceneState.MappedTransitions
-  );
+  const {
+    mappedTransitions,
+    setMappedTransitions,
+    statsEnabled: showStats,
+    updatesEnabled,
+    edgesEnabled,
+    sampleLevel,
+    updateTransitionMap,
+    resetViewer,
+  } = useSceneContext();
 
-  // Stats element
-  const showStats = useRecoilValue(SceneState.StatsEnabled);
   const statsContainerRef = useRef(null);
-
-  const updatesEnabled = useRecoilValue(SceneState.UpdatesEnabled);
-  const edgesEnabled = useRecoilValue(SceneState.EdgesEnabled);
-  const sampleLevel = useRecoilValue(SceneState.SampleLevel);
 
   const embedded = useSelector(selectEmbedded);
 
@@ -83,7 +65,6 @@ export const AgentScene = ({
     stageUpdateChainRef.current = Promise.resolve();
   }
 
-  const { resetViewer, updateTransitionMap } = use3DViewer();
   useEffect(() => {
     if (resetting) {
       stageUpdateChainRef.current = stageUpdateChainRef.current
@@ -119,15 +100,6 @@ export const AgentScene = ({
         );
     }
   }, [resetting, simulationStep, updateTransitionMap]);
-
-  /*
-  # Hold up
-
-  Recoil is *designed* for react-three-fiber, but the context will need to
-  be bridged if it tries to exist in an isolated reconciler (the Canvas object).
-  https://github.com/facebookexperimental/Recoil/commit/2b1cd3a8576b96e15f985ddb729b66b0ea3bace9
-  */
-  const RecoilBridge = useRecoilBridgeAcrossReactRoots_UNSTABLE();
 
   if (simulationRunId && !simulationStep && !errored) {
     return <SimulationViewerLazyTab />;
@@ -170,7 +142,6 @@ export const AgentScene = ({
         onCreated={({ gl }) => gl.setClearColor("#0e0d15")}
         invalidateFrameloop={!updatesEnabled}
       >
-        <RecoilBridge>
           <fog args={["white", 50000, 3000000]} attach="fog" />
           <ViewerControls
             mappedTransitions={mappedTransitions}
@@ -184,7 +155,6 @@ export const AgentScene = ({
           <ViewerStage />
           <AgentRenderer mappedTransitions={mappedTransitions} />
           <HoveredAgent transitions={mappedTransitions} />
-        </RecoilBridge>
       </Canvas>
       {!embedded && <SceneSettings />}
     </div>

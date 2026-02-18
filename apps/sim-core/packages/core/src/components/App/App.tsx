@@ -2,11 +2,11 @@ import React, { FC, PropsWithChildren } from "react";
 import { Provider } from "react-redux";
 import { ModalProvider } from "react-modal-hook";
 import { Store } from "@reduxjs/toolkit";
-import { RecoilRoot } from "recoil";
 
 import { ErrorBoundary } from "../ErrorBoundary";
 import { FontsPreloader } from "../FontsPreloader";
 import { MonacoContainerProvider } from "../TabbedEditor/hooks";
+import { SceneProvider } from "../AgentScene/state/SceneContext";
 import { SimulatorProvider } from "../../features/simulator/context";
 
 import "./App.css";
@@ -16,10 +16,10 @@ type AppProps = PropsWithChildren<{
 }>;
 
 export const App: FC<AppProps> = ({ store, children }) => (
-  <RecoilRoot>
-    <ErrorBoundary>
-      <Provider store={store}>
-        <SimulatorProvider>
+  <ErrorBoundary>
+    <Provider store={store}>
+      <SimulatorProvider>
+        <SceneProvider>
           <ModalProvider>
             <FontsPreloader>
               <MonacoContainerProvider>
@@ -27,8 +27,8 @@ export const App: FC<AppProps> = ({ store, children }) => (
               </MonacoContainerProvider>
             </FontsPreloader>
           </ModalProvider>
-        </SimulatorProvider>
-      </Provider>
-    </ErrorBoundary>
-  </RecoilRoot>
+        </SceneProvider>
+      </SimulatorProvider>
+    </Provider>
+  </ErrorBoundary>
 );

@@ -372,7 +372,7 @@ const MyComponent = () => {
 | `@material-ui/lab` | ⚠️ Renamed/Deprecated | `@mui/lab` 5.x |
 | `react-three-fiber` 5.0.6 | ✅ Migrated | `@react-three/fiber` 8.18.0 |
 | `drei` 1.5.7 | ✅ Migrated | `@react-three/drei` 9.122.0 |
-| `recoil` 0.4.1 | ⚠️ Unused | **Remove** (part of Redux removal) |
+| `recoil` 0.4.1 | ✅ Removed | Replaced with React Context (`SceneContext.tsx`) |
 
 **Action Items**:
 - [x] Replace `hookrouter` with custom `usePathRouter` + `navigate` utilities
@@ -381,7 +381,7 @@ const MyComponent = () => {
 - [x] Migrate `react-three-fiber` 5.0.6 to `@react-three/fiber` 8.18.0
 - [x] Migrate `drei` 1.5.7 to `@react-three/drei` 9.122.0
 - [x] Upgrade `three` 0.119.1 to 0.170.0
-- [ ] Remove `recoil` (defer: 13/13 files are in AgentScene, do with three.js migration)
+- [x] Remove `recoil` 0.4.1 (replaced with React Context in SceneContext.tsx)
 
 ### ✅ Done: Build Tooling — Migrate Webpack 4 → Vite
 

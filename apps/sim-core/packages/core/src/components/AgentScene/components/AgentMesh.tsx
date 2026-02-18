@@ -3,9 +3,8 @@ import { useFrame } from "@react-three/fiber";
 import usePromise from "react-promise-suspense";
 import * as THREE from "three";
 import { BufferGeometry, InstancedBufferAttribute } from "three";
-import { useRecoilState, useRecoilValue } from "recoil";
 
-import * as sceneState from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { RawGeometry, loadGeometryMesh } from "../util/geometry-loader";
 import { lerpAnimValue } from "../util/anim";
 
@@ -27,16 +26,15 @@ tempObject.up = new THREE.Vector3(0, 0, 1);
 export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
   const ref = useRef<THREE.InstancedMesh>();
 
-  const [hoveredAgentId, setHoveredAgentIds] = useRecoilState(
-    sceneState.HoveredAgent
-  );
-  const [selectedAgentIds, setSelectedAgentIds] = useRecoilState(
-    sceneState.SelectedAgentIds
-  );
+  const {
+    hoveredAgent: hoveredAgentId,
+    setHoveredAgent: setHoveredAgentIds,
+    selectedAgentIds,
+    setSelectedAgentIds,
+    getShapedMeshesEntries,
+  } = useSceneContext();
 
-  // Only update the render agents when agents changes
-  const renderAgents =
-    useRecoilValue(sceneState.ShapedMeshesEntries(meshId)) ?? {};
+  const renderAgents = getShapedMeshesEntries(meshId) ?? {};
   const numMeshes = renderAgents.length;
   const bufferedMeshCount = getMeshCount(numMeshes, meshId);
 

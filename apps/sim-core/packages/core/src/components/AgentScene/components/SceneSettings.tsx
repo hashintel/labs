@@ -1,47 +1,31 @@
 import React, { FC } from "react";
-import { useRecoilState } from "recoil";
 
-import {
-  AxesEnabled,
-  EdgesEnabled,
-  FloorEnabled,
-  GridColor,
-  GridEnabled,
-  SampleLevel,
-  SceneView,
-  StageColor,
-  StatsEnabled,
-  UpdatesEnabled,
-} from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { CheckboxInput } from "../../Inputs/Checkbox/CheckboxInput";
 import { IconSettings } from "../../Icon/Settings";
 import { SimpleTooltip } from "../../SimpleTooltip";
 import { TextOrNumberInput } from "../../Inputs";
 
 export const SceneSettings: FC = () => {
-  const [floorEnabled, setFloorEnabled] = useRecoilState(FloorEnabled);
+  const {
+    floorEnabled, setFloorEnabled,
+    gridEnabled, setGridEnabled,
+    axesEnabled, setAxesEnabled,
+    statsEnabled, setStatsEnabled,
+    edgesEnabled, setEdgesEnabled,
+    updatesEnabled, setUpdatesEnabled,
+    sceneView: view, setSceneView: setView,
+    stageColor, setStageColor,
+    gridColor, setGridColor,
+  } = useSceneContext();
+
   const toggleStage = () => setFloorEnabled(!floorEnabled);
-
-  const [gridEnabled, setGridEnabled] = useRecoilState(GridEnabled);
   const toggleGrid = () => setGridEnabled(!gridEnabled);
-
-  const [axesEnabled, setAxesEnabled] = useRecoilState(AxesEnabled);
   const toggleAxes = () => setAxesEnabled(!axesEnabled);
-
-  const [statsEnabled, setStatsEnabled] = useRecoilState(StatsEnabled);
   const toggleStats = () => setStatsEnabled(!statsEnabled);
-
-  const [edgesEnabled, setEdgesEnabled] = useRecoilState(EdgesEnabled);
   const toggleEdges = () => setEdgesEnabled(!edgesEnabled);
-
-  const [updatesEnabled, setUpdatesEnabled] = useRecoilState(UpdatesEnabled);
   const toggleUpdates = () => setUpdatesEnabled(!updatesEnabled);
-
-  const [view, setView] = useRecoilState(SceneView);
   const toggleView = () => setView(view === "2d" ? "3d" : "2d");
-
-  const [stageColor, setStageColor] = useRecoilState(StageColor);
-  const [gridColor, setGridColor] = useRecoilState(GridColor);
 
   return (
     <div className="SceneSettings">
@@ -135,7 +119,7 @@ const Toggler: FC<{
 };
 
 const SampleLevelSlider: FC = () => {
-  const [sampleLevel, setSampleLevel] = useRecoilState(SampleLevel);
+  const { sampleLevel, setSampleLevel } = useSceneContext();
   return (
     <div className="SceneSettings__SettingRow">
       <TextOrNumberInput
