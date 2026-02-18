@@ -56,7 +56,9 @@ export default defineConfig(({ mode }) => {
     },
     css: {
       preprocessorOptions: {
-        scss: {},
+        scss: {
+          silenceDeprecations: ["color-functions", "global-builtin", "slash-div"],
+        },
       },
     },
     server: {

@@ -87,6 +87,6 @@ export default defineConfig({
     timeout:
       process.env.E2E_USE_BUILD === "1" ? 300000 : 120000, // build is slower
     stdout: "pipe",
-    stderr: "pipe",
+    stderr: "ignore",
   },
 });

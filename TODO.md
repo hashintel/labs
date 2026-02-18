@@ -234,9 +234,16 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 - ~~`recoil` (unused/redundant)~~ ✅ Removed
 - `rxjs` (if only used for Redux store sync)
 
-**Redux Slices Removed**:
-- ✅ `search` — replaced with `SearchContext` (React Context)
-- Remaining: `examples`, `toast`, `user`, `viewer`, `files`, `project` + simulator store
+**Redux Slice Migration Progress**:
+- [x] `search` (4 consumers) → `SearchContext` — fully removed from Redux
+- [x] `viewer` (22 consumers) → `ViewerContext` — consumers migrated, reducer kept for cross-slice deps
+- [ ] `user` (15 consumers) → migrate to context
+- [ ] `toast` (4 consumers) → migrate (depends on project state)
+- [ ] `examples` (2 consumers) → migrate (depends on user state)
+- [ ] `files` (80 consumers) → migrate to context
+- [ ] `project` (88 consumers) → migrate to context
+- [ ] `simulator` store (35 consumers) → migrate to context
+- [ ] Remove Redux packages (`@reduxjs/toolkit`, `react-redux`, `rxjs`) + infrastructure files
 
 **Packages to Add**:
 - None (React 18 built-ins are sufficient)
@@ -437,6 +444,13 @@ const MyComponent = () => {
 | `@deck.gl/core` | 8.3.7 | 8.9+ | |
 | `graphql` | 15.5.0 | 16.8+ | Major version |
 | `date-fns` | 2.17.0 | 3.3+ | Major version |
+
+### 🟡 Medium: Build/Dev Optimizations
+
+- [x] Silence SCSS deprecation warnings (silenceDeprecations in vite.config.ts)
+- [x] Fix `?? false` esbuild warning in Analysis/modals.ts
+- [x] Suppress Playwright webServer stderr for cleaner E2E output
+- [ ] Add `serve:quiet` script (`vite --logLevel error`) for minimal-output dev server
 
 ### 🟡 Medium: Testing Infrastructure
 

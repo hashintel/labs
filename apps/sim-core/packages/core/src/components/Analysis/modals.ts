@@ -270,7 +270,7 @@ export const transformPlotDataBasedOnChartType = (
       const hasMagicStepsKey =
         input.data?.xitems.length === 1 &&
         input.data.xitems[0].metric === MAGIC_STEPS_KEY;
-      const hasYItems = input.data?.yitems.length > 0 ?? false;
+      const hasYItems = (input.data?.yitems.length ?? 0) > 0;
       const hasXItems = hasMagicStepsKey
         ? false
         : input.data?.xitems.length > 0;
