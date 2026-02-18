@@ -237,13 +237,19 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 **Redux Slice Migration Progress**:
 - [x] `search` (4 consumers) → `SearchContext` — fully removed from Redux
 - [x] `viewer` (22 consumers) → `ViewerContext` — consumers migrated, reducer kept for cross-slice deps
-- [ ] `user` (15 consumers) → migrate to context
-- [ ] `toast` (4 consumers) → migrate (depends on project state)
-- [ ] `examples` (2 consumers) → migrate (depends on user state)
-- [ ] `files` (80 consumers) → migrate to context
-- [ ] `project` (88 consumers) → migrate to context
-- [ ] `simulator` store (35 consumers) → migrate to context
+- [x] `user` (15 consumers) → `UserContext` — facade over Redux, all consumers migrated
+- [x] `toast` (4 consumers) → `ToastContext` — facade over Redux, all consumers migrated
+- [x] `examples` (2 consumers) → `ExamplesContext` — facade over Redux, all consumers migrated
+- [x] `project` (88 consumers) → `ProjectContext` — facade over Redux, all consumers migrated
+- [x] `files` (80 consumers) → `FilesContext` — facade over Redux, all consumers migrated
+- [x] `simulator` store (35 consumers) → already uses context hooks (`useSimulatorSelector`/`useSimulatorDispatch`)
+- [ ] Swap context facade internals from Redux to pure React state (useReducer)
+- [ ] Rebuild scopes system as context-aware hooks
+- [ ] Rebuild localStorage persistence and auto-save as useEffect hooks
+- [ ] Convert simulator middleware and subscribers to useEffect hooks
+- [ ] Replace cross-store RxJS sync with context-based communication
 - [ ] Remove Redux packages (`@reduxjs/toolkit`, `react-redux`, `rxjs`) + infrastructure files
+- [ ] Re-enable `useUnknownInCatchVariables` in tsconfig
 
 **Packages to Add**:
 - None (React 18 built-ins are sufficient)
