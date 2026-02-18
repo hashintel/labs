@@ -146,6 +146,36 @@ export async function doctorCommand() {
     }
   }
 
+  // Recursively scan all managed profile content for broken symlinks.
+  const contentDir = config.getContentDir();
+  const brokenSymlinks = await config.findBrokenSymlinks(contentDir);
+  if (brokenSymlinks.length > 0) {
+    issues.push(`Managed content: ${brokenSymlinks.length} broken symlink(s) found`);
+
+    for (const link of brokenSymlinks) {
+      const relativePath = path.relative(contentDir, link.linkPath);
+      issues.push(`Broken symlink: ${relativePath} -> ${link.target}`);
+    }
+
+    const shouldRemove = await confirm({
+      message: `Remove ${brokenSymlinks.length} broken symlink(s) found under managed content?`,
+      initialValue: false,
+    });
+
+    if (shouldRemove) {
+      for (const link of brokenSymlinks) {
+        try {
+          await fs.unlink(link.linkPath);
+          const relativePath = path.relative(contentDir, link.linkPath);
+          fixes.push(`Removed broken symlink ${relativePath}`);
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error(color.red(`  Error removing broken symlink ${link.linkPath}: ${msg}`));
+        }
+      }
+    }
+  }
+
   // Summary
   console.log(color.bold('\n📋 Summary\n'));
   if (issues.length === 0) {

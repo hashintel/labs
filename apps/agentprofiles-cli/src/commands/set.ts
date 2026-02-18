@@ -10,6 +10,8 @@ import { promptForAgent } from '../lib/prompts.js';
 async function batchSwitchAll(profileName: string): Promise<void> {
   const config = new ConfigManager();
   await config.init();
+  const resolvedProfileName =
+    profileName === 'base' || profileName === 'unset' ? BASE_PROFILE_SLUG : profileName;
 
   const results = {
     switched: [] as string[],
@@ -28,15 +30,15 @@ async function batchSwitchAll(profileName: string): Promise<void> {
 
       // Check if profile exists for this agent
       const profiles = await config.getProfiles(agent);
-      const profileExists = profiles.some((p) => p.slug === profileName);
+      const profileExists = profiles.some((p) => p.slug === resolvedProfileName);
 
       if (!profileExists) {
-        results.skipped.push(`${agent} (profile '${profileName}' not found)`);
+        results.skipped.push(`${agent} (profile '${resolvedProfileName}' not found)`);
         continue;
       }
 
       // Switch the profile
-      await config.switchProfile(agent, profileName);
+      await config.switchProfile(agent, resolvedProfileName);
       results.switched.push(agent);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -61,7 +63,9 @@ async function batchSwitchAll(profileName: string): Promise<void> {
     process.exit(1);
   }
 
-  outro(`Activated ${color.cyan(profileName)} profile for ${results.switched.length} agent(s).`);
+  outro(
+    `Activated ${color.cyan(resolvedProfileName)} profile for ${results.switched.length} agent(s).`
+  );
 }
 
 export async function setCommand(agent?: string, name?: string) {
@@ -117,13 +121,21 @@ export async function setCommand(agent?: string, name?: string) {
       note(`Created profile ${color.cyan(newName)}`, 'Profile Created');
       resolvedName = slugify(newName);
     } else {
+      const selectableProfiles = profiles.filter((p) => p.slug !== BASE_PROFILE_SLUG);
       const response = await select({
         message: 'Select a profile to activate:',
-        options: profiles.map((p) => ({
-          value: p.slug,
-          label: p.slug === BASE_PROFILE_SLUG ? 'Base profile' : p.name,
-          hint: p.slug === activeProfile ? '(active)' : p.description,
-        })),
+        options: [
+          {
+            value: BASE_PROFILE_SLUG,
+            label: 'Unset (reset to base profile)',
+            hint: activeProfile === BASE_PROFILE_SLUG ? '(active)' : 'switch to _base',
+          },
+          ...selectableProfiles.map((p) => ({
+            value: p.slug,
+            label: p.name,
+            hint: p.slug === activeProfile ? '(active)' : p.description,
+          })),
+        ],
       });
 
       if (isCancel(response)) {
@@ -134,7 +146,7 @@ export async function setCommand(agent?: string, name?: string) {
     }
   } else {
     // Handle 'base' alias for BASE_PROFILE_SLUG
-    if (resolvedName === 'base') {
+    if (resolvedName === 'base' || resolvedName === 'unset') {
       resolvedName = BASE_PROFILE_SLUG;
     } else {
       const validationError = validateProfileName(resolvedName);
@@ -152,6 +164,9 @@ export async function setCommand(agent?: string, name?: string) {
   }
 
   try {
+    if (resolvedName === BASE_PROFILE_SLUG) {
+      await config.ensureBaseProfileLayout(resolvedAgent);
+    }
     await config.switchProfile(resolvedAgent, resolvedName);
     outro(`Activated ${color.cyan(resolvedName)} profile for ${resolvedAgent}.`);
   } catch (error) {
@@ -174,7 +189,7 @@ export default defineCommand({
     },
     name: {
       type: 'positional',
-      description: 'Profile name (or "base" for base profile)',
+      description: 'Profile name (or "base"/"unset" for base profile)',
       required: false,
     },
     all: {

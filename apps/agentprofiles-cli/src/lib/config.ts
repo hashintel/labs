@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {
@@ -40,6 +41,11 @@ interface AgentLayoutDefinition {
 interface ManagedSymlinkSnapshot {
   relativePath: string;
   sourceResolvedTarget: string;
+}
+
+export interface BrokenSymlink {
+  linkPath: string;
+  target: string;
 }
 
 const AGENT_LAYOUTS: Partial<Record<keyof typeof SUPPORTED_TOOLS, AgentLayoutDefinition>> = {
@@ -136,16 +142,12 @@ async function movePath(sourcePath: string, destinationPath: string): Promise<vo
   }
 }
 
-function getXdgConfigHome(): string {
-  return process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-}
-
 function getDefaultConfigDir(): string {
   // AGENTPROFILES_CONFIG_DIR overrides everything
   if (process.env.AGENTPROFILES_CONFIG_DIR) {
     return process.env.AGENTPROFILES_CONFIG_DIR;
   }
-  return path.join(getXdgConfigHome(), 'agentprofiles');
+  return path.join(os.homedir(), '.config', 'agentprofiles');
 }
 
 export class ConfigManager {
@@ -511,6 +513,46 @@ export class ConfigManager {
 
     await walk(profileDir);
     return snapshots;
+  }
+
+  async findBrokenSymlinks(rootPath: string): Promise<BrokenSymlink[]> {
+    const broken: BrokenSymlink[] = [];
+
+    const walk = async (currentPath: string): Promise<void> => {
+      let entries: Dirent[];
+      try {
+        entries = await fs.readdir(currentPath, { withFileTypes: true });
+      } catch {
+        return;
+      }
+
+      for (const entry of entries) {
+        const absolutePath = path.join(currentPath, entry.name);
+
+        if (entry.isSymbolicLink()) {
+          const target = await readSymlinkTarget(absolutePath);
+          if (!target) {
+            broken.push({ linkPath: absolutePath, target: '(unreadable target)' });
+            continue;
+          }
+
+          try {
+            // Access through the symlink path to detect broken links.
+            await fs.access(absolutePath);
+          } catch {
+            broken.push({ linkPath: absolutePath, target });
+          }
+          continue;
+        }
+
+        if (entry.isDirectory()) {
+          await walk(absolutePath);
+        }
+      }
+    };
+
+    await walk(rootPath);
+    return broken;
   }
 
   private async materializeManagedSymlinks(

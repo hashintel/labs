@@ -75,6 +75,16 @@ describe('ConfigManager contentDir resolution', () => {
     expect(config.getContentDir()).toBe(overrideDir);
   });
 
+  it('ignores XDG_CONFIG_HOME for config dir unless AGENTPROFILES_CONFIG_DIR is set', async () => {
+    process.env.XDG_CONFIG_HOME = path.join(tmpRoot, 'xdg');
+    delete process.env.AGENTPROFILES_CONFIG_DIR;
+    delete process.env.AGENTPROFILES_CONTENT_DIR;
+
+    const config = new ConfigManager();
+
+    expect(config.getConfigDir()).toBe(path.join(os.homedir(), '.config', 'agentprofiles'));
+  });
+
   it('ensureConfigDir loads existing config.json and creates tool dirs under contentDir', async () => {
     const configDir = path.join(tmpRoot, 'config');
     const contentDir = path.join(tmpRoot, 'content');
@@ -431,6 +441,28 @@ describe('ConfigManager symlink-based profile management', () => {
 
     const status = await config.getSharedDirStatus('agents');
     expect(status).toBe('unmanaged');
+  });
+
+  it('findBrokenSymlinks recursively detects broken links in managed content', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const agentDir = path.join(contentDir, 'claude', 'work');
+    await fs.mkdir(agentDir, { recursive: true });
+
+    const validTarget = path.join(agentDir, 'settings.json');
+    const validLink = path.join(agentDir, 'settings-link.json');
+    await fs.writeFile(validTarget, '{}');
+    await fs.symlink('./settings.json', validLink);
+
+    const brokenLink = path.join(agentDir, 'missing-link.json');
+    await fs.symlink('./does-not-exist.json', brokenLink);
+
+    const broken = await config.findBrokenSymlinks(contentDir);
+
+    expect(broken.length).toBe(1);
+    expect(broken[0]?.linkPath).toBe(brokenLink);
+    expect(broken[0]?.target).toBe('./does-not-exist.json');
   });
 
   it('adoptSharedDir moves directory and creates symlink back', async () => {

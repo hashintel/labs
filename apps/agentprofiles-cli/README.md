@@ -298,7 +298,7 @@ This shows which profiles are active for each agent and the status of all symlin
 
 ### Default locations
 
-- **Config directory:** `~/.config/agentprofiles/` (or `$XDG_CONFIG_HOME/agentprofiles/`)
+- **Config directory:** `~/.config/agentprofiles/`
 - **Content directory:** Same as config directory by default
 
 ### Environment variable overrides

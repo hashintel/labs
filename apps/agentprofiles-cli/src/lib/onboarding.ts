@@ -6,15 +6,11 @@ import color from 'picocolors';
 import { ConfigManager } from './config.js';
 import { SUPPORTED_TOOLS, SHARED_DIRECTORIES, BASE_PROFILE_SLUG } from '../types/index.js';
 
-function getXdgConfigHome(): string {
-  return process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
-}
-
 function getDefaultConfigDir(): string {
   if (process.env.AGENTPROFILES_CONFIG_DIR) {
     return process.env.AGENTPROFILES_CONFIG_DIR;
   }
-  return path.join(getXdgConfigHome(), 'agentprofiles');
+  return path.join(os.homedir(), '.config', 'agentprofiles');
 }
 
 function getConfigPath(): string {

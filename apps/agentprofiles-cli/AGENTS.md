@@ -215,7 +215,6 @@ Key environment variables this tool uses:
 
 - `AGENTPROFILES_CONFIG_DIR` - Override config directory location (where `config.json` lives)
 - `AGENTPROFILES_CONTENT_DIR` - Override content directory location (where profile directories are stored)
-- `XDG_CONFIG_HOME` - Standard XDG config location (defaults to `~/.config`)
 
 The tool does **not** set agent-specific environment variables. Instead, it manages symlinks:
 
