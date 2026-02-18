@@ -49,6 +49,7 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
   await config.init();
   try {
     const profileDir = await config.createProfile(resolvedAgent, name);
+    const slug = slugify(name);
 
     // Determine source profile directory
     let sourceDir: string;
@@ -75,7 +76,6 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
       // Source exists, copy its contents to the new profile (preserving symlinks)
       await copyDirectory(sourceDir, profileDir);
       // Overwrite meta.json with the new profile's metadata
-      const slug = slugify(name);
       const metaPath = path.join(profileDir, 'meta.json');
       const meta = {
         name,
@@ -87,6 +87,9 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
     } catch {
       // Source doesn't exist, that's fine (only happens if --from not specified and _base doesn't exist)
     }
+
+    // Apply per-agent profile layout conventions (no-op for simple agents).
+    await config.ensureProfileLayout(resolvedAgent, slug);
 
     outro(`Profile created at ${color.cyan(profileDir)}`);
 
@@ -101,7 +104,6 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
     }
 
     if (shouldSwitch) {
-      const slug = slugify(name);
       await config.switchProfile(resolvedAgent, slug);
       outro(`Switched to profile ${color.cyan(name)}`);
     }

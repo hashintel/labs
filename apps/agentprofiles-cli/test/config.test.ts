@@ -139,6 +139,27 @@ describe('ConfigManager contentDir resolution', () => {
     await config2.init();
     expect(config2.getContentDir()).toBe(contentDir);
   });
+
+  it('ensureBaseProfileLayout creates _base profile scaffolds', async () => {
+    const configDir = path.join(tmpRoot, 'config');
+    const contentDir = path.join(tmpRoot, 'content');
+
+    process.env.AGENTPROFILES_CONFIG_DIR = configDir;
+    process.env.AGENTPROFILES_CONTENT_DIR = contentDir;
+
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+    await config.ensureBaseProfileLayout('claude');
+
+    const baseDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    const sharedDir = path.join(contentDir, 'claude', SHARED_PROFILE_SLUG);
+
+    await expect(fs.access(path.join(baseDir, 'meta.json'))).resolves.toBeUndefined();
+    await expect(fs.access(sharedDir)).resolves.toBeUndefined();
+
+    const cacheStat = await fs.lstat(path.join(baseDir, 'cache'));
+    expect(cacheStat.isSymbolicLink()).toBe(true);
+  });
 });
 
 describe('ConfigManager symlink-based profile management', () => {
@@ -222,6 +243,36 @@ describe('ConfigManager symlink-based profile management', () => {
     // Check that symlink points to _base
     const status = await config.getSymlinkStatus('claude');
     expect(status).toBe('active');
+  });
+
+  it('adoptExisting applies claude shared-state layout in _base', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(path.join(globalPath, 'cache'), { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'history.jsonl'), 'line one');
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"theme":"light"}');
+
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    const baseDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    const sharedDir = path.join(contentDir, 'claude', SHARED_PROFILE_SLUG);
+
+    const baseCacheStat = await fs.lstat(path.join(baseDir, 'cache'));
+    expect(baseCacheStat.isSymbolicLink()).toBe(true);
+    expect(await fs.readlink(path.join(baseDir, 'cache'))).toBe('../_shared/cache');
+
+    const baseHistoryStat = await fs.lstat(path.join(baseDir, 'history.jsonl'));
+    expect(baseHistoryStat.isSymbolicLink()).toBe(true);
+    expect(await fs.readlink(path.join(baseDir, 'history.jsonl'))).toBe('../_shared/history.jsonl');
+
+    await expect(fs.readFile(path.join(sharedDir, 'history.jsonl'), 'utf-8')).resolves.toBe(
+      'line one'
+    );
+    await expect(fs.readFile(path.join(baseDir, 'settings.json'), 'utf-8')).resolves.toBe(
+      '{"theme":"light"}'
+    );
   });
 
   it('adoptExisting throws if directory is not unmanaged', async () => {
@@ -343,6 +394,31 @@ describe('ConfigManager symlink-based profile management', () => {
     // Check that status is now unmanaged
     const status = await config.getSymlinkStatus('claude');
     expect(status).toBe('unmanaged');
+  });
+
+  it('unlinkProfile materializes managed shared symlinks before release', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(path.join(globalPath, 'cache'), { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'history.jsonl'), 'history line');
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    await config.unlinkProfile('claude');
+
+    const cachePath = path.join(globalPath, 'cache');
+    const cacheStat = await fs.lstat(cachePath);
+    expect(cacheStat.isDirectory()).toBe(true);
+    expect(cacheStat.isSymbolicLink()).toBe(false);
+
+    const historyPath = path.join(globalPath, 'history.jsonl');
+    const historyStat = await fs.lstat(historyPath);
+    expect(historyStat.isFile()).toBe(true);
+    expect(historyStat.isSymbolicLink()).toBe(false);
+    await expect(fs.readFile(historyPath, 'utf-8')).resolves.toBe('history line');
+
+    await expect(fs.access(path.join(contentDir, 'claude', BASE_PROFILE_SLUG))).rejects.toThrow();
   });
 
   it('getSharedDirStatus returns "unmanaged" for real directory', async () => {

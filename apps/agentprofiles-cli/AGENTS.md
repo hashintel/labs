@@ -4,7 +4,7 @@ Guidelines for AI agents working in this codebase.
 
 ## Project Overview
 
-**agentprofiles-cli** is a Node.js CLI tool that manages per-project configuration profiles for LLM agent tools. It creates isolated config directories for different profiles (work/personal/client) and uses symlinks to automatically activate the right profile when entering a project directory.
+**agentprofiles-cli** is a Node.js CLI tool that manages named configuration profiles for LLM agent tools. It creates isolated config directories for different profiles (work/personal/client) and switches each agent's global config symlink to the selected profile.
 
 ### Key Concepts
 
@@ -61,10 +61,10 @@ src/
 │   ├── list.ts           # List available profiles
 │   ├── remove.ts         # Remove a profile
 │   ├── rm.ts             # Alias for remove
-│   ├── set.ts            # Activate profile for current directory (creates symlinks)
+│   ├── set.ts            # Activate profile for an agent (creates symlinks)
 │   ├── setup.ts          # Initialize agentprofiles system
 │   ├── status.ts         # Show current profile status
-│   └── unset.ts          # Deactivate profile for current directory (removes symlinks)
+│   └── unset.ts          # Switch an agent to base profile
 ├── lib/                  # Shared utilities
 │   ├── config.ts         # ConfigManager class (profile CRUD, directory management)
 │   ├── symlink.ts        # Symlink creation/removal and validation
@@ -116,7 +116,7 @@ Uses Citty for argument parsing:
 export const set = defineCommand({
   meta: {
     name: 'set',
-    description: 'Set the active profile for the current directory',
+    description: 'Set the active profile for an agent',
   },
   args: {
     agent: {
@@ -240,17 +240,6 @@ The tool manages symlinks in agent global config directories:
    - Creates/updates `~/.agents` → `~/.config/agentprofiles/_agents/`
    - Accessible to all agents for shared skills, tools, etc.
 
-3. **Project tracking** - Stores active profile info in `.agentprofiles.json`:
-
-   ```json
-   {
-     "profiles": {
-       "claude": "work",
-       "opencode": "personal"
-     }
-   }
-   ```
-
 ### Adding New Agents
 
 To add support for a new agent tool:
@@ -314,7 +303,6 @@ The smoke test (`scripts/smoke.sh`) performs end-to-end testing:
 - Creates isolated config directory
 - Tests profile creation, setting, and unsetting
 - Verifies symlink creation and removal
-- Verifies `.agentprofiles.json` tracking
 - Cleans up on exit
 
 Run with `npm run smoke` (requires `npm run build` first).
@@ -352,8 +340,6 @@ Run with `npm run smoke` (requires `npm run build` first).
 5. **Shared directories**: The `_agents` directory in contentDir is symlinked to `~/.agents` for cross-agent resources
 
 6. **Random profile names**: Uses `joyful` to generate suggested profile names (e.g. `amber-fox`)
-
-7. **Project tracking**: The `.agentprofiles.json` file tracks which profiles are active per project. Commit or gitignore based on your team's needs.
 
 ## Dependencies
 

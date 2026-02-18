@@ -221,6 +221,19 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
     }
   }
 
+  // Ensure every agent has a _base profile scaffold and apply known layout conventions.
+  for (const agent of Object.keys(SUPPORTED_TOOLS)) {
+    try {
+      await config.ensureBaseProfileLayout(agent);
+    } catch (error) {
+      p.log.warn(
+        `Could not finalize base profile layout for ${agent}: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+
   // Show summary
   let summary = color.green('Setup complete!');
   if (adoptedAgents.length > 0 || adoptedSharedDirs.length > 0) {

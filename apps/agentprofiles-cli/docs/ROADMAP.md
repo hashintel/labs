@@ -224,14 +224,14 @@ so authentication and session state carry across profile switches.
 
 #### Which agents need `_shared`
 
-| Agent    | Needs `_shared` | Reason                                    |
-| -------- | --------------- | ----------------------------------------- |
-| claude   | Yes             | Stores auth tokens and session state      |
-| codex    | Yes             | Stores auth tokens in config directory    |
-| amp      | No              | XDG-compliant; state kept separately      |
-| opencode | No              | XDG-compliant; state kept separately      |
-| gemini   | TBD             | Needs investigation                       |
-| augment  | TBD             | Needs investigation                       |
+| Agent    | Needs `_shared` | Reason                                 |
+| -------- | --------------- | -------------------------------------- |
+| claude   | Yes             | Stores auth tokens and session state   |
+| codex    | Yes             | Stores auth tokens in config directory |
+| amp      | No              | XDG-compliant; state kept separately   |
+| opencode | No              | XDG-compliant; state kept separately   |
+| gemini   | TBD             | Needs investigation                    |
+| augment  | TBD             | Needs investigation                    |
 
 #### Implementation notes
 

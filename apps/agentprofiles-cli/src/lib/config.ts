@@ -6,11 +6,18 @@ import {
   Meta,
   SUPPORTED_TOOLS,
   SHARED_DIRECTORIES,
+  BASE_PROFILE_SLUG,
   SHARED_PROFILE_SLUG,
 } from '../types/index.js';
 import { validateNewProfileName, slugify, validateSlug } from './validation.js';
 import { getAgentGitignore } from './gitignore.js';
-import { readSymlinkTarget, isSymlink, atomicSymlink, moveDirectory } from './symlink.js';
+import {
+  readSymlinkTarget,
+  isSymlink,
+  atomicSymlink,
+  moveDirectory,
+  copyDirectory,
+} from './symlink.js';
 
 // Resolution order for contentDir:
 // 1. AGENTPROFILES_CONTENT_DIR environment variable
@@ -18,6 +25,116 @@ import { readSymlinkTarget, isSymlink, atomicSymlink, moveDirectory } from './sy
 // 3. Default: same as configDir
 
 export type SymlinkStatus = 'active' | 'unmanaged' | 'missing' | 'broken' | 'external';
+
+type SharedEntryKind = 'file' | 'dir';
+
+interface SharedEntryDefinition {
+  path: string;
+  kind: SharedEntryKind;
+}
+
+interface AgentLayoutDefinition {
+  sharedEntries: SharedEntryDefinition[];
+}
+
+interface ManagedSymlinkSnapshot {
+  relativePath: string;
+  sourceResolvedTarget: string;
+}
+
+const AGENT_LAYOUTS: Partial<Record<keyof typeof SUPPORTED_TOOLS, AgentLayoutDefinition>> = {
+  claude: {
+    sharedEntries: [
+      { path: 'cache', kind: 'dir' },
+      { path: 'debug', kind: 'dir' },
+      { path: 'downloads', kind: 'dir' },
+      { path: 'file-history', kind: 'dir' },
+      { path: 'history.jsonl', kind: 'file' },
+      { path: 'ide', kind: 'dir' },
+      { path: 'paste-cache', kind: 'dir' },
+      { path: 'plans', kind: 'dir' },
+      { path: 'projects', kind: 'dir' },
+      { path: 'session-env', kind: 'dir' },
+      { path: 'shell-snapshots', kind: 'dir' },
+      { path: 'stats-cache.json', kind: 'file' },
+      { path: 'statsig', kind: 'dir' },
+      { path: 'todos', kind: 'dir' },
+    ],
+  },
+  codex: {
+    sharedEntries: [
+      { path: '.codex-global-state.json', kind: 'file' },
+      { path: '.personality_migration', kind: 'file' },
+      { path: 'archived_sessions', kind: 'dir' },
+      { path: 'auth.json', kind: 'file' },
+      { path: 'history.jsonl', kind: 'file' },
+      { path: 'internal_storage.json', kind: 'file' },
+      { path: 'models_cache.json', kind: 'file' },
+      { path: 'sessions', kind: 'dir' },
+      { path: 'sqlite', kind: 'dir' },
+      { path: 'vendor_imports', kind: 'dir' },
+      { path: 'version.json', kind: 'file' },
+    ],
+  },
+};
+
+async function pathExists(targetPath: string): Promise<boolean> {
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function isSubpath(parent: string, child: string): boolean {
+  const relative = path.relative(parent, child);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+async function copyPathDereferenced(sourcePath: string, destinationPath: string): Promise<void> {
+  const linkStat = await fs.lstat(sourcePath);
+  if (linkStat.isSymbolicLink()) {
+    const linkTarget = await fs.readlink(sourcePath);
+    const resolvedTarget = path.isAbsolute(linkTarget)
+      ? linkTarget
+      : path.resolve(path.dirname(sourcePath), linkTarget);
+    await copyPathDereferenced(resolvedTarget, destinationPath);
+    return;
+  }
+
+  if (linkStat.isDirectory()) {
+    await fs.mkdir(destinationPath, { recursive: true });
+    const entries = await fs.readdir(sourcePath, { withFileTypes: true });
+    for (const entry of entries) {
+      const childSource = path.join(sourcePath, entry.name);
+      const childDestination = path.join(destinationPath, entry.name);
+      await copyPathDereferenced(childSource, childDestination);
+    }
+    return;
+  }
+
+  await fs.mkdir(path.dirname(destinationPath), { recursive: true });
+  await fs.copyFile(sourcePath, destinationPath);
+}
+
+async function movePath(sourcePath: string, destinationPath: string): Promise<void> {
+  try {
+    await fs.rename(sourcePath, destinationPath);
+  } catch (error) {
+    if (error instanceof Error && 'code' in error && error.code === 'EXDEV') {
+      const stat = await fs.lstat(sourcePath);
+      if (stat.isDirectory()) {
+        await copyDirectory(sourcePath, destinationPath);
+      } else {
+        await copyPathDereferenced(sourcePath, destinationPath);
+      }
+      await fs.rm(sourcePath, { recursive: true, force: true });
+      return;
+    }
+    throw error;
+  }
+}
 
 function getXdgConfigHome(): string {
   return process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
@@ -216,6 +333,209 @@ export class ConfigManager {
     return profileDir;
   }
 
+  private getLayoutDefinition(agent: string): AgentLayoutDefinition | null {
+    return AGENT_LAYOUTS[agent as keyof typeof AGENT_LAYOUTS] ?? null;
+  }
+
+  private async ensureReservedProfile(
+    agent: string,
+    slug: string,
+    description: string
+  ): Promise<string> {
+    const profileDir = path.join(this.contentDir, agent, slug);
+    await fs.mkdir(profileDir, { recursive: true });
+
+    const metaPath = path.join(profileDir, 'meta.json');
+    if (!(await pathExists(metaPath))) {
+      const meta: Meta = {
+        name: slug,
+        slug,
+        agent,
+        description,
+        created_at: new Date().toISOString(),
+      };
+      await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
+    }
+
+    return profileDir;
+  }
+
+  async ensureBaseProfile(agent: string): Promise<string> {
+    if (!this.tools[agent]) {
+      throw new Error(`Unsupported agent: ${agent}`);
+    }
+    return this.ensureReservedProfile(agent, BASE_PROFILE_SLUG, 'Base profile (created by setup)');
+  }
+
+  private async ensureSharedEntryInitialized(
+    entryPath: string,
+    kind: SharedEntryKind
+  ): Promise<void> {
+    if (await pathExists(entryPath)) {
+      return;
+    }
+
+    await fs.mkdir(path.dirname(entryPath), { recursive: true });
+    if (kind === 'dir') {
+      await fs.mkdir(entryPath, { recursive: true });
+      return;
+    }
+
+    await fs.writeFile(entryPath, '', { flag: 'a' });
+  }
+
+  private async ensureSymlinkTarget(linkPath: string, targetPath: string): Promise<void> {
+    try {
+      const stat = await fs.lstat(linkPath);
+      if (stat.isSymbolicLink()) {
+        const currentTarget = await fs.readlink(linkPath);
+        const currentAbsoluteTarget = path.isAbsolute(currentTarget)
+          ? currentTarget
+          : path.resolve(path.dirname(linkPath), currentTarget);
+
+        if (path.resolve(currentAbsoluteTarget) === path.resolve(targetPath)) {
+          return;
+        }
+
+        await fs.unlink(linkPath);
+      } else {
+        await fs.rm(linkPath, { recursive: true, force: true });
+      }
+    } catch {
+      // Path missing, continue.
+    }
+
+    await fs.mkdir(path.dirname(linkPath), { recursive: true });
+    const relativeTarget = path.relative(path.dirname(linkPath), targetPath);
+    await fs.symlink(relativeTarget, linkPath);
+  }
+
+  async ensureProfileLayout(agent: string, profileSlug: string): Promise<void> {
+    if (profileSlug === SHARED_PROFILE_SLUG) {
+      return;
+    }
+
+    const layout = this.getLayoutDefinition(agent);
+    if (!layout) {
+      return;
+    }
+
+    const profileDir = path.join(this.contentDir, agent, profileSlug);
+    if (!(await pathExists(profileDir))) {
+      return;
+    }
+
+    const sharedRoot = path.join(this.contentDir, agent, SHARED_PROFILE_SLUG);
+    await fs.mkdir(sharedRoot, { recursive: true });
+
+    const migrationRoot = path.join(
+      sharedRoot,
+      `_migrated-originals-${new Date().toISOString().replace(/[:.]/g, '-')}`
+    );
+    let migrationCreated = false;
+
+    for (const entry of layout.sharedEntries) {
+      const profilePath = path.join(profileDir, entry.path);
+      const sharedPath = path.join(sharedRoot, entry.path);
+
+      await fs.mkdir(path.dirname(sharedPath), { recursive: true });
+
+      let profileStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+      try {
+        profileStat = await fs.lstat(profilePath);
+      } catch {
+        profileStat = null;
+      }
+
+      const sharedExists = await pathExists(sharedPath);
+
+      if (!sharedExists) {
+        if (profileStat && !profileStat.isSymbolicLink()) {
+          await movePath(profilePath, sharedPath);
+          profileStat = null;
+        } else {
+          await this.ensureSharedEntryInitialized(sharedPath, entry.kind);
+        }
+      } else if (profileStat && !profileStat.isSymbolicLink()) {
+        if (!migrationCreated) {
+          await fs.mkdir(migrationRoot, { recursive: true });
+          migrationCreated = true;
+        }
+        const migrationPath = path.join(migrationRoot, profileSlug, entry.path);
+        await fs.mkdir(path.dirname(migrationPath), { recursive: true });
+        await movePath(profilePath, migrationPath);
+        profileStat = null;
+      }
+
+      await this.ensureSharedEntryInitialized(sharedPath, entry.kind);
+      await this.ensureSymlinkTarget(profilePath, sharedPath);
+    }
+  }
+
+  async ensureBaseProfileLayout(agent: string): Promise<void> {
+    await this.ensureBaseProfile(agent);
+    await this.ensureProfileLayout(agent, BASE_PROFILE_SLUG);
+  }
+
+  private async collectManagedSymlinks(profileDir: string): Promise<ManagedSymlinkSnapshot[]> {
+    const snapshots: ManagedSymlinkSnapshot[] = [];
+    const root = path.resolve(profileDir);
+    const contentRoot = path.resolve(this.contentDir);
+
+    const walk = async (currentDir: string): Promise<void> => {
+      const entries = await fs.readdir(currentDir, { withFileTypes: true });
+      for (const entry of entries) {
+        const absolutePath = path.join(currentDir, entry.name);
+        const relativePath = path.relative(root, absolutePath);
+
+        if (entry.isSymbolicLink()) {
+          const linkTarget = await fs.readlink(absolutePath);
+          const resolvedTarget = path.isAbsolute(linkTarget)
+            ? linkTarget
+            : path.resolve(path.dirname(absolutePath), linkTarget);
+
+          if (isSubpath(contentRoot, path.resolve(resolvedTarget))) {
+            snapshots.push({
+              relativePath,
+              sourceResolvedTarget: path.resolve(resolvedTarget),
+            });
+          }
+          continue;
+        }
+
+        if (entry.isDirectory()) {
+          await walk(absolutePath);
+        }
+      }
+    };
+
+    await walk(profileDir);
+    return snapshots;
+  }
+
+  private async materializeManagedSymlinks(
+    destinationRoot: string,
+    snapshots: ManagedSymlinkSnapshot[]
+  ): Promise<void> {
+    for (const snapshot of snapshots) {
+      const destinationPath = path.join(destinationRoot, snapshot.relativePath);
+
+      let destinationStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+      try {
+        destinationStat = await fs.lstat(destinationPath);
+      } catch {
+        destinationStat = null;
+      }
+
+      if (!destinationStat?.isSymbolicLink()) {
+        continue;
+      }
+
+      await fs.unlink(destinationPath);
+      await copyPathDereferenced(snapshot.sourceResolvedTarget, destinationPath);
+    }
+  }
+
   // ============================================================================
   // Symlink-based profile management
   // ============================================================================
@@ -313,7 +633,7 @@ export class ConfigManager {
    */
   async adoptExisting(
     agent: string,
-    profileName: string = '_base',
+    profileName: string = BASE_PROFILE_SLUG,
     options: { replaceExisting?: boolean } = {}
   ): Promise<void> {
     const globalPath = this.getGlobalConfigPath(agent);
@@ -360,6 +680,7 @@ export class ConfigManager {
 
     // Create symlink back to the profile with rollback on failure
     try {
+      await this.ensureProfileLayout(agent, profileName);
       await atomicSymlink(profileDir, globalPath);
     } catch (err) {
       // Rollback: move the directory back to its original location
@@ -381,7 +702,7 @@ export class ConfigManager {
    * Checks that the symlink exists and points to the expected profile directory.
    * Returns true if verification passes, false otherwise.
    */
-  async verifyAdoption(agent: string, profileName: string = '_base'): Promise<boolean> {
+  async verifyAdoption(agent: string, profileName: string = BASE_PROFILE_SLUG): Promise<boolean> {
     const globalPath = this.getGlobalConfigPath(agent);
     const expectedProfileDir = path.join(this.contentDir, agent, profileName);
 
@@ -454,12 +775,33 @@ export class ConfigManager {
     }
 
     const profileDir = path.join(this.contentDir, agent, activeProfile);
+    const globalParent = path.dirname(globalPath);
+    const globalBaseName = path.basename(globalPath);
+    const tempGlobalPath = path.join(globalParent, `.${globalBaseName}-release-${Date.now()}`);
 
-    // Remove the symlink
+    const managedSymlinks = await this.collectManagedSymlinks(profileDir);
+    await copyDirectory(profileDir, tempGlobalPath);
+    await this.materializeManagedSymlinks(tempGlobalPath, managedSymlinks);
+
+    // Remove the managed symlink so the global path can become a real directory.
     await fs.unlink(globalPath);
 
-    // Move profile contents back to global location
-    await moveDirectory(profileDir, globalPath);
+    try {
+      await fs.rename(tempGlobalPath, globalPath);
+    } catch (error) {
+      await fs.rm(tempGlobalPath, { recursive: true, force: true });
+      try {
+        await atomicSymlink(profileDir, globalPath);
+      } catch (restoreError) {
+        throw new Error(
+          `Failed to restore original symlink after release error: ${restoreError instanceof Error ? restoreError.message : String(restoreError)}`
+        );
+      }
+      throw error;
+    }
+
+    // Remove profile from managed content after successful release.
+    await fs.rm(profileDir, { recursive: true, force: true });
   }
 
   // ============================================================================

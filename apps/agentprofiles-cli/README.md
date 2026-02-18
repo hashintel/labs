@@ -1,6 +1,6 @@
 # agentprofiles-cli
 
-**Manage per-project configuration profiles for LLM agent tools.**
+**Manage named configuration profiles for LLM agent tools.**
 
 Supports 6 agents: [Claude Code](https://claude.ai/code), [Amp](https://amp.dev/), [OpenCode](https://opencode.ai/), [Codex](https://codex.dev/), [Gemini](https://gemini.google.com/), and [Augment](https://augment.dev/).
 
@@ -18,7 +18,7 @@ You use AI coding assistants. You have multiple contexts where you work—person
 - You can't add symlinks to each project's dotfiles—that's not portable across projects with similar needs.
 - You don't want to remember to update symlinks before launching your editor every time.
 
-**agentprofiles-cli solves this.** It gives you named profiles, stores them centrally, and automatically activates the right profile when you enter a project directory using symlinks.
+**agentprofiles-cli solves this.** It gives you named profiles, stores them centrally, and switches each agent's global config symlink to the profile you choose.
 
 ```sh
 # Create profiles once
@@ -26,15 +26,12 @@ agentprofiles add claude work
 agentprofiles add claude personal
 agentprofiles add opencode work
 
-# Activate per-project
-cd ~/work/client-project
+# Activate when needed
 agentprofiles set claude work
 agentprofiles set opencode work
 
-cd ~/personal/side-project
+# Switch to a different context
 agentprofiles set claude personal
-
-# Now "cd" handles everything. Enter a directory, get the right profiles.
 ```
 
 ---
@@ -79,7 +76,7 @@ Fair question. You could manage this yourself with handwritten symlinks. agentpr
 
 - **Named profiles** you can list, create, and remove
 - **Consistent file structure** without thinking about it
-- **Automatic activation** when you enter a project directory
+- **Fast profile switching** with one command
 - **Guardrails** like profile name validation and symlink verification
 - **Cross-agent support** for managing multiple tools at once
 
@@ -171,9 +168,9 @@ agentprofiles unset claude
 | `add <agent> [name]`    | Create a new profile                                |
 | `edit <agent> <name>`   | Open a profile's directory in your editor           |
 | `remove <agent> [name]` | Delete a profile (alias: `rm`)                      |
-| `set <agent> [name]`    | Activate a profile for the current directory        |
-| `unset <agent>`         | Deactivate a profile for the current directory      |
-| `status [agent]`        | Show current profile status for this directory      |
+| `set <agent> [name]`    | Activate a profile for an agent                     |
+| `unset <agent>`         | Switch an agent back to base profile                |
+| `status [agent]`        | Show current profile status                         |
 | `release <agent>`       | Stop managing an agent (restore original config)    |
 
 ### Common flags
@@ -315,7 +312,7 @@ You can also set `contentDir` in `config.json` to point to a different location.
 
 ---
 
-## Removing agentprofiles from a project
+## Removing agentprofiles from your machine
 
 To stop using agentprofiles for an agent:
 
