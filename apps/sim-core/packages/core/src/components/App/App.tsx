@@ -7,6 +7,7 @@ import { ErrorBoundary } from "../ErrorBoundary";
 import { FontsPreloader } from "../FontsPreloader";
 import { MonacoContainerProvider } from "../TabbedEditor/hooks";
 import { SceneProvider } from "../AgentScene/state/SceneContext";
+import { SearchProvider } from "../../features/search/SearchContext";
 import { SimulatorProvider } from "../../features/simulator/context";
 
 import "./App.css";
@@ -20,6 +21,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
     <Provider store={store}>
       <SimulatorProvider>
         <SceneProvider>
+          <SearchProvider>
           <ModalProvider>
             <FontsPreloader>
               <MonacoContainerProvider>
@@ -27,6 +29,7 @@ export const App: FC<AppProps> = ({ store, children }) => (
               </MonacoContainerProvider>
             </FontsPreloader>
           </ModalProvider>
+          </SearchProvider>
         </SceneProvider>
       </SimulatorProvider>
     </Provider>

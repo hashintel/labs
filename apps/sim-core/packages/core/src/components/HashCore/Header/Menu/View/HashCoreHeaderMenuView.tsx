@@ -6,7 +6,7 @@ import { LabeledInputRadio } from "../../../../LabeledInputRadio";
 import { Scope, useScope } from "../../../../../features/scopes";
 import { TabKind } from "../../../../../features/viewer/enums";
 import { getMetaCharacter } from "../../../../../hooks/useKeyboardShortcuts";
-import { openSearch } from "../../../../../features/search/slice";
+import { useSearch } from "../../../../../features/search/SearchContext";
 import {
   selectActivityVisible,
   selectEditorVisible,
@@ -37,6 +37,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
     clearAll,
   }) => {
     const dispatch = useDispatch();
+    const { openSearch } = useSearch();
     const canEdit = useScope(Scope.edit);
     const hasProject = useSelector(selectHasProject);
     const editorVisible = useSelector(selectEditorVisible);
@@ -67,7 +68,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             <a
               onClick={() => {
                 clearAll();
-                dispatch(openSearch());
+                openSearch();
               }}
             >
               {canEdit ? <>Search & Replace</> : <>Search</>}

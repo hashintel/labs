@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 import { PayloadAction } from "@reduxjs/toolkit";
 import { filter } from "rxjs/operators";
@@ -17,7 +17,7 @@ import { IconExperimentsCreate, IconFilePlus, IconMagnify } from "../../Icon";
 import { ModalNewDataset } from "../../Modal/NewDataset/ModalNewDataset";
 import { Scope, useScopes } from "../../../features/scopes";
 import { addPreparedFile } from "../../../features/files/slice";
-import { openSearch } from "../../../features/search";
+import { useSearch } from "../../../features/search/SearchContext";
 import {
   selectCurrentFileRepoPath,
   selectFolderTree,
@@ -52,7 +52,7 @@ export const HashCoreFiles: FC = () => {
     Scope.edit
   );
   const currentRepoPath = useSelector(selectCurrentFileRepoPath);
-  const dispatch = useDispatch();
+  const { openSearch } = useSearch();
 
   const showNameBehavior = useNameNewBehaviorModal();
   const [_showNewDatasetModal, hideNewDatasetModal] = useModal(
@@ -202,7 +202,7 @@ export const HashCoreFiles: FC = () => {
           title={`Search${canEdit ? " & Replace" : ""}`}
           onClick={(evt) => {
             evt.preventDefault();
-            dispatch(openSearch());
+            openSearch();
           }}
         >
           <IconMagnify />
