@@ -812,13 +812,13 @@ describe("files slice", () => {
             }
           ).entities.dependencies
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "contents": "{
-            \\"abc\\": \\"123\\",
-            \\"def\\": \\"123\\"
+            "abc": "123",
+            "def": "123"
           }",
             "id": "dependencies",
-            "path": Object {
+            "path": {
               "formatted": "dependencies.json",
             },
           }

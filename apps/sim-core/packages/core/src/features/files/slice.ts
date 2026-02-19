@@ -1058,7 +1058,7 @@ function rawReducer(state: Draft<FilesSlice>, action: any): FilesSlice | void {
       const prevState = current(state);
       return produce(filesInitialState, (newState) => {
         const {
-          meta: { replaceTabs = true, file } = {},
+          meta: { replaceTabs = true, file = undefined } = {},
           project,
         } = action.payload;
 

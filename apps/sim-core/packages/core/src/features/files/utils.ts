@@ -7,11 +7,13 @@ import {
   BehaviorKeysField,
   CommittedBehaviorKeysRoot,
   DraftBehaviorKeysRoot,
+  defaultBehaviorKeys,
   parseKeys,
   recursiveShouldSaveBehaviorKeysDraft,
   toBehaviorKeysFormat,
   toRootDraftFormat,
 } from "./behaviorKeys";
+export { defaultBehaviorKeys };
 import { Ext } from "../../util/files/enums";
 import { HcAnyDatasetFile } from "./types";
 import type {
@@ -368,12 +370,6 @@ export const behaviorKeysTopLevelRowTemplate: BehaviorKeysField = {
   type: "any",
 };
 
-export const defaultBehaviorKeys: DraftBehaviorKeysRoot = {
-  keys: toRootDraftFormat({}),
-  built_in_key_use: null,
-  dynamic_access: false,
-  _trackCreation: false,
-};
 
 /**
  * @todo type this

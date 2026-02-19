@@ -2,7 +2,6 @@ import omit from "lodash/omit";
 import { v4 as uuid } from "uuid";
 
 import { HcFileKind } from "./enums";
-import { defaultBehaviorKeys } from "./utils";
 
 type BehaviorKeysFieldShared = { nullable: boolean };
 
@@ -223,6 +222,13 @@ export const toRootDraftFormat = (
   }),
   version: DRAFT_STATE_VERSION,
 });
+
+export const defaultBehaviorKeys: DraftBehaviorKeysRoot = {
+  keys: toRootDraftFormat({}),
+  built_in_key_use: null,
+  dynamic_access: false,
+  _trackCreation: false,
+};
 
 export const parseKeys = (
   keys: string | undefined,
