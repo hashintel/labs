@@ -8,6 +8,7 @@
   "scripts": {
     "clean": "rimraf dist",
     "serve": "yarn codegen && vite",
+    "serve:quiet": "yarn codegen && vite --logLevel error",
     "prod-env": "cross-env NODE_ENV=production",
     "dev-env": "cross-env NODE_ENV=development",
     "build": "yarn codegen && vite build",

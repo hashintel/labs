@@ -260,7 +260,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
   - Only .spec.tsx test files still reference react-redux (pre-existing)
 - [x] Remove `@reduxjs/toolkit`, `react-redux` packages from package.json
 - [x] Re-enable `useUnknownInCatchVariables` in tsconfig (fixed 3 catch clauses)
-- [ ] Update .spec.tsx test files to remove react-redux usage (14 test files)
+- [x] Update .spec.tsx test files to remove react-redux usage (done with Jest 29 upgrade)
 
 **Packages to Add**:
 - None (React 18 built-ins are sufficient)
@@ -467,7 +467,7 @@ const MyComponent = () => {
 - [x] Silence SCSS deprecation warnings (silenceDeprecations in vite.config.ts)
 - [x] Fix `?? false` esbuild warning in Analysis/modals.ts
 - [x] Suppress Playwright webServer stderr for cleaner E2E output
-- [ ] Add `serve:quiet` script (`vite --logLevel error`) for minimal-output dev server
+- [x] Add `serve:quiet` script for minimal-output dev server
 
 ### 🟡 Medium: Testing Infrastructure
 
