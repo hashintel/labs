@@ -1006,8 +1006,51 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
 2. [ ] Pydantic 1.x → 2.x migration
 3. [ ] LangChain complete rewrite to 0.1.x architecture
 
+### CI/CD (assessed Feb 2026)
+
+**Current state**: Only Rust CI exists (`.github/workflows/rust.yml`). There is NO frontend CI — TypeScript errors, test failures, and build breakages are not caught automatically.
+
+#### 🔴 High: Add Frontend CI
+
+- [ ] **Create `frontend.yml` workflow**: TypeScript type check + Jest unit tests + Vite build
+  - Trigger: PRs touching `apps/sim-core/**`, pushes to `main`
+  - Steps: `yarn install`, `tsc --noEmit`, `yarn test`, `yarn build`
+  - Gate: Block PR merge if any step fails
+- [ ] **Create `e2e.yml` workflow**: Playwright E2E tests
+  - Trigger: PRs touching `apps/sim-core/**`
+  - Steps: `yarn build`, `playwright install`, `yarn test:e2e`
+  - Consider running only smoke tests on PRs, full suite on `main`
+
+#### 🟡 Medium: Deployment Pipeline
+
+- [ ] **Create `deploy.yml` workflow**: Deploy to static hosting
+  - Options: GitHub Pages, Netlify, Vercel, Cloudflare Pages
+  - Trigger: push to `main` (or manual dispatch)
+  - Remove legacy `scripts/deploy.ts` (AWS S3 deployment)
+
+#### 🟡 Medium: Clean Up Existing CI
+
+- [ ] **Update action versions** in `rust.yml`:
+  - `actions/checkout` v3 → v4
+  - `actions/setup-python` v4 → v5
+  - `Swatinem/rust-cache` v2.6 → v2.7+
+  - `taiki-e/install-action` v2.17 → v2.26+
+  - `github/codeql-action` v2 → v3
+- [ ] **Clean up Renovate config** (`.github/renovate.json`):
+  - Remove references to packages not in this repo (Block Protocol, ProseMirror, Signia, OpenTelemetry, Postgres)
+  - Remove Sentry group (Sentry already deleted)
+  - Remove team reviewers that don't exist in this repo (`team:Python`, `team:Rust`)
+  - Consider adding `ignorePaths` for `pocs/` directory
+
+#### 🟢 Low: Additional CI
+
+- [ ] **Add WASM build verification** to frontend CI (or separate workflow)
+  - Ensures `wasm-pack build` still succeeds after Rust changes
+- [ ] **Add ESLint/Prettier check** to frontend CI
+- [ ] **Add dependency audit** (`yarn audit`) as non-blocking check
+
 ### Ongoing Maintenance
-- [ ] Establish automated dependency update process (Renovate/Dependabot)
+- [x] ~~Establish automated dependency update process~~ Renovate is configured (needs cleanup)
 - [ ] Add CI checks for outdated dependencies
 - [ ] Document upgrade procedures for major dependencies
 

@@ -702,6 +702,100 @@ jobs:
 
 > **Note**: GitHub Pages doesn't natively support SPA routing. You'll need a `404.html` workaround or use a service like Netlify/Vercel instead.
 
+### CI/CD Status
+
+#### What Exists
+
+**Rust CI** (`.github/workflows/rust.yml`) — the only active workflow:
+- Triggers on PRs, pushes to `main`/`dev/**`, and merge group
+- Smart crate detection: only lints/tests crates with changed files
+- Lint: `cargo fmt --check`, `cargo clippy` (with SARIF upload to GitHub code scanning), doc checks
+- Test: `cargo nextest run`, plus miri for nightly toolchains
+- Uses `Swatinem/rust-cache` and Turbo remote caching
+- Concurrency: cancels in-progress runs for the same PR
+- Gate: `merging-enabled` job blocks merge if lint or test fails
+
+**Renovate** (`.github/renovate.json`) — dependency update bot:
+- Configured with `dependencyDashboardApproval: true` (manual approval required)
+- Groups packages by ecosystem (Jest, ESLint, GraphQL, Cargo crates, etc.)
+- Stale: references teams/packages from a parent monorepo that don't apply here (Block Protocol, ProseMirror, Sentry, OpenTelemetry)
+
+#### What's Missing
+
+There is **no CI for the frontend** (sim-core). The following are not automated:
+
+| Check | Status | Impact |
+|-------|--------|--------|
+| TypeScript type checking | Not in CI | Type errors can reach `main` |
+| Jest unit tests (310 tests) | Not in CI | Regressions go undetected |
+| Vite production build | Not in CI | Build failures go undetected |
+| Playwright E2E tests (66 tests) | Not in CI | Functional regressions go undetected |
+| ESLint / Prettier | Not in CI | Style drift |
+| WASM build (engine-web) | Not in CI | WASM compilation failures go undetected |
+| Deployment | Not in CI | Manual process only |
+
+#### Outdated Action Versions
+
+| Action | Current | Latest |
+|--------|---------|--------|
+| `actions/checkout` | v3.6.0 | v4 |
+| `actions/setup-python` | v4.7.0 | v5 |
+| `Swatinem/rust-cache` | v2.6.2 | v2.7+ |
+| `taiki-e/install-action` | v2.17.7 | v2.26+ |
+| `github/codeql-action` | v2.21.5 | v3 |
+
+#### Recommended CI Architecture
+
+```
+.github/workflows/
+├── rust.yml           # ✅ Exists — Rust lint + test
+├── frontend.yml       # 🆕 TypeScript + Jest + build
+├── e2e.yml            # 🆕 Playwright E2E tests
+└── deploy.yml         # 🆕 Static site deployment
+```
+
+**`frontend.yml`** (recommended):
+```yaml
+name: Frontend
+on:
+  pull_request:
+    paths: ['apps/sim-core/**', '!apps/sim-engine/**']
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - run: cd apps/sim-core && yarn install --frozen-lockfile
+      - run: cd apps/sim-core/packages/core && npx tsc --noEmit  # Type check
+      - run: cd apps/sim-core/packages/core && yarn test          # Jest (310 tests)
+      - run: cd apps/sim-core/packages/core && yarn build         # Vite build
+```
+
+**`e2e.yml`** (recommended):
+```yaml
+name: E2E
+on:
+  pull_request:
+    paths: ['apps/sim-core/**']
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '24' }
+      - run: cd apps/sim-core && yarn install --frozen-lockfile
+      - run: cd apps/sim-core/packages/core && yarn build
+      - run: cd apps/sim-core/packages/core && npx playwright install --with-deps
+      - run: cd apps/sim-core/packages/core && yarn test:e2e
+```
+
 ---
 
 ## sim-engine Architecture
