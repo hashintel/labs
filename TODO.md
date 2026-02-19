@@ -11,7 +11,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 | Area | Severity | Effort | Notes |
 |------|----------|--------|-------|
-| React & React Ecosystem | 🔴 Critical | High | React 16 → 18 is a major migration |
+| ~~React & React Ecosystem~~ | ✅ Done | — | React 18.2, @react-three/fiber 8, drei 9, Recoil removed |
 | ~~Redux Removal~~ | ✅ Done | — | Redux entirely removed; replaced with React Context + reduxCompat.ts |
 | ~~Feature Removal~~ | ✅ Done | — | Cloud/auth/sharing features removed |
 | ~~Sentry Removal~~ | ✅ Done | — | Sentry + FullStory analytics removed |
@@ -19,7 +19,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 | ~~Build Tooling~~ | ✅ Done | — | Migrated to Vite 7.3 |
 | ~~Rust Toolchain~~ | ✅ Done | — | Updated to nightly-2024-12-01, edition 2021 |
 | Python/LangChain | 🔴 Critical | Medium | Complete API rewrites |
-| Deprecated Packages | 🟡 Medium | Medium | hookrouter + request done; MUI, three.js, recoil remain |
+| ~~Deprecated Packages~~ | ✅ Done | — | All deprecated packages replaced or removed |
 
 ---
 
@@ -868,7 +868,12 @@ All items completed in Migration Phases above (Phases 2–5).
    - [x] Update scripts, verify build + tests
    - [x] Remove webpack infrastructure and dependencies
 4. [x] Remove `--openssl-legacy-provider` workaround (resolved by Vite migration)
-5. [ ] Update Jest 26 → 29 or migrate to Vitest
+5. [x] Update Jest 26 → 29
+   - Upgraded jest, @types/jest, babel-jest to 29.7.0
+   - Added jest-environment-jsdom, removed ts-jest
+   - Fixed ESM compatibility (nanoid, TextEncoder polyfill)
+   - Cleaned up 14 test files (removed react-redux, added context mocks)
+   - 118/119 suites pass, 310 tests pass
 
 ### Phase 4: React & State Management
 1. [x] React 16 → 17 → 18.2 migration (no legacy lifecycle blockers; createRoot migrated)
@@ -879,11 +884,11 @@ All items completed in Migration Phases above (Phases 2–5).
    - [x] All source imports migrated from RTK to reduxCompat.ts
    - [x] `@reduxjs/toolkit` and `react-redux` removed from package.json
    - [x] `useUnknownInCatchVariables` re-enabled
-   - [ ] Clean up .spec.tsx test files (14 files still use react-redux)
-3. [ ] Remove Recoil (13 files, all in AgentScene — do with three.js migration)
+   - [x] Clean up .spec.tsx test files (removed react-redux from 14 files)
+3. [x] ~~Remove Recoil~~ Already removed (replaced with SceneContext.tsx)
 4. [x] ~~@material-ui → @mui migration~~ Removed (only used by deleted staging tool)
-5. [ ] react-three-fiber → @react-three/fiber (BLOCKED: requires React 18)
-6. [ ] drei → @react-three/drei (BLOCKED: requires React 18)
+5. [x] ~~react-three-fiber → @react-three/fiber~~ Migrated to v8.18.0
+6. [x] ~~drei → @react-three/drei~~ Migrated to v9.122.0
 
 ### Phase 5: Future - GitHub Integration (Post-Migration)
 - [ ] Design GitHub OAuth flow (no HASH account)
