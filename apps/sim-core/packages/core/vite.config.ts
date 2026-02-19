@@ -106,8 +106,6 @@ export default defineConfig(({ mode }) => {
         "promise-worker-transferable",
         "promise-worker-transferable/register",
         "react-shepherd",
-        "@reduxjs/toolkit",
-        "react-redux",
         "rxjs",
         "immer",
         "@fluentui/react",
