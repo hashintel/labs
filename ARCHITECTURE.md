@@ -1,12 +1,13 @@
 # HASH Labs Architecture
 
-This document provides detailed technical architecture documentation for the HASH Labs monorepo, with a focus on **sim-core** (hCore), the React/TypeScript simulation IDE.
+This document provides detailed technical architecture documentation for the HASH Labs monorepo, with a focus on **sim-core** (hCore), a free, fully-featured, local-first simulation IDE.
 
 ## Table of Contents
 
 - [Repository Overview](#repository-overview)
 - [sim-core Architecture](#sim-core-architecture)
   - [Application Structure](#application-structure)
+  - [Build System](#build-system)
   - [State Management](#state-management)
   - [Component Architecture](#component-architecture)
   - [Engine Integration](#engine-integration)
@@ -25,7 +26,7 @@ hashintel-labs/
 ├── apps/
 │   ├── sim-core/                    # Primary: React/TypeScript simulation IDE
 │   │   ├── packages/
-│   │   │   ├── core/                # Main frontend application (1167 files)
+│   │   │   ├── core/                # Main frontend application
 │   │   │   ├── engine/              # Legacy Rust simulation engine (WASM)
 │   │   │   ├── engine-web/          # WASM bindings and TypeScript API
 │   │   │   ├── sim-engine-types/    # Shared Rust types
@@ -57,6 +58,16 @@ flowchart TB
         Boot[boot.ts]
     end
     
+    subgraph Providers[Context Providers]
+        VP[ViewerProvider]
+        UP[UserProvider]
+        PP[ProjectProvider]
+        FP[FilesProvider]
+        TP[ToastProvider]
+        EP[ExamplesProvider]
+        SP[SimulatorProvider]
+    end
+    
     subgraph Core[Core Application]
         App[App Component]
         HashRouter[HashRouter]
@@ -67,7 +78,7 @@ flowchart TB
         Editor[TabbedEditor<br/>Monaco]
         Viewer[SimulationViewer]
         Analysis[Analysis]
-        Scene[AgentScene<br/>Three.js]
+        Scene[AgentScene<br/>Three.js / R3F]
     end
     
     subgraph Controls[Simulation Controls]
@@ -77,7 +88,8 @@ flowchart TB
     end
     
     Index --> Boot
-    Boot --> App
+    Boot --> Providers
+    Providers --> App
     App --> HashRouter
     HashRouter --> HashCore
     HashCore --> Editor
@@ -90,144 +102,141 @@ flowchart TB
 
 #### Entry Points
 
-**`src/index.tsx`** - Application bootstrap:
+**`src/index.tsx`** — Application bootstrap:
 ```typescript
 // 1. Handle version caching for staging
 // 2. Call boot() to initialize services
-// 3. Render React app with Redux Provider
+// 3. Render React app wrapped in Context Providers
 ```
 
-**`src/boot.ts`** - Service initialization:
+**`src/boot.ts`** — Service initialization:
 ```typescript
 export const boot = async (forExperiments: boolean) => {
   configureTheme();                          // CSS variables
   enableMapSet();                            // Immer support
   configureMonaco();                         // Code editor
   buildSimulationProvider(forExperiments);   // WASM workers
-  syncStores(store, simulatorStore);         // Redux sync
 };
 ```
 
-> **Note**: `initSentry()` and `why-did-you-render` were removed as part of the local-first migration (Phase 1).
+### Build System
+
+sim-core uses **Vite 7** for both development and production builds:
+
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Vite | 7.3 | Dev server + production bundler (Rollup) |
+| TypeScript | 5.3 | Type checking |
+| Babel | 7 | Jest test transformation |
+| Jest | 29.7 | Unit tests (118 suites, 310 tests) |
+| Playwright | — | E2E tests (66 tests across 8 spec files) |
+| Node.js | 24 LTS | Runtime |
+
+Key config files:
+- `vite.config.ts` — Vite config with WASM, Monaco, and React plugins
+- `tsconfig.json` — TypeScript config (strict mode, `useUnknownInCatchVariables: true`)
+- `babel.config.js` — Babel presets for Jest (React, Env, TypeScript)
+- `playwright.config.ts` — E2E test configuration
 
 ### State Management
 
-sim-core uses **two Redux stores** for performance optimization - a pattern used when one store requires high-frequency updates.
+sim-core uses **React built-in state management** (Context + hooks) for all application state, with a lightweight custom store for the performance-critical simulator.
 
 ```mermaid
 flowchart LR
-    subgraph AppStore[App Store]
+    subgraph AppContexts[React Context Providers]
         direction TB
-        Files[files slice]
-        Project[project slice]
-        User[user slice]
-        ViewerSlice[viewer slice]
-        Search[search slice]
-        Toast[toast slice]
-        Examples[examples slice]
+        Files[FilesContext<br/>useReducer + Immer]
+        Project[ProjectContext<br/>useReducer]
+        User[UserContext<br/>useReducer]
+        Viewer[ViewerContext<br/>useReducer]
+        Search[SearchContext<br/>useState]
+        Toast[ToastContext<br/>useState]
+        Examples[ExamplesContext<br/>useState]
     end
     
     subgraph SimStore[Simulator Store]
         direction TB
-        Simulator[simulator slice]
+        Simulator[SimpleStore<br/>reduxCompat.ts]
+        Middleware[middleware chain]
+        Subscribers[store subscribers]
     end
     
-    subgraph Sync[Store Synchronization]
-        RxJS[RxJS Observables]
+    subgraph Sync[Context → Store Sync]
+        StoreSync[StoreSync component<br/>useEffect hooks]
     end
     
-    AppStore <--> RxJS
-    RxJS <--> SimStore
+    AppContexts --> StoreSync
+    StoreSync --> SimStore
 ```
 
-#### App Store (`src/features/store.ts`)
+#### App State (React Context)
 
-Handles general UI state with standard middleware:
+All general UI state is managed through React Context providers. Each provider is pure React with no external dependencies:
 
-```typescript
-export const store = configureStore({
-  reducer: rootReducer,  // Combined from 7 feature slices
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({ serializableCheck: { /* ... */ } })
-      .prepend([queueMiddleware])        // Action queuing
-      .concat([
-        localStorageMiddleware,          // Persistence
-        trackingMiddleware,              // Analytics
-        analysisMiddleware,              // Analysis updates
-        observeMiddleware(observable),   // RxJS bridge
-      ]),
-});
-```
-
-**Feature Slices:**
-
-| Slice | Purpose | Key State |
-|-------|---------|-----------|
-| `files` | File management | `entities`, `currentFileId`, `openFileIds` |
-| `project` | Project state | `current`, `canEdit`, `accessGate` |
-| `user` | User data | `currentUser`, `tourProgress`, `isLoggedIn` |
-| `viewer` | UI state | `tabs`, `activityVisible`, `editorVisible` |
-| `search` | Search state | `query`, `results` |
-| `toast` | Notifications | `toasts` |
-| `examples` | Example projects | `examples`, `loaded` |
+| Context | Hook | State Mechanism | Purpose |
+|---------|------|-----------------|---------|
+| `FilesContext` | `useFiles()` | `useReducer` + Immer | File tree, open files, editor state |
+| `ProjectContext` | `useProject()` | `useReducer` | Current project, access gates |
+| `UserContext` | `useUser()` | `useReducer` | Tour progress, preferences |
+| `ViewerContext` | `useViewer()` | `useReducer` | Tabs, editor/activity visibility |
+| `SearchContext` | `useSearch()` | `useState` | Search query state |
+| `ToastContext` | `useToast()` | `useState` | Toast notifications |
+| `ExamplesContext` | `useExamples()` | `useState` | Example project list |
 
 #### Simulator Store (`src/features/simulator/store.ts`)
 
-Dedicated high-performance store for simulation state:
+The simulator uses a lightweight custom store (`reduxCompat.ts`) for high-frequency simulation updates. This store provides Redux-compatible APIs (`dispatch`, `getState`, `subscribe`) without the Redux dependency:
 
 ```typescript
-export const simulatorStore = configureStore({
-  reducer: { simulator },
-  devTools: false,  // Disabled for performance
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      immutableCheck: false,      // Disabled for performance
-      serializableCheck: false,   // Disabled for performance
-    }).concat([
-      simulatorMiddleware,
-      observeMiddleware(simulatorStoreActionObservable),
-      simulatorAnalysisMiddleware,
-    ]),
-});
+import { createStore } from "../reduxCompat";
+
+export const simulatorStore = createStore(rootReducer, [
+  simulatorMiddleware,        // Provider message handling
+  observeMiddleware(...),     // Action observability
+  simulatorAnalysisMiddleware // Plot data computation
+]);
+```
+
+Components access simulation state via `useSyncExternalStore`:
+
+```typescript
+import { useSimulatorSelector, useSimulatorDispatch } from "../features/simulator/context";
+
+const running = useSimulatorSelector(selectRunning);
+const dispatch = useSimulatorDispatch();
 ```
 
 **Simulator State:**
 
 | Property | Type | Purpose |
 |----------|------|---------|
-| `simulations` | `Record<string, SimulationData>` | All simulation runs |
+| `simulationData` | `Record<string, SimulationData>` | All simulation runs |
 | `currentSimulation` | `string \| null` | Active simulation ID |
 | `analysisMode` | `AnalysisMode` | Current analysis view |
-| `history` | `EntityState` | Project history items |
+| `history` | Entity state | Project history items |
 | `stepsPerSecond` | `number` | Playback speed |
 
-#### Store Synchronization (`src/features/simulator/simulate/sync.ts`)
+#### Context ↔ Store Synchronization
 
-RxJS observables synchronize state between stores:
+The `StoreSync` component (`src/features/simulator/simulate/StoreSync.tsx`) bridges React contexts to the simulator store using `useEffect` hooks:
 
-```typescript
-export const syncStores = (appStore, simulatorStore) => {
-  // Project changes → reset simulation
-  projectChangeObservable(appStore).subscribe((projectUrl) => {
-    simulatorStore.dispatch(resetSimulationDataAndHistory(...));
-  });
+- Project changes → reset simulation
+- Globals file changes → update runner (when running)
+- Tab changes → toggle analysis visibility
+- Analysis source changes → clear cached plot data
 
-  // Globals changes → update runner (when running)
-  appStoreObservable.pipe(
-    map(selectGlobals),
-    distinctUntilChanged(),
-    filter((globals) => typeof globals === "string"),
-  ).subscribe(...);
+#### Compatibility Layer (`src/features/reduxCompat.ts`)
 
-  // Tab changes → update analysis visibility
-  appStoreObservable.pipe(
-    map(selectCurrentTab),
-    distinctUntilChanged()
-  ).subscribe((tab) => {
-    simulatorStore.dispatch(setAnalysisVisible(tab === TabKind.Analysis));
-  });
-};
-```
+A thin utility providing Redux-compatible APIs using only Immer and Reselect:
+
+| API | Purpose |
+|-----|---------|
+| `createSlice` | Generates reducer + action creators (Immer-wrapped) |
+| `createAction` | Typed action creator with `.type` and `.match()` |
+| `createEntityAdapter` | Sorted entity CRUD with selectors |
+| `createStore` | Minimal store with middleware chain + thunk support |
+| `createSelector` | Re-exported from Reselect |
 
 ### Component Architecture
 
@@ -235,23 +244,23 @@ export const syncStores = (appStore, simulatorStore) => {
 
 ```
 src/components/
-├── HashCore/           # Main IDE shell (148 files)
+├── HashCore/           # Main IDE shell
 │   ├── HashCore.tsx    # Root component
 │   ├── Header/         # Top navigation bar
 │   ├── Main/           # Main content area
 │   ├── Files/          # File tree and management
 │   ├── AccessGate/     # Permission checks
 │   └── Tour/           # Onboarding tour
-├── SimulationRunner/   # Playback controls (23 files)
+├── SimulationRunner/   # Playback controls
 │   ├── SimulationRunner.tsx
 │   └── Controls/       # PlayPause, Reset, Timeline, etc.
-├── AgentScene/         # 3D visualization (17 files)
+├── AgentScene/         # 3D visualization (@react-three/fiber)
 │   ├── AgentScene.tsx  # Three.js scene
 │   └── README.md       # Visualization docs
-├── TabbedEditor/       # Monaco integration (12 files)
-├── Modal/              # Dialog system (116 files)
-├── Analysis/           # Analysis views (17 files)
-└── PlotViewer/         # Plotly charts (13 files)
+├── TabbedEditor/       # Monaco integration
+├── Modal/              # Dialog system
+├── Analysis/           # Analysis views
+└── PlotViewer/         # Plotly charts
 ```
 
 #### Key Components
@@ -259,9 +268,8 @@ src/components/
 **HashCore** (`src/components/HashCore/HashCore.tsx`):
 ```typescript
 export const HashCore: FC = memo(function HashCore() {
-  const dispatch = useDispatch();
-  const project = useSelector(selectCurrentProject);
-  const accessGate = useSelector(selectAccessGate);
+  const { currentProject } = useProject();
+  const { accessGate } = useProject();
   
   useParameterisedUi();     // URL parameter handling
   useKeyboardShortcuts();   // Global shortcuts
@@ -284,7 +292,7 @@ export const HashCore: FC = memo(function HashCore() {
 **SimulationRunner** (`src/components/SimulationRunner/SimulationRunner.tsx`):
 ```typescript
 export const SimulationRunner: FC = () => {
-  const dispatch = useSimulatorDispatch();  // Note: uses simulator store
+  const dispatch = useSimulatorDispatch();
 
   useKeyboardShortcuts({
     meta: { Enter: () => dispatch(toggleCurrentSimulator()) },
@@ -334,11 +342,8 @@ export class SimulationProvider implements ExperimentRunner {
   
   build(workerFileName: string, numWorkers = 4, devMode = false) {
     const dedicatedRunner = new WebWorkerRunner(
-      "worker-web-dedicated",
-      workerFileName,
-      devMode
+      "worker-web-dedicated", workerFileName, devMode
     );
-
     this.targets = {
       web: {
         target: "web",
@@ -346,11 +351,6 @@ export class SimulationProvider implements ExperimentRunner {
         experimentRunners: new Map([
           ["experimenter-web-0", new WebExperimentRunner(numWorkers, devMode, workerFileName)],
         ]),
-      },
-      cloud: {
-        target: "cloud",
-        dedicatedRunner,
-        experimentRunners: new Map(),
       },
     };
   }
@@ -371,7 +371,6 @@ const runner: Promise<RunnerState> = (async () => ({
   parsedSimulation: null,
   running: false,
   stepsLeft: 0,
-  // ... more state
 }))();
 
 RegisterPromiseWorker(async (message) => {
@@ -385,7 +384,7 @@ RegisterPromiseWorker(async (message) => {
 
 #### File System Abstraction
 
-Simulations use a virtual file system stored in Redux:
+Simulations use a virtual file system stored in React Context:
 
 ```mermaid
 flowchart LR
@@ -397,7 +396,7 @@ flowchart LR
     end
     
     subgraph Storage[Storage Layer]
-        Redux[Redux State]
+        Context[FilesContext<br/>useReducer]
         LocalStorage[localStorage]
     end
     
@@ -407,10 +406,10 @@ flowchart LR
         Edit[Edit in Monaco]
     end
     
-    Import --> Redux
-    Redux --> LocalStorage
-    Edit --> Redux
-    Redux --> Export
+    Import --> Context
+    Context --> LocalStorage
+    Edit --> Context
+    Context --> Export
 ```
 
 **File Types** (`src/features/files/types.ts`):
@@ -491,23 +490,31 @@ flowchart TB
 
 | File | Purpose |
 |------|---------|
-| `src/features/store.ts` | App Redux store configuration |
-| `src/features/rootReducer.ts` | Combined app reducers |
-| `src/features/simulator/store.ts` | Simulator Redux store |
-| `src/features/simulator/simulate/slice.ts` | Simulator slice (1800+ lines) |
-| `src/features/simulator/simulate/sync.ts` | Store synchronization |
-| `src/features/files/slice.ts` | File management slice (1200+ lines) |
-| `src/features/project/slice.ts` | Project state slice |
+| `src/features/files/FilesContext.tsx` | File state (useReducer + Immer reducer) |
+| `src/features/files/slice.ts` | Files reducer and action creators |
+| `src/features/files/adapter.ts` | Pure entity adapter for file CRUD |
+| `src/features/project/ProjectContext.tsx` | Project state (useReducer) |
+| `src/features/viewer/ViewerContext.tsx` | Viewer/UI state (useReducer) |
+| `src/features/user/UserContext.tsx` | User preferences (useReducer) |
+| `src/features/toast/ToastContext.tsx` | Toast notifications (useState) |
+| `src/features/search/SearchContext.tsx` | Search state (useState) |
+| `src/features/examples/ExamplesContext.tsx` | Examples list (useState) |
+| `src/features/simulator/store.ts` | Simulator store (SimpleStore) |
+| `src/features/simulator/simulate/slice.ts` | Simulator reducer (1800+ lines) |
+| `src/features/simulator/simulate/StoreSync.tsx` | Context → store sync |
+| `src/features/reduxCompat.ts` | Redux-compatible utilities |
 
 ### Components
 
-| Directory | Purpose | Files |
-|-----------|---------|-------|
-| `src/components/HashCore/` | Main IDE shell | 148 |
-| `src/components/SimulationRunner/` | Playback controls | 23 |
-| `src/components/AgentScene/` | 3D visualization | 17 |
-| `src/components/Modal/` | Dialog system | ~80 |
-| `src/components/TabbedEditor/` | Code editor | 12 |
+| Directory | Purpose |
+|-----------|---------|
+| `src/components/HashCore/` | Main IDE shell |
+| `src/components/SimulationRunner/` | Playback controls |
+| `src/components/AgentScene/` | 3D visualization (@react-three/fiber) |
+| `src/components/Modal/` | Dialog system |
+| `src/components/TabbedEditor/` | Code editor (Monaco) |
+| `src/components/Analysis/` | Analysis views |
+| `src/components/PlotViewer/` | Plotly charts |
 
 ### Engine Integration
 
@@ -522,66 +529,38 @@ flowchart TB
 
 ## Feature Development Guide
 
-> **IMPORTANT**: Redux is scheduled for removal. Do NOT add new Redux slices, selectors, or thunks.
-> For new features, use React local state (`useState`), Context, or simple module-level state.
-> See [TODO.md](TODO.md) for the full migration plan.
+### Adding New State
 
-### Legacy Pattern: Redux Slice (DO NOT ADD NEW ONES)
-
-The following shows the existing Redux patterns for reference when working with current code:
-
-1. **Create the Redux slice** (LEGACY — do not add new ones):
+Use React's built-in state management. Choose the simplest approach that works:
 
 ```typescript
-// src/features/myFeature/slice.ts
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+// 1. Local state (preferred — use when state is component-local)
+const [value, setValue] = useState(initialValue);
 
-export const { reducer: myFeatureReducer, actions } = createSlice({
-  name: "myFeature",
-  initialState: { /* ... */ },
-  reducers: {
-    doSomething(state, action: PayloadAction<string>) {
-      state.value = action.payload;
-    },
-  },
-});
+// 2. Shared state via Context (use when state crosses component boundaries)
+const { currentProject } = useProject();
+const { allFiles, updateFile } = useFiles();
+
+// 3. localStorage for persistence
+localStorage.setItem('preferences', JSON.stringify(prefs));
 ```
 
-2. **Add to root reducer**:
+**Do NOT** add new state management libraries. The project uses only React built-ins plus a thin compatibility layer (`reduxCompat.ts`) for the simulator store.
 
-```typescript
-// src/features/rootReducer.ts
-import { myFeatureReducer } from "./myFeature/slice";
+### Adding New Components
 
-export const rootReducer = combineReducers({
-  // existing slices...
-  myFeature: myFeatureReducer,
-});
-```
-
-3. **Create selectors**:
-
-```typescript
-// src/features/myFeature/selectors.ts
-import { RootState } from "../types";
-
-export const selectMyFeatureValue = (state: RootState) => 
-  state.myFeature.value;
-```
-
-4. **Create components**:
+Follow the existing `src/components/[Name]/` structure:
 
 ```typescript
 // src/components/MyFeature/MyFeature.tsx
 import React, { FC } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { selectMyFeatureValue } from "../../features/myFeature/selectors";
-import { actions } from "../../features/myFeature/slice";
+import { useFiles } from "../../features/files/FilesContext";
+import { useProject } from "../../features/project/ProjectContext";
 import "./MyFeature.scss";
 
 export const MyFeature: FC = () => {
-  const dispatch = useDispatch();
-  const value = useSelector(selectMyFeatureValue);
+  const { currentFile } = useFiles();
+  const { currentProject } = useProject();
   
   return (
     <div className="MyFeature">
@@ -591,12 +570,9 @@ export const MyFeature: FC = () => {
 };
 ```
 
-5. **Add styling**:
-
 ```scss
 // src/components/MyFeature/MyFeature.scss
 .MyFeature {
-  // Use theme CSS variables
   color: var(--theme-dark);
   background: var(--theme-light);
 }
@@ -611,13 +587,12 @@ export const MyFeature: FC = () => {
 The app uses custom lightweight routing utilities (replacing the abandoned `hookrouter` package):
 
 ```typescript
-// Programmatic navigation (works in components, thunks, or any code)
+// Programmatic navigation
 import { navigate, setQueryParams } from "../util/navigation";
 
 navigate("/path/to/page");                    // Push navigation
 navigate("/path", true);                      // Replace current entry
 navigate("/path", false, { key: "value" });   // With query params
-
 setQueryParams({ view: "3d" });               // Update query params only
 
 // Route matching in components
@@ -632,57 +607,39 @@ const routes: RouteMap = {
 const element = usePathRouter(routes);
 ```
 
-### Using the Correct Store
+### Accessing State
 
 ```typescript
-// For app state (files, project, UI)
-import { useSelector, useDispatch } from "react-redux";
-const dispatch = useDispatch();
-const project = useSelector(selectCurrentProject);
+// App state — use context hooks
+import { useFiles } from "../../features/files/FilesContext";
+import { useProject } from "../../features/project/ProjectContext";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
-// For simulation state
+const { allFiles, currentFile, updateFile } = useFiles();
+const { currentProject } = useProject();
+const { currentTab, toggleEditor } = useViewer();
+
+// Simulation state — use simulator hooks
 import { useSimulatorSelector, useSimulatorDispatch } from "../../features/simulator/context";
-const simulatorDispatch = useSimulatorDispatch();
+
 const running = useSimulatorSelector(selectRunning);
+const dispatch = useSimulatorDispatch();
 ```
 
-### Async Actions with createAppAsyncThunk
+### Scopes (Permissions)
+
+The scopes system determines what actions are available:
 
 ```typescript
-// src/features/myFeature/thunks.ts
-import { createAppAsyncThunk } from "../createAppAsyncThunk";
+import { Scope, useScope, useScopes } from "../../features/scopes";
 
-export const fetchData = createAppAsyncThunk<ReturnType, ArgType>(
-  "myFeature/fetchData",
-  async (arg, { getState, signal }) => {
-    const response = await api.fetch(arg, signal);
-    return response.data;
-  }
-);
-```
-
-### Observable-based Side Effects
-
-```typescript
-// Using RxJS for complex async flows
-import { filter, map, distinctUntilChanged } from "rxjs/operators";
-import { fromStore } from "../../util/fromStore";
-
-fromStore(store)
-  .pipe(
-    map(selectSomeValue),
-    distinctUntilChanged(),
-    filter((value) => value !== null)
-  )
-  .subscribe((value) => {
-    // React to changes
-  });
+const canEdit = useScope(Scope.edit);
+const { canSave, canEdit } = useScopes(Scope.save, Scope.edit);
 ```
 
 ### Modal System
 
 ```typescript
-// Using the modal hook
 import { useModal } from "react-modal-hook";
 
 const [showModal, hideModal] = useModal(() => (
@@ -700,9 +657,8 @@ const [showModal, hideModal] = useModal(() => (
 
 ## Additional Resources
 
-- [sim-core README](apps/sim-core/README.md) - Setup and running instructions
-- [sim-engine README](apps/sim-engine/README.md) - Rust engine documentation
-- [TODO.md](TODO.md) - Technical debt and modernization roadmap
-- [CONTRIBUTING.md](.github/CONTRIBUTING.md) - Contribution guidelines
-- [.cursor/rules/hash-labs.mdc](.cursor/rules/hash-labs.mdc) - AI agent guidelines
-- [HASH Documentation](https://hash.ai/docs/simulation) - User-facing docs
+- [sim-core README](apps/sim-core/README.md) — Setup and running instructions
+- [sim-engine README](apps/sim-engine/README.md) — Rust engine documentation
+- [TODO.md](TODO.md) — Technical debt and modernization roadmap
+- [CONTRIBUTING.md](.github/CONTRIBUTING.md) — Contribution guidelines
+- [.cursor/rules/hash-labs.mdc](.cursor/rules/hash-labs.mdc) — AI agent guidelines
