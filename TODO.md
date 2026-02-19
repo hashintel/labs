@@ -975,9 +975,17 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
   - `eslint` 7.29 → 9.x (major; new flat config format)
   - `prettier` 2.2 → 3.x (minor formatting changes)
   - `@typescript-eslint/*` 4.x → 7.x
-- [ ] **Upgrade GraphQL tooling**:
-  - `graphql` 15.5 → 16.x
-  - `@graphql-codegen/*` packages to latest
+- [ ] **Remove GraphQL entirely** (replace with plain fetch):
+  - Only 6 queries still make live server calls; all are simple fetch-replaceable
+  - Convert `fetchDependencies` + `searchResourceProjects` to plain REST (hIndex API)
+  - Stub or remove `projectHistory`, `linkableProjectByLegacyId`, `basicUser`
+  - Decide on `unpreparedProjectByPath` (embed mode — keep server fetch or make local?)
+  - Delete 5 dead query files (`trackTourProgress`, `myProjects`, `exampleSimulations`, `createDatasetQuery`, `addDatasetToProject`)
+  - Delete 4 stubbed query files (already return local data)
+  - Delete GraphQL infrastructure: `query.ts`, `codegen.yml`, `graphql-schema.json`, `auto-types.ts` (~21k lines)
+  - Remove packages: `graphql`, `@graphql-codegen/cli`, `@graphql-codegen/typescript`, `@graphql-codegen/typescript-operations`, `@graphql-codegen/add`
+  - Remove `yarn codegen` from build scripts
+  - Manually define the ~10 types still needed from `auto-types.ts`
 - [ ] **Upgrade @testing-library/react** 11.2 → 14+ or 16+ (major; API changes)
 
 #### 🟢 Low: Type Safety Improvements
