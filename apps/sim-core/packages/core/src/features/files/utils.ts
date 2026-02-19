@@ -1,4 +1,4 @@
-import { Draft } from "@reduxjs/toolkit";
+import type { Draft } from "immer";
 import omit from "lodash/omit";
 import prettyStringify from "json-stringify-pretty-compact";
 import { Json } from "@hashintel/engine-web";

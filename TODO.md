@@ -236,16 +236,22 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 **Redux Slice Migration Progress**:
 - [x] `search` (4 consumers) → `SearchContext` — fully removed from Redux
-- [x] `viewer` (22 consumers) → `ViewerContext` — consumers migrated, reducer kept for cross-slice deps
-- [x] `user` (15 consumers) → `UserContext` — facade over Redux, all consumers migrated
-- [x] `toast` (4 consumers) → `ToastContext` — facade over Redux, all consumers migrated
-- [x] `examples` (2 consumers) → `ExamplesContext` — facade over Redux, all consumers migrated
-- [x] `project` (88 consumers) → `ProjectContext` — facade over Redux, all consumers migrated
-- [x] `files` (80 consumers) → `FilesContext` — facade over Redux, all consumers migrated
-- [x] `simulator` store (35 consumers) → already uses context hooks (`useSimulatorSelector`/`useSimulatorDispatch`)
-- [ ] Swap context facade internals from Redux to pure React state (useReducer)
-- [ ] Rebuild scopes system as context-aware hooks
-- [ ] Rebuild localStorage persistence and auto-save as useEffect hooks
+- [x] `viewer` (22 consumers) → `ViewerContext` — pure React (useReducer), no Redux dependency
+- [x] `user` (15 consumers) → `UserContext` — pure React (useReducer), no Redux dependency
+- [x] `toast` (4 consumers) → `ToastContext` — pure React (useState), no Redux dependency
+- [x] `examples` (2 consumers) → `ExamplesContext` — pure React (useState), no Redux dependency
+- [x] `project` (88 consumers) → `ProjectContext` — pure React (useReducer), no Redux dependency
+- [x] `files` (80 consumers) → `FilesContext` — pure Immer reducer with useReducer, no RTK dependency
+- [x] `simulator` store (35 consumers) → still uses Redux (useSimulatorSelector/useSimulatorDispatch)
+- [x] Swap context facade internals from Redux to pure React state (useReducer)
+  - App Store completely removed; all 7 app contexts are pure React
+  - Files slice converted from RTK `createSlice` to pure Immer reducer
+  - Entity adapter replaced with pure TypeScript implementation
+  - Actions converted from `createAction` to plain action creators
+  - Selectors use `reselect` directly (no RTK re-export)
+  - `immer` and `reselect` added as direct dependencies
+- [x] Rebuild scopes system as context-aware hooks
+- [x] Rebuild localStorage persistence and auto-save as useEffect hooks
 - [ ] Convert simulator middleware and subscribers to useEffect hooks
 - [ ] Replace cross-store RxJS sync with context-based communication
 - [ ] Remove Redux packages (`@reduxjs/toolkit`, `react-redux`, `rxjs`) + infrastructure files

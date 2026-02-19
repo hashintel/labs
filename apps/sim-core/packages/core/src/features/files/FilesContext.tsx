@@ -8,7 +8,6 @@ import React, {
   useMemo,
   useReducer,
 } from "react";
-import { AnyAction } from "@reduxjs/toolkit";
 import { v4 as uuid } from "uuid";
 
 import type {
@@ -131,7 +130,7 @@ export interface FilesContextValue {
   handleParseAndShowBehaviorKeys: (fileId: string) => Promise<void>;
   handleParseAllBehaviorKeys: () => Promise<void>;
 
-  filesDispatch: Dispatch<AnyAction>;
+  filesDispatch: Dispatch<any>;
   filesState: FilesSlice;
 }
 

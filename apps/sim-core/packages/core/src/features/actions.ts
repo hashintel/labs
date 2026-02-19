@@ -1,10 +1,7 @@
 /**
- * Shared action creators. These are still used by Redux slice extraReducers
- * and by the context-based state management (dispatched to useReducer).
- * The setProjectWithMeta thunk is deprecated; use ProjectContext.setProjectWithMeta instead.
+ * Shared action creators used by multiple context providers.
+ * Pure implementations (no Redux Toolkit dependency).
  */
-import { createAction } from "@reduxjs/toolkit";
-
 import type { Commit } from "../util/api/auto-types";
 import type {
   CanUserEditProject,
@@ -27,11 +24,21 @@ type SetProjectParams = {
   scopes: Record<Scope.edit | Scope.mutate, boolean>;
 };
 
-export const setProject = createAction<SetProjectParams>("shared/setProject");
+interface TypedAction<T extends string, P = void> {
+  type: T;
+  payload: P;
+}
+
+export const setProject = (
+  payload: SetProjectParams,
+): TypedAction<"shared/setProject", SetProjectParams> => ({
+  type: "shared/setProject",
+  payload,
+});
+setProject.type = "shared/setProject" as const;
 
 /**
  * @deprecated Use ProjectContext.setProjectWithMeta instead.
- * Kept temporarily for any remaining callers during migration.
  */
 export const setProjectWithMeta = (
   project: SetProjectParams["project"],
@@ -45,15 +52,33 @@ export const setProjectWithMeta = (
   });
 };
 
-export const projectUpdated = createAction<{
+type ProjectUpdatedPayload = {
   updatedAt: string;
   update?: Omit<Partial<SimulationProject>, "updatedAt" | "pathWithNamespace">;
   actions?: Pick<FileAction, "uuid">[];
   commit?: CommitWithoutStats;
-}>("shared/projectUpdated");
+};
 
-export const canUserEditProjectUpdate = createAction<CanUserEditProject>(
-  "shared/canUserEditProjectUpdate",
-);
+export const projectUpdated = (
+  payload: ProjectUpdatedPayload,
+): TypedAction<"shared/projectUpdated", ProjectUpdatedPayload> => ({
+  type: "shared/projectUpdated",
+  payload,
+});
+projectUpdated.type = "shared/projectUpdated" as const;
 
-export const beginActionSave = createAction<string[]>("shared/beginActionSave");
+export const canUserEditProjectUpdate = (
+  payload: CanUserEditProject,
+): TypedAction<"shared/canUserEditProjectUpdate", CanUserEditProject> => ({
+  type: "shared/canUserEditProjectUpdate",
+  payload,
+});
+canUserEditProjectUpdate.type = "shared/canUserEditProjectUpdate" as const;
+
+export const beginActionSave = (
+  payload: string[],
+): TypedAction<"shared/beginActionSave", string[]> => ({
+  type: "shared/beginActionSave",
+  payload,
+});
+beginActionSave.type = "shared/beginActionSave" as const;

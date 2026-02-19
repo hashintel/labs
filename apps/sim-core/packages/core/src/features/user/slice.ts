@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { produce } from "immer";
 
 import type { BasicUser, TourProgress } from "../../util/api/types";
 import { PartialSimulationProject } from "../project/types";
@@ -16,33 +16,44 @@ const initialState: UserSlice = {
   ids: [],
 };
 
-export const {
-  reducer: userReducer,
-  actions: {
-    setTourProgress,
-    addUserProject,
-    setBasicUser,
-  },
-} = createSlice({
-  name: "user",
-  initialState,
-  reducers: {
-    setTourProgress(state, { payload }: PayloadAction<TourProgress>) {
-      state.tourProgress = payload;
-    },
-    addUserProject(
-      state,
-      { payload }: PayloadAction<PartialSimulationProject>
-    ) {
-      const id = payload.pathWithNamespace;
-      if (!state.ids.includes(id)) {
-        state.ids.push(id);
-      }
-      (state.entities as any)[id] = payload;
-    },
-    setBasicUser(state, { payload }: PayloadAction<BasicUser>) {
-      state.isLoggedIn = true;
-      state.basicCurrentUser = payload;
-    },
-  },
+export const setTourProgress = (payload: TourProgress) => ({
+  type: "user/setTourProgress" as const,
+  payload,
 });
+
+export const addUserProject = (payload: PartialSimulationProject) => ({
+  type: "user/addUserProject" as const,
+  payload,
+});
+
+export const setBasicUser = (payload: BasicUser) => ({
+  type: "user/setBasicUser" as const,
+  payload,
+});
+
+export const userReducer = (
+  state: UserSlice = initialState,
+  action: any,
+): UserSlice => {
+  return produce(state, (draft) => {
+    switch (action.type) {
+      case "user/setTourProgress":
+        draft.tourProgress = action.payload;
+        return;
+      case "user/addUserProject": {
+        const id = action.payload.pathWithNamespace;
+        if (!draft.ids.includes(id)) {
+          draft.ids.push(id);
+        }
+        (draft.entities as any)[id] = action.payload;
+        return;
+      }
+      case "user/setBasicUser":
+        draft.isLoggedIn = true;
+        draft.basicCurrentUser = action.payload;
+        return;
+      default:
+        return;
+    }
+  });
+};

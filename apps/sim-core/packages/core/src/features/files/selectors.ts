@@ -1,5 +1,4 @@
-import { createSelector, Dictionary, Selector } from "@reduxjs/toolkit";
-import { createSelectorCreator, defaultMemoize } from "reselect";
+import { createSelector, createSelectorCreator, defaultMemoize } from "reselect";
 import { isEqualWith, pick, sortBy } from "lodash";
 
 import type {
@@ -43,7 +42,7 @@ export const {
   selectById: selectFileByIdLocal,
 } = getSelectors();
 
-export const selectFilesSlice: Selector<RootState, FilesSlice> = (state) =>
+export const selectFilesSlice = (state: RootState): FilesSlice =>
   state.files;
 
 /**
@@ -163,13 +162,11 @@ export const selectOpenFileIds = createSelector(
       : []
 );
 
-export const selectOpenFiles = createSelector<
-  RootState,
-  Dictionary<HcFile>,
-  string[],
-  HcFile[]
->(selectFileEntities, selectOpenFileIds, (entities, openFileIds) =>
-  openFileIds.map((openFileId) => (entities as any)[openFileId])
+export const selectOpenFiles = createSelector(
+  selectFileEntities,
+  selectOpenFileIds,
+  (entities, openFileIds) =>
+    openFileIds.map((openFileId) => (entities as any)[openFileId]) as HcFile[],
 );
 
 export const selectRequiredFiles = createSelector(
@@ -182,18 +179,16 @@ export const selectRequiredFiles = createSelector(
 
 export const selectRequiredIds = createFieldSelector(selectRequiredFiles, "id");
 
-export const selectDescriptionFile: Selector<RootState, HcFile | undefined> = (
-  state
-) => selectFileById(state, "description");
+export const selectDescriptionFile = (state: RootState): HcFile | undefined =>
+  selectFileById(state, "description");
 
 export const selectDescription = createSelector(
   selectDescriptionFile,
   (file) => file?.contents
 );
 
-export const selectDependenciesFile: Selector<RootState, HcFile | undefined> = (
-  state
-) => selectFileById(state, "dependencies");
+export const selectDependenciesFile = (state: RootState): HcFile | undefined =>
+  selectFileById(state, "dependencies");
 
 export const selectDependencies = createSelector(
   selectDependenciesFile,
@@ -285,18 +280,16 @@ export const selectSharedBehaviorIds = createFieldSelector(
   "id"
 );
 
-export const selectGlobalsFile: Selector<RootState, HcFile | undefined> = (
-  state
-) => selectFileById(state, globalsFileId);
+export const selectGlobalsFile = (state: RootState): HcFile | undefined =>
+  selectFileById(state, globalsFileId);
 
 export const selectGlobals = createSelector(
   selectGlobalsFile,
   (file) => file?.contents
 );
 
-export const selectAnalysisFile: Selector<RootState, HcFile | undefined> = (
-  state
-) => selectFileById(state, analysisFileId);
+export const selectAnalysisFile = (state: RootState): HcFile | undefined =>
+  selectFileById(state, analysisFileId);
 
 export const selectAnalysis = createSelector(
   selectAnalysisFile,
@@ -325,9 +318,8 @@ export const selectParsedAnalysisMetricNames = createSelector(
   }
 );
 
-export const selectExperimentsFile: Selector<RootState, HcFile | undefined> = (
-  state
-) => selectFileById(state, "experiments");
+export const selectExperimentsFile = (state: RootState): HcFile | undefined =>
+  selectFileById(state, "experiments");
 
 export const selectExperimentsSrc = createSelector(
   selectExperimentsFile,
@@ -361,7 +353,7 @@ export const selectSimulationSrc = createSelector(
       ])
       .filter((pair) => pair[1] !== undefined);
 
-    return pairs.length !== ids.length
+    return (pairs.length !== ids.length
       ? undefined
       : {
           ...Object.fromEntries(pairs),
@@ -376,7 +368,7 @@ export const selectSimulationSrc = createSelector(
             dependencies: [],
             behaviorSrc: file.contents,
           })),
-        };
+        }) as SimulationSrc;
   }
 );
 

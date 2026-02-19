@@ -11,20 +11,14 @@ import {
   RemoteSimulationProject,
   SimulationProjectWithHcFiles,
 } from "../project/types";
-import { addUserProject as addUserProjectRedux } from "../user/slice";
 import { fromFormatted } from "../../util/files/parse";
 import { preparePartialSimulationProject, toHcConfig } from "../project/utils";
-import {
-  selectAllFiles,
-  selectCurrentFileId,
-  selectFileEntities,
-} from "./selectors";
-import { setProjectWithMeta } from "../actions";
 import { slugify, urlFromProject } from "../../routes";
 import { stringifyBehaviorKeys, toHcFiles } from "./utils";
 import { trackEvent } from "../analytics";
-import { useFiles, useFilesSelector } from "./FilesContext";
+import { useFiles } from "./FilesContext";
 import { useProject } from "../project/ProjectContext";
+import { useUser } from "../user/UserContext";
 
 export const useSelectFileById = (fileId: string): HcFile => {
   const { fileEntities } = useFiles();
@@ -91,7 +85,7 @@ export const useExportFiles = () => {
 };
 
 export const useImportFiles = () => {
-  const { filesDispatch } = useFiles();
+  const { addUserProject } = useUser();
   const { setProjectWithMeta: contextSetProjectWithMeta } = useProject();
 
   const importFiles = async (files: FileList) => {
@@ -204,7 +198,7 @@ export const useImportFiles = () => {
       label: project.pathWithNamespace,
     });
 
-    filesDispatch(addUserProjectRedux(preparePartialSimulationProject(project)));
+    addUserProject(preparePartialSimulationProject(project));
     contextSetProjectWithMeta(project);
     navigate(urlFromProject(project), false, {}, true);
     // TODO: save() was an async thunk that saved to server.

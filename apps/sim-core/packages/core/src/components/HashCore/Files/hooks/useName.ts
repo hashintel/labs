@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import produce, { Draft } from "immer";
+import { produce, type Draft } from "immer";
 
 import { Ext } from "../../../../util/files/enums";
 import type { HcFile } from "../../../../features/files/types";

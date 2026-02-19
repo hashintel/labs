@@ -1,5 +1,5 @@
 import nightOwl from "monaco-themes/themes/Night Owl.json";
-import produce, { Draft } from "immer";
+import { produce, type Draft } from "immer";
 
 import { theme } from "../theme";
 

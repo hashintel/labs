@@ -1,5 +1,5 @@
 import { Dictionary } from "@reduxjs/toolkit";
-import produce from "immer";
+import { produce } from "immer";
 import { Range, editor } from "monaco-editor";
 import { debounceTime } from "rxjs/operators";
 

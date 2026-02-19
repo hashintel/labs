@@ -1,4 +1,3 @@
-import { EntityState } from "@reduxjs/toolkit";
 import { JSONSchema7 } from "json-schema";
 import { Json, JsonMap } from "@hashintel/engine-web";
 
@@ -105,7 +104,9 @@ export type FileAction = {
 export type ParsedGlobals = JsonMap & { schema?: JSONSchema7 | Json };
 export type ParsedAnalysis = Json;
 
-export interface FilesSlice extends EntityState<HcFile> {
+export interface FilesSlice {
+  ids: string[];
+  entities: Record<string, HcFile | undefined>;
   openFileIds: string[];
   currentFileId: string | null;
   replaceProposal: null | {

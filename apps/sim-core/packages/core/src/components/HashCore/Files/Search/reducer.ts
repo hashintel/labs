@@ -1,5 +1,5 @@
 import { Dispatch, useEffect, useReducer } from "react";
-import produce, { Draft } from "immer";
+import { produce, type Draft } from "immer";
 
 import {
   SearchFileResult,
