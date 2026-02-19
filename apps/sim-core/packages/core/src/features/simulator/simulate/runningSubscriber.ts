@@ -2,13 +2,12 @@ import { createSelector, Store } from "@reduxjs/toolkit";
 
 import { SimulationData } from "./types";
 import { SimulatorRootState } from "../types";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import { runnerMessage } from "./util";
 import {
   selectAllSimulationData,
   selectCurrentSimulationId,
 } from "./selectors";
-import { selectCurrentProject } from "../../project/selectors";
 import { trackEvent } from "../../analytics";
 
 type RunningState = {
@@ -36,13 +35,11 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
     const running = () => selectSimRunning(store.getState());
 
     if (running() && !signal.aborted) {
-      const project = selectCurrentProject(appStore.getState());
-      appStore.dispatch(
-        trackEvent({
-          action: "Run Simulation",
-          label: `${project!.name} - ${project!.id}`,
-        })
-      );
+      const project = appBridge.getState().project?.currentProject;
+      trackEvent({
+        action: "Run Simulation",
+        label: `${project?.name} - ${project?.id}`,
+      });
 
       await runnerMessage({ type: "play" }, simulationId);
     }

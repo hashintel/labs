@@ -2,7 +2,7 @@ import { Store } from "@reduxjs/toolkit";
 
 import { LinkableProject } from "../../project/types";
 import { SimulatorDispatch, SimulatorRootState } from "../types";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import { fetchProjectHistoryNextPage } from "./thunks";
 import { selectCurrentProjectRequired } from "../../project/selectors";
 import {
@@ -28,7 +28,7 @@ export const historySubscriber = (store: Store<SimulatorRootState>) => {
     while (!signal.aborted) {
       await dispatch(
         fetchProjectHistoryNextPage(
-          selectCurrentProjectRequired(appStore.getState()),
+          selectCurrentProjectRequired(appBridge.getState()),
           signal
         )
       );

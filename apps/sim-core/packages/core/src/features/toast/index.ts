@@ -1,3 +1,4 @@
 export { ToastKind } from "./enums";
-export { selectToast, selectToastData, selectToastKind } from "./selectors";
-export { displayToast, toastReducer } from "./slice";
+export type { ToastSlice } from "./types";
+export { useToast, ToastProvider } from "./ToastContext";
+export type { ToastContextValue } from "./ToastContext";

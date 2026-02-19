@@ -4,6 +4,7 @@ import { TabKind } from "../../viewer/enums";
 import { useFiles } from "../../files/FilesContext";
 import { useProject } from "../../project/ProjectContext";
 import { useViewer } from "../../viewer/ViewerContext";
+import { appBridge } from "../appBridge";
 import { simulatorStore } from "../store";
 import {
   clearLocalPlotData,
@@ -17,16 +18,57 @@ import { selectRunning } from "./selectors";
  * Replaces the old syncStores RxJS-based sync between the app Redux store
  * and the simulator Redux store. This component reads from app contexts and
  * dispatches to the simulator store when relevant values change.
+ *
+ * Also keeps the appBridge in sync so that non-React simulator code can
+ * read the latest app state.
  */
 export const StoreSync: FC = () => {
-  const { globalsSrc, analysisSrc } = useFiles();
-  const { currentProject } = useProject();
-  const { currentTab, clearUserAlerts, openTab } = useViewer();
+  const {
+    globalsSrc,
+    analysisSrc,
+    filesState,
+  } = useFiles();
+  const {
+    currentProject,
+    currentProjectUrl,
+    projectRef,
+    hasProject,
+    projectLoaded,
+  } = useProject();
+  const {
+    currentTab,
+    editorVisible,
+    addUserAlert,
+    clearUserAlerts,
+    openTab,
+  } = useViewer();
 
   const prevProjectRef = useRef(currentProject);
   const prevGlobalsRef = useRef(globalsSrc);
   const prevTabRef = useRef(currentTab);
   const prevAnalysisRef = useRef(analysisSrc);
+
+  useEffect(() => {
+    appBridge.setState({
+      files: filesState,
+      project: {
+        currentProject,
+        projectLoaded,
+        accessGate: null,
+        pendingProject: null,
+      },
+      viewer: {
+        editor: editorVisible,
+        currentTab,
+      },
+    });
+  }, [filesState, currentProject, projectLoaded, editorVisible, currentTab]);
+
+  useEffect(() => {
+    appBridge.dispatchUserAlert = (alert) => addUserAlert(alert);
+    appBridge.dispatchClearUserAlerts = () => clearUserAlerts();
+    appBridge.dispatchOpenTab = (tab) => openTab(tab);
+  }, [addUserAlert, clearUserAlerts, openTab]);
 
   useEffect(() => {
     if (prevProjectRef.current !== currentProject && currentProject) {

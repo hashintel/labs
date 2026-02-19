@@ -2,8 +2,9 @@ import { createSelector, Selector } from "@reduxjs/toolkit";
 import { createStructuredSelector } from "reselect";
 
 import { LinkableProject, ProjectSlice } from "./types";
-import { RootState } from "../types";
 import { forkUrlFromProject, urlFromProject } from "../../routes";
+
+type RootState = { project: ProjectSlice };
 import { isProjectLatest, refIsNotCommit } from "./utils";
 
 export const selectProjectSlice: Selector<RootState, ProjectSlice> = (state) =>

@@ -3,9 +3,18 @@ import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import type { BasicUser, TourProgress } from "../../util/api/types";
 import { PartialSimulationProject } from "../project/types";
 import type { UserSlice } from "./types";
-import { bootstrapApp } from "../thunks";
-import { getInitialState, removeAll, upsertMany, upsertOne } from "./adapter";
 import { getLocalTourProgress } from "./local";
+
+const initialState: UserSlice = {
+  tourProgress: getLocalTourProgress(),
+  isLoggedIn: false,
+  currentUser: null,
+  basicCurrentUser: null,
+  projectsLoaded: false,
+  bootstrapped: false,
+  entities: {},
+  ids: [],
+};
 
 export const {
   reducer: userReducer,
@@ -16,16 +25,7 @@ export const {
   },
 } = createSlice({
   name: "user",
-  initialState: getInitialState<UserSlice>({
-    tourProgress: getLocalTourProgress(),
-    isLoggedIn: false,
-    currentUser: null,
-    basicCurrentUser: null,
-    projectsLoaded: false,
-    bootstrapped: false,
-    entities: {},
-    ids: [],
-  }),
+  initialState,
   reducers: {
     setTourProgress(state, { payload }: PayloadAction<TourProgress>) {
       state.tourProgress = payload;
@@ -34,39 +34,15 @@ export const {
       state,
       { payload }: PayloadAction<PartialSimulationProject>
     ) {
-      upsertOne(state, payload);
+      const id = payload.pathWithNamespace;
+      if (!state.ids.includes(id)) {
+        state.ids.push(id);
+      }
+      (state.entities as any)[id] = payload;
     },
     setBasicUser(state, { payload }: PayloadAction<BasicUser>) {
       state.isLoggedIn = true;
       state.basicCurrentUser = payload;
     },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(bootstrapApp.fulfilled, (state, { payload }) => {
-        if (payload.user) {
-          state.currentUser = payload.user;
-          state.tourProgress = payload.tourProgress;
-          state.basicCurrentUser = payload.user;
-          state.isLoggedIn = true;
-        }
-
-        if (payload.projects) {
-          state.projectsLoaded = true;
-          removeAll(state);
-          upsertMany(state, payload.projects);
-        }
-
-        state.bootstrapped = true;
-      })
-      .addCase(bootstrapApp.rejected, (state, { error }) => {
-        state.currentUser = null;
-        state.basicCurrentUser = null;
-        state.isLoggedIn = false;
-        state.bootstrapped = false;
-        state.tourProgress = null;
-
-        throw error;
-      });
   },
 });

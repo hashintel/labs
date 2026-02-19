@@ -15,7 +15,6 @@ import type {
 } from "./types";
 import { Ext } from "../../util/files/enums";
 import { HcFileKind } from "./enums";
-import type { RootState } from "../types";
 import type { SimulationSrc } from "../../util/types";
 import {
   analysisFileId,
@@ -25,7 +24,11 @@ import {
 } from "./utils";
 import { getSelectors } from "./adapter";
 import { parseAnalysis } from "../../components/Analysis/utils";
-import { selectEditorVisible } from "../viewer/selectors";
+
+type RootState = { files: FilesSlice; viewer?: any };
+
+const selectEditorVisible = (state: any): boolean =>
+  state.viewer?.editor ?? true;
 
 /**
  * calling `getSelectors` without any arguments produces selectors that can be

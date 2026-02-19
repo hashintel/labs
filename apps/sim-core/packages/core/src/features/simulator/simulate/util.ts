@@ -12,7 +12,7 @@ import {
 } from "@hashintel/engine-web";
 import { parseDatasetUrl } from "@hashintel/utils/lib/datasets/fetchDataset";
 
-import type { RootState as AppState } from "../../types";
+type AppState = any;
 import { DependenciesDescriptor, HcAnyDatasetFile } from "../../files/types";
 import type { NamedBehaviorSrc } from "../../../util/types";
 import { PendingExperimentRun, SimulatorHistory } from "./types";

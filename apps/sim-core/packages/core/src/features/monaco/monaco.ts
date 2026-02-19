@@ -3,8 +3,10 @@ import { IDisposable, Uri, editor } from "monaco-editor";
 import { debounce } from "lodash";
 import { v4 as uuid } from "uuid";
 
-import type { AppDispatch, RootState } from "../types";
 import { Ext } from "../../util/files/enums";
+
+type RootState = any;
+type AppDispatch = any;
 import type { HcFile } from "../files/types";
 import { addGitConflictMarkersDecorator } from "./decorators/addGitConflictMarkersDecorator";
 import { isReadOnly } from "../files/utils";

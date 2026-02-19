@@ -60,14 +60,13 @@ import {
 } from "./types";
 import { SimulatorRootState } from "../types";
 import { TabKind } from "../../viewer/enums";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import { isCompleteErrorMessage } from "../../utils";
 import {
   selectCurrentStep,
   selectRunning,
   selectTrackingFinalStep,
 } from "./selectors";
-import { selectCurrentTab } from "../../viewer";
 import { selectSimulationRequiresPyodide } from "../../files/selectors";
 
 /**
@@ -403,7 +402,7 @@ const { reducer, actions } = createSlice({
     // Used by initialize to create an empty simulation data
     resetViewer(state) {
       state.resetting = true;
-      state.pyodideStatus = selectSimulationRequiresPyodide(appStore.getState())
+      state.pyodideStatus = selectSimulationRequiresPyodide(appBridge.getState())
         ? "loading"
         : "unused";
     },
@@ -1302,7 +1301,7 @@ export const simulationReducer: typeof reducer = (
             // Check if analysis is focused and there are plots to generate
             //    - we need to keep data that hasn't yet been analysed,
             //    which might disappear too quickly at a low retention rate.
-            const focusedTab = selectCurrentTab(appStore.getState());
+            const focusedTab = appBridge.getState().viewer?.currentTab as string;
             const simHasPlots = !!Object.keys(updatedSimData.plots ?? {})
               .length;
             if (focusedTab === TabKind.Analysis && simHasPlots) {

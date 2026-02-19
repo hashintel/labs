@@ -1,4 +1,5 @@
 import {
+  createAsyncThunk,
   createNextState,
   createSlice,
   current,
@@ -12,7 +13,6 @@ import { filter, mergeMap, reduce } from "rxjs/operators";
 import { from } from "rxjs";
 import { v4 } from "uuid";
 
-import { AsyncAppThunk } from "../types";
 import {
   BehaviorKeyFields,
   BehaviorKeysDraftField,
@@ -33,9 +33,10 @@ import type {
 import { Ext } from "../../util/files/enums";
 import { HcFileKind } from "./enums";
 import type { ParsedPath } from "../../util/files/types";
-import type { RootState } from "../types";
 import { SimulationProject } from "../project/types";
-import { addDatasetToProject } from "../../util/api/queries/addDatasetToProject";
+
+type RootState = { files: FilesSlice; viewer?: any };
+// addDatasetToProject removed (createDataset thunk deleted)
 import {
   addMany,
   getInitialState,
@@ -63,11 +64,9 @@ import {
   projectUpdated,
   setProject,
 } from "../actions";
-import { createAppAsyncThunk } from "../createAppAsyncThunk";
 import { createDatasetQuery } from "../../util/api/queries/createDatasetQuery";
 import { defaultJsBehaviorSrc } from "../../util/defaultJsBehaviorSrc";
 import { fetchDependencies } from "../../util/api/queries";
-import { save } from "../thunks";
 import { isStoringProjectActions } from "../project/utils";
 import { parse } from "../../util/files";
 import { parseBehaviorKeysQuery } from "../../util/parseBehaviorKeysQuery";
@@ -81,13 +80,14 @@ import {
   selectLocalBehaviorFiles,
   selectParsedDependencies,
 } from "./selectors";
-import { selectCurrentProjectRequired } from "../project/selectors";
-import { toggleEditor } from "../viewer/slice";
 import { trackEvent } from "../analytics";
 
-export const addDependencies = createAppAsyncThunk<
+type AsyncAppThunk = (dispatch: any, getState: () => RootState) => Promise<any>;
+
+export const addDependencies = createAsyncThunk<
   HcDependencyFile[],
-  DependenciesDescriptor
+  DependenciesDescriptor,
+  { state: RootState }
 >("files/addDependencies", async (descriptor, { signal }) => {
   const releases = await fetchDependencies(descriptor, signal);
 
@@ -98,9 +98,10 @@ export const addDependencies = createAppAsyncThunk<
   }, []);
 });
 
-export const parseAndShowBehaviorKeys = createAppAsyncThunk<
+export const parseAndShowBehaviorKeys = createAsyncThunk<
   BehaviorKeyFields,
-  { fileId: string }
+  { fileId: string },
+  { state: RootState }
 >(
   "files/parseAndShowBehaviorKeys",
   async ({ fileId }, { signal, getState }) => {
@@ -120,7 +121,11 @@ export const parseAndShowBehaviorKeys = createAppAsyncThunk<
 
 type BehaviorKeysRecord = Record<string, BehaviorKeyFields>;
 
-export const parseAllBehaviorKeys = createAppAsyncThunk<BehaviorKeysRecord>(
+export const parseAllBehaviorKeys = createAsyncThunk<
+  BehaviorKeysRecord,
+  void,
+  { state: RootState }
+>(
   "files/parseAllBehaviorKeys",
   async (_, { signal, getState }) => {
     const behaviors = selectLocalBehaviorFiles(getState());
@@ -149,69 +154,11 @@ export const parseAllBehaviorKeys = createAppAsyncThunk<BehaviorKeysRecord>(
   }
 );
 
-export const createDataset = (
-  file: File,
-  reportProgress?: (progress: number) => void
-): AsyncAppThunk => async (dispatch, getState) => {
-  /**
-   * We're saving before we mutate the project because we may be creating a
-   * dataset replacing one we've deleted, which we need to ensure has
-   * already been deleted on the API
-   *
-   * We're not awaiting it yet because we don't need it to be finished until
-   * later on when we add the dataset to the project
-   */
-  const savePromise = dispatch(save());
-
-  const state = getState();
-  const project = selectCurrentProjectRequired(state);
-  const datasets = selectDatasetFiles(state);
-  const filename = allocateDatasetFileName(file.name, datasets);
-
-  const { dataset, postForm } = await createDatasetQuery(
-    project.pathWithNamespace,
-    filename,
-    file.name
-  );
-
-  await postFormData(
-    postForm.url,
-    prepareFormDataWithFile(file, postForm.fields),
-    reportProgress
-  );
-
-  // Ensure this has finished
-  await savePromise;
-
-  const thisDataset = await addDatasetToProject(
-    project.pathWithNamespace,
-    dataset.id,
-    postForm.fields?.key,
-    file.name.endsWith(".csv")
-  );
-
-  await dispatch(
-    trackEvent({
-      action: "New dataset: Core",
-      label: `${dataset?.name} - ${dataset?.id}`,
-    })
-  );
-
-  if (!thisDataset) {
-    throw new Error("Cannot find dataset in results");
-  }
-
-  const datasetFile = toHcFiles({
-    files: [
-      {
-        ...thisDataset.file,
-        ref: project.ref,
-      },
-    ],
-  })[0];
-
-  dispatch(addPreparedFile(datasetFile));
-};
+/**
+ * createDataset was removed - it was a Redux thunk that accessed the project
+ * Redux store. Dataset creation is now handled directly in ModalNewDataset
+ * using context methods.
+ */
 
 const setters = {
   removeOpenFileId(state: Draft<FilesSlice>, id: string) {
@@ -1045,9 +992,6 @@ export const {
   },
   extraReducers: (builder) => {
     builder
-      .addCase(toggleEditor, (state) => {
-        setters.setReplaceProposal(state, null);
-      })
       .addCase(addDependencies.pending, (state, action) => {
         setters.addPendingDependencies(state, action.meta.arg);
       })
