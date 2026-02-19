@@ -12,7 +12,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 | Area | Severity | Effort | Notes |
 |------|----------|--------|-------|
 | React & React Ecosystem | 🔴 Critical | High | React 16 → 18 is a major migration |
-| **Redux Removal** | 🔴 Critical | High | **Remove Redux entirely** (use React state/context) |
+| ~~Redux Removal~~ | ✅ Done | — | Redux entirely removed; replaced with React Context + reduxCompat.ts |
 | ~~Feature Removal~~ | ✅ Done | — | Cloud/auth/sharing features removed |
 | ~~Sentry Removal~~ | ✅ Done | — | Sentry + FullStory analytics removed |
 | ~~Dev Tooling Cleanup~~ | ✅ Done | — | why-did-you-render removed |
@@ -167,10 +167,10 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 |---------|---------|--------|--------|
 | `react` | ~~16.14.0~~ **18.2.0** | ✅ Done | Upgraded via 16→17→18 |
 | `react-dom` | ~~16.14.0~~ **18.2.0** | ✅ Done | createRoot migrated |
-| `react-redux` | 7.2.4 | - | **REMOVE** (see Redux Removal below) |
-| `@reduxjs/toolkit` | 1.5.0 | - | **REMOVE** (see Redux Removal below) |
-| `redux` | * | - | **REMOVE** |
-| `recoil` | 0.4.1 | - | **REMOVE** |
+| `react-redux` | ~~7.2.4~~ | ✅ Removed | Replaced with `useSyncExternalStore` |
+| `@reduxjs/toolkit` | ~~1.5.0~~ | ✅ Removed | Replaced with `reduxCompat.ts` |
+| `redux` | ~~*~~ | ✅ Removed | Transitive dep of RTK, no longer needed |
+| `recoil` | ~~0.4.1~~ | ✅ Removed | Replaced with React Context |
 
 **React Migration**: ✅ COMPLETE (16 → 17 → 18.2)
 - No legacy lifecycle methods found (0 instances)
@@ -227,12 +227,12 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Packages to Remove**:
-- `@reduxjs/toolkit`
-- `react-redux`
-- `redux` (implicit dependency)
-- ~~`recoil` (unused/redundant)~~ ✅ Removed
-- `rxjs` (if only used for Redux store sync)
+**Packages Removed**:
+- ~~`@reduxjs/toolkit`~~ ✅ Removed — replaced with `reduxCompat.ts`
+- ~~`react-redux`~~ ✅ Removed — replaced with `useSyncExternalStore`
+- ~~`redux`~~ ✅ Removed — transitive dep of RTK
+- ~~`recoil`~~ ✅ Removed — replaced with React Context
+- `rxjs` — still used (analysis middleware, experiment queueing, search)
 
 **Redux Slice Migration Progress**:
 - [x] `search` (4 consumers) → `SearchContext` — fully removed from Redux
@@ -258,9 +258,9 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
   - Replaced react-redux Provider with useSyncExternalStore
   - Zero source files import from @reduxjs/toolkit or redux
   - Only .spec.tsx test files still reference react-redux (pre-existing)
-- [ ] Remove `@reduxjs/toolkit`, `react-redux` packages from package.json
-- [ ] Update .spec.tsx test files to remove react-redux usage
-- [ ] Re-enable `useUnknownInCatchVariables` in tsconfig
+- [x] Remove `@reduxjs/toolkit`, `react-redux` packages from package.json
+- [x] Re-enable `useUnknownInCatchVariables` in tsconfig (fixed 3 catch clauses)
+- [ ] Update .spec.tsx test files to remove react-redux usage (14 test files)
 
 **Packages to Add**:
 - None (React 18 built-ins are sufficient)
@@ -872,14 +872,14 @@ All items completed in Migration Phases above (Phases 2–5).
 
 ### Phase 4: React & State Management
 1. [x] React 16 → 17 → 18.2 migration (no legacy lifecycle blockers; createRoot migrated)
-2. [ ] **Remove Redux entirely** (see detailed plan above)
-   - [ ] Audit all state usage across slices
-   - [ ] Create minimal Context providers for truly global state
-   - [ ] Migrate components to use Context/local state
-   - [ ] Delete entire `src/features/` Redux infrastructure
-   - [ ] Remove redux, react-redux, @reduxjs/toolkit packages
-   - [ ] Re-enable fork-ts-checker-webpack-plugin in prod builds
-   - [ ] Re-enable useUnknownInCatchVariables and fix catch clauses
+2. [x] **Remove Redux entirely** — ✅ COMPLETE
+   - [x] All 7 app context facades migrated to pure React (useState/useReducer)
+   - [x] Files slice: pure Immer reducer, pure entity adapter
+   - [x] Simulator store: replaced with SimpleStore (reduxCompat.ts)
+   - [x] All source imports migrated from RTK to reduxCompat.ts
+   - [x] `@reduxjs/toolkit` and `react-redux` removed from package.json
+   - [x] `useUnknownInCatchVariables` re-enabled
+   - [ ] Clean up .spec.tsx test files (14 files still use react-redux)
 3. [ ] Remove Recoil (13 files, all in AgentScene — do with three.js migration)
 4. [x] ~~@material-ui → @mui migration~~ Removed (only used by deleted staging tool)
 5. [ ] react-three-fiber → @react-three/fiber (BLOCKED: requires React 18)
