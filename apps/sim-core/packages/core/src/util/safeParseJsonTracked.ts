@@ -19,7 +19,7 @@ export const safeParseJsonTracked = <T extends ParsedAnalysis | ParsedGlobals>(
 
   try {
     parsed = JSON.parse(inputString);
-  } catch (err) {
+  } catch (err: any) {
     error = err.message;
     parsed = null;
   }

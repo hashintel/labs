@@ -82,7 +82,7 @@ export const useDataLoaderParser = (
       }
 
       ({ pathname, format } = result);
-    } catch (error) {
+    } catch (error: any) {
       dispatch({
         type: "invalidUrl",
         payload: { url, errorMessage: error.message },

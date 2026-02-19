@@ -178,7 +178,7 @@ async function run() {
         ].join("\n")
       );
     }
-  } catch (err) {
+  } catch (err: any) {
     console.error(`Deploy failed with error:`);
     console.error("```" + err.toString() + "```");
     process.exit(1);
