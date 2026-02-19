@@ -252,9 +252,14 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
   - `immer` and `reselect` added as direct dependencies
 - [x] Rebuild scopes system as context-aware hooks
 - [x] Rebuild localStorage persistence and auto-save as useEffect hooks
-- [ ] Convert simulator middleware and subscribers to useEffect hooks
-- [ ] Replace cross-store RxJS sync with context-based communication
-- [ ] Remove Redux packages (`@reduxjs/toolkit`, `react-redux`, `rxjs`) + infrastructure files
+- [x] Convert simulator store from configureStore to pure SimpleStore
+  - Created `reduxCompat.ts` compatibility layer (createSlice, createAction, createEntityAdapter, createStore)
+  - Replaced configureStore with createStore (minimal Redux-compatible store with middleware/thunk support)
+  - Replaced react-redux Provider with useSyncExternalStore
+  - Zero source files import from @reduxjs/toolkit or redux
+  - Only .spec.tsx test files still reference react-redux (pre-existing)
+- [ ] Remove `@reduxjs/toolkit`, `react-redux` packages from package.json
+- [ ] Update .spec.tsx test files to remove react-redux usage
 - [ ] Re-enable `useUnknownInCatchVariables` in tsconfig
 
 **Packages to Add**:

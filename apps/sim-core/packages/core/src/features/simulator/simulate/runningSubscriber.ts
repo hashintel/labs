@@ -1,4 +1,4 @@
-import { createSelector, Store } from "@reduxjs/toolkit";
+import { createSelector, type Store } from "../../reduxCompat";
 
 import { SimulationData } from "./types";
 import { SimulatorRootState } from "../types";

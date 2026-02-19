@@ -1,4 +1,4 @@
-import { configureStore } from "@reduxjs/toolkit";
+import { createStore, type AnyAction, type Middleware } from "../reduxCompat";
 
 import { SimulatorRootState } from "./types";
 import { historySubscriber } from "./simulate/historySubscriber";
@@ -10,19 +10,21 @@ import { simulatorAnalysisMiddleware } from "./simulate/analysisMiddleware";
 import { simulatorMiddleware } from "./simulate/middleware";
 import { simulatorStoreActionObservable } from "./actionObservable";
 
-export const simulatorStore = configureStore({
-  reducer: { simulator },
-  devTools: false,
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      immutableCheck: false,
-      serializableCheck: false,
-    }).concat([
-      simulatorMiddleware,
-      observeMiddleware<SimulatorRootState>(simulatorStoreActionObservable),
-      simulatorAnalysisMiddleware,
-    ]),
+const rootReducer = (
+  state: SimulatorRootState | undefined,
+  action: AnyAction,
+): SimulatorRootState => ({
+  simulator: simulator(state?.simulator, action),
 });
+
+export const simulatorStore = createStore<SimulatorRootState>(
+  rootReducer,
+  [
+    simulatorMiddleware as Middleware<SimulatorRootState>,
+    observeMiddleware<SimulatorRootState>(simulatorStoreActionObservable),
+    simulatorAnalysisMiddleware as Middleware<SimulatorRootState>,
+  ],
+);
 
 simulatorStore.subscribe(playbackSubscriber(simulatorStore));
 simulatorStore.subscribe(runningSubscriber(simulatorStore));

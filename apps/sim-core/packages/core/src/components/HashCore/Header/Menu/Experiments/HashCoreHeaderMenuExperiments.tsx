@@ -1,5 +1,4 @@
 import React, { FC, Fragment, memo, MouseEvent } from "react";
-import { useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 
 import { DisabledExperimentTooltip } from "../../../../SimulationRunner/Controls/Experiments/ExperimentsList";
@@ -11,6 +10,7 @@ import { queueExperiment } from "../../../../../features/simulator/simulate/queu
 import { selectExperiments } from "../../../../SimulationRunner/Controls/Experiments/selectors";
 import { selectProviderTarget } from "../../../../../features/simulator/simulate/selectors";
 import { trackEvent } from "../../../../../features/analytics";
+import { useFilesSelector } from "../../../../../features/files/FilesContext";
 import {
   useSimulatorDispatch,
   useSimulatorSelector,
@@ -32,7 +32,7 @@ export const HashCoreHeaderMenuExperiments: FC<HashCoreHeaderMenuExperimentsProp
   }) => {
     const dispatch = useSimulatorDispatch();
     const canEdit = useScope(Scope.edit);
-    const experiments = useSelector(selectExperiments);
+    const experiments = useFilesSelector(selectExperiments);
     const target = useSimulatorSelector(selectProviderTarget);
     const [
       openCreateExperimentModal,

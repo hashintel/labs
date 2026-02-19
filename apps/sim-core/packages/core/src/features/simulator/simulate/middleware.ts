@@ -1,4 +1,4 @@
-import { Middleware } from "@reduxjs/toolkit";
+import type { Middleware } from "../../reduxCompat";
 
 import { IS_DEV } from "../../../util/api";
 import type { SimulatorDispatch, SimulatorRootState } from "../types";

@@ -1,4 +1,4 @@
-import { Store } from "@reduxjs/toolkit";
+import type { Store } from "../../reduxCompat";
 
 import { LinkableProject } from "../../project/types";
 import { SimulatorDispatch, SimulatorRootState } from "../types";

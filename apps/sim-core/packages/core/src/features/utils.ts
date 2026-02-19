@@ -1,4 +1,4 @@
-import { AnyAction, Middleware } from "redux";
+import type { AnyAction, Middleware } from "./reduxCompat";
 import { Subject } from "rxjs";
 
 import { PartialSimulationProject } from "./project/types";
@@ -10,7 +10,7 @@ export const projectUpdatedSort = (
 
 export const observeMiddleware = <T>(
   subject: Subject<AnyAction>
-): Middleware<{}, T> => () => (next) => (action) => {
+): Middleware<T> => () => (next) => (action) => {
   const result = next(action);
   subject.next(action);
   return result;

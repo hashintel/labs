@@ -1,5 +1,5 @@
-import { createSelector, Selector } from "@reduxjs/toolkit";
-import { createStructuredSelector } from "reselect";
+import { createSelector, createStructuredSelector } from "reselect";
+import type { Selector } from "../reduxCompat";
 
 import { LinkableProject, ProjectSlice } from "./types";
 import { forkUrlFromProject, urlFromProject } from "../../routes";

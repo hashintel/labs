@@ -1,4 +1,4 @@
-import { Middleware } from "@reduxjs/toolkit";
+import type { Middleware } from "../../reduxCompat";
 import { Observable, Subscription, combineLatest, defer, from, of } from "rxjs";
 import {
   concatMap,

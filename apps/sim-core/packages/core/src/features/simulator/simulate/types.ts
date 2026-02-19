@@ -1,4 +1,4 @@
-import { EntityId, EntityState } from "@reduxjs/toolkit";
+import type { EntityId } from "../../reduxCompat";
 import {
   ExperimentRun,
   OutputSeries,
@@ -48,7 +48,9 @@ export type SimulatorHistoryItem =
   | SimulatorHistoryItemRelease
   | SimulatorHistoryItemCommitGroup;
 
-export interface SimulatorHistory extends EntityState<SimulatorHistoryItem> {
+export interface SimulatorHistory {
+  ids: (string | number)[];
+  entities: Record<string | number, SimulatorHistoryItem | undefined>;
   nextPage: string | null;
   complete: boolean;
   receivedCurrent: boolean;

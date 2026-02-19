@@ -1,5 +1,5 @@
 import React, { FC } from "react";
-import { EntityId } from "@reduxjs/toolkit";
+import type { EntityId } from "../../features/reduxCompat";
 
 import { ActivityHistoryGroup } from "./ActivityHistoryGroup/ActivityHistoryGroup";
 import { ActivityHistoryGroupSection } from "./ActivityHistoryGroup/ActivityHistoryGroupSection";

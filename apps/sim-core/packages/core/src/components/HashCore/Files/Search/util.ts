@@ -1,4 +1,3 @@
-import { Dictionary } from "@reduxjs/toolkit";
 import { produce } from "immer";
 import { Range, editor } from "monaco-editor";
 import { debounceTime } from "rxjs/operators";
@@ -79,7 +78,7 @@ export const triggerSearch = async (
   query: SearchQuery,
   filesToSearch: string[],
   manifestId: string | null,
-  allFiles: Dictionary<HcFile>,
+  allFiles: Record<string, HcFile | undefined>,
   pattern: ReplacePattern | null,
   prevResults: SearchResultsDictionary,
   signal: AbortSignal

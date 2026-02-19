@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { ActivityHistoryGroup } from "../ActivityHistoryGroup/ActivityHistoryGroup";
 import { ActivityHistoryGroupTitle } from "../ActivityHistoryGroup/ActivityHistoryGroupTitle";

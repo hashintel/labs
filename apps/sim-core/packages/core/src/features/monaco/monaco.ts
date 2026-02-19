@@ -1,4 +1,4 @@
-import { Store } from "@reduxjs/toolkit";
+import type { Store } from "../reduxCompat";
 import { IDisposable, Uri, editor } from "monaco-editor";
 import { debounce } from "lodash";
 import { v4 as uuid } from "uuid";

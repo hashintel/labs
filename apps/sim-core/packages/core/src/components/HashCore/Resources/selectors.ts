@@ -1,4 +1,4 @@
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { ResourceProject } from "../../../features/project/types";
 import { mapLegacyDependencyFormat } from "../../../features/project/utils";

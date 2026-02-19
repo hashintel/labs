@@ -1,4 +1,4 @@
-import { Draft, EntityState, freeze } from "@reduxjs/toolkit";
+import { type Draft, freeze } from "../../reduxCompat";
 import lodash from "lodash";
 import {
   ExperimentRun,
@@ -29,7 +29,7 @@ import {
 import { simulationProvider } from "./buildprovider";
 
 export const historyInitialState = historyAdapter.getInitialState<
-  Omit<SimulatorHistory, keyof EntityState<SimulatorHistory>>
+  Omit<SimulatorHistory, "ids" | "entities">
 >({
   nextPage: null,
   complete: false,

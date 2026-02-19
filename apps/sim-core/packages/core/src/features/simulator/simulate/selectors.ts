@@ -1,4 +1,4 @@
-import { createSelector, Selector } from "@reduxjs/toolkit";
+import { createSelector, type Selector } from "../../reduxCompat";
 
 import { AnalysisMode } from "./enum";
 import type { SimulationData, SimulatorSlice } from "./types";

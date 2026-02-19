@@ -1,4 +1,4 @@
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { selectAllSimulationData } from "./simulator/simulate/selectors";
 import { selectAnalysis } from "./files/selectors";

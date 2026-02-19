@@ -1,5 +1,5 @@
 import React, { FC, useMemo, useRef } from "react";
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { ActivityHistoryItem } from "../ActivityHistoryItem";
 import { ActivityTime } from "../ActivityTime";
