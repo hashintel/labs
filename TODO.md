@@ -890,6 +890,112 @@ All items completed in Migration Phases above (Phases 2–5).
 5. [x] ~~react-three-fiber → @react-three/fiber~~ Migrated to v8.18.0
 6. [x] ~~drei → @react-three/drei~~ Migrated to v9.122.0
 
+### Phase 4b: Post-Migration Cleanup (Codebase Assessment Feb 2026)
+
+Found during a comprehensive codebase audit after completing Phases 1–4.
+
+#### 🔴 High: Dead Code Removal
+
+- [ ] **Delete dead GraphQL query files** (5 files):
+  - `src/util/api/queries/trackTourProgress.ts` — tour progress stored locally
+  - `src/util/api/queries/myProjects.ts` — server call never invoked (move `prepareUserProjects` to bootstrapQuery)
+  - `src/util/api/queries/exampleSimulations.ts` — server call never invoked (move `prepareExamples` to bootstrapQuery)
+  - `src/util/api/queries/createDatasetQuery.ts` — imported but never called
+  - `src/util/api/queries/addDatasetToProject.ts` — not imported anywhere
+  - Remove dead exports from `util/api/index.ts` and `util/api/queries/index.ts`
+- [ ] **Remove stale hCloud UI references** (5 files):
+  - `components/Modal/Experiments/ExperimentModal.tsx` — "Save and run in hCloud" button text, "in hCloud" vs "locally" text
+  - `components/HashCore/Header/Menu/CloudStatus/HashCoreHeaderMenuCloudStatus.tsx` — "Contact us to use hCloud" text
+  - `components/FileBanner/PythonSafari/FileBannerPythonSafari.tsx` — hCloud text reference
+  - `features/simulator/simulate/provider.ts` — stale comment
+- [ ] **Remove stale login/signin components and scopes**:
+  - `components/FileBanner/SignIn/FileBannerSignIn.tsx` — component for deleted feature
+  - `components/FileBanner/Wrapper/FileBannerWrapper.tsx` — imports and uses FileBannerSignIn
+  - `features/user/utils.ts` — `navigate("/signin")` call
+  - `features/scopes.ts` — `Scope.login`, `Scope.forkIfSignedIn`, `Scope.saveIfSignedIn` are dead
+  - `components/HashRouter/Effect/routes.tsx` — `/signup`, `/signin` route stubs
+- [ ] **Remove dead release toast components**:
+  - `components/Toast/ReleaseSuccess/ToastReleaseSuccess.tsx`
+  - `components/Toast/ReadOnlyRelease/ToastReadOnlyRelease.tsx`
+  - `components/Toast/ReleaseBehaviorSuccess/ToastReleaseBehaviorSuccess.tsx`
+- [ ] **Remove Discord remnants**:
+  - `components/Icon/Discord/` — icon component directory
+  - `styles.css` — CSS variables `--discord-button-y-offset`, `--discord-button-size`
+  - `components/ActivityHistory/Inspector/Inspector.css` — uses Discord CSS variables
+- [ ] **Remove dead utility files**:
+  - `util/postFormData.ts` — file upload utility (server uploads removed)
+  - `util/prepareFormDataWithFile.ts` — file upload utility (server uploads removed)
+  - Remove imports from `features/files/slice.ts`
+
+#### 🔴 High: Module Modernization
+
+- [ ] **Replace `lodash` imports with `lodash-es`** (20+ files):
+  - `features/simulator/simulate/util.ts`, `features/monaco/monaco.ts`, `features/files/selectors.ts`,
+    `features/files/FilesContext.tsx`, `components/Analysis/AnalysisViewer.tsx`, and 15+ more
+  - Currently importing CommonJS `lodash` instead of ESM `lodash-es` — prevents tree-shaking
+  - Global find-replace: `from "lodash` → `from "lodash-es` (and `from "lodash/` → `from "lodash-es/`)
+- [ ] **Replace `process.env.NODE_ENV` with `import.meta.env`**:
+  - `util/api/paths.ts` — uses `process.env.NODE_ENV !== "production"` (should be `!import.meta.env.PROD`)
+- [ ] **Rename `WEBPACK_BUILD_STAMP` to `BUILD_STAMP`** (4 source files + vite.config.ts):
+  - `index.tsx`, `routes.ts`, `setupTests.ts`, `components/EmbedApp/bootEmbed.tsx`
+  - Update `vite.config.ts` define section to match
+  - Remove stale webpack comments in `GeospatialMap.tsx`, `ExperimentModal.spec.tsx`
+
+#### 🟡 Medium: Commented/Stubbed Code Cleanup
+
+- [ ] **Clean up stubbed GraphQL queries** — remove commented-out server calls:
+  - `util/api/queries/bootstrapQuery.ts`
+  - `util/api/queries/getOnboardingProject.ts`
+  - `util/api/queries/tourShowcase.ts`
+- [ ] **Clean up stale SCSS comments**:
+  - `components/Modal/Split/ModalSplit.scss` — references deleted ModalShare
+- [ ] **Decide on `trackEvent` stubs** — 20+ call sites invoke no-op analytics:
+  - Option A: Remove all `trackEvent()` calls and the `features/analytics.ts` file
+  - Option B: Keep stubs for future analytics integration
+- [ ] **Remove `require()` in ProjectContext.tsx**:
+  - Line 257 uses `require("../actions")` as a dynamic import workaround — refactor to static import
+
+#### 🟡 Medium: Stale Dependencies
+
+- [ ] **Remove unused packages from workspace root** (`apps/sim-core/package.json`):
+  - `yarn-audit-fix` — not used in any script
+  - `yarn-run-all` — not used (project uses `npm-run-all`)
+- [ ] **Move webpack-only deps to engine-web** (only used by engine-web stdlib build):
+  - `webpack` (4.44.2) — only used by `engine-web/webpack.config.js`
+  - `webpack-cli` (3.3.12) — only used by engine-web
+  - `babel-loader` (8.2.1) — only used by engine-web
+- [ ] **Upgrade outdated Babel packages** (used by Jest transforms):
+  - `@babel/core` 7.12 → 7.24+
+  - `@babel/preset-env` 7.12 → 7.24+
+  - `@babel/preset-react` 7.14 → 7.24+
+  - `@babel/preset-typescript` 7.12 → 7.24+
+  - `@babel/plugin-proposal-class-properties` — now included in preset-env, may be removable
+  - `@babel/plugin-proposal-numeric-separator` — now included in preset-env, may be removable
+- [ ] **Upgrade linting/formatting tools**:
+  - `eslint` 7.29 → 9.x (major; new flat config format)
+  - `prettier` 2.2 → 3.x (minor formatting changes)
+  - `@typescript-eslint/*` 4.x → 7.x
+- [ ] **Upgrade GraphQL tooling**:
+  - `graphql` 15.5 → 16.x
+  - `@graphql-codegen/*` packages to latest
+- [ ] **Upgrade @testing-library/react** 11.2 → 14+ or 16+ (major; API changes)
+
+#### 🟢 Low: Type Safety Improvements
+
+- [ ] **Audit and fix `@ts-ignore` / `@ts-expect-error` comments** (30+ instances):
+  - `components/HashCore/Files/HashCoreFiles.tsx`
+  - `components/Modal/Experiments/ExperimentModal.tsx` (2 instances)
+  - `components/HashCore/Editor/HashCoreEditor.tsx` (2 instances)
+  - `components/StepExplorer/StepExplorer.tsx` (3 instances)
+  - `features/analysis/plotValidations.ts` (5 instances)
+  - Many more — prioritize files edited frequently
+- [ ] **Reduce `as any` casts** (60+ instances across codebase):
+  - Focus on `reduxCompat.ts`, `features/simulator/simulate/slice.ts`, `util/fromStore.ts`
+  - Replace with proper type narrowing or generics where possible
+- [ ] **Migrate test files from `ReactDOM.render` to `@testing-library/react`** (100+ spec files):
+  - Currently use deprecated `ReactDOM.render()` / `unmountComponentAtNode()`
+  - Should use `render()` / `cleanup()` from `@testing-library/react`
+
 ### Phase 5: Future - GitHub Integration (Post-Migration)
 - [ ] Design GitHub OAuth flow (no HASH account)
 - [ ] Implement save/load from user's GitHub repos
@@ -907,38 +1013,33 @@ All items completed in Migration Phases above (Phases 2–5).
 
 ---
 
-## Potential Removals
+## Potential Removals (Updated Feb 2026)
 
-### Unused or Redundant Packages (Investigate)
+### Package Status
 
-| Package | Reason to Investigate |
-|---------|----------------------|
-| `recoil` | **REMOVING** - see Redux removal plan |
-| `@fullstory/browser` | **REMOVING** - see Sentry removal plan |
-| `@sentry/*` | **REMOVING** - see Sentry removal plan |
-| `react-shepherd` | **KEEP** - onboarding tour is staying |
-| `@msrvida/sanddance-explorer` | **KEEP** - data visualization staying |
-| `gradient-path` | Specialized SVG library - investigate if needed |
-
-### Packages Related to Removed Features
-
-| Package/Code | Status | Reason |
-|--------------|--------|--------|
-| Auth-related API calls | **REMOVE** | No user accounts |
-| GraphQL user queries | **REMOVE** | No server-side users |
-| hCloud client code | **REMOVE** | Local-only execution |
-| Sharing modals | **REMOVE** | No sharing feature |
-| Discord widget code | **REMOVE** | Removing integration |
+| Package | Status | Notes |
+|---------|--------|-------|
+| `recoil` | ✅ Removed | Replaced with SceneContext |
+| `@fullstory/browser` | ✅ Removed | Analytics removed |
+| `@sentry/*` | ✅ Removed | Analytics removed |
+| `@reduxjs/toolkit` | ✅ Removed | Replaced with reduxCompat.ts |
+| `react-redux` | ✅ Removed | Replaced with useSyncExternalStore |
+| `react-shepherd` | **KEEP** | Onboarding tour is staying |
+| `@msrvida/sanddance-explorer` | **KEEP** | Data visualization staying |
+| `gradient-path` | **KEEP** | Used in SVG visualization |
+| `fp-ts` | **KEEP** | Used in PlotViewer, palette, GeospatialMap |
+| `rxjs` | **KEEP** | Used in search, simulator, analysis middleware |
+| `lodash-es` | **KEEP** | But fix 20+ files importing `lodash` instead |
+| `yarn-audit-fix` | **REMOVE** | Not used in any script |
+| `yarn-run-all` | **REMOVE** | Not used (`npm-run-all` used instead) |
 
 ### Consolidation Opportunities
 
 | Current | Consolidate To |
 |---------|----------------|
-| Redux + Recoil + RTK | **Remove entirely** - use React Context/state |
-| RxJS (for store sync) | Remove if only used for Redux sync |
-| Multiple date libraries | Just date-fns |
-| lodash-es + fp-ts | Evaluate if both needed |
-| Server project storage | **localStorage/IndexedDB** |
+| `lodash` + `lodash-es` imports | `lodash-es` only (20+ files to fix) |
+| `WEBPACK_BUILD_STAMP` variable | Rename to `BUILD_STAMP` |
+| `process.env.NODE_ENV` | `import.meta.env.PROD` (Vite) |
 
 ---
 
@@ -956,76 +1057,44 @@ When working on this codebase:
 
 ### Code Guidance
 
-1. **Don't upgrade React without a plan** - It's a major undertaking affecting the entire frontend
-2. **Redux is being removed entirely** - Don't add ANY new Redux code
-3. **Don't add new useSelector/useDispatch** - Redux is being deleted
-4. **Test thoroughly after any dependency update** - Many packages are interconnected
-5. **Check for breaking changes** before upgrading any major version
-6. **The Python POC may be stale** - Verify if hash-agents is actively used before investing in updates
-7. **Rust toolchain update is low-risk** - Should be done first
+1. **Redux is gone** — `@reduxjs/toolkit` and `react-redux` have been removed. Use React Context + hooks.
+2. **Use `reduxCompat.ts` only for the simulator store** — all other state uses React Context directly.
+3. **Test thoroughly after any dependency update** — many packages are interconnected.
+4. **Check for breaking changes** before upgrading any major version.
+5. **Import from `lodash-es`** not `lodash` — prevents tree-shaking issues.
+6. **Use `import.meta.env`** not `process.env` — we use Vite, not Webpack.
+7. **The Python POC may be stale** — verify if hash-agents is actively used before investing in updates.
 
-### Features Being REMOVED - DO NOT Extend
+### Features Already REMOVED (do not re-introduce)
 
-```
-❌ User authentication (ModalSignin, ModalSignup)
-❌ Cloud credits / CloudUsage
-❌ Project sharing (ModalShare*)
-❌ Access codes
-❌ Server project storage
-❌ Fork project
-❌ Project releases/versioning (ModalRelease*)
-❌ hCloud experiment runners
-❌ Sentry / FullStory analytics
-❌ Discord widget
-```
+- User authentication (ModalSignin, ModalSignup) — DELETED
+- Cloud credits / CloudUsage — DELETED
+- Project sharing (ModalShare*) — DELETED
+- Access codes — DELETED
+- Server project storage — DELETED
+- Project releases/versioning (ModalRelease*) — DELETED
+- hCloud experiment runners — DELETED
+- Sentry / FullStory analytics — DELETED
+- Discord widget — DELETED
+- Redux / @reduxjs/toolkit / react-redux — DELETED
 
-### Features to KEEP
-
-```
-✓ All simulation execution (step, play, pause, reset)
-✓ All viewer tabs (3D, geospatial, analysis, process chart, raw output)
-✓ Code editing (Monaco, file tree, behaviors)
-✓ Local experiments (parameter sweeps, linspace, optimization)
-✓ hIndex shared behaviors library (dependencies)
-✓ Import/Export .zip
-✓ Onboarding tour
-✓ Keyboard shortcuts
-```
-
-### State Management Guidance for New Code
-
-Redux is being completely removed. For new state:
+### State Management (Current)
 
 ```typescript
-// DON'T: Add new Redux slices ❌
-// src/features/newFeature/slice.ts
+// App state — use context hooks
+const { allFiles, updateFile } = useFiles();
+const { currentProject } = useProject();
+const { currentTab } = useViewer();
 
-// DON'T: Use any Redux hooks ❌
-useSelector(), useDispatch()
+// Simulation state — use simulator hooks
+const running = useSimulatorSelector(selectRunning);
+const dispatch = useSimulatorDispatch();
 
-// DO: Use React's built-in state management ✓
 // Local state
 const [value, setValue] = useState(initial);
 
-// Shared state (if truly needed across distant components)
-// Create a simple Context
-const MyContext = createContext(null);
-
-// DO: Use localStorage for persistence ✓
-const [value, setValue] = useLocalStorage('key', defaultValue);
-```
-
-### Storage Strategy
-
-```typescript
-// Project persistence
+// Persistence
 localStorage.setItem('project:' + projectId, JSON.stringify(projectData));
-
-// User preferences (no account needed)
-localStorage.setItem('preferences', JSON.stringify(prefs));
-
-// For larger data (future)
-// Use IndexedDB
 ```
 
 ---
