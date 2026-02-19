@@ -3,7 +3,6 @@
  */
 import React from "react";
 import ReactDOM from "react-dom";
-import { Provider } from "react-redux";
 
 import { HcFileKind } from "../../../features/files/enums";
 import {
@@ -13,7 +12,6 @@ import {
 import { ResourceListItemPopup } from "./ResourceListItemPopup";
 import { defaultBehaviorKeys } from "../../../features/files/utils";
 import { parse } from "../../../util/files";
-import { store } from "../../../features/store";
 
 jest.mock("./util", () => ({ scrollBy: jest.fn() }));
 
@@ -67,8 +65,7 @@ const behaviorOne: HcSharedBehaviorFile = {
 it("renders without crashing with one dataset with none present", () => {
   const div = document.createElement("div");
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -98,8 +95,7 @@ it("renders without crashing with one dataset with none present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);
@@ -109,8 +105,7 @@ it("renders without crashing with one dataset with it present", () => {
   const div = document.createElement("div");
 
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -140,8 +135,7 @@ it("renders without crashing with one dataset with it present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);
@@ -150,8 +144,7 @@ it("renders without crashing with one dataset with it present", () => {
 it("renders without crashing with one trusted dataset with it present", () => {
   const div = document.createElement("div");
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -181,8 +174,7 @@ it("renders without crashing with one trusted dataset with it present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);
@@ -191,8 +183,7 @@ it("renders without crashing with one trusted dataset with it present", () => {
 it("renders without crashing with two datasets with none present", () => {
   const div = document.createElement("div");
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -222,8 +213,7 @@ it("renders without crashing with two datasets with none present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);
@@ -232,8 +222,7 @@ it("renders without crashing with two datasets with none present", () => {
 it("renders without crashing with two datasets with one present", () => {
   const div = document.createElement("div");
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -263,8 +252,7 @@ it("renders without crashing with two datasets with one present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);
@@ -273,8 +261,7 @@ it("renders without crashing with two datasets with one present", () => {
 it("renders without crashing with two datasets with two present", () => {
   const div = document.createElement("div");
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -307,8 +294,7 @@ it("renders without crashing with two datasets with two present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);
@@ -317,8 +303,7 @@ it("renders without crashing with two datasets with two present", () => {
 it("renders without crashing one behavior with none present", () => {
   const div = document.createElement("div");
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -348,8 +333,7 @@ it("renders without crashing one behavior with none present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);
@@ -358,8 +342,7 @@ it("renders without crashing one behavior with none present", () => {
 it("renders without crashing one behavior with one present", () => {
   const div = document.createElement("div");
   ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
+    <ResourceListItemPopup
         position="right"
         targetRect={mockRect}
         popoverRect={mockRect}
@@ -389,8 +372,7 @@ it("renders without crashing one behavior with one present", () => {
             createdAt: "",
           },
         }}
-      />
-    </Provider>,
+      />,
     div
   );
   ReactDOM.unmountComponentAtNode(div);

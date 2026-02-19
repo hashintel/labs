@@ -1,4 +1,5 @@
-import { type Draft, freeze } from "../../reduxCompat";
+import { freeze } from "../../reduxCompat";
+import type { Draft } from "../../reduxCompat";
 import lodash from "lodash";
 import {
   ExperimentRun,

@@ -1,5 +1,5 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { produce, type Draft } from "immer";
+import { produce, Draft } from "immer";
 
 import {
   BehaviorKeysDraftField,

@@ -1,4 +1,5 @@
-import { createSelector, type Selector } from "../../reduxCompat";
+import { createSelector } from "../../reduxCompat";
+import type { Selector } from "../../reduxCompat";
 
 import { AnalysisMode } from "./enum";
 import type { SimulationData, SimulatorSlice } from "./types";

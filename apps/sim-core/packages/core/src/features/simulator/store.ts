@@ -1,4 +1,5 @@
-import { createStore, type AnyAction, type Middleware } from "../reduxCompat";
+import { createStore } from "../reduxCompat";
+import type { AnyAction, Middleware } from "../reduxCompat";
 
 import { SimulatorRootState } from "./types";
 import { historySubscriber } from "./simulate/historySubscriber";

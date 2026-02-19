@@ -1,4 +1,5 @@
-import { createSelector, type Store } from "../../reduxCompat";
+import { createSelector } from "../../reduxCompat";
+import type { Store } from "../../reduxCompat";
 
 import { SimulationData } from "./types";
 import { SimulatorRootState } from "../types";

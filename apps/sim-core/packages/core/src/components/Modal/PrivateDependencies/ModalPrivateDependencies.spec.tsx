@@ -1,24 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom";
-import { Provider } from "react-redux";
 
 import { ModalPrivateDependencies } from "./ModalPrivateDependencies";
 import { ProjectProvider } from "../../../features/project/ProjectContext";
-import { mockProject } from "../../../features/project/mocks";
-import { setProjectWithMeta } from "../../../features/actions";
-import { store } from "../../../features/store";
 
 it("renders without crashing", () => {
   const div = document.createElement("div");
 
-  store.dispatch(setProjectWithMeta(mockProject));
-
   ReactDOM.render(
-    <Provider store={store}>
-      <ProjectProvider>
-        <ModalPrivateDependencies onClose={() => {}} />
-      </ProjectProvider>
-    </Provider>,
+    <ProjectProvider>
+      <ModalPrivateDependencies onClose={() => {}} />
+    </ProjectProvider>,
     div
   );
   ReactDOM.unmountComponentAtNode(div);

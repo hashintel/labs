@@ -1,12 +1,14 @@
 import {
-  type AnyAction,
   createAction,
   createSlice,
   current,
-  type Draft,
-  type EntityId,
   freeze,
-  type PayloadAction,
+} from "../../reduxCompat";
+import type {
+  AnyAction,
+  Draft,
+  EntityId,
+  PayloadAction,
 } from "../../reduxCompat";
 import {
   ExperimentPlan,
