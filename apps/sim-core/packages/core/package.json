@@ -119,7 +119,6 @@
     "react-tiny-popover": "5.1.0",
     "react-transition-group": "4.4.2",
     "react-window": "1.8.6",
-    "redux": "*",
     "rxjs": "6.6.6",
     "simplebar-react": "3.0.0-beta.6",
     "slugify": "1.4.6",

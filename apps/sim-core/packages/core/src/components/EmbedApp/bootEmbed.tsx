@@ -10,7 +10,7 @@ import "../../util/api";
  */
 import "../OpenInCore/OpenInCore";
 
-import React from "react";
+import React, { FC, useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "../App";
@@ -18,46 +18,64 @@ import { BasicUser } from "../../util/api/types";
 import { EmbedApp } from "./EmbedApp";
 import { RemoteSimulationProject } from "../../features/project/types";
 import { ValidatedEmbedParams } from "../../util/getEmbedParams";
-// TODO: activateEmbedded is dispatched outside React tree (no hooks available).
-// Migrate when Redux store is fully removed — will need ViewerProvider ref or
-// initialization prop passed into <App>.
-import { activateEmbedded } from "../../features/viewer/slice";
 import { boot } from "../../boot";
-import { fetchProject } from "../../features/project/slice";
 import { getUiQueryParams } from "../../hooks/useParameterisedUi";
-import { setBasicUser } from "../../features/user/slice";
-import { store } from "../../features/store";
+import { useProject } from "../../features/project/ProjectContext";
+import { useUser } from "../../features/user/UserContext";
+import { useViewer } from "../../features/viewer/ViewerContext";
+
+interface EmbedBootstrapProps {
+  params: ValidatedEmbedParams;
+  basicUserPromise: Promise<BasicUser | null | undefined>;
+}
+
+/**
+ * Inner component that initializes embed state via context hooks on mount.
+ * This replaces the old pattern of dispatching Redux actions before render.
+ */
+const EmbedBootstrap: FC<EmbedBootstrapProps> = ({
+  params,
+  basicUserPromise,
+}) => {
+  const { activateEmbedded } = useViewer();
+  const { fetchProject } = useProject();
+  const { setBasicUser } = useUser();
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    const { tabs, view } = getUiQueryParams();
+    activateEmbedded({ tabs, tab: view });
+
+    fetchProject({
+      project: { pathWithNamespace: params.project, ref: params.ref },
+      redirect: false,
+    });
+
+    basicUserPromise.then((basicUser) => {
+      if (basicUser) {
+        setBasicUser(basicUser);
+      }
+    });
+  }, [activateEmbedded, fetchProject, setBasicUser, params, basicUserPromise]);
+
+  return <EmbedApp />;
+};
 
 // @todo error handling
 export const bootEmbed = async (
   params: ValidatedEmbedParams,
-  prefetchedProjectPromise: Promise<RemoteSimulationProject>,
-  basicUserPromise: Promise<BasicUser | null | undefined>
+  _prefetchedProjectPromise: Promise<RemoteSimulationProject>,
+  basicUserPromise: Promise<BasicUser | null | undefined>,
 ) => {
   await boot(false);
 
-  const { tabs, view } = getUiQueryParams();
-
-  store.dispatch(activateEmbedded({ tabs, tab: view }));
-
-  await Promise.all([
-    store.dispatch(
-      fetchProject({
-        project: { pathWithNamespace: params.project, ref: params.ref },
-        redirect: false,
-      })
-    ),
-    basicUserPromise.then((basicUser) => {
-      if (basicUser) {
-        return store.dispatch(setBasicUser(basicUser));
-      }
-    }),
-  ]);
-
   const root = createRoot(document.getElementById("root")!);
   root.render(
-    <App store={store}>
-      <EmbedApp />
-    </App>
+    <App>
+      <EmbedBootstrap params={params} basicUserPromise={basicUserPromise} />
+    </App>,
   );
 };

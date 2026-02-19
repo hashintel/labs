@@ -10,7 +10,6 @@ import {
   getBuildStampFromUrl,
   getUrlForCurrentRouteWithBuildStamp,
 } from "./routes";
-import { store } from "./features/store";
 
 import "./styles.css";
 
@@ -28,14 +27,13 @@ if (IS_STAGING) {
   }
 }
 
-// Report our version number on startup:
 console.log("HASH Core Version:", WEBPACK_BUILD_STAMP);
 
 boot(true).then(() => {
   const root = createRoot(document.getElementById("root")!);
   root.render(
-    <App store={store}>
+    <App>
       <HashRouter />
-    </App>
+    </App>,
   );
 });

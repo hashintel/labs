@@ -5,8 +5,6 @@ import { buildSimulationProvider } from "./features/simulator/simulate/buildprov
 import { configureMonaco } from "./util/monaco-config";
 import { resizeObserverPromise } from "./util/resizeObserverPromise";
 import { simulatorStore } from "./features/simulator/store";
-import { store } from "./features/store";
-import { syncStores } from "./features/simulator/simulate/sync";
 import { theme } from "./util/theme";
 
 const configureTheme = () => {
@@ -17,10 +15,8 @@ const configureTheme = () => {
 };
 
 export const boot = async (forExperiments: boolean) => {
-  // Expose for console access:
   Object.assign(window as any, {
     api,
-    store,
     simulatorStore,
   });
 
@@ -28,7 +24,6 @@ export const boot = async (forExperiments: boolean) => {
   enableMapSet();
   configureMonaco();
   buildSimulationProvider(forExperiments);
-  syncStores(store, simulatorStore);
 
   await resizeObserverPromise;
 };

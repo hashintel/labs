@@ -12,9 +12,8 @@ import * as THREE from "three";
 
 import { AgentTransition, RenderSummary } from "../util/anim";
 import { getItem, setItem } from "../../../hooks/useLocalStorage/utils";
-import { selectGlobals } from "../../../features/files/selectors";
-import { selectProjectPathWithNamespace } from "../../../features/project/selectors";
-import { store } from "../../../features/store";
+import { useFiles } from "../../../features/files/FilesContext";
+import { useProject } from "../../../features/project/ProjectContext";
 
 const tempColor = new THREE.Color();
 
@@ -29,18 +28,17 @@ type ViewerSettingsStorageObject = {
 function loadSetting<T extends ViewerSettingValue>(
   key: string,
   defaultValue: T,
+  projectPath: string | undefined,
 ): T {
   const storageKey = `sceneSettings.${key}`;
-  const projectPath = selectProjectPathWithNamespace(store.getState());
   const saved = getItem<ViewerSettingsStorageObject>(storageKey);
   if (projectPath && saved?.[projectPath] != null) return saved[projectPath] as T;
   if (saved?.lastSet != null) return saved.lastSet as T;
   return defaultValue;
 }
 
-function saveSetting(key: string, value: ViewerSettingValue) {
+function saveSetting(key: string, value: ViewerSettingValue, projectPath: string | undefined) {
   const storageKey = `sceneSettings.${key}`;
-  const projectPath = selectProjectPathWithNamespace(store.getState());
   const saved: ViewerSettingsStorageObject = {
     ...(getItem(storageKey) ?? {}),
     lastSet: value,
@@ -52,14 +50,15 @@ function saveSetting(key: string, value: ViewerSettingValue) {
 function usePersistedSetting<T extends ViewerSettingValue>(
   key: string,
   defaultValue: T,
+  projectPath: string | undefined,
 ): [T, (v: T) => void] {
-  const [value, setRaw] = useState<T>(() => loadSetting(key, defaultValue));
+  const [value, setRaw] = useState<T>(() => loadSetting(key, defaultValue, projectPath));
   const set = useCallback(
     (v: T) => {
       setRaw(v);
-      saveSetting(key, v);
+      saveSetting(key, v, projectPath);
     },
-    [key],
+    [key, projectPath],
   );
   return [value, set];
 }
@@ -138,6 +137,10 @@ export const useSceneContext = () => {
 // ---------------------- Provider ----------------------
 
 export const SceneProvider: FC<PropsWithChildren> = ({ children }) => {
+  const { currentProject } = useProject();
+  const { globalsSrc } = useFiles();
+  const projectPath = currentProject?.pathWithNamespace;
+
   // Core state
   const [mappedTransitions, setMappedTransitions] = useState<RenderSummary>({});
   const [stageDimensions, setStageDimensions] =
@@ -148,18 +151,18 @@ export const SceneProvider: FC<PropsWithChildren> = ({ children }) => {
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null);
 
   // Settings (persisted to localStorage)
-  const [sceneView, setSceneView] = usePersistedSetting<"3d" | "2d">("view", "3d");
-  const [cameraFov, setCameraFov] = usePersistedSetting<number>("fov", 30);
-  const [stageColor, setStageColor] = usePersistedSetting<string>("stageColor", "#111216");
-  const [gridColor, setGridColor] = usePersistedSetting<string>("gridColor", "#444444");
-  const [gridEnabled, setGridEnabled] = usePersistedSetting<boolean>("gridEnabled", true);
-  const [floorEnabled, setFloorEnabled] = usePersistedSetting<boolean>("floorEnabled", true);
-  const [axesEnabled, setAxesEnabled] = usePersistedSetting<boolean>("axesEnabled", true);
-  const [edgesEnabled, setEdgesEnabled] = usePersistedSetting<boolean>("edgesEnabled", true);
-  const [updatesEnabled, setUpdatesEnabled] = usePersistedSetting<boolean>("updatesEnabled", true);
-  const [lightEnabled, setLightEnabled] = usePersistedSetting<boolean>("lightEnabled", true);
-  const [statsEnabled, setStatsEnabled] = usePersistedSetting<boolean>("statsEnabled", false);
-  const [sampleLevel, setSampleLevel] = usePersistedSetting<number>("sampleLevel", 3);
+  const [sceneView, setSceneView] = usePersistedSetting<"3d" | "2d">("view", "3d", projectPath);
+  const [cameraFov, setCameraFov] = usePersistedSetting<number>("fov", 30, projectPath);
+  const [stageColor, setStageColor] = usePersistedSetting<string>("stageColor", "#111216", projectPath);
+  const [gridColor, setGridColor] = usePersistedSetting<string>("gridColor", "#444444", projectPath);
+  const [gridEnabled, setGridEnabled] = usePersistedSetting<boolean>("gridEnabled", true, projectPath);
+  const [floorEnabled, setFloorEnabled] = usePersistedSetting<boolean>("floorEnabled", true, projectPath);
+  const [axesEnabled, setAxesEnabled] = usePersistedSetting<boolean>("axesEnabled", true, projectPath);
+  const [edgesEnabled, setEdgesEnabled] = usePersistedSetting<boolean>("edgesEnabled", true, projectPath);
+  const [updatesEnabled, setUpdatesEnabled] = usePersistedSetting<boolean>("updatesEnabled", true, projectPath);
+  const [lightEnabled, setLightEnabled] = usePersistedSetting<boolean>("lightEnabled", true, projectPath);
+  const [statsEnabled, setStatsEnabled] = usePersistedSetting<boolean>("statsEnabled", false, projectPath);
+  const [sampleLevel, setSampleLevel] = usePersistedSetting<number>("sampleLevel", 3, projectPath);
 
   // Derived: group transitions by mesh type
   const positionedMeshes = useMemo(() => {
@@ -305,10 +308,9 @@ export const SceneProvider: FC<PropsWithChildren> = ({ children }) => {
   // Action: reset viewer to initial state
   const resetViewer = useCallback(() => {
     let { pxMin, pxMax, pyMin, pyMax } = dimensionDefaults;
-    const globals = selectGlobals(store.getState());
-    if (globals) {
+    if (globalsSrc) {
       try {
-        const { topology } = JSON.parse(globals);
+        const { topology } = JSON.parse(globalsSrc);
         if (topology) {
           pxMin = topology.x_bounds?.[0] ?? pxMin;
           pxMax = topology.x_bounds?.[1] ?? pxMax;
@@ -322,7 +324,7 @@ export const SceneProvider: FC<PropsWithChildren> = ({ children }) => {
     setStageDimensions({ pxMin, pxMax, pyMin, pyMax });
     setSelectedAgentIds({});
     setHoveredAgent(null);
-  }, []);
+  }, [globalsSrc]);
 
   const value = useMemo<SceneContextValue>(
     () => ({

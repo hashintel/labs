@@ -1,7 +1,5 @@
 import React, { FC, PropsWithChildren } from "react";
-import { Provider } from "react-redux";
 import { ModalProvider } from "react-modal-hook";
-import { Store } from "@reduxjs/toolkit";
 
 import { ErrorBoundary } from "../ErrorBoundary";
 import { ExamplesProvider } from "../../features/examples/ExamplesContext";
@@ -12,49 +10,45 @@ import { MonacoContainerProvider } from "../TabbedEditor/hooks";
 import { SceneProvider } from "../AgentScene/state/SceneContext";
 import { SearchProvider } from "../../features/search/SearchContext";
 import { SimulatorProvider } from "../../features/simulator/context";
+import { StoreSync } from "../../features/simulator/simulate/StoreSync";
 import { ToastProvider } from "../../features/toast/ToastContext";
 import { UserProvider } from "../../features/user/UserContext";
 import { ViewerProvider } from "../../features/viewer/ViewerContext";
 
 import "./App.css";
 
-type AppProps = PropsWithChildren<{
-  store: Store;
-}>;
-
 /**
  * Provider ordering: ProjectProvider is below Viewer, Toast, Files so it can
- * coordinate setProjectWithMeta across those contexts. Redux Provider is kept
- * temporarily until all Redux code is removed.
+ * coordinate setProjectWithMeta across those contexts. The simulator keeps
+ * its own Redux store for performance; StoreSync bridges app contexts to it.
  */
-export const App: FC<AppProps> = ({ store, children }) => (
+export const App: FC<PropsWithChildren> = ({ children }) => (
   <ErrorBoundary>
-    <Provider store={store}>
-    <UserProvider>
-    <ExamplesProvider>
-    <ViewerProvider>
-    <ToastProvider>
-    <FilesProvider>
-    <ProjectProvider>
-    <SearchProvider>
-      <SceneProvider>
-        <SimulatorProvider>
-        <ModalProvider>
-          <FontsPreloader>
-            <MonacoContainerProvider>
-              <div className="App">{children}</div>
-            </MonacoContainerProvider>
-          </FontsPreloader>
-        </ModalProvider>
-        </SimulatorProvider>
-      </SceneProvider>
-    </SearchProvider>
-    </ProjectProvider>
-    </FilesProvider>
-    </ToastProvider>
-    </ViewerProvider>
-    </ExamplesProvider>
-    </UserProvider>
-    </Provider>
+  <UserProvider>
+  <ExamplesProvider>
+  <ViewerProvider>
+  <ToastProvider>
+  <FilesProvider>
+  <ProjectProvider>
+  <SearchProvider>
+    <SceneProvider>
+      <SimulatorProvider>
+      <StoreSync />
+      <ModalProvider>
+        <FontsPreloader>
+          <MonacoContainerProvider>
+            <div className="App">{children}</div>
+          </MonacoContainerProvider>
+        </FontsPreloader>
+      </ModalProvider>
+      </SimulatorProvider>
+    </SceneProvider>
+  </SearchProvider>
+  </ProjectProvider>
+  </FilesProvider>
+  </ToastProvider>
+  </ViewerProvider>
+  </ExamplesProvider>
+  </UserProvider>
   </ErrorBoundary>
 );
