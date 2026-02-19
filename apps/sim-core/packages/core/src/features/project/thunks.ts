@@ -1,27 +1,23 @@
 import { navigate } from "../../util/navigation";
 
-import { AsyncAppThunk } from "../types";
 import { NewProjectModalValues } from "../../components/Modal/NewProject/types";
 import { USER_ORG_VALUE } from "../../components/Modal/NewProject/utils";
 import { PartialSimulationProject } from "./types";
-import { Scope, selectScope } from "../scopes";
-import { ToastKind, displayToast } from "../toast";
-import { addUserProject } from "../user/slice";
+import { ToastKind } from "../toast/enums";
 import { getLocalStorageProject, preparePartialSimulationProject } from "./utils";
 import { setLocalStorageProject } from "../middleware/localStorage";
-import { save } from "../thunks";
-import { setProjectWithMeta } from "../actions";
 import { trackEvent } from "../analytics";
 import { urlFromProject } from "../../routes";
 
-export const forkProject = (
+/**
+ * Fork a project: create a copy in local storage and set it as active.
+ * Returns an object with callbacks that the UI layer needs to invoke on
+ * the relevant contexts.
+ */
+export function prepareForkProject(
   project: PartialSimulationProject,
-  values: NewProjectModalValues
-): AsyncAppThunk => async (dispatch, getState) => {
-  if (selectScope[Scope.save](getState())) {
-    await dispatch(save());
-  }
-
+  values: NewProjectModalValues,
+) {
   const effectiveNamespace =
     !values.namespace || values.namespace === USER_ORG_VALUE
       ? "user"
@@ -34,7 +30,7 @@ export const forkProject = (
 
   const sourceProject = getLocalStorageProject(
     project.pathWithNamespace,
-    project.ref
+    project.ref,
   );
   if (!sourceProject) {
     throw new Error("Cannot fork: project not found in local storage");
@@ -55,22 +51,21 @@ export const forkProject = (
 
   setLocalStorageProject(nextProject);
 
-  dispatch(
-    trackEvent({
-      action: "Fork Project: Core",
-      label: [project.type, project.pathWithNamespace, project.ref].join(" - "),
-      context: {
-        type: project.type,
-        forkPath: nextProject.pathWithNamespace,
-      },
-    })
-  );
+  trackEvent({
+    action: "Fork Project: Core",
+    label: [project.type, project.pathWithNamespace, project.ref].join(" - "),
+    context: {
+      type: project.type,
+      forkPath: nextProject.pathWithNamespace,
+    },
+  });
 
-  if (effectiveNamespace === "user" && nextProject.type === "Simulation") {
-    dispatch(addUserProject(preparePartialSimulationProject(nextProject)));
-  }
-
-  dispatch(setProjectWithMeta(nextProject));
-  navigate(urlFromProject(nextProject));
-  dispatch(displayToast({ kind: ToastKind.ProjectForked, data: project }));
-};
+  return {
+    nextProject,
+    partialProject:
+      effectiveNamespace === "user" && nextProject.type === "Simulation"
+        ? preparePartialSimulationProject(nextProject)
+        : null,
+    toastData: { kind: ToastKind.ProjectForked, data: project },
+  };
+}

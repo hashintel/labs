@@ -1,14 +1,13 @@
 import React, { FC, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import { ActivityHistoryItem } from "./ActivityHistoryItem";
 import { ActivityHistoryRowSpacer } from "./ActivityHistoryRowSpacer";
 import { ActivityTime } from "./ActivityTime";
 import { LazyIconLoading } from "../Icon/Loading/LazyIconLoading";
-import { selectProjectPathWithNamespace } from "../../features/project/selectors";
 import { theme } from "../../util/theme";
 import { urlFromProject } from "../../routes";
 import { useCurrentRefItem } from "./hooks";
+import { useProject } from "../../features/project/ProjectContext";
 import { useSafeQueryParams } from "../../hooks/useSafeQueryParams";
 
 import "./ActivityHistoryRelease.scss";
@@ -20,7 +19,8 @@ export const ActivityHistoryRelease: FC<{
   tag: string;
   createdAt: number | null;
 }> = ({ tag, createdAt }) => {
-  const pathWithNamespace = useSelector(selectProjectPathWithNamespace);
+  const { currentProject } = useProject();
+  const pathWithNamespace = currentProject?.pathWithNamespace;
   const ref = useRef<HTMLElement>(null);
   const { current, currentlySwitchingTo } = useCurrentRefItem(tag, ref);
 

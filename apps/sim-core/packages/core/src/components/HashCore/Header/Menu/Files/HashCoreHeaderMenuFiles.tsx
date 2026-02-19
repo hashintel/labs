@@ -1,5 +1,4 @@
 import React, { ChangeEvent, FC, memo, MouseEvent, useRef } from "react";
-import { useDispatch } from "react-redux";
 import { useModal } from "react-modal-hook";
 
 import { IconBrain } from "../../../../Icon/Brain";
@@ -54,7 +53,6 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
   }) => {
     const { userProfileUrl } = useUser();
     const { currentProject: project } = useProject();
-    const dispatch = useDispatch();
     // const forkUrl = project ? forkUrlFromProject(project) : null;
 
     const showModalNewBehavior = useNameNewBehaviorModal();
@@ -93,15 +91,13 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
           <Link
             path={href}
             onClick={() => {
-              dispatch(
-                trackEvent({
-                  action: "Open project",
-                  label: `${type} - ${item.pathWithNamespace} - ${item.ref} - From menu`,
-                  context: {
-                    type,
-                  },
-                })
-              );
+              trackEvent({
+                action: "Open project",
+                label: `${type} - ${item.pathWithNamespace} - ${item.ref} - From menu`,
+                context: {
+                  type,
+                },
+              });
 
               clearAll();
             }}

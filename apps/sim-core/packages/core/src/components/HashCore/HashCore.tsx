@@ -1,5 +1,4 @@
 import React, { FC, memo, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
 import { navigate } from "../../util/navigation";
 
 import { HashCoreAccessGate } from "./AccessGate/HashCoreAccessGate";
@@ -15,7 +14,6 @@ import { localStorageProjectKey } from "../../util/localStorageProjectKey";
 import { selectDidSave, selectFileIds } from "../../features/files/selectors";
 import { useFilesSelector } from "../../features/files/FilesContext";
 import { useProject } from "../../features/project/ProjectContext";
-import { setProjectWithMeta } from "../../features/actions";
 import { trackEvent } from "../../features/analytics";
 import { urlFromProject } from "../../routes";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
@@ -25,9 +23,7 @@ import { useShouldUnload } from "../../hooks/shouldUnload";
 import { useViewer } from "../../features/viewer/ViewerContext";
 
 export const HashCore: FC = memo(function HashCore() {
-  const dispatch = useDispatch();
-
-  const { currentProject: project, accessGate } = useProject();
+  const { currentProject: project, accessGate, setProjectWithMeta } = useProject();
   const fileIds = useFilesSelector(selectFileIds);
   const didSave = useFilesSelector(selectDidSave);
 
@@ -36,18 +32,16 @@ export const HashCore: FC = memo(function HashCore() {
   const firstLoadTracked = useRef(false);
   useEffect(() => {
     if (project && !firstLoadTracked.current) {
-      dispatch(
-        trackEvent({
-          action: "Open Project",
-          label: `${project.type} - ${project.pathWithNamespace} - ${project.ref} - From direct link`,
-          context: {
-            type: project.type,
-          },
-        })
-      );
+      trackEvent({
+        action: "Open Project",
+        label: `${project.type} - ${project.pathWithNamespace} - ${project.ref} - From direct link`,
+        context: {
+          type: project.type,
+        },
+      });
       firstLoadTracked.current = true;
     }
-  }, [dispatch, project]);
+  }, [project]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -80,7 +74,7 @@ export const HashCore: FC = memo(function HashCore() {
         event.newValue
       );
 
-      dispatch(setProjectWithMeta(nextProject, { replaceTabs: false }));
+      setProjectWithMeta(nextProject, { replaceTabs: false });
       navigate(urlFromProject(nextProject), true, {}, false);
     };
 
@@ -88,7 +82,7 @@ export const HashCore: FC = memo(function HashCore() {
     return () => {
       window.removeEventListener("storage", onStorage);
     };
-  }, [dispatch, project, fileIds]);
+  }, [setProjectWithMeta, project, fileIds]);
 
   useShouldUnload(didSave);
 

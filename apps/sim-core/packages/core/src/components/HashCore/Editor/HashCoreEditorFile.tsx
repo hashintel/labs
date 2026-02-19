@@ -5,10 +5,8 @@ import React, {
   SetStateAction,
   Suspense,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import { AppDispatch } from "../../../features/types";
-import { useFilesSelector } from "../../../features/files/FilesContext";
+import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
 import { BehaviorKeys } from "../../BehaviorKeys/BehaviorKeys";
 import { DataLoader } from "../../DataLoader/DataLoader";
 import { FileBannerWrapper } from "../../FileBanner";
@@ -17,7 +15,6 @@ import { HcFile } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
 import {
   Scope,
-  selectVisualGlobalsVisible,
   useScopes,
 } from "../../../features/scopes";
 import {
@@ -33,7 +30,6 @@ import {
 import { getTextModelRequired } from "../../../features/monaco";
 import { selectShouldShowBehaviorKeys } from "../../../features/files/selectors";
 import { useProject } from "../../../features/project/ProjectContext";
-import { updateBehaviorKeysFile } from "../../../features/files/slice";
 
 export const HashCoreEditorFile: FC<{
   file: HcFile;
@@ -53,10 +49,9 @@ export const HashCoreEditorFile: FC<{
   const [editorInstance] = useMonacoContainerFromContext();
   const [diffEditorInstance] = useMonacoContainerFromContext(true);
 
-  const dispatch = useDispatch<AppDispatch>();
+  const { updateBehaviorKeysFile, visualGlobals: shouldShowGlobalEditor } = useFiles();
   const { currentProjectUrl: projectUrl } = useProject();
   const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
-  const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
   const { canModifyFile, canSaveFile } = useScopes(
     Scope.modifyFile,
     Scope.saveFile
@@ -83,12 +78,7 @@ export const HashCoreEditorFile: FC<{
           disabled={!canSaveFile}
           autosuggest={canAutosuggestKeysForFile(file)}
           onChange={(keys) => {
-            dispatch(
-              updateBehaviorKeysFile({
-                fileId: file.id,
-                keys,
-              })
-            );
+            updateBehaviorKeysFile(file.id, keys);
           }}
         />
       ) : file.id === globalsFileId && shouldShowGlobalEditor ? (

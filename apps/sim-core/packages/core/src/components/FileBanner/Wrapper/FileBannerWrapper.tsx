@@ -1,7 +1,5 @@
 import React, { FC } from "react";
-import { useDispatch } from "react-redux";
 
-import { AppDispatch } from "../../../features/types";
 import { Ext } from "../../../util/files/enums";
 import {
   FileBannerBuiltin,
@@ -17,13 +15,11 @@ import type {
 } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
 import { Scope, useScopes } from "../../../features/scopes";
-import { addDependencies } from "../../../features/files/slice";
 import { fetchDependencies } from "../../../util/api";
 import { getTextModelRequired } from "../../../features/monaco";
 import { isReadOnly } from "../../../features/files/utils";
 import { pyodideEnabled } from "../../../util/pyodideEnabled";
-import { selectAllFiles } from "../../../features/files/selectors";
-import { store } from "../../../features/store";
+import { useFiles } from "../../../features/files/FilesContext";
 import { useProject } from "../../../features/project/ProjectContext";
 
 type FileBannerWrapperProps = {
@@ -37,7 +33,7 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
   nextContents,
   setNextContents,
 }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { handleAddDependencies, allFiles } = useFiles();
   const { currentProject: project, currentProjectUrl: projectUrl } = useProject();
   const { canEdit, canLogin } = useScopes(Scope.edit, Scope.login);
 
@@ -96,13 +92,11 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
         }}
         labelB={`Upgrade to (v${latestTag})`}
         onChooseB={async () => {
-          await dispatch(
-            addDependencies({
-              [file.path.formatted]: latestTag,
-            })
-          );
+          await handleAddDependencies({
+            [file.path.formatted]: latestTag,
+          });
 
-          const nextFile = selectAllFiles(store.getState()).find(
+          const nextFile = allFiles.find(
             (potentialFile) =>
               potentialFile.path.formatted === file.path.formatted &&
               (potentialFile as HcSharedBehaviorFile).ref === file.latestTag

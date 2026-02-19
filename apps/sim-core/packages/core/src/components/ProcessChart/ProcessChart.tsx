@@ -1,11 +1,9 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { useDispatch } from "react-redux";
 
-import { createProcessModelFile, updateFile } from "../../features/files/slice";
 import { getItem, setItem } from "../../hooks/useLocalStorage/utils";
 import { newProcessChartValue } from "./utils";
 import { selectProcessModelSourceFiles } from "../../features/files/selectors";
-import { useFilesSelector } from "../../features/files/FilesContext";
+import { useFiles, useFilesSelector } from "../../features/files/FilesContext";
 import { useProject } from "../../features/project/ProjectContext";
 import { trackEvent } from "../../features/analytics";
 import { useViewer } from "../../features/viewer/ViewerContext";
@@ -47,7 +45,7 @@ export const ProcessChart: FC = () => {
   const [isDraft, setIsDraft] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const dispatch = useDispatch();
+  const { createProcessModelFile, updateFile } = useFiles();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const { currentProject: project } = useProject();
   const projectRef = useRef<string>(
@@ -105,13 +103,11 @@ export const ProcessChart: FC = () => {
         if (processChartOption === newProcessChartValue) {
           // The chart is finalised - commit the file so it stays with the project
           const repoPath = `src/processes/${data.processName}.bpmn`;
-          dispatch(
-            createProcessModelFile({
-              contents: data.contents,
-              project: project!,
-              repoPath,
-            })
-          );
+          createProcessModelFile({
+            contents: data.contents,
+            project: project!,
+            repoPath,
+          });
 
           // Update the tab to use the new name and clear the 'new' draft
           setProcessChart(data.processName);
@@ -119,35 +115,26 @@ export const ProcessChart: FC = () => {
           delete projectDrafts[newProcessChartValue];
           setLocalDrafts(projectRef.current, projectDrafts);
 
-          dispatch(
-            trackEvent({
-              action: "Add Process Model",
-              label: `${project!.type} - ${project!.pathWithNamespace} - ${
-                project!.ref
-              }`,
-              context: {
-                processName: data.processName,
-              },
-            })
-          );
+          trackEvent({
+            action: "Add Process Model",
+            label: `${project!.type} - ${project!.pathWithNamespace} - ${
+              project!.ref
+            }`,
+            context: {
+              processName: data.processName,
+            },
+          });
         } else if (savedChart) {
-          dispatch(
-            updateFile({
-              id: savedChart.id,
-              contents: data.contents,
-            })
-          );
-          dispatch(
-            trackEvent({
-              action: "Update Process Model",
-              label: `${project!.type} - ${project!.pathWithNamespace} - ${
-                project!.ref
-              }`,
-              context: {
-                processName: data.processName,
-              },
-            })
-          );
+          updateFile(savedChart.id, data.contents);
+          trackEvent({
+            action: "Update Process Model",
+            label: `${project!.type} - ${project!.pathWithNamespace} - ${
+              project!.ref
+            }`,
+            context: {
+              processName: data.processName,
+            },
+          });
         }
         setSaving(false);
       }
@@ -155,7 +142,7 @@ export const ProcessChart: FC = () => {
     window.addEventListener("message", handleMessage);
 
     return () => window.removeEventListener("message", handleMessage);
-  }, [dispatch, isDraft, processChartOption, project, saving, savedChart, setProcessChart]);
+  }, [createProcessModelFile, updateFile, isDraft, processChartOption, project, saving, savedChart, setProcessChart]);
 
   const projectUid = `${project?.pathWithNamespace}:${project?.ref}`;
 
@@ -202,7 +189,6 @@ export const ProcessChart: FC = () => {
   };
   useEffect(setProjectRefAndSendChart, [
     chartFiles,
-    dispatch,
     processChartOption,
     projectUid,
     savedChart,

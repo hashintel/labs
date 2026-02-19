@@ -1,9 +1,10 @@
 /**
- * This file is only for actions that are shared between features
+ * Shared action creators. These are still used by Redux slice extraReducers
+ * and by the context-based state management (dispatched to useReducer).
+ * The setProjectWithMeta thunk is deprecated; use ProjectContext.setProjectWithMeta instead.
  */
 import { createAction } from "@reduxjs/toolkit";
 
-import { AppThunk } from "./types";
 import type { Commit } from "../util/api/auto-types";
 import type {
   CanUserEditProject,
@@ -12,9 +13,9 @@ import type {
   SimulationProjectWithHcFiles,
 } from "./project/types";
 import { FileAction } from "./files/types";
+import { Scope } from "./scopes";
 
 export type CommitWithoutStats = Omit<Commit, "stats">;
-import { Scope, batchedScopes } from "./scopes";
 
 type SetProjectParams = {
   project: SimulationProjectWithHcFiles | LocalStorageProject;
@@ -25,27 +26,24 @@ type SetProjectParams = {
   };
   scopes: Record<Scope.edit | Scope.mutate, boolean>;
 };
-/**
- * @todo this should handle navigate
- * @todo this will need to be handled in the examples / user projects in case
- *       name has changed
- * @todo check that all calls to this properly set replaceTabs
- * @todo hide setProject within setProjectWithMeta so it cannot be called on its
- *       own
- */
+
 export const setProject = createAction<SetProjectParams>("shared/setProject");
 
+/**
+ * @deprecated Use ProjectContext.setProjectWithMeta instead.
+ * Kept temporarily for any remaining callers during migration.
+ */
 export const setProjectWithMeta = (
   project: SetProjectParams["project"],
-  meta: SetProjectParams["meta"] = {}
-): AppThunk => (dispatch, getState) =>
-  dispatch(
-    setProject({
-      project,
-      meta,
-      scopes: batchedScopes.selectScopes(getState())(project),
-    })
-  );
+  meta: SetProjectParams["meta"] = {},
+) => {
+  console.warn("setProjectWithMeta from actions.ts is deprecated; use ProjectContext");
+  return setProject({
+    project,
+    meta,
+    scopes: { [Scope.edit]: true, [Scope.mutate]: true },
+  });
+};
 
 export const projectUpdated = createAction<{
   updatedAt: string;
@@ -55,7 +53,7 @@ export const projectUpdated = createAction<{
 }>("shared/projectUpdated");
 
 export const canUserEditProjectUpdate = createAction<CanUserEditProject>(
-  "shared/canUserEditProjectUpdate"
+  "shared/canUserEditProjectUpdate",
 );
 
 export const beginActionSave = createAction<string[]>("shared/beginActionSave");

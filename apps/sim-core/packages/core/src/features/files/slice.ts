@@ -648,7 +648,7 @@ const setters = {
   },
 };
 
-const filesInitialState = getInitialState<FilesSlice>({
+export const filesInitialState = getInitialState<FilesSlice>({
   ids: [],
   entities: {},
   openFileIds: [],

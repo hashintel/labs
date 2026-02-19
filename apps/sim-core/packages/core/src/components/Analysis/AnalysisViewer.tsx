@@ -1,6 +1,5 @@
 import React, { FC, useCallback, useEffect, useState } from "react";
 import { unstable_batchedUpdates } from "react-dom";
-import { useDispatch } from "react-redux";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { useModal } from "react-modal-hook";
 import classNames from "classnames";
@@ -24,6 +23,7 @@ import {
 } from "./modals";
 import { selectAnalysisMode } from "../../features/simulator/simulate/selectors";
 import { useAnalysisSrcForCurrentActivityItem } from "../../hooks/useAnalysisSrcForCurrentActivityItem";
+import { useFiles } from "../../features/files/FilesContext";
 import { useParseAnalysis } from "../../hooks/useParseAnalysis";
 import { useResizeObserver } from "../../hooks/useResizeObserver/useResizeObserver";
 import { useSimulatorSelector } from "../../features/simulator/context";
@@ -32,7 +32,7 @@ import { useViewer } from "../../features/viewer/ViewerContext";
 import "./AnalysisViewer.scss";
 
 export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
-  const dispatch = useDispatch();
+  const { filesDispatch } = useFiles();
   const analysisMode = useSimulatorSelector(selectAnalysisMode);
   const { embedded } = useViewer();
   const canEdit = useScope(Scope.edit);
@@ -73,19 +73,19 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
   const onOutputMetricsModalSaveHandler = useCallback(
     (data: any, previousKey?: string) =>
       onOutputMetricsModalSave({
-        dispatch,
+        dispatch: filesDispatch,
         setAnalysis,
         analysisString,
         analysis,
         data,
         previousKey,
       }),
-    [dispatch, setAnalysis, analysis, analysisString]
+    [filesDispatch, setAnalysis, analysis, analysisString]
   );
 
   const onOutputMetricsModalDeleteHandler = (keyToDelete: string) =>
     onOutputMetricsModalDelete({
-      dispatch,
+      dispatch: filesDispatch,
       setAnalysis,
       analysisString,
       analysis,
@@ -95,7 +95,7 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
   const onDuplicateMetricHandler = (metricKey: string) =>
     onDuplicateMetric({
       analysis,
-      dispatch,
+      dispatch: filesDispatch,
       setAnalysis,
       analysisString,
       metricKey,
@@ -108,16 +108,16 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
         plotIndex,
         analysis,
         analysisString,
-        dispatch,
+        dispatch: filesDispatch,
         setAnalysis,
       }),
-    [analysis, analysisString, dispatch]
+    [analysis, analysisString, filesDispatch]
   );
 
   const onPlotsModalDeleteHandler = (indexToDelete: number) =>
     onPlotsModalDelete({
       indexToDelete,
-      dispatch,
+      dispatch: filesDispatch,
       setAnalysis,
       analysisString,
       analysis,

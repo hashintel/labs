@@ -1,12 +1,11 @@
-import React, { FC, useCallback, useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import React, { FC, useMemo, useState } from "react";
 import Popover from "react-tiny-popover";
 
 import { ResourceListItemButton } from "./Button";
 import { ResourceListItemPopup } from "./Popup";
 import { ResourceProject } from "../../features/project/types";
-import type { RootState } from "../../features/types";
 import { makeSelectPresentItemsFromResource } from "../HashCore/Resources/selectors";
+import { useFilesSelector } from "../../features/files/FilesContext";
 
 type ResourceListItemProps = {
   resource: ResourceProject;
@@ -20,12 +19,9 @@ export const ResourceListItem: FC<ResourceListItemProps> = ({ resource }) => {
     []
   );
 
-  const memoSelector = useCallback(
-    (state: RootState) => selectPresentItemsFromResource(state, resource),
-    [selectPresentItemsFromResource, resource]
+  const presentItems = useFilesSelector(
+    (state) => selectPresentItemsFromResource(state, resource)
   );
-
-  const presentItems = useSelector<RootState, string[]>(memoSelector);
 
   return (
     <Popover

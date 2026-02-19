@@ -1,8 +1,3 @@
-/**
- * Facade over the Redux toast slice. Consumers use `useToast()` instead of
- * `useSelector`/`useDispatch`. Internally still reads from Redux until all
- * slices are migrated.
- */
 import React, {
   createContext,
   FC,
@@ -10,18 +5,57 @@ import React, {
   useCallback,
   useContext,
   useMemo,
+  useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
+import type { SimulationProject } from "../project/types";
 import { ToastKind } from "./enums";
 import type { ToastSlice } from "./types";
-import { displayToast as displayToastAction } from "./slice";
-import { selectToastData, selectToastKind } from "./selectors";
+import { isProjectLatest } from "../project/utils";
+
+function computeToastForProject(
+  project: SimulationProject | null,
+  canEdit: boolean,
+  canWriteProject: boolean,
+  fromLegacy: boolean = false,
+): ToastSlice {
+  let kind = ToastKind.None;
+  let data: any;
+
+  if (canEdit && project) {
+    if (canWriteProject) {
+      if (isProjectLatest(project)) {
+        kind = project.latestRelease
+          ? ToastKind.ProjectEditable
+          : ToastKind.None;
+      } else {
+        kind = ToastKind.ReadOnlyRelease;
+      }
+    } else {
+      kind = ToastKind.ProjectPreview;
+    }
+  }
+
+  if (fromLegacy) {
+    data = kind;
+    kind = ToastKind.LegacySimulationAccess;
+  }
+
+  return { kind, data };
+}
+
+export { computeToastForProject };
 
 export interface ToastContextValue {
   toastKind: ToastKind;
   toastData: any;
   displayToast: (toast: ToastSlice) => void;
+  setToastForProject: (
+    project: SimulationProject | null,
+    canEdit: boolean,
+    canWriteProject: boolean,
+    fromLegacy?: boolean,
+  ) => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -33,18 +67,32 @@ export const useToast = () => {
 };
 
 export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
-  const dispatch = useDispatch();
-  const toastKind = useSelector(selectToastKind);
-  const toastData = useSelector(selectToastData);
+  const [toast, setToast] = useState<ToastSlice>({ kind: ToastKind.None });
 
-  const displayToast = useCallback(
-    (toast: ToastSlice) => dispatch(displayToastAction(toast)),
-    [dispatch],
+  const displayToast = useCallback((t: ToastSlice) => setToast(t), []);
+
+  const setToastForProject = useCallback(
+    (
+      project: SimulationProject | null,
+      canEdit: boolean,
+      canWriteProject: boolean,
+      fromLegacy: boolean = false,
+    ) => {
+      setToast(
+        computeToastForProject(project, canEdit, canWriteProject, fromLegacy),
+      );
+    },
+    [],
   );
 
   const value = useMemo<ToastContextValue>(
-    () => ({ toastKind, toastData, displayToast }),
-    [toastKind, toastData, displayToast],
+    () => ({
+      toastKind: toast.kind,
+      toastData: toast.data,
+      displayToast,
+      setToastForProject,
+    }),
+    [toast.kind, toast.data, displayToast, setToastForProject],
   );
 
   return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;

@@ -1,5 +1,4 @@
 import React, { FC, memo, MouseEvent } from "react";
-import { useDispatch } from "react-redux";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
 import { trackEvent } from "../../../../../features/analytics";
@@ -23,7 +22,6 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
     const tour = useTour();
     // const canUseAccount = useScope(Scope.useAccount);
     const { hasProject } = useProject();
-    const dispatch = useDispatch();
 
     return (
       <>
@@ -40,12 +38,10 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
               href="https://docs.hash.ai/core/"
               target="_blank"
               onClick={() =>
-                dispatch(
-                  trackEvent({
-                    action: "Docs Link Clicked: Core",
-                    label: "Homepage",
-                  })
-                )
+                trackEvent({
+                  action: "Docs Link Clicked: Core",
+                  label: "Homepage",
+                })
               }
             >
               Docs

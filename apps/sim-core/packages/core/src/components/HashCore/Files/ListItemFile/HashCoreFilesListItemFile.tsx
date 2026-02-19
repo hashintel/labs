@@ -6,11 +6,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 import urljoin from "url-join";
 
-import { AppDispatch } from "../../../../features/types";
 import { useFiles } from "../../../../features/files/FilesContext";
 import { Ext } from "../../../../util/files/enums";
 import { FileNameWithShortnameIcon } from "../../../FileName/FileNameWithShortnameIcon";
@@ -22,13 +20,7 @@ import { LinkBehavior } from "../../../Link/LinkBehavior";
 import { ModalConfirmFileDelete } from "../../../Modal";
 import { SITE_URL } from "../../../../util/api/paths";
 import { Scope, useScope } from "../../../../features/scopes";
-import {
-  deleteFile,
-  renameInitFile,
-  updateFile,
-} from "../../../../features/files/slice";
 import { isSharedDependency } from "../../../../features/files/utils";
-import { selectProjectPublishedFiles } from "../../../../features/project/selectors";
 import { useProject } from "../../../../features/project/ProjectContext";
 import { useClipboardWriteText } from "../../../../hooks/useClipboardWriteText";
 import {
@@ -54,11 +46,9 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   depth = 1,
 }) => {
   const file = useSelectFileById(fileId);
-  const dispatch = useDispatch<AppDispatch>();
-  const { setCurrentFileId } = useFiles();
-  const publishedFiles = useSelector(selectProjectPublishedFiles);
+  const { setCurrentFileId, deleteFile, updateFile, renameInitFile } = useFiles();
+  const { projectPublishedFiles: publishedFiles, currentProject: project } = useProject();
   const canSave = useScope(Scope.save);
-  const { currentProject: project } = useProject();
   const current = useFileIsCurrent(fileId);
   const clipboardWriteText = useClipboardWriteText();
 
@@ -79,14 +69,14 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
         fileName={title}
         onAnswer={(confirm) => {
           if (confirm) {
-            dispatch(deleteFile(file.id));
+            deleteFile(file.id);
           } else {
             hideConfirmDelete();
           }
         }}
       />
     ),
-    [title, dispatch, file.id]
+    [title, deleteFile, file.id]
   );
 
   const showNameBehavior = useRenameBehaviorModal(file.id, file.path);
@@ -148,9 +138,9 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
               onClick={() => {
                 if (file.path.ext === Ext.Json) {
                   const contents = initJsonToJs(file.contents);
-                  dispatch(updateFile({ id: file.id, contents }));
+                  updateFile(file.id, contents);
                 }
-                dispatch(renameInitFile({ id: file.id, newName: "init.js" }));
+                renameInitFile(file.id, "init.js");
               }}
             >
               Convert to init.js
@@ -163,9 +153,9 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
               onClick={() => {
                 if (file.path.ext === Ext.Json) {
                   const contents = initJsonToPy(file.contents);
-                  dispatch(updateFile({ id: file.id, contents }));
+                  updateFile(file.id, contents);
                 }
-                dispatch(renameInitFile({ id: file.id, newName: "init.py" }));
+                renameInitFile(file.id, "init.py");
               }}
             >
               Convert to init.py
@@ -176,7 +166,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
           <li>
             <button
               onClick={() => {
-                dispatch(renameInitFile({ id: file.id, newName: "init.json" }));
+                renameInitFile(file.id, "init.json");
               }}
             >
               Convert to init.json
@@ -194,7 +184,8 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
       canRename,
       showConfirmDelete,
       showNameBehavior,
-      dispatch,
+      updateFile,
+      renameInitFile,
     ]
   );
 

@@ -1,18 +1,36 @@
 import React, { FC, useState } from "react";
-import { useSelector } from "react-redux";
 
 import { HashCoreEditorContainer } from "../EditorContainer/HashCoreEditorContainer";
 import { HashCoreViewer } from "../Viewer/HashCoreViewer";
 import { WrappedSplitterLayout } from "../../WrappedSplitterLayout/WrappedSplitterLayout";
-import { selectDisplayEditorSection } from "../../../features/selectors";
+import { useFiles } from "../../../features/files/FilesContext";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./HashCoreSection.css";
 
 export const HashCoreSection: FC = () => {
-  const { editorVisible, embedded, viewerVisible } = useViewer();
-  const displayEditorSection = useSelector(selectDisplayEditorSection);
+  const { editorVisible, embedded, viewerVisible, userAlerts } = useViewer();
+  const { globalsSrc } = useFiles();
+
+  const displayEditorSection = (() => {
+    if (editorVisible || userAlerts.length > 0) {
+      return true;
+    }
+    if (!globalsSrc) {
+      return false;
+    }
+    try {
+      const parsed = JSON.parse(globalsSrc);
+      if (!parsed) {
+        return false;
+      }
+      return Object.keys(parsed).length > 0;
+    } catch {
+      return true;
+    }
+  })();
+
   const [vertical, setVertical] = useState(false);
 
   const ref = useResizeObserver(({ width }) => setVertical(width <= 700), {

@@ -1,14 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useDispatch } from "react-redux";
 import { maxBy } from "lodash";
 
 import { AnalysisObject, Plot } from "../Analysis/types";
 import { HcFile } from "../../features/files/types";
-import {
-  addDependencies,
-  createBehavior,
-  updateFile,
-} from "../../features/files/slice";
 import { parse } from "../../util/files";
 import { pauseAndNew } from "../../features/simulator/simulate/thunks";
 import { useFiles } from "../../features/files/FilesContext";
@@ -80,8 +74,12 @@ const isPluginMessage = (
  *  (b) embedding hCore.
  */
 export const useInstructionReceiver = () => {
-  const dispatch = useDispatch();
-  const { allFiles: files } = useFiles();
+  const {
+    allFiles: files,
+    updateFile,
+    createBehavior,
+    handleAddDependencies,
+  } = useFiles();
   const handledMessages = useRef<string[]>([]);
   const { currentProject: project } = useProject();
 
@@ -123,7 +121,7 @@ export const useInstructionReceiver = () => {
 
       switch (event.data.type) {
         case "addDependencies":
-          dispatch(addDependencies(event.data.contents));
+          handleAddDependencies(event.data.contents);
           return;
 
         case "resetAndRun":
@@ -137,7 +135,7 @@ export const useInstructionReceiver = () => {
             (fileOption) => fileOption?.path.formatted === file
           );
           if (foundFile) {
-            dispatch(updateFile({ id: foundFile.id, contents }));
+            updateFile(foundFile.id, contents);
           } else {
             console.error(`Could not find file at path ${file} to update`);
           }
@@ -149,11 +147,9 @@ export const useInstructionReceiver = () => {
             (fileOption) => fileOption?.path.formatted === file
           );
           if (foundFile) {
-            dispatch(updateFile({ id: foundFile.id, contents }));
+            updateFile(foundFile.id, contents);
           } else {
-            dispatch(
-              createBehavior({ contents, path: parse(file), project: project! })
-            );
+            createBehavior({ contents, path: parse(file), project: project! });
             const initJson = Object.values(files)?.find(
               (file) => file.path.base === "init.json"
             );
@@ -162,11 +158,9 @@ export const useInstructionReceiver = () => {
               initParsed.push({
                 behaviors: [file],
               });
-              dispatch(
-                updateFile({
-                  id: initJson!.id,
-                  contents: JSON.stringify(initParsed, null, 2),
-                })
+              updateFile(
+                initJson!.id,
+                JSON.stringify(initParsed, null, 2),
               );
             } catch (err) {
               console.error("init.json is not valid JSON - could not update.");
@@ -217,11 +211,9 @@ export const useInstructionReceiver = () => {
             )) {
               outputs[title] = data;
             }
-            dispatch(
-              updateFile({
-                id: analysisJson!.id,
-                contents: JSON.stringify(analysisParsed, null, 2),
-              })
+            updateFile(
+              analysisJson!.id,
+              JSON.stringify(analysisParsed, null, 2),
             );
           } catch (err) {
             console.error(
@@ -254,7 +246,7 @@ export const useInstructionReceiver = () => {
           return;
       }
     },
-    [dispatch, files, project, sendFiles, simStore]
+    [updateFile, createBehavior, handleAddDependencies, files, project, sendFiles, simStore]
   );
 
   useEffect(() => {

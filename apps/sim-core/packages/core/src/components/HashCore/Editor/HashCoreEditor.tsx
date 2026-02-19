@@ -6,11 +6,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { Tab, TabPanel } from "react-tabs";
 import { useModal } from "react-modal-hook";
 
-import { AppDispatch } from "../../../features/types";
 import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
 import { HashCoreContextMenu } from "../ContextMenu";
 import { HashCoreEditorBehaviorKeysFileAction } from "./HashCoreEditorBehaviorKeysFileAction";
@@ -26,8 +24,6 @@ import { IconCodeTagsCheck } from "../../Icon/CodeTagsCheck";
 import { MonacoContainer } from "../../MonacoContainer";
 import {
   Scope,
-  selectCanToggleVisualGlobals,
-  selectVisualGlobalsVisible,
   useScope,
 } from "../../../features/scopes";
 import { SimpleTooltip } from "../../SimpleTooltip";
@@ -38,13 +34,6 @@ import {
 } from "../../TabbedEditor";
 import { ViewStates } from "../../TabbedEditor/Panel/TabbedEditorPanel";
 import { analysisFileId, globalsFileId } from "../../../features/files/utils";
-import {
-  closeAllFiles,
-  closeFile,
-  closeFilesToTheRight,
-  closeOtherFiles,
-  toggleVisualGlobals,
-} from "../../../features/files/slice";
 import {
   fileActionSize,
   getDocsSection,
@@ -69,8 +58,19 @@ import "./HashCoreEditor.scss";
 export const HashCoreEditor: FC = () => {
   const [, setMonacoContainer] = useMonacoContainerFromContext();
 
-  const dispatch = useDispatch<AppDispatch>();
-  const { openFiles, openFileIds, currentFileId, currentFile, setCurrentFileId } = useFiles();
+  const {
+    openFiles,
+    openFileIds,
+    currentFileId,
+    currentFile,
+    setCurrentFileId,
+    closeFile,
+    closeOtherFiles,
+    closeFilesToTheRight,
+    closeAllFiles,
+    toggleVisualGlobals,
+    visualGlobals: shouldShowGlobalEditor,
+  } = useFiles();
   const replaceProposal = useFilesSelector(selectReplaceProposal);
   const analysis = useFilesSelector(selectParsedAnalysis);
 
@@ -147,13 +147,12 @@ export const HashCoreEditor: FC = () => {
     addUserAlert,
     clearUserAlerts,
   } = useViewer();
-  const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
   const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
   const section = getDocsSection(currentFile, shouldShowBehaviorKeys);
 
   const editorViewStates = useRef<ViewStates>({});
 
-  const canToggleVisualGlobals = useSelector(selectCanToggleVisualGlobals);
+  const canToggleVisualGlobals = currentFileId === globalsFileId;
 
   const [contextMenuStyle, setContextMenuStyle] = useState<
     Pick<CSSProperties, "top" | "left">
@@ -170,7 +169,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeFile(currentOpenFileInEditor));
+              closeFile(currentOpenFileInEditor);
             }}
           >
             Close
@@ -181,7 +180,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeOtherFiles(currentOpenFileInEditor));
+              closeOtherFiles(currentOpenFileInEditor);
             }}
           >
             Close Others
@@ -192,7 +191,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeFilesToTheRight(currentOpenFileInEditor));
+              closeFilesToTheRight(currentOpenFileInEditor);
             }}
           >
             Close to the Right
@@ -203,7 +202,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeAllFiles(currentOpenFileInEditor));
+              closeAllFiles();
             }}
           >
             Close All
@@ -211,7 +210,7 @@ export const HashCoreEditor: FC = () => {
         </li>
       </HashCoreContextMenu>
     ),
-    [contextMenuStyle, dispatch, currentOpenFileInEditor]
+    [contextMenuStyle, closeFile, closeOtherFiles, closeFilesToTheRight, closeAllFiles, currentOpenFileInEditor]
   );
 
   useOnClickOutside(tabsRef, hideContextMenu);
@@ -252,7 +251,7 @@ export const HashCoreEditor: FC = () => {
                       className="tab-button"
                       onClick={(evt) => {
                         evt.stopPropagation();
-                        dispatch(closeFile(file.id));
+                        closeFile(file.id);
                       }}
                     >
                       <IconClose size={8} />
@@ -293,7 +292,7 @@ export const HashCoreEditor: FC = () => {
             <button
               onClick={(evt) => {
                 evt.preventDefault();
-                dispatch(toggleVisualGlobals());
+                toggleVisualGlobals();
               }}
               className="tab-button"
               key="visual-globals"
@@ -329,12 +328,10 @@ export const HashCoreEditor: FC = () => {
                    *
                    * @todo fix this
                    */
-                  dispatch(
-                    trackEvent({
-                      action: "Validate Analysis JSON Button clicked: Core",
-                      label: "analysis.json",
-                    })
-                  );
+                  trackEvent({
+                    action: "Validate Analysis JSON Button clicked: Core",
+                    label: "analysis.json",
+                  });
                   validateAnalysisJsonAndDispatchErrorsIfAny(
                     analysis as any,
                     { addUserAlert, clearUserAlerts },
@@ -362,12 +359,10 @@ export const HashCoreEditor: FC = () => {
             href={`https://docs.hash.ai/core/creating-simulations/${section}`}
             target="_blank"
             onClick={() =>
-              dispatch(
-                trackEvent({
-                  action: "Docs Link Clicked: Core",
-                  label: section,
-                })
-              )
+              trackEvent({
+                action: "Docs Link Clicked: Core",
+                label: section,
+              })
             }
           >
             <IconHelpCircle size={fileActionSize} />

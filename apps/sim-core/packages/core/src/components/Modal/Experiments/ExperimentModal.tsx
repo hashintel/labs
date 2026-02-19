@@ -6,7 +6,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useDispatch } from "react-redux";
 import { ProviderTargetEnv } from "@hashintel/engine-web";
 import { Result, combine, ok } from "neverthrow";
 import { omit, pick } from "lodash";
@@ -38,6 +37,7 @@ import { ModalExit } from "../ModalExit";
 import { ModalFormEntryLabel } from "../FormEntry/ModalFormEntryLabel";
 import { ReactSelectOption } from "../../Dropdown/types";
 import { RoundedSelect } from "../../Inputs/Select/RoundedSelect";
+import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
 import { useViewer } from "../../../features/viewer/ViewerContext";
 import {
   convertToReactSelectOption,
@@ -63,10 +63,8 @@ import {
   selectGlobals,
   selectParsedAnalysisMetricNames,
 } from "../../../features/files/selectors";
-import { useFilesSelector } from "../../../features/files/FilesContext";
 import { selectProviderTarget } from "../../../features/simulator/simulate/selectors";
 import { toggleProviderTarget } from "../../../features/simulator/simulate/thunks";
-import { updateFile } from "../../../features/files/slice";
 import { useRefState } from "../../../hooks/useRefState";
 import {
   useSimulatorDispatch,
@@ -457,7 +455,7 @@ export const ExperimentModal: FC<{
     () => prepareExperimentForFormData(experiment) ?? initialFormData
   );
   const shouldRunExperimentAfterSaving = useRef(false);
-  const dispatch = useDispatch();
+  const { updateFile: contextUpdateFile } = useFiles();
   const { addUserAlert } = useViewer();
   const simulationTarget = useSimulatorSelector(selectProviderTarget);
   const [
@@ -576,7 +574,7 @@ export const ExperimentModal: FC<{
       delete newExperiments[experiment.experimentTitle];
     }
     const contents = stringifyExperiments(newExperiments);
-    dispatch(updateFile({ id: experimentsFileId, contents }));
+    contextUpdateFile(experimentsFileId, contents);
     if (shouldRunExperimentAfterSaving.current) {
       // switch the simulation environment target if the user changed it
       if (newSimulationTargetRef.current !== simulationTarget) {

@@ -1,5 +1,4 @@
 import React, { FC, Fragment, useEffect, useMemo } from "react";
-import { useDispatch } from "react-redux";
 
 import type { HcFile } from "../../../features/files/types";
 import { SIM_DOCS_URL } from "../../../util/api/paths";
@@ -24,7 +23,6 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
   alert,
   files,
 }) => {
-  const dispatch = useDispatch();
   const { setCurrentFileId } = useFiles();
 
   const message = useMemo(
@@ -57,13 +55,11 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
   );
 
   useEffect(() => {
-    dispatch(
-      trackEvent({
-        action: "User Alert",
-        label: Object.values(alert).join(" - "),
-      })
-    );
-  }, [alert, dispatch]);
+    trackEvent({
+      action: "User Alert",
+      label: Object.values(alert).join(" - "),
+    });
+  }, [alert]);
 
   return (
     <>

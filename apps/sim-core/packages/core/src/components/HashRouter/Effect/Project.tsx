@@ -1,20 +1,16 @@
 import React, { FC, useEffect, useMemo } from "react";
-import { useDispatch, useStore } from "react-redux";
 
 import { RouteMap, usePathRouter } from "../../../util/usePathRouter";
 import { setQueryParams } from "../../../util/navigation";
 
-import type { AppDispatch } from "../../../features/types";
 import { HashRouterEffectFork } from "./Fork";
 import { HashRouterEffectNotFound } from "./NotFound";
 import { LinkableProject } from "../../../features/project/types";
-import { fetchProject } from "../../../features/project/slice";
 import { getSafeQueryParams } from "../../../util/getSafeQueryParams";
-import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
 import { useHandlePromiseRejection } from "../../ErrorBoundary";
+import { useProject } from "../../../features/project/ProjectContext";
 import { useUser } from "../../../features/user/UserContext";
-import { withSignal } from "../../../util/withSignal";
 
 type ProjectParams = {
   namespace: string;
@@ -36,18 +32,14 @@ const routeHandler = ({
 const HashRouterEffectProjectFetch: FC<{
   project: LinkableProject;
 }> = ({ project }) => {
-  const dispatch = useDispatch<AppDispatch>();
   const handlePromiseRejection = useHandlePromiseRejection();
   const { bootstrapped } = useUser();
-  const store = useStore();
+  const { currentProjectUrl, fetchProject } = useProject();
 
   useEffect(() => {
     const projectUrl = urlFromProject(project);
 
-    if (
-      !bootstrapped ||
-      selectCurrentProjectUrl(store.getState()) === projectUrl
-    ) {
+    if (!bootstrapped || currentProjectUrl === projectUrl) {
       return;
     }
 
@@ -61,31 +53,25 @@ const HashRouterEffectProjectFetch: FC<{
         file: undefined,
         accessCode: undefined,
       },
-      true
+      true,
     );
 
-    // Assigning here due to a bug in TS typing
     const controller = new AbortController();
 
-    async function fetch() {
-      await withSignal(
-        dispatch(
-          fetchProject({
-            project,
-            fromLegacy: !!fromLegacy,
-            file,
-          })
-        ),
-        controller.signal
-      );
+    async function doFetch() {
+      await fetchProject({
+        project,
+        fromLegacy: !!fromLegacy,
+        file,
+      });
     }
 
-    handlePromiseRejection(fetch());
+    handlePromiseRejection(doFetch());
 
     return () => {
       controller.abort();
     };
-  }, [dispatch, bootstrapped, handlePromiseRejection, project, store]);
+  }, [bootstrapped, handlePromiseRejection, project, currentProjectUrl, fetchProject]);
 
   return null;
 };
@@ -110,7 +96,7 @@ export const HashRouterEffectProject: FC = () => {
 
   const project = useMemo<LinkableProject | null>(
     () => (pathWithNamespace && ref ? { pathWithNamespace, ref } : null),
-    [pathWithNamespace, ref]
+    [pathWithNamespace, ref],
   );
 
   return project ? (

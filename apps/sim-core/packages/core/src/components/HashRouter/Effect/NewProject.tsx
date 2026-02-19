@@ -1,25 +1,23 @@
 import React, { FC, useEffect } from "react";
-import { useDispatch } from "react-redux";
 import { useModal } from "react-modal-hook";
 import { navigate } from "../../../util/navigation";
 
-import { AppDispatch } from "../../../features/types";
 import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
 import { createLocalProjectFromTemplate } from "../../../util/api/queries/createLocalProjectFromTemplate";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
-import { setProjectWithMeta } from "../../../features/actions";
 import { templates } from "./templates/templates";
 import { trackEvent } from "../../../features/analytics";
 import { urlFromProject } from "../../../routes";
 import { useNavigateAway } from "./hooks";
 import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
 import { useUser } from "../../../features/user/UserContext";
+import { useProject } from "../../../features/project/ProjectContext";
 
 export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
   template = "empty",
 }) => {
-  const dispatch = useDispatch<AppDispatch>();
   const { addUserProject } = useUser();
+  const { setProjectWithMeta } = useProject();
   const navigateAway = useNavigateAway();
   const [{ namespace }] = useSafeQueryParams();
 
@@ -38,28 +36,26 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
             values.path,
             values.name,
             values.visibility,
-            actions
+            actions,
           );
 
-          dispatch(
-            trackEvent({
-              action: "New Project: Core",
-              label: project.pathWithNamespace,
-            })
-          );
+          trackEvent({
+            action: "New Project: Core",
+            label: project.pathWithNamespace,
+          });
 
           if (!values.namespace) {
             addUserProject(preparePartialSimulationProject(project));
           }
 
-          dispatch(setProjectWithMeta(project));
+          setProjectWithMeta(project);
           navigate(urlFromProject(project), false, {}, true);
         }}
         action="Create New Simulation"
         defaultNamespace={namespace}
       />
     ),
-    [actions, addUserProject, dispatch, namespace, navigateAway]
+    [actions, addUserProject, setProjectWithMeta, namespace, navigateAway],
   );
 
   useEffect(() => {

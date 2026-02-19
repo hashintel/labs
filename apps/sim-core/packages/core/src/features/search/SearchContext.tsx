@@ -1,4 +1,4 @@
-import { createContext, FC, PropsWithChildren, useCallback, useContext, useState } from "react";
+import React, { createContext, FC, PropsWithChildren, useCallback, useContext, useState } from "react";
 
 interface SearchContextValue {
   searchOpen: boolean;

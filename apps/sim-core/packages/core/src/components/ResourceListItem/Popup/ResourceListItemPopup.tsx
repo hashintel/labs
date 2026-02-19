@@ -1,5 +1,4 @@
 import React, { FC, Fragment, useState } from "react";
-import { useDispatch } from "react-redux";
 import { ArrowContainer, Position } from "react-tiny-popover";
 import ReactMarkdown from "react-markdown";
 import classnames from "classnames";
@@ -15,9 +14,9 @@ import {
 } from "../../../features/project/types";
 import { SITE_URL } from "../../../util/api/paths";
 import { ScrollFade } from "../../ScrollFade/ScrollFade";
-import { addDependencies } from "../../../features/files/slice";
 import { scrollBy } from "./util";
 import { trackEvent } from "../../../features/analytics";
+import { useFiles } from "../../../features/files/FilesContext";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 
 import "./ResourceListItemPopup.css";
@@ -120,7 +119,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
   resource,
   presentItems,
 }) => {
-  const dispatch = useDispatch();
+  const { handleAddDependencies } = useFiles();
   const setPopupContainerRef = useRepositionPopoverOnElementResize();
   const [deselectedItems, setDeselectedItems] = useState<string[]>([]);
 
@@ -140,35 +139,28 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
 
     switch (resource.type) {
       case "Dataset":
-        dispatch(
-          trackEvent({
-            action: "Import Dataset",
-            label: `${resource.name} - ${resource.pathWithNamespace}`,
-          })
-        );
-
+        trackEvent({
+          action: "Import Dataset",
+          label: `${resource.name} - ${resource.pathWithNamespace}`,
+        });
         break;
       case "Behavior":
-        dispatch(
-          trackEvent({
-            action: "Import Behavior",
-            label: `${resource.name} - ${resource.pathWithNamespace}`,
-          })
-        );
+        trackEvent({
+          action: "Import Behavior",
+          label: `${resource.name} - ${resource.pathWithNamespace}`,
+        });
         break;
     }
 
-    await dispatch(
-      addDependencies(
-        Object.fromEntries(
-          resource.files
-            .filter(
-              (files) =>
-                !deselectedItems.includes(files.path.formatted) &&
-                !presentItems.includes(files.path.formatted)
-            )
-            .map((item) => [item.path.formatted, tag])
-        )
+    await handleAddDependencies(
+      Object.fromEntries(
+        resource.files
+          .filter(
+            (files) =>
+              !deselectedItems.includes(files.path.formatted) &&
+              !presentItems.includes(files.path.formatted)
+          )
+          .map((item) => [item.path.formatted, tag])
       )
     );
   };

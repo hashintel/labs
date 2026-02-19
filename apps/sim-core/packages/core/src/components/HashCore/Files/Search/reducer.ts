@@ -1,5 +1,4 @@
 import { Dispatch, useEffect, useReducer } from "react";
-import { useSelector } from "react-redux";
 import produce, { Draft } from "immer";
 
 import {
@@ -7,8 +6,8 @@ import {
   SearchQuery,
   SearchResultsDictionary,
 } from "./types";
-import { selectCurrentProjectUrl } from "../../../../features/project/selectors";
 import { useFilesRemovedObservable } from "./hooks";
+import { useProject } from "../../../../features/project/ProjectContext";
 
 export type SearchAction =
   | {
@@ -187,7 +186,7 @@ export const useSearchReducer = () => {
     searchInitialState
   );
 
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProjectUrl: projectUrl } = useProject();
   if (searchState.projectUrl !== projectUrl) {
     searchDispatch({ type: "reset", payload: { projectUrl } });
   }

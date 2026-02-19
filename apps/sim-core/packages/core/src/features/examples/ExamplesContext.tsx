@@ -1,17 +1,19 @@
-/**
- * Facade over the Redux examples slice. Consumers use `useExamples()` instead
- * of `useSelector`. Internally still reads from Redux until all slices are
- * migrated.
- */
-import React, { createContext, FC, PropsWithChildren, useContext, useMemo } from "react";
-import { useSelector } from "react-redux";
+import React, {
+  createContext,
+  FC,
+  PropsWithChildren,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 
 import { PartialSimulationProject } from "../project/types";
-import { selectExamples, selectExamplesLoaded } from "./selectors";
 
 export interface ExamplesContextValue {
   examples: PartialSimulationProject[];
   examplesLoaded: boolean;
+  setExamples: (examples: PartialSimulationProject[]) => void;
 }
 
 const ExamplesContext = createContext<ExamplesContextValue | null>(null);
@@ -23,12 +25,17 @@ export const useExamples = () => {
 };
 
 export const ExamplesProvider: FC<PropsWithChildren> = ({ children }) => {
-  const examples = useSelector(selectExamples);
-  const examplesLoaded = useSelector(selectExamplesLoaded);
+  const [examples, setExamplesState] = useState<PartialSimulationProject[]>([]);
+  const [examplesLoaded, setExamplesLoaded] = useState(false);
+
+  const setExamples = useCallback((exs: PartialSimulationProject[]) => {
+    setExamplesState(exs);
+    setExamplesLoaded(true);
+  }, []);
 
   const value = useMemo<ExamplesContextValue>(
-    () => ({ examples, examplesLoaded }),
-    [examples, examplesLoaded],
+    () => ({ examples, examplesLoaded, setExamples }),
+    [examples, examplesLoaded, setExamples],
   );
 
   return (

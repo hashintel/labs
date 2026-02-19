@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useRef } from "react";
-import { useDispatch } from "react-redux";
 
 import { SimulationToast } from "../";
 import { ToastButton } from "../Button";
@@ -13,7 +12,6 @@ export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
   nextToast,
 }) => {
   const clipboardWriteText = useClipboardWriteText();
-  const dispatch = useDispatch();
   const { displayToast } = useToast();
   const { currentProjectUrl: projectUrl } = useProject();
 
@@ -25,13 +23,11 @@ export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
     }
 
     hasTrackedRef.current = true;
-    dispatch(
-      trackEvent({
-        action: "Legacy Simulation URL Accessed",
-        label: projectUrl,
-      })
-    );
-  }, [dispatch, projectUrl]);
+    trackEvent({
+      action: "Legacy Simulation URL Accessed",
+      label: projectUrl,
+    });
+  }, [projectUrl]);
 
   return (
     <SimulationToast theme="warning" isDismissable nextToast={nextToast}>

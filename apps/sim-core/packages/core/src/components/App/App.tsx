@@ -22,34 +22,39 @@ type AppProps = PropsWithChildren<{
   store: Store;
 }>;
 
+/**
+ * Provider ordering: ProjectProvider is below Viewer, Toast, Files so it can
+ * coordinate setProjectWithMeta across those contexts. Redux Provider is kept
+ * temporarily until all Redux code is removed.
+ */
 export const App: FC<AppProps> = ({ store, children }) => (
   <ErrorBoundary>
     <Provider store={store}>
-      <UserProvider>
-      <ProjectProvider>
-      <FilesProvider>
-      <ExamplesProvider>
-      <SimulatorProvider>
-        <SceneProvider>
-          <ViewerProvider>
-          <SearchProvider>
-          <ToastProvider>
-          <ModalProvider>
-            <FontsPreloader>
-              <MonacoContainerProvider>
-                <div className="App">{children}</div>
-              </MonacoContainerProvider>
-            </FontsPreloader>
-          </ModalProvider>
-          </ToastProvider>
-          </SearchProvider>
-          </ViewerProvider>
-        </SceneProvider>
-      </SimulatorProvider>
-      </ExamplesProvider>
-      </FilesProvider>
-      </ProjectProvider>
-      </UserProvider>
+    <UserProvider>
+    <ExamplesProvider>
+    <ViewerProvider>
+    <ToastProvider>
+    <FilesProvider>
+    <ProjectProvider>
+    <SearchProvider>
+      <SceneProvider>
+        <SimulatorProvider>
+        <ModalProvider>
+          <FontsPreloader>
+            <MonacoContainerProvider>
+              <div className="App">{children}</div>
+            </MonacoContainerProvider>
+          </FontsPreloader>
+        </ModalProvider>
+        </SimulatorProvider>
+      </SceneProvider>
+    </SearchProvider>
+    </ProjectProvider>
+    </FilesProvider>
+    </ToastProvider>
+    </ViewerProvider>
+    </ExamplesProvider>
+    </UserProvider>
     </Provider>
   </ErrorBoundary>
 );

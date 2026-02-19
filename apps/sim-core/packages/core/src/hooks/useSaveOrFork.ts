@@ -1,18 +1,16 @@
-import { useDispatch, useSelector } from "react-redux";
 import { navigate } from "../util/navigation";
 
-import { AppDispatch } from "../features/types";
 import { Scope, useScopes } from "../features/scopes";
-import { forceLogIn } from "../features/user/utils";
-import { save } from "../features/thunks";
-import { selectForkCurrentProjectUrl } from "../features/project/selectors";
+import { useFiles } from "../features/files/FilesContext";
+import { useProject } from "../features/project/ProjectContext";
 
 /**
  * @todo move to selector / thunk
  * @todo use selector
  */
 export const useSaveOrFork = () => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { filesDispatch } = useFiles();
+  const { forkCurrentProjectUrl: forkUrl } = useProject();
   const { canForkIfSignedIn, canFork, canSave, canSaveIfSignedIn } = useScopes(
     Scope.fork,
     Scope.forkIfSignedIn,
@@ -20,20 +18,19 @@ export const useSaveOrFork = () => {
     Scope.saveIfSignedIn
   );
 
-  const forkUrl = useSelector(selectForkCurrentProjectUrl);
-
   const canSaveOrFork = canFork || canSave;
   const canSaveOrForkIfLoggedIn = canForkIfSignedIn || canSaveIfSignedIn;
 
   const saveOrFork = async () => {
     if (canSaveOrFork) {
       if (canSave) {
-        await dispatch(save());
+        // TODO: save() was an async thunk that saved to server.
+        // In local-first mode, state is auto-persisted to localStorage.
+        // This is a no-op for now.
+        console.log("Local save triggered (auto-persisted)");
       } else if (canFork && forkUrl) {
         navigate(forkUrl);
       }
-    } else if (canForkIfSignedIn) {
-      forceLogIn();
     }
   };
 

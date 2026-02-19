@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { batch, useDispatch } from "react-redux";
 import produce, { Draft } from "immer";
 
 import {
@@ -18,16 +17,8 @@ import { Projection } from "./types";
 import { ScrollFadeShadow } from "../ScrollFade/ScrollFadeShadow";
 import { SimpleTooltip } from "../SimpleTooltip";
 import { addField } from "./utils";
-import {
-  parseAndShowBehaviorKeys,
-  updateBehaviorKeysDynamicAccess,
-} from "../../features/files/slice";
-import {
-  selectBehaviorKeysDynamicAccess,
-  selectSharedBehaviorKeyFieldNames,
-} from "../../features/files/selectors";
-import { useFilesSelector } from "../../features/files/FilesContext";
-import { useAbortingDispatch } from "../../hooks/useAbortingDispatch";
+import { selectSharedBehaviorKeyFieldNames } from "../../features/files/selectors";
+import { useFiles, useFilesSelector } from "../../features/files/FilesContext";
 import { useScrollState } from "../../hooks/useScrollState";
 
 import "./BehaviorKeysForm.scss";
@@ -68,8 +59,7 @@ export const BehaviorKeysForm: FC<{
 
   const onDataChangeRef = useRef(onDataChange);
   const clashes = calculateRowClashes(data.rows);
-  const dispatch = useDispatch();
-  const dynamicAccess = useFilesSelector(selectBehaviorKeysDynamicAccess);
+  const { updateBehaviorKeysDynamicAccess, behaviorKeysDynamicAccess: dynamicAccess } = useFiles();
 
   const sharedBehaviorKeyNames = useFilesSelector(selectSharedBehaviorKeyFieldNames);
   const lockedNames = projection.length === 0 ? sharedBehaviorKeyNames : [];
@@ -97,10 +87,16 @@ export const BehaviorKeysForm: FC<{
   const listRef = useRef<HTMLUListElement | null>(null);
   const [scrollStateRef, contentRemaining] = useScrollState();
 
-  const [
-    dispatchParseAndShowBehaviorKeys,
-    isParsingDisabled,
-  ] = useAbortingDispatch(parseAndShowBehaviorKeys, [autosuggest]);
+  const { handleParseAndShowBehaviorKeys } = useFiles();
+  const [isParsingDisabled, setIsParsingDisabled] = useState(false);
+  const dispatchParseAndShowBehaviorKeys = async ({ fileId }: { fileId: string }) => {
+    setIsParsingDisabled(true);
+    try {
+      await handleParseAndShowBehaviorKeys(fileId);
+    } finally {
+      setIsParsingDisabled(false);
+    }
+  };
 
   const focusLast = () => {
     const fields =
@@ -134,12 +130,7 @@ export const BehaviorKeysForm: FC<{
                 disabled={disabled}
                 id="dynamicAccessCheckbox"
                 onChange={(evt) => {
-                  dispatch(
-                    updateBehaviorKeysDynamicAccess({
-                      fileId,
-                      dynamicAccess: evt.target.checked,
-                    })
-                  );
+                  updateBehaviorKeysDynamicAccess(fileId, evt.target.checked);
                 }}
               />
               Access all fields defined in other behaviors
@@ -245,10 +236,8 @@ export const BehaviorKeysForm: FC<{
                 }}
                 onNameCommit={() => {
                   if (draftData) {
-                    batch(() => {
-                      onDataChangeRef.current(draftData.draft.rows);
-                      setDraftData(null);
-                    });
+                    onDataChangeRef.current(draftData.draft.rows);
+                    setDraftData(null);
                   }
                 }}
                 disabled={disabled || formDisabled}

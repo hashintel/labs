@@ -1,10 +1,8 @@
 import { useCallback } from "react";
-import { useDispatch, useSelector, useStore } from "react-redux";
 import JSZip from "jszip";
 import { navigate } from "../../util/navigation";
 import { saveAs } from "file-saver";
 
-import { AppDispatch, RootState } from "../types";
 import { FilePathParts } from "../../util/files/types";
 import { HcFile } from "./types";
 import { HcFileKind } from "./enums";
@@ -16,61 +14,40 @@ import {
 import { addUserProject as addUserProjectRedux } from "../user/slice";
 import { fromFormatted } from "../../util/files/parse";
 import { preparePartialSimulationProject, toHcConfig } from "../project/utils";
-import { save } from "../thunks";
 import {
   selectAllFiles,
   selectCurrentFileId,
   selectFileEntities,
 } from "./selectors";
-import { selectCurrentProject } from "../project/selectors";
 import { setProjectWithMeta } from "../actions";
 import { slugify, urlFromProject } from "../../routes";
 import { stringifyBehaviorKeys, toHcFiles } from "./utils";
 import { trackEvent } from "../analytics";
+import { useFiles, useFilesSelector } from "./FilesContext";
+import { useProject } from "../project/ProjectContext";
 
 export const useSelectFileById = (fileId: string): HcFile => {
-  try {
-    return useSelector(
-      useCallback(
-        (state: RootState) => {
-          const entity = selectFileEntities(state)[fileId];
+  const { fileEntities } = useFiles();
+  const entity = fileEntities[fileId];
 
-          if (!entity) {
-            throw new Error("Cannot render file that does not exist");
-          }
-
-          return entity;
-        },
-        [fileId]
-      )
-    );
-  } catch (err) {
-    /**
-     * We have to do this console log outside of useSelector because of the
-     * potential for the Redux "zombie children" issue…
-     *
-     * @see https://react-redux.js.org/api/hooks#stale-props-and-zombie-children
-     */
+  if (!entity) {
     console.error("Cannot find file", fileId);
-    throw err;
+    throw new Error("Cannot render file that does not exist");
   }
+
+  return entity;
 };
 
-export const useFileIsCurrent = (fileId: string) =>
-  useSelector(
-    useCallback((state: RootState) => selectCurrentFileId(state) === fileId, [
-      fileId,
-    ])
-  );
+export const useFileIsCurrent = (fileId: string) => {
+  const { currentFileId } = useFiles();
+  return currentFileId === fileId;
+};
 
 export const useExportFiles = () => {
-  const store = useStore();
+  const { allFiles } = useFiles();
+  const { currentProject } = useProject();
 
-  const exportFiles = async () => {
-    const state = store.getState();
-    const allFiles = selectAllFiles(state);
-    const currentProject = selectCurrentProject(state);
-
+  const exportFiles = useCallback(async () => {
     const zip = new JSZip();
 
     for (const file of allFiles) {
@@ -108,17 +85,17 @@ export const useExportFiles = () => {
       fileZip,
       `${currentProject?.pathWithNamespace.split("/").pop()}.zip`
     );
-  };
+  }, [allFiles, currentProject]);
 
   return exportFiles;
 };
 
 export const useImportFiles = () => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { filesDispatch } = useFiles();
+  const { setProjectWithMeta: contextSetProjectWithMeta } = useProject();
 
   const importFiles = async (files: FileList) => {
     if (files.length === 0) {
-      // They pushed 'cancel' on the dialog.
       return;
     }
     const file = files[0];
@@ -143,18 +120,14 @@ export const useImportFiles = () => {
 
     zip.forEach((_relativePath, zipEntry) => {
       if (zipEntry.dir) {
-        // Skip directories.
         return;
       }
 
-      // Some zip files put leading '/'s on the file names.
-      // Trim those out so that HASH doesn't nest it as a folder.
       while (zipEntry.name.startsWith("/")) {
         zipEntry.name = zipEntry.name.slice(1);
       }
 
       if (zipEntry.name.startsWith(".")) {
-        // Skip hidden files
         return;
       }
 
@@ -175,7 +148,6 @@ export const useImportFiles = () => {
         }
       }
 
-      // Convert to a simple array so we can later await the promises.
       zipFiles.push({
         name: zipEntry.name,
         contentPromise: zipEntry.async("text"),
@@ -227,17 +199,16 @@ export const useImportFiles = () => {
       ref: importedProject.ref ?? "main",
     };
 
-    dispatch(
-      trackEvent({
-        action: "Import Project: Core",
-        label: project.pathWithNamespace,
-      })
-    );
+    trackEvent({
+      action: "Import Project: Core",
+      label: project.pathWithNamespace,
+    });
 
-    dispatch(addUserProjectRedux(preparePartialSimulationProject(project)));
-    dispatch(setProjectWithMeta(project));
+    filesDispatch(addUserProjectRedux(preparePartialSimulationProject(project)));
+    contextSetProjectWithMeta(project);
     navigate(urlFromProject(project), false, {}, true);
-    await dispatch(save());
+    // TODO: save() was an async thunk that saved to server.
+    // In local-first mode, state is auto-persisted to localStorage.
   };
 
   return importFiles;
