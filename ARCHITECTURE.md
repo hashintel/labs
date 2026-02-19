@@ -12,6 +12,13 @@ This document provides detailed technical architecture documentation for the HAS
   - [Component Architecture](#component-architecture)
   - [Engine Integration](#engine-integration)
   - [Data Flow](#data-flow)
+- [Deployment](#deployment)
+  - [Build Pipeline](#build-pipeline)
+  - [Build Output](#build-output)
+  - [Hosting Requirements](#hosting-requirements)
+  - [Environment Configuration](#environment-configuration)
+  - [Embed Mode](#embed-mode)
+  - [External Dependencies](#external-dependencies)
 - [sim-engine Architecture](#sim-engine-architecture)
 - [Key Files Reference](#key-files-reference)
 - [Feature Development Guide](#feature-development-guide)
@@ -420,6 +427,280 @@ flowchart LR
 | `HcSharedBehaviorFile` | `SharedBehavior` | Dependencies from hIndex |
 | `HcDatasetFile` | `Dataset` | JSON/CSV data files |
 | `HcAnalysisFile` | `Analysis` | Analysis definitions |
+
+---
+
+## Deployment
+
+sim-core is a **fully static single-page application**. It compiles to HTML, JavaScript, CSS, and WASM files that can be served from any static file host. There is no application server — the simulation engine runs entirely in the browser via WebAssembly.
+
+### Build Pipeline
+
+```mermaid
+flowchart LR
+    subgraph Prebuild[Pre-build]
+        Rust[Rust Engine<br/>Cargo.toml]
+        WasmPack[wasm-pack build<br/>→ .wasm + JS bindings]
+        Codegen[graphql-codegen<br/>→ auto-types.ts]
+    end
+
+    subgraph Build[Vite Build]
+        Vite[vite build<br/>Rollup bundler]
+        TS[TypeScript<br/>→ JS]
+        SCSS[SCSS<br/>→ CSS]
+        Workers[Web Workers<br/>→ worker bundles]
+        WASM[WASM bindings<br/>→ asset chunks]
+    end
+
+    subgraph Output[dist/]
+        HTML[index.html<br/>embed.html]
+        Assets[assets/*.js<br/>assets/*.css<br/>assets/*.wasm]
+        WorkerOut[worker bundles]
+    end
+
+    Rust --> WasmPack
+    WasmPack --> Vite
+    Codegen --> Vite
+    Vite --> TS
+    Vite --> SCSS
+    Vite --> Workers
+    Vite --> WASM
+    TS --> Output
+    SCSS --> Output
+    Workers --> Output
+    WASM --> Output
+```
+
+The full build sequence:
+
+```bash
+# 1. Build WASM (runs automatically as engine-web prebuild hook)
+cd apps/sim-core/packages/engine-web
+wasm-pack build --target bundler --out-dir wasm/bundler --out-name hash
+
+# 2. Build the frontend
+cd apps/sim-core/packages/core
+yarn build          # runs: yarn codegen && vite build
+```
+
+`yarn codegen` generates TypeScript types from the GraphQL schema (`codegen.yml`). `vite build` compiles the entire app — TypeScript, SCSS, WASM bindings, and workers — into the `dist/` directory.
+
+### Build Output
+
+```
+dist/
+├── index.html                    # Main app (SPA entry)
+├── embed.html                    # Embed mode entry
+└── assets/
+    ├── index-[hash].js           # Main app bundle (ES module)
+    ├── index-[hash].css          # Combined styles
+    ├── hash_bg-[hash].wasm       # Simulation engine (compiled from Rust)
+    ├── vendor-[hash].js          # Third-party libraries
+    ├── monaco-[hash].js          # Code editor (large; ~3MB)
+    ├── worker-[hash].js          # Simulation worker
+    ├── analyzer-[hash].js        # Analysis worker
+    ├── editor.worker-[hash].js   # Monaco editor worker
+    ├── ts.worker-[hash].js       # Monaco TypeScript worker
+    ├── json.worker-[hash].js     # Monaco JSON worker
+    └── ...                       # Additional code-split chunks
+```
+
+The total build size is large (~15–25 MB uncompressed) due to Monaco Editor, Plotly, Three.js, deck.gl, and the WASM engine. With gzip/brotli compression, the initial download is ~5–8 MB.
+
+### Hosting Requirements
+
+Any static file server works. The key requirements:
+
+#### SPA Fallback Routing (Required)
+
+The app uses client-side routing. All paths must serve `index.html` (except actual static files).
+
+```nginx
+# nginx
+location / {
+    try_files $uri $uri/ /index.html;
+}
+```
+
+```apache
+# Apache (.htaccess)
+FallbackResource /index.html
+```
+
+```
+# Netlify (_redirects)
+/*    /index.html   200
+```
+
+```json
+// Vercel (vercel.json)
+{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+```
+
+For embed mode, requests to `/embed*` should serve `embed.html`:
+
+```nginx
+location /embed {
+    try_files $uri /embed.html;
+}
+```
+
+#### WASM MIME Type (Required)
+
+`.wasm` files must be served with `Content-Type: application/wasm`. Most modern servers handle this automatically. For older servers:
+
+```nginx
+# nginx
+types {
+    application/wasm wasm;
+}
+```
+
+#### Recommended Headers
+
+```
+Cache-Control: public, max-age=31536000, immutable   # For hashed assets (assets/*.js, assets/*.wasm)
+Cache-Control: no-cache                               # For index.html, embed.html
+```
+
+Optionally, for maximum WASM performance:
+
+```
+Cross-Origin-Opener-Policy: same-origin
+Cross-Origin-Embedder-Policy: require-corp
+```
+
+These headers enable `SharedArrayBuffer`, which allows WASM to use threads. Not currently required but would improve simulation performance if threading is added.
+
+### Environment Configuration
+
+sim-core is configured entirely at **build time**. No runtime environment variables are needed.
+
+| Variable | Build-Time | Default | Purpose |
+|----------|-----------|---------|---------|
+| `MAPBOX_API_TOKEN` | Optional | `null` | Enables geospatial map viewer. Without it, the map tab shows a placeholder. |
+| `NODE_ENV` | Set by Vite | `production` | Controls dev/prod mode |
+
+To set the Mapbox token:
+
+```bash
+MAPBOX_API_TOKEN=pk.your_token_here yarn build
+```
+
+All other configuration is hardcoded or derived from the build mode:
+
+| Config | Value | Source |
+|--------|-------|--------|
+| `LOCAL_API` | `true` | `vite.config.ts` — hardcoded for local-first |
+| `WEBPACK_BUILD_STAMP` | `hash-{mode}-{timestamp}` | Generated at build time |
+| `WEBPACK_PUBLIC_PATH` | `"/"` | `vite.config.ts` |
+
+> **Note**: The `WEBPACK_*` variable names are legacy from the Webpack era. They will be renamed to `BUILD_STAMP` and `PUBLIC_PATH` in a future cleanup (see TODO.md Phase 4b).
+
+### Embed Mode
+
+The app supports an embed mode for displaying simulations in iframes on other sites:
+
+```html
+<iframe src="https://your-host.com/embed.html?project=@namespace/project&ref=main"
+        width="800" height="600" frameborder="0"></iframe>
+```
+
+Embed mode:
+- Uses `embed.html` as the entry point (separate from `index.html`)
+- Loads `EmbedApp` instead of the full IDE
+- Fetches the project by path from URL parameters
+- Applies the `embed` CSS class to `<html>` for a compact layout
+- Hides IDE chrome (file tree, activity panel, some controls)
+
+### External Dependencies
+
+The app is designed to work offline, but currently references some external resources:
+
+| Resource | URL | Required? | Notes |
+|----------|-----|-----------|-------|
+| Favicons | `cdn-us1.hash.ai/assets/img/brand/` | No | Cosmetic; page works without them |
+| Web manifest | `cdn-us1.hash.ai/assets/other/site.webmanifest` | No | PWA manifest |
+| Twitter card | `cdn-us1.hash.ai/assets/hash-card.png` | No | Social media preview |
+| hIndex API | `api.hash.ai/graphql` | Partial | Required only for searching/adding shared behaviors from the hIndex library. Simulations run without it. |
+| Mapbox tiles | `api.mapbox.com` | No | Only for geospatial viewer; requires `MAPBOX_API_TOKEN` |
+
+For fully offline deployments:
+1. Copy favicon/icon assets to the `public/` directory and update `index.html`
+2. The hIndex search will show errors but the rest of the app functions normally
+3. The geospatial viewer will be unavailable without Mapbox
+
+### Deployment Examples
+
+#### Local Preview
+
+```bash
+cd apps/sim-core/packages/core
+yarn build
+yarn start          # vite preview on http://localhost:4173
+```
+
+#### Docker (Nginx)
+
+```dockerfile
+FROM node:24 AS build
+WORKDIR /app
+COPY . .
+RUN cd apps/sim-core && yarn install
+RUN cd apps/sim-core/packages/core && yarn build
+
+FROM nginx:alpine
+COPY --from=build /app/apps/sim-core/packages/core/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+```
+
+```nginx
+# nginx.conf
+server {
+    listen 80;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    types {
+        application/wasm wasm;
+    }
+}
+```
+
+#### GitHub Pages
+
+```yaml
+# .github/workflows/deploy.yml
+name: Deploy to GitHub Pages
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: cd apps/sim-core && yarn install
+      - run: cd apps/sim-core/packages/core && yarn build
+      - uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: apps/sim-core/packages/core/dist
+```
+
+> **Note**: GitHub Pages doesn't natively support SPA routing. You'll need a `404.html` workaround or use a service like Netlify/Vercel instead.
 
 ---
 
