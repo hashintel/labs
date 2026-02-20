@@ -53,15 +53,18 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
     );
   }
 
+  // Load existing config so getContentDir() reflects what's already configured.
+  await config.init();
+
   const configDir = config.getConfigDir();
   p.log.info(`Config directory: ${color.dim(configDir)}`);
 
-  const defaultContentDir = configDir;
+  const currentContentDir = config.getContentDir();
 
   const contentDirChoice = await p.text({
     message: 'Where should profile contents be stored?',
-    placeholder: defaultContentDir,
-    defaultValue: defaultContentDir,
+    placeholder: currentContentDir,
+    defaultValue: currentContentDir,
     validate: (value) => {
       if (!value) return 'Please enter a directory path';
       if (!path.isAbsolute(value) && !value.startsWith('~')) {
@@ -171,6 +174,16 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
       }
     } else if (status === 'active') {
       p.log.info(`${toolDef.description} is already managed`);
+    } else if (status === 'missing') {
+      p.log.info(`${toolDef.description} not installed — skipping`);
+    } else if (status === 'broken') {
+      p.log.warn(
+        `${toolDef.description} has a broken symlink at ${color.dim(config.getGlobalConfigPath(agent))}. Run ${color.cyan('agentprofiles doctor')} to repair.`
+      );
+    } else if (status === 'external') {
+      p.log.warn(
+        `${toolDef.description} symlink at ${color.dim(config.getGlobalConfigPath(agent))} points outside this content directory — skipping adoption.`
+      );
     }
   }
 

@@ -29,6 +29,7 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
       placeholder: suggestedName,
       initialValue: suggestedName,
       validate(value) {
+        if (!value) return 'Profile name is required.';
         return validateNewProfileName(value) || undefined;
       },
     });

@@ -107,6 +107,7 @@ export async function setCommand(agent?: string, name?: string) {
         placeholder: suggestedName,
         initialValue: suggestedName,
         validate(value) {
+          if (!value) return 'Profile name is required.';
           return validateNewProfileName(value) || undefined;
         },
       });
