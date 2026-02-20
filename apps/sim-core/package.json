@@ -97,7 +97,6 @@
     "@typescript-eslint/eslint-plugin": "4.8.1",
     "@typescript-eslint/parser": "4.15.2",
     "babel-jest": "^29.7.0",
-    "babel-loader": "8.2.1",
     "core-js": "3.7.0",
     "cross-env": "7.0.2",
     "dotenv": "8.2.0",
@@ -117,9 +116,7 @@
     "time-stamp": "2.2.0",
     "tmp": "0.2.1",
     "ts-node": "9.1.1",
-    "typescript": "5.3.3",
-    "webpack": "4.44.2",
-    "webpack-cli": "3.3.12",
+    "typescript": "5.3.3"
   },
   "engines": {
     "node": ">=24.0.0"
