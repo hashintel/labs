@@ -939,46 +939,28 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
 
 #### 🟡 Medium: Commented/Stubbed Code Cleanup
 
-- [ ] **Clean up stubbed GraphQL queries** — remove commented-out server calls:
-  - `util/api/queries/bootstrapQuery.ts`
-  - `util/api/queries/getOnboardingProject.ts`
-  - `util/api/queries/tourShowcase.ts`
+- [x] **Clean up stubbed GraphQL queries** — removed commented-out server calls from 3 files
 - [x] **Clean up stale SCSS comments** — ModalShare reference removed
-- [ ] **Decide on `trackEvent` stubs** — 20+ call sites invoke no-op analytics:
-  - Option A: Remove all `trackEvent()` calls and the `features/analytics.ts` file
-  - Option B: Keep stubs for future analytics integration
+- [x] **Remove `trackEvent` stubs** — deleted `features/analytics.ts` and all 20+ call sites
 - [x] **Remove `require()` in ProjectContext.tsx** — replaced with static import
 
 #### 🟡 Medium: Stale Dependencies
 
 - [x] **Remove unused packages from workspace root** — `yarn-audit-fix`, `yarn-run-all` removed
-- [ ] **Move webpack-only deps to engine-web** (only used by engine-web stdlib build):
-  - `webpack` (4.44.2) — only used by `engine-web/webpack.config.js`
-  - `webpack-cli` (3.3.12) — only used by engine-web
-  - `babel-loader` (8.2.1) — only used by engine-web
-- [ ] **Upgrade outdated Babel packages** (used by Jest transforms):
-  - `@babel/core` 7.12 → 7.24+
-  - `@babel/preset-env` 7.12 → 7.24+
-  - `@babel/preset-react` 7.14 → 7.24+
-  - `@babel/preset-typescript` 7.12 → 7.24+
-  - `@babel/plugin-proposal-class-properties` — now included in preset-env, may be removable
-  - `@babel/plugin-proposal-numeric-separator` — now included in preset-env, may be removable
+- [x] **Move webpack-only deps to engine-web** — webpack, webpack-cli, babel-loader moved
+- [x] **Upgrade Babel packages** — all @babel/* to 7.28+, removed obsolete proposal plugins, removed core-js
 - [ ] **Upgrade linting/formatting tools**:
   - `eslint` 7.29 → 9.x (major; new flat config format)
   - `prettier` 2.2 → 3.x (minor formatting changes)
   - `@typescript-eslint/*` 4.x → 7.x
-- [ ] **Remove GraphQL entirely** (replace with plain fetch):
-  - Only 6 queries still make live server calls; all are simple fetch-replaceable
-  - Convert `fetchDependencies` + `searchResourceProjects` to plain REST (hIndex API)
-  - Stub or remove `projectHistory`, `linkableProjectByLegacyId`, `basicUser`
-  - Decide on `unpreparedProjectByPath` (embed mode — keep server fetch or make local?)
-  - Delete 5 dead query files (`trackTourProgress`, `myProjects`, `exampleSimulations`, `createDatasetQuery`, `addDatasetToProject`)
-  - Delete 4 stubbed query files (already return local data)
-  - Delete GraphQL infrastructure: `query.ts`, `codegen.yml`, `graphql-schema.json`, `auto-types.ts` (~21k lines)
-  - Remove packages: `graphql`, `@graphql-codegen/cli`, `@graphql-codegen/typescript`, `@graphql-codegen/typescript-operations`, `@graphql-codegen/add`
-  - Remove `yarn codegen` from build scripts
-  - Manually define the ~10 types still needed from `auto-types.ts`
-- [ ] **Upgrade @testing-library/react** 11.2 → 14+ or 16+ (major; API changes)
+- [x] **Remove GraphQL codegen infrastructure**:
+  - Deleted `auto-types.ts` (21k lines, 127KB) and `graphql-schema.json` (679KB)
+  - Created `apiTypes.ts` (~160 lines) with manually-defined types
+  - Removed `codegen.yml` and `yarn codegen` from all build scripts
+  - Removed `graphql`, `@graphql-codegen/*` packages (5 packages)
+  - Deleted dead `partialProjectByPath.ts` query
+  - Note: 6 queries still send GraphQL strings via fetch; the server API hasn't changed
+- [x] **Upgrade @testing-library/react** 11.2 → 14.2 (+ @testing-library/dom 9)
 
 #### 🟢 Low: Type Safety Improvements
 
