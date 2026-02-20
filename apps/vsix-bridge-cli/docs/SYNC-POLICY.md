@@ -12,11 +12,11 @@ This document defines how vsix-bridge synchronizes extensions from VSCode to tar
 
 ### Installation (always performed)
 
-| Source (VSCode) | Target IDE | Action |
-|-----------------|------------|--------|
-| Installed | Not installed | **Install** extension in target |
-| Installed + Disabled | Not installed | **Install** + **Disable** in target |
-| Installed (newer version) | Installed (older version) | **Update** to newer version |
+| Source (VSCode)           | Target IDE                | Action                              |
+| ------------------------- | ------------------------- | ----------------------------------- |
+| Installed                 | Not installed             | **Install** extension in target     |
+| Installed + Disabled      | Not installed             | **Install** + **Disable** in target |
+| Installed (newer version) | Installed (older version) | **Update** to newer version         |
 
 ### Activation State
 
@@ -28,9 +28,9 @@ This allows users to disable incompatible extensions (e.g., GitHub Copilot) in f
 
 ### Removal (optional, via `syncRemovals` flag)
 
-| Source (VSCode) | Target IDE | Action |
-|-----------------|------------|--------|
-| Not installed | Installed | **Uninstall** from target (only if `syncRemovals: true`) |
+| Source (VSCode) | Target IDE | Action                                                   |
+| --------------- | ---------- | -------------------------------------------------------- |
+| Not installed   | Installed  | **Uninstall** from target (only if `syncRemovals: true`) |
 
 When `syncRemovals` is disabled (default), extensions removed from VSCode remain in target IDEs until manually removed.
 
@@ -46,6 +46,6 @@ This avoids the need for exclusion lists or sync state tracking.
 
 ## Options Summary
 
-| Option | Default | Description |
-|--------|---------|-------------|
+| Option         | Default | Description                                        |
+| -------------- | ------- | -------------------------------------------------- |
 | `syncRemovals` | `false` | Remove from target what's been removed from VSCode |

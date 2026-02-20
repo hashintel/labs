@@ -136,7 +136,6 @@ export async function runSync(options: SyncOptions): Promise<void> {
     for (let i = 0; i < targetIDEs.length; i++) {
       const ide = targetIDEs[i]!;
       const result = results[i]!;
-      const expectedFiles = expectedFilesByIde.get(ide.id)!;
 
       const compatible = findCompatibleVersion(metadata.versions, ide.engineVersion);
 

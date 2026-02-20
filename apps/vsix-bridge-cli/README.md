@@ -61,10 +61,10 @@ vsix-bridge install --dry-run       # Preview without making changes
 
 **Flags:**
 
-| Flag              | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `--sync-removals` | Uninstall extensions in fork that aren't in VS Code     |
-| `--dry-run`       | Show what would be done without doing it                |
+| Flag              | Description                                         |
+| ----------------- | --------------------------------------------------- |
+| `--sync-removals` | Uninstall extensions in fork that aren't in VS Code |
+| `--dry-run`       | Show what would be done without doing it            |
 
 ## Supported IDEs
 
@@ -87,9 +87,9 @@ vsix-bridge install --dry-run       # Preview without making changes
 
 ## Contributors
 
-`vsix-bridge-cli` was created by [Lu Nelson](https://github.com/lunelson). It is being developed in conjunction with [HASH](https://hash.dev/) as an open-source project. 
+`vsix-bridge-cli` was created by [Lu Nelson](https://github.com/lunelson). It is being developed in conjunction with [HASH](https://hash.dev/) as an open-source project.
 
-If you have questions, please create a [discussion](https://github.com/orgs/hashintel/discussions). 
+If you have questions, please create a [discussion](https://github.com/orgs/hashintel/discussions).
 
 ## License
 
