@@ -24,7 +24,7 @@ import {
 } from "../../components/HashCore/AccessGate";
 import { getLocalStorageProject, isProjectLatest, isStoringProjectActions } from "./utils";
 import { globalsFileId } from "../files/utils";
-import { setProject } from "../actions";
+import { projectUpdated as projectUpdatedAction, setProject } from "../actions";
 import { useFiles } from "../files/FilesContext";
 import { useToast } from "../toast/ToastContext";
 import { useViewer } from "../viewer/ViewerContext";
@@ -254,8 +254,7 @@ export const ProjectProvider: FC<PropsWithChildren> = ({ children }) => {
       });
 
       if (payload.actions) {
-        const { projectUpdated: puAction } = require("../actions") as typeof import("../actions");
-        filesDispatch(puAction(payload));
+        filesDispatch(projectUpdatedAction(payload));
       }
     },
     [filesDispatch],

@@ -120,8 +120,6 @@
     "typescript": "5.3.3",
     "webpack": "4.44.2",
     "webpack-cli": "3.3.12",
-    "yarn-audit-fix": "^10.0.1",
-    "yarn-run-all": "3.1.1"
   },
   "engines": {
     "node": ">=24.0.0"
