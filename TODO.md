@@ -896,50 +896,46 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
 
 #### 🔴 High: Dead Code Removal
 
-- [ ] **Delete dead GraphQL query files** (5 files):
+- [x] **Delete dead GraphQL query files** (5 files):
   - `src/util/api/queries/trackTourProgress.ts` — tour progress stored locally
   - `src/util/api/queries/myProjects.ts` — server call never invoked (move `prepareUserProjects` to bootstrapQuery)
   - `src/util/api/queries/exampleSimulations.ts` — server call never invoked (move `prepareExamples` to bootstrapQuery)
   - `src/util/api/queries/createDatasetQuery.ts` — imported but never called
   - `src/util/api/queries/addDatasetToProject.ts` — not imported anywhere
   - Remove dead exports from `util/api/index.ts` and `util/api/queries/index.ts`
-- [ ] **Remove stale hCloud UI references** (5 files):
+- [x] **Remove stale hCloud UI references** (5 files):
   - `components/Modal/Experiments/ExperimentModal.tsx` — "Save and run in hCloud" button text, "in hCloud" vs "locally" text
   - `components/HashCore/Header/Menu/CloudStatus/HashCoreHeaderMenuCloudStatus.tsx` — "Contact us to use hCloud" text
   - `components/FileBanner/PythonSafari/FileBannerPythonSafari.tsx` — hCloud text reference
   - `features/simulator/simulate/provider.ts` — stale comment
-- [ ] **Remove stale login/signin components and scopes**:
+- [x] **Remove stale login/signin component** (FileBannerSignIn deleted):
   - `components/FileBanner/SignIn/FileBannerSignIn.tsx` — component for deleted feature
   - `components/FileBanner/Wrapper/FileBannerWrapper.tsx` — imports and uses FileBannerSignIn
   - `features/user/utils.ts` — `navigate("/signin")` call
   - `features/scopes.ts` — `Scope.login`, `Scope.forkIfSignedIn`, `Scope.saveIfSignedIn` are dead
   - `components/HashRouter/Effect/routes.tsx` — `/signup`, `/signin` route stubs
-- [ ] **Remove dead release toast components**:
+- [x] **Remove dead release toast components**:
   - `components/Toast/ReleaseSuccess/ToastReleaseSuccess.tsx`
   - `components/Toast/ReadOnlyRelease/ToastReadOnlyRelease.tsx`
   - `components/Toast/ReleaseBehaviorSuccess/ToastReleaseBehaviorSuccess.tsx`
-- [ ] **Remove Discord remnants**:
+- [x] **Remove Discord remnants**:
   - `components/Icon/Discord/` — icon component directory
   - `styles.css` — CSS variables `--discord-button-y-offset`, `--discord-button-size`
   - `components/ActivityHistory/Inspector/Inspector.css` — uses Discord CSS variables
-- [ ] **Remove dead utility files**:
+- [x] **Remove dead utility files**:
   - `util/postFormData.ts` — file upload utility (server uploads removed)
   - `util/prepareFormDataWithFile.ts` — file upload utility (server uploads removed)
   - Remove imports from `features/files/slice.ts`
 
 #### 🔴 High: Module Modernization
 
-- [ ] **Replace `lodash` imports with `lodash-es`** (20+ files):
+- [x] **Replace `lodash` imports with `lodash-es`** (27 files):
   - `features/simulator/simulate/util.ts`, `features/monaco/monaco.ts`, `features/files/selectors.ts`,
     `features/files/FilesContext.tsx`, `components/Analysis/AnalysisViewer.tsx`, and 15+ more
   - Currently importing CommonJS `lodash` instead of ESM `lodash-es` — prevents tree-shaking
   - Global find-replace: `from "lodash` → `from "lodash-es` (and `from "lodash/` → `from "lodash-es/`)
-- [ ] **Replace `process.env.NODE_ENV` with `import.meta.env`**:
-  - `util/api/paths.ts` — uses `process.env.NODE_ENV !== "production"` (should be `!import.meta.env.PROD`)
-- [ ] **Rename `WEBPACK_BUILD_STAMP` to `BUILD_STAMP`** (4 source files + vite.config.ts):
-  - `index.tsx`, `routes.ts`, `setupTests.ts`, `components/EmbedApp/bootEmbed.tsx`
-  - Update `vite.config.ts` define section to match
-  - Remove stale webpack comments in `GeospatialMap.tsx`, `ExperimentModal.spec.tsx`
+- [x] ~~**Replace `process.env.NODE_ENV`**~~ — kept as-is; Vite natively replaces `process.env.NODE_ENV`
+- [x] **Rename `WEBPACK_BUILD_STAMP` to `BUILD_STAMP`** — all webpack naming removed from source
 
 #### 🟡 Medium: Commented/Stubbed Code Cleanup
 
@@ -947,19 +943,15 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
   - `util/api/queries/bootstrapQuery.ts`
   - `util/api/queries/getOnboardingProject.ts`
   - `util/api/queries/tourShowcase.ts`
-- [ ] **Clean up stale SCSS comments**:
-  - `components/Modal/Split/ModalSplit.scss` — references deleted ModalShare
+- [x] **Clean up stale SCSS comments** — ModalShare reference removed
 - [ ] **Decide on `trackEvent` stubs** — 20+ call sites invoke no-op analytics:
   - Option A: Remove all `trackEvent()` calls and the `features/analytics.ts` file
   - Option B: Keep stubs for future analytics integration
-- [ ] **Remove `require()` in ProjectContext.tsx**:
-  - Line 257 uses `require("../actions")` as a dynamic import workaround — refactor to static import
+- [x] **Remove `require()` in ProjectContext.tsx** — replaced with static import
 
 #### 🟡 Medium: Stale Dependencies
 
-- [ ] **Remove unused packages from workspace root** (`apps/sim-core/package.json`):
-  - `yarn-audit-fix` — not used in any script
-  - `yarn-run-all` — not used (project uses `npm-run-all`)
+- [x] **Remove unused packages from workspace root** — `yarn-audit-fix`, `yarn-run-all` removed
 - [ ] **Move webpack-only deps to engine-web** (only used by engine-web stdlib build):
   - `webpack` (4.44.2) — only used by `engine-web/webpack.config.js`
   - `webpack-cli` (3.3.12) — only used by engine-web
