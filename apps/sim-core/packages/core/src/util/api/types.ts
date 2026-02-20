@@ -1,4 +1,4 @@
-import { CommitActionVerb } from "./auto-types";
+import { CommitActionVerb } from "./apiTypes";
 
 export type MyType<T> = { me: T };
 

@@ -1,7 +1,7 @@
 import { v4 as uuid } from "uuid";
 
 import { ApiCommitAction } from "./types";
-import { CommitActionVerb } from "./auto-types";
+import { CommitActionVerb } from "./apiTypes";
 import { FileAction } from "../../features/files/types";
 
 export const graphqlUuid = () => `_${uuid().replace(/-/g, "_")}`;

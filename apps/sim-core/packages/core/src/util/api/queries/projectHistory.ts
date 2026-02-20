@@ -4,7 +4,7 @@ import {
   ProjectHistoryItemType,
   ProjectHistoryQueryVariables,
   ProjectHistoryReturn,
-} from "../auto-types";
+} from "../apiTypes";
 import {
   LinkableProject,
   ReleaseDescription,

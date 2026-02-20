@@ -2,7 +2,7 @@
  * Shared action creators used by multiple context providers.
  * Pure implementations (no Redux Toolkit dependency).
  */
-import type { Commit } from "../util/api/auto-types";
+import type { Commit } from "../util/api/apiTypes";
 import type {
   CanUserEditProject,
   LocalStorageProject,

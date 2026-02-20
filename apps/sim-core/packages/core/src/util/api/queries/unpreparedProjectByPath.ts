@@ -1,4 +1,4 @@
-import { ProjectByPathQuery, ProjectByPathQueryVariables } from "../auto-types";
+import { ProjectByPathQuery, ProjectByPathQueryVariables } from "../apiTypes";
 import { query } from "../query";
 
 export const FilesFragment = /* GraphQL */ `

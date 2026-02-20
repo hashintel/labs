@@ -1,5 +1,5 @@
 import { parse } from "../../files";
-import { CommitActionVerb } from "../auto-types";
+import { CommitActionVerb } from "../apiTypes";
 import { ApiCommitAction } from "../types";
 import {
   LocalStorageProject,
