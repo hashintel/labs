@@ -15,7 +15,7 @@ import {
 import { SITE_URL } from "../../../util/api/paths";
 import { ScrollFade } from "../../ScrollFade/ScrollFade";
 import { scrollBy } from "./util";
-import { trackEvent } from "../../../features/analytics";
+
 import { useFiles } from "../../../features/files/FilesContext";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 
@@ -136,21 +136,6 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
     }
 
     const tag = resource.latestRelease.tag;
-
-    switch (resource.type) {
-      case "Dataset":
-        trackEvent({
-          action: "Import Dataset",
-          label: `${resource.name} - ${resource.pathWithNamespace}`,
-        });
-        break;
-      case "Behavior":
-        trackEvent({
-          action: "Import Behavior",
-          label: `${resource.name} - ${resource.pathWithNamespace}`,
-        });
-        break;
-    }
 
     await handleAddDependencies(
       Object.fromEntries(

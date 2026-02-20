@@ -1,7 +1,7 @@
 import React, { FC, memo, MouseEvent } from "react";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
-import { trackEvent } from "../../../../../features/analytics";
+
 import { useProject } from "../../../../../features/project/ProjectContext";
 import { useTour } from "../../../Tour";
 
@@ -37,12 +37,6 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
             <a
               href="https://docs.hash.ai/core/"
               target="_blank"
-              onClick={() =>
-                trackEvent({
-                  action: "Docs Link Clicked: Core",
-                  label: "Homepage",
-                })
-              }
             >
               Docs
             </a>

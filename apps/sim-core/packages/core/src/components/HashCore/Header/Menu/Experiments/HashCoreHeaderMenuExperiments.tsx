@@ -9,7 +9,7 @@ import { Scope, useScope } from "../../../../../features/scopes";
 import { queueExperiment } from "../../../../../features/simulator/simulate/queueExperiment";
 import { selectExperiments } from "../../../../SimulationRunner/Controls/Experiments/selectors";
 import { selectProviderTarget } from "../../../../../features/simulator/simulate/selectors";
-import { trackEvent } from "../../../../../features/analytics";
+
 import { useFilesSelector } from "../../../../../features/files/FilesContext";
 import {
   useSimulatorDispatch,
@@ -91,10 +91,6 @@ export const HashCoreHeaderMenuExperiments: FC<HashCoreHeaderMenuExperimentsProp
               onClick={() => {
                 clearAll();
                 openCreateExperimentModal();
-                trackEvent({
-                  action: "Experiment wizard opened",
-                  label: "Menu",
-                });
               }}
             >
               Create new experiment

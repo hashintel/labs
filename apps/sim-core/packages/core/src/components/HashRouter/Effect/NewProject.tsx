@@ -6,7 +6,7 @@ import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
 import { createLocalProjectFromTemplate } from "../../../util/api/queries/createLocalProjectFromTemplate";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
 import { templates } from "./templates/templates";
-import { trackEvent } from "../../../features/analytics";
+
 import { urlFromProject } from "../../../routes";
 import { useNavigateAway } from "./hooks";
 import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
@@ -38,11 +38,6 @@ export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
             values.visibility,
             actions,
           );
-
-          trackEvent({
-            action: "New Project: Core",
-            label: project.pathWithNamespace,
-          });
 
           if (!values.namespace) {
             addUserProject(preparePartialSimulationProject(project));

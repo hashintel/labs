@@ -5,7 +5,7 @@ import { newProcessChartValue } from "./utils";
 import { selectProcessModelSourceFiles } from "../../features/files/selectors";
 import { useFiles, useFilesSelector } from "../../features/files/FilesContext";
 import { useProject } from "../../features/project/ProjectContext";
-import { trackEvent } from "../../features/analytics";
+
 import { useViewer } from "../../features/viewer/ViewerContext";
 
 import "./ProcessChart.scss";
@@ -115,26 +115,8 @@ export const ProcessChart: FC = () => {
           delete projectDrafts[newProcessChartValue];
           setLocalDrafts(projectRef.current, projectDrafts);
 
-          trackEvent({
-            action: "Add Process Model",
-            label: `${project!.type} - ${project!.pathWithNamespace} - ${
-              project!.ref
-            }`,
-            context: {
-              processName: data.processName,
-            },
-          });
         } else if (savedChart) {
           updateFile(savedChart.id, data.contents);
-          trackEvent({
-            action: "Update Process Model",
-            label: `${project!.type} - ${project!.pathWithNamespace} - ${
-              project!.ref
-            }`,
-            context: {
-              processName: data.processName,
-            },
-          });
         }
         setSaving(false);
       }

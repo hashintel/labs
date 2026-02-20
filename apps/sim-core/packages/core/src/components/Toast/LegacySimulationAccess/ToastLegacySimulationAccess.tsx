@@ -1,11 +1,9 @@
-import React, { FC, useEffect, useRef } from "react";
+import React, { FC } from "react";
 
 import { SimulationToast } from "../";
 import { ToastButton } from "../Button";
 import { ToastKind } from "../../../features/toast/enums";
-import { trackEvent } from "../../../features/analytics";
 import { useClipboardWriteText } from "../../../hooks/useClipboardWriteText";
-import { useProject } from "../../../features/project/ProjectContext";
 import { useToast } from "../../../features/toast/ToastContext";
 
 export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
@@ -13,21 +11,6 @@ export const ToastLegacySimulationAccess: FC<{ nextToast: ToastKind }> = ({
 }) => {
   const clipboardWriteText = useClipboardWriteText();
   const { displayToast } = useToast();
-  const { currentProjectUrl: projectUrl } = useProject();
-
-  const hasTrackedRef = useRef(false);
-
-  useEffect(() => {
-    if (!projectUrl || hasTrackedRef.current) {
-      return;
-    }
-
-    hasTrackedRef.current = true;
-    trackEvent({
-      action: "Legacy Simulation URL Accessed",
-      label: projectUrl,
-    });
-  }, [projectUrl]);
 
   return (
     <SimulationToast theme="warning" isDismissable nextToast={nextToast}>

@@ -15,7 +15,7 @@ import { fromFormatted } from "../../util/files/parse";
 import { preparePartialSimulationProject, toHcConfig } from "../project/utils";
 import { slugify, urlFromProject } from "../../routes";
 import { stringifyBehaviorKeys, toHcFiles } from "./utils";
-import { trackEvent } from "../analytics";
+
 import { useFiles } from "./FilesContext";
 import { useProject } from "../project/ProjectContext";
 import { useUser } from "../user/UserContext";
@@ -192,11 +192,6 @@ export const useImportFiles = () => {
       files: toHcFiles(importedProject),
       ref: importedProject.ref ?? "main",
     };
-
-    trackEvent({
-      action: "Import Project: Core",
-      label: project.pathWithNamespace,
-    });
 
     addUserProject(preparePartialSimulationProject(project));
     contextSetProjectWithMeta(project);

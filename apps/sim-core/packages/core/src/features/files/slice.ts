@@ -69,7 +69,7 @@ import {
   selectLocalBehaviorFiles,
   selectParsedDependencies,
 } from "./selectors";
-import { trackEvent } from "../analytics";
+
 
 // ---------------------------------------------------------------------------
 // Action type constants

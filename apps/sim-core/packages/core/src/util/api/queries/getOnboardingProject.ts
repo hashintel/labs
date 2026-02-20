@@ -1,24 +1,7 @@
-// import { PartialProjectFragment } from "./partialProjectByPath";
 import { PartialSimulationProject } from "../../../features/project/types";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
-// import { query } from "../query";
 
 export const getOnboardingProject = async (): Promise<PartialSimulationProject> => {
-  // Migration shim
-
-  // const res = await query<{
-  //   specialProjects: UnpreparedPartialSimulationProject[];
-  // }>(
-  //   `
-  //       query GetOnboardingSimulation {
-  //         specialProjects(type: Onboarding) {
-  //           ...PartialProjectFragment
-  //         }
-  //       }
-
-  //       ${PartialProjectFragment}
-  //     `
-  // );
   const onBoardingProject = {
     pathWithNamespace: "@hash/wildfires-regrowth",
     name: "Wildfires - Regrowth",

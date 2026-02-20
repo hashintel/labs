@@ -10,7 +10,7 @@ import { PartialSimulationProject } from "../../../../../features/project/types"
 import { Scope } from "../../../../../features/scopes";
 import { descByUpdatedAt } from "../../../../../util/descByUpdatedAt";
 import { mainProjectPath, urlFromProject } from "../../../../../routes";
-import { trackEvent } from "../../../../../features/analytics";
+
 import { useProject } from "../../../../../features/project/ProjectContext";
 import { useUser } from "../../../../../features/user/UserContext";
 import {
@@ -91,14 +91,6 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
           <Link
             path={href}
             onClick={() => {
-              trackEvent({
-                action: "Open project",
-                label: `${type} - ${item.pathWithNamespace} - ${item.ref} - From menu`,
-                context: {
-                  type,
-                },
-              });
-
               clearAll();
             }}
             className="HashCoreHeaderMenuProjectLink"

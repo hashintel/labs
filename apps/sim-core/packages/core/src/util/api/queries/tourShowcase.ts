@@ -11,29 +11,6 @@ type ApiTourShowcase = UnpreparedPartialSimulationProject & {
 
 export const getTourShowcase = async (): Promise<TourShowcase[]> =>
   Object.values(
-    // await query<{
-    //   one: ApiTourShowcase | null;
-    //   two: ApiTourShowcase | null;
-    //   three: ApiTourShowcase | null;
-    // }>(
-    //   `
-    //     query tourShowcase {
-    //       one: project(oldId: "5df7a68cc36ba478454f4a4b", oldType: IndexListing) { ...TourShowcaseFragment }
-    //       two: project(oldId: "5ec6e31a68c106c99a6c6836", oldType: IndexListing) { ...TourShowcaseFragment }
-    //       three: project(oldId: "5e714a0d182926ef11de9999", oldType: IndexListing) { ...TourShowcaseFragment }
-    //     }
-
-    //     fragment TourShowcaseFragment on Project {
-    //       avatar
-    //       thumbnail
-    //       ...PartialProjectFragment
-    //     }
-
-    //     ${PartialProjectFragment}
-    //   `,
-    //   {}
-    // )
-    // Migration Shim
     tourShowcaseResponse
   ).reduce<TourShowcase[]>((showcase, item) => {
     if (item) {

@@ -1,10 +1,10 @@
-import React, { FC, Fragment, useEffect, useMemo } from "react";
+import React, { FC, Fragment, useMemo } from "react";
 
 import type { HcFile } from "../../../features/files/types";
 import { SIM_DOCS_URL } from "../../../util/api/paths";
 import type { UserAlertInState } from "../../../features/viewer/types";
 import { useFiles } from "../../../features/files/FilesContext";
-import { trackEvent } from "../../../features/analytics";
+
 
 type HashCoreConsoleAlertProps = {
   alert: UserAlertInState;
@@ -53,13 +53,6 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
       alert.message.split(filesRegex).some((piece) => files[piece]),
     [alert.message, files]
   );
-
-  useEffect(() => {
-    trackEvent({
-      action: "User Alert",
-      label: Object.values(alert).join(" - "),
-    });
-  }, [alert]);
 
   return (
     <>

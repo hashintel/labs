@@ -1,4 +1,4 @@
-import React, { FC, memo, useEffect, useRef } from "react";
+import React, { FC, memo, useEffect } from "react";
 import { navigate } from "../../util/navigation";
 
 import { HashCoreAccessGate } from "./AccessGate/HashCoreAccessGate";
@@ -14,7 +14,7 @@ import { localStorageProjectKey } from "../../util/localStorageProjectKey";
 import { selectDidSave, selectFileIds } from "../../features/files/selectors";
 import { useFilesSelector } from "../../features/files/FilesContext";
 import { useProject } from "../../features/project/ProjectContext";
-import { trackEvent } from "../../features/analytics";
+
 import { urlFromProject } from "../../routes";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useParameterisedUi } from "../../hooks/useParameterisedUi";
@@ -28,20 +28,6 @@ export const HashCore: FC = memo(function HashCore() {
   const didSave = useFilesSelector(selectDidSave);
 
   useParameterisedUi();
-
-  const firstLoadTracked = useRef(false);
-  useEffect(() => {
-    if (project && !firstLoadTracked.current) {
-      trackEvent({
-        action: "Open Project",
-        label: `${project.type} - ${project.pathWithNamespace} - ${project.ref} - From direct link`,
-        context: {
-          type: project.type,
-        },
-      });
-      firstLoadTracked.current = true;
-    }
-  }, [project]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {

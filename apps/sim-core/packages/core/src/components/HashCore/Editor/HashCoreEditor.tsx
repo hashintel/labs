@@ -44,7 +44,7 @@ import {
   selectReplaceProposal,
   selectShouldShowBehaviorKeys,
 } from "../../../features/files/selectors";
-import { trackEvent } from "../../../features/analytics";
+
 import { useViewer } from "../../../features/viewer/ViewerContext";
 import { useNameNewBehaviorModal } from "../Files";
 import { useOnClickOutside } from "../../../hooks/useOnClickOutside";
@@ -328,10 +328,6 @@ export const HashCoreEditor: FC = () => {
                    *
                    * @todo fix this
                    */
-                  trackEvent({
-                    action: "Validate Analysis JSON Button clicked: Core",
-                    label: "analysis.json",
-                  });
                   validateAnalysisJsonAndDispatchErrorsIfAny(
                     analysis as any,
                     { addUserAlert, clearUserAlerts },
@@ -358,12 +354,6 @@ export const HashCoreEditor: FC = () => {
             className="tab-button"
             href={`https://docs.hash.ai/core/creating-simulations/${section}`}
             target="_blank"
-            onClick={() =>
-              trackEvent({
-                action: "Docs Link Clicked: Core",
-                label: section,
-              })
-            }
           >
             <IconHelpCircle size={fileActionSize} />
             <SimpleTooltip

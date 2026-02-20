@@ -61,7 +61,7 @@ import {
 } from "../../project/selectors";
 import { selectExperiments } from "../../../components/SimulationRunner/Controls/Experiments/selectors";
 import { simulationProvider } from "./buildprovider";
-import { trackEvents } from "../../analytics";
+
 
 /**
  * Just using this to hide the casting away from the consumer. The casting is
@@ -190,19 +190,6 @@ export const queueExperiment = (
     })
   );
 
-  // Track this this event and the associated runs
-  const label = `${project?.name} - ${experimentName} - ${projectUrl}`;
-  const context = { cloud: simulationProvider.target === "cloud" };
-
-  const trackExperimentRunEvent = { action: "Experiment Run", label, context };
-
-  const simulationTrackingEvents = (simIds: string[]) =>
-    simIds.map(() => ({
-      action: "Experiment Simulation Run",
-      label,
-      context,
-    }));
-
   const handleFailedPendingExperiment = (err: ExperimentError) =>
     dispatch(experimentError(err, pendingExperimentId));
 
@@ -312,7 +299,6 @@ export const queueExperiment = (
               })
             );
 
-            trackEvents([trackExperimentRunEvent]);
             break;
         }
       }),
@@ -394,9 +380,6 @@ export const queueExperiment = (
                 case "simulationsCreated":
                   return group.pipe(
                     tap((event) => {
-                      trackEvents(
-                        simulationTrackingEvents(Object.keys(event.plan))
-                      );
                       dispatch(
                         experimentSimulationsCreated({
                           experimentId: experiment.experimentId,
@@ -572,12 +555,6 @@ export const queueExperiment = (
               plan: experiment.plan,
             })
           );
-
-          const ids = experiment.simulationIds;
-          trackEvents([
-            trackExperimentRunEvent,
-            ...simulationTrackingEvents(ids),
-          ]);
 
           for (const [runId, promise] of Object.entries(startedPromises)) {
             promise.then(() => {

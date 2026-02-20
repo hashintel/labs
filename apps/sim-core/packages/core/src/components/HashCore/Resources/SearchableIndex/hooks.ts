@@ -3,7 +3,7 @@ import { useEffect, useReducer, useRef } from "react";
 import type { ResourceProject } from "../../../../features/project/types";
 import { Scope, useScope } from "../../../../features/scopes";
 import { searchResourceProjects } from "../../../../util/api/queries/searchResourceProjects";
-import { trackEvent } from "../../../../features/analytics";
+
 import { useProject } from "../../../../features/project/ProjectContext";
 
 export const useSearchIndex = (): {
@@ -68,10 +68,6 @@ export const useSearchIndex = (): {
           term,
           controller.signal
         );
-
-        if (term) {
-          trackEvent({ action: "Index Search: Core", label: term });
-        }
 
         if (!controller.signal.aborted) {
           dispatch({ type: "FINISHED_SEARCHING", payload: searchResults });

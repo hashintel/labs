@@ -11,7 +11,7 @@ import { experimentsFileId } from "../../../../features/files/utils";
 import { queueExperiment } from "../../../../features/simulator/simulate/queueExperiment";
 import { selectExperiments } from "./selectors";
 import { selectProviderTarget } from "../../../../features/simulator/simulate/selectors";
-import { trackEvent } from "../../../../features/analytics";
+
 import {
   useSimulatorDispatch,
   useSimulatorSelector,
@@ -90,10 +90,6 @@ export const ExperimentsList: FC<{
                       };
                       setCurrentExperiment(newExperiment);
                       openModal();
-                      trackEvent({
-                        action: "Experiment wizard opened",
-                        label: "ExperimentsList",
-                      });
                     }}
                   >
                     <IconPencil />

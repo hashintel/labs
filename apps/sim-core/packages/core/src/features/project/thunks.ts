@@ -6,7 +6,7 @@ import { PartialSimulationProject } from "./types";
 import { ToastKind } from "../toast/enums";
 import { getLocalStorageProject, preparePartialSimulationProject } from "./utils";
 import { setLocalStorageProject } from "../middleware/localStorage";
-import { trackEvent } from "../analytics";
+
 import { urlFromProject } from "../../routes";
 
 /**
@@ -50,15 +50,6 @@ export function prepareForkProject(
   };
 
   setLocalStorageProject(nextProject);
-
-  trackEvent({
-    action: "Fork Project: Core",
-    label: [project.type, project.pathWithNamespace, project.ref].join(" - "),
-    context: {
-      type: project.type,
-      forkPath: nextProject.pathWithNamespace,
-    },
-  });
 
   return {
     nextProject,
