@@ -3,9 +3,10 @@ import { LocalStorageProject } from "../../../features/project/types";
 import { ProjectTypeName, VisibilityLevel } from "../auto-types";
 import type { User } from "../types";
 import { getItem } from "../../../hooks/useLocalStorage";
-import { getLocalStorageProject } from "../../../features/project/utils";
-import { prepareExamples } from "./exampleSimulations";
-import { prepareUserProjects } from "./myProjects";
+import {
+  getLocalStorageProject,
+  preparePartialSimulationProject,
+} from "../../../features/project/utils";
 import { setLocalStorageProject } from "../../../features/middleware/localStorage";
 
 // const queryString = /* GraphQL */ `
@@ -54,7 +55,7 @@ export const bootstrapQuery = async () => {
     // Migration shim
     const result = bootstrapQueryResponse();
 
-    const examples = prepareExamples(result.specialProjects);
+    const examples = result.specialProjects.map(preparePartialSimulationProject);
     const bootstrap = { examples };
 
     if (result.me) {
@@ -67,7 +68,7 @@ export const bootstrapQuery = async () => {
       return {
         ...bootstrap,
         user,
-        projects: prepareUserProjects(projects.results),
+        projects: projects.results.map(preparePartialSimulationProject),
       };
     } else {
       return bootstrap;

@@ -1,10 +1,7 @@
 export { bootstrapQuery } from "./bootstrapQuery";
-export { exampleSimulations } from "./exampleSimulations";
 export { fetchDependencies } from "./fetchDependencies";
 export { getOnboardingProject } from "./getOnboardingProject";
 export { getReleaseMeta } from "./getReleaseMeta";
 export { getTourShowcase } from "./tourShowcase";
 export { linkableProjectByLegacyId } from "./linkableProjectByLegacyId";
-export { myProjects } from "./myProjects";
 export { searchResourceProjects } from "./searchResourceProjects";
-export { trackTourProgress } from "./trackTourProgress";

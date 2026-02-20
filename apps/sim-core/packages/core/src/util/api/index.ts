@@ -14,11 +14,8 @@ export {
 export {
   // user
   bootstrapQuery,
-  trackTourProgress,
   // simulations
-  myProjects,
   linkableProjectByLegacyId,
-  exampleSimulations,
   getOnboardingProject,
   // dependencies
   fetchDependencies,

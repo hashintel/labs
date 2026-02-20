@@ -56,14 +56,11 @@ import {
   projectUpdated,
   setProject,
 } from "../actions";
-import { createDatasetQuery } from "../../util/api/queries/createDatasetQuery";
 import { defaultJsBehaviorSrc } from "../../util/defaultJsBehaviorSrc";
 import { fetchDependencies } from "../../util/api/queries";
 import { isStoringProjectActions } from "../project/utils";
 import { parse } from "../../util/files";
 import { parseBehaviorKeysQuery } from "../../util/parseBehaviorKeysQuery";
-import { postFormData } from "../../util/postFormData";
-import { prepareFormDataWithFile } from "../../util/prepareFormDataWithFile";
 import {
   selectAllFilesLocal,
   selectDatasetFiles,
