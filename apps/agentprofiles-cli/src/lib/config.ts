@@ -82,6 +82,20 @@ const AGENT_LAYOUTS: Partial<Record<keyof typeof SUPPORTED_TOOLS, AgentLayoutDef
       { path: 'version.json', kind: 'file' },
     ],
   },
+  gemini: {
+    sharedEntries: [
+      { path: 'antigravity', kind: 'dir' },
+      { path: 'antigravity-browser-profile', kind: 'dir' },
+      { path: 'history', kind: 'dir' },
+      { path: 'installation_id', kind: 'file' },
+      { path: 'projects.json', kind: 'file' },
+      { path: 'settings.json.orig', kind: 'file' },
+      { path: 'state.json', kind: 'file' },
+      { path: 'tmp', kind: 'dir' },
+      { path: 'trustedFolders.json', kind: 'file' },
+      { path: 'user_id', kind: 'file' },
+    ],
+  },
 };
 
 async function pathExists(targetPath: string): Promise<boolean> {
@@ -555,6 +569,61 @@ export class ConfigManager {
     return broken;
   }
 
+  /**
+   * Non-destructively merge the contents of sourceRoot into destRoot.
+   * Uses lstat throughout (never follows symlinks).
+   * Skips '_migrated-originals-*' entries (migration artifacts, user-confirmed deletable).
+   * Returns true if every entry was successfully handled, false if anything was skipped or failed.
+   * Callers should only delete sourceRoot when this returns true.
+   */
+  private async mergeSharedIntoDir(sourceRoot: string, destRoot: string): Promise<boolean> {
+    let entries: import('node:fs').Dirent<string>[];
+    try {
+      entries = await fs.readdir(sourceRoot, { withFileTypes: true, encoding: 'utf8' });
+    } catch {
+      return false;
+    }
+
+    let fullyMerged = true;
+
+    for (const entry of entries) {
+      // Migration artifacts are intentionally dropped (user-confirmed).
+      if (entry.name.startsWith('_migrated-originals-')) {
+        continue;
+      }
+
+      const sourcePath = path.join(sourceRoot, entry.name);
+      const destPath = path.join(destRoot, entry.name);
+
+      let destStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+      try {
+        destStat = await fs.lstat(destPath);
+      } catch {
+        // Dest doesn't exist — proceed with move.
+      }
+
+      if (!destStat) {
+        // Nothing at dest: move the whole entry (file, dir, or symlink).
+        try {
+          await fs.mkdir(path.dirname(destPath), { recursive: true });
+          await movePath(sourcePath, destPath);
+        } catch {
+          fullyMerged = false;
+        }
+      } else if (destStat.isDirectory() && entry.isDirectory()) {
+        // Both are dirs: recurse to merge contents.
+        const childMerged = await this.mergeSharedIntoDir(sourcePath, destPath);
+        if (!childMerged) fullyMerged = false;
+      } else {
+        // Dest exists with incompatible or same type (already materialized or pre-existing).
+        // Don't clobber — mark as not fully merged so _shared is kept.
+        fullyMerged = false;
+      }
+    }
+
+    return fullyMerged;
+  }
+
   private async materializeManagedSymlinks(
     destinationRoot: string,
     snapshots: ManagedSymlinkSnapshot[]
@@ -840,6 +909,18 @@ export class ConfigManager {
         );
       }
       throw error;
+    }
+
+    // Merge _shared back into the restored global dir, then clean it up.
+    // mergeSharedIntoDir is non-destructive: it only removes _shared if every
+    // entry was successfully moved. If anything failed, _shared is left in place
+    // (orphaned but no data is lost).
+    const sharedRoot = path.join(this.contentDir, agent, SHARED_PROFILE_SLUG);
+    if (await pathExists(sharedRoot)) {
+      const fullyMerged = await this.mergeSharedIntoDir(sharedRoot, globalPath);
+      if (fullyMerged) {
+        await fs.rm(sharedRoot, { recursive: true, force: true });
+      }
     }
 
     // Remove profile from managed content after successful release.
