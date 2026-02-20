@@ -9,11 +9,11 @@
     "manager",
     "cli"
   ],
+  "homepage": "https://github.com/hashintel/labs/tree/main/apps/clones-cli#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/hashintel/labs",
-    "directory": "apps/clones-cli",
-    "homepage": "https://github.com/hashintel/labs/tree/main/apps/clones-cli"
+    "directory": "apps/clones-cli"
   },
   "license": "(MIT OR Apache-2.0)",
   "author": {
@@ -29,7 +29,6 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "start": "tsx src/cli.ts",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint src/",
@@ -37,11 +36,12 @@
     "prepack": "RELEASE=true npm run build",
     "prepublishOnly": "npm test",
     "release": "release-it",
+    "release:ci": "release-it --ci",
+    "release:dry": "release-it --dry-run --no-github.release",
+    "start": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "release:ci": "release-it --ci",
-    "release:dry": "release-it --dry-run --no-github.release"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clack/prompts": "^1.0.1",

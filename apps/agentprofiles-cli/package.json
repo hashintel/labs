@@ -9,11 +9,11 @@
     "configuration",
     "profiles"
   ],
+  "homepage": "https://github.com/hashintel/labs/tree/main/apps/agentprofiles-cli#readme",
   "repository": {
     "type": "git",
     "url": "https://github.com/hashintel/labs",
-    "directory": "apps/agentprofiles-cli",
-    "homepage": "https://github.com/hashintel/labs/tree/main/apps/agentprofiles-cli"
+    "directory": "apps/agentprofiles-cli"
   },
   "license": "(MIT OR Apache-2.0)",
   "author": {
@@ -36,13 +36,13 @@
     "prepack": "RELEASE=true npm run build",
     "prepublishOnly": "npm test",
     "release": "release-it",
+    "release:ci": "release-it --ci",
+    "release:dry": "release-it --dry-run --no-github.release",
     "smoke": "./scripts/smoke.sh",
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "release:ci": "release-it --ci",
-    "release:dry": "release-it --dry-run --no-github.release"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@clack/prompts": "^1.0.1",
