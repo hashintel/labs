@@ -211,9 +211,9 @@ Failed operations roll back cleanly:
 
 ## Contributors
 
-`clones-cli` was created by [Lu Nelson](https://github.com/lunelson). It is being developed in conjunction with [HASH](https://hash.dev/) as an open-source project. 
+`clones-cli` was created by [Lu Nelson](https://github.com/lunelson). It is being developed in conjunction with [HASH](https://hash.dev/) as an open-source project.
 
-If you have questions, please create a [discussion](https://github.com/orgs/hashintel/discussions). 
+If you have questions, please create a [discussion](https://github.com/orgs/hashintel/discussions).
 
 ## License
 

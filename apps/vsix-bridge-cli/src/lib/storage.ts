@@ -24,9 +24,7 @@ export function getCacheDir(): string {
     const config = JSON.parse(content) as { cacheDir?: string };
     const cacheDir = config.cacheDir;
     if (cacheDir && typeof cacheDir === 'string') {
-      return cacheDir.startsWith('~')
-        ? join(homedir(), cacheDir.slice(1))
-        : cacheDir;
+      return cacheDir.startsWith('~') ? join(homedir(), cacheDir.slice(1)) : cacheDir;
     }
   } catch {
     // fall through to default

@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/release-it@19/schema/release-it.json",
+  "git": {
+    "requireBranch": "main",
+    "commitMessage": "chore: release clones-cli v${version}",
+    "tagName": "clones-cli-v${version}"
+  }
+}

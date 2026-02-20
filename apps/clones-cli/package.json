@@ -11,7 +11,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:lunelson/clones-cli.git"
+    "url": "https://github.com/hashintel/labs",
+    "directory": "apps/clones-cli"
   },
   "license": "(MIT OR Apache-2.0)",
   "author": {
@@ -34,10 +35,12 @@
     "lint:fix": "eslint src/ --fix",
     "prepack": "RELEASE=true npm run build",
     "prepublishOnly": "npm test",
-    "release": "np",
+    "release": "release-it",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release:ci": "release-it --ci",
+    "release:dry": "release-it --dry-run --no-github.release"
   },
   "dependencies": {
     "@clack/prompts": "^1.0.0",
@@ -57,8 +60,8 @@
     "@types/update-notifier": "^6.0.8",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
-    "np": "^11.0.2",
     "prettier": "^3.8.1",
+    "release-it": "^19.2.4",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.54.0",

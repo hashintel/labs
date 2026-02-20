@@ -1,0 +1,8 @@
+{
+  "$schema": "https://unpkg.com/release-it@19/schema/release-it.json",
+  "git": {
+    "requireBranch": "main",
+    "commitMessage": "chore: release agentprofiles-cli v${version}",
+    "tagName": "agentprofiles-cli-v${version}"
+  }
+}

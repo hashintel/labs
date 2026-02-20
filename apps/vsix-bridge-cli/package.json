@@ -21,9 +21,11 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "release": "np",
+    "release": "release-it",
     "prepack": "RELEASE=true npm run build",
-    "prepublishOnly": "npm run test"
+    "prepublishOnly": "npm run test",
+    "release:ci": "release-it --ci",
+    "release:dry": "release-it --dry-run --no-github.release"
   },
   "keywords": [
     "vscode",
@@ -34,7 +36,8 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lunelson/vsix-bridge-cli.git"
+    "url": "https://github.com/hashintel/labs",
+    "directory": "apps/vsix-bridge-cli"
   },
   "author": {
     "name": "Lu Nelson"
@@ -52,8 +55,8 @@
     "@types/update-notifier": "^6.0.8",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
-    "np": "^10.2.0",
     "prettier": "^3.8.0",
+    "release-it": "^19.2.4",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0",
     "typescript-eslint": "^8.53.1",
