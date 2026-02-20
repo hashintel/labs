@@ -56,9 +56,6 @@
   --modal-border: 1px solid var(--theme-modal-border);
   --input-border: 1px solid var(--theme-input-border);
 
-  --discord-button-y-offset: 10px;
-  --discord-button-size: 48px;
-
   --disabled-input-opacity: 0.66;
 }
 

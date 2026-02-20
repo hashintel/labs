@@ -8,16 +8,14 @@ import {
   FileBannerUpgrade,
 } from "..";
 import { FileBannerPythonSafari } from "../PythonSafari";
-import { FileBannerSignIn } from "../SignIn/FileBannerSignIn";
 import type {
   HcFile,
   HcSharedBehaviorFile,
 } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
-import { Scope, useScopes } from "../../../features/scopes";
+import { Scope, useScope } from "../../../features/scopes";
 import { fetchDependencies } from "../../../util/api";
 import { getTextModelRequired } from "../../../features/monaco";
-import { isReadOnly } from "../../../features/files/utils";
 import { pyodideEnabled } from "../../../util/pyodideEnabled";
 import { useFiles } from "../../../features/files/FilesContext";
 import { useProject } from "../../../features/project/ProjectContext";
@@ -35,7 +33,7 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
 }) => {
   const { handleAddDependencies, allFiles } = useFiles();
   const { currentProject: project, currentProjectUrl: projectUrl } = useProject();
-  const { canEdit, canLogin } = useScopes(Scope.edit, Scope.login);
+  const canEdit = useScope(Scope.edit);
 
   /**
    * show the Python/Safari banner for any `.py` file (even local) if Pyodide
@@ -50,11 +48,7 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
   }
 
   if (!canEdit) {
-    if (canLogin && isReadOnly(file, false)) {
-      return <FileBannerSignIn />;
-    } else {
-      return null;
-    }
+    return null;
   }
 
   /**

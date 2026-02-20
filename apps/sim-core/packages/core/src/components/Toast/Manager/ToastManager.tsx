@@ -1,15 +1,11 @@
 import React, { FC, useEffect, useState } from "react";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 
-import { HcFileKind } from "../../../features/files/enums";
 import { ToastKind } from "../../../features/toast";
 import { ToastLegacySimulationAccess } from "../LegacySimulationAccess";
 import { ToastProjectEditable } from "../ProjectEditable/ProjectEditable";
 import { ToastProjectForked } from "../ProjectForked";
 import { ToastProjectPreview } from "../ProjectPreview";
-import { ToastReadOnlyRelease } from "../ReadOnlyRelease";
-import { ToastReleaseBehaviorSuccess } from "../ReleaseBehaviorSuccess";
-import { ToastReleaseSuccess } from "../ReleaseSuccess";
 import { useProject } from "../../../features/project/ProjectContext";
 import { useToast } from "../../../features/toast/ToastContext";
 import { useUser } from "../../../features/user/UserContext";
@@ -70,12 +66,6 @@ export const ToastManager: FC = () => {
         [ToastKind.ProjectPreview]: userProjectsLoaded ? (
           <ToastProjectPreview project={project} />
         ) : null,
-        [ToastKind.ReadOnlyRelease]: <ToastReadOnlyRelease project={project} />,
-        [ToastKind.ReleaseBehaviorSuccess]:
-          data?.kind === HcFileKind.SharedBehavior ? (
-            <ToastReleaseBehaviorSuccess files={data} />
-          ) : null,
-        [ToastKind.ReleaseSuccess]: <ToastReleaseSuccess project={project} />,
 
         [ToastKind.None]: null,
       }[toastKind]

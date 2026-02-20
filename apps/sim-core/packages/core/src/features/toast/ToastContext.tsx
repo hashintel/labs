@@ -29,7 +29,7 @@ function computeToastForProject(
           ? ToastKind.ProjectEditable
           : ToastKind.None;
       } else {
-        kind = ToastKind.ReadOnlyRelease;
+        kind = ToastKind.None;
       }
     } else {
       kind = ToastKind.ProjectPreview;

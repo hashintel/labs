@@ -1444,7 +1444,7 @@ export const ExperimentModal: FC<{
                 theme="blue"
                 type="submit"
               >
-                Save and run in hCloud
+                Run experiment
               </FancyButton>
             ) : null
           ) : canUseCloud ? (
@@ -1471,7 +1471,7 @@ export const ExperimentModal: FC<{
               }}
             >
               Save and run{" "}
-              {newSimulationTarget === "cloud" ? "in hCloud" : "locally"}
+              {newSimulationTarget === "cloud" ? "in cloud" : "locally"}
             </FancyButtonWithDropdown>
           ) : (
             <FancyButton
