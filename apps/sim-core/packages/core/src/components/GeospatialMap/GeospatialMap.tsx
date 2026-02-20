@@ -24,10 +24,8 @@ type PopupData = {
   description: string;
 };
 
-// Injected by webpack.
-// To specify, add a '.env' file containing, e.g.,
-//    MAPBOX_API_TOKEN=pk.eyJ1IjoianV[...]kZWFsbHtbinwPK4yA
-// Then rebuild.
+// Injected at build time via vite.config.ts define.
+// Set MAPBOX_API_TOKEN env var before building.
 const accessToken = MAPBOX_API_TOKEN;
 const MapComponent = accessToken
   ? ReactMapboxGl({

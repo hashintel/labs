@@ -45,8 +45,8 @@ export default defineConfig(({ mode }) => {
       },
     },
     define: {
-      WEBPACK_PUBLIC_PATH: JSON.stringify("/"),
-      WEBPACK_BUILD_STAMP: JSON.stringify(buildStamp),
+      PUBLIC_PATH: JSON.stringify("/"),
+      BUILD_STAMP: JSON.stringify(buildStamp),
       LOCAL_API: JSON.stringify(true),
       MAPBOX_API_TOKEN: JSON.stringify(
         process.env.MAPBOX_API_TOKEN ?? null

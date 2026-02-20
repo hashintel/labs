@@ -144,7 +144,7 @@ beforeEach(() => {
   mock.mockImplementation((...args: any[]) => mapFileId(...args));
 });
 
-global.WEBPACK_BUILD_STAMP = "JEST";
+global.BUILD_STAMP = "JEST";
 
 window.ResizeObserver = class ResizeObserver {
   observe() {}

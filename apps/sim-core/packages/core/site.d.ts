@@ -2,8 +2,8 @@
  * Build-time globals provided by Vite's `define` config.
  * @see ./vite.config.ts
  */
-declare var WEBPACK_PUBLIC_PATH: string;
-declare var WEBPACK_BUILD_STAMP: string;
+declare var PUBLIC_PATH: string;
+declare var BUILD_STAMP: string;
 declare var LOCAL_API: boolean;
 declare var MAPBOX_API_TOKEN: string;
 

@@ -17,17 +17,17 @@ if (IS_STAGING) {
   const hashVersion = getBuildStampFromUrl();
   const storedVersion = localStorage.getItem(LocalStorageKey.CachedVersion);
 
-  if (hashVersion === WEBPACK_BUILD_STAMP) {
-    localStorage.setItem(LocalStorageKey.CachedVersion, WEBPACK_BUILD_STAMP);
+  if (hashVersion === BUILD_STAMP) {
+    localStorage.setItem(LocalStorageKey.CachedVersion, BUILD_STAMP);
   } else if (
     storedVersion &&
-    !(hashVersion && storedVersion === WEBPACK_BUILD_STAMP)
+    !(hashVersion && storedVersion === BUILD_STAMP)
   ) {
     window.location.href = getUrlForCurrentRouteWithBuildStamp(storedVersion);
   }
 }
 
-console.log("HASH Core Version:", WEBPACK_BUILD_STAMP);
+console.log("HASH Core Version:", BUILD_STAMP);
 
 boot(true).then(() => {
   const root = createRoot(document.getElementById("root")!);
