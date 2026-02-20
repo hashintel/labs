@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { maxBy } from "lodash";
+import { maxBy } from "lodash-es";
 
 import { AnalysisObject, Plot } from "../Analysis/types";
 import { HcFile } from "../../features/files/types";

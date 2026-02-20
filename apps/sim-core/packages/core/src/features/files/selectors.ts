@@ -1,5 +1,5 @@
 import { createSelector, createSelectorCreator, defaultMemoize } from "reselect";
-import { isEqualWith, pick, sortBy } from "lodash";
+import { isEqualWith, pick, sortBy } from "lodash-es";
 
 import type {
   DependenciesDescriptor,

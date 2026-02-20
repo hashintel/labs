@@ -10,7 +10,7 @@ import {
   isOutputSlice,
 } from "@hashintel/engine-web";
 import { flow } from "fp-ts/es6/function";
-import { merge } from "lodash";
+import { merge } from "lodash-es";
 import { pipe } from "fp-ts/es6/pipeable";
 
 import { OutputPlotProps } from "./types";

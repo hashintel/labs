@@ -1,6 +1,6 @@
 import lineColumn from "line-column";
 import { IDisposable, IRange, Range, editor, languages } from "monaco-editor";
-import { remove } from "lodash";
+import { remove } from "lodash-es";
 
 enum ConflictMarkerTokenTypes {
   "StartHeading" = "StartHeading",

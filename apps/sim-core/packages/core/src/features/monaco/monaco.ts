@@ -1,6 +1,6 @@
 import type { Store } from "../reduxCompat";
 import { IDisposable, Uri, editor } from "monaco-editor";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 import { v4 as uuid } from "uuid";
 
 import { Ext } from "../../util/files/enums";

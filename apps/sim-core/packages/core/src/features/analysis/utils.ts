@@ -1,5 +1,5 @@
 import levenshteinDistance from "js-levenshtein";
-import { difference } from "lodash";
+import { difference } from "lodash-es";
 
 import {
   AggregatorOperator,

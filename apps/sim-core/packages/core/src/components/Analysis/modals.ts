@@ -1,5 +1,5 @@
 import { PlotDefinition } from "@hashintel/engine-web";
-import { omit } from "lodash";
+import { omit } from "lodash-es";
 
 import { ChartTypes, Operation, Plot, YAxisItemType } from "./types";
 import { ParsedAnalysis } from "../../features/files/types";

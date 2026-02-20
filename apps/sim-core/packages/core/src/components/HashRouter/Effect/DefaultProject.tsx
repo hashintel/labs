@@ -1,6 +1,6 @@
 import { FC, useEffect } from "react";
 import { navigate } from "../../../util/navigation";
-import orderBy from "lodash/orderBy";
+import orderBy from "lodash-es/orderBy";
 
 import type { LinkableProject } from "../../../features/project/types";
 import { urlFromProject } from "../../../routes";

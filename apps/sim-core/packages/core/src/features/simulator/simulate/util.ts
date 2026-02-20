@@ -1,6 +1,6 @@
 import { freeze } from "../../reduxCompat";
 import type { Draft } from "../../reduxCompat";
-import lodash from "lodash";
+import { last as lodashLast } from "lodash-es";
 import {
   ExperimentRun,
   FetchedDataset,
@@ -293,14 +293,14 @@ const correctedShortnameFromDependencies = (
   //Dependency repoPath always starts with "dependencies/@namespace/"
   const namespace = repoPathParts[1];
   // And ends with the file name ".../{name.ext}"
-  const fileName = lodash.last(repoPathParts);
+  const fileName = lodashLast(repoPathParts);
 
   //Now find an entry in dependencies that matches those conditions
   let correctedShortname = Object.keys(dependencies).find((dependency) => {
     const dependencyParts = dependency.split("/");
     return (
       dependencyParts[0] === namespace &&
-      lodash.last(dependencyParts) === fileName
+      lodashLast(dependencyParts) === fileName
     );
   });
 

@@ -8,7 +8,7 @@ import React, {
 } from "react";
 import { ProviderTargetEnv } from "@hashintel/engine-web";
 import { Result, combine, ok } from "neverthrow";
-import { omit, pick } from "lodash";
+import { omit, pick } from "lodash-es";
 import { v4 as uuid } from "uuid";
 
 import {

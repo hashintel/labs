@@ -3,7 +3,7 @@ import { unstable_batchedUpdates } from "react-dom";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 import { useModal } from "react-modal-hook";
 import classNames from "classnames";
-import { sum } from "lodash";
+import { sum } from "lodash-es";
 
 import { AnalysisProps, Plot } from "./types";
 import { AnalysisViewerActionButtons } from "./AnalysisViewerActionButtons";

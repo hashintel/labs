@@ -4,7 +4,7 @@ import * as o from "fp-ts/es6/Option";
 import * as r from "fp-ts/es6/Record";
 import { AgentState } from "@hashintel/engine-web";
 import { MapLayerMouseEvent } from "mapbox-gl";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 
 import { SimulationViewerLazyTab } from "../SimulationViewer/LazyTab/SimulationViewerLazyTab";
 import { mapColor } from "../../util/palette";

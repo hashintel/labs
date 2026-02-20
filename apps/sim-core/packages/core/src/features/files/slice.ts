@@ -1,6 +1,6 @@
 import { produce, current } from "immer";
 import type { Draft } from "immer";
-import findLastIndex from "lodash/findLastIndex";
+import findLastIndex from "lodash-es/findLastIndex";
 import { filter, mergeMap, reduce } from "rxjs/operators";
 import { from } from "rxjs";
 import { v4 } from "uuid";

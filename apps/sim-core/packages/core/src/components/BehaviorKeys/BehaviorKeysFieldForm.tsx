@@ -1,6 +1,6 @@
 import React, { FC, useState } from "react";
 import classNames from "classnames";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 
 import {
   BehaviorKeysField,

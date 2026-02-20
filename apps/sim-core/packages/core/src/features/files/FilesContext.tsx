@@ -34,7 +34,7 @@ import { getSelectors } from "./adapter";
 import { parseAnalysis } from "../../components/Analysis/utils";
 import { fetchDependencies } from "../../util/api/queries";
 import { parseBehaviorKeysQuery } from "../../util/parseBehaviorKeysQuery";
-import { sortBy } from "lodash";
+import { sortBy } from "lodash-es";
 import {
   filesReducer,
   filesInitialState,

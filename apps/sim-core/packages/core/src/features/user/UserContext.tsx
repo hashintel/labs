@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useReducer,
 } from "react";
-import { isEqual } from "lodash";
+import { isEqual } from "lodash-es";
 import urljoin from "url-join";
 
 import type { BasicUser, TourProgress, User } from "../../util/api/types";

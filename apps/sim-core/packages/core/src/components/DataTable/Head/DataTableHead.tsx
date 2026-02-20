@@ -1,5 +1,5 @@
 import React, { FC, memo } from "react";
-import { kebabCase } from "lodash";
+import { kebabCase } from "lodash-es";
 
 import "./DataTableHead.css";
 

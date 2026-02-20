@@ -7,7 +7,7 @@ import React, {
   useMemo,
   useReducer,
 } from "react";
-import omit from "lodash/omit";
+import omit from "lodash-es/omit";
 
 import type {
   LinkableProject,
