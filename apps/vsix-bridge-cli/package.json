@@ -37,7 +37,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/hashintel/labs",
-    "directory": "apps/vsix-bridge-cli"
+    "directory": "apps/vsix-bridge-cli",
+    "homepage": "https://github.com/hashintel/labs/tree/main/apps/vsix-bridge-cli"
   },
   "author": {
     "name": "Lu Nelson"

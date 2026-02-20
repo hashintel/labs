@@ -12,7 +12,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/hashintel/labs",
-    "directory": "apps/agentprofiles-cli"
+    "directory": "apps/agentprofiles-cli",
+    "homepage": "https://github.com/hashintel/labs/tree/main/apps/agentprofiles-cli"
   },
   "license": "(MIT OR Apache-2.0)",
   "author": {

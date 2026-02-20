@@ -1,6 +1,6 @@
 {
   "name": "clones-cli",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "A read-only Git repository manager for exploration and reference",
   "keywords": [
     "git",
@@ -12,7 +12,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/hashintel/labs",
-    "directory": "apps/clones-cli"
+    "directory": "apps/clones-cli",
+    "homepage": "https://github.com/hashintel/labs/tree/main/apps/clones-cli"
   },
   "license": "(MIT OR Apache-2.0)",
   "author": {
