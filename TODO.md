@@ -971,9 +971,7 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
   - 10 remaining are in dead `whyDidYouRender` blocks (commented-out code)
   - 3 remaining are genuine library type gaps (deck.gl, luma.gl, gradient-path — no types)
 - [x] **Fix TypeScript errors** — reduced from 45 to 40 (all remaining are library type issues)
-- [ ] **Migrate test files from `ReactDOM.render` to `@testing-library/react`** (100+ spec files):
-  - Currently use deprecated `ReactDOM.render()` / `unmountComponentAtNode()`
-  - Should use `render()` / `cleanup()` from `@testing-library/react`
+- [x] **Migrate test files from `ReactDOM.render` to `@testing-library/react`** — 107 spec files migrated
 
 ### Phase 5: Future - GitHub Integration (Post-Migration)
 - [ ] Design GitHub OAuth flow (no HASH account)
@@ -991,14 +989,8 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
 
 #### 🔴 High: Add Frontend CI
 
-- [ ] **Create `frontend.yml` workflow**: TypeScript type check + Jest unit tests + Vite build
-  - Trigger: PRs touching `apps/sim-core/**`, pushes to `main`
-  - Steps: `yarn install`, `tsc --noEmit`, `yarn test`, `yarn build`
-  - Gate: Block PR merge if any step fails
-- [ ] **Create `e2e.yml` workflow**: Playwright E2E tests
-  - Trigger: PRs touching `apps/sim-core/**`
-  - Steps: `yarn build`, `playwright install`, `yarn test:e2e`
-  - Consider running only smoke tests on PRs, full suite on `main`
+- [x] **Create `frontend.yml` workflow**: ESLint + TypeScript + Jest + Vite build
+- [x] **Create `e2e.yml` workflow**: Playwright E2E tests with artifact upload
 
 #### 🟡 Medium: Deployment Pipeline
 
@@ -1009,17 +1001,8 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
 
 #### 🟡 Medium: Clean Up Existing CI
 
-- [ ] **Update action versions** in `rust.yml`:
-  - `actions/checkout` v3 → v4
-  - `actions/setup-python` v4 → v5
-  - `Swatinem/rust-cache` v2.6 → v2.7+
-  - `taiki-e/install-action` v2.17 → v2.26+
-  - `github/codeql-action` v2 → v3
-- [ ] **Clean up Renovate config** (`.github/renovate.json`):
-  - Remove references to packages not in this repo (Block Protocol, ProseMirror, Signia, OpenTelemetry, Postgres)
-  - Remove Sentry group (Sentry already deleted)
-  - Remove team reviewers that don't exist in this repo (`team:Python`, `team:Rust`)
-  - Consider adding `ignorePaths` for `pocs/` directory
+- [x] **Update action versions** in `rust.yml` — checkout v4, setup-python v5, rust-cache v2, codeql-action v3
+- [x] **Clean up Renovate config** — removed stale groups, added relevant package groups
 
 #### 🟢 Low: Additional CI
 
