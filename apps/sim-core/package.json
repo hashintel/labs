@@ -121,7 +121,8 @@
     "node": ">=24.0.0"
   },
   "resolutions": {
-    "@types/react": "18.2.48"
+    "@types/react": "18.2.48",
+    "@babel/parser": "^7.29.0"
   },
   "dependencies": {}
 }
