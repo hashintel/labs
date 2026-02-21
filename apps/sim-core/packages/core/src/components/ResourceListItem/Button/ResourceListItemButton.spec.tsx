@@ -1,18 +1,15 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { ResourceListItemButton } from "./ResourceListItemButton";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
+  render(
     <ResourceListItemButton
       alreadyPresent={true}
       setIsPopoverOpen={() => {}}
       resourceName="name"
       resourceType="Behavior"
     />,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

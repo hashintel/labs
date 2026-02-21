@@ -1,13 +1,11 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { ErrorBoundary } from "../../ErrorBoundary";
 import { ModalPlots } from "./ModalPlots";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-
-  ReactDOM.render(
+  render(
     <ErrorBoundary>
       <ModalPlots
         onClose={() => {}}
@@ -15,7 +13,5 @@ it("renders without crashing", () => {
         outputs={{ hello: [{ op: "get", field: "bla" }] }}
       />
     </ErrorBoundary>,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

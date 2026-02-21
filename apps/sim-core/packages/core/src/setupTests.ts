@@ -1,6 +1,12 @@
-// TextEncoder/TextDecoder polyfill for jsdom (Jest 29)
+// Polyfills for jsdom (Jest 29)
 import { TextEncoder, TextDecoder } from "util";
 Object.assign(global, { TextEncoder, TextDecoder });
+
+if (typeof global.setImmediate === "undefined") {
+  (global as any).setImmediate = (fn: Function, ...args: any[]) =>
+    setTimeout(fn, 0, ...args);
+  (global as any).clearImmediate = (id: number) => clearTimeout(id);
+}
 
 // required to run 'monaco-editor' in the 'jest-dom' environments
 // @see https://medium.com/hired-engineering/setting-up-monaco-with-jest-e1e4c963ac

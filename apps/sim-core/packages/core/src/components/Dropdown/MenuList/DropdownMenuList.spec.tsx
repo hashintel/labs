@@ -1,10 +1,8 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { DropdownMenuList } from "./DropdownMenuList";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(<DropdownMenuList options={[]} children={[]} />, div);
-  ReactDOM.unmountComponentAtNode(div);
+  render(<DropdownMenuList options={[]} children={[]} />);
 });

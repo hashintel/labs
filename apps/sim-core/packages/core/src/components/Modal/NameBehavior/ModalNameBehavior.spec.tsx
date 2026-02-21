@@ -1,11 +1,10 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { ModalNameBehavior } from "./ModalNameBehavior";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
+  render(
     <ModalNameBehavior
       onSubmit={() => {}}
       onCancel={() => {}}
@@ -18,7 +17,5 @@ it("renders without crashing", () => {
       action="Create"
       placeholder="Name your new file"
     />,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

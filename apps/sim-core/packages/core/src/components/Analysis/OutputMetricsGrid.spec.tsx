@@ -1,5 +1,5 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 import { ModalProvider } from "react-modal-hook";
 
 import { ComparisonTypes, Operation, OperationTypes } from "./types";
@@ -19,9 +19,7 @@ const operations: Operation[] = [
 const metrics = { metricName: operations };
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-
-  ReactDOM.render(
+  render(
     <ModalProvider>
       <ErrorBoundary>
         <OutputMetricsGrid
@@ -31,7 +29,5 @@ it("renders without crashing", () => {
         />
       </ErrorBoundary>
     </ModalProvider>,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

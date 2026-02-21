@@ -1,10 +1,16 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { DataTableCell } from "./DataTableCell";
 
 it("renders without crashing", () => {
-  const tr = document.createElement("tr");
-  ReactDOM.render(<DataTableCell cellValue="" />, tr);
-  ReactDOM.unmountComponentAtNode(tr);
+  render(
+    <table>
+      <tbody>
+        <tr>
+          <DataTableCell cellValue="" />
+        </tr>
+      </tbody>
+    </table>,
+  );
 });

@@ -1,5 +1,5 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 import { ModalProvider } from "react-modal-hook";
 
 import { HashCoreHeaderMenuFiles } from "./HashCoreHeaderMenuFiles";
@@ -7,8 +7,7 @@ import { ProjectProvider } from "../../../../../features/project/ProjectContext"
 import { UserProvider } from "../../../../../features/user/UserContext";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
+  render(
     <UserProvider>
       <ProjectProvider>
         <ModalProvider>
@@ -27,7 +26,5 @@ it("renders without crashing", () => {
         </ModalProvider>
       </ProjectProvider>
     </UserProvider>,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
