@@ -38,8 +38,8 @@ export const navigate = (
 ) => {
   const filteredParams = Object.fromEntries(
     Object.entries(queryParams)
-      .filter(([, v]) => v !== undefined)
-      .map(([k, v]) => [k, String(v)]),
+      .filter(([, val]) => val !== undefined)
+      .map(([key, val]) => [key, String(val)]),
   ) as Record<string, string>;
 
   let fullUrl = url;

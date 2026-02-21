@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./components/App";
 import { HashRouter } from "./components/HashRouter/HashRouter";
-import { IS_LOCAL, IS_STAGING } from "./util/api";
+import { IS_STAGING } from "./util/api";
 import { LocalStorageKey } from "./hooks/useLocalStorage";
 import { boot } from "./boot";
 import {

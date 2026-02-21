@@ -55,10 +55,7 @@ import { earlyStopSimulation } from "./thunks";
 import { historicCloudExperimentProvider } from "../historicCloudExperimentProvider";
 import { pyodideEnabled } from "../../../util/pyodideEnabled";
 import { selectAllSimulationData, selectExperimentRuns } from "./selectors";
-import {
-  selectCurrentProject,
-  selectCurrentProjectUrl,
-} from "../../project/selectors";
+import { selectCurrentProject } from "../../project/selectors";
 import { selectExperiments } from "../../../components/SimulationRunner/Controls/Experiments/selectors";
 import { simulationProvider } from "./buildprovider";
 
@@ -143,7 +140,6 @@ export const queueExperiment =
   async (dispatch, getState) => {
     const appState = appBridge.getState();
     const project = selectCurrentProject(appState);
-    const projectUrl = selectCurrentProjectUrl(appState);
     const experiments = Object.fromEntries(selectExperiments(appState) ?? []);
     const projectPath = project?.pathWithNamespace;
     const projectRef = project?.ref;

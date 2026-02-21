@@ -1,4 +1,4 @@
-import { createAction, createSlice, current, freeze } from "../../reduxCompat";
+import { createAction, createSlice, freeze } from "../../reduxCompat";
 import type {
   AnyAction,
   Draft,

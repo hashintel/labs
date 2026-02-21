@@ -1,4 +1,4 @@
-import React, { FC, useEffect } from "react";
+import { FC, useEffect } from "react";
 import { navigate } from "../../../util/navigation";
 
 export const HashRouterEffectRedirectToRoot: FC = () => {

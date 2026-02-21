@@ -1,8 +1,6 @@
-import { produce, current } from "immer";
+import { current, produce } from "immer";
 import type { Draft } from "immer";
 import findLastIndex from "lodash-es/findLastIndex";
-import { filter, mergeMap, reduce } from "rxjs/operators";
-import { from } from "rxjs";
 import { v4 } from "uuid";
 
 import {
@@ -38,17 +36,13 @@ import {
   upsertOne,
 } from "./adapter";
 import {
-  allocateDatasetFileName,
   behaviorKeysFileName,
   behaviorKeysRepoPath,
-  canAutosuggestKeysForFile,
   defaultBehaviorKeys,
   isSharedDependency,
   mapFileId,
-  releaseToHcFiles,
   repoPathForBehavior,
   stringifyBehaviorKeys,
-  toHcFiles,
 } from "./utils";
 import {
   beginActionSave,
@@ -57,16 +51,11 @@ import {
   setProject,
 } from "../actions";
 import { defaultJsBehaviorSrc } from "../../util/defaultJsBehaviorSrc";
-import { fetchDependencies } from "../../util/api/queries";
 import { isStoringProjectActions } from "../project/utils";
 import { parse } from "../../util/files";
-import { parseBehaviorKeysQuery } from "../../util/parseBehaviorKeysQuery";
 import {
   selectAllFilesLocal,
-  selectDatasetFiles,
   selectFileByIdLocal,
-  selectFileEntities,
-  selectLocalBehaviorFiles,
   selectParsedDependencies,
 } from "./selectors";
 
@@ -110,12 +99,6 @@ export const ActionTypes = {
 interface PayloadAction<T> {
   type: string;
   payload: T;
-}
-
-interface AsyncMetaAction<P, A> {
-  type: string;
-  payload: P;
-  meta: { arg: A; requestId: string };
 }
 
 // ---------------------------------------------------------------------------

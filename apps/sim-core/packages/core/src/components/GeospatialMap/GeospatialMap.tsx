@@ -1,7 +1,7 @@
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
 import ReactMapboxGl, { Layer, Popup, Source } from "react-mapbox-gl";
-import * as o from "fp-ts/es6/Option";
-import * as r from "fp-ts/es6/Record";
+import * as option from "fp-ts/es6/Option";
+import * as record from "fp-ts/es6/Record";
 import { AgentState } from "@hashintel/engine-web";
 import { MapLayerMouseEvent } from "mapbox-gl";
 import { debounce } from "lodash-es";
@@ -155,7 +155,7 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
                   },
                   properties: {
                     description: JSON.stringify(
-                      r.filterWithIndex((idx) =>
+                      record.filterWithIndex((idx) =>
                         ((agent.popup_fields as Array<string>) ?? []).includes(
                           idx,
                         ),
@@ -164,8 +164,8 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
                       2,
                     ),
                     agent_idx: idx,
-                    color: `#${o.getOrElse(() => "ffffff")(
-                      o.map((color: number) => color.toString(16))(
+                    color: `#${option.getOrElse(() => "ffffff")(
+                      option.map((color: number) => color.toString(16))(
                         mapColor(
                           agent.geo_color ?? agent.color ?? "random",
                           agent.agent_id,

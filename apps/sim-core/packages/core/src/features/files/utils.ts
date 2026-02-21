@@ -6,12 +6,10 @@ import { Json } from "@hashintel/engine-web";
 import {
   BehaviorKeysField,
   CommittedBehaviorKeysRoot,
-  DraftBehaviorKeysRoot,
   defaultBehaviorKeys,
   parseKeys,
   recursiveShouldSaveBehaviorKeysDraft,
   toBehaviorKeysFormat,
-  toRootDraftFormat,
 } from "./behaviorKeys";
 export { defaultBehaviorKeys };
 import { Ext } from "../../util/files/enums";

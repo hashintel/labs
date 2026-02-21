@@ -69,7 +69,10 @@ export const useToast = () => {
 export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
   const [toast, setToast] = useState<ToastSlice>({ kind: ToastKind.None });
 
-  const displayToast = useCallback((t: ToastSlice) => setToast(t), []);
+  const displayToast = useCallback(
+    (newToast: ToastSlice) => setToast(newToast),
+    [],
+  );
 
   const setToastForProject = useCallback(
     (

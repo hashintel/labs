@@ -76,7 +76,7 @@ type SliceActionCreators = Record<
   }
 >;
 
-interface Slice<S, R extends Record<string, SliceReducer<S>>> {
+interface Slice<S, _R extends Record<string, SliceReducer<S>>> {
   reducer: (state: S | undefined, action: AnyAction) => S;
   actions: SliceActionCreators;
 }
@@ -179,7 +179,7 @@ interface EntityAdapter<T> {
 export function createEntityAdapter<T>(
   config: EntityAdapterConfig<T> = {},
 ): EntityAdapter<T> {
-  const { selectId = (e: any) => e.id, sortComparer } = config;
+  const { selectId = (entity: any) => entity.id, sortComparer } = config;
 
   function insertSorted(state: EntityState<T>, id: EntityId) {
     if (state.ids.includes(id)) return;
@@ -318,9 +318,9 @@ export function createStore<S>(
     };
   };
 
-  let rawDispatch: (action: AnyAction) => any = (action) => {
+  const rawDispatch: (action: AnyAction) => any = (action) => {
     state = rootReducer(state, action);
-    listeners.forEach((l) => l());
+    listeners.forEach((fn) => fn());
     return action;
   };
 
@@ -330,7 +330,7 @@ export function createStore<S>(
   };
 
   const chain = middleware.map((mw) => mw(storeApi));
-  let chainedDispatch = chain.reduceRight((next, mw) => mw(next), rawDispatch);
+  const chainedDispatch = chain.reduceRight((next, mw) => mw(next), rawDispatch);
 
   function dispatch(action: any): any {
     if (typeof action === "function") {

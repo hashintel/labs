@@ -90,7 +90,7 @@ export async function query<T, V = {} | undefined>(
   variables?: V,
   signal?: AbortSignal,
 ): Promise<T> {
-  const { data, errors, queryName } = await baseQuery<T, V>(
+  const { data, errors } = await baseQuery<T, V>(
     graphql,
     variables,
     signal,

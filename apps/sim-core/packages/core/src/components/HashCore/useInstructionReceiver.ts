@@ -159,7 +159,7 @@ export const useInstructionReceiver = () => {
                 behaviors: [file],
               });
               updateFile(initJson!.id, JSON.stringify(initParsed, null, 2));
-            } catch (err) {
+            } catch {
               console.error("init.json is not valid JSON - could not update.");
             }
           }
@@ -212,7 +212,7 @@ export const useInstructionReceiver = () => {
               analysisJson!.id,
               JSON.stringify(analysisParsed, null, 2),
             );
-          } catch (err) {
+          } catch {
             console.error(
               "analysis.json is not valid JSON - could not update.",
             );

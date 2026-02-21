@@ -115,7 +115,7 @@ const convertParsedValueFromInput = (value: string): ParseResult<any> => {
   try {
     const obj = JSON.parse(value);
     return ok(obj);
-  } catch (error) {}
+  } catch {}
 
   return ok(value.trim());
 };

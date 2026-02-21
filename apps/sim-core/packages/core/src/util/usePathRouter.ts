@@ -38,9 +38,9 @@ const matchRoute = (
 
   const params: Record<string, string> = {};
 
-  for (let i = 0; i < patternParts.length; i++) {
-    const pp = patternParts[i];
-    const pathPart = pathParts[i];
+  for (let idx = 0; idx < patternParts.length; idx++) {
+    const pp = patternParts[idx];
+    const pathPart = pathParts[idx];
 
     if (pp.startsWith(":")) {
       params[pp.slice(1)] = decodeURIComponent(pathPart);

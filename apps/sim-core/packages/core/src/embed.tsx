@@ -14,7 +14,7 @@ root.render(<LoadingIcon fullScreen />);
 
 const params = getEmbedParams();
 
-const projectPromise = unpreparedProjectByPath(params.project, params.ref);
+const projectPromise = unpreparedProjectByPath(params.project, params.ref) as any;
 // @todo remove this
 const basicUserPromise = basicUser();
 

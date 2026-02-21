@@ -48,7 +48,7 @@ export const loadGeometryMesh = async (
       try {
         const model = await polyLoader(userMeshName);
         return model;
-      } catch (err) {
+      } catch {
         // Fail through and produce a box
         return geoHelper("BoxGeometry", num, [1, 1, 1]);
       }

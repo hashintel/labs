@@ -1,4 +1,4 @@
-import * as m from "monocle-ts";
+import * as monocle from "monocle-ts";
 import type { Color, Datum, PlotData, ScatterLine } from "plotly.js-dist-min";
 import {
   DatumKeys,
@@ -200,15 +200,16 @@ export function buildPlots(def: PlotDefinition): OutputPlotProps {
 }
 
 const datumLenses: {
-  [K in DatumKeys]: m.Optional<HashPlotData, HashDatum<K>>;
+  [K in DatumKeys]: monocle.Optional<HashPlotData, HashDatum<K>>;
 } = {
-  x: m.Optional.fromNullableProp<HashPlotData>()("x"),
-  y: m.Optional.fromNullableProp<HashPlotData>()("y"),
-  z: m.Optional.fromNullableProp<HashPlotData>()("z"),
+  x: monocle.Optional.fromNullableProp<HashPlotData>()("x"),
+  y: monocle.Optional.fromNullableProp<HashPlotData>()("y"),
+  z: monocle.Optional.fromNullableProp<HashPlotData>()("z"),
 };
 
-const lineLens = m.Optional.fromNullableProp<HashPlotData>()("line");
-const colorLens = m.Optional.fromNullableProp<Partial<ScatterLine>>()("color");
+const lineLens = monocle.Optional.fromNullableProp<HashPlotData>()("line");
+const colorLens =
+  monocle.Optional.fromNullableProp<Partial<ScatterLine>>()("color");
 
 const flattenSlice = <K extends DatumKeys>(
   series: OutputSeriesValue[],

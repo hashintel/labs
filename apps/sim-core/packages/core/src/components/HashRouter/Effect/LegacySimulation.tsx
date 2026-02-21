@@ -24,7 +24,7 @@ export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
         );
 
         navigate(urlFromProject(simulation), true, { fromLegacy: true }, false);
-      } catch (err) {
+      } catch {
         setAccessGate({
           accessGate: {
             kind: HashCoreAccessGateKind.NotFound,

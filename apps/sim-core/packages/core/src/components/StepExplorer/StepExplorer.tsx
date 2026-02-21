@@ -35,6 +35,7 @@ fluentui.loadTheme({
  * @see: packages/core/site.d.ts
  * @see: https://github.com/microsoft/SandDance/blob/master/packages/common-extensions/src/app.tsx
  */
+// eslint-disable-next-line react-hooks/rules-of-hooks -- not a React hook, it's from sanddance-explorer
 use(
   fluentui as unknown as FluentUIComponents,
   React,

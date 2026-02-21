@@ -1,7 +1,6 @@
 import { navigate } from "../util/navigation";
 
 import { Scope, useScopes } from "../features/scopes";
-import { useFiles } from "../features/files/FilesContext";
 import { useProject } from "../features/project/ProjectContext";
 
 /**
@@ -9,7 +8,6 @@ import { useProject } from "../features/project/ProjectContext";
  * @todo use selector
  */
 export const useSaveOrFork = () => {
-  const { filesDispatch } = useFiles();
   const { forkCurrentProjectUrl: forkUrl } = useProject();
   const { canForkIfSignedIn, canFork, canSave, canSaveIfSignedIn } = useScopes(
     Scope.fork,

@@ -20,11 +20,7 @@ import type { HashCoreAccessGateKindWithProps } from "../../components/HashCore/
 import { forkUrlFromProject, urlFromProject } from "../../routes";
 import { navigate } from "../../util/navigation";
 import { HashCoreAccessGateKind } from "../../components/HashCore/AccessGate";
-import {
-  getLocalStorageProject,
-  isProjectLatest,
-  isStoringProjectActions,
-} from "./utils";
+import { getLocalStorageProject } from "./utils";
 import { globalsFileId } from "../files/utils";
 import { projectUpdated as projectUpdatedAction, setProject } from "../actions";
 import { useFiles } from "../files/FilesContext";

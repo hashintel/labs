@@ -26,7 +26,6 @@ import { useViewer } from "../viewer/ViewerContext";
 import {
   analysisFileId,
   globalsFileId,
-  isSharedDependency,
   parseRelativePathsAsTree,
   releaseToHcFiles,
 } from "./utils";
@@ -201,11 +200,11 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   const folderTree = useMemo(() => {
-    const idKindRepoPathName = allFiles.map((f) => ({
-      id: f.id,
-      kind: f.kind,
-      repoPath: f.repoPath,
-      name: f.name,
+    const idKindRepoPathName = allFiles.map((file) => ({
+      id: file.id,
+      kind: file.kind,
+      repoPath: file.repoPath,
+      name: file.name,
     }));
     const filtered = idKindRepoPathName.filter(
       (file) => file.kind !== HcFileKind.ProcessModel,
@@ -240,28 +239,28 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
   const currentFileRepoPath = currentFile?.repoPath ?? null;
 
   const requiredFiles = useMemo(
-    () => allFiles.filter((f) => f.kind === HcFileKind.Required),
+    () => allFiles.filter((file) => file.kind === HcFileKind.Required),
     [allFiles],
   );
   const localBehaviorFiles = useMemo(
     () =>
       allFiles.filter(
-        (f): f is HcBehaviorFile => f.kind === HcFileKind.Behavior,
+        (file): file is HcBehaviorFile => file.kind === HcFileKind.Behavior,
       ),
     [allFiles],
   );
   const sharedBehaviorFiles = useMemo(
     () =>
       allFiles.filter(
-        (f): f is HcSharedBehaviorFile =>
-          f.kind === HcFileKind.SharedBehavior ||
-          (f.kind === HcFileKind.Behavior &&
-            f.repoPath.startsWith("dependencies/")),
+        (file): file is HcSharedBehaviorFile =>
+          file.kind === HcFileKind.SharedBehavior ||
+          (file.kind === HcFileKind.Behavior &&
+            file.repoPath.startsWith("dependencies/")),
       ) as HcSharedBehaviorFile[],
     [allFiles],
   );
   const initFiles = useMemo(
-    () => allFiles.filter((f) => f.kind === HcFileKind.Init),
+    () => allFiles.filter((file) => file.kind === HcFileKind.Init),
     [allFiles],
   );
 
@@ -334,7 +333,7 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
       sharedBehaviorFiles.some((b) => b.path.ext === Ext.Py) ||
       (simulationSrc?.behaviors?.some((b) => b.name.includes(".py")) ??
         false) ||
-      (simulationSrc?.initializers?.some((i) => i.name.includes(".py")) ??
+      (simulationSrc?.initializers?.some((init) => init.name.includes(".py")) ??
         false),
     [sharedBehaviorFiles, simulationSrc],
   );

@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useRef } from "react";
+import { FC, useEffect, useRef } from "react";
 
 import { TabKind } from "../../viewer/enums";
 import { useFiles } from "../../files/FilesContext";
@@ -24,13 +24,7 @@ import { selectRunning } from "./selectors";
  */
 export const StoreSync: FC = () => {
   const { globalsSrc, analysisSrc, filesState } = useFiles();
-  const {
-    currentProject,
-    currentProjectUrl,
-    projectRef,
-    hasProject,
-    projectLoaded,
-  } = useProject();
+  const { currentProject, projectLoaded } = useProject();
   const { currentTab, editorVisible, addUserAlert, clearUserAlerts, openTab } =
     useViewer();
 

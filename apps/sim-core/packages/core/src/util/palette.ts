@@ -1,13 +1,13 @@
-import * as o from "fp-ts/es6/Option";
+import * as option from "fp-ts/es6/Option";
 
 import { mod } from "./math";
 import { themeNumbers } from "./theme";
 
-export const mapColor: (src: string, sd?: string) => o.Option<number> = (
+export const mapColor: (src: string, sd?: string) => option.Option<number> = (
   src,
   seed,
 ) =>
-  o.fromNullable(
+  option.fromNullable(
     src === "random"
       ? themeColor(
           mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1),

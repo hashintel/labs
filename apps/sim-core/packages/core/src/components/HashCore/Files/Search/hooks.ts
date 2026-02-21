@@ -1,14 +1,8 @@
 import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
 import { produce } from "immer";
 import { IRange, editor } from "monaco-editor";
-import { Observable, Subject, merge } from "rxjs";
-import {
-  buffer,
-  distinctUntilChanged,
-  filter,
-  map,
-  pairwise,
-} from "rxjs/operators";
+import { Subject, merge } from "rxjs";
+import { map } from "rxjs/operators";
 
 import type { HcFile } from "../../../../features/files/types";
 import {
@@ -23,7 +17,6 @@ import { getNextContents, searchDebounce, triggerSearch } from "./util";
 import { isReadOnly } from "../../../../features/files/utils";
 import { parseReplaceString } from "./monaco";
 import {
-  selectFileEntities,
   selectFileIds,
   selectReplaceProposal,
 } from "../../../../features/files/selectors";
@@ -44,7 +37,7 @@ const useFileChangeObservable = () => {
     const cache = cacheRef.current;
     const changedIds: string[] = [];
 
-    const currentIds = new Set(allFiles.map((f) => f.id));
+    const currentIds = new Set(allFiles.map((file) => file.id));
     for (const key of cache.keys()) {
       if (!currentIds.has(key)) {
         cache.delete(key);
@@ -68,7 +61,7 @@ const useFileChangeObservable = () => {
 
 export const useFilesRemovedObservable = () => {
   const { allFiles } = useFiles();
-  const fileIds = useMemo(() => allFiles.map((f) => f.id), [allFiles]);
+  const fileIds = useMemo(() => allFiles.map((file) => file.id), [allFiles]);
   const subject = useMemo(() => new Subject<string[]>(), []);
   const prevIdsRef = useRef<string[]>(fileIds);
 
@@ -87,8 +80,8 @@ export const useFilesRemovedObservable = () => {
 
 const useQueryChangeObservable = (query: SearchQuery) => {
   const { allFiles } = useFiles();
-  const fileIdsRef = useRef<string[]>(allFiles.map((f) => f.id));
-  fileIdsRef.current = allFiles.map((f) => f.id);
+  const fileIdsRef = useRef<string[]>(allFiles.map((file) => file.id));
+  fileIdsRef.current = allFiles.map((file) => file.id);
 
   const subject = useMemo(() => new Subject<SearchQuery>(), []);
 

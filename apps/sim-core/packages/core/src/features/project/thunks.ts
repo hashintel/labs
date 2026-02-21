@@ -1,5 +1,3 @@
-import { navigate } from "../../util/navigation";
-
 import { NewProjectModalValues } from "../../components/Modal/NewProject/types";
 import { USER_ORG_VALUE } from "../../components/Modal/NewProject/utils";
 import { PartialSimulationProject } from "./types";
@@ -9,8 +7,6 @@ import {
   preparePartialSimulationProject,
 } from "./utils";
 import { setLocalStorageProject } from "../middleware/localStorage";
-
-import { urlFromProject } from "../../routes";
 
 /**
  * Fork a project: create a copy in local storage and set it as active.

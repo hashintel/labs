@@ -89,15 +89,15 @@ function addTab(state: ViewerState, tab: TabKind): ViewerState {
 }
 
 function openTab(state: ViewerState, tab: TabKind): ViewerState {
-  const s = addTab(state, tab);
-  return { ...s, currentTab: tab };
+  const st = addTab(state, tab);
+  return { ...st, currentTab: tab };
 }
 
 function changeTabByIndex(state: ViewerState, index: number): ViewerState {
   const clamped = Math.max(0, Math.min(state.visibleTabs.length - 1, index));
-  const kind = state.tabOrder.filter((t) => state.visibleTabs.includes(t.kind))[
-    clamped
-  ]?.kind;
+  const kind = state.tabOrder.filter((tab) =>
+    state.visibleTabs.includes(tab.kind),
+  )[clamped]?.kind;
   return kind ? { ...state, currentTab: kind } : state;
 }
 
@@ -108,15 +108,17 @@ function initializeTabs(
   allowedTabs: TabKind[] = allTabs,
 ): ViewerState {
   const filtered =
-    opts.tabs?.filter(valueIsTab).filter((t) => allowedTabs.includes(t)) ?? [];
+    opts.tabs
+      ?.filter(valueIsTab)
+      .filter((tab) => allowedTabs.includes(tab)) ?? [];
   const visibleTabs = filtered.length ? filtered : allTabs;
-  let s = { ...state, visibleTabs };
+  let st = { ...state, visibleTabs };
   if (valueIsTab(opts.tab) && allowedTabs.includes(opts.tab)) {
-    s = openTab(s, opts.tab);
+    st = openTab(st, opts.tab);
   } else {
-    s = openTab(s, visibleTabs[0]);
+    st = openTab(st, visibleTabs[0]);
   }
-  return s;
+  return st;
 }
 
 // ---------------------- Reducer ----------------------
@@ -127,13 +129,13 @@ function viewerReducer(state: ViewerState, action: ViewerAction): ViewerState {
       return changeTabByIndex(state, action.index);
     case "closeTab": {
       const idx = state.tabOrder
-        .map((t) => t.kind)
-        .filter((t) => state.visibleTabs.includes(t))
+        .map((tab) => tab.kind)
+        .filter((kind) => state.visibleTabs.includes(kind))
         .indexOf(action.tab);
-      const vis = state.visibleTabs.filter((t) => t !== action.tab);
-      let s = { ...state, visibleTabs: vis };
-      if (state.currentTab === action.tab) s = changeTabByIndex(s, idx);
-      return s;
+      const vis = state.visibleTabs.filter((tab) => tab !== action.tab);
+      let st = { ...state, visibleTabs: vis };
+      if (state.currentTab === action.tab) st = changeTabByIndex(st, idx);
+      return st;
     }
     case "openTab":
       return openTab(state, action.tab);
@@ -161,29 +163,29 @@ function viewerReducer(state: ViewerState, action: ViewerAction): ViewerState {
     case "toggleViewer":
       return { ...state, viewer: !state.viewer };
     case "initialiseView": {
-      let s = initializeTabs(
+      let st = initializeTabs(
         state,
         action.payload,
         state.visibleTabs,
-        viewerTabs.map((t) => t.kind),
+        viewerTabs.map((tab) => tab.kind),
       );
       if (action.payload.editor !== undefined)
-        s = { ...s, editor: action.payload.editor };
+        st = { ...st, editor: action.payload.editor };
       if (action.payload.activity !== undefined)
-        s = { ...s, activity: action.payload.activity };
+        st = { ...st, activity: action.payload.activity };
       if (action.payload.viewer !== undefined)
-        s = { ...s, viewer: action.payload.viewer };
-      return s;
+        st = { ...st, viewer: action.payload.viewer };
+      return st;
     }
     case "activateEmbedded": {
-      let s: ViewerState = {
+      const st: ViewerState = {
         ...state,
         embedded: true,
         activity: false,
         editor: false,
         viewer: true,
       };
-      return initializeTabs(s, action.payload, embeddableTabs);
+      return initializeTabs(st, action.payload, embeddableTabs);
     }
     case "setProcessChart":
       return { ...state, currentProcessChart: action.value };
@@ -313,7 +315,7 @@ export const ViewerProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   const visibleTabsInOrder = useMemo(
-    () => viewerTabs.filter((t) => state.visibleTabs.includes(t.kind)),
+    () => viewerTabs.filter((tab) => state.visibleTabs.includes(tab.kind)),
     [state.visibleTabs],
   );
 

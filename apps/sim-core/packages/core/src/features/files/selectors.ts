@@ -204,7 +204,7 @@ export const selectParsedDependencies = createSelector(
     let result;
     try {
       result = json ? JSON.parse(json) : {};
-    } catch (exception) {
+    } catch {
       return {};
     }
     return result;

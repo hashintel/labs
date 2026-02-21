@@ -40,8 +40,7 @@ export const useAbortingDispatch = <T extends (...args: any[]) => Promise<any>>(
           }
         }
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [disableWhilstRunning, asyncFn],
+    [disableWhilstRunning, asyncFn],
     );
   return [abortingDispatch, running] as const;
 };

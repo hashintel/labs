@@ -61,7 +61,7 @@ export const toHcConfig = (
     config = JSON.parse(
       project.files.find((file) => file.path === "hash.json")!.contents,
     );
-  } catch (exception) {
+  } catch {
     // TODO: track event
   }
   return {

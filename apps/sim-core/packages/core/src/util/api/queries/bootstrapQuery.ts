@@ -10,8 +10,6 @@ import {
 import { setLocalStorageProject } from "../../../features/middleware/localStorage";
 
 export const bootstrapQuery = async () => {
-  let me: User | undefined;
-
   try {
     const result = bootstrapQueryResponse();
 
@@ -25,7 +23,6 @@ export const bootstrapQuery = async () => {
         email: string;
         role: Pick<User, "role">;
       };
-      me = user;
 
       return {
         ...bootstrap,

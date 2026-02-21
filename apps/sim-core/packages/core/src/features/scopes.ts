@@ -4,7 +4,7 @@ import { useFiles } from "./files/FilesContext";
 import { useProject } from "./project/ProjectContext";
 import { useUser } from "./user/UserContext";
 import { useViewer } from "./viewer/ViewerContext";
-import { globalsFileId, isReadOnly } from "./files/utils";
+import { isReadOnly } from "./files/utils";
 import { isProjectLatest } from "./project/utils";
 import type { SimulationProject } from "./project/types";
 

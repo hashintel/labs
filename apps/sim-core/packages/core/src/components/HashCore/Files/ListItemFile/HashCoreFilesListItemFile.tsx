@@ -48,8 +48,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   const file = useSelectFileById(fileId);
   const { setCurrentFileId, deleteFile, updateFile, renameInitFile } =
     useFiles();
-  const { projectPublishedFiles: publishedFiles, currentProject: project } =
-    useProject();
+  const { projectPublishedFiles: publishedFiles } = useProject();
   const canSave = useScope(Scope.save);
   const current = useFileIsCurrent(fileId);
   const clipboardWriteText = useClipboardWriteText();

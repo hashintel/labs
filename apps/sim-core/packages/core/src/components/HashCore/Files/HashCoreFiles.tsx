@@ -99,11 +99,11 @@ export const HashCoreFiles: FC = () => {
    */
   const prevFileIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const currentIds = new Set(allFiles.map((f) => f.id));
+    const currentIds = new Set(allFiles.map((file) => file.id));
     const prevIds = prevFileIdsRef.current;
 
     if (prevIds.size > 0) {
-      const added = allFiles.filter((f) => !prevIds.has(f.id));
+      const added = allFiles.filter((file) => !prevIds.has(file.id));
 
       if (added.length === 1 && added[0].kind === HcFileKind.Dataset) {
         const file = added[0];

@@ -49,7 +49,7 @@ function userReducer(state: UserState, action: UserAction): UserState {
       const project = action.payload;
       const id = urlFromProject(project);
       const filtered = state.userProjects.filter(
-        (p) => urlFromProject(p) !== id,
+        (proj) => urlFromProject(proj) !== id,
       );
       return { ...state, userProjects: [...filtered, project] };
     }

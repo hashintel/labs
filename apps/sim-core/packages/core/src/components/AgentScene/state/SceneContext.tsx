@@ -56,14 +56,14 @@ function usePersistedSetting<T extends ViewerSettingValue>(
   key: string,
   defaultValue: T,
   projectPath: string | undefined,
-): [T, (v: T) => void] {
+): [T, (val: T) => void] {
   const [value, setRaw] = useState<T>(() =>
     loadSetting(key, defaultValue, projectPath),
   );
   const set = useCallback(
-    (v: T) => {
-      setRaw(v);
-      saveSetting(key, v, projectPath);
+    (val: T) => {
+      setRaw(val);
+      saveSetting(key, val, projectPath);
     },
     [key, projectPath],
   );

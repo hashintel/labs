@@ -42,8 +42,8 @@ export const createLocalProjectFromTemplate = (
     keywords: [] as string[],
     type: "Simulation" as const,
     files: projectFiles
-      .filter((f) => !f.path.endsWith(".json"))
-      .map((f) => f.path),
+      .filter((file) => !file.path.endsWith(".json"))
+      .map((file) => file.path),
   };
   projectFiles.push({
     name: "hash.json",
