@@ -258,11 +258,6 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   );
 };
 
-// HashCoreFilesListItem.whyDidYouRender = {
-//   // @ts-ignore
-//   customName: "HashCoreFilesListItem"
-// };
-
 const initJSHeader =
   "/**\n" + " * @param {InitContext} context for initialization\n" + " */";
 

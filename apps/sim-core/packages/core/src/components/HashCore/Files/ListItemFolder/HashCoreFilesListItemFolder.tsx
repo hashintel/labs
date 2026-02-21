@@ -89,8 +89,3 @@ export const HashCoreFilesListItemFolder: FC<
     </li>
   );
 };
-
-// HashCoreFilesListItemFolder.whyDidYouRender = {
-//   // @ts-ignore
-//   customName: "HashCoreFilesListItemFolder"
-// };

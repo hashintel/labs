@@ -216,8 +216,3 @@ export const HashCoreFiles: FC = () => {
     </div>
   );
 };
-
-// // @ts-ignore
-// HashCoreFiles.whyDidYouRender = {
-//   customName: "HashCoreFiles"
-// };

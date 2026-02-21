@@ -162,8 +162,3 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
     );
   },
 );
-
-// // @ts-ignore
-// HashCoreHeaderMenuView.whyDidYouRender = {
-//   customName: "HashCoreHeaderMenuView"
-// };

@@ -141,8 +141,3 @@ export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
     </Modal>
   );
 };
-
-// // @ts-ignore
-// ModalNameBehavior.whyDidYouRender = {
-//   customName: "ModalNameBehavior"
-// };

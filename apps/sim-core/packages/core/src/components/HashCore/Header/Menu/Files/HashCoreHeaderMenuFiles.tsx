@@ -328,8 +328,3 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     );
   },
 );
-
-// // @ts-ignore
-// HashCoreHeaderMenuFiles.whyDidYouRender = {
-//   customName: "HashCoreHeaderMenuFiles"
-// };

@@ -86,8 +86,3 @@ export const HashCoreHeaderMenu: FC = memo(() => {
     </ul>
   );
 });
-
-// // @ts-ignore
-// HashCoreHeaderMenu.whyDidYouRender = {
-//   customName: "HashCoreHeaderMenu"
-// };

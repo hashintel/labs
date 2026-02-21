@@ -419,12 +419,3 @@ export const HashCoreEditor: FC = () => {
     </div>
   );
 };
-
-// HashCoreEditor.whyDidYouRender = {
-//   // this is needed because the compenent is wrapped in `memo` so it's
-//   // `displayName` is `undefined` ... apparently `@welldone-software/why-did-
-//   // you-render`'s types are somewhat incomplete
-//   //
-//   // @ts-ignore
-//   customName: "HashCoreEditor"
-// };

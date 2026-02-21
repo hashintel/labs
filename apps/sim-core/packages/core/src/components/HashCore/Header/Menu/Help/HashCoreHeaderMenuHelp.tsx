@@ -65,8 +65,3 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
     );
   },
 );
-
-// // @ts-ignore
-// HashCoreHeaderMenuHelp.whyDidYouRender = {
-//   customName: "HashCoreHeaderMenuHelp"
-// };
