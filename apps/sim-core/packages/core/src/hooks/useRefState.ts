@@ -9,7 +9,7 @@ import { Dispatch, useLayoutEffect, useRef, useState } from "react";
  * @todo address these restrictions
  */
 export function useRefState<S>(
-  initialState: S | (() => S)
+  initialState: S | (() => S),
 ): [S, Dispatch<S>, { readonly current: S }] {
   const [state, setState] = useState(initialState);
   const ref = useRef(state);

@@ -8,7 +8,7 @@ import { useOnClickOutside } from "../../../../../hooks/useOnClickOutside";
  */
 export function useClickOutside<T extends HTMLElement>(
   callback: () => void,
-  dependencyList: DependencyList = []
+  dependencyList: DependencyList = [],
 ): RefObject<T> {
   const ref = useRef<T>(null);
 

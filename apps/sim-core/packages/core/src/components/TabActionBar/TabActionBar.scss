@@ -53,7 +53,8 @@
     box-sizing: border-box;
 
     &:hover {
-      box-shadow: inset 1px 0 0 var(--theme-border),
+      box-shadow:
+        inset 1px 0 0 var(--theme-border),
         inset -1px 0 0 var(--theme-border);
     }
   }

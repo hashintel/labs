@@ -22,7 +22,7 @@ export const ViewerStage: FC = () => {
     pxMax,
     pxMin,
     pyMax,
-    pyMin
+    pyMin,
   );
 
   return (
@@ -62,7 +62,7 @@ function getStagePlacement(
   pxMax: number,
   pxMin: number,
   pyMax: number,
-  pyMin: number
+  pyMin: number,
 ) {
   const center: [number, number] = [
     Math.floor((pxMax + pxMin) / 2),

@@ -6,10 +6,9 @@ type HashCoreContextMenuProps = {
   style: Pick<CSSProperties, "top" | "left">;
 };
 
-export const HashCoreContextMenu: FC<PropsWithChildren<HashCoreContextMenuProps>> = ({
-  children,
-  style,
-}) => (
+export const HashCoreContextMenu: FC<
+  PropsWithChildren<HashCoreContextMenuProps>
+> = ({ children, style }) => (
   <ul className="HashCoreContextMenu" style={style}>
     {children}
   </ul>

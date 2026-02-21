@@ -105,7 +105,7 @@
     "jest-canvas-mock": "2.3.0",
     "jest-environment-jsdom": "^29.7.0",
     "npm-run-all": "4.1.5",
-    "prettier": "2.2.1",
+    "prettier": "^3",
     "prop-types": "15.7.2",
     "random-emoji": "1.0.2",
     "rimraf": "3.0.2",

@@ -1,4 +1,10 @@
-import React, { FC, PropsWithChildren, useState, MouseEventHandler, useRef } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useState,
+  MouseEventHandler,
+  useRef,
+} from "react";
 import classNames from "classnames";
 
 import { Dropdown } from "../../Dropdown";
@@ -27,7 +33,7 @@ export const FancyButtonWithDropdown: FC<
   const dropdownArrowRef = useRef(null);
   const [state, setState] = useState<"closed" | "open">("closed");
   const [selectedOption, setSelectedOption] = useState<ReactSelectOption>(
-    dropdownOptions[0]
+    dropdownOptions[0],
   );
 
   return (
@@ -39,9 +45,9 @@ export const FancyButtonWithDropdown: FC<
           if (dropdownArrowRef.current === null) {
             return;
           }
-          const clickedDropdownArrow = ((dropdownArrowRef.current as unknown) as Node).contains(
-            (evt.target as unknown) as Node
-          );
+          const clickedDropdownArrow = (
+            dropdownArrowRef.current as unknown as Node
+          ).contains(evt.target as unknown as Node);
           if (clickedDropdownArrow) {
             return;
           }

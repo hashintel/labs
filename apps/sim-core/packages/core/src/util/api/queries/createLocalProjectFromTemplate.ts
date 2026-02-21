@@ -20,7 +20,7 @@ export const createLocalProjectFromTemplate = (
   path: string,
   name: string,
   visibility: ProjectVisibility,
-  actions: ApiCommitAction[]
+  actions: ApiCommitAction[],
 ): SimulationProjectWithHcFiles => {
   const effectiveNamespace =
     !namespace || namespace === USER_ORG_VALUE ? "user" : namespace;

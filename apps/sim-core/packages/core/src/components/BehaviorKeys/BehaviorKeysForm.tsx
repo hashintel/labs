@@ -59,9 +59,14 @@ export const BehaviorKeysForm: FC<{
 
   const onDataChangeRef = useRef(onDataChange);
   const clashes = calculateRowClashes(data.rows);
-  const { updateBehaviorKeysDynamicAccess, behaviorKeysDynamicAccess: dynamicAccess } = useFiles();
+  const {
+    updateBehaviorKeysDynamicAccess,
+    behaviorKeysDynamicAccess: dynamicAccess,
+  } = useFiles();
 
-  const sharedBehaviorKeyNames = useFilesSelector(selectSharedBehaviorKeyFieldNames);
+  const sharedBehaviorKeyNames = useFilesSelector(
+    selectSharedBehaviorKeyFieldNames,
+  );
   const lockedNames = projection.length === 0 ? sharedBehaviorKeyNames : [];
   const formDisabled =
     projection.length === 0
@@ -89,7 +94,11 @@ export const BehaviorKeysForm: FC<{
 
   const { handleParseAndShowBehaviorKeys } = useFiles();
   const [isParsingDisabled, setIsParsingDisabled] = useState(false);
-  const dispatchParseAndShowBehaviorKeys = async ({ fileId }: { fileId: string }) => {
+  const dispatchParseAndShowBehaviorKeys = async ({
+    fileId,
+  }: {
+    fileId: string;
+  }) => {
     setIsParsingDisabled(true);
     try {
       await handleParseAndShowBehaviorKeys(fileId);
@@ -175,13 +184,13 @@ export const BehaviorKeysForm: FC<{
           {data.rows.map(([fieldName, row], idx) => {
             const clash = clashes[idx];
             const realRow = originalData.rows.find(
-              (originalRow) => originalRow[1].uuid === row.uuid
+              (originalRow) => originalRow[1].uuid === row.uuid,
             );
 
             const onChange = (
               handler: (
-                draft: Draft<BehaviorKeysDraftRow>
-              ) => void | BehaviorKeysDraftRow
+                draft: Draft<BehaviorKeysDraftRow>,
+              ) => void | BehaviorKeysDraftRow,
             ) => {
               setData((draft) => {
                 const next = handler(draft[idx]);
@@ -191,8 +200,8 @@ export const BehaviorKeysForm: FC<{
 
             const onRowChange = (
               handler: (
-                draft: Draft<BehaviorKeysDraftField>
-              ) => void | BehaviorKeysDraftField
+                draft: Draft<BehaviorKeysDraftField>,
+              ) => void | BehaviorKeysDraftField,
             ) => {
               onChange((draft) => {
                 const next = handler(draft[1]);

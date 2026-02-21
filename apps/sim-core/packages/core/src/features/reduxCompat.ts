@@ -67,16 +67,24 @@ interface SliceConfig<S, R extends Record<string, SliceReducer<S>>> {
   extraReducers?: (builder: ExtraReducersBuilder<S>) => void;
 }
 
-type SliceActionCreators = Record<string, ((...args: any[]) => AnyAction) & { type: string; match: (action: AnyAction) => boolean; toString: () => string }>;
+type SliceActionCreators = Record<
+  string,
+  ((...args: any[]) => AnyAction) & {
+    type: string;
+    match: (action: AnyAction) => boolean;
+    toString: () => string;
+  }
+>;
 
 interface Slice<S, R extends Record<string, SliceReducer<S>>> {
   reducer: (state: S | undefined, action: AnyAction) => S;
   actions: SliceActionCreators;
 }
 
-export function createSlice<S, R extends Record<string, SliceReducer<S>> = Record<string, SliceReducer<S>>>(
-  config: SliceConfig<S, R>,
-): Slice<S, R> {
+export function createSlice<
+  S,
+  R extends Record<string, SliceReducer<S>> = Record<string, SliceReducer<S>>,
+>(config: SliceConfig<S, R>): Slice<S, R> {
   const { name, initialState, reducers, extraReducers } = config;
 
   const actions: Record<string, ActionCreator<any>> = {};
@@ -256,9 +264,7 @@ export function createEntityAdapter<T>(
           selectIds: (state: EntityState<T>) => state.ids,
           selectEntities: (state: EntityState<T>) => state.entities,
           selectAll: (state: EntityState<T>) =>
-            state.ids
-              .map((id) => state.entities[id])
-              .filter(Boolean) as T[],
+            state.ids.map((id) => state.entities[id]).filter(Boolean) as T[],
           selectTotal: (state: EntityState<T>) => state.ids.length,
           selectById: (state: EntityState<T>, id: EntityId) =>
             state.entities[id],
@@ -275,8 +281,7 @@ export function createEntityAdapter<T>(
             .filter(Boolean) as T[];
         },
         selectTotal: (root: any) => selectState(root).ids.length,
-        selectById: (root: any, id: EntityId) =>
-          selectState(root).entities[id],
+        selectById: (root: any, id: EntityId) => selectState(root).entities[id],
       } as EntitySelectors<T, any>;
     },
   };
@@ -286,9 +291,10 @@ export function createEntityAdapter<T>(
 // SimpleStore - minimal Redux-compatible store
 // ---------------------------------------------------------------------------
 
-export type Middleware<_DispatchExt = {}, S = any, _Dispatch = any> = (
-  api: { getState: () => S; dispatch: (action: any) => any },
-) => (next: (action: any) => any) => (action: any) => any;
+export type Middleware<_DispatchExt = {}, S = any, _Dispatch = any> = (api: {
+  getState: () => S;
+  dispatch: (action: any) => any;
+}) => (next: (action: any) => any) => (action: any) => any;
 
 export interface Store<S> {
   getState: () => S;
@@ -324,10 +330,7 @@ export function createStore<S>(
   };
 
   const chain = middleware.map((mw) => mw(storeApi));
-  let chainedDispatch = chain.reduceRight(
-    (next, mw) => mw(next),
-    rawDispatch,
-  );
+  let chainedDispatch = chain.reduceRight((next, mw) => mw(next), rawDispatch);
 
   function dispatch(action: any): any {
     if (typeof action === "function") {

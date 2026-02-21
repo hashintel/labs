@@ -18,7 +18,7 @@ export const useModalNameBehavior = (
     onSubmit: (path: ParsedPath) => void;
   },
   path?: ParsedPath,
-  id?: string
+  id?: string,
 ) => {
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;

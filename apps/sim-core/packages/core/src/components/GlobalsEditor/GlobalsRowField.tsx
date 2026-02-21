@@ -24,7 +24,7 @@ export const GlobalsRowField = <FieldType extends string | number>({
     (json: JsonMap | JsonArray) => {
       onChange(field, json);
     },
-    [onChange, field]
+    [onChange, field],
   );
 
   const fieldName = field.toString();
@@ -76,8 +76,8 @@ export const GlobalsRowField = <FieldType extends string | number>({
               schema?.type === "number"
                 ? "number"
                 : schema?.type === "string"
-                ? "string"
-                : null
+                  ? "string"
+                  : null
             }
             onChange={(value) => {
               onChange(field, parseNumber(value, schema?.type));

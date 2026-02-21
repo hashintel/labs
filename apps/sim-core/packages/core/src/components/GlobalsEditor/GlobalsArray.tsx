@@ -25,7 +25,7 @@ export const GlobalsArray: FC<
 
       onChange(newArray);
     },
-    [onChange]
+    [onChange],
   );
 
   const items = schema?.items;
@@ -44,7 +44,7 @@ export const GlobalsArray: FC<
             onChange={onFieldChange}
             depth={depth}
           />
-        ) : null
+        ) : null,
       )}
     </>
   );

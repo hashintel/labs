@@ -19,10 +19,12 @@ import type {
 import type { HashCoreAccessGateKindWithProps } from "../../components/HashCore/AccessGate";
 import { forkUrlFromProject, urlFromProject } from "../../routes";
 import { navigate } from "../../util/navigation";
+import { HashCoreAccessGateKind } from "../../components/HashCore/AccessGate";
 import {
-  HashCoreAccessGateKind,
-} from "../../components/HashCore/AccessGate";
-import { getLocalStorageProject, isProjectLatest, isStoringProjectActions } from "./utils";
+  getLocalStorageProject,
+  isProjectLatest,
+  isStoringProjectActions,
+} from "./utils";
 import { globalsFileId } from "../files/utils";
 import { projectUpdated as projectUpdatedAction, setProject } from "../actions";
 import { useFiles } from "../files/FilesContext";
@@ -30,21 +32,41 @@ import { useToast } from "../toast/ToastContext";
 import { useViewer } from "../viewer/ViewerContext";
 
 type ProjectAction =
-  | { type: "setProject"; payload: { project: SimulationProjectWithHcFiles | LocalStorageProject } }
-  | { type: "setAccessGate"; payload: { accessGate: HashCoreAccessGateKindWithProps; url: string | null } }
-  | { type: "projectUpdated"; payload: { updatedAt: string; update?: Partial<SimulationProject> } }
+  | {
+      type: "setProject";
+      payload: { project: SimulationProjectWithHcFiles | LocalStorageProject };
+    }
+  | {
+      type: "setAccessGate";
+      payload: {
+        accessGate: HashCoreAccessGateKindWithProps;
+        url: string | null;
+      };
+    }
+  | {
+      type: "projectUpdated";
+      payload: { updatedAt: string; update?: Partial<SimulationProject> };
+    }
   | { type: "canUserEditUpdate"; payload: { canUserEdit: boolean } }
   | { type: "fetchPending"; payload: { project: LinkableProject } }
   | { type: "fetchRejected" }
   | { type: "fetchCompleted" };
 
-function projectReducer(state: ProjectSlice, action: ProjectAction): ProjectSlice {
+function projectReducer(
+  state: ProjectSlice,
+  action: ProjectAction,
+): ProjectSlice {
   switch (action.type) {
     case "setProject": {
       const project = action.payload.project;
       return {
         ...state,
-        currentProject: omit(project, "files", "dependencies", "actions") as SimulationProject,
+        currentProject: omit(
+          project,
+          "files",
+          "dependencies",
+          "actions",
+        ) as SimulationProject,
         projectLoaded: true,
         accessGate: null,
         pendingProject: null,
@@ -171,7 +193,7 @@ export const ProjectProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   const projectRef = state.currentProject
-    ? state.currentProject.ref ?? "main"
+    ? (state.currentProject.ref ?? "main")
     : null;
 
   const versionSwitchingTo = useMemo(
@@ -179,7 +201,7 @@ export const ProjectProvider: FC<PropsWithChildren> = ({ children }) => {
       state.pendingProject &&
       state.currentProject?.pathWithNamespace ===
         state.pendingProject.pathWithNamespace
-        ? state.pendingProject.ref ?? "main"
+        ? (state.pendingProject.ref ?? "main")
         : null,
     [state.pendingProject, state.currentProject],
   );
@@ -195,7 +217,13 @@ export const ProjectProvider: FC<PropsWithChildren> = ({ children }) => {
    * always editable and the user is always "logged in" (local user).
    */
   const computeScopes = useCallback(
-    (project: SimulationProjectWithHcFiles | LocalStorageProject | SimulationProject | null) => {
+    (
+      project:
+        | SimulationProjectWithHcFiles
+        | LocalStorageProject
+        | SimulationProject
+        | null,
+    ) => {
       const editable = project ? project.canUserEdit : false;
       const canEdit = (true || editable) && viewer.editorVisible;
       const canMutate = editable;
@@ -260,12 +288,9 @@ export const ProjectProvider: FC<PropsWithChildren> = ({ children }) => {
     [filesDispatch],
   );
 
-  const canUserEditUpdate = useCallback(
-    (canUserEdit: boolean) => {
-      dispatch({ type: "canUserEditUpdate", payload: { canUserEdit } });
-    },
-    [],
-  );
+  const canUserEditUpdate = useCallback((canUserEdit: boolean) => {
+    dispatch({ type: "canUserEditUpdate", payload: { canUserEdit } });
+  }, []);
 
   const fetchProject = useCallback(
     async (args: {
@@ -274,7 +299,12 @@ export const ProjectProvider: FC<PropsWithChildren> = ({ children }) => {
       file?: string;
       redirect?: boolean;
     }): Promise<boolean> => {
-      const { project: linkable, fromLegacy = false, file, redirect = true } = args;
+      const {
+        project: linkable,
+        fromLegacy = false,
+        file,
+        redirect = true,
+      } = args;
       const refWithDefault = linkable.ref ?? "main";
 
       dispatch({ type: "fetchPending", payload: { project: linkable } });

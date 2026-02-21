@@ -15,11 +15,11 @@ const subjectsToOptions: FunctionN<[Subject], ReactSelectOption> = ({
 });
 
 export const useSubjects = (
-  subjects?: Subject[]
+  subjects?: Subject[],
 ): [
   ReactSelectOption[],
   ReactSelectOption[],
-  (newSubjects: ReactSelectOption[]) => void
+  (newSubjects: ReactSelectOption[]) => void,
 ] => {
   const options = subjects?.map(subjectsToOptions) ?? [];
   const [selected, setSelected] = useState<ReactSelectOption[]>([]);

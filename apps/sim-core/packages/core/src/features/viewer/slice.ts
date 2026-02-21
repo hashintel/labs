@@ -39,7 +39,7 @@ const setters = {
   changeTabByIndex(state: Draft<ViewerSlice>, index: number) {
     const clamped = Math.max(0, Math.min(state.visibleTabs.length - 1, index));
     state.currentTab = state.tabOrder.filter((tab) =>
-      state.visibleTabs.includes(tab.kind)
+      state.visibleTabs.includes(tab.kind),
     )[clamped]?.kind;
   },
 
@@ -47,7 +47,7 @@ const setters = {
     state: Draft<ViewerSlice>,
     { tab, tabs }: { tab?: string | null; tabs?: string[] | null },
     allTabs: TabKind[],
-    allowedTabs: TabKind[] = allTabs
+    allowedTabs: TabKind[] = allTabs,
   ) {
     const filteredTabs =
       tabs?.filter(valueIsTab).filter((tab) => allowedTabs.includes(tab)) ??
@@ -122,7 +122,7 @@ export const {
         .filter((tab) => state.visibleTabs.includes(tab))
         .indexOf(action.payload);
       state.visibleTabs = state.visibleTabs.filter(
-        (tab) => tab !== action.payload
+        (tab) => tab !== action.payload,
       );
       if (state.currentTab === action.payload) {
         setters.changeTabByIndex(state, index);
@@ -176,13 +176,13 @@ export const {
         viewer?: boolean;
         tab?: string | null;
         tabs?: string[] | null;
-      }>
+      }>,
     ) {
       setters.initializeTabs(
         state,
         action.payload,
         state.visibleTabs,
-        viewerTabs.map((tab) => tab.kind)
+        viewerTabs.map((tab) => tab.kind),
       );
 
       if (action.payload.editor !== undefined) {
@@ -203,7 +203,7 @@ export const {
       action: PayloadAction<{
         tabs?: string[] | null;
         tab?: string | null;
-      }>
+      }>,
     ) {
       state.embedded = true;
       state.activity = false;

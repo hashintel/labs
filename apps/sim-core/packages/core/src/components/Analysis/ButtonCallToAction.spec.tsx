@@ -16,7 +16,7 @@ it("renders without crashing", () => {
         </ButtonCallToAction>
       </ErrorBoundary>
     </ModalProvider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

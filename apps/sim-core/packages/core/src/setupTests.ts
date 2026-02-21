@@ -123,9 +123,24 @@ jest.mock("./features/files/FilesContext", () => {
       handleParseAndShowBehaviorKeys: jest.fn(),
       handleParseAllBehaviorKeys: jest.fn(),
       filesDispatch: jest.fn(),
-      filesState: { ids: [], entities: {}, openFileIds: [], currentFileId: null, replaceProposal: null, pendingDependencies: [], actions: [], behaviorKeys: false, visualGlobals: false, visualAnalysis: false },
+      filesState: {
+        ids: [],
+        entities: {},
+        openFileIds: [],
+        currentFileId: null,
+        replaceProposal: null,
+        pendingDependencies: [],
+        actions: [],
+        behaviorKeys: false,
+        visualGlobals: false,
+        visualAnalysis: false,
+      },
     }),
-    useFilesSelector: (selector: any) => selector({ files: { ids: [], entities: {}, openFileIds: [], currentFileId: null }, viewer: { editor: true } }),
+    useFilesSelector: (selector: any) =>
+      selector({
+        files: { ids: [], entities: {}, openFileIds: [], currentFileId: null },
+        viewer: { editor: true },
+      }),
   };
 });
 jest.mock("./features/files/utils", () => {

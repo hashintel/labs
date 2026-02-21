@@ -19,5 +19,5 @@ export const ModalFormEntryRequiredText: ForwardRefExoticComponent<
     <ModalFormEntry label={label} error={errorMessage}>
       <input type="text" ref={titleInputRef} {...rest} required />
     </ModalFormEntry>
-  )
+  ),
 );

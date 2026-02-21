@@ -11,7 +11,7 @@ it("renders without crashing", () => {
     <ProjectProvider>
       <ModalPrivateDependencies onClose={() => {}} />
     </ProjectProvider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

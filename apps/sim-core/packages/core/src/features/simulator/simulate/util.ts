@@ -86,14 +86,14 @@ export const defaultSimulationData: SimulationData = {
  */
 export const runnerMessage = async (
   req: RunnerRequest,
-  simulationId: string
+  simulationId: string,
 ): Promise<RunnerStatus> => {
   return simulationProvider.handleRequest(req, simulationId);
 };
 
 const toFetchedDatasets = (
   files: HcAnyDatasetFile[],
-  dependencies: DependenciesDescriptor
+  dependencies: DependenciesDescriptor,
 ): FetchedDataset[] =>
   files.map<FetchedDataset>((file) => ({
     id: file.id,
@@ -103,7 +103,7 @@ const toFetchedDatasets = (
     shortname: correctedShortnameFromDependencies(
       file.path.formatted,
       file.repoPath,
-      dependencies
+      dependencies,
     ),
     name: file.name,
     format: parseDatasetUrl(file.contents, file.data.rawCsv).format,
@@ -117,7 +117,7 @@ export const createCompleteManifest = (appState: AppState): RawManifest => {
   const dependencies = selectParsedDependencies(appState);
   const datasets = toFetchedDatasets(
     selectDatasetFiles(appState),
-    dependencies
+    dependencies,
   );
 
   // @todo investigate removing this
@@ -130,9 +130,9 @@ export const createCompleteManifest = (appState: AppState): RawManifest => {
       shortname: correctedShortnameFromDependencies(
         path.formatted,
         repoPath,
-        dependencies
+        dependencies,
       ),
-    })
+    }),
   );
   console.log("added shared behaviors", behaviorsToAdd);
 
@@ -153,7 +153,7 @@ export const createCompleteManifest = (appState: AppState): RawManifest => {
 };
 
 export const getSimAndTarget = (
-  state: SimulatorRootState
+  state: SimulatorRootState,
 ): [SimulationRunId | null, ProviderTargetEnv] => {
   const sim = state.simulator.currentSimulation;
   const target = state.simulator.selectedTarget;
@@ -194,12 +194,12 @@ export const minimumAvailableStep = ({
  * @todo lets take that into account and use this in more places
  */
 export const simulationHasSteps = (
-  run: Pick<SimulationData, "stepsCount"> | null | undefined
+  run: Pick<SimulationData, "stepsCount"> | null | undefined,
 ) => (run ? run.stepsCount > 1 : false);
 
 export const simulationViewable = (
   run: SimulationData | null | undefined,
-  complete?: boolean
+  complete?: boolean,
 ) =>
   (complete ?? simulationComplete(run)) &&
   (simulationHasSteps(run) ||
@@ -207,14 +207,14 @@ export const simulationViewable = (
 
 export const hasExperimentFailed = (
   state: SimulatorSlice | Draft<SimulatorSlice>,
-  experiment: ExperimentRun
+  experiment: ExperimentRun,
 ) => {
   if (experiment.status === "errored") {
     return true;
   }
 
   return experiment.simulationIds.some(
-    (id) => state.simulationData[id]?.status === "errored"
+    (id) => state.simulationData[id]?.status === "errored",
   );
 };
 
@@ -222,7 +222,7 @@ export const hasExperimentFailed = (
  * @todo have a field on ExperimentRun or PendingExperimentRun that marks it as pending
  */
 export const experimentRunInitialized = (
-  run: ExperimentRun | PendingExperimentRun
+  run: ExperimentRun | PendingExperimentRun,
 ): run is ExperimentRun => "plan" in run;
 
 /**
@@ -243,7 +243,7 @@ type StopMessage = {
 
 const hasProp = <K extends PropertyKey>(
   data: object,
-  prop: K
+  prop: K,
 ): data is Record<K, unknown> => prop in data;
 
 export const parseStopMessage = (msg: unknown): StopMessage => {
@@ -274,7 +274,7 @@ export const parseStopMessage = (msg: unknown): StopMessage => {
 const correctedShortnameFromDependencies = (
   shortname: string,
   repoPath: string,
-  dependencies: DependenciesDescriptor
+  dependencies: DependenciesDescriptor,
 ): string => {
   // We need to find the proper shortnames for our dependencies.
   // Our dependencies.json file has the expected values.
@@ -309,7 +309,7 @@ const correctedShortnameFromDependencies = (
     console.warn(
       "Unable to find corrected shortname for dependency. Using simple default instead.",
       repoPath,
-      correctedShortname
+      correctedShortname,
     );
   }
   return correctedShortname;

@@ -19,10 +19,7 @@ if (IS_STAGING) {
 
   if (hashVersion === BUILD_STAMP) {
     localStorage.setItem(LocalStorageKey.CachedVersion, BUILD_STAMP);
-  } else if (
-    storedVersion &&
-    !(hashVersion && storedVersion === BUILD_STAMP)
-  ) {
+  } else if (storedVersion && !(hashVersion && storedVersion === BUILD_STAMP)) {
     window.location.href = getUrlForCurrentRouteWithBuildStamp(storedVersion);
   }
 }

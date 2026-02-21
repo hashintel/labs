@@ -13,7 +13,7 @@ it("renders without crashing", () => {
       leftChildren={null}
       rightChildren={null}
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

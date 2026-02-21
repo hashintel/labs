@@ -7,7 +7,7 @@ import { analysis } from "./lazy";
 const AnalysisViewerLazy = lazy(() =>
   analysis().then((module) => ({
     default: module.AnalysisViewer,
-  }))
+  })),
 );
 
 export const AnalysisViewer: FC<AnalysisProps & { visible: boolean }> = ({

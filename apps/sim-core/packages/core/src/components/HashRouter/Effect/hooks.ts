@@ -56,6 +56,6 @@ export const useLoggedInNavigateAway = (route?: string) => {
         setQueryParams({ route: undefined }, true);
       }
     },
-    [navigateAway]
+    [navigateAway],
   );
 };

@@ -24,7 +24,7 @@ export type RenderSummary = {
 // Mutably advances "cur" to "to" based on the lerpval
 export function lerpAnimValue<A extends Vec3>(
   { current, to }: AnimValue<A>,
-  lerpVal: number
+  lerpVal: number,
 ): [number, number, number] {
   if (current) {
     return [

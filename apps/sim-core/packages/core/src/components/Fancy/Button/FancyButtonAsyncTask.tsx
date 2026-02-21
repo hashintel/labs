@@ -1,4 +1,10 @@
-import React, { FC, PropsWithChildren, useEffect, useRef, useState } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 import classNames from "classnames";
 
@@ -70,7 +76,7 @@ export const FancyButtonAsyncTask: FC<
             setState("progress");
           },
           100,
-          progressAbortController.signal
+          progressAbortController.signal,
         );
 
         await onTaskBegin();
@@ -88,7 +94,7 @@ export const FancyButtonAsyncTask: FC<
                 await onTaskEnd?.();
               },
               1_000,
-              signal
+              signal,
             );
           }
         }

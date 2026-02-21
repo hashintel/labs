@@ -43,8 +43,12 @@ const HashRouterEffectProjectFetch: FC<{
       return;
     }
 
-    const { fromLegacy, file, accessCode: _ac, ...otherParams } =
-      getSafeQueryParams();
+    const {
+      fromLegacy,
+      file,
+      accessCode: _ac,
+      ...otherParams
+    } = getSafeQueryParams();
 
     setQueryParams(
       {
@@ -71,7 +75,13 @@ const HashRouterEffectProjectFetch: FC<{
     return () => {
       controller.abort();
     };
-  }, [bootstrapped, handlePromiseRejection, project, currentProjectUrl, fetchProject]);
+  }, [
+    bootstrapped,
+    handlePromiseRejection,
+    project,
+    currentProjectUrl,
+    fetchProject,
+  ]);
 
   return null;
 };

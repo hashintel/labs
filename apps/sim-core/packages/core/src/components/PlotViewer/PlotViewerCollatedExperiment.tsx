@@ -67,10 +67,10 @@ export const PlotViewerCollatedExperiment: FC<PlotViewerProps> = (props) => {
       return plots.filter(
         (plot) =>
           VALID_PLOT_TYPES.includes(plot.definition.type ?? "") ||
-          plot.definition.timeseries
+          plot.definition.timeseries,
       );
     },
-    []
+    [],
   );
 
   for (const plot of collatedPlots) {

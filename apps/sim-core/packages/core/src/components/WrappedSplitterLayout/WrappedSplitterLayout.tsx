@@ -92,7 +92,7 @@ export const WrappedSplitterLayout: FC<
         if (ref.current) {
           const container = ref.current.container as HTMLElement;
           const secondaryPane = Array.from(container.children).find((node) =>
-            node.matches(".layout-pane:not(.layout-pane-primary)")
+            node.matches(".layout-pane:not(.layout-pane-primary)"),
           )!;
 
           const totalBox = container.getBoundingClientRect();

@@ -5,22 +5,22 @@ import { themeNumbers } from "./theme";
 
 export const mapColor: (src: string, sd?: string) => o.Option<number> = (
   src,
-  seed
+  seed,
 ) =>
   o.fromNullable(
     src === "random"
       ? themeColor(
-          mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1)
+          mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1),
         )
       : src === "primary"
-      ? themeNumbers.purple
-      : src === "accent"
-      ? themeNumbers.green
-      : !isNaN(Number(src))
-      ? themeColor(mod(Number(src) / themeBase.length, 1))
-      : themeNumbers.hasOwnProperty(src)
-      ? themeNumbers[src]
-      : undefined
+        ? themeNumbers.purple
+        : src === "accent"
+          ? themeNumbers.green
+          : !isNaN(Number(src))
+            ? themeColor(mod(Number(src) / themeBase.length, 1))
+            : themeNumbers.hasOwnProperty(src)
+              ? themeNumbers[src]
+              : undefined,
   );
 
 const themeBase = [

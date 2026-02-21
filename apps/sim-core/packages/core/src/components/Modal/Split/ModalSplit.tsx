@@ -26,7 +26,7 @@ export const ModalSplitOuter = forwardRef<HTMLDivElement, ModalSplitOuterProps>(
         {
           "ModalSplit--loading": loading,
         },
-        modalClassName
+        modalClassName,
       )}
     >
       {loading ? (
@@ -43,7 +43,7 @@ export const ModalSplitOuter = forwardRef<HTMLDivElement, ModalSplitOuterProps>(
         </div>
       )}
     </Modal>
-  )
+  ),
 );
 
 export const ModalSplitInner: FC<ModalSplitInnerProps> = ({

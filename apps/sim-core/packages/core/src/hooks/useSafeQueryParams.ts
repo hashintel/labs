@@ -27,7 +27,7 @@ export const useSafeQueryParams = () => {
     (params: Record<string, string | undefined>, replace = false) => {
       navSetQueryParams(params, replace);
     },
-    []
+    [],
   );
 
   return [getSafeQueryParams(), setQueryParams] as const;

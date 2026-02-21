@@ -6,17 +6,17 @@ import React, {
   Suspense,
 } from "react";
 
-import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { BehaviorKeys } from "../../BehaviorKeys/BehaviorKeys";
 import { DataLoader } from "../../DataLoader/DataLoader";
 import { FileBannerWrapper } from "../../FileBanner";
 import { GlobalsEditor } from "../../GlobalsEditor";
 import { HcFile } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
-import {
-  Scope,
-  useScopes,
-} from "../../../features/scopes";
+import { Scope, useScopes } from "../../../features/scopes";
 import {
   TabbedEditorDiffPanel,
   TabbedEditorPanel,
@@ -49,12 +49,13 @@ export const HashCoreEditorFile: FC<{
   const [editorInstance] = useMonacoContainerFromContext();
   const [diffEditorInstance] = useMonacoContainerFromContext(true);
 
-  const { updateBehaviorKeysFile, visualGlobals: shouldShowGlobalEditor } = useFiles();
+  const { updateBehaviorKeysFile, visualGlobals: shouldShowGlobalEditor } =
+    useFiles();
   const { currentProjectUrl: projectUrl } = useProject();
   const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
   const { canModifyFile, canSaveFile } = useScopes(
     Scope.modifyFile,
-    Scope.saveFile
+    Scope.saveFile,
   );
 
   return file.kind === HcFileKind.Dataset ? (

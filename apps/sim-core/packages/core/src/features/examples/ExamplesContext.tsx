@@ -39,6 +39,8 @@ export const ExamplesProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   return (
-    <ExamplesContext.Provider value={value}>{children}</ExamplesContext.Provider>
+    <ExamplesContext.Provider value={value}>
+      {children}
+    </ExamplesContext.Provider>
   );
 };

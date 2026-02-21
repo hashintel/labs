@@ -48,7 +48,7 @@ const zoneMap = new WeakMap<
 const clickThroughZone = (
   zone: Omit<editor.IViewZone, "suppressMouseDown" | "domNode"> & {
     domNode?: editor.IViewZone["domNode"];
-  }
+  },
 ): editor.IViewZone => ({
   ...zone,
   domNode: zone.domNode ?? document.createElement("div"),
@@ -61,7 +61,7 @@ let gitConflictMarkersDisposable: IDisposable;
 let gitDecorations: string[] | undefined;
 export const setMonacoModel = (
   editorInstance: editor.ICodeEditor,
-  textModel: editor.ITextModel
+  textModel: editor.ITextModel,
 ) => {
   if (textModel !== editorInstance.getModel()) {
     editorInstance.setModel(textModel);
@@ -78,7 +78,7 @@ export const setMonacoModel = (
         clickThroughZone({
           afterLineNumber: 0,
           heightInPx: 10,
-        })
+        }),
       );
     });
 
@@ -97,7 +97,7 @@ export const setMonacoModel = (
             clickThroughZone({
               afterLineNumber: textModel.getLineCount(),
               heightInLines: 3,
-            })
+            }),
           );
 
           zoneMap.set(textModel, {
@@ -123,17 +123,17 @@ export const setMonacoModel = (
           editorInstance.deltaDecorations(gitDecorations ?? [], []);
           gitDecorations = addGitConflictMarkersDecorator(
             textModel.getValue(),
-            editorInstance
+            editorInstance,
           );
         },
         500,
-        { maxWait: 2000 }
-      )
+        { maxWait: 2000 },
+      ),
     );
 
     gitDecorations = addGitConflictMarkersDecorator(
       textModel.getValue(),
-      editorInstance
+      editorInstance,
     );
 
     // TODO textModel.onUndo delete the last entry in resolvedCodeLenses (only if it was added)
@@ -150,7 +150,7 @@ const createMonacoSubscriber = () => {
     const model = editor.createModel(
       file.contents,
       languageByExt[file.path.ext],
-      Uri.parse(`${file.path.formatted}#${uuid()}`)
+      Uri.parse(`${file.path.formatted}#${uuid()}`),
     );
 
     if (!isReadOnly(file, true) || !isReadOnly(file, false)) {
@@ -230,7 +230,7 @@ const createMonacoSubscriber = () => {
 
             return modelsToDispose;
           },
-          []
+          [],
         );
 
         models = newModels;
@@ -239,8 +239,5 @@ const createMonacoSubscriber = () => {
   };
 };
 
-export const {
-  getTextModel,
-  getTextModelRequired,
-  subscribe,
-} = createMonacoSubscriber();
+export const { getTextModel, getTextModelRequired, subscribe } =
+  createMonacoSubscriber();

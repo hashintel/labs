@@ -77,7 +77,7 @@ export const HashCoreTourStepDone: FC = () => {
                 })}
                 thumb={<Avatar avatar={avatar} thumbnail={thumbnail} />}
               />
-            )
+            ),
           )}
           <ShowcaseItem
             name="Create New"

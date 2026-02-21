@@ -49,7 +49,7 @@ export const ProcessChart: FC = () => {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const { currentProject: project } = useProject();
   const projectRef = useRef<string>(
-    `${project?.pathWithNamespace}:${project?.ref}`
+    `${project?.pathWithNamespace}:${project?.ref}`,
   );
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export const ProcessChart: FC = () => {
   }, []);
 
   const savedChart = chartFiles.find(
-    (file) => file.path.name === processChartOption
+    (file) => file.path.name === processChartOption,
   );
 
   // Hide activity on tab load, restore it on unload (if it was visible)
@@ -114,7 +114,6 @@ export const ProcessChart: FC = () => {
           const projectDrafts = getLocalDrafts(projectRef.current);
           delete projectDrafts[newProcessChartValue];
           setLocalDrafts(projectRef.current, projectDrafts);
-
         } else if (savedChart) {
           updateFile(savedChart.id, data.contents);
         }
@@ -124,7 +123,16 @@ export const ProcessChart: FC = () => {
     window.addEventListener("message", handleMessage);
 
     return () => window.removeEventListener("message", handleMessage);
-  }, [createProcessModelFile, updateFile, isDraft, processChartOption, project, saving, savedChart, setProcessChart]);
+  }, [
+    createProcessModelFile,
+    updateFile,
+    isDraft,
+    processChartOption,
+    project,
+    saving,
+    savedChart,
+    setProcessChart,
+  ]);
 
   const projectUid = `${project?.pathWithNamespace}:${project?.ref}`;
 
@@ -166,7 +174,7 @@ export const ProcessChart: FC = () => {
         existingProcess,
         value: projectRef.current,
       },
-      "*"
+      "*",
     );
   };
   useEffect(setProjectRefAndSendChart, [

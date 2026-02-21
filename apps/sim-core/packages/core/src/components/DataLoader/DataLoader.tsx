@@ -60,7 +60,7 @@ export const DataLoader: FC<DataLoaderProps> = ({
       dataLoaderParserState.message === successMessage &&
       !isValidDataTable(
         dataLoaderParserState.headings,
-        dataLoaderParserState.records
+        dataLoaderParserState.records,
       );
 
     setDidFallback(shouldFallback);
@@ -88,11 +88,11 @@ export const DataLoader: FC<DataLoaderProps> = ({
             (containerHeight -
               (remSize * (headingHeightRem + paginationPaddingRem) +
                 paginationPx)) /
-              (remSize * rowHeightRem + rowBorderPx)
+              (remSize * rowHeightRem + rowBorderPx),
           )
         : // No container height? Don't render yet
           undefined,
-    [containerHeight, remSize]
+    [containerHeight, remSize],
   );
 
   /**

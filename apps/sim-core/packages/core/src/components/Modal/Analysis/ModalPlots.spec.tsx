@@ -15,7 +15,7 @@ it("renders without crashing", () => {
         outputs={{ hello: [{ op: "get", field: "bla" }] }}
       />
     </ErrorBoundary>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

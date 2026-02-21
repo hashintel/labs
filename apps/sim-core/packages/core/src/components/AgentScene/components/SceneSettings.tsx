@@ -8,15 +8,24 @@ import { TextOrNumberInput } from "../../Inputs";
 
 export const SceneSettings: FC = () => {
   const {
-    floorEnabled, setFloorEnabled,
-    gridEnabled, setGridEnabled,
-    axesEnabled, setAxesEnabled,
-    statsEnabled, setStatsEnabled,
-    edgesEnabled, setEdgesEnabled,
-    updatesEnabled, setUpdatesEnabled,
-    sceneView: view, setSceneView: setView,
-    stageColor, setStageColor,
-    gridColor, setGridColor,
+    floorEnabled,
+    setFloorEnabled,
+    gridEnabled,
+    setGridEnabled,
+    axesEnabled,
+    setAxesEnabled,
+    statsEnabled,
+    setStatsEnabled,
+    edgesEnabled,
+    setEdgesEnabled,
+    updatesEnabled,
+    setUpdatesEnabled,
+    sceneView: view,
+    setSceneView: setView,
+    stageColor,
+    setStageColor,
+    gridColor,
+    setGridColor,
   } = useSceneContext();
 
   const toggleStage = () => setFloorEnabled(!floorEnabled);

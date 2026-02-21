@@ -57,9 +57,8 @@ export const TabbedEditorPanel: FC<TabbedEditorPanelProps> = ({
     const currentModel = editorInstance.getModel();
     if (currentModel !== textModel) {
       if (currentModel && viewStatesRef) {
-        viewStatesRef.current[
-          pathForModel(currentModel).formatted
-        ] = editorInstance.saveViewState();
+        viewStatesRef.current[pathForModel(currentModel).formatted] =
+          editorInstance.saveViewState();
       }
 
       const path = pathForModel(textModel);
@@ -73,7 +72,7 @@ export const TabbedEditorPanel: FC<TabbedEditorPanelProps> = ({
           tabSize: 2,
           wordWrap: ext === Ext.Md ? "on" : "off",
           readOnly: readOnlyRef.current,
-        }
+        },
       );
     }
   }, [editorInstance, textModel, viewStatesRef]);

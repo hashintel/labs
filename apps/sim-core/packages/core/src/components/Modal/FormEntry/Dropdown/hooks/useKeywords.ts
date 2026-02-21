@@ -15,15 +15,15 @@ const keywordToOption: FunctionN<[Keyword], ReactSelectOption> = ({
 
 export const useKeywords = (
   keywords?: Keyword[],
-  existingKeywords: string[] = []
+  existingKeywords: string[] = [],
 ): [
   ReactSelectOption[],
   ReactSelectOption[],
-  (newOptions: ReactSelectOption[]) => void
+  (newOptions: ReactSelectOption[]) => void,
 ] => {
   const options = keywords?.map(keywordToOption) ?? [];
   const [selected, setSelected] = useState(
-    options.filter((option) => existingKeywords.includes(option.value))
+    options.filter((option) => existingKeywords.includes(option.value)),
   );
 
   return [options, selected, setSelected];

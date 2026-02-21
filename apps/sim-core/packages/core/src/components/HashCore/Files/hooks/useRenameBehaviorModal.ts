@@ -14,6 +14,6 @@ export const useRenameBehaviorModal = (id: string, source: ParsedPath) => {
       },
     },
     source,
-    id
+    id,
   );
 };

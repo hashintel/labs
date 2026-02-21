@@ -12,7 +12,7 @@ it("renders without crashing", () => {
       resourceName="name"
       resourceType="Behavior"
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

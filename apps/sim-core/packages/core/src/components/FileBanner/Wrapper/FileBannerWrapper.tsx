@@ -32,7 +32,8 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
   setNextContents,
 }) => {
   const { handleAddDependencies, allFiles } = useFiles();
-  const { currentProject: project, currentProjectUrl: projectUrl } = useProject();
+  const { currentProject: project, currentProjectUrl: projectUrl } =
+    useProject();
   const canEdit = useScope(Scope.edit);
 
   /**
@@ -68,7 +69,7 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
           });
 
           const nextFile = releases[0]?.files.find(
-            (nextFile) => nextFile.dependencyPath === file.path.formatted
+            (nextFile) => nextFile.dependencyPath === file.path.formatted,
           );
 
           if (!nextFile) {
@@ -93,12 +94,12 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
           const nextFile = allFiles.find(
             (potentialFile) =>
               potentialFile.path.formatted === file.path.formatted &&
-              (potentialFile as HcSharedBehaviorFile).ref === file.latestTag
+              (potentialFile as HcSharedBehaviorFile).ref === file.latestTag,
           );
 
           if (!nextFile) {
             throw new Error(
-              `Tried to get dependency: ${file.path.formatted} (v${file.latestTag}) but it doesn't exist (yet)`
+              `Tried to get dependency: ${file.path.formatted} (v${file.latestTag}) but it doesn't exist (yet)`,
             );
           }
 

@@ -95,5 +95,7 @@ export const ToastProvider: FC<PropsWithChildren> = ({ children }) => {
     [toast.kind, toast.data, displayToast, setToastForProject],
   );
 
-  return <ToastContext.Provider value={value}>{children}</ToastContext.Provider>;
+  return (
+    <ToastContext.Provider value={value}>{children}</ToastContext.Provider>
+  );
 };

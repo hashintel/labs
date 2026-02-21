@@ -28,7 +28,7 @@ export const playbackSubscriber = (store: Store<SimulatorRootState>) => {
 
     while (!signal.aborted) {
       const timestamp = await new Promise<number>((resolve) =>
-        requestAnimationFrame(resolve)
+        requestAnimationFrame(resolve),
       );
 
       if (signal.aborted) {

@@ -20,8 +20,8 @@ export function cli() {
   if (isValidIcon && _.length > 1) {
     throw new Error(
       `Can't use \`--fromIcon\` while generating multiple components, got ${_.map(
-        (arg) => `"${arg}"`
-      ).join(", ")} with \`--fromIcon "${fromIcon}"\``
+        (arg) => `"${arg}"`,
+      ).join(", ")} with \`--fromIcon "${fromIcon}"\``,
     );
   }
 

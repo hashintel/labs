@@ -58,7 +58,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     const showModalNewBehavior = useNameNewBehaviorModal();
     const [_showNewDatasetModal, hideNewDatasetModal] = useModal(
       () => <ModalNewDataset onClose={hideNewDatasetModal} />,
-      []
+      [],
     );
 
     const exportFiles = useExportFiles();
@@ -78,30 +78,29 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     // const isFork = !!project?.forkOf;
     // const mergeRequestUrl = project && isFork ? createMergeRequestUrl(project) : "";
 
-    const toListItem = (type: "Example" | "User") => (
-      item: PartialSimulationProject
-    ) => {
-      const href =
-        type === "User"
-          ? mainProjectPath(item.pathWithNamespace)
-          : urlFromProject(item);
+    const toListItem =
+      (type: "Example" | "User") => (item: PartialSimulationProject) => {
+        const href =
+          type === "User"
+            ? mainProjectPath(item.pathWithNamespace)
+            : urlFromProject(item);
 
-      return (
-        <li key={href}>
-          <Link
-            path={href}
-            onClick={() => {
-              clearAll();
-            }}
-            className="HashCoreHeaderMenuProjectLink"
-          >
-            <span>{item.name}</span>
-            {item.visibility === "private" ? <IconLock size={16} /> : null}
-            {item.type === "Behavior" ? <IconBrain size={24} /> : null}
-          </Link>
-        </li>
-      );
-    };
+        return (
+          <li key={href}>
+            <Link
+              path={href}
+              onClick={() => {
+                clearAll();
+              }}
+              className="HashCoreHeaderMenuProjectLink"
+            >
+              <span>{item.name}</span>
+              {item.visibility === "private" ? <IconLock size={16} /> : null}
+              {item.type === "Behavior" ? <IconBrain size={24} /> : null}
+            </Link>
+          </li>
+        );
+      };
 
     return (
       <>
@@ -240,8 +239,8 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 if (files) {
                   importFiles(files).catch((err) =>
                     console.error(
-                      `Error importing project files: ${err.message}`
-                    )
+                      `Error importing project files: ${err.message}`,
+                    ),
                   );
                 }
               }}
@@ -295,8 +294,8 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                   clearAll();
                   exportFiles().catch((err) =>
                     console.error(
-                      `Error exporting project files: ${err.message}`
-                    )
+                      `Error exporting project files: ${err.message}`,
+                    ),
                   );
                 }}
               >
@@ -327,7 +326,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
         </ul>
       </>
     );
-  }
+  },
 );
 
 // // @ts-ignore

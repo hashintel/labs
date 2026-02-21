@@ -84,5 +84,5 @@ export const DataTableCell: FC<DataTableCellProps> = memo(
     >
       {cell[typeof value](value)}
     </td>
-  )
+  ),
 );

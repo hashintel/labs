@@ -20,5 +20,5 @@ export const DataTableBody: FC<DataTableBodyProps> = memo(
         />
       ))}
     </tbody>
-  )
+  ),
 );

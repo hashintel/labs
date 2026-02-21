@@ -27,7 +27,7 @@ export const useSearchIndex = (): {
         | { type: "SEARCH"; payload: string }
         | { type: "BEGIN_SEARCH" }
         | { type: "FINISHED_SEARCHING"; payload: ResourceProject[] }
-        | { type: "ERROR" }
+        | { type: "ERROR" },
     ) => {
       switch (action.type) {
         case "SEARCH":
@@ -43,7 +43,7 @@ export const useSearchIndex = (): {
           return { ...state, loading: false, results: action.payload };
       }
     },
-    { loading: true, results: [], searchTerm: "" }
+    { loading: true, results: [], searchTerm: "" },
   );
 
   const searchTermRef = useRef(searchTerm);
@@ -66,7 +66,7 @@ export const useSearchIndex = (): {
         dispatch({ type: "BEGIN_SEARCH" });
         const searchResults = await searchResourceProjects(
           term,
-          controller.signal
+          controller.signal,
         );
 
         if (!controller.signal.aborted) {

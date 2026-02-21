@@ -13,10 +13,10 @@ export const flattenObjectKeysIntoString = (obj: any): any =>
     isPlainObject(obj[key])
       ? [key].concat(
           flattenObjectKeysIntoString(obj[key]).map(
-            (innerKey: string) => `${key}.${innerKey}`
-          )
+            (innerKey: string) => `${key}.${innerKey}`,
+          ),
         )
-      : [key]
+      : [key],
   );
 
 export const getErrorClassname = (field?: boolean): string => {
@@ -24,7 +24,7 @@ export const getErrorClassname = (field?: boolean): string => {
 };
 
 export const convertToReactSelectOption = (
-  value?: string
+  value?: string,
 ): ReactSelectOption => ({
   label: value ?? "",
   value: value ?? "",
@@ -62,7 +62,7 @@ export const errorsTypeHasError = (errors: FormErrorsType): boolean => {
 };
 
 export const formErrorsTypeFromDataType = (
-  formData: FormDataType
+  formData: FormDataType,
 ): FormErrorsType => {
   let experimentTitle = undefined;
   if (!formData.experimentTitle) {

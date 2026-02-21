@@ -115,9 +115,15 @@ export interface FilesContextValue {
     project: SimulationProject;
   }) => void;
   setReplaceProposal: (proposal: FilesSlice["replaceProposal"]) => void;
-  toggleBehaviorKeysEditor: (fileId: string, defaultKeys?: null | BehaviorKeyFields) => void;
+  toggleBehaviorKeysEditor: (
+    fileId: string,
+    defaultKeys?: null | BehaviorKeyFields,
+  ) => void;
   updateBehaviorKeysFile: (fileId: string, keys: DraftBehaviorKeys) => void;
-  updateBehaviorKeysDynamicAccess: (fileId: string, dynamicAccess: boolean) => void;
+  updateBehaviorKeysDynamicAccess: (
+    fileId: string,
+    dynamicAccess: boolean,
+  ) => void;
   toggleVisualGlobals: () => void;
   toggleVisualAnalysis: () => void;
   addPreparedFile: (file: HcFile) => void;
@@ -206,7 +212,10 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
     );
     return sortBy(
       parseRelativePathsAsTree(filtered),
-      [(item) => item.children.length === 0, (item) => item.repoPath.toLowerCase()],
+      [
+        (item) => item.children.length === 0,
+        (item) => item.repoPath.toLowerCase(),
+      ],
       ["asc", "asc"],
     );
   }, [allFiles]);
@@ -226,7 +235,8 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   const behaviorKeysVisible = state.behaviorKeys && !!currentBehavior;
-  const behaviorKeysDynamicAccess = currentBehavior?.keys.dynamic_access ?? false;
+  const behaviorKeysDynamicAccess =
+    currentBehavior?.keys.dynamic_access ?? false;
   const currentFileRepoPath = currentFile?.repoPath ?? null;
 
   const requiredFiles = useMemo(
@@ -234,7 +244,10 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
     [allFiles],
   );
   const localBehaviorFiles = useMemo(
-    () => allFiles.filter((f): f is HcBehaviorFile => f.kind === HcFileKind.Behavior),
+    () =>
+      allFiles.filter(
+        (f): f is HcBehaviorFile => f.kind === HcFileKind.Behavior,
+      ),
     [allFiles],
   );
   const sharedBehaviorFiles = useMemo(
@@ -242,7 +255,8 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
       allFiles.filter(
         (f): f is HcSharedBehaviorFile =>
           f.kind === HcFileKind.SharedBehavior ||
-          (f.kind === HcFileKind.Behavior && f.repoPath.startsWith("dependencies/")),
+          (f.kind === HcFileKind.Behavior &&
+            f.repoPath.startsWith("dependencies/")),
       ) as HcSharedBehaviorFile[],
     [allFiles],
   );
@@ -318,8 +332,10 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
   const simulationRequiresPyodide = useMemo(
     () =>
       sharedBehaviorFiles.some((b) => b.path.ext === Ext.Py) ||
-      (simulationSrc?.behaviors?.some((b) => b.name.includes(".py")) ?? false) ||
-      (simulationSrc?.initializers?.some((i) => i.name.includes(".py")) ?? false),
+      (simulationSrc?.behaviors?.some((b) => b.name.includes(".py")) ??
+        false) ||
+      (simulationSrc?.initializers?.some((i) => i.name.includes(".py")) ??
+        false),
     [sharedBehaviorFiles, simulationSrc],
   );
 
@@ -334,7 +350,8 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   const updateFile = useCallback(
-    (id: string, contents: string) => filesDispatch(updateFileAction({ id, contents })),
+    (id: string, contents: string) =>
+      filesDispatch(updateFileAction({ id, contents })),
     [filesDispatch],
   );
 
@@ -344,18 +361,23 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   const createBehavior = useCallback(
-    (params: { contents?: string; path: ParsedPath; project: SimulationProject }) =>
-      filesDispatch(createBehaviorAction(params)),
+    (params: {
+      contents?: string;
+      path: ParsedPath;
+      project: SimulationProject;
+    }) => filesDispatch(createBehaviorAction(params)),
     [filesDispatch],
   );
 
   const renameBehavior = useCallback(
-    (id: string, newName: string) => filesDispatch(renameBehaviorAction({ id, newName })),
+    (id: string, newName: string) =>
+      filesDispatch(renameBehaviorAction({ id, newName })),
     [filesDispatch],
   );
 
   const renameInitFile = useCallback(
-    (id: string, newName: string) => filesDispatch(renameInitFileAction({ id, newName })),
+    (id: string, newName: string) =>
+      filesDispatch(renameInitFileAction({ id, newName })),
     [filesDispatch],
   );
 
@@ -408,7 +430,9 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
 
   const updateBehaviorKeysDynamicAccess = useCallback(
     (fileId: string, dynamicAccess: boolean) =>
-      filesDispatch(updateBehaviorKeysDynamicAccessAction({ fileId, dynamicAccess })),
+      filesDispatch(
+        updateBehaviorKeysDynamicAccessAction({ fileId, dynamicAccess }),
+      ),
     [filesDispatch],
   );
 
@@ -428,8 +452,11 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
   );
 
   const createProcessModelFile = useCallback(
-    (params: { contents: string; repoPath: string; project: SimulationProject }) =>
-      filesDispatch(createProcessModelFileAction(params)),
+    (params: {
+      contents: string;
+      repoPath: string;
+      project: SimulationProject;
+    }) => filesDispatch(createProcessModelFileAction(params)),
     [filesDispatch],
   );
 
@@ -462,7 +489,9 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
           throw new Error("Cannot find behavior in state");
         }
         const result = await parseBehaviorKeysQuery(file as HcBehaviorFile);
-        filesDispatch(parseAndShowBehaviorKeys.fulfilled(result, requestId, arg));
+        filesDispatch(
+          parseAndShowBehaviorKeys.fulfilled(result, requestId, arg),
+        );
       } catch (error: any) {
         filesDispatch(parseAndShowBehaviorKeys.rejected(error, requestId, arg));
       }
@@ -482,7 +511,9 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
           // skip behaviors that fail to parse
         }
       }
-      filesDispatch(parseAllBehaviorKeys.fulfilled(result, requestId, undefined));
+      filesDispatch(
+        parseAllBehaviorKeys.fulfilled(result, requestId, undefined),
+      );
     } catch (error: any) {
       filesDispatch(parseAllBehaviorKeys.rejected(error, requestId, undefined));
     }
@@ -545,5 +576,7 @@ export const FilesProvider: FC<PropsWithChildren> = ({ children }) => {
     [state, editorVisible, allFiles, openFiles, folderTree, simulationSrc],
   );
 
-  return <FilesContext.Provider value={value}>{children}</FilesContext.Provider>;
+  return (
+    <FilesContext.Provider value={value}>{children}</FilesContext.Provider>
+  );
 };

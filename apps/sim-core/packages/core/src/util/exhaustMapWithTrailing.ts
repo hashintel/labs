@@ -7,7 +7,7 @@
 import { Observable, ObservableInput, Subscription, from } from "rxjs";
 
 export function exhaustMapWithTrailing<T, R>(
-  fn: (value: T) => ObservableInput<R>
+  fn: (value: T) => ObservableInput<R>,
 ) {
   return (source: Observable<T>) =>
     new Observable<R>((subscriber) => {
@@ -70,7 +70,7 @@ export function exhaustMapWithTrailing<T, R>(
               subscriber.complete();
             }
           },
-        })
+        }),
       );
 
       return subscription;

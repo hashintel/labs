@@ -8,10 +8,7 @@ type SimulationRunContextMenuProps = {
 
 export const SimulationRunContextMenu: FC<
   PropsWithChildren<SimulationRunContextMenuProps>
-> = ({
-  children,
-  style,
-}) => (
+> = ({ children, style }) => (
   <ul className="SimulationRunContextMenu" style={style}>
     {children}
   </ul>

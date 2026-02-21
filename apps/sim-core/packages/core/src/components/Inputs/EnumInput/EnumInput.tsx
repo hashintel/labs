@@ -35,5 +35,5 @@ export const EnumInput: FC<EnumInputProps> = memo(
         onChange={(evt) => onChange(evt.target.value)}
       />
     );
-  }
+  },
 );

@@ -85,7 +85,7 @@ export const GlobalsEditor: FC = () => {
         updateFile(globalsFileId, contents);
       }, 200);
     },
-    [updateFile, scheduleUpdate]
+    [updateFile, scheduleUpdate],
   );
 
   /**
@@ -105,7 +105,7 @@ export const GlobalsEditor: FC = () => {
             },
           }
         : globalConfigSchema,
-    [globals?.schema]
+    [globals?.schema],
   );
 
   if (!globals) {

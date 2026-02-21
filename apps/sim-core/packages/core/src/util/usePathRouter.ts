@@ -14,7 +14,7 @@ export type RouteMap = Record<string, RouteHandler>;
 
 const matchRoute = (
   pattern: string,
-  pathname: string
+  pathname: string,
 ): Record<string, string> | null => {
   if (pattern === "*") {
     return {};

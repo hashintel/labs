@@ -8,7 +8,10 @@ import type { ParsedPath } from "../../../util/files/types";
 import { SimulationProject } from "../../../features/project/types";
 import { destinationPathInUse, parse } from "../../../util/files";
 import { selectIdKindAndPathFromFiles } from "../../../features/files/selectors";
-import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { useModalNameBehavior } from "../../HashCore/Files/hooks/useModalNameBehavior";
 
 import "../FileBanner.css";
@@ -25,7 +28,7 @@ export const FileBannerShared: FC<FileBannerSharedProps> = ({
 }) => {
   const destination = useMemo(
     () => parse({ name: file.path.name, ext: file.path.ext }),
-    [file]
+    [file],
   );
 
   const { forkOpenBehavior } = useFiles();
@@ -40,7 +43,7 @@ export const FileBannerShared: FC<FileBannerSharedProps> = ({
       placeholder: "Name your forked behavior",
       onSubmit: copy,
     },
-    destination
+    destination,
   );
 
   const files = useFilesSelector(selectIdKindAndPathFromFiles);

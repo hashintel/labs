@@ -8,7 +8,7 @@ export const useRemSize = () => {
 
   const setObserver = useResizeObserver(() => {
     setRemSize(
-      parseFloat(window.getComputedStyle(document.documentElement).fontSize)
+      parseFloat(window.getComputedStyle(document.documentElement).fontSize),
     );
   });
 
@@ -26,7 +26,7 @@ export const useRemSize = () => {
     >
       rem
     </div>,
-    document.body
+    document.body,
   );
 
   return [remSize, portal];

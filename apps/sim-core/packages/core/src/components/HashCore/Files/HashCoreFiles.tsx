@@ -17,14 +17,17 @@ import {
   selectCurrentFileRepoPath,
   selectPendingDependencies,
 } from "../../../features/files/selectors";
-import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 
 import "./HashCoreFiles.scss";
 
 const calculateOpenFoldersForPath = (
   currentRepoPath: string,
-  existingOpenFolders: Record<string, boolean> = {}
+  existingOpenFolders: Record<string, boolean> = {},
 ) =>
   currentRepoPath
     .split("/")
@@ -43,7 +46,7 @@ export const HashCoreFiles: FC = () => {
   const { canSave, canEdit } = useScopes(
     Scope.save,
     Scope.uploadDataset,
-    Scope.edit
+    Scope.edit,
   );
   const currentRepoPath = useFilesSelector(selectCurrentFileRepoPath);
   const { openSearch } = useSearch();
@@ -51,7 +54,7 @@ export const HashCoreFiles: FC = () => {
   const showNameBehavior = useNameNewBehaviorModal();
   const [_showNewDatasetModal, hideNewDatasetModal] = useModal(
     () => <ModalNewDataset onClose={hideNewDatasetModal} />,
-    []
+    [],
   );
 
   // This is set by whichever child component is current
@@ -65,13 +68,13 @@ export const HashCoreFiles: FC = () => {
       paneRef.current = node;
       observerRef(node);
     },
-    [observerRef]
+    [observerRef],
   );
 
   const { folderTree: tree, allFiles } = useFiles();
 
   const [openPaths, setOpenPaths] = useState<Record<string, boolean>>(() =>
-    currentRepoPath ? calculateOpenFoldersForPath(currentRepoPath) : {}
+    currentRepoPath ? calculateOpenFoldersForPath(currentRepoPath) : {},
   );
 
   /**
@@ -79,9 +82,8 @@ export const HashCoreFiles: FC = () => {
    * React concurrent mode – instead we use state because we can queue an update
    * to it without breaking CM.
    */
-  const [lastRepoPath, setLastRepoPath] = useState<typeof currentRepoPath>(
-    currentRepoPath
-  );
+  const [lastRepoPath, setLastRepoPath] =
+    useState<typeof currentRepoPath>(currentRepoPath);
 
   const toggleOpen = useCallback((path: string) => {
     setOpenPaths((openPaths) => ({
@@ -124,16 +126,15 @@ export const HashCoreFiles: FC = () => {
     prevFileIdsRef.current = currentIds;
   }, [allFiles]);
 
-  const [
-    openCreateExperimentModal,
-    hideCreateExperimentModal,
-  ] = useModal(() => <ExperimentModal onClose={hideCreateExperimentModal} />);
+  const [openCreateExperimentModal, hideCreateExperimentModal] = useModal(
+    () => <ExperimentModal onClose={hideCreateExperimentModal} />,
+  );
 
   // Ensure the current file is visible when we change tabs
   if (currentRepoPath && currentRepoPath !== lastRepoPath) {
     const newOpenPaths = calculateOpenFoldersForPath(
       currentRepoPath,
-      openPaths
+      openPaths,
     );
 
     if (Object.keys(newOpenPaths).length) {

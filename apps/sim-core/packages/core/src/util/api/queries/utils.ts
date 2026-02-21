@@ -6,7 +6,7 @@ import { toHcConfig } from "../../../features/project/utils";
 import { toHcFiles } from "../../../features/files/utils";
 
 export const prepareRemoteProject = (
-  remoteProject: RemoteSimulationProject
+  remoteProject: RemoteSimulationProject,
 ): SimulationProjectWithHcFiles => {
   const project = {
     ...remoteProject,

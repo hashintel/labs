@@ -32,7 +32,7 @@ it("renders without crashing", () => {
         }
       />
     </ModalProvider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

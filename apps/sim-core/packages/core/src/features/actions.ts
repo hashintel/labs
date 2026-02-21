@@ -44,7 +44,9 @@ export const setProjectWithMeta = (
   project: SetProjectParams["project"],
   meta: SetProjectParams["meta"] = {},
 ) => {
-  console.warn("setProjectWithMeta from actions.ts is deprecated; use ProjectContext");
+  console.warn(
+    "setProjectWithMeta from actions.ts is deprecated; use ProjectContext",
+  );
   return setProject({
     project,
     meta,

@@ -16,7 +16,7 @@ export const HashCoreResourcesList: FC<HashCoreResourcesListProps> = ({
     {results.map((resource, id) =>
       resource.files.length ? (
         <ResourceListItem key={id} resource={resource} />
-      ) : null
+      ) : null,
     )}
   </div>
 );

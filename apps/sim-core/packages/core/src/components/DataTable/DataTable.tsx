@@ -24,7 +24,7 @@ export const DataTable: FC<DataTableProps> = memo(
               beginIndex={currentPage * recordsPerPage}
               records={records.slice(
                 currentPage * recordsPerPage,
-                (currentPage + 1) * recordsPerPage
+                (currentPage + 1) * recordsPerPage,
               )}
             />
           </table>
@@ -38,5 +38,5 @@ export const DataTable: FC<DataTableProps> = memo(
         )}
       </div>
     );
-  }
+  },
 );

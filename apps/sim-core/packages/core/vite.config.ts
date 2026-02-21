@@ -24,11 +24,7 @@ export default defineConfig(({ mode }) => {
       wasm(),
       topLevelAwait(),
       monacoEditorPlugin({
-        languageWorkers: [
-          "editorWorkerService",
-          "json",
-          "typescript",
-        ],
+        languageWorkers: ["editorWorkerService", "json", "typescript"],
       }),
     ],
     resolve: {
@@ -48,16 +44,18 @@ export default defineConfig(({ mode }) => {
       PUBLIC_PATH: JSON.stringify("/"),
       BUILD_STAMP: JSON.stringify(buildStamp),
       LOCAL_API: JSON.stringify(true),
-      MAPBOX_API_TOKEN: JSON.stringify(
-        process.env.MAPBOX_API_TOKEN ?? null
-      ),
+      MAPBOX_API_TOKEN: JSON.stringify(process.env.MAPBOX_API_TOKEN ?? null),
       // Polyfill Node.js globals that Webpack 4 provided automatically
       global: "globalThis",
     },
     css: {
       preprocessorOptions: {
         scss: {
-          silenceDeprecations: ["color-functions", "global-builtin", "slash-div"],
+          silenceDeprecations: [
+            "color-functions",
+            "global-builtin",
+            "slash-div",
+          ],
         },
       },
     },

@@ -6,7 +6,11 @@ import { Search } from "./Search";
 jest.useFakeTimers();
 
 jest.mock("lodash", () => ({
-  debounce: jest.fn((fn) => (...args: any[]) => setTimeout(() => fn(...args))),
+  debounce: jest.fn(
+    (fn) =>
+      (...args: any[]) =>
+        setTimeout(() => fn(...args)),
+  ),
 }));
 
 it("renders without crashing", () => {
@@ -16,7 +20,7 @@ it("renders without crashing", () => {
 it("calls onChange when the value has changed", () => {
   const onChange = jest.fn();
   const { getByPlaceholderText } = render(
-    <Search onChange={onChange} loading={false} searchTerm="" />
+    <Search onChange={onChange} loading={false} searchTerm="" />,
   );
 
   fireEvent.change(getByPlaceholderText("Search..."), {

@@ -13,7 +13,7 @@ const _getErrorPosition = (error: string): number =>
 
 const _getErrorLineInformation = (
   sourceCode: string,
-  errorPosition: number
+  errorPosition: number,
 ): {
   slicedJsonLines: string[];
   leftSpacePaddingLength: number;
@@ -36,8 +36,10 @@ const _getErrorLineInformation = (
       return;
     }
     const matchingChar = sourceCode?.slice(errorPosition - 1, errorPosition);
-    leftSpacePaddingLength = line.substring(0, line.indexOf(matchingChar))
-      .length;
+    leftSpacePaddingLength = line.substring(
+      0,
+      line.indexOf(matchingChar),
+    ).length;
   });
   return { slicedJsonLines, leftSpacePaddingLength, lineForError };
 };
@@ -60,7 +62,7 @@ const _getErrorWithSurroundingCode = ({
     .slice(lineForError - 2, lineForError)
     .map(
       (item: string, index: number) =>
-        `${lineForError - 1 + index}: ${spacer}${item}`
+        `${lineForError - 1 + index}: ${spacer}${item}`,
     )
     .join("\n"); // we can comment this line but sometimes the error is way too long
 
@@ -69,7 +71,7 @@ const _getErrorWithSurroundingCode = ({
 
 export const getHelpForSyntaxError = (
   error: string,
-  analysisString?: string
+  analysisString?: string,
 ): string => {
   if (!analysisString) {
     return "";

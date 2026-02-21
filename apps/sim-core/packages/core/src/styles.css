@@ -39,7 +39,8 @@
 
   /* Our font */
   --font: "Inter", Helvetica, Arial, sans-serif;
-  --code-font: Menlo, Monaco, Consolas, "Ubuntu Mono", "Liberation Mono",
+  --code-font:
+    Menlo, Monaco, Consolas, "Ubuntu Mono", "Liberation Mono",
     "DejaVu Sans Mono", "Courier New", monospace;
   /**
    * Different to code-font – use this when you want the monospace font to be

@@ -74,8 +74,7 @@ export const HashCoreHeader: FC = () => {
           </i>
         )}
       </div>
-      <div className="HashCoreHeader__section HashCoreHeader__section--right">
-      </div>
+      <div className="HashCoreHeader__section HashCoreHeader__section--right"></div>
     </header>
   );
 };

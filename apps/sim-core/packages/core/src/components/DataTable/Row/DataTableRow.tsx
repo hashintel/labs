@@ -15,5 +15,5 @@ export const DataTableRow: FC<DataTableRowProps> = memo(
         <DataTableCell key={`data-${rowIndex}-${idx}`} cellValue={value} />
       ))}
     </tr>
-  )
+  ),
 );

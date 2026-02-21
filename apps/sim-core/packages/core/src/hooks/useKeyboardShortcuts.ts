@@ -71,7 +71,7 @@ export const useKeyboardShortcuts = (handlers: HandlerDescription) => {
     return () => {
       listeningState.handlers.splice(
         listeningState.handlers.indexOf(handlersRef),
-        1
+        1,
       );
 
       if (!listeningState.handlers.length && listeningState.listener) {

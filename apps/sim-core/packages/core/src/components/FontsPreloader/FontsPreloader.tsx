@@ -1,4 +1,11 @@
-import React, { FC, PropsWithChildren, useEffect, useState, Fragment, CSSProperties } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useEffect,
+  useState,
+  Fragment,
+  CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 
 const fontsToPreload: [string, CSSProperties[]][] = Object.entries({
@@ -53,7 +60,7 @@ export const FontsPreloader: FC<PropsWithChildren> = ({ children }) => {
               </Fragment>
             ))}
           </div>,
-          target
+          target,
         )}
     </>
   );

@@ -10,7 +10,7 @@ import { OutputPlotProps } from "./types";
 import { buildData, buildPlots } from "./utils";
 
 export const analyzer = new AnalyzerProvider(
-  new URL("../../workers/analyzer-worker/index.ts", import.meta.url)
+  new URL("../../workers/analyzer-worker/index.ts", import.meta.url),
 );
 
 type PlotDefinitionIsInvalidType = {
@@ -55,7 +55,7 @@ export type OutputPlots = {
  * analyzer.analyze() ->  {[outputId]: value}[]
  */
 export const refreshAnalysisSource = async (
-  source: string
+  source: string,
   // simId: string
 ): Promise<OutputPlots> => {
   const { plots } = await analyzer.setAnalysisSrc(source);
@@ -80,7 +80,7 @@ export const refreshAnalysisSource = async (
 export const analyzeSteps = async (
   agentData: SimulationStates,
   lastOutputs: Outputs[] = [],
-  stepsCount: number
+  stepsCount: number,
 ): Promise<{ total: Outputs[]; added: Outputs[] }> => {
   if (lastOutputs.length === stepsCount) {
     return { total: lastOutputs, added: [] };
@@ -105,7 +105,7 @@ export const analyzeSteps = async (
 export const mutatingPlotData = (
   outputs: OutputSeries,
   plots: PlotDataMap,
-  stepCount: number
+  stepCount: number,
 ) => {
   // Build that data on the plot definitions
 
@@ -135,7 +135,7 @@ export const mutatingPlotData = (
 export const mutatingUpdatePlotsForSingleRun = async (
   agentData: SimulationStates,
   plotsData: OutputPlots,
-  stepsCount: number
+  stepsCount: number,
 ): Promise<OutputPlots> => {
   const { outputs, plots, rawOutputs } = plotsData;
 

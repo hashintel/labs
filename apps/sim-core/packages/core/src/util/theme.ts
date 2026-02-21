@@ -76,5 +76,5 @@ export const themeNumbers: ThemeNumber = Object.fromEntries(
   Object.entries(theme).map(([key, value]) => [
     key,
     parseInt(value.substr(1), 16),
-  ])
+  ]),
 );

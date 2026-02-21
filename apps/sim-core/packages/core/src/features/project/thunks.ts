@@ -4,7 +4,10 @@ import { NewProjectModalValues } from "../../components/Modal/NewProject/types";
 import { USER_ORG_VALUE } from "../../components/Modal/NewProject/utils";
 import { PartialSimulationProject } from "./types";
 import { ToastKind } from "../toast/enums";
-import { getLocalStorageProject, preparePartialSimulationProject } from "./utils";
+import {
+  getLocalStorageProject,
+  preparePartialSimulationProject,
+} from "./utils";
 import { setLocalStorageProject } from "../middleware/localStorage";
 
 import { urlFromProject } from "../../routes";

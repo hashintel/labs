@@ -17,7 +17,7 @@ export const yieldToBrowser = () =>
           port2.removeEventListener("message", yieldToBrowserMessageHandler);
           resolve();
         }
-      }
+      },
     );
     port1.postMessage(uid);
   });

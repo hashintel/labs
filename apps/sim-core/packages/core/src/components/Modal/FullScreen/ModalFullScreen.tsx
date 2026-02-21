@@ -19,12 +19,12 @@ export const ModalFullScreen: FC<ModalProps & { theme?: "light" | "dark" }> = ({
     onClose={onClose}
     backdropClassName={classNames(
       backdropClassName,
-      `ModalFullScreen-backdrop--${theme}`
+      `ModalFullScreen-backdrop--${theme}`,
     )}
     modalClassName={classNames(
       "ModalFullScreen",
       `ModalFullScreen--${theme}`,
-      modalClassName
+      modalClassName,
     )}
     backdropExit={false}
   >

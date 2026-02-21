@@ -95,7 +95,7 @@ export const AgentScene = ({
           console.error(err);
         })
         .then(() =>
-          updateTransitionMap(mappedTransitions, simulationStep ?? [])
+          updateTransitionMap(mappedTransitions, simulationStep ?? []),
         );
     }
   }, [resetting, simulationStep, updateTransitionMap]);
@@ -141,19 +141,17 @@ export const AgentScene = ({
         onCreated={({ gl }) => gl.setClearColor("#0e0d15")}
         invalidateFrameloop={!updatesEnabled}
       >
-          <fog args={["white", 50000, 3000000]} attach="fog" />
-          <ViewerControls
-            mappedTransitions={mappedTransitions}
-            resetting={resetting}
-          />
-          {edgesEnabled && (
-            <NetworkEdges mappedTransitions={mappedTransitions} />
-          )}
-          <ambientLight intensity={0.65} />
-          <pointLight position={[0, 0, 30]} up={[0, 0, 1]} intensity={0.8} />
-          <ViewerStage />
-          <AgentRenderer mappedTransitions={mappedTransitions} />
-          <HoveredAgent transitions={mappedTransitions} />
+        <fog args={["white", 50000, 3000000]} attach="fog" />
+        <ViewerControls
+          mappedTransitions={mappedTransitions}
+          resetting={resetting}
+        />
+        {edgesEnabled && <NetworkEdges mappedTransitions={mappedTransitions} />}
+        <ambientLight intensity={0.65} />
+        <pointLight position={[0, 0, 30]} up={[0, 0, 1]} intensity={0.8} />
+        <ViewerStage />
+        <AgentRenderer mappedTransitions={mappedTransitions} />
+        <HoveredAgent transitions={mappedTransitions} />
       </Canvas>
       {!embedded && <SceneSettings />}
     </div>

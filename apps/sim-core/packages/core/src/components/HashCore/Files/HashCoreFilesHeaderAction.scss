@@ -65,7 +65,8 @@
        * overlays – it also ensures 90deg edges to the borders, rather than 45deg
        * which is what you get when using CSS borders
        */
-      box-shadow: inset 1px 0 0 var(--theme-border),
+      box-shadow:
+        inset 1px 0 0 var(--theme-border),
         inset -1px 0 0 var(--theme-border);
 
       .Icon {

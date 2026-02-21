@@ -1,4 +1,9 @@
-import React, { FC, PropsWithChildren, Children, ButtonHTMLAttributes } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  Children,
+  ButtonHTMLAttributes,
+} from "react";
 import classNames from "classnames";
 
 import { FancyProps, getIcon } from "..";
@@ -29,7 +34,7 @@ export const FancyButton: FC<PropsWithChildren<FancyButtonProps>> = ({
 
   if (numChildren > 2) {
     throw new Error(
-      `FancyButton expected no more than 2 children, got ${numChildren}`
+      `FancyButton expected no more than 2 children, got ${numChildren}`,
     );
   }
 
@@ -38,7 +43,7 @@ export const FancyButton: FC<PropsWithChildren<FancyButtonProps>> = ({
       className={classNames(
         `Fancy Fancy-${theme} Fancy-${size} Fancy-${icon}`,
         { "Fancy-no-label": numChildren === 0 },
-        className
+        className,
       )}
       style={{
         ...style,

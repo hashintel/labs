@@ -20,7 +20,7 @@ import { theme } from "../../util/theme";
 function timeseriesToData(
   timeseries: string[],
   series: OutputSeries,
-  step: number
+  step: number,
 ) {
   const data = [];
   for (const name of timeseries) {
@@ -54,15 +54,15 @@ function scatterToData(scatter: string[], series: OutputSeries, step: number) {
     data.push({
       name,
       x: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[0], a.x)
+        or(a.position[0], a.x),
       ),
       y: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[1], a.y)
+        or(a.position[1], a.y),
       ),
       mode: "markers",
       marker: {
         color: (series[name][step] as Datum[]).map(
-          (agent: any) => agent.color || agent.rgb || color
+          (agent: any) => agent.color || agent.rgb || color,
         ),
       },
       type: "scattergl",
@@ -74,7 +74,7 @@ function scatterToData(scatter: string[], series: OutputSeries, step: number) {
 function scatter3dToData(
   scatter: string[],
   series: OutputSeries,
-  step: number
+  step: number,
 ) {
   const data = [];
   for (const name of scatter) {
@@ -85,18 +85,18 @@ function scatter3dToData(
     data.push({
       name,
       x: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[0], a.x)
+        or(a.position[0], a.x),
       ),
       y: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[1], a.y)
+        or(a.position[1], a.y),
       ),
       z: (series[name][step] as Datum[]).map((a: any) =>
-        or(a.position[2], a.z)
+        or(a.position[2], a.z),
       ),
       mode: "markers",
       marker: {
         color: (series[name][step] as Datum[]).map(
-          (agent: any) => agent.color || agent.rgb || color
+          (agent: any) => agent.color || agent.rgb || color,
         ),
       },
       type: "scatter3d",
@@ -189,7 +189,7 @@ export function buildPlots(def: PlotDefinition): OutputPlotProps {
     style,
     hideCollatedLegend: def.layout?.hideCollatedLegend,
     hideStep: ["bar", "box", "histogram", "line", "scatter"].includes(
-      def.type ?? ""
+      def.type ?? "",
     )
       ? true
       : def.hideStep,
@@ -211,7 +211,7 @@ const lineLens = m.Optional.fromNullableProp<HashPlotData>()("line");
 const colorLens = m.Optional.fromNullableProp<Partial<ScatterLine>>()("color");
 
 const flattenSlice = <K extends DatumKeys>(
-  series: OutputSeriesValue[]
+  series: OutputSeriesValue[],
 ): PlotData[K] =>
   pipe(
     series,
@@ -220,23 +220,23 @@ const flattenSlice = <K extends DatumKeys>(
       series === null || typeof series === "number"
         ? series
         : series.map((value) =>
-            value instanceof Array && value.length === 1 ? value[0] : value
-          )
+            value instanceof Array && value.length === 1 ? value[0] : value,
+          ),
   ) as PlotData[K];
 
-const mapAxis = <K extends DatumKeys>(series: OutputSeries, step: number) => (
-  value: HashDatum<K>
-): PlotData[K] =>
-  typeof value === "string"
-    ? (series[value].slice(0, step + 1) as PlotData[K])
-    : isOutputSlice(value)
-    ? flattenSlice(series[value.name].slice(...value.slice))
-    : (value as PlotData[K]);
+const mapAxis =
+  <K extends DatumKeys>(series: OutputSeries, step: number) =>
+  (value: HashDatum<K>): PlotData[K] =>
+    typeof value === "string"
+      ? (series[value].slice(0, step + 1) as PlotData[K])
+      : isOutputSlice(value)
+        ? flattenSlice(series[value.name].slice(...value.slice))
+        : (value as PlotData[K]);
 
 export function buildData(
   def: PlotDefinition,
   series: OutputSeries,
-  step: number
+  step: number,
 ): Plotly.Data[] {
   if (def.timeseries) {
     return timeseriesToData(def.timeseries, series, step) as Plotly.Data[];
@@ -251,8 +251,8 @@ export function buildData(
         datumLenses.y.modify(mapAxis<"y">(series, step)),
         datumLenses.z.modify(mapAxis<"z">(series, step)),
         lineLens.compose(colorLens).modify(extractColor),
-        (plot) => Object.assign({ type: def.type }, plot) as PlotData
-      )
+        (plot) => Object.assign({ type: def.type }, plot) as PlotData,
+      ),
     );
   } else {
     return [];

@@ -23,7 +23,11 @@ import { useShouldUnload } from "../../hooks/shouldUnload";
 import { useViewer } from "../../features/viewer/ViewerContext";
 
 export const HashCore: FC = memo(function HashCore() {
-  const { currentProject: project, accessGate, setProjectWithMeta } = useProject();
+  const {
+    currentProject: project,
+    accessGate,
+    setProjectWithMeta,
+  } = useProject();
   const fileIds = useFilesSelector(selectFileIds);
   const didSave = useFilesSelector(selectDidSave);
 
@@ -57,7 +61,7 @@ export const HashCore: FC = memo(function HashCore() {
       }
 
       const nextProject: SimulationProjectWithHcFiles = JSON.parse(
-        event.newValue
+        event.newValue,
       );
 
       setProjectWithMeta(nextProject, { replaceTabs: false });
@@ -110,7 +114,7 @@ export const HashCore: FC = memo(function HashCore() {
       .querySelector('meta[name="twitter:image"]')
       ?.setAttribute(
         "content",
-        project?.image || project?.thumbnail || defaultMetaImage
+        project?.image || project?.thumbnail || defaultMetaImage,
       );
   }, [project?.description, project?.image, project?.thumbnail]);
 

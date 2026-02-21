@@ -19,7 +19,9 @@ type HashCoreFilesListItemFolderProps = {
   openPaths: Record<string, boolean>;
 };
 
-export const HashCoreFilesListItemFolder: FC<HashCoreFilesListItemFolderProps> = ({
+export const HashCoreFilesListItemFolder: FC<
+  HashCoreFilesListItemFolderProps
+> = ({
   scrollIntoViewRef,
   childrenItems = [],
   name,
@@ -31,10 +33,10 @@ export const HashCoreFilesListItemFolder: FC<HashCoreFilesListItemFolderProps> =
 }) => {
   const folderOpen = isOpen || openPaths[repoPath];
   const folders = childrenItems.filter(
-    (item) => item.children && item.children.length > 0
+    (item) => item.children && item.children.length > 0,
   );
   const files = childrenItems.filter(
-    (item) => item.children && item.children.length === 0
+    (item) => item.children && item.children.length === 0,
   );
 
   const id = `HashCoreFilesListItemFolder-${repoPath.replace(/\//g, "_")}`;

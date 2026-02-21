@@ -6,7 +6,7 @@ export type ValidatedEmbedParams = {
 };
 
 const validateEmbedParams = (
-  params: Record<string, string>
+  params: Record<string, string>,
 ): params is ValidatedEmbedParams =>
   typeof params.project === "string" && typeof params.ref === "string";
 

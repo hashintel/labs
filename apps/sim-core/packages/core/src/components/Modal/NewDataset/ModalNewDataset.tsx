@@ -15,7 +15,7 @@ export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
   const { currentProject } = useProject();
 
   const [state, setState] = useState<"uploading" | "failed" | "initial">(
-    "initial"
+    "initial",
   );
 
   const onDrop = useCallback(
@@ -39,7 +39,14 @@ export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
         addPreparedFile({
           id: repoPath,
           name: file.name,
-          path: { formatted: repoPath, base: baseName, dir: "data", root: "", name: baseName, ext: `.${ext}` },
+          path: {
+            formatted: repoPath,
+            base: baseName,
+            dir: "data",
+            root: "",
+            name: baseName,
+            ext: `.${ext}`,
+          },
           repoPath,
           kind: 5 as any, // HcFileKind.Dataset
           contents,
@@ -51,7 +58,7 @@ export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
         setState("failed");
       }
     },
-    [onClose, addPreparedFile, currentProject]
+    [onClose, addPreparedFile, currentProject],
   );
 
   const uploading = state === "uploading";

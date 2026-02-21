@@ -10,7 +10,7 @@ export function restoreEditorState(
   editorInstance: EditorInstance,
   textModel: TextModel,
   viewState: ViewState | null | undefined,
-  options: EditorOptions
+  options: EditorOptions,
 ) {
   if (!textModel.isDisposed()) {
     setMonacoModel(editorInstance, textModel);

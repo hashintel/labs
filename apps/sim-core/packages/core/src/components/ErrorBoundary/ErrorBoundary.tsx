@@ -32,7 +32,7 @@ import "./ErrorBoundary.css";
 const quotableId = (() => {
   const generateHashEventId = customAlphabet(
     "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-    6
+    6,
   );
 
   return () =>

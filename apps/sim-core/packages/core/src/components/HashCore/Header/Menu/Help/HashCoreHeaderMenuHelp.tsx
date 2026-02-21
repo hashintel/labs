@@ -34,10 +34,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
         />
         <ul className="HashCoreHeaderMenu-submenu">
           <li className="HashCoreHeaderMenu-submenu-item">
-            <a
-              href="https://docs.hash.ai/core/"
-              target="_blank"
-            >
+            <a href="https://docs.hash.ai/core/" target="_blank">
               Docs
             </a>
           </li>
@@ -66,7 +63,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
         </ul>
       </>
     );
-  }
+  },
 );
 
 // // @ts-ignore

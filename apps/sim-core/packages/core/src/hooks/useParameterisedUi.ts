@@ -25,7 +25,7 @@ export const getUiQueryParams = () => {
 export const useParameterisedUi = () => {
   const { view, editor, activity, tabs, viewer } = useMemo(
     getUiQueryParams,
-    []
+    [],
   );
   const { initialiseView } = useViewer();
 

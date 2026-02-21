@@ -64,7 +64,7 @@ export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
     const errorRect = errorRef.current?.getBoundingClientRect();
 
     setTooltipError(
-      inputRect.width + (errorRect?.width ?? 0) > window.innerWidth * 0.7
+      inputRect.width + (errorRect?.width ?? 0) > window.innerWidth * 0.7,
     );
   }, []);
 
@@ -88,7 +88,7 @@ export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
       errorRef.current = node;
       setErrorObserver(node);
     },
-    [setErrorObserver]
+    [setErrorObserver],
   );
 
   return (

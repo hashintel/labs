@@ -27,7 +27,7 @@ it("renders without crashing", () => {
         </ModalProvider>
       </ProjectProvider>
     </UserProvider>,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

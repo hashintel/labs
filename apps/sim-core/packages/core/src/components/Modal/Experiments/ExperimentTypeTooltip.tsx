@@ -9,8 +9,10 @@ const BASE_DOCS_URL =
 
 const BASE_REGULAR_EXP_URL = `${BASE_DOCS_URL}experiment-types`;
 
-interface ExperimentTypeHints
-  extends Record<ExperimentTypes, { description: string; docsUrl: string }> {}
+interface ExperimentTypeHints extends Record<
+  ExperimentTypes,
+  { description: string; docsUrl: string }
+> {}
 
 const EXPERIMENT_TYPE_HINTS: ExperimentTypeHints = {
   values: {

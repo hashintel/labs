@@ -5,7 +5,6 @@ import { SIM_DOCS_URL } from "../../../util/api/paths";
 import type { UserAlertInState } from "../../../features/viewer/types";
 import { useFiles } from "../../../features/files/FilesContext";
 
-
 type HashCoreConsoleAlertProps = {
   alert: UserAlertInState;
   files: Record<string, Pick<HcFile, "id" | "path">>;
@@ -42,16 +41,16 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
           </a>
         ) : (
           <Fragment key={idx}>{makeErrorMessageFriendlier(piece)}</Fragment>
-        )
+        ),
       ),
-    [files, alert.message, setCurrentFileId]
+    [files, alert.message, setCurrentFileId],
   );
 
   const messageIncludesFiles = useMemo(
     () =>
       filesRegex.test(alert.message) &&
       alert.message.split(filesRegex).some((piece) => files[piece]),
-    [alert.message, files]
+    [alert.message, files],
   );
 
   return (

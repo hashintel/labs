@@ -10,7 +10,10 @@ export const ActivityHistoryGroupSection: FC<
     {
       open?: boolean;
       onOpenChange?: (open: boolean) => void;
-    } & ({ title: ReactNode; loading?: false } | { loading: true; title?: null })
+    } & (
+      | { title: ReactNode; loading?: false }
+      | { loading: true; title?: null }
+    )
   >
 > = ({ open = false, onOpenChange, title, loading, children }) => (
   <div className="ActivityHistoryGroupSection">

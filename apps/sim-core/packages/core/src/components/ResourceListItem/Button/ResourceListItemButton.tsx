@@ -51,7 +51,7 @@ export const ResourceListItemButton = forwardRef<
       <div
         className={classNames(
           "ResourceListItemButton__details__line",
-          "ResourceListItemButton__details__line--name"
+          "ResourceListItemButton__details__line--name",
         )}
       >
         {resourceName}
@@ -59,7 +59,7 @@ export const ResourceListItemButton = forwardRef<
       <div
         className={classNames(
           "ResourceListItemButton__details__line",
-          "ResourceListItemButton__details__line--kind"
+          "ResourceListItemButton__details__line--kind",
         )}
       >
         {resourceType}

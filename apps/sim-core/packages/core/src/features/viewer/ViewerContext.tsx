@@ -95,9 +95,9 @@ function openTab(state: ViewerState, tab: TabKind): ViewerState {
 
 function changeTabByIndex(state: ViewerState, index: number): ViewerState {
   const clamped = Math.max(0, Math.min(state.visibleTabs.length - 1, index));
-  const kind = state.tabOrder.filter((t) =>
-    state.visibleTabs.includes(t.kind),
-  )[clamped]?.kind;
+  const kind = state.tabOrder.filter((t) => state.visibleTabs.includes(t.kind))[
+    clamped
+  ]?.kind;
   return kind ? { ...state, currentTab: kind } : state;
 }
 
@@ -157,9 +157,7 @@ function viewerReducer(state: ViewerState, action: ViewerAction): ViewerState {
     case "showActivity":
       return !state.activity ? { ...state, activity: true } : state;
     case "toggleActivity":
-      return state.viewer
-        ? { ...state, activity: !state.activity }
-        : state;
+      return state.viewer ? { ...state, activity: !state.activity } : state;
     case "toggleViewer":
       return { ...state, viewer: !state.viewer };
     case "initialiseView": {

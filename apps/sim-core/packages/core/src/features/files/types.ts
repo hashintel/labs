@@ -18,7 +18,7 @@ export interface HcBaseFile<K extends HcFileKind = HcFileKind> {
 
 type HcDependencyFileKind = HcFileKind.Dataset | HcFileKind.SharedBehavior;
 export type HcDependencyFile<
-  K extends HcDependencyFileKind = HcDependencyFileKind
+  K extends HcDependencyFileKind = HcDependencyFileKind,
 > = HcBaseFile<K> &
   LinkableProject & {
     name: string;
@@ -48,12 +48,10 @@ export interface HcTemporaryFile extends HcBaseFile<HcFileKind.Temporary> {
 export interface HcRequiredFile extends HcBaseFile<HcFileKind.Required> {}
 
 export interface HcBehaviorFile
-  extends HcBaseFile<HcFileKind.Behavior>,
-    BehaviorFields {}
+  extends HcBaseFile<HcFileKind.Behavior>, BehaviorFields {}
 
 export interface HcDatasetFile
-  extends HcBaseFile<HcFileKind.Dataset>,
-    DatasetFields {}
+  extends HcBaseFile<HcFileKind.Dataset>, DatasetFields {}
 
 export type HcSharedDatasetFile = HcDependencyFile<HcFileKind.Dataset> &
   DatasetFields;

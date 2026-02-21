@@ -26,7 +26,7 @@ const AllOutputOperations = [
 export class NotImplementedError extends Error {
   constructor(operation: string) {
     super(
-      `The parser for the requested output operation "${operation}" hasn't been implemented yet, sorry`
+      `The parser for the requested output operation "${operation}" hasn't been implemented yet, sorry`,
     );
     this.name = "OutputOperationNotImplementedError";
   }
@@ -42,7 +42,7 @@ export class OutputOperationIsMissingOperationError extends OutputOperationError
   constructor() {
     const possibleValues = AllOutputOperations.join(",");
     super(
-      `The operation does not contain an op field. The possible values for this field are ${possibleValues}`
+      `The operation does not contain an op field. The possible values for this field are ${possibleValues}`,
     );
     this.name = "OutputOperationIsMissingOperationError";
   }
@@ -53,7 +53,7 @@ export class OutputOperationHasInvalidValuesError extends OutputOperationError {
     let message = `The operation "${operation}" has an invalid value for the field "${field}".`;
     if (possibleValues) {
       message = `${message} The possible values for this field are ${possibleValues.join(
-        ","
+        ",",
       )}`;
     }
     super(message);
@@ -65,7 +65,7 @@ export class OutputOperationIsMissingRequiredFieldsError extends OutputOperation
     const singularOrPluralField =
       missingFields.length === 1 ? "field" : "fields";
     const message = `The operation "${operation}" is missing the following required ${singularOrPluralField}: "${missingFields.join(
-      ","
+      ",",
     )}"`;
     super(message);
     this.name = "OutputOperationIsMissingRequiredFieldsError";
@@ -74,7 +74,7 @@ export class OutputOperationIsMissingRequiredFieldsError extends OutputOperation
 export class OutputOperationHasExtraFieldsError extends OutputOperationError {
   constructor(operation: string, extraFields: string[]) {
     const message = `The operation "${operation}" contains the following extra parameters: ${extraFields.join(
-      ","
+      ",",
     )}"`;
     super(message);
     this.name = "OutputOperationHasExtraFieldsError";
@@ -195,7 +195,7 @@ export class AnalysisJsonError extends Error {
 export class AnalysisJsonHasNoOutputsError extends AnalysisJsonError {
   constructor() {
     super(
-      `Your analysis.json file has no outputs metrics. Please create a new metric before continuing.`
+      `Your analysis.json file has no outputs metrics. Please create a new metric before continuing.`,
     );
     this.name = "AnalysisJsonHasNoOutputsError";
   }
@@ -205,8 +205,8 @@ export class AnalysisJsonHasUnusedOutputsWarning extends AnalysisJsonError {
   constructor(unusedOutputs: string[]) {
     super(
       `The following outputs are unused: "${unusedOutputs.join(
-        ","
-      )}". Please remove them or use them in a plot.`
+        ",",
+      )}". Please remove them or use them in a plot.`,
     );
     this.name = "AnalysisJsonHasUnusedOutputsWarning";
   }
@@ -215,7 +215,7 @@ export class AnalysisJsonHasUnusedOutputsWarning extends AnalysisJsonError {
 export class AnalysisJsonHasNoPlotsError extends AnalysisJsonError {
   constructor() {
     super(
-      `Your analysis.json file has no plots. Please create a new plot before continuing.`
+      `Your analysis.json file has no plots. Please create a new plot before continuing.`,
     );
     this.name = "AnalysisJsonHasNoOutputsError";
   }
@@ -231,7 +231,7 @@ export class PlotError extends Error {
 export class PlotHasNoTitleError extends PlotError {
   constructor() {
     super(
-      `The plot is either missing the required "title" property or it is an empty string.`
+      `The plot is either missing the required "title" property or it is an empty string.`,
     );
     this.name = "PlotHasNoTitleError";
   }
@@ -241,13 +241,13 @@ export class PlotIsMissingLayoutComponentError extends PlotError {
     const missingBoth = !height && !width;
     if (missingBoth) {
       super(
-        `The plot titled "${plotTitle}" is missing the "height" and "width" properties. Valid values are percentage or pixels. Examples: "50%" or "200px".`
+        `The plot titled "${plotTitle}" is missing the "height" and "width" properties. Valid values are percentage or pixels. Examples: "50%" or "200px".`,
       );
     } else {
       super(
         `The plot titled "${plotTitle}" is missing the "${
           height ? "width" : "height"
-        }" property.`
+        }" property.`,
       );
     }
     this.name = "PlotIsMissingLayoutComponentError";
@@ -258,13 +258,13 @@ export class PlotIsMissingPositionComponentError extends PlotError {
     const missingBoth = !x && !y;
     if (missingBoth) {
       super(
-        `The plot titled "${plotTitle}" is missing the "x" and "y" properties. Valid values are percentages. Example: "50%".`
+        `The plot titled "${plotTitle}" is missing the "x" and "y" properties. Valid values are percentages. Example: "50%".`,
       );
     } else {
       super(
         `The plot titled "${plotTitle}" is missing the "${
           x ? "y" : "x"
-        }" property. Valid values are percentages. Example: "50%".`
+        }" property. Valid values are percentages. Example: "50%".`,
       );
     }
     this.name = "PlotIsMissingPositionComponentError";
@@ -274,8 +274,8 @@ export class PlotHasNoTypeError extends PlotError {
   constructor(plotTitle: string) {
     super(
       `The plot titled "${plotTitle}" does not have a "type" property. Valid values are "${getValidPlotTypes().join(
-        ","
-      )}".`
+        ",",
+      )}".`,
     );
     this.name = "PlotHasNoDataError";
   }
@@ -284,8 +284,8 @@ export class UnhandledPlotTypeError extends PlotError {
   constructor(plotTitle?: string, type?: string) {
     super(
       `The plot titled "${plotTitle}" has an invalid value (${type}) for the "type" property. Valid values are "${getValidPlotTypes().join(
-        ","
-      )}"`
+        ",",
+      )}"`,
     );
     this.name = "UnhandledPlotTypeError";
   }
@@ -294,16 +294,16 @@ export class UnhandledPlotTypeError extends PlotError {
 export class PlotHasNoDataError extends PlotError {
   constructor(
     plotTitle: string,
-    suggestedType?: "XDataPoints" | "YDataPoints" | "ZDataPoints"
+    suggestedType?: "XDataPoints" | "YDataPoints" | "ZDataPoints",
   ) {
     if (suggestedType) {
       super(
-        `The plot titled "${plotTitle}" is missing the required "data" property. It must follow the shape of "${suggestedType}"`
+        `The plot titled "${plotTitle}" is missing the required "data" property. It must follow the shape of "${suggestedType}"`,
       );
     } else {
       // TODO: fix this message, not all of them need an array
       super(
-        `The plot titled "${plotTitle}" is missing the required "data" property. Depending on the Plot Type, it must contain an array of either XDataPoints, YDataPoints or ZDataPoints.`
+        `The plot titled "${plotTitle}" is missing the required "data" property. Depending on the Plot Type, it must contain an array of either XDataPoints, YDataPoints or ZDataPoints.`,
       );
     }
     this.name = "PlotHasNoDataError";
@@ -317,13 +317,13 @@ export class PlotDataIsNotAnArrayError extends PlotError {
       | "YDataPoints"
       | "ZDataPoints"
       | "XDataPoints or YDataPoints"
-      | "XDataPoints and YDataPoints"
+      | "XDataPoints and YDataPoints",
   ) {
     const message = plotTitle
       ? `The plot titled "${plotTitle}"`
       : "One of your plots";
     super(
-      `${message} has an empty "data" property. It must contain an array of objects matching the shape of "${missingDataPointType}".`
+      `${message} has an empty "data" property. It must contain an array of objects matching the shape of "${missingDataPointType}".`,
     );
     this.name = "PlotDataIsNotAnArrayError";
   }
@@ -335,7 +335,7 @@ export class PlotDataIsNotAnArrayWarning extends PlotError {
       ? `The plot titled "${plotTitle}"`
       : "One of your plots";
     super(
-      `${message} is using an incorrect type for the "data" property. It must contain an array of objects, but you provided "${typeof providedValue}".`
+      `${message} is using an incorrect type for the "data" property. It must contain an array of objects, but you provided "${typeof providedValue}".`,
     );
     this.name = "PlotDataIsNotAnArrayWarning";
   }
@@ -348,7 +348,7 @@ export class PlotHasTheWrongTypeForYDataPointComponentError extends PlotError {
       type = "array";
     }
     super(
-      `The plot titled "${plotTitle}" is using an incorrect type for the "data.y" property. It must be a string, but you provided "${type}".`
+      `The plot titled "${plotTitle}" is using an incorrect type for the "data.y" property. It must be a string, but you provided "${type}".`,
     );
     this.name = "PlotHasTheWrongTypeForYDataPointsComponentError";
   }
@@ -362,14 +362,14 @@ export class PlotHasAnInvalidItemInTheDataArrayError extends PlotError {
       | "YDataPoints"
       | "ZDataPoints"
       | "XDataPoints or YDataPoints"
-      | "XDataPoints and YDataPoints"
+      | "XDataPoints and YDataPoints",
   ) {
     super(
       `The plot titled "${plotTitle}" has an invalid type inside of the "data" array. Items must be an object${
         missingDataPointType
           ? `, following the shape of "${missingDataPointType}"`
           : ""
-      }.`
+      }.`,
     );
     this.name = "PlotHasAnInvalidItemInTheDataArrayError";
   }
@@ -383,14 +383,14 @@ export class PlotHasEmptyDataError extends PlotError {
       | "YDataPoints"
       | "ZDataPoints"
       | "XDataPoints or YDataPoints"
-      | "XDataPoints and YDataPoints"
+      | "XDataPoints and YDataPoints",
   ) {
     super(
       `The plot titled "${plotTitle}" has an empty array for the "data" property. It must have at least one item${
         missingDataPointType
           ? `. Following the shape of "${missingDataPointType}"`
           : ""
-      }.`
+      }.`,
     );
     this.name = "PlotHasEmptyDataError";
   }
@@ -404,14 +404,14 @@ export class PlotHasEmptyDataObjectError extends PlotError {
       | "YDataPoints"
       | "ZDataPoints"
       | "XDataPoints or YDataPoints"
-      | "XDataPoints and YDataPoints"
+      | "XDataPoints and YDataPoints",
   ) {
     super(
       `The plot titled "${plotTitle}" has an empty object in the "data" property${
         missingDataPointType
           ? `. It must follow the shape of "${missingDataPointType}"`
           : ""
-      }.`
+      }.`,
     );
     this.name = "PlotHasEmptyDataObjectError";
   }
@@ -422,13 +422,13 @@ export class PlotIsReferencingNonExistingOutputError extends PlotError {
     plotTitle?: string,
     xyz?: "x" | "y" | "z",
     invalidOutput?: string,
-    closestMatch?: string
+    closestMatch?: string,
   ) {
     const closestMatchStr = closestMatch
       ? ` Did you mean "${closestMatch}"?.`
       : "";
     super(
-      `The plot titled "${plotTitle}" is referencing an non-existing output metric titled "${invalidOutput}" inside of the "data.${xyz}" property.${closestMatchStr}`
+      `The plot titled "${plotTitle}" is referencing an non-existing output metric titled "${invalidOutput}" inside of the "data.${xyz}" property.${closestMatchStr}`,
     );
     this.name = "PlotIsReferencingNonExistingOutput";
   }
@@ -436,7 +436,7 @@ export class PlotIsReferencingNonExistingOutputError extends PlotError {
 export class PlotIsMissingXDataPointComponentError extends PlotError {
   constructor(plotTitle: string) {
     super(
-      `The plot titled "${plotTitle}" is missing the "data.x" property, which must be of type "string".`
+      `The plot titled "${plotTitle}" is missing the "data.x" property, which must be of type "string".`,
     );
     this.name = "PlotIsMissingXDataPointComponent";
   }
@@ -444,7 +444,7 @@ export class PlotIsMissingXDataPointComponentError extends PlotError {
 export class PlotIsMissingXDataPointsComponentError extends PlotError {
   constructor(plotTitle: string) {
     super(
-      `The plot titled "${plotTitle}" is missing the "data.x" property, which must be of type "string" or "string[]".`
+      `The plot titled "${plotTitle}" is missing the "data.x" property, which must be of type "string" or "string[]".`,
     );
     this.name = "PlotIsMissingXDataPointsComponent";
   }
@@ -453,7 +453,7 @@ export class PlotIsMissingYDataPointsComponentError extends PlotError {
   constructor(plotTitle?: string, allowArrayOfStrings = false) {
     const type = allowArrayOfStrings ? '"string" or "string[]"' : '"string"';
     super(
-      `The plot titled "${plotTitle}" is missing the "data.y" property, which must be of type ${type}.`
+      `The plot titled "${plotTitle}" is missing the "data.y" property, which must be of type ${type}.`,
     );
     this.name = "PlotIsMissingYDataPointsComponentError";
   }
@@ -463,7 +463,7 @@ export class PlotIsMissingYAndXDataPointsComponentError extends PlotError {
   constructor(plotTitle?: string, allowArrayOfStrings = false) {
     const type = allowArrayOfStrings ? '"string" or "string[]"' : '"string"';
     super(
-      `The plot titled "${plotTitle}" is missing both "data.x" and "data.y" properties, though only one can be used at a time. The value must be of type ${type}.`
+      `The plot titled "${plotTitle}" is missing both "data.x" and "data.y" properties, though only one can be used at a time. The value must be of type ${type}.`,
     );
     this.name = "PlotIsMissingYAndXDataPointsComponentError";
   }
@@ -472,7 +472,7 @@ export class PlotIsMissingYAndXDataPointsComponentError extends PlotError {
 export class PlotIsMissingYAndOptionallyXDataPointsComponentError extends PlotError {
   constructor(plotTitle?: string) {
     super(
-      `The plot titled "${plotTitle}" is missing both "data.y" and, optionally "data.x" properties. The value must be of type "string[]".`
+      `The plot titled "${plotTitle}" is missing both "data.y" and, optionally "data.x" properties. The value must be of type "string[]".`,
     );
     this.name = "PlotIsMissingYAndOptionallyXDataPointsComponentError ";
   }
@@ -482,7 +482,7 @@ export class PlotLineOrScatterDoesNotSupportNameError extends PlotError {
   constructor(plotTitle?: string) {
     // TODO: add support for xName and yName as suggested on https://hashintel.slack.com/archives/CFWAZPACR/p1614248621051400?thread_ts=1614201445.048400&cid=CFWAZPACR
     super(
-      `The plot titled "${plotTitle}" contains the property "name" which is not supported for Line or Scatter plots. Please remove it to fix this error.`
+      `The plot titled "${plotTitle}" contains the property "name" which is not supported for Line or Scatter plots. Please remove it to fix this error.`,
     );
     this.name = "PlotIsMissingYAndOptionallyXDataPointsComponentError ";
   }
@@ -492,7 +492,7 @@ export class PlotLineOrScatterBothAxesMustBeInSyncError extends PlotError {
   constructor(plotTitle?: string) {
     // TODO: confirm if this is what Ciaran meant
     super(
-      `The plot titled "${plotTitle}" is using an output metric that ends in a "get" operation, but the "data.x" and "data.y" properties are not in sync. Please make sure both match to fix this error.`
+      `The plot titled "${plotTitle}" is using an output metric that ends in a "get" operation, but the "data.x" and "data.y" properties are not in sync. Please make sure both match to fix this error.`,
     );
     this.name = "PlotLineOrScatterBothAxesMustBeInSyncError";
   }
@@ -507,7 +507,7 @@ export class PlotHasExtraDataFieldsError extends PlotError {
       | "XDataPoints"
       | "YDataPoints"
       | "ZDataPoints"
-      | "XDataPoints or YDataPoints"
+      | "XDataPoints or YDataPoints",
   ) {
     let message = `${
       plotTitle ? `The plot titled "${plotTitle}"` : "One of your plots"
@@ -535,7 +535,7 @@ export class PlotHasTheWrongKindOfDataError extends PlotError {
       | ZDataPoints
       | XDataPoint[]
       | YDataPoint[]
-      | ZDataPoints[]
+      | ZDataPoints[],
   ) {
     let providedShape = "XDataPoints";
     if ((currentPlotData as YDataPoint).y) {
@@ -548,7 +548,7 @@ export class PlotHasTheWrongKindOfDataError extends PlotError {
       ? `The plot titled "${plotTitle}"`
       : "One of your plots";
     super(
-      `${message} is using an incorrect shape for the "data" property. It is expecting "${expectedShape}" but you provided "${providedShape}"`
+      `${message} is using an incorrect shape for the "data" property. It is expecting "${expectedShape}" but you provided "${providedShape}"`,
     );
     this.name = "PlotHasTheWrongKindOfDataError";
   }
@@ -557,7 +557,7 @@ export class PlotHasTheWrongKindOfDataError extends PlotError {
 export class PlotUsedOutputMustEndInAggregationOperationError extends PlotError {
   constructor(plotTitle?: string, outputName?: string) {
     super(
-      `The plot titled "${plotTitle}" is referencing the output "${outputName}" which does not end in an Aggregation Operation. Valid values are "max, min, mean, sum, count".`
+      `The plot titled "${plotTitle}" is referencing the output "${outputName}" which does not end in an Aggregation Operation. Valid values are "max, min, mean, sum, count".`,
     );
     this.name = "PlotUsedOutputMustEndInAggregationOperationError";
   }

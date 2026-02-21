@@ -18,7 +18,7 @@ it("renders without crashing", () => {
       selectedPublishAs={user}
       setSelectedPublishAs={() => {}}
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

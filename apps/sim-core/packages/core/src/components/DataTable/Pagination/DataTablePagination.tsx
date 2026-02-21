@@ -31,5 +31,5 @@ export const DataTablePagination: FC<DataTablePaginationProps> = memo(
         }
       />
     </div>
-  )
+  ),
 );

@@ -15,7 +15,7 @@ export const useSaveOrFork = () => {
     Scope.fork,
     Scope.forkIfSignedIn,
     Scope.save,
-    Scope.saveIfSignedIn
+    Scope.saveIfSignedIn,
   );
 
   const canSaveOrFork = canFork || canSave;

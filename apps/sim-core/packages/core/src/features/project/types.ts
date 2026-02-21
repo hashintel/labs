@@ -108,7 +108,8 @@ export type ProjectSlice = {
   pendingProject: LinkableProject | null;
 };
 
-export type PartialSimulationProjectFields = PartialSimulationProjectFieldsTuple[number];
+export type PartialSimulationProjectFields =
+  PartialSimulationProjectFieldsTuple[number];
 
 export type PartialSimulationProject = Pick<
   SimulationProject,

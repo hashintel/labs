@@ -77,7 +77,7 @@ export const useExportFiles = () => {
     const fileZip = await zip.generateAsync({ type: "blob" });
     saveAs(
       fileZip,
-      `${currentProject?.pathWithNamespace.split("/").pop()}.zip`
+      `${currentProject?.pathWithNamespace.split("/").pop()}.zip`,
     );
   }, [allFiles, currentProject]);
 

@@ -56,7 +56,7 @@ const preparingForDownloadTooltip = (
 export const useExperimentRunContextMenu = <T extends HTMLElement>(
   itemRef: RefObject<T>,
   id: string,
-  finished = true
+  finished = true,
 ) => {
   const [exporting, setExporting] = useState(false);
   const [contextMenuStyle, setContextMenuStyle] = useState<
@@ -104,7 +104,7 @@ export const useExperimentRunContextMenu = <T extends HTMLElement>(
               const experiment = selectExperimentRuns(store.getState())[id];
 
               const simRuns = experiment.simulationIds.map(
-                (id) => selectAllSimulationData(store.getState())[id]
+                (id) => selectAllSimulationData(store.getState())[id],
               );
 
               const experimentAnalysisBySimRun: {
@@ -122,7 +122,7 @@ export const useExperimentRunContextMenu = <T extends HTMLElement>(
                     ? Promise.resolve(existingOutputs)
                     : createSubscriptionToDispatchPlotData(
                         [simRunId],
-                        store.getState
+                        store.getState,
                       )
                         .pipe(first((results) => results[0] === simRunId))
                         .toPromise()
@@ -137,12 +137,12 @@ export const useExperimentRunContextMenu = <T extends HTMLElement>(
                     outputs,
                     simRunId,
                   };
-                })
+                }),
               );
 
               const content = new Blob(
                 [JSON.stringify(experimentAnalysisBySimRun, null, 2)],
-                { type: "application/json" }
+                { type: "application/json" },
               );
               saveAs(content, `experimentrun-${id}.json`);
 
@@ -159,7 +159,7 @@ export const useExperimentRunContextMenu = <T extends HTMLElement>(
         </li>
       </SimulationRunContextMenu>
     ),
-    [contextMenuStyle, id, store, finished]
+    [contextMenuStyle, id, store, finished],
   );
 
   useOnClickOutside(itemRef, hideContextMenu);
@@ -185,7 +185,7 @@ export const useExperimentRunContextMenu = <T extends HTMLElement>(
 export const useSimulationRunContextMenu = <T extends HTMLElement>(
   itemRef: RefObject<T>,
   id: string,
-  finished = true
+  finished = true,
 ) => {
   const [exporting, setExporting] = useState(false);
   const [contextMenuStyle, setContextMenuStyle] = useState<
@@ -239,10 +239,10 @@ export const useSimulationRunContextMenu = <T extends HTMLElement>(
                 ? Promise.resolve(existingOutputs)
                 : createSubscriptionToDispatchPlotData(
                     [simRun.simulationRunId],
-                    store.getState
+                    store.getState,
                   )
                     .pipe(
-                      first((results) => results[0] === simRun.simulationRunId)
+                      first((results) => results[0] === simRun.simulationRunId),
                     )
                     .toPromise()
                     .then((results) => results[1]?.outputs);
@@ -282,7 +282,7 @@ export const useSimulationRunContextMenu = <T extends HTMLElement>(
         </li>
       </SimulationRunContextMenu>
     ),
-    [contextMenuStyle, id, store, finished]
+    [contextMenuStyle, id, store, finished],
   );
 
   useOnClickOutside(itemRef, hideContextMenu);
@@ -320,7 +320,7 @@ export const useRunOpen = (id: string) => {
 
 const useWheeling = (
   containerRef: RefObject<HTMLDivElement>,
-  deferral = 40
+  deferral = 40,
 ) => {
   const [wheeling, setWheeling] = useState(false);
 
@@ -366,7 +366,7 @@ const useWheeling = (
  */
 const useHistoryRequestMore = (
   containerRef: RefObject<HTMLDivElement>,
-  ready: boolean
+  ready: boolean,
 ) => {
   const [spinnerRef, spinnerInView] = useInView();
   const simDispatch = useSimulatorDispatch();
@@ -392,7 +392,7 @@ const useHistoryRequestMore = (
  */
 const useCheckIfHistoryFilledScreen = (
   ready: boolean,
-  containerRef: React.RefObject<HTMLDivElement>
+  containerRef: React.RefObject<HTMLDivElement>,
 ) => {
   const simDispatch = useSimulatorDispatch();
   const [checking, setChecking] = useState(false);
@@ -413,7 +413,7 @@ const useCheckIfHistoryFilledScreen = (
   }, [ready, checking, containerRef, simDispatch]);
 
   const historyItemsFromStore = useSimulatorSelector(
-    historySelectors.selectAll
+    historySelectors.selectAll,
   );
   const itemsRef = useRef<typeof historyItemsFromStore | null>(null);
   const nextPage = useSimulatorSelector(selectHistoryNextPage);
@@ -436,14 +436,14 @@ const useCheckIfHistoryFilledScreen = (
 
 export const useInfiniteScrollingHistory = (
   containerRef: RefObject<HTMLDivElement>,
-  visible: boolean
+  visible: boolean,
 ) => {
   const ready = useSimulatorSelector(selectHistoryReady);
   const complete = useSimulatorSelector(selectHistoryComplete);
   const spinnerRef = useHistoryRequestMore(containerRef, ready);
   const [checking, hasFilledScreen] = useCheckIfHistoryFilledScreen(
     ready,
-    containerRef
+    containerRef,
   );
 
   const simDispatch = useSimulatorDispatch();
@@ -469,7 +469,7 @@ export const useInfiniteScrollingHistory = (
  */
 export const useCurrentRefItem = (
   tag: string | null | undefined,
-  ref: RefObject<HTMLElement>
+  ref: RefObject<HTMLElement>,
 ) => {
   const { projectRef, versionSwitchingTo: switchingTo } = useProject();
 

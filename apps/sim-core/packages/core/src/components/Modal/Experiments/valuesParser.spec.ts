@@ -31,8 +31,8 @@ describe("valuesParser JSON", () => {
   test("complex with commas", () =>
     expect(
       parseValuesFromInput(
-        ' abc, 123abc, [a, b, c], abc123, 123, "123", "abc", {"a": [1, 2, 3, "f", c, {a: abcv32}]}, 1, "\\"test\\""'
-      )
+        ' abc, 123abc, [a, b, c], abc123, 123, "123", "abc", {"a": [1, 2, 3, "f", c, {a: abcv32}]}, 1, "\\"test\\""',
+      ),
     ).toEqual(
       ok([
         "abc",
@@ -45,7 +45,7 @@ describe("valuesParser JSON", () => {
         { a: [1, 2, 3, "f", "c", { a: "abcv32" }] },
         1,
         '"test"',
-      ])
+      ]),
     ));
 });
 
@@ -71,9 +71,9 @@ test("valuesParser top-level resolver idDirectlyAfterNumber", () =>
 
 test("valuesParser inverse soundness", () => {
   const parsed = parseValuesFromInput(
-    ' abc, 123abc, [a, b, c], abc123, 123, "123", "abc", {"a": [1, 2, 3, "f", c, {a: abcv32}]}, 1, "\\"test\\""'
+    ' abc, 123abc, [a, b, c], abc123, 123, "123", "abc", {"a": [1, 2, 3, "f", c, {a: abcv32}]}, 1, "\\"test\\""',
   );
   expect(parsed).toEqual(
-    parseValuesFromInput(serializeParsedValues(parsed.unwrapOr([])))
+    parseValuesFromInput(serializeParsedValues(parsed.unwrapOr([]))),
   );
 });

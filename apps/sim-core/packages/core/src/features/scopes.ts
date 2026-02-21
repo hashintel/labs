@@ -45,13 +45,12 @@ const loggedInOrEditable = (
  * Compute scopes for a project that may not yet be in context state.
  * Used by setProjectWithMeta to compute toast scopes before the project is set.
  */
-export const computeScopesForProject = (
-  loggedIn: boolean,
-  editorVisible: boolean,
-) => (project: SimulationProject | null | undefined) => ({
-  edit: loggedInOrEditable(loggedIn, project) && editorVisible,
-  mutate: projectEditable(project),
-});
+export const computeScopesForProject =
+  (loggedIn: boolean, editorVisible: boolean) =>
+  (project: SimulationProject | null | undefined) => ({
+    edit: loggedInOrEditable(loggedIn, project) && editorVisible,
+    mutate: projectEditable(project),
+  });
 
 /**
  * Replacement for the old `batchedScopes` that needed Redux selectors.
@@ -76,7 +75,10 @@ function computeAllScopes(
   const latest = !!currentProject && isProjectLatest(currentProject);
   const currentFileEditable =
     !!currentFile &&
-    !isReadOnly(currentFile as any, loggedInOrEditable(loggedIn, currentProject));
+    !isReadOnly(
+      currentFile as any,
+      loggedInOrEditable(loggedIn, currentProject),
+    );
 
   const canSave = latest && notEmbedded && canMutate;
   const canFork = hasProject && notEmbedded && loggedIn;
@@ -121,7 +123,15 @@ export function useScope(scope: Scope): boolean {
         currentFile,
         hasProject,
       )[scope],
-    [isLoggedIn, embedded, editorVisible, currentProject, currentFile, hasProject, scope],
+    [
+      isLoggedIn,
+      embedded,
+      editorVisible,
+      currentProject,
+      currentFile,
+      hasProject,
+      scope,
+    ],
   );
 }
 
@@ -130,11 +140,7 @@ type ScopesReturn<T extends readonly Scope[]> = {
   [K in FilterArrayKeys<keyof T> as `can${Capitalize<T[K] & string>}`]: boolean;
 };
 
-export function useScopes<
-  F extends Scope,
-  S extends Scope,
-  O extends Scope[],
->(
+export function useScopes<F extends Scope, S extends Scope, O extends Scope[]>(
   firstScope: F,
   secondScope: S,
   ...otherScopes: O
@@ -163,7 +169,14 @@ export function useScopes<
       ]),
     ) as ScopesReturn<typeof scopes>;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoggedIn, embedded, editorVisible, currentProject, currentFile, hasProject]);
+  }, [
+    isLoggedIn,
+    embedded,
+    editorVisible,
+    currentProject,
+    currentFile,
+    hasProject,
+  ]);
 }
 
 /**
@@ -173,27 +186,28 @@ export function useScopes<
  *
  * @deprecated Use useScope() hook instead
  */
-export const selectScope: Record<Scope, (state: any) => boolean> = Object.fromEntries(
-  Object.values(Scope).map((scope) => [
-    scope,
-    (_state: any) => {
-      switch (scope) {
-        case Scope.useAccount:
-          return true;
-        case Scope.edit:
-          return true;
-        case Scope.mutate:
-          return true;
-        case Scope.save:
-          return true;
-        case Scope.login:
-          return false;
-        default:
-          return false;
-      }
-    },
-  ]),
-) as unknown as Record<Scope, (state: any) => boolean>;
+export const selectScope: Record<Scope, (state: any) => boolean> =
+  Object.fromEntries(
+    Object.values(Scope).map((scope) => [
+      scope,
+      (_state: any) => {
+        switch (scope) {
+          case Scope.useAccount:
+            return true;
+          case Scope.edit:
+            return true;
+          case Scope.mutate:
+            return true;
+          case Scope.save:
+            return true;
+          case Scope.login:
+            return false;
+          default:
+            return false;
+        }
+      },
+    ]),
+  ) as unknown as Record<Scope, (state: any) => boolean>;
 
 /**
  * @deprecated Use context values instead

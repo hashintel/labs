@@ -4,7 +4,7 @@ import { getLocalStorageSimulatorTarget } from "./target";
 
 const workerUrl = new URL(
   "../../../workers/simulation-worker/index.ts",
-  import.meta.url
+  import.meta.url,
 );
 
 /**
@@ -22,7 +22,7 @@ const numThreads = (window.navigator.hardwareConcurrency ?? 4) + 1;
  * Spin up a new simulation provider and then dispatch an update to the Ui
  */
 export const simulationProvider = new SimulationProvider(
-  getLocalStorageSimulatorTarget()
+  getLocalStorageSimulatorTarget(),
 );
 
 /**

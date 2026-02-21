@@ -1,4 +1,10 @@
-import React, { FC, PropsWithChildren, useRef, useEffect, Children } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useRef,
+  useEffect,
+  Children,
+} from "react";
 import { VariableSizeList } from "react-window";
 
 import type { ReactSelectOption } from "../types";
@@ -40,8 +46,8 @@ export const DropdownMenuList: FC<PropsWithChildren<DropdownMenuListProps>> = ({
     return !subLabel || subLabel.length === 0
       ? SUB_LABEL_MIN_SIZE
       : subLabel.length < SUB_LABEL_AVG_LENGTH
-      ? SUB_LABEL_AVG_SIZE
-      : SUB_LABEL_MAX_SIZE;
+        ? SUB_LABEL_AVG_SIZE
+        : SUB_LABEL_MAX_SIZE;
   };
 
   return (

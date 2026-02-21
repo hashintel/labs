@@ -51,7 +51,7 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
     // We know that the color buffer is a BufferGeometry, but that specificiy
     // is lost when injected into three. Our casting is a type narrowing
     const colorBuffer = (ref.current!.geometry as BufferGeometry).getAttribute(
-      "color"
+      "color",
     ) as InstancedBufferAttribute | undefined;
 
     const lerpVal =

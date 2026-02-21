@@ -14,13 +14,10 @@ root.render(<LoadingIcon fullScreen />);
 
 const params = getEmbedParams();
 
-const projectPromise = unpreparedProjectByPath(
-  params.project,
-  params.ref
-);
+const projectPromise = unpreparedProjectByPath(params.project, params.ref);
 // @todo remove this
 const basicUserPromise = basicUser();
 
 import("./components/EmbedApp/bootEmbed").then(({ bootEmbed }) =>
-  bootEmbed(params, projectPromise, basicUserPromise)
+  bootEmbed(params, projectPromise, basicUserPromise),
 );

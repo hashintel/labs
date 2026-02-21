@@ -7,7 +7,7 @@ import { geo } from "./lazy";
 const GeospatialMapLazy = lazy(() =>
   geo().then((module) => ({
     default: module.GeospatialMap,
-  }))
+  })),
 );
 
 export const GeospatialMap: FC<GeospatialMapProps & { visible: boolean }> = ({

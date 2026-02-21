@@ -21,55 +21,56 @@ const getHref = (route: string | undefined, query: Record<string, any>) =>
       : ""
   }`;
 
-export const Link: FC<PropsWithChildren<LinkProps>> = forwardRef<HTMLAnchorElement, LinkProps>(
-  function Link(
-    {
-      path,
-      onClick,
-      query = {},
-      children,
-      replace = false,
-      scope: _scope,
-      forceLogin: _forceLogin,
-      target,
-      ...props
-    },
-    ref
-  ) {
-    const absolute = path?.startsWith("http");
+export const Link: FC<PropsWithChildren<LinkProps>> = forwardRef<
+  HTMLAnchorElement,
+  LinkProps
+>(function Link(
+  {
+    path,
+    onClick,
+    query = {},
+    children,
+    replace = false,
+    scope: _scope,
+    forceLogin: _forceLogin,
+    target,
+    ...props
+  },
+  ref,
+) {
+  const absolute = path?.startsWith("http");
 
-    const filteredQuery = Object.fromEntries(
-      Object.entries(query).filter(
-        ([_, value]) => value !== null && typeof value !== "undefined"
-      )
-    );
+  const filteredQuery = Object.fromEntries(
+    Object.entries(query).filter(
+      ([_, value]) => value !== null && typeof value !== "undefined",
+    ),
+  );
 
-    const route = path;
-    const href = getHref(route, filteredQuery);
+  const route = path;
+  const href = getHref(route, filteredQuery);
 
-    return (
-      <a
-        target={target}
-        href={href}
-        ref={ref}
-        onClick={
-          target || absolute
-            ? onClick
-            : (evt) => {
-                if (!(evt.metaKey || evt.ctrlKey || evt.altKey)) {
-                  evt.preventDefault();
-                  if (route) {
-                    navigate(route, replace, filteredQuery);
-                  }
+  return (
+    <a
+      target={target}
+      href={href}
+      ref={ref}
+      onClick={
+        target || absolute
+          ? onClick
+          : (evt) => {
+              if (!(evt.metaKey || evt.ctrlKey || evt.altKey)) {
+                evt.preventDefault();
+                if (route) {
+                  navigate(route, replace, filteredQuery);
                 }
-
-                onClick?.(evt);
               }
-        }
-        {...props}
-      >
-        {children}
-      </a>
-    );
-  }
-);
+
+              onClick?.(evt);
+            }
+      }
+      {...props}
+    >
+      {children}
+    </a>
+  );
+});

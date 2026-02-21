@@ -9,7 +9,8 @@ import { IconClose } from "../../Icon";
 import "./Inspector.css";
 
 export const AgentInspector: FC = () => {
-  const { selectedAgentIds, setSelectedAgentIds: setSelectedAgents } = useSceneContext();
+  const { selectedAgentIds, setSelectedAgentIds: setSelectedAgents } =
+    useSceneContext();
   const agentIds = Object.keys(selectedAgentIds).reverse();
 
   if (agentIds.length === 0) {
@@ -81,7 +82,7 @@ const AgentInfo: FC<{ id: string }> = ({ id }) => {
 
   if (otherFields.length === 0) {
     otherFields.push(
-      <AgentProperty value="Unavailable at this step" name={null} key="none" />
+      <AgentProperty value="Unavailable at this step" name={null} key="none" />,
     );
   }
 
@@ -106,7 +107,7 @@ const AgentInfo: FC<{ id: string }> = ({ id }) => {
         <div
           className={classNames(
             "codicon",
-            `codicon-${toggled ? "chevron-down" : "chevron-right"}`
+            `codicon-${toggled ? "chevron-down" : "chevron-right"}`,
           )}
         />
         {identifier}
@@ -195,7 +196,7 @@ const AgentProperty: FC<{
     const agentProps = Object.entries(value).map(
       ([key, value]: [string, any]) => {
         return <AgentProperty name={key} value={value} key={key} />;
-      }
+      },
     );
     return <InfoHeader name={name ?? "0"}>{agentProps}</InfoHeader>;
   }
@@ -203,7 +204,10 @@ const AgentProperty: FC<{
   return null;
 };
 
-const InfoHeader: FC<PropsWithChildren<{ name: string }>> = ({ name, children }) => {
+const InfoHeader: FC<PropsWithChildren<{ name: string }>> = ({
+  name,
+  children,
+}) => {
   const [toggled, setToggled] = useState(false);
   const toggle = () => setToggled(!toggled);
 
@@ -219,7 +223,7 @@ const InfoHeader: FC<PropsWithChildren<{ name: string }>> = ({ name, children })
         <div
           className={classNames(
             "codicon",
-            `codicon-${toggled ? "chevron-down" : "chevron-right"}`
+            `codicon-${toggled ? "chevron-down" : "chevron-right"}`,
           )}
         />
         <span>{name}</span>

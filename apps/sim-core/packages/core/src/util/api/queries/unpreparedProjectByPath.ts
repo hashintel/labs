@@ -84,7 +84,7 @@ export const unpreparedProjectByPath = async (
   pathWithNamespace: string,
   version: string,
   accessCode?: string | undefined,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) => {
   const { project } = await query<
     ProjectByPathQuery,

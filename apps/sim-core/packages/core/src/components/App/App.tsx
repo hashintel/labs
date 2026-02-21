@@ -24,31 +24,31 @@ import "./App.css";
  */
 export const App: FC<PropsWithChildren> = ({ children }) => (
   <ErrorBoundary>
-  <UserProvider>
-  <ExamplesProvider>
-  <ViewerProvider>
-  <ToastProvider>
-  <FilesProvider>
-  <ProjectProvider>
-  <SearchProvider>
-    <SceneProvider>
-      <SimulatorProvider>
-      <StoreSync />
-      <ModalProvider>
-        <FontsPreloader>
-          <MonacoContainerProvider>
-            <div className="App">{children}</div>
-          </MonacoContainerProvider>
-        </FontsPreloader>
-      </ModalProvider>
-      </SimulatorProvider>
-    </SceneProvider>
-  </SearchProvider>
-  </ProjectProvider>
-  </FilesProvider>
-  </ToastProvider>
-  </ViewerProvider>
-  </ExamplesProvider>
-  </UserProvider>
+    <UserProvider>
+      <ExamplesProvider>
+        <ViewerProvider>
+          <ToastProvider>
+            <FilesProvider>
+              <ProjectProvider>
+                <SearchProvider>
+                  <SceneProvider>
+                    <SimulatorProvider>
+                      <StoreSync />
+                      <ModalProvider>
+                        <FontsPreloader>
+                          <MonacoContainerProvider>
+                            <div className="App">{children}</div>
+                          </MonacoContainerProvider>
+                        </FontsPreloader>
+                      </ModalProvider>
+                    </SimulatorProvider>
+                  </SceneProvider>
+                </SearchProvider>
+              </ProjectProvider>
+            </FilesProvider>
+          </ToastProvider>
+        </ViewerProvider>
+      </ExamplesProvider>
+    </UserProvider>
   </ErrorBoundary>
 );

@@ -133,7 +133,7 @@ export const HashCoreFilesSearchForm: FC<{
                 onClick={async () => {
                   if (
                     !window.confirm(
-                      `Would you like to replace all instances of ${query.searchTerm} with ${query.replaceTerm}?`
+                      `Would you like to replace all instances of ${query.searchTerm} with ${query.replaceTerm}?`,
                     )
                   ) {
                     return;
@@ -141,8 +141,8 @@ export const HashCoreFilesSearchForm: FC<{
 
                   await Promise.all(
                     results.flatMap(({ model, file, matches }) =>
-                      replace(model, file, matches)
-                    ) ?? []
+                      replace(model, file, matches),
+                    ) ?? [],
                   );
                 }}
               />

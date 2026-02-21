@@ -36,18 +36,18 @@ fluentui.loadTheme({
  * @see: https://github.com/microsoft/SandDance/blob/master/packages/common-extensions/src/app.tsx
  */
 use(
-  (fluentui as unknown) as FluentUIComponents,
+  fluentui as unknown as FluentUIComponents,
   React,
   ReactDOM,
   vega,
   deck,
   layers,
-  luma
+  luma,
 );
 
 function getViewerOptions() {
   const color = SandDance.VegaDeckGl.util.colorToString(
-    SandDance.VegaDeckGl.util.colorFromString("white")
+    SandDance.VegaDeckGl.util.colorFromString("white"),
   );
 
   const fontFamily = "Inter";
@@ -149,7 +149,7 @@ export class StepExplorer extends React.Component<
         // Force the viewer to render with its current insight but new data
         sanddanceExplorerElement?.viewer.render(
           sanddanceExplorerElement?.viewer.insight,
-          this.state.sandDanceData
+          this.state.sandDanceData,
         );
       }
     }

@@ -56,7 +56,7 @@ type InstructionData =
   | InstructionUpsertCreatorAgent;
 
 const isPluginMessage = (
-  event: MessageEvent
+  event: MessageEvent,
 ): event is MessageEvent<InstructionData> =>
   [
     "addDependencies",
@@ -95,9 +95,9 @@ export const useInstructionReceiver = () => {
           type: "files",
           contents: files,
         },
-        "*"
+        "*",
       ),
-    []
+    [],
   );
   useEffect(() => {
     // If it has been requested from a plugin via an 'initialize' call,
@@ -132,7 +132,7 @@ export const useInstructionReceiver = () => {
         case "updateFile":
           const { file, contents } = event.data;
           const foundFile = Object.values(files)?.find(
-            (fileOption) => fileOption?.path.formatted === file
+            (fileOption) => fileOption?.path.formatted === file,
           );
           if (foundFile) {
             updateFile(foundFile.id, contents);
@@ -144,24 +144,21 @@ export const useInstructionReceiver = () => {
         case "upsertCreatorAgent": {
           const { file, contents } = event.data;
           const foundFile = Object.values(files)?.find(
-            (fileOption) => fileOption?.path.formatted === file
+            (fileOption) => fileOption?.path.formatted === file,
           );
           if (foundFile) {
             updateFile(foundFile.id, contents);
           } else {
             createBehavior({ contents, path: parse(file), project: project! });
             const initJson = Object.values(files)?.find(
-              (file) => file.path.base === "init.json"
+              (file) => file.path.base === "init.json",
             );
             try {
               const initParsed = JSON.parse(initJson!.contents);
               initParsed.push({
                 behaviors: [file],
               });
-              updateFile(
-                initJson!.id,
-                JSON.stringify(initParsed, null, 2),
-              );
+              updateFile(initJson!.id, JSON.stringify(initParsed, null, 2));
             } catch (err) {
               console.error("init.json is not valid JSON - could not update.");
             }
@@ -173,7 +170,7 @@ export const useInstructionReceiver = () => {
         // Replace if we can find a match for the name / key
         case "updateAnalysis":
           const analysisJson = Object.values(files)?.find(
-            (file) => file.path.base === "analysis.json"
+            (file) => file.path.base === "analysis.json",
           );
 
           try {
@@ -189,12 +186,12 @@ export const useInstructionReceiver = () => {
             analysisParsed.plots = plots.filter(
               (existingPlot: any) =>
                 !(event.data as InstructionUpdateAnalysis).contents.plots.find(
-                  (plot) => plot.title === existingPlot?.title
-                )
+                  (plot) => plot.title === existingPlot?.title,
+                ),
             );
 
             const lowestPlot = maxBy(analysisParsed.plots, (plot: Plot) =>
-              stringToNumber(plot.position.y)
+              stringToNumber(plot.position.y),
             );
             let nextPosition =
               stringToNumber(lowestPlot?.position?.y ?? 0) +
@@ -207,7 +204,7 @@ export const useInstructionReceiver = () => {
             }
 
             for (const [title, data] of Object.entries(
-              event.data.contents.outputs
+              event.data.contents.outputs,
             )) {
               outputs[title] = data;
             }
@@ -217,7 +214,7 @@ export const useInstructionReceiver = () => {
             );
           } catch (err) {
             console.error(
-              "analysis.json is not valid JSON - could not update."
+              "analysis.json is not valid JSON - could not update.",
             );
           }
           return;
@@ -230,7 +227,7 @@ export const useInstructionReceiver = () => {
             {
               type: "initialized",
             },
-            "*"
+            "*",
           );
           sendFiles(files);
           return;
@@ -241,12 +238,20 @@ export const useInstructionReceiver = () => {
               type: "state",
               contents: selectCurrentSimulationData(simStore.getState()),
             },
-            "*"
+            "*",
           );
           return;
       }
     },
-    [updateFile, createBehavior, handleAddDependencies, files, project, sendFiles, simStore]
+    [
+      updateFile,
+      createBehavior,
+      handleAddDependencies,
+      files,
+      project,
+      sendFiles,
+      simStore,
+    ],
   );
 
   useEffect(() => {

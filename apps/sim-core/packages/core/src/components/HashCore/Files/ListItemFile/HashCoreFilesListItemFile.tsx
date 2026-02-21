@@ -46,8 +46,10 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   depth = 1,
 }) => {
   const file = useSelectFileById(fileId);
-  const { setCurrentFileId, deleteFile, updateFile, renameInitFile } = useFiles();
-  const { projectPublishedFiles: publishedFiles, currentProject: project } = useProject();
+  const { setCurrentFileId, deleteFile, updateFile, renameInitFile } =
+    useFiles();
+  const { projectPublishedFiles: publishedFiles, currentProject: project } =
+    useProject();
   const canSave = useScope(Scope.save);
   const current = useFileIsCurrent(fileId);
   const clipboardWriteText = useClipboardWriteText();
@@ -76,7 +78,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
         }}
       />
     ),
-    [title, deleteFile, file.id]
+    [title, deleteFile, file.id],
   );
 
   const showNameBehavior = useRenameBehaviorModal(file.id, file.path);
@@ -186,7 +188,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
       showNameBehavior,
       updateFile,
       renameInitFile,
-    ]
+    ],
   );
 
   const listItemRef = useRef<HTMLLIElement>(null);

@@ -27,7 +27,7 @@ export async function runBootstrap(callbacks: BootstrapCallbacks) {
   const result = await bootstrapQuery();
 
   const tourProgress =
-    "user" in result ? result.user?.tourProgress ?? null : null;
+    "user" in result ? (result.user?.tourProgress ?? null) : null;
 
   callbacks.bootstrapUser({
     user: "user" in result ? result.user : undefined,

@@ -32,12 +32,17 @@ function loadSetting<T extends ViewerSettingValue>(
 ): T {
   const storageKey = `sceneSettings.${key}`;
   const saved = getItem<ViewerSettingsStorageObject>(storageKey);
-  if (projectPath && saved?.[projectPath] != null) return saved[projectPath] as T;
+  if (projectPath && saved?.[projectPath] != null)
+    return saved[projectPath] as T;
   if (saved?.lastSet != null) return saved.lastSet as T;
   return defaultValue;
 }
 
-function saveSetting(key: string, value: ViewerSettingValue, projectPath: string | undefined) {
+function saveSetting(
+  key: string,
+  value: ViewerSettingValue,
+  projectPath: string | undefined,
+) {
   const storageKey = `sceneSettings.${key}`;
   const saved: ViewerSettingsStorageObject = {
     ...(getItem(storageKey) ?? {}),
@@ -52,7 +57,9 @@ function usePersistedSetting<T extends ViewerSettingValue>(
   defaultValue: T,
   projectPath: string | undefined,
 ): [T, (v: T) => void] {
-  const [value, setRaw] = useState<T>(() => loadSetting(key, defaultValue, projectPath));
+  const [value, setRaw] = useState<T>(() =>
+    loadSetting(key, defaultValue, projectPath),
+  );
   const set = useCallback(
     (v: T) => {
       setRaw(v);
@@ -83,7 +90,9 @@ export interface SceneContextValue {
   stageDimensions: StageDimensionsType;
   setStageDimensions: React.Dispatch<React.SetStateAction<StageDimensionsType>>;
   selectedAgentIds: Record<string, true>;
-  setSelectedAgentIds: React.Dispatch<React.SetStateAction<Record<string, true>>>;
+  setSelectedAgentIds: React.Dispatch<
+    React.SetStateAction<Record<string, true>>
+  >;
   hoveredAgent: string | null;
   setHoveredAgent: React.Dispatch<React.SetStateAction<string | null>>;
 
@@ -145,24 +154,72 @@ export const SceneProvider: FC<PropsWithChildren> = ({ children }) => {
   const [mappedTransitions, setMappedTransitions] = useState<RenderSummary>({});
   const [stageDimensions, setStageDimensions] =
     useState<StageDimensionsType>(dimensionDefaults);
-  const [selectedAgentIds, setSelectedAgentIds] = useState<Record<string, true>>(
-    {},
-  );
+  const [selectedAgentIds, setSelectedAgentIds] = useState<
+    Record<string, true>
+  >({});
   const [hoveredAgent, setHoveredAgent] = useState<string | null>(null);
 
   // Settings (persisted to localStorage)
-  const [sceneView, setSceneView] = usePersistedSetting<"3d" | "2d">("view", "3d", projectPath);
-  const [cameraFov, setCameraFov] = usePersistedSetting<number>("fov", 30, projectPath);
-  const [stageColor, setStageColor] = usePersistedSetting<string>("stageColor", "#111216", projectPath);
-  const [gridColor, setGridColor] = usePersistedSetting<string>("gridColor", "#444444", projectPath);
-  const [gridEnabled, setGridEnabled] = usePersistedSetting<boolean>("gridEnabled", true, projectPath);
-  const [floorEnabled, setFloorEnabled] = usePersistedSetting<boolean>("floorEnabled", true, projectPath);
-  const [axesEnabled, setAxesEnabled] = usePersistedSetting<boolean>("axesEnabled", true, projectPath);
-  const [edgesEnabled, setEdgesEnabled] = usePersistedSetting<boolean>("edgesEnabled", true, projectPath);
-  const [updatesEnabled, setUpdatesEnabled] = usePersistedSetting<boolean>("updatesEnabled", true, projectPath);
-  const [lightEnabled, setLightEnabled] = usePersistedSetting<boolean>("lightEnabled", true, projectPath);
-  const [statsEnabled, setStatsEnabled] = usePersistedSetting<boolean>("statsEnabled", false, projectPath);
-  const [sampleLevel, setSampleLevel] = usePersistedSetting<number>("sampleLevel", 3, projectPath);
+  const [sceneView, setSceneView] = usePersistedSetting<"3d" | "2d">(
+    "view",
+    "3d",
+    projectPath,
+  );
+  const [cameraFov, setCameraFov] = usePersistedSetting<number>(
+    "fov",
+    30,
+    projectPath,
+  );
+  const [stageColor, setStageColor] = usePersistedSetting<string>(
+    "stageColor",
+    "#111216",
+    projectPath,
+  );
+  const [gridColor, setGridColor] = usePersistedSetting<string>(
+    "gridColor",
+    "#444444",
+    projectPath,
+  );
+  const [gridEnabled, setGridEnabled] = usePersistedSetting<boolean>(
+    "gridEnabled",
+    true,
+    projectPath,
+  );
+  const [floorEnabled, setFloorEnabled] = usePersistedSetting<boolean>(
+    "floorEnabled",
+    true,
+    projectPath,
+  );
+  const [axesEnabled, setAxesEnabled] = usePersistedSetting<boolean>(
+    "axesEnabled",
+    true,
+    projectPath,
+  );
+  const [edgesEnabled, setEdgesEnabled] = usePersistedSetting<boolean>(
+    "edgesEnabled",
+    true,
+    projectPath,
+  );
+  const [updatesEnabled, setUpdatesEnabled] = usePersistedSetting<boolean>(
+    "updatesEnabled",
+    true,
+    projectPath,
+  );
+  const [lightEnabled, setLightEnabled] = usePersistedSetting<boolean>(
+    "lightEnabled",
+    true,
+    projectPath,
+  );
+  const [statsEnabled, setStatsEnabled] = usePersistedSetting<boolean>(
+    "statsEnabled",
+    false,
+    projectPath,
+  );
+  const [sampleLevel, setSampleLevel] = usePersistedSetting<number>(
+    "sampleLevel",
+    3,
+    projectPath,
+  );
 
   // Derived: group transitions by mesh type
   const positionedMeshes = useMemo(() => {
@@ -212,14 +269,21 @@ export const SceneProvider: FC<PropsWithChildren> = ({ children }) => {
         const scaley = agent.scale ? agent.scale[1] : 1;
         const scalez = agent.height ?? (agent.scale ? agent.scale[2] : 1);
         const newScale: Vec3 = [scalex, scaley, scalez];
-        const useHeight = agent.scale === undefined || agent.height !== undefined;
+        const useHeight =
+          agent.scale === undefined || agent.height !== undefined;
 
         const [newDirX, newDirY, newDirZ] = [
           ...((Array.isArray(agent.direction) ? agent.direction : null) ??
-            (Array.isArray(agent.velocity) ? agent.velocity : null) ?? [0, 0, 0]),
+            (Array.isArray(agent.velocity) ? agent.velocity : null) ?? [
+              0, 0, 0,
+            ]),
         ];
         const newDirection: Vec3 = [newDirX ?? 0, newDirY ?? 0, newDirZ ?? 0];
-        if (newDirection[0] === 0 && newDirection[1] === 0 && newDirection[2] === 0) {
+        if (
+          newDirection[0] === 0 &&
+          newDirection[1] === 0 &&
+          newDirection[2] === 0
+        ) {
           const oldDir = oldAgent?.direction.to ?? oldAgent?.direction.current;
           if (oldDir) {
             newDirection[0] = oldDir[0];
@@ -339,31 +403,67 @@ export const SceneProvider: FC<PropsWithChildren> = ({ children }) => {
       positionedMeshes,
       getShapedMeshesEntries,
       getSelectedAgentData,
-      sceneView, setSceneView,
-      cameraFov, setCameraFov,
-      stageColor, setStageColor,
-      gridColor, setGridColor,
-      gridEnabled, setGridEnabled,
-      floorEnabled, setFloorEnabled,
-      axesEnabled, setAxesEnabled,
-      edgesEnabled, setEdgesEnabled,
-      updatesEnabled, setUpdatesEnabled,
-      lightEnabled, setLightEnabled,
-      statsEnabled, setStatsEnabled,
-      sampleLevel, setSampleLevel,
+      sceneView,
+      setSceneView,
+      cameraFov,
+      setCameraFov,
+      stageColor,
+      setStageColor,
+      gridColor,
+      setGridColor,
+      gridEnabled,
+      setGridEnabled,
+      floorEnabled,
+      setFloorEnabled,
+      axesEnabled,
+      setAxesEnabled,
+      edgesEnabled,
+      setEdgesEnabled,
+      updatesEnabled,
+      setUpdatesEnabled,
+      lightEnabled,
+      setLightEnabled,
+      statsEnabled,
+      setStatsEnabled,
+      sampleLevel,
+      setSampleLevel,
       updateTransitionMap,
       resetViewer,
     }),
     [
-      mappedTransitions, stageDimensions, selectedAgentIds, hoveredAgent,
-      positionedMeshes, getShapedMeshesEntries, getSelectedAgentData,
-      sceneView, cameraFov, stageColor, gridColor,
-      gridEnabled, floorEnabled, axesEnabled, edgesEnabled,
-      updatesEnabled, lightEnabled, statsEnabled, sampleLevel,
-      updateTransitionMap, resetViewer,
-      setSceneView, setCameraFov, setStageColor, setGridColor,
-      setGridEnabled, setFloorEnabled, setAxesEnabled, setEdgesEnabled,
-      setUpdatesEnabled, setLightEnabled, setStatsEnabled, setSampleLevel,
+      mappedTransitions,
+      stageDimensions,
+      selectedAgentIds,
+      hoveredAgent,
+      positionedMeshes,
+      getShapedMeshesEntries,
+      getSelectedAgentData,
+      sceneView,
+      cameraFov,
+      stageColor,
+      gridColor,
+      gridEnabled,
+      floorEnabled,
+      axesEnabled,
+      edgesEnabled,
+      updatesEnabled,
+      lightEnabled,
+      statsEnabled,
+      sampleLevel,
+      updateTransitionMap,
+      resetViewer,
+      setSceneView,
+      setCameraFov,
+      setStageColor,
+      setGridColor,
+      setGridEnabled,
+      setFloorEnabled,
+      setAxesEnabled,
+      setEdgesEnabled,
+      setUpdatesEnabled,
+      setLightEnabled,
+      setStatsEnabled,
+      setSampleLevel,
     ],
   );
 

@@ -1,7 +1,7 @@
 export const useSafeOnClose = (
   isSafe: boolean,
   canClose: boolean,
-  onClose: VoidFunction
+  onClose: VoidFunction,
 ) => {
   return () => {
     if (canClose) {

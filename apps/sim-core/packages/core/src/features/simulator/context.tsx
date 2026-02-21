@@ -1,11 +1,16 @@
-import React, { FC, PropsWithChildren, useCallback, useSyncExternalStore } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useCallback,
+  useSyncExternalStore,
+} from "react";
 
 import type { SimulatorDispatch, SimulatorRootState } from "./types";
 import { simulatorStore } from "./store";
 
 export const useSimulatorStore = () => simulatorStore;
 
-export const useSimulatorSelector = <TSelected = unknown>(
+export const useSimulatorSelector = <TSelected = unknown,>(
   selector: (state: SimulatorRootState) => TSelected,
 ): TSelected => {
   return useSyncExternalStore(

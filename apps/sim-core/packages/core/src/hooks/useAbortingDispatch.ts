@@ -25,24 +25,23 @@ export const useAbortingDispatch = <T extends (...args: any[]) => Promise<any>>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
 
-  const abortingDispatch: (
-    ...args: Parameters<T>
-  ) => Promise<void> = useCallback(
-    async (...args: any[]) => {
-      if (!(disableWhilstRunning && controllerRef.current)) {
-        controllerRef.current?.abort();
-        controllerRef.current = new AbortController();
-        setRunning(true);
-        try {
-          await asyncFn(...args);
-        } finally {
-          setRunning(false);
-          controllerRef.current = null;
+  const abortingDispatch: (...args: Parameters<T>) => Promise<void> =
+    useCallback(
+      async (...args: any[]) => {
+        if (!(disableWhilstRunning && controllerRef.current)) {
+          controllerRef.current?.abort();
+          controllerRef.current = new AbortController();
+          setRunning(true);
+          try {
+            await asyncFn(...args);
+          } finally {
+            setRunning(false);
+            controllerRef.current = null;
+          }
         }
-      }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [disableWhilstRunning, asyncFn],
-  );
+      },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [disableWhilstRunning, asyncFn],
+    );
   return [abortingDispatch, running] as const;
 };

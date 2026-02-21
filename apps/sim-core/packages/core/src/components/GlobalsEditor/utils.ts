@@ -5,12 +5,12 @@ import { ParsedGlobals } from "../../features/files/types";
 import { safeParseJsonTracked } from "../../util/safeParseJsonTracked";
 
 export const getChildSchema = <T extends JSONSchema7 | undefined>(
-  value: T | boolean
+  value: T | boolean,
 ): T | undefined => (typeof value === "boolean" ? undefined : value);
 
 export const parseNumber = (
   value: string | number,
-  schemaType: JSONSchema7["type"] | undefined
+  schemaType: JSONSchema7["type"] | undefined,
 ): string | number => {
   if (typeof value === "string" && schemaType !== "string") {
     const parsed = parseFloat(value);
@@ -24,7 +24,7 @@ export const parseNumber = (
 };
 
 export const parseGlobals = (
-  globalsString?: string | null
+  globalsString?: string | null,
 ): {
   lastGlobalsString: null | string;
   globals: null | ParsedGlobals | Json;

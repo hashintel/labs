@@ -160,7 +160,7 @@ export const onDuplicateMetric = ({
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getYAxisItemsFromDataDefinition = (
-  input: PlotDefinition & any
+  input: PlotDefinition & any,
 ): Array<YAxisItemType> => {
   if (!input.type && input[ChartTypes.timeseries]) {
     return input.timeseries.map((metric: any) => ({
@@ -196,7 +196,7 @@ export const getYAxisItemsFromDataDefinition = (
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getXAxisItemsFromDataDefinition = (
-  input: PlotDefinition & any
+  input: PlotDefinition & any,
 ): Array<YAxisItemType> => {
   if (!input.type) {
     return input.data;
@@ -212,14 +212,14 @@ export const getXAxisItemsFromDataDefinition = (
 };
 
 export const getPlotTypeFromDataDefinition = (
-  input: PlotDefinition & any
+  input: PlotDefinition & any,
 ): string => input.type ?? ChartTypes.timeseries;
 
 const chartItemLabel = (item: { name?: string; metric?: string }) =>
   item.name ?? item.metric;
 
 export const transformPlotDataBasedOnChartType = (
-  input: PlotDefinition & any
+  input: PlotDefinition & any,
 ) => {
   const result = Object.assign({}, input);
   switch (input.type) {
@@ -276,7 +276,7 @@ export const transformPlotDataBasedOnChartType = (
         : input.data?.xitems.length > 0;
       if (!hasYItems && !hasXItems) {
         console.log(
-          "Caught invalid configuration for line or scatter plot. The validation for this should be added to the Plots modal."
+          "Caught invalid configuration for line or scatter plot. The validation for this should be added to the Plots modal.",
         );
         result.data = []; // we shouldnt get to this case, so prevent writing invalid stuff
       }

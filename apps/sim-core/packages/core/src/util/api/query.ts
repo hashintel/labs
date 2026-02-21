@@ -59,7 +59,7 @@ export class QueryError extends Error {
 async function baseQuery<T, V = {} | undefined>(
   graphql: string,
   variables?: V,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<{
   data: T;
   errors?: ApiError[] | null;
@@ -88,12 +88,12 @@ async function baseQuery<T, V = {} | undefined>(
 export async function query<T, V = {} | undefined>(
   graphql: string,
   variables?: V,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<T> {
   const { data, errors, queryName } = await baseQuery<T, V>(
     graphql,
     variables,
-    signal
+    signal,
   );
 
   if (errors) {
@@ -107,7 +107,7 @@ export async function query<T, V = {} | undefined>(
   return data;
 }
 
-export const curriedQuery = <T, V = {} | undefined>(graphql: string) => (
-  variables: V,
-  signal?: AbortSignal
-) => query<T, V>(graphql, variables, signal);
+export const curriedQuery =
+  <T, V = {} | undefined>(graphql: string) =>
+  (variables: V, signal?: AbortSignal) =>
+    query<T, V>(graphql, variables, signal);

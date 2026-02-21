@@ -11,7 +11,7 @@ type DepArgs = {
 
 export async function fetchDependencies(
   dependencies: DependenciesDescriptor,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ): Promise<Release[]> {
   /**
    * DependenciesDescriptor is a full file path -> version record, but the API
@@ -46,8 +46,8 @@ export async function fetchDependencies(
 
         return grouped;
       },
-      {}
-    )
+      {},
+    ),
   );
 
   const res = await query<{
@@ -58,12 +58,12 @@ export async function fetchDependencies(
       ${groupedDependencies.reduce(
         (query, { pathWithNamespace, tag, files }) => `${query}
         ${graphqlUuid()}: release(projectPath: "${pathWithNamespace}", tag: "${tag}", files: ${JSON.stringify(
-          files
+          files,
         )}) {
           ...dependencyFields
         }
       `,
-        ""
+        "",
       )}
     }
     
@@ -82,10 +82,10 @@ export async function fetchDependencies(
       }
     }
   `,
-    signal
+    signal,
   );
 
   return Object.values(res).filter(
-    (release): release is Release => release !== null
+    (release): release is Release => release !== null,
   );
 }

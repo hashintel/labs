@@ -34,12 +34,12 @@ export const navigate = (
   url: string,
   replace = false,
   queryParams: Record<string, string | boolean | undefined> = {},
-  addToPath = false
+  addToPath = false,
 ) => {
   const filteredParams = Object.fromEntries(
     Object.entries(queryParams)
       .filter(([, v]) => v !== undefined)
-      .map(([k, v]) => [k, String(v)])
+      .map(([k, v]) => [k, String(v)]),
   ) as Record<string, string>;
 
   let fullUrl = url;
@@ -68,7 +68,7 @@ export const navigate = (
  */
 export const setQueryParams = (
   params: Record<string, string | undefined>,
-  replace = false
+  replace = false,
 ) => {
   const searchParams = new URLSearchParams(window.location.search);
 

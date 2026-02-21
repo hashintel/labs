@@ -115,7 +115,7 @@ export const projectHistory = async (
   pageToCurrent: boolean,
   createdBefore?: string | null,
   accessCode?: string,
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) =>
   (
     await query<
@@ -131,6 +131,6 @@ export const projectHistory = async (
         createdBefore,
         pageToCurrent,
       },
-      signal
+      signal,
     )
   ).project.history;

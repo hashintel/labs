@@ -37,7 +37,7 @@ export const BehaviorKeysFieldPopover: FC<
           className={classNames(
             "BehaviorKeys__Popover",
             { [`BehaviorKeys__Popover--${type}`]: !!type },
-            className
+            className,
           )}
         >
           {content}

@@ -14,7 +14,7 @@ const safeGetItem = (key: string, storage = defaultStorage) => {
 
 export function getItem<T = any>(
   key: string,
-  storage = defaultStorage
+  storage = defaultStorage,
 ): T | null {
   const value = safeGetItem(key, storage);
 

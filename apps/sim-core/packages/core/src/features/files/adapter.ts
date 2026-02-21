@@ -85,10 +85,7 @@ export function removeOne(state: EntityState<HcFile>, id: EntityId): void {
   if (idx > -1) state.ids.splice(idx, 1);
 }
 
-export function removeMany(
-  state: EntityState<HcFile>,
-  ids: EntityId[],
-): void {
+export function removeMany(state: EntityState<HcFile>, ids: EntityId[]): void {
   for (const id of ids) {
     removeOne(state, id);
   }
@@ -114,9 +111,7 @@ export function getSelectors<S>(
       selectIds: (state: EntityState<HcFile>) => state.ids,
       selectEntities: (state: EntityState<HcFile>) => state.entities,
       selectAll: (state: EntityState<HcFile>) =>
-        state.ids
-          .map((id) => state.entities[id])
-          .filter(Boolean) as HcFile[],
+        state.ids.map((id) => state.entities[id]).filter(Boolean) as HcFile[],
       selectTotal: (state: EntityState<HcFile>) => state.ids.length,
       selectById: (state: EntityState<HcFile>, id: EntityId) =>
         state.entities[id],

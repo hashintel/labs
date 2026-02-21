@@ -27,7 +27,10 @@ import {
   selectFileIds,
   selectReplaceProposal,
 } from "../../../../features/files/selectors";
-import { useFiles, useFilesSelector } from "../../../../features/files/FilesContext";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../../features/files/FilesContext";
 import { useProject } from "../../../../features/project/ProjectContext";
 import { setMonacoModel } from "../../../../features/monaco";
 import { useMonacoContainerFromContext } from "../../../TabbedEditor/hooks";
@@ -60,10 +63,7 @@ const useFileChangeObservable = () => {
     }
   }, [allFiles, subject]);
 
-  return useMemo(
-    () => subject.pipe(searchDebounce()),
-    [subject],
-  );
+  return useMemo(() => subject.pipe(searchDebounce()), [subject]);
 };
 
 export const useFilesRemovedObservable = () => {
@@ -100,15 +100,15 @@ const useQueryChangeObservable = (query: SearchQuery) => {
     () =>
       subject.pipe(
         searchDebounce(),
-        map(() => fileIdsRef.current)
+        map(() => fileIdsRef.current),
       ),
-    [subject]
+    [subject],
   );
 };
 
 const useRemoveDeletedFilesFromResults = (
   resultsRef: RefObject<SearchResultsDictionary>,
-  searchDispatch: SearchDispatch
+  searchDispatch: SearchDispatch,
 ) => {
   const fileIds = useFilesSelector(selectFileIds);
 
@@ -118,7 +118,7 @@ const useRemoveDeletedFilesFromResults = (
     }
 
     const keysToRemove = Object.keys(resultsRef.current).filter(
-      (resultFileId) => !fileIds.includes(resultFileId)
+      (resultFileId) => !fileIds.includes(resultFileId),
     );
 
     if (keysToRemove.length) {
@@ -138,15 +138,15 @@ const useFilesToSearchObserver = (searchState: SearchState) => {
   const fileChangeObservable = useFileChangeObservable();
   const queryChangeObservable = useQueryChangeObservable(searchState.query);
 
-  return useMemo(() => merge(fileChangeObservable, queryChangeObservable), [
-    fileChangeObservable,
-    queryChangeObservable,
-  ]);
+  return useMemo(
+    () => merge(fileChangeObservable, queryChangeObservable),
+    [fileChangeObservable, queryChangeObservable],
+  );
 };
 
 export const useSearch = (
   searchState: SearchState,
-  searchDispatch: SearchDispatch
+  searchDispatch: SearchDispatch,
 ) => {
   const resultsRef = useRef(searchState.resultsMap);
   const queryRef = useRef(searchState.query);
@@ -175,56 +175,58 @@ export const useSearch = (
   useEffect(() => {
     let controller: AbortController | null = null;
 
-    const subscription = (filesToSearchObserver as any).subscribe((filesToSearch: string[]) => {
-      controller?.abort();
+    const subscription = (filesToSearchObserver as any).subscribe(
+      (filesToSearch: string[]) => {
+        controller?.abort();
 
-      const query = queryRef.current;
+        const query = queryRef.current;
 
-      /**
-       * We don't want to do the search if we don't have a search term, but we
-       * didn't filter the event from the observer because we do want to ensure
-       * we abort the pending search
-       */
-      if (!query.searchTerm) {
-        controller = null;
-
-        return;
-      }
-
-      controller = new AbortController();
-
-      const files = fileEntitiesRef.current;
-
-      const pattern = query.replaceTerm
-        ? parseReplaceString(query.replaceTerm)
-        : null;
-
-      triggerSearch(
-        query,
-        filesToSearch,
-        projectUrl,
-        files,
-        pattern,
-        resultsRef.current,
-        controller.signal
-      )
-        .then((nextResults) => {
-          if (controller!.signal.aborted) {
-            throw new Error("Aborted");
-          }
-
+        /**
+         * We don't want to do the search if we don't have a search term, but we
+         * didn't filter the event from the observer because we do want to ensure
+         * we abort the pending search
+         */
+        if (!query.searchTerm) {
           controller = null;
-          searchDispatch({
-            type: "results",
-            payload: nextResults,
+
+          return;
+        }
+
+        controller = new AbortController();
+
+        const files = fileEntitiesRef.current;
+
+        const pattern = query.replaceTerm
+          ? parseReplaceString(query.replaceTerm)
+          : null;
+
+        triggerSearch(
+          query,
+          filesToSearch,
+          projectUrl,
+          files,
+          pattern,
+          resultsRef.current,
+          controller.signal,
+        )
+          .then((nextResults) => {
+            if (controller!.signal.aborted) {
+              throw new Error("Aborted");
+            }
+
+            controller = null;
+            searchDispatch({
+              type: "results",
+              payload: nextResults,
+            });
+          })
+          .catch((err) => {
+            if (err.message !== "Aborted") {
+              throw err;
+            }
           });
-        })
-        .catch((err) => {
-          if (err.message !== "Aborted") {
-            throw err;
-          }
-        });
-    });
+      },
+    );
 
     return () => {
       controller?.abort();
@@ -237,7 +239,7 @@ export const useSearch = (
  * Highlights the search term in the editor
  */
 export const useMonacoSearchHighlightDecorator = (
-  results: SearchFileResult[]
+  results: SearchFileResult[],
 ) => {
   useEffect(() => {
     if (!results.length) return;
@@ -256,9 +258,9 @@ export const useMonacoSearchHighlightDecorator = (
                 stickiness:
                   editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
               },
-            }))
+            })),
           ),
-        ] as const
+        ] as const,
     );
 
     return () => {
@@ -273,7 +275,7 @@ export const useMonacoSearchHighlightDecorator = (
 
 export const useReplaceProposal = (
   replacing: boolean,
-  results: SearchFileResult[]
+  results: SearchFileResult[],
 ) => {
   const { setReplaceProposal } = useFiles();
   const replaceProposal = useFilesSelector(selectReplaceProposal);
@@ -295,7 +297,7 @@ export const useReplaceProposal = (
     }
 
     const resultsForCurrentFile = results.find(
-      ({ file }) => file.id === replacingFileIdRef.current
+      ({ file }) => file.id === replacingFileIdRef.current,
     );
 
     if (!resultsForCurrentFile) {
@@ -342,7 +344,7 @@ export const useRevealMatchInEditor = () => {
       file: HcFile,
       model: editor.ITextModel,
       matches: Replacement[],
-      range?: IRange
+      range?: IRange,
     ) => {
       /**
        * We have to manually set the model here because
@@ -358,7 +360,7 @@ export const useRevealMatchInEditor = () => {
 
         setReplaceProposal({ fileId: file.id, nextContents });
         diffEditorInstance.setModel(
-          getDiffModel(projectUrl, file, nextContents)
+          getDiffModel(projectUrl, file, nextContents),
         );
 
         if (range) {
@@ -377,6 +379,12 @@ export const useRevealMatchInEditor = () => {
         }
       }
     },
-    [setReplaceProposal, diffEditorInstance, editorInstance, projectUrl, setCurrentFileId]
+    [
+      setReplaceProposal,
+      diffEditorInstance,
+      editorInstance,
+      projectUrl,
+      setCurrentFileId,
+    ],
   );
 };

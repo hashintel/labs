@@ -10,7 +10,7 @@ declare namespace hstd {
   function distanceBetween(
     agentA: Agent,
     agentB: Agent,
-    distanceFunction?: "manhattan" | "euclidean" | "euclidean_sq" | "chebyshev"
+    distanceFunction?: "manhattan" | "euclidean" | "euclidean_sq" | "chebyshev",
   ): number;
   /**
    * Return the unit vector of vec
@@ -32,7 +32,7 @@ declare namespace hstd {
     neighbors: Agent[],
     max_radius?: number,
     min_radius?: number,
-    z_axis?: boolean
+    z_axis?: boolean,
   );
   /**
    * Return all neighbors in front of the plane of the agent. The agent must have a direction property. Pass true to colinear to only return neighbors that lie on the direction vector
@@ -40,7 +40,7 @@ declare namespace hstd {
   function neighborsInFront(
     agentA: Agent,
     neighbors: Agent[],
-    colinear?: boolean
+    colinear?: boolean,
   );
   /**
    * Return all neighbors behind the plane of the agent. The agent must have a direction property. Pass true to colinear to only return neighbors that lie on the direction vector
@@ -48,7 +48,7 @@ declare namespace hstd {
   function neighborsBehind(
     agentA: Agent,
     neighbors: Agent[],
-    colinear?: boolean
+    colinear?: boolean,
   );
 
   /**
@@ -73,7 +73,7 @@ declare namespace hstd.init {
   function scatter(
     count: number,
     topology: Topology,
-    template: Agent | AgentFunction
+    template: Agent | AgentFunction,
   ): Agent[];
 
   /**
@@ -102,7 +102,7 @@ declare namespace hstd.init {
   function createLayout(
     layout: string[][],
     templates: { [key: string]: Agent },
-    offset: number[]
+    offset: number[],
   ): Agent[];
 }
 

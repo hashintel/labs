@@ -67,7 +67,7 @@ const createMockFiles = (
   count: number,
   kind: HcFileKind,
   startAt: number,
-  getExt: (i: number) => Ext
+  getExt: (i: number) => Ext,
 ): HcFile[] =>
   new Array(count).fill(true).map<HcFile>((_, idx) => {
     const char = String.fromCharCode(initialCharCode + startAt + idx);
@@ -118,25 +118,25 @@ const createMockFiles = (
 const mockRequiredFiles = toHcFiles(mockRemoteProject);
 
 const mockPropertiesFile = mockRequiredFiles.find(
-  (file) => file.id === globalsFileId
+  (file) => file.id === globalsFileId,
 )!;
 
 const mockBehaviorFiles = createMockFiles(4, HcFileKind.Behavior, 0, (idx) =>
-  idx % 2 === 0 ? Ext.Js : Ext.Py
+  idx % 2 === 0 ? Ext.Js : Ext.Py,
 );
 
 const mockDatasetFiles = createMockFiles(
   4,
   HcFileKind.Dataset,
   mockBehaviorFiles.length,
-  (idx) => (idx % 2 === 0 ? Ext.Json : Ext.Csv)
+  (idx) => (idx % 2 === 0 ? Ext.Json : Ext.Csv),
 );
 
 const mockSharedBehaviorFiles = createMockFiles(
   4,
   HcFileKind.SharedBehavior,
   mockBehaviorFiles.length + mockDatasetFiles.length,
-  (idx) => (idx % 2 === 0 ? Ext.Js : Ext.Py)
+  (idx) => (idx % 2 === 0 ? Ext.Js : Ext.Py),
 );
 
 const mockFiles = [
@@ -167,12 +167,12 @@ const mockFilesStateWithFiles = {
   actions: [],
 };
 
-const mockState = ({
+const mockState = {
   files: mockFilesStateWithFiles,
   viewer: {
     editor: true,
   },
-} as unknown) as RootState;
+} as unknown as RootState;
 
 const mockStateWithOpenCurrentFile0 = {
   ...mockState,
@@ -198,13 +198,15 @@ const mockStateWithOpenFiles012 = {
 
 const mockDependenciesContents = JSON.stringify(
   Object.fromEntries(
-    ([...mockDatasetFiles, ...mockSharedBehaviorFiles] as (
-      | HcSharedDatasetFile
-      | HcSharedBehaviorFile
-    )[]).map((file) => [file.path.formatted, "private"])
+    (
+      [...mockDatasetFiles, ...mockSharedBehaviorFiles] as (
+        | HcSharedDatasetFile
+        | HcSharedBehaviorFile
+      )[]
+    ).map((file) => [file.path.formatted, "private"]),
   ),
   null,
-  2
+  2,
 );
 
 const mockStateWithDependencies = {
@@ -247,7 +249,7 @@ describe("files selectors", () => {
   describe("selectLocalBehaviorIds", () => {
     it("should select behavior ids", () => {
       expect(selectLocalBehaviorIds(mockState)).toEqual(
-        mockBehaviorFiles.map(toIds)
+        mockBehaviorFiles.map(toIds),
       );
     });
   });
@@ -255,7 +257,7 @@ describe("files selectors", () => {
   describe("selectCurrentFile", () => {
     it("should select current file if editor is visible", () => {
       expect(selectCurrentFile(mockStateWithOpenCurrentFile0)).toEqual(
-        mockFiles[0]
+        mockFiles[0],
       );
     });
 
@@ -264,7 +266,7 @@ describe("files selectors", () => {
         selectCurrentFile({
           ...mockStateWithOpenCurrentFile0,
           viewer: { editor: false } as ViewerSlice,
-        })
+        }),
       ).toEqual(mockPropertiesFile);
     });
   });
@@ -272,7 +274,7 @@ describe("files selectors", () => {
   describe("selectCurrentFileId", () => {
     it("should select current file id if editor is visible", () => {
       expect(selectCurrentFileId(mockStateWithOpenCurrentFile0)).toEqual(
-        mockFiles[0].id
+        mockFiles[0].id,
       );
     });
 
@@ -281,7 +283,7 @@ describe("files selectors", () => {
         selectCurrentFileId({
           ...mockStateWithOpenCurrentFile0,
           viewer: { editor: false } as ViewerSlice,
-        })
+        }),
       ).toEqual(mockPropertiesFile.id);
     });
   });
@@ -295,7 +297,7 @@ describe("files selectors", () => {
   describe("selectDatasetFilesLocal", () => {
     it("should select dataset files local", () => {
       expect(selectDatasetFilesLocal(mockState.files)).toEqual(
-        mockDatasetFiles
+        mockDatasetFiles,
       );
     });
   });
@@ -313,7 +315,7 @@ describe("files selectors", () => {
 
     it("should select dependencies when there are some", () => {
       expect(
-        JSON.parse(selectDependencies(mockStateWithDependencies) ?? "{}")
+        JSON.parse(selectDependencies(mockStateWithDependencies) ?? "{}"),
       ).toEqual({
         "e.json": "private",
         "f.csv": "private",
@@ -536,13 +538,13 @@ Click reset to reset the simulation to the initial state.
 
     it("should select file entities", () => {
       expect(Object.keys(selectFileEntities(mockState))).toEqual(
-        expect.arrayContaining(fileIds)
+        expect.arrayContaining(fileIds),
       );
     });
 
     it("should select file entities local", () => {
       expect(Object.keys(selectFileEntitiesLocal(mockState.files))).toEqual(
-        expect.arrayContaining(fileIds)
+        expect.arrayContaining(fileIds),
       );
     });
 
@@ -564,7 +566,7 @@ Click reset to reset the simulation to the initial state.
   describe("selectGlobals", () => {
     it("should select globals", () => {
       expect(selectGlobals(mockState)).toEqual(
-        '{"onion":{"hasMany":{"layers":true}},"apple":"macbook","twoLevelsDeep":{"theLastLevel":true}}'
+        '{"onion":{"hasMany":{"layers":true}},"apple":"macbook","twoLevelsDeep":{"theLastLevel":true}}',
       );
     });
   });
@@ -587,7 +589,7 @@ Click reset to reset the simulation to the initial state.
         selectOpenFileIds({
           ...mockStateWithOpenFiles012,
           viewer: { editor: false } as ViewerSlice,
-        })
+        }),
       ).toEqual(["properties"]);
     });
   });
@@ -610,7 +612,7 @@ Click reset to reset the simulation to the initial state.
         selectOpenFiles({
           ...mockStateWithOpenFiles012,
           viewer: { editor: false } as ViewerSlice,
-        })
+        }),
       ).toEqual([mockPropertiesFile]);
     });
   });
@@ -648,7 +650,7 @@ Click reset to reset the simulation to the initial state.
   describe("selectSharedBehaviorFiles", () => {
     it("should select shared behavior files", () => {
       expect(selectSharedBehaviorFiles(mockState)).toEqual(
-        mockSharedBehaviorFiles
+        mockSharedBehaviorFiles,
       );
     });
   });
@@ -656,7 +658,7 @@ Click reset to reset the simulation to the initial state.
   describe("selectSharedBehaviorFilesLocal", () => {
     it("should select shared behavior files local", () => {
       expect(selectSharedBehaviorFilesLocal(mockState.files)).toEqual(
-        mockSharedBehaviorFiles
+        mockSharedBehaviorFiles,
       );
     });
   });
@@ -664,7 +666,7 @@ Click reset to reset the simulation to the initial state.
   describe("selectSharedBehaviorIds", () => {
     it("should select shared behavior ids", () => {
       expect(selectSharedBehaviorIds(mockState)).toEqual(
-        mockSharedBehaviorFiles.map(toIds)
+        mockSharedBehaviorFiles.map(toIds),
       );
     });
   });
@@ -751,7 +753,7 @@ Click reset to reset the simulation to the initial state.
             ...mockState.files,
             replaceProposal,
           },
-        }).proposal
+        }).proposal,
       ).toEqual(replaceProposal);
     });
 
@@ -768,7 +770,7 @@ Click reset to reset the simulation to the initial state.
             replaceProposal,
           },
           viewer: { editor: false } as ViewerSlice,
-        }).proposal
+        }).proposal,
       ).toEqual(null);
     });
 
@@ -783,7 +785,7 @@ Click reset to reset the simulation to the initial state.
               nextContents: "123",
             },
           },
-        }).file
+        }).file,
       ).toEqual(mockState.files.entities[mockState.files.ids[0]]);
     });
 
@@ -799,7 +801,7 @@ Click reset to reset the simulation to the initial state.
             },
           },
           viewer: { editor: false } as ViewerSlice,
-        }).file
+        }).file,
       ).toEqual(null);
     });
   });
@@ -818,14 +820,14 @@ Click reset to reset the simulation to the initial state.
             ...mockState.files,
             pendingDependencies,
           },
-        })
+        }),
       ).toEqual(pendingDependencies);
     });
   });
 
   describe("selectFileActions", () => {
     it("should return the file actions", () => {
-      const actions = ([1, 2, 3] as any) as FileAction[];
+      const actions = [1, 2, 3] as any as FileAction[];
       expect(
         selectFileActions({
           ...mockState,
@@ -833,7 +835,7 @@ Click reset to reset the simulation to the initial state.
             ...mockState.files,
             actions,
           },
-        })
+        }),
       ).toEqual(actions);
     });
   });
@@ -847,7 +849,7 @@ Click reset to reset the simulation to the initial state.
             ...mockState.files,
             actions: [],
           },
-        })
+        }),
       ).toEqual(true);
     });
 
@@ -857,9 +859,9 @@ Click reset to reset the simulation to the initial state.
           ...mockState,
           files: {
             ...mockState.files,
-            actions: ([1] as any) as FileAction[],
+            actions: [1] as any as FileAction[],
           },
-        })
+        }),
       ).toEqual(false);
     });
   });

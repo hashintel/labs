@@ -5,7 +5,9 @@ export type SimulatorRootState = {
   simulator: SimulatorSlice;
 };
 
-export type SimulatorDispatch = (action: AnyAction | SimulatorThunk<any>) => any;
+export type SimulatorDispatch = (
+  action: AnyAction | SimulatorThunk<any>,
+) => any;
 
 export type SimulatorThunk<ReturnType = void> = (
   dispatch: SimulatorDispatch,

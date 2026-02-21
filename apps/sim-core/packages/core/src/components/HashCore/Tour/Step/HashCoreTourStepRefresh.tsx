@@ -29,7 +29,7 @@ enum RefreshAction {
 
 function refreshReducer(
   state: typeof refreshInitialState,
-  action: RefreshAction
+  action: RefreshAction,
 ) {
   switch (action) {
     case RefreshAction.OPEN_PROPERTIES:
@@ -66,7 +66,7 @@ export const HashCoreTourStepRefresh: FC = () => {
 
   const resetButton = useMemo(
     () => document.querySelector<HTMLElement>(".reset.simulation-control"),
-    []
+    [],
   );
 
   return (

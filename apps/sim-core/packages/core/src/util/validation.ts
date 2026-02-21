@@ -1,7 +1,7 @@
 const invalidCharactersRegExp = /[^\w|\d|\-|_]/;
 
 export const validateFileName: (name: string) => string | undefined = (
-  name
+  name,
 ) => {
   if (invalidCharactersRegExp.test(name)) {
     return "ONLY LETTERS, NUMBERS, - & _ ARE ALLOWED (NO SPACES)";
@@ -13,5 +13,5 @@ export const validateFileName: (name: string) => string | undefined = (
 };
 
 export const stripInvalidFileNameCharacters: (name: string) => string = (
-  name
+  name,
 ) => name.replace(new RegExp(invalidCharactersRegExp, "g"), "");

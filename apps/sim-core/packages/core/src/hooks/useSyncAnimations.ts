@@ -15,7 +15,7 @@ const MAX_RETRY = 5;
  */
 export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
   ref: RefObject<T>,
-  className: string
+  className: string,
 ) => {
   useLayoutEffect(() => {
     const node = ref.current;
@@ -54,7 +54,7 @@ export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
             node.addEventListener("animationstart", handler);
           } else if (count < MAX_RETRY) {
             console.warn(
-              `useSyncAnimations: Attempt #${count + 1} failed, retrying`
+              `useSyncAnimations: Attempt #${count + 1} failed, retrying`,
             );
             const request = requestAnimationFrame(() => {
               attempt(count + 1, signal);
@@ -65,7 +65,7 @@ export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
             });
           } else {
             console.error(
-              "useSyncAnimations: hit max retry on animation syncing, giving up"
+              "useSyncAnimations: hit max retry on animation syncing, giving up",
             );
           }
           return;
@@ -74,10 +74,10 @@ export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
         totalAnimations.push([node, nodeAnimations[0]]);
 
         const spinners = Array.from(
-          document.querySelectorAll<HTMLElement | SVGElement>(className)
+          document.querySelectorAll<HTMLElement | SVGElement>(className),
         );
         const controlSpinner = spinners.find(
-          (spinner) => spinner !== node && syncedNodes.has(spinner)
+          (spinner) => spinner !== node && syncedNodes.has(spinner),
         );
 
         if (controlSpinner) {
@@ -88,10 +88,10 @@ export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
           }
 
           const nodeAnimation = copyAnimations.find(
-            ([spinner]) => spinner === node
+            ([spinner]) => spinner === node,
           )![1];
           const controlAnimation = copyAnimations.find(
-            ([spinner]) => spinner === controlSpinner
+            ([spinner]) => spinner === controlSpinner,
           )![1];
 
           /**
@@ -119,7 +119,9 @@ export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
               if (IS_DEV) {
                 requestAnimationFrame(function fourth() {
                   const set = new Set(
-                    totalAnimations.map((animation) => animation[1].currentTime)
+                    totalAnimations.map(
+                      (animation) => animation[1].currentTime,
+                    ),
                   );
                   if (set.size > 1) {
                     console.warn("Syncing animations failed", Array.from(set));
@@ -141,7 +143,7 @@ export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
         syncedNodes.delete(node);
         totalAnimations.splice(
           totalAnimations.findIndex((anim) => anim[0] === node),
-          1
+          1,
         );
       };
     }
@@ -156,7 +158,7 @@ if (
   !Animation.prototype.hasOwnProperty("pause")
 ) {
   console.warn(
-    "useSyncAnimations: unsupported browser – disabling animation syncing"
+    "useSyncAnimations: unsupported browser – disabling animation syncing",
   );
 
   useSyncAnimations = () => {};

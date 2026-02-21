@@ -4,12 +4,12 @@ import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObs
 
 export function useMeasurable<NodeType extends HTMLElement>(): [
   RefCallback<NodeType>,
-  number
+  number,
 ] {
   const [width, setWidth] = useState(0);
 
   const setObserver = useResizeObserver<NodeType>((entry) =>
-    setWidth(Math.ceil(entry.width))
+    setWidth(Math.ceil(entry.width)),
   );
 
   return [setObserver, width];

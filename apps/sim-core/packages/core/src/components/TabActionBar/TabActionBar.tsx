@@ -23,7 +23,7 @@ export const TabActionBar: FC<
     onSelectedIndexChange?: (
       tabIndex: number,
       last: number,
-      event: Event
+      event: Event,
     ) => void;
     hidden?: boolean;
     className?: string;
@@ -43,9 +43,10 @@ export const TabActionBar: FC<
       return;
     }
 
-    const node: HTMLElement | null = tabsRef.current.querySelectorAll<HTMLLIElement>(
-      ".react-tabs__tab"
-    )[selectedIndex];
+    const node: HTMLElement | null =
+      tabsRef.current.querySelectorAll<HTMLLIElement>(".react-tabs__tab")[
+        selectedIndex
+      ];
 
     node?.scrollIntoView({
       behavior: "smooth",
@@ -60,7 +61,7 @@ export const TabActionBar: FC<
 
   const tabContainerResizeObserver = useResizeObserver(
     () => makeCurrentTabVisible(),
-    { onObserve: null }
+    { onObserve: null },
   );
 
   const [setScrollRef, fadeOutVisible] = useScrollState("horizontal");
@@ -103,7 +104,7 @@ export const TabActionBar: FC<
               <li className="react-tabs__tab react-tabs__tab--button" key={idx}>
                 {action}
               </li>
-            ) : null
+            ) : null,
           )}
         </ul>
       </div>

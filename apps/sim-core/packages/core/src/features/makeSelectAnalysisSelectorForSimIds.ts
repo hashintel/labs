@@ -15,8 +15,8 @@ export const makeSelectAnalysisSelectorForSimIds = (simIds: string[]) =>
         simIds
           .map((id) => data[id]?.analysis?.manifest)
           .filter(
-            <T>(manifest: T | null | undefined): manifest is T => !!manifest
-          )
+            <T>(manifest: T | null | undefined): manifest is T => !!manifest,
+          ),
       );
 
       switch (analysisSrcSet.size) {
@@ -34,5 +34,5 @@ export const makeSelectAnalysisSelectorForSimIds = (simIds: string[]) =>
         default:
           throw new Error("Cannot collate analysis with different manifests");
       }
-    })
+    }),
   );

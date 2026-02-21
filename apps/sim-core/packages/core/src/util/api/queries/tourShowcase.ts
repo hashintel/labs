@@ -10,19 +10,20 @@ type ApiTourShowcase = UnpreparedPartialSimulationProject & {
 };
 
 export const getTourShowcase = async (): Promise<TourShowcase[]> =>
-  Object.values(
-    tourShowcaseResponse
-  ).reduce<TourShowcase[]>((showcase, item) => {
-    if (item) {
-      showcase.push({
-        ...preparePartialSimulationProject(item),
-        avatar: item.avatar,
-        thumbnail: item.thumbnail,
-      });
-    }
+  Object.values(tourShowcaseResponse).reduce<TourShowcase[]>(
+    (showcase, item) => {
+      if (item) {
+        showcase.push({
+          ...preparePartialSimulationProject(item),
+          avatar: item.avatar,
+          thumbnail: item.thumbnail,
+        });
+      }
 
-    return showcase;
-  }, []);
+      return showcase;
+    },
+    [],
+  );
 
 const tourShowcaseResponse: {
   one: ApiTourShowcase | null;

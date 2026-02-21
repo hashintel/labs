@@ -21,9 +21,9 @@ export const selectPathsForDependencies = createSelector(
          * @todo remove this when we remove the old format
          */
         .flatMap((dep) => [...new Set([dep, mapLegacyDependencyFormat(dep)])])
-        .concat(pending)
+        .concat(pending),
     ),
-  ]
+  ],
 );
 
 export const makeSelectPresentItemsFromResource = () =>
@@ -37,5 +37,5 @@ export const makeSelectPresentItemsFromResource = () =>
         }
 
         return result;
-      }, [])
+      }, []),
   );

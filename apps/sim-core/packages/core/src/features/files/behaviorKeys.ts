@@ -38,7 +38,7 @@ export type BehaviorKeyFields = Record<string, BehaviorKeysField>;
 type OmitChildren<Type> = Omit<Type, "child" | "fields">;
 
 export type BehaviorKeysDraftRow<
-  KeyType extends BehaviorKeysDraftField = BehaviorKeysDraftField
+  KeyType extends BehaviorKeysDraftField = BehaviorKeysDraftField,
 > = [string, KeyType];
 
 type DraftFieldShareProps = { uuid: string };
@@ -116,16 +116,16 @@ export const DRAFT_STATE_VERSION = "2";
 
 export const toDraftFormatPerField = ([key, value]: [
   string,
-  BehaviorKeysField
+  BehaviorKeysField,
 ]): BehaviorKeysDraftRow => [key, toDraftFormat(value)];
 
 // export function toDraftFormat(data: BehaviorKeysFieldList): BehaviorKeysDraftFieldList;
 // export function toDraftFormat(data: BehaviorKeysFieldFixedList): BehaviorKeysDraftFieldFixedList;
 export function toDraftFormat(
-  data: BehaviorKeysFieldScalar
+  data: BehaviorKeysFieldScalar,
 ): BehaviorKeysDraftFieldScalar;
 export function toDraftFormat(
-  data: BehaviorKeysFieldStruct
+  data: BehaviorKeysFieldStruct,
 ): BehaviorKeysDraftFieldStruct;
 export function toDraftFormat(data: BehaviorKeysField): BehaviorKeysDraftField;
 export function toDraftFormat(data: BehaviorKeysField): BehaviorKeysDraftField {
@@ -169,22 +169,22 @@ export function toDraftFormat(data: BehaviorKeysField): BehaviorKeysDraftField {
 }
 
 export const fieldHasRows = (
-  field: BehaviorKeysDraftField
+  field: BehaviorKeysDraftField,
 ): field is BehaviorKeysDraftFieldWithRows => field.hasOwnProperty("rows");
 
 // export function toBehaviorKeysFormat(data: BehaviorKeysDraftFieldList): BehaviorKeysFieldList;
 // export function toBehaviorKeysFormat(data: BehaviorKeysDraftFieldFixedList): BehaviorKeysFieldFixedList;
 
 export function toBehaviorKeysFormat(
-  data: BehaviorKeysDraftFieldStruct
+  data: BehaviorKeysDraftFieldStruct,
 ): BehaviorKeysFieldStruct;
 
 export function toBehaviorKeysFormat(
-  data: BehaviorKeysDraftFieldWithRows
+  data: BehaviorKeysDraftFieldWithRows,
 ): BehaviorKeysField;
 
 export function toBehaviorKeysFormat(
-  data: BehaviorKeysDraftFieldWithRows
+  data: BehaviorKeysDraftFieldWithRows,
 ): BehaviorKeysField {
   const { rows, meta } = data;
   const fields = rows
@@ -195,9 +195,9 @@ export function toBehaviorKeysFormat(
               [
                 field.trim(),
                 fieldHasRows(row) ? toBehaviorKeysFormat(row) : row.meta,
-              ] as const
+              ] as const,
           )
-          .filter((row) => row[0].length > 0)
+          .filter((row) => row[0].length > 0),
       )
     : {};
 
@@ -213,7 +213,7 @@ export function toBehaviorKeysFormat(
 }
 
 export const toRootDraftFormat = (
-  fields: BehaviorKeyFields
+  fields: BehaviorKeyFields,
 ): DraftBehaviorKeys => ({
   ...toDraftFormat({
     fields,
@@ -232,7 +232,7 @@ export const defaultBehaviorKeys: DraftBehaviorKeysRoot = {
 
 export const parseKeys = (
   keys: string | undefined,
-  type: HcFileKind.Behavior | HcFileKind.SharedBehavior
+  type: HcFileKind.Behavior | HcFileKind.SharedBehavior,
 ): DraftBehaviorKeysRoot => {
   if (typeof keys === "string") {
     // @todo add invalid JSON handling
@@ -258,23 +258,23 @@ export const parseKeys = (
 };
 
 export const calculateRowClashes = (
-  rows: BehaviorKeysDraftRow[]
+  rows: BehaviorKeysDraftRow[],
 ): boolean[] => {
   const nameAndIndex = rows.map(([fieldName], idx) => [fieldName, idx]);
   const entries = Object.fromEntries(nameAndIndex);
   const clashes = Object.fromEntries(
-    nameAndIndex.filter(([name, idx]) => entries[name] !== idx)
+    nameAndIndex.filter(([name, idx]) => entries[name] !== idx),
   );
 
   return rows.map(([name]) => clashes[name] !== undefined);
 };
 
 export const recursiveShouldSaveBehaviorKeysDraft = (
-  data: BehaviorKeysDraftFieldWithRows
+  data: BehaviorKeysDraftFieldWithRows,
 ): boolean =>
   calculateRowClashes(data.rows).includes(true) ||
   data.rows.some(
     (row) =>
       !row[0].trim().length ||
-      (row[1].key !== "scalar" && recursiveShouldSaveBehaviorKeysDraft(row[1]))
+      (row[1].key !== "scalar" && recursiveShouldSaveBehaviorKeysDraft(row[1])),
   );

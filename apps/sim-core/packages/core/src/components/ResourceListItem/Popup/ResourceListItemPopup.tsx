@@ -63,7 +63,7 @@ const useRepositionPopoverOnElementResize = () =>
         scrollBy(0, -1);
       });
     },
-    { onObserve: null }
+    { onObserve: null },
   );
 
 const infoTextByType: { [type in ResourceProjectType]: string } = {
@@ -91,7 +91,7 @@ export function linkShortnames(text?: string): string {
 
   for (let idx = 1; idx < parts.length; idx += 2) {
     parts[idx] = ` [${parts[idx].slice(1)}](https://hash.ai/${parts[idx].slice(
-      1
+      1,
     )})`;
   }
   return parts.join("");
@@ -124,7 +124,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
   const [deselectedItems, setDeselectedItems] = useState<string[]>([]);
 
   const selectableItems = resource.files.filter(
-    (file) => !presentItems.includes(file.path.formatted)
+    (file) => !presentItems.includes(file.path.formatted),
   );
   const selectableItemsCount = selectableItems.length;
   const addButtonDisabled = deselectedItems.length === selectableItemsCount;
@@ -143,10 +143,10 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
           .filter(
             (files) =>
               !deselectedItems.includes(files.path.formatted) &&
-              !presentItems.includes(files.path.formatted)
+              !presentItems.includes(files.path.formatted),
           )
-          .map((item) => [item.path.formatted, tag])
-      )
+          .map((item) => [item.path.formatted, tag]),
+      ),
     );
   };
 
@@ -190,7 +190,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
               deselectedItems={deselectedItems}
               onDeselectAllItems={() => {
                 setDeselectedItems(
-                  selectableItems.map((item) => item.path.formatted)
+                  selectableItems.map((item) => item.path.formatted),
                 );
               }}
               onDeselectItem={(itemId: string) => {
@@ -201,7 +201,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
               }}
               onSelectItem={(itemPath: string) => {
                 setDeselectedItems(
-                  deselectedItems.filter((path) => path !== itemPath)
+                  deselectedItems.filter((path) => path !== itemPath),
                 );
               }}
               presentItems={presentItems}

@@ -23,7 +23,7 @@ declare module "@svgr/core" {
       // only partially documented, but necessary
       // @see: https://www.smooth-code.com/open-source/svgr/docs/node-api/#plugins
       plugins: string[];
-    }>
+    }>,
   ): string;
 }
 declare module "random-emoji";

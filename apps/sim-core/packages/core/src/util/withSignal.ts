@@ -3,7 +3,7 @@
  */
 export function withSignal<T>(
   promise: Promise<T> & { abort(reason?: string): void },
-  signal?: AbortSignal
+  signal?: AbortSignal,
 ) {
   if (!signal) {
     return promise;

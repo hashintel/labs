@@ -34,13 +34,12 @@ const MapComponent = accessToken
     })
   : null;
 
-const onClick = (setPopup: (popup: PopupData) => void) => (
-  evt: MapLayerMouseEvent
-) =>
-  setPopup({
-    coordinates: evt.lngLat.toArray() as [number, number],
-    description: evt.features![0]!.properties!.description,
-  });
+const onClick =
+  (setPopup: (popup: PopupData) => void) => (evt: MapLayerMouseEvent) =>
+    setPopup({
+      coordinates: evt.lngLat.toArray() as [number, number],
+      description: evt.features![0]!.properties!.description,
+    });
 
 type AgentStateLngLat = AgentState & {
   lng_lat: [number, number];
@@ -86,24 +85,21 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
   ? GeospatialMapPlaceholder
   : ({ simulationStep, simulationId, errored }) => {
       const lngLatAgents: AgentStateLngLat[] = (simulationStep ?? []).filter(
-        hasLngLatNotHidden
+        hasLngLatNotHidden,
       );
 
       const agentAverageCenter: [number, number] | undefined =
         lngLatAgents.length > 0
           ? (lngLatAgents
-              .reduce<[number, number]>(
-                (acc, agent) => [
-                  acc[0] + agent.lng_lat[0],
-                  acc[1] + agent.lng_lat[1],
-                ],
-                [0, 0]
-              )
+              .reduce<
+                [number, number]
+              >((acc, agent) => [acc[0] + agent.lng_lat[0], acc[1] + agent.lng_lat[1]], [0,
+                  0])
               .map((val) => val / lngLatAgents.length) as [number, number])
           : undefined;
 
       const [center, setCenter] = useState<[number, number] | undefined>(
-        agentAverageCenter
+        agentAverageCenter,
       );
       const [popup, setPopup] = useState<PopupData | undefined>(undefined);
 
@@ -126,7 +122,7 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
           instanceRef.current = instance;
           setResizeRef(instance?.container);
         },
-        [setResizeRef]
+        [setResizeRef],
       );
 
       if (!simulationStep && simulationId && !errored) {
@@ -161,20 +157,20 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
                     description: JSON.stringify(
                       r.filterWithIndex((idx) =>
                         ((agent.popup_fields as Array<string>) ?? []).includes(
-                          idx
-                        )
+                          idx,
+                        ),
                       )(agent),
                       null,
-                      2
+                      2,
                     ),
                     agent_idx: idx,
                     color: `#${o.getOrElse(() => "ffffff")(
                       o.map((color: number) => color.toString(16))(
                         mapColor(
                           agent.geo_color ?? agent.color ?? "random",
-                          agent.agent_id
-                        )
-                      )
+                          agent.agent_id,
+                        ),
+                      ),
                     )}`,
                     radius: agent.geo_radius ?? 5,
                     opacity: agent.geo_opacity ?? 1,

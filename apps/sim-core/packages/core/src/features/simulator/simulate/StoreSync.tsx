@@ -23,11 +23,7 @@ import { selectRunning } from "./selectors";
  * read the latest app state.
  */
 export const StoreSync: FC = () => {
-  const {
-    globalsSrc,
-    analysisSrc,
-    filesState,
-  } = useFiles();
+  const { globalsSrc, analysisSrc, filesState } = useFiles();
   const {
     currentProject,
     currentProjectUrl,
@@ -35,13 +31,8 @@ export const StoreSync: FC = () => {
     hasProject,
     projectLoaded,
   } = useProject();
-  const {
-    currentTab,
-    editorVisible,
-    addUserAlert,
-    clearUserAlerts,
-    openTab,
-  } = useViewer();
+  const { currentTab, editorVisible, addUserAlert, clearUserAlerts, openTab } =
+    useViewer();
 
   const prevProjectRef = useRef(currentProject);
   const prevGlobalsRef = useRef(globalsSrc);

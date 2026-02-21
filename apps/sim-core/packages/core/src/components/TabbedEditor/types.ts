@@ -1,7 +1,8 @@
 import { editor } from "monaco-editor";
 
 export type EditorInstance = editor.IStandaloneCodeEditor;
-export type EditorConstructionsOptions = editor.IStandaloneEditorConstructionOptions;
+export type EditorConstructionsOptions =
+  editor.IStandaloneEditorConstructionOptions;
 export type DiffEditorInstance = editor.IStandaloneDiffEditor;
 export type ViewState = editor.ICodeEditorViewState;
 export type TextModel = editor.ITextModel;

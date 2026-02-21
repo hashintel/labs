@@ -1,4 +1,10 @@
-import React, { FC, PropsWithChildren, Suspense, useEffect, useState } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  Suspense,
+  useEffect,
+  useState,
+} from "react";
 
 import { LoadingIcon } from "../../LoadingIcon";
 

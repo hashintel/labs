@@ -112,7 +112,7 @@ export function useMenu(): MenuInterface {
         });
       },
     }),
-    [setOpenMenuItem, setOpenSubmenuItem]
+    [setOpenMenuItem, setOpenSubmenuItem],
   );
 
   // @todo use useOnClickOutside

@@ -15,7 +15,7 @@ import { useResizeObserver } from "../../hooks/useResizeObserver/useResizeObserv
 const mapLayout = (
   layout: Partial<Plotly.Layout>,
   currentStep: number,
-  hideStep: boolean | undefined
+  hideStep: boolean | undefined,
 ): Partial<Plotly.Layout> => {
   const cloned = JSON.parse(JSON.stringify(layout));
 
@@ -39,7 +39,7 @@ const mapLayout = (
               },
             },
           ]
-        : []
+        : [],
     ),
   };
 };
@@ -58,10 +58,10 @@ export const OutputPlotCollated: FC<
   }
 > = ({ data, layout, config, currentStep, hideStep, readonly, onEdit }) => {
   const [plotlyConfig, setPlotlyConfig] = useState(() =>
-    JSON.parse(JSON.stringify(config))
+    JSON.parse(JSON.stringify(config)),
   );
   const [plotlyLayout, setPlotlyLayout] = useState(
-    mapLayout({ ...layout, title: undefined }, currentStep, hideStep)
+    mapLayout({ ...layout, title: undefined }, currentStep, hideStep),
   );
 
   const clonedData = useMemo(() => JSON.parse(JSON.stringify(data)), [data]);
@@ -74,13 +74,13 @@ export const OutputPlotCollated: FC<
     },
     {
       onObserve: null,
-    }
+    },
   );
 
   // if a new layout comes through, update the state
   useEffect(() => {
     setPlotlyLayout(
-      mapLayout({ ...layout, title: undefined }, currentStep, hideStep)
+      mapLayout({ ...layout, title: undefined }, currentStep, hideStep),
     );
   }, [currentStep, hideStep, layout]);
 

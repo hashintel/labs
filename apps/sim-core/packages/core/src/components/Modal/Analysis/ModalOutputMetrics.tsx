@@ -79,7 +79,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
 
   const validate = () => {
     const validationResults = validateOutput(
-      currentOperations as OutputOperation[]
+      currentOperations as OutputOperation[],
     );
     if (
       validationResults instanceof Error ||
@@ -88,7 +88,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
       setValidationErrors(
         Array.isArray(validationResults)
           ? validationResults
-          : [validationResults]
+          : [validationResults],
       );
       return false;
     }
@@ -128,7 +128,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
   const deleteOperationItem = (index: number) => {
     setIsFormDirty(true);
     setCurrentOperations(
-      currentOperations.filter((_val: Operation, idx: number) => idx !== index)
+      currentOperations.filter((_val: Operation, idx: number) => idx !== index),
     );
   };
   const updateOperationItem = (index: number, newValues: Operation) => {
@@ -155,9 +155,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
   );
 
   const safeOnClose = useSafeOnClose(!isFormDirty, true, onClose);
-  const localBehaviorKeys = useFilesSelector(
-    selectLocalBehaviorKeyFieldNames,
-  );
+  const localBehaviorKeys = useFilesSelector(selectLocalBehaviorKeyFieldNames);
   const behaviorKeys = [...localBehaviorKeys, ...RESERVED_BUILT_IN_KEYS].sort();
   const behaviorKeysOptions: ReactSelectOption[] = behaviorKeys.map((key) => ({
     label: key,

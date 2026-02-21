@@ -7,12 +7,12 @@ type RequiredFileKeys = Pick<HcFile, "id" | "kind" | "path">;
 export const destinationPathInUse = (
   files: RequiredFileKeys[],
   sourceId: string | undefined | null,
-  destination: ParsedPath
+  destination: ParsedPath,
 ) =>
   files.some((file) =>
     file.kind === HcFileKind.Behavior &&
     (sourceId ? sourceId !== file.id : true)
       ? file.path.formatted.toLowerCase() ===
         destination.formatted.toLowerCase()
-      : false
+      : false,
   );

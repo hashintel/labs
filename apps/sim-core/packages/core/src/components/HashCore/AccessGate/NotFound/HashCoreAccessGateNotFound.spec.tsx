@@ -7,7 +7,7 @@ it("renders without crashing", () => {
   const div = document.createElement("div");
   ReactDOM.render(
     <HashCoreAccessGateNotFound requestedProject={null} embedded={false} />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

@@ -15,8 +15,8 @@ export type BehaviorKeysFieldFormProps = {
   projection: ProjectionItem[];
   onRowChange: (
     handler: (
-      draft: Draft<BehaviorKeysDraftField>
-    ) => void | BehaviorKeysDraftField
+      draft: Draft<BehaviorKeysDraftField>,
+    ) => void | BehaviorKeysDraftField,
   ) => void;
   onProject: () => void;
   onRemove: () => void;

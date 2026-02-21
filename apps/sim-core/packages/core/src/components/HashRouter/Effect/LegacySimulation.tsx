@@ -20,7 +20,7 @@ export const HashRouterEffectLegacySimulation: FC<{ id: string }> = ({
       try {
         const simulation = await linkableProjectByLegacyId(
           id,
-          controller.signal
+          controller.signal,
         );
 
         navigate(urlFromProject(simulation), true, { fromLegacy: true }, false);

@@ -18,14 +18,11 @@ const rootReducer = (
   simulator: simulator(state?.simulator, action),
 });
 
-export const simulatorStore = createStore<SimulatorRootState>(
-  rootReducer,
-  [
-    simulatorMiddleware as Middleware<SimulatorRootState>,
-    observeMiddleware<SimulatorRootState>(simulatorStoreActionObservable),
-    simulatorAnalysisMiddleware as Middleware<SimulatorRootState>,
-  ],
-);
+export const simulatorStore = createStore<SimulatorRootState>(rootReducer, [
+  simulatorMiddleware as Middleware<SimulatorRootState>,
+  observeMiddleware<SimulatorRootState>(simulatorStoreActionObservable),
+  simulatorAnalysisMiddleware as Middleware<SimulatorRootState>,
+]);
 
 simulatorStore.subscribe(playbackSubscriber(simulatorStore));
 simulatorStore.subscribe(runningSubscriber(simulatorStore));

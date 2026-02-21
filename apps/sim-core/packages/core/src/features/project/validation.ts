@@ -17,7 +17,7 @@ export const validateDescription = (description: string) =>
 
 const matchError = <T extends Record<string, any>>(
   values: T,
-  err: any
+  err: any,
 ): {
   field: keyof T;
   message: string;
@@ -67,7 +67,7 @@ const matchError = <T extends Record<string, any>>(
 export const handleQueryCodeErrors = async <T extends Record<string, any>>(
   values: T,
   setError: (field: keyof T, error: ErrorOption) => void,
-  handler: () => Promise<void>
+  handler: () => Promise<void>,
 ) => {
   try {
     await handler();

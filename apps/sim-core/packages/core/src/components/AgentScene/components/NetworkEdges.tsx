@@ -36,10 +36,11 @@ const isValidNetworkArray = (value: unknown): value is string[] =>
  * @todo Animate the transition between an arrow's previous position and its new one. Can use AgentMesh's useFrame (specifically, the position section) as a reference.
  */
 export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
-  const { hoveredAgent: hoveredAgentId, selectedAgentIds: selectedAgents } = useSceneContext();
+  const { hoveredAgent: hoveredAgentId, selectedAgentIds: selectedAgents } =
+    useSceneContext();
   const selectedAgentIds = Object.keys(selectedAgents);
   const highlightedAgents = [hoveredAgentId, ...selectedAgentIds].filter(
-    Boolean
+    Boolean,
   );
 
   const arrowData: ArrowData[] = useMemo(() => {
@@ -72,7 +73,7 @@ export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
       };
 
       for (const [relationship, neighborList] of Object.entries(
-        networkNeighborMap
+        networkNeighborMap,
       )) {
         if (!isValidNetworkArray(neighborList)) {
           continue;
@@ -104,7 +105,7 @@ export const NetworkEdges: FC<NetworkEdgesProps> = ({ mappedTransitions }) => {
 
           // Highlight edges connected to the hovered or selected agent(s)
           const hovered = highlightedAgents.find(
-            (id) => id === agentId || id === neighborId
+            (id) => id === agentId || id === neighborId,
           );
           const color = hovered ? 0xffffff : 0xfc03e8;
 

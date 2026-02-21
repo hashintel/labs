@@ -16,11 +16,11 @@ export const ResourceListItem: FC<ResourceListItemProps> = ({ resource }) => {
 
   const selectPresentItemsFromResource = useMemo(
     makeSelectPresentItemsFromResource,
-    []
+    [],
   );
 
-  const presentItems = useFilesSelector(
-    (state) => selectPresentItemsFromResource(state, resource)
+  const presentItems = useFilesSelector((state) =>
+    selectPresentItemsFromResource(state, resource),
   );
 
   return (

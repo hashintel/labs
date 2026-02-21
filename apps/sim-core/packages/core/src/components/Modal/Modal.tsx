@@ -32,7 +32,7 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
       containerClassName,
       onClick,
     },
-    ref
+    ref,
   ) => {
     useEffect(() => {
       if (esc) {
@@ -81,5 +81,5 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
         <div className={`Modal-backdrop ${backdropClassName}`} />
       </>
     );
-  }
+  },
 );

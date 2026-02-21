@@ -9,7 +9,10 @@ import React, {
 import { Tab, TabPanel } from "react-tabs";
 import { useModal } from "react-modal-hook";
 
-import { useFiles, useFilesSelector } from "../../../features/files/FilesContext";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { HashCoreContextMenu } from "../ContextMenu";
 import { HashCoreEditorBehaviorKeysFileAction } from "./HashCoreEditorBehaviorKeysFileAction";
 import { HashCoreEditorFile } from "./HashCoreEditorFile";
@@ -22,10 +25,7 @@ import {
 } from "../../Icon";
 import { IconCodeTagsCheck } from "../../Icon/CodeTagsCheck";
 import { MonacoContainer } from "../../MonacoContainer";
-import {
-  Scope,
-  useScope,
-} from "../../../features/scopes";
+import { Scope, useScope } from "../../../features/scopes";
 import { SimpleTooltip } from "../../SimpleTooltip";
 import { TabActionBar } from "../../TabActionBar/TabActionBar";
 import {
@@ -74,10 +74,8 @@ export const HashCoreEditor: FC = () => {
   const replaceProposal = useFilesSelector(selectReplaceProposal);
   const analysis = useFilesSelector(selectParsedAnalysis);
 
-  const [
-    diffEditorInstance,
-    monacoDiffContainerRef,
-  ] = useMonacoContainerFromContext(true);
+  const [diffEditorInstance, monacoDiffContainerRef] =
+    useMonacoContainerFromContext(true);
   const [nextContents, setNextContents] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,13 +101,13 @@ export const HashCoreEditor: FC = () => {
     setTabsContentHeight(
       tabsContainer && tabsList
         ? tabsContainer.clientHeight - tabsList.clientHeight
-        : undefined
+        : undefined,
     );
   }, []);
 
   const setTabsContainerResizeObserver = useResizeObserver(
     updateTabsContentHeight,
-    { onObserve: null }
+    { onObserve: null },
   );
   const setTabsListResizeObserver = useResizeObserver(updateTabsContentHeight, {
     onObserve: null,
@@ -122,7 +120,7 @@ export const HashCoreEditor: FC = () => {
 
       if (node) {
         const tabsList = node.querySelector<HTMLUListElement>(
-          ".react-tabs__tab-list"
+          ".react-tabs__tab-list",
         );
 
         tabsListRef.current = tabsList;
@@ -138,15 +136,11 @@ export const HashCoreEditor: FC = () => {
       setTabsContainerResizeObserver,
       setTabsListResizeObserver,
       updateTabsContentHeight,
-    ]
+    ],
   );
 
-  const {
-    editorVisible,
-    embedded,
-    addUserAlert,
-    clearUserAlerts,
-  } = useViewer();
+  const { editorVisible, embedded, addUserAlert, clearUserAlerts } =
+    useViewer();
   const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
   const section = getDocsSection(currentFile, shouldShowBehaviorKeys);
 
@@ -210,7 +204,14 @@ export const HashCoreEditor: FC = () => {
         </li>
       </HashCoreContextMenu>
     ),
-    [contextMenuStyle, closeFile, closeOtherFiles, closeFilesToTheRight, closeAllFiles, currentOpenFileInEditor]
+    [
+      contextMenuStyle,
+      closeFile,
+      closeOtherFiles,
+      closeFilesToTheRight,
+      closeAllFiles,
+      currentOpenFileInEditor,
+    ],
   );
 
   useOnClickOutside(tabsRef, hideContextMenu);
@@ -258,7 +259,7 @@ export const HashCoreEditor: FC = () => {
                     </button>
                   ) : null}
                 </Tab>
-              ) : null
+              ) : null,
             )}
             {editorVisible ? (
               <>
@@ -328,10 +329,10 @@ export const HashCoreEditor: FC = () => {
                    *
                    * @todo fix this
                    */
-                  validateAnalysisJsonAndDispatchErrorsIfAny(
-                    analysis as any,
-                    { addUserAlert, clearUserAlerts },
-                  );
+                  validateAnalysisJsonAndDispatchErrorsIfAny(analysis as any, {
+                    addUserAlert,
+                    clearUserAlerts,
+                  });
                 }
               }}
             >
@@ -372,8 +373,8 @@ export const HashCoreEditor: FC = () => {
           replaceProposal.proposal
             ? openFileIds.length
             : currentFileId
-            ? openFileIds.indexOf(currentFileId)
-            : openFileIds.length - 1
+              ? openFileIds.indexOf(currentFileId)
+              : openFileIds.length - 1
         }
       >
         {openFiles.map((file) => (

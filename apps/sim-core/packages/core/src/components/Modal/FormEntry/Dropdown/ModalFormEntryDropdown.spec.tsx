@@ -12,7 +12,7 @@ it("renders without crashing", () => {
       value={undefined}
       onChange={() => {}}
     />,
-    div
+    div,
   );
   ReactDOM.unmountComponentAtNode(div);
 });

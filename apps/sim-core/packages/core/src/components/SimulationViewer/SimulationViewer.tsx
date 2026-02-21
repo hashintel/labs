@@ -63,7 +63,7 @@ const useRawOutputTextModel = () => {
 };
 
 const getLazyTab = (tab: TabKind | string) =>
-  (lazyTabs as Partial<Record<any, typeof lazyTabs[TabKind]>>)[tab];
+  (lazyTabs as Partial<Record<any, (typeof lazyTabs)[TabKind]>>)[tab];
 
 const loadTab = async (tab: TabKind | string) => {
   const tabFactory = getLazyTab(tab);
@@ -85,7 +85,7 @@ const view = getUiQueryParams().view;
 const initialTab = loadTab(getLazyTab(view) ? view : TabKind.ThreeD);
 
 const serializeRawOutput = (
-  viewingStep: SerializableAgentState[] | undefined | null
+  viewingStep: SerializableAgentState[] | undefined | null,
 ) => JSON.stringify(viewingStep ?? [], null, 2);
 
 export const SimulationViewer: FC = memo(function SimulationViewer() {
@@ -124,7 +124,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
         if (!abortController.signal.aborted) {
           await Promise.all(visibleTabs.map((tab) => loadTab(tab.kind)));
         }
-      })
+      }),
     );
 
     return () => {
@@ -227,7 +227,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
       rawOutputTextModel.setValue(serializeRawOutput(viewingStep));
 
       (rawOutputTextModel as any).forceTokenization(
-        rawOutputTextModel.getLineCount()
+        rawOutputTextModel.getLineCount(),
       );
     }
   }, [viewingStep, selectedTab, editorInstance, rawOutputTextModel]);

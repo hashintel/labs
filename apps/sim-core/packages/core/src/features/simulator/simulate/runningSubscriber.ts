@@ -23,12 +23,12 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
   const run = async (simulationId: string, signal: AbortSignal) => {
     const selectSimRunning = createSelector(
       selectAllSimulationData,
-      (data) => data[simulationId]?.status === "running"
+      (data) => data[simulationId]?.status === "running",
     );
 
     const selectSimCurrent = createSelector(
       selectCurrentSimulationId,
-      (id) => id === simulationId
+      (id) => id === simulationId,
     );
 
     const running = () => selectSimRunning(store.getState());
@@ -45,7 +45,7 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
           type: "getReadySteps",
           omitData: !needSteps,
         },
-        simulationId
+        simulationId,
       );
     }
 
@@ -59,7 +59,7 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
     Object.values(simData).map((sim) => [
       sim.simulationRunId,
       getDefaultRunningState(sim),
-    ])
+    ]),
   );
 
   return () => {

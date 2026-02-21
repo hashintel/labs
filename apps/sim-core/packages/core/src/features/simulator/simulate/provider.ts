@@ -36,7 +36,7 @@ export class SimulationProvider implements ExperimentRunner {
     const dedicatedRunner = new WebWorkerRunner(
       "worker-web-dedicated",
       workerFileName,
-      devMode
+      devMode,
     );
 
     this.targets = {
@@ -65,7 +65,7 @@ export class SimulationProvider implements ExperimentRunner {
    */
   async handleRequest(
     request: RunnerRequest,
-    _: string | null
+    _: string | null,
   ): Promise<RunnerStatus> {
     const { dedicatedRunner } = this.targets![this.target];
 
@@ -76,17 +76,17 @@ export class SimulationProvider implements ExperimentRunner {
   }
 
   queueExperiment(
-    src: ExperimentSrc
+    src: ExperimentSrc,
   ):
     | Observable<ExperimentStreamResponse>
     | Promise<ExperimentRun & ExperimentPromises> {
     switch (this.target) {
       case "cloud":
-        // hCloud removed: fall back to local web runner
+      // hCloud removed: fall back to local web runner
       case "web": {
         // Selecting the first element isn't _great_ but it maintains consistency
-        const experimenter: ExperimentRunner = this.targets!.web.experimentRunners.values().next()
-          .value;
+        const experimenter: ExperimentRunner =
+          this.targets!.web.experimentRunners.values().next().value;
 
         // When the experiment is complete, alert the provider's subscribers
         return experimenter.queueExperiment(src);

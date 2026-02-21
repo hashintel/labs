@@ -29,8 +29,8 @@ export const historySubscriber = (store: Store<SimulatorRootState>) => {
       await dispatch(
         fetchProjectHistoryNextPage(
           selectCurrentProjectRequired(appBridge.getState()),
-          signal
-        )
+          signal,
+        ),
       );
 
       if (

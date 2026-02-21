@@ -10,7 +10,9 @@
   --error-color: var(--theme-red);
 }
 
-.ModalNewProject__Field:not(:hover):not(.ModalNewProject__Field--focused):not(.ModalNewProject__Field--showTip)
+.ModalNewProject__Field:not(:hover):not(.ModalNewProject__Field--focused):not(
+    .ModalNewProject__Field--showTip
+  )
   .ModalNewProject__Field__Tip:not(.ModalNewProject__Field__Tip--withError) {
   visibility: hidden;
 }

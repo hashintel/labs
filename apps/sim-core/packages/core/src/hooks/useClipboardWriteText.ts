@@ -13,5 +13,5 @@ export const useClipboardWriteText = () =>
   useCallback(
     (text: string) =>
       clipboardPromise.then((clipboard) => clipboard.writeText(text)),
-    []
+    [],
   );

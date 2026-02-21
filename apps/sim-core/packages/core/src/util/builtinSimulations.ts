@@ -168,11 +168,10 @@ const remoteSimulationProjects: RemoteSimulationProject[] = [
   },
 ];
 
-export const BUILTIN_SIMULATIONS: SimulationProjectWithHcFiles[] = remoteSimulationProjects.map(
-  (project) => ({
+export const BUILTIN_SIMULATIONS: SimulationProjectWithHcFiles[] =
+  remoteSimulationProjects.map((project) => ({
     ...project,
     config: toHcConfig(project),
     files: toHcFiles(project),
     ref: project.ref ?? "main",
-  })
-);
+  }));

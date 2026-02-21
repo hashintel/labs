@@ -70,7 +70,6 @@ import {
   selectParsedDependencies,
 } from "./selectors";
 
-
 // ---------------------------------------------------------------------------
 // Action type constants
 // ---------------------------------------------------------------------------
@@ -123,12 +122,17 @@ interface AsyncMetaAction<P, A> {
 // Action creators
 // ---------------------------------------------------------------------------
 
-export const setCurrentFileId = (payload: string | null): PayloadAction<string | null> => ({
+export const setCurrentFileId = (
+  payload: string | null,
+): PayloadAction<string | null> => ({
   type: ActionTypes.setCurrentFileId,
   payload,
 });
 
-export const updateFile = (payload: { id: string; contents: string }): PayloadAction<{ id: string; contents: string }> => ({
+export const updateFile = (payload: {
+  id: string;
+  contents: string;
+}): PayloadAction<{ id: string; contents: string }> => ({
   type: ActionTypes.updateFile,
   payload,
 });
@@ -147,12 +151,18 @@ export const createBehavior = (payload: {
   payload,
 });
 
-export const renameBehavior = (payload: { id: string; newName: string }): PayloadAction<typeof payload> => ({
+export const renameBehavior = (payload: {
+  id: string;
+  newName: string;
+}): PayloadAction<typeof payload> => ({
   type: ActionTypes.renameBehavior,
   payload,
 });
 
-export const renameInitFile = (payload: { id: string; newName: string }): PayloadAction<typeof payload> => ({
+export const renameInitFile = (payload: {
+  id: string;
+  newName: string;
+}): PayloadAction<typeof payload> => ({
   type: ActionTypes.renameInitFile,
   payload,
 });
@@ -172,7 +182,9 @@ export const closeOtherFiles = (payload: string): PayloadAction<string> => ({
   payload,
 });
 
-export const closeFilesToTheRight = (payload: string): PayloadAction<string> => ({
+export const closeFilesToTheRight = (
+  payload: string,
+): PayloadAction<string> => ({
   type: ActionTypes.closeFilesToTheRight,
   payload,
 });
@@ -186,7 +198,9 @@ export const forkOpenBehavior = (payload: {
   payload,
 });
 
-export const setReplaceProposal = (payload: FilesSlice["replaceProposal"]): PayloadAction<FilesSlice["replaceProposal"]> => ({
+export const setReplaceProposal = (
+  payload: FilesSlice["replaceProposal"],
+): PayloadAction<FilesSlice["replaceProposal"]> => ({
   type: ActionTypes.setReplaceProposal,
   payload,
 });
@@ -238,7 +252,10 @@ export const createProcessModelFile = (payload: {
 });
 
 // Async thunk action creators (matching RTK pattern for compatibility)
-function withType<T extends string, F extends (...args: any[]) => any>(type: T, fn: F): F & { type: T } {
+function withType<T extends string, F extends (...args: any[]) => any>(
+  type: T,
+  fn: F,
+): F & { type: T } {
   (fn as any).type = type;
   return fn as F & { type: T };
 }
@@ -253,7 +270,11 @@ export const addDependencies = {
   ),
   fulfilled: withType(
     ActionTypes.addDependenciesFulfilled,
-    (payload: HcDependencyFile[], requestId: string, arg: DependenciesDescriptor) => ({
+    (
+      payload: HcDependencyFile[],
+      requestId: string,
+      arg: DependenciesDescriptor,
+    ) => ({
       type: ActionTypes.addDependenciesFulfilled,
       payload,
       meta: { arg, requestId },
@@ -279,7 +300,11 @@ export const parseAndShowBehaviorKeys = {
   ),
   fulfilled: withType(
     ActionTypes.parseAndShowBehaviorKeysFulfilled,
-    (payload: BehaviorKeyFields, requestId: string, arg: { fileId: string }) => ({
+    (
+      payload: BehaviorKeyFields,
+      requestId: string,
+      arg: { fileId: string },
+    ) => ({
       type: ActionTypes.parseAndShowBehaviorKeysFulfilled,
       payload,
       meta: { arg, requestId },
@@ -829,7 +854,11 @@ function rawReducer(state: Draft<FilesSlice>, action: any): FilesSlice | void {
         throw new Error("Cannot find behavior in state");
       }
       file.keys.dynamic_access = action.payload.dynamicAccess;
-      setters.trackBehaviorKeysFileUpdate(state, action.payload.fileId, file.keys);
+      setters.trackBehaviorKeysFileUpdate(
+        state,
+        action.payload.fileId,
+        file.keys,
+      );
       return;
     }
 
@@ -1054,10 +1083,8 @@ function rawReducer(state: Draft<FilesSlice>, action: any): FilesSlice | void {
     case setProject.type: {
       const prevState = current(state);
       return produce(filesInitialState, (newState) => {
-        const {
-          meta: { replaceTabs = true, file = undefined } = {},
-          project,
-        } = action.payload;
+        const { meta: { replaceTabs = true, file = undefined } = {}, project } =
+          action.payload;
 
         setters.addFiles(newState, project.files);
 
@@ -1087,9 +1114,7 @@ function rawReducer(state: Draft<FilesSlice>, action: any): FilesSlice | void {
       const { actions } = action.payload;
       if (actions) {
         const uuids = actions.map((a: any) => a.uuid);
-        state.actions = state.actions.filter(
-          (a) => !uuids.includes(a.uuid),
-        );
+        state.actions = state.actions.filter((a) => !uuids.includes(a.uuid));
       }
       return;
     }

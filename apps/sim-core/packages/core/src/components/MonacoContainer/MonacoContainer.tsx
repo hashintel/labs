@@ -25,7 +25,7 @@ export const MonacoContainer: ForwardRefExoticComponent<
       style={hidden ? hiddenStyle : undefined}
       ref={ref}
     />
-  ))
+  )),
 );
 
 // // @ts-ignore

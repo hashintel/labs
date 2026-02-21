@@ -5,10 +5,9 @@ import { IconArrowDownDrop } from "../../Icon/ArrowDownDrop";
 
 import "./ActivityHistoryGroupTitle.scss";
 
-export const ActivityHistoryGroupTitle: FC<PropsWithChildren<{ canOpen: boolean }>> = ({
-  canOpen,
-  children,
-}) => (
+export const ActivityHistoryGroupTitle: FC<
+  PropsWithChildren<{ canOpen: boolean }>
+> = ({ canOpen, children }) => (
   <>
     <div className="ActivityHistoryGroupTitle__Name">{children}</div>
     {canOpen ? (

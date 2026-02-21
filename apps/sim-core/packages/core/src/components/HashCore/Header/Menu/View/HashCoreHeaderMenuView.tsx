@@ -53,7 +53,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
               {tab.name}
             </a>
           </li>
-        ))
+        )),
       );
 
       if (editorVisible) {
@@ -67,7 +67,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             >
               {canEdit ? <>Search & Replace</> : <>Search</>}
             </a>
-          </li>
+          </li>,
         );
       }
     }
@@ -144,7 +144,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             </div>
           </a>
         </li>
-      </Fragment>
+      </Fragment>,
     );
 
     return (
@@ -160,7 +160,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
         <ul className="HashCoreHeaderMenu-submenu">{items}</ul>
       </>
     );
-  }
+  },
 );
 
 // // @ts-ignore

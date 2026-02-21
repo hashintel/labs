@@ -31,7 +31,7 @@ export const HashCoreConsole: FC = memo(function HashCoreConsole() {
 
   const filesMap = useMemo(
     () => Object.fromEntries(files.map((file) => [file.path.formatted, file])),
-    [files]
+    [files],
   );
 
   return (
@@ -41,10 +41,7 @@ export const HashCoreConsole: FC = memo(function HashCoreConsole() {
         "HashCoreConsole--empty": userAlerts.length === 0,
       })}
     >
-      <div
-        className="HashCoreConsole__clear"
-        onClick={() => clearUserAlerts()}
-      >
+      <div className="HashCoreConsole__clear" onClick={() => clearUserAlerts()}>
         <IconClose size={10} />
       </div>
 

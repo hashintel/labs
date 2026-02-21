@@ -30,7 +30,11 @@ export const ViewerControls: FC<{
   resetting: boolean;
   mappedTransitions: RenderSummary;
 }> = ({ resetting, mappedTransitions }) => {
-  const { cameraFov, stageDimensions: dimensions, sceneView: view } = useSceneContext();
+  const {
+    cameraFov,
+    stageDimensions: dimensions,
+    sceneView: view,
+  } = useSceneContext();
   const controlsRef = useRef<MapControls>();
   const { camera } = useThree();
 
@@ -107,7 +111,7 @@ export const ViewerControls: FC<{
     const { pxMax, pxMin, pyMax, pyMin } = dimensions;
     const box = new THREE.Box3(
       new THREE.Vector3(pxMin, pyMin, 0),
-      new THREE.Vector3(pxMax, pyMax, 1)
+      new THREE.Vector3(pxMax, pyMax, 1),
     );
 
     const size = box.getSize(new THREE.Vector3());

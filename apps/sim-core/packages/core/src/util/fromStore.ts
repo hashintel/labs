@@ -8,4 +8,4 @@ import { InteropObservable, from } from "rxjs";
  * @todo find out why
  */
 export const fromStore = <T>(store: Store<T>) =>
-  from((store as any) as InteropObservable<T>);
+  from(store as any as InteropObservable<T>);
