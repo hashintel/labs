@@ -100,7 +100,7 @@ export const AnalysisViewer: FC<AnalysisProps> = ({ currentStep }) => {
     });
 
   const onPlotsModalSaveHandler = useCallback(
-    (data, plotIndex) =>
+    (data: Parameters<typeof onPlotsModalSave>[0]["data"], plotIndex?: number) =>
       onPlotsModalSave({
         data,
         plotIndex,

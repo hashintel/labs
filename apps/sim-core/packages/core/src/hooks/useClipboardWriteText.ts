@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 
 /**
- * typescript thinks writeText is always defined and thinks this ternary is
- * unnecessary, but it's not because writeText is a relatively new API
+ * navigator.clipboard?.writeText may not exist in older browsers despite
+ * TypeScript's lib.dom.d.ts declaring it as always present.
  */
-// @ts-ignore
+// @ts-expect-error -- writeText may be undefined at runtime in older browsers
 const clipboardPromise = navigator.clipboard?.writeText
   ? Promise.resolve(navigator.clipboard)
   : import("clipboard-polyfill").then(({ writeText }) => ({ writeText }));

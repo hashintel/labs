@@ -949,10 +949,12 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
 - [x] **Remove unused packages from workspace root** — `yarn-audit-fix`, `yarn-run-all` removed
 - [x] **Move webpack-only deps to engine-web** — webpack, webpack-cli, babel-loader moved
 - [x] **Upgrade Babel packages** — all @babel/* to 7.28+, removed obsolete proposal plugins, removed core-js
-- [ ] **Upgrade linting/formatting tools**:
-  - `eslint` 7.29 → 9.x (major; new flat config format)
-  - `prettier` 2.2 → 3.x (minor formatting changes)
-  - `@typescript-eslint/*` 4.x → 7.x
+- [x] **Upgrade linting/formatting tools**:
+  - ESLint 7.29 → 9.39, flat config format, typescript-eslint 8.56
+  - Prettier 2.2 → 3.8
+  - Removed eslint-plugin-react, eslint-plugin-import (simplified)
+  - Fixed 87 lint errors (unused imports + short identifiers)
+  - Added @types/lodash-es
 - [x] **Remove GraphQL codegen infrastructure**:
   - Deleted `auto-types.ts` (21k lines, 127KB) and `graphql-schema.json` (679KB)
   - Created `apiTypes.ts` (~160 lines) with manually-defined types

@@ -129,9 +129,9 @@ function intToRGB(int: number) {
 }
 
 export function buildPlots(def: PlotDefinition): OutputPlotProps {
-  const layout = { ...def.layout } || {};
+  const layout = { ...def.layout };
 
-  const config = { ...def.config } || {};
+  const config = { ...def.config };
   config.displaylogo = false;
 
   const style: React.CSSProperties = {};

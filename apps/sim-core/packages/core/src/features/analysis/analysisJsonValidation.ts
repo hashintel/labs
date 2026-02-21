@@ -12,7 +12,6 @@ import {
   Output,
   OutputOperation,
   Plot,
-  Timeseries,
   UncheckedAnalysisJson,
 } from "./analysisJsonTypes";
 import {
@@ -306,16 +305,13 @@ export const validatePlot = (
   if (!cleanPlot.type) {
     return new PlotHasNoTypeError(cleanPlot.title);
   }
-  // @ts-ignore it has been checked above
-  if (!getValidPlotTypes().includes(cleanPlot.type)) {
-    // @ts-ignore
+  if (!getValidPlotTypes().includes(cleanPlot.type as string)) {
     return new UnhandledPlotTypeError(cleanPlot.title, cleanPlot.type);
   }
   if (!cleanPlot.data) {
     return new PlotHasNoDataError(cleanPlot.title);
   }
-  // @ts-ignore FIXME: since this went through standardizePlot, it's already an array
-  for (const currentDataItem of cleanPlot.data) {
+  for (const currentDataItem of cleanPlot.data as Record<string, unknown>[]) {
     if (Object.keys(currentDataItem).length === 0) {
       return new PlotHasEmptyDataObjectError(cleanPlot.title);
     }
@@ -338,8 +334,7 @@ export const validatePlot = (
     //   return TwoParameterExperimentChartValidator(cleanPlot, outputs);
 
     case "timeseries": {
-      // @ts-ignore FIXME: this is a cryptic error
-      return TimeseriesValidator(cleanPlot, outputs);
+      return TimeseriesValidator(cleanPlot, outputs as Output);
     }
 
     case "histogram": {
@@ -387,15 +382,14 @@ export const validateAnalysisJson = (parsedJson: UncheckedAnalysisJson) => {
 
   const errors: any = [];
   const warnings = [];
-  // @ts-ignore: at this point we know plots is an array
-  if (!allOutputsAreUsedInPlots(outputs, plots)) {
+  if (!allOutputsAreUsedInPlots(outputs, plots as Partial<Plot>[])) {
     warnings.push(
       new AnalysisJsonHasUnusedOutputsWarning(getUnusedOutputs(outputs, plots)),
     );
   }
   // data is not an array
   const dataIsNotAnArrayWarnings = getNonArrayPlotDataWarnings(
-    plots as unknown as Partial<Plot & (Chart | Timeseries)[]>,
+    plots as Partial<Plot & Chart>[],
   );
   if (dataIsNotAnArrayWarnings.length > 0) {
     dataIsNotAnArrayWarnings.forEach((warning) => warnings.push(warning));

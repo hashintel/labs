@@ -10,7 +10,6 @@ import {
   Output,
   OutputOperation,
   Plot,
-  Timeseries,
 } from "./analysisJsonTypes";
 import { PlotDataIsNotAnArrayWarning } from "./errors";
 
@@ -170,16 +169,13 @@ export const standardizePlot = (input: Plot) => {
 };
 
 export const getNonArrayPlotDataWarnings = (
-  plots?: Partial<Plot & (Chart | Timeseries)[]>,
+  plots?: Partial<Plot & Chart>[],
 ) =>
   Array.isArray(plots)
     ? plots
         .map((plot) => {
           if (plot?.data && !Array.isArray(plot?.data)) {
-            return (
-              // @ts-ignore
-              new PlotDataIsNotAnArrayWarning(plot.title, plot.data)
-            );
+            return new PlotDataIsNotAnArrayWarning(plot.title, plot.data);
           }
         })
         .filter((item) => item)

@@ -518,8 +518,9 @@ export const ExperimentModal: FC<{
     const experimentType: ExperimentTypes | string =
       formData.experimentType.value;
     let fields = JSON.parse(
-      //@ts-ignore
-      JSON.stringify(formData.dynamicFields[experimentType]),
+      JSON.stringify(
+        formData.dynamicFields[experimentType as ExperimentTypes],
+      ),
     );
 
     const res = onSubmitSpecificExperimentHandler(
@@ -594,8 +595,10 @@ export const ExperimentModal: FC<{
     const splitted = fieldName.split(".");
     if (splitted.length === 1) {
       clone[fieldName] = value;
-      // @ts-ignore
-      if (fieldName === "experimentType" && value.value !== clone[fieldName]) {
+      if (
+        fieldName === "experimentType" &&
+        (value as ReactSelectOption).value !== clone[fieldName]
+      ) {
         // we changed the experiment type, thus we have to rebuild the dynamicFields
         const clonedDynamicFields: typeof initialFormData.dynamicFields =
           JSON.parse(JSON.stringify(initialFormData.dynamicFields));

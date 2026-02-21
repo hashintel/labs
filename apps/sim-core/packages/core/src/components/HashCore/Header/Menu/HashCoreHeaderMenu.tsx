@@ -4,6 +4,7 @@ import { HashCoreHeaderMenuExperiments } from "./Experiments";
 import { HashCoreHeaderMenuFiles } from "./Files";
 import { HashCoreHeaderMenuHelp } from "./Help";
 import { HashCoreHeaderMenuView } from "./View";
+import { TabKind } from "../../../../features/viewer/enums";
 import { useExamples } from "../../../../features/examples/ExamplesContext";
 import { useMenu } from "./hooks";
 import { useUser } from "../../../../features/user/UserContext";
@@ -32,7 +33,7 @@ export const HashCoreHeaderMenu: FC = memo(() => {
   } = useMenu();
 
   const onAddView = useCallback(
-    (tab) => {
+    (tab: TabKind) => {
       openTab(tab);
     },
     [openTab],

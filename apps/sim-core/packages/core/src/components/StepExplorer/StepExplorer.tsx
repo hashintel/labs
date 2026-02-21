@@ -3,11 +3,11 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { FluentUIComponents } from "@msrvida/fluentui-react-cdn-typings";
 import * as fluentui from "@fluentui/react";
-// @ts-ignore
+// @ts-expect-error -- @deck.gl/core has no type declarations in this version
 import * as deck from "@deck.gl/core";
-// @ts-ignore
+// @ts-expect-error -- @deck.gl/layers has no type declarations in this version
 import * as layers from "@deck.gl/layers";
-// @ts-ignore
+// @ts-expect-error -- @luma.gl/core has no type declarations in this version
 import * as luma from "@luma.gl/core";
 import * as vega from "vega";
 import { AgentState } from "@hashintel/engine-web";

@@ -73,9 +73,7 @@ export const ViewerControls: FC<{
       camera.position.set(0, 0, 1000);
       camera.lookAt(0, 0, 0);
 
-      // Flatten the camera
-      // @ts-ignore
-      camera.fov = 1;
+      (camera as THREE.PerspectiveCamera).fov = 1;
       camera.updateProjectionMatrix();
 
       controlsRef.current?.update!();
