@@ -1,0 +1,53 @@
+name: Frontend
+
+on:
+  pull_request:
+    paths:
+      - "apps/sim-core/**"
+      - ".github/workflows/frontend.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/sim-core/**"
+      - ".github/workflows/frontend.yml"
+
+defaults:
+  run:
+    shell: bash
+    working-directory: apps/sim-core/packages/core
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint, Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: yarn
+          cache-dependency-path: apps/sim-core/yarn.lock
+
+      - name: Install dependencies
+        working-directory: apps/sim-core
+        run: yarn install --frozen-lockfile --ignore-scripts
+
+      - name: ESLint
+        run: npx eslint --quiet "src/**/*.{ts,tsx}"
+
+      - name: TypeScript
+        run: npx tsc --noEmit
+
+      - name: Unit tests
+        run: npx jest --forceExit --testPathIgnorePatterns "/node_modules/|/tests/e2e/"
+
+      - name: Production build
+        run: yarn build
