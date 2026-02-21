@@ -14,6 +14,8 @@
   "rebaseWhen": "conflicted",
   "semanticCommits": "disabled",
 
+  "ignorePaths": ["pocs/**"],
+
   "packageRules": [
     {
       "matchManagers": ["github-actions"],
@@ -22,42 +24,14 @@
       "pinDigests": true
     },
     {
-      "matchManagers": ["docker-compose", "dockerfile"],
-      "commitMessageTopic": "Docker tag `{{depName}}`",
-      "additionalBranchPrefix": "docker/"
-    },
-    {
       "matchManagers": ["npm"],
       "commitMessageTopic": "npm package `{{depName}}`",
       "additionalBranchPrefix": "js/"
     },
     {
-      "matchManagers": ["poetry"],
-      "commitMessageTopic": "Python package `{{depName}}`",
-      "additionalBranchPrefix": "py/",
-      "reviewers": ["team:Python"]
-    },
-    {
       "matchManagers": ["cargo"],
       "commitMessageTopic": "Rust crate `{{depName}}`",
-      "additionalBranchPrefix": "rs/",
-      "reviewers": ["team:Rust"]
-    },
-    {
-      "matchDepTypes": ["devDependencies"],
-      "matchPackagePatterns": ["^jest-", "jest$", "^prettier", "prettier$"],
-      "excludePackageNames": ["prettier-plugin-sql"],
-    },
-    {
-      "groupName": "Block Protocol npm packages",
-      "matchManagers": ["npm"],
-      "matchPackagePatterns": [
-        "^@blockprotocol/",
-        "^block-",
-        "^blockprotocol$",
-        "^create-block-app$",
-        "^mock-block-dock$"
-      ]
+      "additionalBranchPrefix": "rs/"
     },
     {
       "groupName": "ESLint npm packages",
@@ -65,113 +39,64 @@
       "matchPackagePatterns": [
         "^@types/eslint",
         "^@typescript-eslint/",
+        "^typescript-eslint$",
         "^eslint-",
         "eslint$"
-      ],
-    },
-    {
-      "groupName": "GraphQL npm packages",
-      "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^@graphql/", "^graphql-", "graphql$"]
+      ]
     },
     {
       "groupName": "Jest npm packages",
       "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^jest-", "jest$"],
-    },
-    {
-      "groupName": "OpenTelemetry npm packages",
-      "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^@opentelemetry/"]
+      "matchPackagePatterns": [
+        "^jest-",
+        "jest$",
+        "^@types/jest$",
+        "^babel-jest$",
+        "^@testing-library/"
+      ]
     },
     {
       "groupName": "Playwright npm packages",
       "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^@playwright/", "^playwright-", "playwright$"],
+      "matchPackagePatterns": ["^@playwright/", "^playwright-", "playwright$"]
     },
     {
       "groupName": "Prettier npm packages",
       "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^prettier", "prettier$"],
-      "excludePackageNames": ["prettier-plugin-sql"],
+      "matchPackagePatterns": ["^prettier", "prettier$"]
     },
     {
-      "groupName": "ProseMirror npm packages",
+      "groupName": "React npm packages",
       "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^prosemirror", "prosemirror$"]
-    },
-    {
-      "groupName": "Sentry npm packages",
-      "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^@sentry/"]
-    },
-    {
-      "groupName": "Signia npm packages",
-      "matchManagers": ["npm"],
-      "matchPackagePatterns": ["^@signia/"]
-    },
-    {
-      "groupName": "Pydantic Python packages",
-      "matchManagers": ["poetry"],
-      "matchPackagePatterns": ["^pydantic"]
-    },
-    {
-      "matchManagers": ["poetry"],
-      "matchPackagePatterns": ["mypy", "ruff", "black"],
-    },
-    {
-      "matchManagers": ["regex"],
-      "matchDepNames": ["rust"],
-      "matchDepPatterns": ["(R|r)ust(-.+)?"],
-      "separateMajorMinor": false,
-      "fetchReleaseNotes": false,
-      "commitMessageExtra": "to nightly-{{newVersion}}",
-      "additionalBranchPrefix": "rs/",
-      "reviewers": ["team:Rust"],
-    },
-    {
-      "matchManagers": ["regex"],
-      "matchDepNames": ["rust"],
-      "matchDepPatterns": ["(R|r)ust(-.+)?"],
-      "matchPaths": ["libs/**"],
-      "groupName": "Rust libraries toolchains",
-      "commitMessageTopic": "Rust toolchains for `/libs`"
-    },
-    {
-      "matchManagers": ["regex"],
-      "matchDepNames": ["rust"],
-      "matchDepPatterns": ["(R|r)ust(-.+)?"],
-      "matchPaths": ["apps/**"],
-      "groupName": "Rust applications toolchains",
-      "commitMessageTopic": "Rust toolchains for `/apps`"
-    },
-    {
-      "matchManagers": ["cargo"],
-      "matchPackagePatterns": ["^clap[-_]?"],
-      "groupName": "`clap` Rust crates"
-    },
-    {
-      "matchManagers": ["cargo"],
-      "matchPackagePatterns": ["^criterion[-_]?"],
-      "groupName": "`criterion` Rust crates",
-    },
-    {
-      "matchManagers": ["cargo"],
-      "matchPackagePatterns": ["^futures[-_]?"],
-      "groupName": "`futures` Rust crates"
-    },
-    {
-      "matchManagers": ["cargo"],
       "matchPackagePatterns": [
-        "^opentelemetry[-_]?",
-        "^tracing-opentelemetry$"
-      ],
-      "groupName": "`opentelemetry` Rust crates"
+        "^react$",
+        "^react-dom$",
+        "^@types/react$",
+        "^@types/react-dom$"
+      ]
     },
     {
-      "matchManagers": ["cargo"],
-      "matchPackagePatterns": ["^postgres[-_]?", "^tokio-postgres[-_]?"],
-      "groupName": "`postgres` Rust crates"
+      "groupName": "Three.js npm packages",
+      "matchManagers": ["npm"],
+      "matchPackagePatterns": [
+        "^three$",
+        "^@types/three$",
+        "^@react-three/"
+      ]
+    },
+    {
+      "groupName": "Babel npm packages",
+      "matchManagers": ["npm"],
+      "matchPackagePatterns": ["^@babel/"]
+    },
+    {
+      "groupName": "Vite npm packages",
+      "matchManagers": ["npm"],
+      "matchPackagePatterns": [
+        "^vite$",
+        "^@vitejs/",
+        "^vite-plugin-"
+      ]
     },
     {
       "matchManagers": ["cargo"],
@@ -181,8 +106,34 @@
     {
       "matchManagers": ["cargo"],
       "matchPackagePatterns": ["^tracing[-_]?"],
-      "excludePackageNames": ["tracing-opentelemetry"],
       "groupName": "`tracing` Rust crates"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchPackagePatterns": ["^clap[-_]?"],
+      "groupName": "`clap` Rust crates"
+    },
+    {
+      "matchManagers": ["cargo"],
+      "matchPackagePatterns": ["^futures[-_]?"],
+      "groupName": "`futures` Rust crates"
+    },
+    {
+      "matchManagers": ["regex"],
+      "matchDepNames": ["rust"],
+      "matchDepPatterns": ["(R|r)ust(-.+)?"],
+      "separateMajorMinor": false,
+      "fetchReleaseNotes": false,
+      "commitMessageExtra": "to nightly-{{newVersion}}",
+      "additionalBranchPrefix": "rs/"
+    },
+    {
+      "matchManagers": ["regex"],
+      "matchDepNames": ["rust"],
+      "matchDepPatterns": ["(R|r)ust(-.+)?"],
+      "matchPaths": ["apps/**"],
+      "groupName": "Rust applications toolchains",
+      "commitMessageTopic": "Rust toolchains for `/apps`"
     }
   ],
   "regexManagers": [
@@ -190,16 +141,6 @@
       "fileMatch": ["(^|/)rust-toolchain\\.toml?$"],
       "matchStrings": [
         "channel\\s*=\\s*\"nightly-(?<currentValue>\\d+-\\d+-\\d+)\""
-      ],
-      "depNameTemplate": "rust",
-      "packageNameTemplate": "rust-lang/rust-analyzer",
-      "datasourceTemplate": "github-releases",
-      "versioningTemplate": "regex:(?<major>\\d+)-(?<minor>\\d+)-(?<patch>\\d+)"
-    },
-    {
-      "fileMatch": ["(^|/)README\\.md$", "(^|/)src/lib\\.rs$"],
-      "matchStrings": [
-        "https:\\/\\/img\\.shields\\.io\\/static\\/v1\\?label=Rust\\&message=\\d+\\.\\d+\\.\\d+\\/nightly-(?<currentValue>\\d+-\\d+-\\d+)\\&color=blue"
       ],
       "depNameTemplate": "rust",
       "packageNameTemplate": "rust-lang/rust-analyzer",
