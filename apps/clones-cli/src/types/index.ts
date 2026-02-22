@@ -93,6 +93,9 @@ export type UpdateResult =
 export interface DbRepoRow extends RegistryEntry {
   contentHash?: string; // Hash of the repository content for change detection
   readmeIndexedAt?: string; // ISO 8601 - when the README was last indexed
+  statusExists?: boolean; // Cached repo existence status
+  statusIsDirty?: boolean; // Cached dirty-worktree status
+  statusCheckedAt?: string; // ISO 8601 - when cached status was last checked
 }
 
 /**

@@ -16,6 +16,8 @@ import { starRepo, isRepoStarred } from '../lib/github-stars.js';
 import type { Registry, LocalState, RegistryEntry } from '../types/index.js';
 import type { RepoInfo } from '../lib/browse/batch-actions.js';
 import { showSingleRepoActions } from '../lib/browse/single-actions.js';
+import { openDb, closeDb } from '../lib/db.js';
+import { syncRegistryToDb } from '../lib/db-sync.js';
 
 interface CloneOptions {
   tags?: string;
@@ -39,6 +41,19 @@ type CloneOutcome = {
     localPath: string;
   };
 };
+
+async function syncRegistrySnapshotToDb(registry: Registry): Promise<void> {
+  try {
+    const db = await openDb();
+    syncRegistryToDb(db, registry);
+  } catch (error) {
+    p.log.warn(
+      `Could not update local index database: ${error instanceof Error ? error.message : String(error)}`
+    );
+  } finally {
+    closeDb();
+  }
+}
 
 async function cloneUrl(
   url: string,
@@ -131,6 +146,7 @@ async function cloneUrl(
     registry = addEntry(registry, entry);
     registry = removeTombstone(registry, repoId);
     await writeRegistry(registry);
+    await syncRegistrySnapshotToDb(registry);
 
     localState = updateRepoLocalState(localState, repoId, {
       lastSyncedAt: new Date().toISOString(),

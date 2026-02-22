@@ -7,11 +7,14 @@ import {
   createEmptyRegistry,
   parseRegistryContent,
   readRegistryFile,
+  readRegistry,
   stringifyRegistryToml,
   writeRegistry,
 } from '../lib/registry.js';
 import { createEmptyLocalState, writeLocalState } from '../lib/local-state.js';
 import { normalizeRegistry, normalizeLocalState } from '../lib/schema.js';
+import { openDb, closeDb } from '../lib/db.js';
+import { syncRegistryToDb } from '../lib/db-sync.js';
 
 async function readJsonFile(path: string, label: string): Promise<unknown> {
   try {
@@ -93,6 +96,20 @@ async function doctorLocalState(): Promise<void> {
   }
 }
 
+async function syncRegistrySnapshotToDb(): Promise<void> {
+  try {
+    const db = await openDb();
+    const registry = await readRegistry();
+    syncRegistryToDb(db, registry);
+  } catch (error) {
+    p.log.warn(
+      `Local index database was not updated: ${error instanceof Error ? error.message : String(error)}`
+    );
+  } finally {
+    closeDb();
+  }
+}
+
 export default defineCommand({
   meta: {
     name: 'doctor',
@@ -105,6 +122,7 @@ export default defineCommand({
       await ensureConfigDir();
       await doctorRegistry();
       await doctorLocalState();
+      await syncRegistrySnapshotToDb();
       p.outro('Done!');
     } catch (error) {
       p.log.error(error instanceof Error ? error.message : String(error));

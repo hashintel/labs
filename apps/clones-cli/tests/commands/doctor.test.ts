@@ -12,9 +12,13 @@ const readRegistryFile = vi.fn();
 const parseRegistryContent = vi.fn();
 const stringifyRegistryToml = vi.fn(() => '');
 const writeRegistry = vi.fn();
+const readRegistry = vi.fn(() => emptyRegistry);
 
 const createEmptyLocalState = vi.fn(() => emptyLocalState);
 const writeLocalState = vi.fn();
+const openDb = vi.fn();
+const closeDb = vi.fn();
+const syncRegistryToDb = vi.fn();
 
 const normalizeRegistry = vi.fn(() => ({ data: emptyRegistry, issues: [] }));
 const normalizeLocalState = vi.fn(() => ({ data: emptyLocalState, issues: [] }));
@@ -54,6 +58,7 @@ vi.mock('../../src/lib/registry.js', () => ({
   createEmptyRegistry,
   parseRegistryContent,
   readRegistryFile,
+  readRegistry,
   stringifyRegistryToml,
   writeRegistry,
 }));
@@ -68,11 +73,21 @@ vi.mock('../../src/lib/schema.js', () => ({
   normalizeLocalState,
 }));
 
+vi.mock('../../src/lib/db.js', () => ({
+  openDb,
+  closeDb,
+}));
+
+vi.mock('../../src/lib/db-sync.js', () => ({
+  syncRegistryToDb,
+}));
+
 const { default: doctorCommand } = await import('../../src/commands/doctor.js');
 
 describe('clones doctor', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    openDb.mockResolvedValue({});
   });
 
   it('creates missing registry and local state without prompting', async () => {

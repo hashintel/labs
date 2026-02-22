@@ -474,6 +474,20 @@ export default defineCommand({
         // Update lastSyncRun and save local state
         localState = updateLastSyncRun(localState);
         await writeLocalState(localState);
+
+        // Keep SQLite sidecar in sync even if later phases are cancelled.
+        try {
+          const db = await openDb();
+          try {
+            syncRegistryToDb(db, registry);
+          } finally {
+            closeDb();
+          }
+        } catch (error) {
+          p.log.warn(
+            `Could not update local index database: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
       }
 
       // ═══════════════════════════════════════════════════════════════════

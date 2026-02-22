@@ -9,6 +9,9 @@ const readLocalState = vi.fn();
 const writeLocalState = vi.fn();
 const removeRepoLocalState = vi.fn();
 const getRepoPath = vi.fn(() => '/tmp/owner/repo');
+const openDb = vi.fn();
+const closeDb = vi.fn();
+const syncRegistryToDb = vi.fn();
 
 const prompts = vi.hoisted(() => ({
   intro: vi.fn(),
@@ -57,6 +60,15 @@ vi.mock('../../src/lib/config.js', () => ({
   getRepoPath,
 }));
 
+vi.mock('../../src/lib/db.js', () => ({
+  openDb,
+  closeDb,
+}));
+
+vi.mock('../../src/lib/db-sync.js', () => ({
+  syncRegistryToDb,
+}));
+
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(() => false),
 }));
@@ -66,6 +78,7 @@ const { default: rmCommand } = await import('../../src/commands/rm.js');
 describe('clones rm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    openDb.mockResolvedValue({});
   });
 
   afterEach(() => {

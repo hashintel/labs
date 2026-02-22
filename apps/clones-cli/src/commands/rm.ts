@@ -13,6 +13,22 @@ import {
 import { readLocalState, writeLocalState, removeRepoLocalState } from '../lib/local-state.js';
 import { getRepoPath } from '../lib/config.js';
 import type { RegistryEntry } from '../types/index.js';
+import type { Registry } from '../types/index.js';
+import { openDb, closeDb } from '../lib/db.js';
+import { syncRegistryToDb } from '../lib/db-sync.js';
+
+async function syncRegistrySnapshotToDb(registry: Registry): Promise<void> {
+  try {
+    const db = await openDb();
+    syncRegistryToDb(db, registry);
+  } catch (error) {
+    p.log.warn(
+      `Local index database was not updated: ${error instanceof Error ? error.message : String(error)}`
+    );
+  } finally {
+    closeDb();
+  }
+}
 
 export default defineCommand({
   meta: {
@@ -127,6 +143,7 @@ export default defineCommand({
       let updatedRegistry = removeEntry(registry, entry.id);
       updatedRegistry = addTombstone(updatedRegistry, entry.id);
       await writeRegistry(updatedRegistry);
+      await syncRegistrySnapshotToDb(updatedRegistry);
       p.log.success(`Removed ${owner}/${repo} from registry`);
       try {
         const localState = await readLocalState();
@@ -223,6 +240,7 @@ async function interactiveRemove(args: { 'keep-disk'?: boolean; yes?: boolean })
       updatedRegistry = removeEntry(updatedRegistry, entry.id);
       updatedRegistry = addTombstone(updatedRegistry, entry.id);
       await writeRegistry(updatedRegistry);
+      await syncRegistrySnapshotToDb(updatedRegistry);
       p.log.success(`Removed ${entry.owner}/${entry.repo}`);
 
       try {

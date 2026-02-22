@@ -11,8 +11,8 @@ export function syncRegistryToDb(db: Database.Database, registry: Registry): voi
     INSERT INTO repos (
       id, host, owner, repo, cloneUrl, description, tags,
       defaultRemoteName, updateStrategy, submodules, lfs, managed,
-      contentHash, readmeIndexedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL)
+      contentHash, readmeIndexedAt, statusExists, statusIsDirty, statusCheckedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL)
     ON CONFLICT(id) DO UPDATE SET
       host = excluded.host,
       owner = excluded.owner,

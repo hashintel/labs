@@ -8,8 +8,16 @@ vi.mock('../../src/lib/config.js', () => ({
   ensureConfigDir: vi.fn(),
 }));
 
-const { openDb, closeDb, getDb, upsertRepo, getRepo, getAllRepos, deleteRepo } =
-  await import('../../src/lib/db.js');
+const {
+  openDb,
+  closeDb,
+  getDb,
+  upsertRepo,
+  getRepo,
+  getAllRepos,
+  deleteRepo,
+  updateRepoStatusCache,
+} = await import('../../src/lib/db.js');
 
 describe('Database Layer', () => {
   beforeEach(async () => {
@@ -68,6 +76,9 @@ describe('Database Layer', () => {
       expect(columnNames).toContain('managed');
       expect(columnNames).toContain('contentHash');
       expect(columnNames).toContain('readmeIndexedAt');
+      expect(columnNames).toContain('statusExists');
+      expect(columnNames).toContain('statusIsDirty');
+      expect(columnNames).toContain('statusCheckedAt');
     });
   });
 
@@ -141,6 +152,18 @@ describe('Database Layer', () => {
       expect(retrieved?.tags).toBeUndefined();
       expect(retrieved?.contentHash).toBeUndefined();
       expect(retrieved?.readmeIndexedAt).toBeUndefined();
+      expect(retrieved?.statusExists).toBeUndefined();
+      expect(retrieved?.statusIsDirty).toBeUndefined();
+      expect(retrieved?.statusCheckedAt).toBeUndefined();
+    });
+
+    it('updates cached status fields', () => {
+      upsertRepo(testRepo);
+      updateRepoStatusCache(testRepo.id, { exists: true, isDirty: true }, '2026-02-22T12:00:00Z');
+      const retrieved = getRepo(testRepo.id);
+      expect(retrieved?.statusExists).toBe(true);
+      expect(retrieved?.statusIsDirty).toBe(true);
+      expect(retrieved?.statusCheckedAt).toBe('2026-02-22T12:00:00Z');
     });
   });
 });

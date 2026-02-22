@@ -15,6 +15,9 @@ const getCloneErrorHints = vi.fn(() => []);
 const fetchGitHubMetadata = vi.fn();
 const starRepo = vi.fn();
 const isRepoStarred = vi.fn();
+const openDb = vi.fn();
+const closeDb = vi.fn();
+const syncRegistryToDb = vi.fn();
 
 const prompts = vi.hoisted(() => ({
   intro: vi.fn(),
@@ -86,6 +89,15 @@ vi.mock('../../src/lib/github-stars.js', () => ({
   isRepoStarred,
 }));
 
+vi.mock('../../src/lib/db.js', () => ({
+  openDb,
+  closeDb,
+}));
+
+vi.mock('../../src/lib/db-sync.js', () => ({
+  syncRegistryToDb,
+}));
+
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(() => false),
 }));
@@ -106,6 +118,7 @@ describe('clones add', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-01-26T00:00:00Z'));
     browseActions.showSingleRepoActions.mockResolvedValue('exit');
+    openDb.mockResolvedValue({});
   });
 
   afterEach(() => {

@@ -31,7 +31,10 @@ describe('db-sync + db-search integration', () => {
         lfs TEXT NOT NULL,
         managed INTEGER NOT NULL,
         contentHash TEXT,
-        readmeIndexedAt TEXT
+        readmeIndexedAt TEXT,
+        statusExists INTEGER,
+        statusIsDirty INTEGER,
+        statusCheckedAt TEXT
       )
     `);
 

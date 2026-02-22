@@ -46,7 +46,10 @@ function setupDb(): Database.Database {
       lfs TEXT NOT NULL,
       managed INTEGER NOT NULL,
       contentHash TEXT,
-      readmeIndexedAt TEXT
+      readmeIndexedAt TEXT,
+      statusExists INTEGER,
+      statusIsDirty INTEGER,
+      statusCheckedAt TEXT
     )
   `);
   return db;
@@ -149,5 +152,28 @@ describe('syncRegistryToDb', () => {
 
     expect(row1?.managed).toBe(1);
     expect(row2?.managed).toBe(0);
+  });
+
+  it('preserves cached status fields on re-sync', () => {
+    const entry = createTestEntry({ id: 'github.com:user/repo1' });
+    const registry = createTestRegistry([entry]);
+    syncRegistryToDb(db, registry);
+
+    db.prepare(
+      `
+        UPDATE repos
+        SET statusExists = 1, statusIsDirty = 1, statusCheckedAt = '2026-02-22T12:00:00Z'
+        WHERE id = ?
+      `
+    ).run('github.com:user/repo1');
+
+    const updated = createTestEntry({ id: 'github.com:user/repo1', description: 'Updated desc' });
+    syncRegistryToDb(db, createTestRegistry([updated]));
+
+    const row = db.prepare('SELECT * FROM repos WHERE id = ?').get('github.com:user/repo1');
+    expect(row?.description).toBe('Updated desc');
+    expect(row?.statusExists).toBe(1);
+    expect(row?.statusIsDirty).toBe(1);
+    expect(row?.statusCheckedAt).toBe('2026-02-22T12:00:00Z');
   });
 });

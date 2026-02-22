@@ -1,6 +1,6 @@
 import Database from 'better-sqlite3';
 import { getDbPath, ensureConfigDir } from './config.js';
-import type { DbRepoRow } from '../types/index.js';
+import type { DbRepoRow, RepoStatus } from '../types/index.js';
 
 let db: Database.Database | null = null;
 
@@ -68,9 +68,30 @@ function migrate(): void {
       lfs TEXT NOT NULL,
       managed INTEGER NOT NULL,
       contentHash TEXT,
-      readmeIndexedAt TEXT
+      readmeIndexedAt TEXT,
+      statusExists INTEGER,
+      statusIsDirty INTEGER,
+      statusCheckedAt TEXT
     )
   `);
+
+  // Backfill columns for existing databases from older schema versions.
+  ensureReposColumn('contentHash', 'TEXT');
+  ensureReposColumn('readmeIndexedAt', 'TEXT');
+  ensureReposColumn('statusExists', 'INTEGER');
+  ensureReposColumn('statusIsDirty', 'INTEGER');
+  ensureReposColumn('statusCheckedAt', 'TEXT');
+}
+
+function ensureReposColumn(columnName: string, columnType: string): void {
+  if (!db) throw new Error('Database not open');
+
+  const columns = db.prepare('PRAGMA table_info(repos)').all() as Array<{ name: string }>;
+  if (columns.some((column) => column.name === columnName)) {
+    return;
+  }
+
+  db.exec(`ALTER TABLE repos ADD COLUMN ${columnName} ${columnType}`);
 }
 
 /**
@@ -82,8 +103,8 @@ export function upsertRepo(repo: DbRepoRow): void {
     INSERT OR REPLACE INTO repos (
       id, host, owner, repo, cloneUrl, description, tags,
       defaultRemoteName, updateStrategy, submodules, lfs, managed,
-      contentHash, readmeIndexedAt
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      contentHash, readmeIndexedAt, statusExists, statusIsDirty, statusCheckedAt
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   stmt.run(
@@ -100,8 +121,28 @@ export function upsertRepo(repo: DbRepoRow): void {
     repo.lfs,
     repo.managed ? 1 : 0,
     repo.contentHash ?? null,
-    repo.readmeIndexedAt ?? null
+    repo.readmeIndexedAt ?? null,
+    repo.statusExists === undefined ? null : repo.statusExists ? 1 : 0,
+    repo.statusIsDirty === undefined ? null : repo.statusIsDirty ? 1 : 0,
+    repo.statusCheckedAt ?? null
   );
+}
+
+/**
+ * Update cached status fields for a repository.
+ */
+export function updateRepoStatusCache(
+  repoId: string,
+  status: Pick<RepoStatus, 'exists' | 'isDirty'>,
+  checkedAt: string = new Date().toISOString()
+): void {
+  const db = getDb();
+  const stmt = db.prepare(`
+    UPDATE repos
+    SET statusExists = ?, statusIsDirty = ?, statusCheckedAt = ?
+    WHERE id = ?
+  `);
+  stmt.run(status.exists ? 1 : 0, status.isDirty ? 1 : 0, checkedAt, repoId);
 }
 
 /**
@@ -156,5 +197,14 @@ function parseRepoRow(row: Record<string, unknown>): DbRepoRow {
     managed: (row.managed as number) === 1,
     contentHash: (row.contentHash as string | null | undefined) ?? undefined,
     readmeIndexedAt: (row.readmeIndexedAt as string | null | undefined) ?? undefined,
+    statusExists:
+      row.statusExists === null || row.statusExists === undefined
+        ? undefined
+        : (row.statusExists as number) === 1,
+    statusIsDirty:
+      row.statusIsDirty === null || row.statusIsDirty === undefined
+        ? undefined
+        : (row.statusIsDirty as number) === 1,
+    statusCheckedAt: (row.statusCheckedAt as string | null | undefined) ?? undefined,
   };
 }
