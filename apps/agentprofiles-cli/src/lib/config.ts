@@ -13,6 +13,12 @@ import {
 import { validateNewProfileName, slugify, validateSlug } from './validation.js';
 import { getAgentGitignore } from './gitignore.js';
 import {
+  getAgentStrategy as _getAgentStrategy,
+  getDefaultProfileInclude,
+  resolveProfileInclude,
+  type ProfileInclude,
+} from './profileinclude.js';
+import {
   readSymlinkTarget,
   isSymlink,
   atomicSymlink,
@@ -27,76 +33,10 @@ import {
 
 export type SymlinkStatus = 'active' | 'unmanaged' | 'missing' | 'broken' | 'external';
 
-type SharedEntryKind = 'file' | 'dir';
-
-interface SharedEntryDefinition {
-  path: string;
-  kind: SharedEntryKind;
-}
-
-interface AgentLayoutDefinition {
-  sharedEntries: SharedEntryDefinition[];
-}
-
-interface ManagedSymlinkSnapshot {
-  relativePath: string;
-  sourceResolvedTarget: string;
-}
-
 export interface BrokenSymlink {
   linkPath: string;
   target: string;
 }
-
-const AGENT_LAYOUTS: Partial<Record<keyof typeof SUPPORTED_TOOLS, AgentLayoutDefinition>> = {
-  claude: {
-    sharedEntries: [
-      { path: 'cache', kind: 'dir' },
-      { path: 'debug', kind: 'dir' },
-      { path: 'downloads', kind: 'dir' },
-      { path: 'file-history', kind: 'dir' },
-      { path: 'history.jsonl', kind: 'file' },
-      { path: 'ide', kind: 'dir' },
-      { path: 'paste-cache', kind: 'dir' },
-      { path: 'plans', kind: 'dir' },
-      { path: 'projects', kind: 'dir' },
-      { path: 'session-env', kind: 'dir' },
-      { path: 'shell-snapshots', kind: 'dir' },
-      { path: 'stats-cache.json', kind: 'file' },
-      { path: 'statsig', kind: 'dir' },
-      { path: 'todos', kind: 'dir' },
-    ],
-  },
-  codex: {
-    sharedEntries: [
-      { path: '.codex-global-state.json', kind: 'file' },
-      { path: '.personality_migration', kind: 'file' },
-      { path: 'archived_sessions', kind: 'dir' },
-      { path: 'auth.json', kind: 'file' },
-      { path: 'history.jsonl', kind: 'file' },
-      { path: 'internal_storage.json', kind: 'file' },
-      { path: 'models_cache.json', kind: 'file' },
-      { path: 'sessions', kind: 'dir' },
-      { path: 'sqlite', kind: 'dir' },
-      { path: 'vendor_imports', kind: 'dir' },
-      { path: 'version.json', kind: 'file' },
-    ],
-  },
-  gemini: {
-    sharedEntries: [
-      { path: 'antigravity', kind: 'dir' },
-      { path: 'antigravity-browser-profile', kind: 'dir' },
-      { path: 'history', kind: 'dir' },
-      { path: 'installation_id', kind: 'file' },
-      { path: 'projects.json', kind: 'file' },
-      { path: 'settings.json.orig', kind: 'file' },
-      { path: 'state.json', kind: 'file' },
-      { path: 'tmp', kind: 'dir' },
-      { path: 'trustedFolders.json', kind: 'file' },
-      { path: 'user_id', kind: 'file' },
-    ],
-  },
-};
 
 async function pathExists(targetPath: string): Promise<boolean> {
   try {
@@ -349,10 +289,6 @@ export class ConfigManager {
     return profileDir;
   }
 
-  private getLayoutDefinition(agent: string): AgentLayoutDefinition | null {
-    return AGENT_LAYOUTS[agent as keyof typeof AGENT_LAYOUTS] ?? null;
-  }
-
   private async ensureReservedProfile(
     agent: string,
     slug: string,
@@ -383,150 +319,394 @@ export class ConfigManager {
     return this.ensureReservedProfile(agent, BASE_PROFILE_SLUG, 'Base profile (created by setup)');
   }
 
-  private async ensureSharedEntryInitialized(
-    entryPath: string,
-    kind: SharedEntryKind
-  ): Promise<void> {
-    if (await pathExists(entryPath)) {
-      return;
-    }
-
-    await fs.mkdir(path.dirname(entryPath), { recursive: true });
-    if (kind === 'dir') {
-      await fs.mkdir(entryPath, { recursive: true });
-      return;
-    }
-
-    await fs.writeFile(entryPath, '', { flag: 'a' });
-  }
-
-  private async ensureSymlinkTarget(linkPath: string, targetPath: string): Promise<void> {
-    try {
-      const stat = await fs.lstat(linkPath);
-      if (stat.isSymbolicLink()) {
-        const currentTarget = await fs.readlink(linkPath);
-        const currentAbsoluteTarget = path.isAbsolute(currentTarget)
-          ? currentTarget
-          : path.resolve(path.dirname(linkPath), currentTarget);
-
-        if (path.resolve(currentAbsoluteTarget) === path.resolve(targetPath)) {
-          return;
-        }
-
-        await fs.unlink(linkPath);
-      } else {
-        await fs.rm(linkPath, { recursive: true, force: true });
-      }
-    } catch {
-      // Path missing, continue.
-    }
-
-    await fs.mkdir(path.dirname(linkPath), { recursive: true });
-    const relativeTarget = path.relative(path.dirname(linkPath), targetPath);
-    await fs.symlink(relativeTarget, linkPath);
-  }
-
-  async ensureProfileLayout(agent: string, profileSlug: string): Promise<void> {
-    if (profileSlug === SHARED_PROFILE_SLUG) {
-      return;
-    }
-
-    const layout = this.getLayoutDefinition(agent);
-    if (!layout) {
-      return;
-    }
-
-    const profileDir = path.join(this.contentDir, agent, profileSlug);
-    if (!(await pathExists(profileDir))) {
-      return;
-    }
-
-    const sharedRoot = path.join(this.contentDir, agent, SHARED_PROFILE_SLUG);
-    await fs.mkdir(sharedRoot, { recursive: true });
-
-    const migrationRoot = path.join(
-      sharedRoot,
-      `_migrated-originals-${new Date().toISOString().replace(/[:.]/g, '-')}`
-    );
-    let migrationCreated = false;
-
-    for (const entry of layout.sharedEntries) {
-      const profilePath = path.join(profileDir, entry.path);
-      const sharedPath = path.join(sharedRoot, entry.path);
-
-      await fs.mkdir(path.dirname(sharedPath), { recursive: true });
-
-      let profileStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
-      try {
-        profileStat = await fs.lstat(profilePath);
-      } catch {
-        profileStat = null;
-      }
-
-      const sharedExists = await pathExists(sharedPath);
-
-      if (!sharedExists) {
-        if (profileStat && !profileStat.isSymbolicLink()) {
-          await movePath(profilePath, sharedPath);
-          profileStat = null;
-        } else {
-          await this.ensureSharedEntryInitialized(sharedPath, entry.kind);
-        }
-      } else if (profileStat && !profileStat.isSymbolicLink()) {
-        if (!migrationCreated) {
-          await fs.mkdir(migrationRoot, { recursive: true });
-          migrationCreated = true;
-        }
-        const migrationPath = path.join(migrationRoot, profileSlug, entry.path);
-        await fs.mkdir(path.dirname(migrationPath), { recursive: true });
-        await movePath(profilePath, migrationPath);
-        profileStat = null;
-      }
-
-      await this.ensureSharedEntryInitialized(sharedPath, entry.kind);
-      await this.ensureSymlinkTarget(profilePath, sharedPath);
-    }
-  }
-
   async ensureBaseProfileLayout(agent: string): Promise<void> {
     await this.ensureBaseProfile(agent);
-    await this.ensureProfileLayout(agent, BASE_PROFILE_SLUG);
+    if (this.getAgentStrategy(agent) === 'include') {
+      await this.ensureIncludeAgentFiles(agent);
+      await this.ensureIncludeProfileLayout(agent, BASE_PROFILE_SLUG);
+    }
+    // Directory-strategy agents don't need additional layout scaffolding
   }
 
-  private async collectManagedSymlinks(profileDir: string): Promise<ManagedSymlinkSnapshot[]> {
-    const snapshots: ManagedSymlinkSnapshot[] = [];
-    const root = path.resolve(profileDir);
-    const contentRoot = path.resolve(this.contentDir);
+  // ============================================================================
+  // Include-strategy methods (inverted per-file symlinks for messy agents)
+  // ============================================================================
 
-    const walk = async (currentDir: string): Promise<void> => {
-      const entries = await fs.readdir(currentDir, { withFileTypes: true });
-      for (const entry of entries) {
-        const absolutePath = path.join(currentDir, entry.name);
-        const relativePath = path.relative(root, absolutePath);
+  /**
+   * Write .profileinclude and .gitignore to the agent content directory if missing.
+   * Never overwrites user-edited copies.
+   */
+  private async ensureIncludeAgentFiles(agent: string): Promise<void> {
+    const agentDir = path.join(this.contentDir, agent);
+    await fs.mkdir(agentDir, { recursive: true });
 
-        if (entry.isSymbolicLink()) {
-          const linkTarget = await fs.readlink(absolutePath);
-          const resolvedTarget = path.isAbsolute(linkTarget)
-            ? linkTarget
-            : path.resolve(path.dirname(absolutePath), linkTarget);
+    const includeContent = this.getDefaultProfileIncludeContent(agent);
+    if (includeContent) {
+      const includePath = path.join(agentDir, '.profileinclude');
+      if (!(await pathExists(includePath))) {
+        await fs.writeFile(includePath, includeContent);
+      }
+    }
 
-          if (isSubpath(contentRoot, path.resolve(resolvedTarget))) {
-            snapshots.push({
-              relativePath,
-              sourceResolvedTarget: path.resolve(resolvedTarget),
-            });
-          }
-          continue;
-        }
+    // .gitignore: reuse the existing per-agent helper (already idempotent)
+    await this.ensureAgentGitignore(agentDir, agent);
+  }
 
-        if (entry.isDirectory()) {
-          await walk(absolutePath);
+  /**
+   * Ensure all allow-listed dir entries exist in a profile directory.
+   * - Dir entries: create empty dir + .gitkeep if missing
+   * - File entries: skip (user/agent creates them)
+   * - Creates parent directories for nested entries
+   */
+  async ensureIncludeProfileLayout(agent: string, profileSlug: string): Promise<void> {
+    const include = this.getProfileInclude(agent);
+    if (!include) return;
+
+    const profileDir = path.join(this.contentDir, agent, profileSlug);
+    if (!(await pathExists(profileDir))) return;
+
+    for (const dir of include.dirs) {
+      const dirPath = path.join(profileDir, dir);
+      await fs.mkdir(dirPath, { recursive: true });
+      const gitkeepPath = path.join(dirPath, '.gitkeep');
+      if (!(await pathExists(gitkeepPath))) {
+        const entries = await fs.readdir(dirPath);
+        if (entries.length === 0) {
+          await fs.writeFile(gitkeepPath, '');
         }
       }
-    };
+    }
+    // File entries: no action — created by user or agent
+  }
 
-    await walk(profileDir);
-    return snapshots;
+  /**
+   * Adopt an existing real directory for an include-based agent.
+   * Leaves the global dir in place. Moves allow-listed real entries to _base
+   * and creates per-entry symlinks pointing from globalPath back to _base.
+   */
+  private async adoptExistingInclude(
+    agent: string,
+    profileName: string,
+    options: { replaceExisting?: boolean } = {}
+  ): Promise<void> {
+    const globalPath = this.getGlobalConfigPath(agent);
+
+    // Ensure global dir is a real directory
+    let globalStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+    try {
+      globalStat = await fs.lstat(globalPath);
+    } catch {
+      // Doesn't exist — create it
+      await fs.mkdir(globalPath, { recursive: true });
+      globalStat = await fs.lstat(globalPath);
+    }
+    if (globalStat.isSymbolicLink()) {
+      throw new Error(
+        `Cannot adopt include-based agent '${agent}': global path is a symlink. Run 'release' first.`
+      );
+    }
+
+    const profileDir = path.join(this.contentDir, agent, profileName);
+
+    // Handle existing profile
+    try {
+      await fs.access(profileDir);
+      if (options.replaceExisting) {
+        await fs.rm(profileDir, { recursive: true, force: true });
+      } else {
+        throw new Error(
+          `Cannot adopt: profile '${profileName}' already exists for agent '${agent}'`
+        );
+      }
+    } catch (err) {
+      if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
+        // Good — profile doesn't exist yet
+      } else {
+        throw err;
+      }
+    }
+
+    await fs.mkdir(profileDir, { recursive: true });
+
+    const include = this.getProfileInclude(agent);
+    if (!include) {
+      throw new Error(`Agent '${agent}' has no .profileinclude — cannot use include strategy`);
+    }
+
+    // Process allow-listed entries
+    for (const entry of [...include.files, ...include.dirs]) {
+      const isDir = include.dirs.includes(entry);
+      const globalEntryPath = path.join(globalPath, entry);
+      const profileEntryPath = path.join(profileDir, entry);
+
+      // Ensure parent dir exists in profile
+      await fs.mkdir(path.dirname(profileEntryPath), { recursive: true });
+
+      let entryStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+      try {
+        entryStat = await fs.lstat(globalEntryPath);
+      } catch {
+        // Entry doesn't exist in global dir
+      }
+
+      if (entryStat?.isSymbolicLink()) {
+        // Existing symlink — skip, don't double-link
+        continue;
+      }
+
+      if (entryStat) {
+        // Real file or dir: move it into the profile
+        await movePath(globalEntryPath, profileEntryPath);
+      } else if (isDir) {
+        // Dir entry that doesn't exist yet: create empty dir + .gitkeep
+        await fs.mkdir(profileEntryPath, { recursive: true });
+        await fs.writeFile(path.join(profileEntryPath, '.gitkeep'), '');
+      } else {
+        // File entry that doesn't exist: skip (don't create dangling symlink)
+        continue;
+      }
+
+      // Create symlink: globalPath/{entry} -> relative path to profile/{entry}
+      await fs.mkdir(path.dirname(globalEntryPath), { recursive: true });
+      const relTarget = path.relative(path.dirname(globalEntryPath), profileEntryPath);
+      await fs.symlink(relTarget, globalEntryPath);
+    }
+
+    // Write meta.json
+    const meta: Meta = {
+      name: profileName,
+      slug: profileName,
+      agent,
+      description: 'Base profile (adopted from original config)',
+      created_at: new Date().toISOString(),
+    };
+    await fs.writeFile(path.join(profileDir, 'meta.json'), JSON.stringify(meta, null, 2));
+
+    // Write .profileinclude and .gitignore to agent content dir if missing
+    await this.ensureIncludeAgentFiles(agent);
+  }
+
+  /**
+   * Get the active profile slug for an include-based agent.
+   * Reads the target of the first managed per-entry symlink inside globalPath.
+   * Returns null if not managed or no symlinks found.
+   */
+  async getActiveProfileInclude(agent: string): Promise<string | null> {
+    const include = this.getProfileInclude(agent);
+    if (!include) return null;
+
+    const globalPath = this.getGlobalConfigPath(agent);
+    const contentDirAbs = path.resolve(this.contentDir);
+    const allEntries = [...include.files, ...include.dirs];
+
+    for (const entry of allEntries) {
+      const entryPath = path.join(globalPath, entry);
+      let entryStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+      try {
+        entryStat = await fs.lstat(entryPath);
+      } catch {
+        continue;
+      }
+      if (!entryStat?.isSymbolicLink()) continue;
+
+      const target = await fs.readlink(entryPath);
+      const absTarget = path.isAbsolute(target)
+        ? target
+        : path.resolve(path.dirname(entryPath), target);
+
+      if (!isSubpath(contentDirAbs, absTarget)) continue;
+
+      // Target is contentDir/{agent}/{slug}/{entry...}
+      // Walk up entry depth to find the slug directory
+      const entryDepth = entry.split(path.sep).length;
+      let slugPath = absTarget;
+      for (let i = 0; i < entryDepth; i++) {
+        slugPath = path.dirname(slugPath);
+      }
+      return path.basename(slugPath);
+    }
+
+    return null;
+  }
+
+  /**
+   * Get the symlink status for an include-based agent.
+   * The global dir is a real directory; management is detected via _base + per-entry symlinks.
+   */
+  async getIncludeSymlinkStatus(agent: string): Promise<SymlinkStatus> {
+    const globalPath = this.getGlobalConfigPath(agent);
+
+    let globalStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+    try {
+      globalStat = await fs.lstat(globalPath);
+    } catch {
+      return 'missing';
+    }
+
+    // If it's a symlink (leftover from old directory-strategy setup)
+    if (globalStat.isSymbolicLink()) {
+      const target = await readSymlinkTarget(globalPath);
+      if (!target) return 'broken';
+      try {
+        await fs.access(globalPath);
+      } catch {
+        return 'broken';
+      }
+      const absTarget = path.isAbsolute(target)
+        ? target
+        : path.resolve(path.dirname(globalPath), target);
+      const contentDirAbs = path.resolve(this.contentDir);
+      return absTarget.startsWith(contentDirAbs + path.sep) ? 'active' : 'external';
+    }
+
+    // Real directory — check if _base exists (indicates management)
+    const basePath = path.join(this.contentDir, agent, BASE_PROFILE_SLUG);
+    if (!(await pathExists(basePath))) {
+      return 'unmanaged';
+    }
+
+    // Check for broken per-entry symlinks
+    const include = this.getProfileInclude(agent);
+    if (include) {
+      for (const entry of [...include.files, ...include.dirs]) {
+        const entryPath = path.join(globalPath, entry);
+        let entryStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+        try {
+          entryStat = await fs.lstat(entryPath);
+        } catch {
+          continue; // Missing entry — not a broken link
+        }
+        if (entryStat.isSymbolicLink()) {
+          try {
+            await fs.access(entryPath); // follows symlink
+          } catch {
+            return 'broken';
+          }
+        }
+      }
+    }
+
+    return 'active';
+  }
+
+  /**
+   * Switch the active profile for an include-based agent.
+   * Repoints managed per-entry symlinks inside globalPath to the target profile.
+   * Leaves real files/dirs and non-managed symlinks untouched.
+   */
+  async switchProfileInclude(agent: string, profileSlug: string): Promise<void> {
+    const include = this.getProfileInclude(agent);
+    if (!include) {
+      throw new Error(`Agent '${agent}' has no .profileinclude`);
+    }
+
+    const globalPath = this.getGlobalConfigPath(agent);
+    const profileDir = path.join(this.contentDir, agent, profileSlug);
+
+    if (!(await pathExists(profileDir))) {
+      throw new Error(`Profile '${profileSlug}' does not exist for agent '${agent}'`);
+    }
+
+    // Scaffold any missing entries in the target profile
+    await this.ensureIncludeProfileLayout(agent, profileSlug);
+
+    const contentDirAbs = path.resolve(this.contentDir);
+
+    for (const entry of [...include.files, ...include.dirs]) {
+      const globalEntryPath = path.join(globalPath, entry);
+      const profileEntryPath = path.join(profileDir, entry);
+
+      // Only create symlink if target exists in the profile
+      if (!(await pathExists(profileEntryPath))) continue;
+
+      let existingStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+      try {
+        existingStat = await fs.lstat(globalEntryPath);
+      } catch {
+        // Entry missing — will create symlink below
+      }
+
+      if (existingStat) {
+        if (existingStat.isSymbolicLink()) {
+          const target = await fs.readlink(globalEntryPath);
+          const absTarget = path.isAbsolute(target)
+            ? target
+            : path.resolve(path.dirname(globalEntryPath), target);
+          if (!isSubpath(contentDirAbs, absTarget)) {
+            continue; // External symlink — leave it
+          }
+          await fs.unlink(globalEntryPath); // Remove old managed symlink
+        } else {
+          continue; // Real file/dir — don't clobber
+        }
+      }
+
+      // Create symlink: globalPath/{entry} -> relative path to profile/{entry}
+      await fs.mkdir(path.dirname(globalEntryPath), { recursive: true });
+      const relTarget = path.relative(path.dirname(globalEntryPath), profileEntryPath);
+      await fs.symlink(relTarget, globalEntryPath);
+    }
+  }
+
+  /**
+   * Release an include-based agent from management.
+   * For each managed per-entry symlink inside globalPath: removes the symlink
+   * and copies the real content from the active profile back into globalPath.
+   * Does NOT delete the profile directory.
+   */
+  async unlinkProfileInclude(agent: string): Promise<void> {
+    const include = this.getProfileInclude(agent);
+    if (!include) {
+      throw new Error(`Agent '${agent}' has no .profileinclude`);
+    }
+
+    const globalPath = this.getGlobalConfigPath(agent);
+    const contentDirAbs = path.resolve(this.contentDir);
+
+    // Determine the active profile before removing any symlinks
+    const activeProfile = await this.getActiveProfileInclude(agent);
+
+    for (const entry of [...include.files, ...include.dirs]) {
+      const globalEntryPath = path.join(globalPath, entry);
+
+      let entryStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+      try {
+        entryStat = await fs.lstat(globalEntryPath);
+      } catch {
+        continue;
+      }
+
+      if (!entryStat.isSymbolicLink()) continue; // Real file — leave it
+
+      const target = await fs.readlink(globalEntryPath);
+      const absTarget = path.isAbsolute(target)
+        ? target
+        : path.resolve(path.dirname(globalEntryPath), target);
+
+      if (!isSubpath(contentDirAbs, absTarget)) continue; // External symlink — leave it
+
+      // Remove the managed symlink
+      await fs.unlink(globalEntryPath);
+
+      // Copy content from profile back into globalPath
+      if (await pathExists(absTarget)) {
+        await fs.mkdir(path.dirname(globalEntryPath), { recursive: true });
+        const targetStat = await fs.lstat(absTarget);
+        if (targetStat.isDirectory()) {
+          await copyDirectory(absTarget, globalEntryPath);
+        } else {
+          await fs.copyFile(absTarget, globalEntryPath);
+        }
+      }
+    }
+
+    // Remove the active profile directory so status returns to 'unmanaged'.
+    // This mirrors the directory-strategy unlinkProfile behavior and is safe
+    // here because unlinkProfile is only called from the release command.
+    if (activeProfile) {
+      const profileDir = path.join(this.contentDir, agent, activeProfile);
+      await fs.rm(profileDir, { recursive: true, force: true });
+    }
   }
 
   async findBrokenSymlinks(rootPath: string): Promise<BrokenSymlink[]> {
@@ -569,87 +749,39 @@ export class ConfigManager {
     return broken;
   }
 
-  /**
-   * Non-destructively merge the contents of sourceRoot into destRoot.
-   * Uses lstat throughout (never follows symlinks).
-   * Skips '_migrated-originals-*' entries (migration artifacts, user-confirmed deletable).
-   * Returns true if every entry was successfully handled, false if anything was skipped or failed.
-   * Callers should only delete sourceRoot when this returns true.
-   */
-  private async mergeSharedIntoDir(sourceRoot: string, destRoot: string): Promise<boolean> {
-    let entries: import('node:fs').Dirent<string>[];
-    try {
-      entries = await fs.readdir(sourceRoot, { withFileTypes: true, encoding: 'utf8' });
-    } catch {
-      return false;
-    }
-
-    let fullyMerged = true;
-
-    for (const entry of entries) {
-      // Migration artifacts are intentionally dropped (user-confirmed).
-      if (entry.name.startsWith('_migrated-originals-')) {
-        continue;
-      }
-
-      const sourcePath = path.join(sourceRoot, entry.name);
-      const destPath = path.join(destRoot, entry.name);
-
-      let destStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
-      try {
-        destStat = await fs.lstat(destPath);
-      } catch {
-        // Dest doesn't exist — proceed with move.
-      }
-
-      if (!destStat) {
-        // Nothing at dest: move the whole entry (file, dir, or symlink).
-        try {
-          await fs.mkdir(path.dirname(destPath), { recursive: true });
-          await movePath(sourcePath, destPath);
-        } catch {
-          fullyMerged = false;
-        }
-      } else if (destStat.isDirectory() && entry.isDirectory()) {
-        // Both are dirs: recurse to merge contents.
-        const childMerged = await this.mergeSharedIntoDir(sourcePath, destPath);
-        if (!childMerged) fullyMerged = false;
-      } else {
-        // Dest exists with incompatible or same type (already materialized or pre-existing).
-        // Don't clobber — mark as not fully merged so _shared is kept.
-        fullyMerged = false;
-      }
-    }
-
-    return fullyMerged;
-  }
-
-  private async materializeManagedSymlinks(
-    destinationRoot: string,
-    snapshots: ManagedSymlinkSnapshot[]
-  ): Promise<void> {
-    for (const snapshot of snapshots) {
-      const destinationPath = path.join(destinationRoot, snapshot.relativePath);
-
-      let destinationStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
-      try {
-        destinationStat = await fs.lstat(destinationPath);
-      } catch {
-        destinationStat = null;
-      }
-
-      if (!destinationStat?.isSymbolicLink()) {
-        continue;
-      }
-
-      await fs.unlink(destinationPath);
-      await copyPathDereferenced(snapshot.sourceResolvedTarget, destinationPath);
-    }
-  }
-
   // ============================================================================
   // Symlink-based profile management
   // ============================================================================
+
+  /**
+   * Get the symlink strategy for an agent.
+   * - 'include': inverted per-file symlinks (messy agents: claude, codex)
+   * - 'directory': whole-directory symlink (clean agents: amp, opencode, etc.)
+   *
+   * TODO: check contentDir/{agent}/.profileinclude first (content-dir override).
+   */
+  getAgentStrategy(agent: string): 'include' | 'directory' {
+    return _getAgentStrategy(agent);
+  }
+
+  /**
+   * Resolve the ProfileInclude for an include-based agent.
+   * Returns null for directory-based agents.
+   *
+   * TODO: read from contentDir/{agent}/.profileinclude when content-dir override
+   * is implemented.
+   */
+  getProfileInclude(agent: string): ProfileInclude | null {
+    return resolveProfileInclude(agent);
+  }
+
+  /**
+   * Get the default .profileinclude content string for an agent (for writing to disk).
+   * Returns null for directory-based agents.
+   */
+  getDefaultProfileIncludeContent(agent: string): string | null {
+    return getDefaultProfileInclude(agent);
+  }
 
   /**
    * Get the absolute path to an agent's global config directory.
@@ -668,6 +800,10 @@ export class ConfigManager {
    * Returns one of: 'active', 'unmanaged', 'missing', 'broken', 'external'
    */
   async getSymlinkStatus(agent: string): Promise<SymlinkStatus> {
+    if (this.getAgentStrategy(agent) === 'include') {
+      return this.getIncludeSymlinkStatus(agent);
+    }
+
     const globalPath = this.getGlobalConfigPath(agent);
 
     // Use lstat to check the path itself (doesn't follow symlinks)
@@ -715,6 +851,10 @@ export class ConfigManager {
    * Returns null if the agent is not managed by us.
    */
   async getActiveProfile(agent: string): Promise<string | null> {
+    if (this.getAgentStrategy(agent) === 'include') {
+      return this.getActiveProfileInclude(agent);
+    }
+
     const status = await this.getSymlinkStatus(agent);
     if (status !== 'active') {
       return null;
@@ -747,6 +887,10 @@ export class ConfigManager {
     profileName: string = BASE_PROFILE_SLUG,
     options: { replaceExisting?: boolean } = {}
   ): Promise<void> {
+    if (this.getAgentStrategy(agent) === 'include') {
+      return this.adoptExistingInclude(agent, profileName, options);
+    }
+
     const globalPath = this.getGlobalConfigPath(agent);
     const status = await this.getSymlinkStatus(agent);
 
@@ -791,7 +935,6 @@ export class ConfigManager {
 
     // Create symlink back to the profile with rollback on failure
     try {
-      await this.ensureProfileLayout(agent, profileName);
       await atomicSymlink(profileDir, globalPath);
     } catch (err) {
       // Rollback: move the directory back to its original location
@@ -814,8 +957,49 @@ export class ConfigManager {
    * Returns true if verification passes, false otherwise.
    */
   async verifyAdoption(agent: string, profileName: string = BASE_PROFILE_SLUG): Promise<boolean> {
-    const globalPath = this.getGlobalConfigPath(agent);
     const expectedProfileDir = path.join(this.contentDir, agent, profileName);
+
+    if (this.getAgentStrategy(agent) === 'include') {
+      // For include-based agents: verify that _base exists and at least one
+      // managed per-entry symlink points to the expected profile directory.
+      if (!(await pathExists(expectedProfileDir))) return false;
+
+      const include = this.getProfileInclude(agent);
+      if (!include) return false;
+
+      const globalPath = this.getGlobalConfigPath(agent);
+      const contentDirAbs = path.resolve(this.contentDir);
+      const allEntries = [...include.files, ...include.dirs];
+
+      // If include list is empty, treat as verified if profile dir exists
+      if (allEntries.length === 0) return true;
+
+      for (const entry of allEntries) {
+        const entryPath = path.join(globalPath, entry);
+        let entryStat: Awaited<ReturnType<typeof fs.lstat>> | null = null;
+        try {
+          entryStat = await fs.lstat(entryPath);
+        } catch {
+          continue;
+        }
+        if (!entryStat?.isSymbolicLink()) continue;
+
+        const target = await fs.readlink(entryPath);
+        const absTarget = path.isAbsolute(target)
+          ? target
+          : path.resolve(path.dirname(entryPath), target);
+
+        if (!isSubpath(contentDirAbs, absTarget)) continue;
+
+        // Check target points to the expected profile
+        const expectedEntryPath = path.resolve(expectedProfileDir, entry);
+        if (path.resolve(absTarget) === expectedEntryPath) return true;
+      }
+
+      return false;
+    }
+
+    const globalPath = this.getGlobalConfigPath(agent);
 
     // Check if global path is a symlink
     const status = await this.getSymlinkStatus(agent);
@@ -848,6 +1032,10 @@ export class ConfigManager {
       throw new Error(`Profile '${SHARED_PROFILE_SLUG}' is reserved and cannot be activated.`);
     }
 
+    if (this.getAgentStrategy(agent) === 'include') {
+      return this.switchProfileInclude(agent, profileSlug);
+    }
+
     const globalPath = this.getGlobalConfigPath(agent);
     const profileDir = path.join(this.contentDir, agent, profileSlug);
 
@@ -873,6 +1061,10 @@ export class ConfigManager {
    * This "releases" the agent from management.
    */
   async unlinkProfile(agent: string): Promise<void> {
+    if (this.getAgentStrategy(agent) === 'include') {
+      return this.unlinkProfileInclude(agent);
+    }
+
     const globalPath = this.getGlobalConfigPath(agent);
     const status = await this.getSymlinkStatus(agent);
 
@@ -890,9 +1082,8 @@ export class ConfigManager {
     const globalBaseName = path.basename(globalPath);
     const tempGlobalPath = path.join(globalParent, `.${globalBaseName}-release-${Date.now()}`);
 
-    const managedSymlinks = await this.collectManagedSymlinks(profileDir);
+    // Copy the profile directory to a temp location (preserving symlinks as copies)
     await copyDirectory(profileDir, tempGlobalPath);
-    await this.materializeManagedSymlinks(tempGlobalPath, managedSymlinks);
 
     // Remove the managed symlink so the global path can become a real directory.
     await fs.unlink(globalPath);
@@ -909,18 +1100,6 @@ export class ConfigManager {
         );
       }
       throw error;
-    }
-
-    // Merge _shared back into the restored global dir, then clean it up.
-    // mergeSharedIntoDir is non-destructive: it only removes _shared if every
-    // entry was successfully moved. If anything failed, _shared is left in place
-    // (orphaned but no data is lost).
-    const sharedRoot = path.join(this.contentDir, agent, SHARED_PROFILE_SLUG);
-    if (await pathExists(sharedRoot)) {
-      const fullyMerged = await this.mergeSharedIntoDir(sharedRoot, globalPath);
-      if (fullyMerged) {
-        await fs.rm(sharedRoot, { recursive: true, force: true });
-      }
     }
 
     // Remove profile from managed content after successful release.

@@ -89,8 +89,8 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
       // Source doesn't exist, that's fine (only happens if --from not specified and _base doesn't exist)
     }
 
-    // Apply per-agent profile layout conventions (no-op for simple agents).
-    await config.ensureProfileLayout(resolvedAgent, slug);
+    // Scaffold include-list dir entries for include-based agents.
+    await config.ensureIncludeProfileLayout(resolvedAgent, slug);
 
     outro(`Profile created at ${color.cyan(profileDir)}`);
 

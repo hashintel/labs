@@ -1,5 +1,12 @@
 # Roadmap
 
+> **Note (Feb 2026):** Items 1–4 below are now partially or fully superseded by
+> the include-strategy rework. claude and codex now use per-file symlinks with a
+> `.profileinclude` allow-list rather than the `_shared` scheme. The deny-all
+> gitignore is auto-generated from `.profileinclude` for include agents. Items
+> 3 (content dir AGENTS.md) and parts of item 2 (rules file symlinks) remain
+> relevant for future work.
+
 ## Backport: patterns proven in `dot-agents/profiles`
 
 The following patterns were developed and validated manually in
@@ -8,7 +15,7 @@ incorporated into the CLI's `setup` command so they are created automatically.
 
 ---
 
-### 1. Deny-all `.gitignore` strategy
+### ~~1. Deny-all `.gitignore` strategy~~ ✅ Superseded
 
 **Current behavior:** The CLI generates per-agent `.gitignore` files that
 name specific files/directories to ignore (deny-list). This is fragile because
@@ -189,19 +196,28 @@ current set of supported agents.
 
 ---
 
-### 4. `_shared` directory for auth and state symlinks
+### ~~4. `_shared` directory for auth and state symlinks~~ ✅ Superseded
 
-**Problem:** Some agents (e.g. `claude`, `codex`) store authentication
+Done — the `_shared` approach has been superseded by the include-strategy.
+For claude and codex, the global config directory now stays as a real directory.
+Only allow-listed config files (from `.profileinclude`) are symlinked into
+profiles. Auth/state/cache files remain in the global dir and are naturally
+shared across profiles without any explicit `_shared` scaffolding.
+
+**Legacy note:** The `_shared` layout described below was an intermediate
+approach and is no longer implemented in the CLI.
+
+**Problem (preserved for reference):** Some agents (e.g. `claude`, `codex`) store authentication
 tokens and session state inside their config directory, unlike agents
 like `amp` and `opencode` which keep state separate in XDG-compliant
 locations. When switching profiles, auth and state would be lost unless
 duplicated into every profile.
 
-**Current manual solution (in `dot-agents/profiles`):** A `_shared`
-directory exists alongside `_base` in each agent's content directory
-that needs it. It holds the actual auth/state files and directories.
-Each profile (including `_base`) symlinks these files back to `_shared`,
-so authentication and session state carry across profile switches.
+**Former manual solution (in `dot-agents/profiles`):** A `_shared`
+directory existed alongside `_base` in each agent's content directory
+that needed it. It held the actual auth/state files and directories.
+Each profile (including `_base`) symlinked these files back to `_shared`,
+so authentication and session state carried across profile switches.
 
 #### Example layout
 

@@ -18,36 +18,66 @@ export async function doctorCommand() {
   // Check each agent
   for (const [agentKey, agentDef] of Object.entries(SUPPORTED_TOOLS)) {
     const status = await config.getSymlinkStatus(agentKey);
+    const strategy = config.getAgentStrategy(agentKey);
 
     if (status === 'broken') {
-      issues.push(`${agentDef.description} (${agentKey}): broken symlink`);
-
       const globalPath = config.getGlobalConfigPath(agentKey);
-      const choice = await select({
-        message: `Fix broken symlink for ${color.cyan(agentKey)}?`,
-        options: [
-          { value: 'switch_base', label: 'Switch to _base profile' },
-          { value: 'remove', label: 'Remove the symlink' },
-          { value: 'skip', label: 'Skip' },
-        ],
-      });
 
-      if (choice === 'switch_base') {
-        try {
-          const baseDir = path.join(config.getContentDir(), agentKey, BASE_PROFILE_SLUG);
-          await fs.access(baseDir);
-          await config.switchProfile(agentKey, BASE_PROFILE_SLUG);
-          fixes.push(`Switched ${agentKey} to _base profile`);
-        } catch {
-          console.error(color.red(`  Error: _base profile not found for ${agentKey}`));
+      if (strategy === 'include') {
+        // Include agents: 'broken' means one or more per-entry symlinks inside globalPath
+        // are broken. The fix is to switch to _base which re-creates all managed entries.
+        issues.push(
+          `${agentDef.description} (${agentKey}): broken per-entry symlink(s) in ${globalPath}`
+        );
+
+        const choice = await select({
+          message: `Fix broken include symlinks for ${color.cyan(agentKey)}?`,
+          options: [
+            { value: 'switch_base', label: 'Switch to _base profile (re-creates managed entries)' },
+            { value: 'skip', label: 'Skip' },
+          ],
+        });
+
+        if (choice === 'switch_base') {
+          try {
+            const baseDir = path.join(config.getContentDir(), agentKey, BASE_PROFILE_SLUG);
+            await fs.access(baseDir);
+            await config.switchProfile(agentKey, BASE_PROFILE_SLUG);
+            fixes.push(`Switched ${agentKey} to _base profile (repaired broken entries)`);
+          } catch {
+            console.error(color.red(`  Error: _base profile not found for ${agentKey}`));
+          }
         }
-      } else if (choice === 'remove') {
-        try {
-          await fs.unlink(globalPath);
-          fixes.push(`Removed broken symlink for ${agentKey}`);
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
-          console.error(color.red(`  Error removing symlink: ${msg}`));
+      } else {
+        // Directory agents: 'broken' means the directory-level symlink is broken.
+        issues.push(`${agentDef.description} (${agentKey}): broken symlink`);
+
+        const choice = await select({
+          message: `Fix broken symlink for ${color.cyan(agentKey)}?`,
+          options: [
+            { value: 'switch_base', label: 'Switch to _base profile' },
+            { value: 'remove', label: 'Remove the symlink' },
+            { value: 'skip', label: 'Skip' },
+          ],
+        });
+
+        if (choice === 'switch_base') {
+          try {
+            const baseDir = path.join(config.getContentDir(), agentKey, BASE_PROFILE_SLUG);
+            await fs.access(baseDir);
+            await config.switchProfile(agentKey, BASE_PROFILE_SLUG);
+            fixes.push(`Switched ${agentKey} to _base profile`);
+          } catch {
+            console.error(color.red(`  Error: _base profile not found for ${agentKey}`));
+          }
+        } else if (choice === 'remove') {
+          try {
+            await fs.unlink(globalPath);
+            fixes.push(`Removed broken symlink for ${agentKey}`);
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            console.error(color.red(`  Error removing symlink: ${msg}`));
+          }
         }
       }
     }

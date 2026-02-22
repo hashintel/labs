@@ -9,9 +9,12 @@ Guidelines for AI agents working in this codebase.
 ### Key Concepts
 
 - **Profiles**: Named configurations stored under `~/.config/agentprofiles/<agent>/<profile-name>/`
-- **Agents**: Supported tools (claude, amp, opencode, codex, gemini, augment) that read config from symlinked directories
-- **Symlinks**: Per-agent symlinks in the agent's global config directory (e.g., `~/.claude` → `~/.config/agentprofiles/claude/work`)
-- **\_base profile**: Reserved profile created during setup; serves as template for new profiles
+- **Agents**: Supported tools (claude, amp, opencode, codex, gemini, augment) — each uses one of two symlink strategies
+- **Two symlink strategies**:
+  - **`directory`** (clean agents: amp, opencode, augment, gemini): The agent's global config dir is a symlink to the active profile dir. Switching = one atomic symlink swap.
+  - **`include`** (messy agents: claude, codex): The agent's global config dir stays a real directory. Only allow-listed entries inside it are individually symlinked to the active profile. Everything else (caches, session data) lives in the real global dir untouched.
+- **`.profileinclude`**: Allow-list file (gitignore-like syntax) that defines which paths inside an include-strategy agent's global dir are managed as profile config. Trailing `/` = directory entry. Lives at `contentDir/{agent}/.profileinclude` (user-editable); CLI defaults are inline strings in `src/lib/profileinclude.ts`. Strategy is determined by whether a default `.profileinclude` exists for the agent.
+- **\_base profile**: Reserved profile created during setup; serves as the default for new profiles
 - **Shared directories**: Cross-agent resources like `~/.agents/` symlinked to `contentDir/_agents/`
 
 ## Commands
@@ -66,7 +69,8 @@ src/
 │   ├── status.ts         # Show current profile status
 │   └── unset.ts          # Switch an agent to base profile
 ├── lib/                  # Shared utilities
-│   ├── config.ts         # ConfigManager class (profile CRUD, directory management)
+│   ├── config.ts         # ConfigManager class (profile CRUD, symlink management)
+│   ├── profileinclude.ts # .profileinclude parser, defaults, and strategy detection
 │   ├── symlink.ts        # Symlink creation/removal and validation
 │   ├── gitignore.ts      # Agent-specific .gitignore templates
 │   ├── validation.ts     # Profile name validation
@@ -226,16 +230,20 @@ The tool does **not** set agent-specific environment variables. Instead, it mana
 >
 > The `edit` command respects the `$EDITOR` environment variable if it is set. This value may include arguments (for example `EDITOR="code --wait"`), and the command is parsed so that the editor binary and its arguments are invoked with the profile directory path appended as the final argument.
 
-### Symlink-Based Profile Activation
+### Profile Activation
 
-The tool manages symlinks in agent global config directories:
+The tool manages symlinks differently per agent strategy:
 
-1. **Agent symlinks** - When you run `agentprofiles set claude work`:
-   - Creates/updates `~/.claude` → `~/.config/agentprofiles/claude/work`
-   - The agent reads config from the symlinked directory
-   - No environment variables or shell hooks needed
+1. **Include-strategy agents** (`agentprofiles set claude work`):
+   - `~/.claude` stays a real directory (agent writes freely to it)
+   - Each allow-listed entry gets a per-file symlink: `~/.claude/settings.json` → `contentDir/claude/work/settings.json`
+   - Switching repoints each managed symlink to the new profile
 
-2. **Shared directory symlinks** - For cross-agent resources:
+2. **Directory-strategy agents** (`agentprofiles set amp work`):
+   - `~/.config/amp` → `contentDir/amp/work` (entire dir is a symlink)
+   - Switching is a single atomic symlink swap
+
+3. **Shared directory symlinks** - For cross-agent resources:
    - Creates/updates `~/.agents` → `~/.config/agentprofiles/_agents/`
    - Accessible to all agents for shared skills, tools, etc.
 
@@ -253,12 +261,21 @@ To add support for a new agent tool:
    },
    ```
 
-2. Add gitignore template in `src/lib/gitignore.ts` if needed
+2. If the agent mixes config and state in its global dir (like claude/codex), add a `.profileinclude` default in `src/lib/profileinclude.ts`:
 
-3. The tool automatically:
+   ```typescript
+   // In DEFAULT_PROFILE_INCLUDES:
+   newtool: `# newtool .profileinclude\nsettings.json\nplugins/\n`,
+   ```
+
+   This automatically enables include-strategy for the agent. The `.gitignore` is auto-generated from the `.profileinclude`. Also add a fallback gitignore in `src/lib/gitignore.ts` only if needed.
+
+3. If the agent keeps state separate from config (XDG-compliant), no `.profileinclude` is needed — it automatically uses directory-strategy. Add a gitignore template in `src/lib/gitignore.ts` if needed.
+
+4. The tool automatically:
    - Creates profile directories under `~/.config/agentprofiles/newtool/`
-   - Manages symlinks at `~/.newtool` when profiles are activated
-   - Handles the \_base profile template
+   - Detects strategy from whether a `.profileinclude` default exists
+   - Handles the \_base profile scaffold (including `.gitkeep` for empty dirs)
 
 ## Testing
 
@@ -339,6 +356,10 @@ Run with `npm run smoke` (requires `npm run build` first).
 5. **Shared directories**: The `_agents` directory in contentDir is symlinked to `~/.agents` for cross-agent resources
 
 6. **Random profile names**: Uses `joyful` to generate suggested profile names (e.g. `amber-fox`)
+
+7. **Strategy detection**: A new agent uses directory-strategy by default. Add a `DEFAULT_PROFILE_INCLUDES` entry in `src/lib/profileinclude.ts` to enable include-strategy.
+
+8. **Bundle constraint**: tsup bundles everything to a single `dist/index.js`. Template content (`.profileinclude` defaults, gitignore strings) must be inline TypeScript strings — not external files in `src/templates/`.
 
 ## Dependencies
 
