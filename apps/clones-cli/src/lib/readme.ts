@@ -3,26 +3,80 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 
+const README_CANDIDATES = ['README.md', 'readme.md', 'Readme.md', 'ReadMe.md'];
+const HIGH_SIGNAL_FILES = [
+  'package.json',
+  'tsconfig.json',
+  'deno.json',
+  'deno.jsonc',
+  'pyproject.toml',
+  'Cargo.toml',
+  'go.mod',
+  'Makefile',
+  'justfile',
+];
+
+export interface IndexableDocument {
+  source: string;
+  content: string;
+}
+
+async function readTextFileIfExists(filePath: string): Promise<string | null> {
+  if (!existsSync(filePath)) {
+    return null;
+  }
+
+  try {
+    return await readFile(filePath, 'utf-8');
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Read README.md from a cloned repository path.
  * Performs case-insensitive file lookup (README.md, readme.md, Readme.md, etc.)
  * Returns null if no README is found.
  */
 export async function readReadmeContent(localPath: string): Promise<string | null> {
-  const possibleNames = ['README.md', 'readme.md', 'Readme.md', 'ReadMe.md'];
-
-  for (const name of possibleNames) {
-    const filePath = join(localPath, name);
-    if (existsSync(filePath)) {
-      try {
-        return await readFile(filePath, 'utf-8');
-      } catch {
-        return null;
-      }
+  for (const name of README_CANDIDATES) {
+    const content = await readTextFileIfExists(join(localPath, name));
+    if (content !== null) {
+      return content;
     }
   }
 
   return null;
+}
+
+/**
+ * Read indexable documents from a repository root.
+ * Includes README (case-insensitive) and a small set of high-signal root files.
+ */
+export async function readIndexableDocuments(localPath: string): Promise<IndexableDocument[]> {
+  const documents: IndexableDocument[] = [];
+  const seenSources = new Set<string>();
+
+  for (const name of README_CANDIDATES) {
+    const content = await readTextFileIfExists(join(localPath, name));
+    if (content !== null) {
+      documents.push({ source: name, content });
+      seenSources.add(name.toLowerCase());
+      break;
+    }
+  }
+
+  for (const name of HIGH_SIGNAL_FILES) {
+    if (seenSources.has(name.toLowerCase())) {
+      continue;
+    }
+    const content = await readTextFileIfExists(join(localPath, name));
+    if (content !== null) {
+      documents.push({ source: name, content });
+    }
+  }
+
+  return documents;
 }
 
 /**
@@ -31,6 +85,49 @@ export async function readReadmeContent(localPath: string): Promise<string | nul
  */
 export function hashContent(content: string): string {
   return createHash('sha256').update(content).digest('hex');
+}
+
+/**
+ * Build a compact profile text block for a repository.
+ * This creates a dedicated metadata chunk so lexical search can match even
+ * when README quality is weak.
+ */
+export function buildRepoProfileText(input: {
+  host: string;
+  owner: string;
+  repo: string;
+  description?: string;
+  tags?: string[];
+}): string {
+  const lines = [`${input.owner}/${input.repo}`, `${input.host}/${input.owner}/${input.repo}`];
+
+  if (input.description) {
+    lines.push(input.description);
+  }
+
+  if (input.tags && input.tags.length > 0) {
+    lines.push(`tags: ${input.tags.join(' ')}`);
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Compute a deterministic hash for all indexed inputs for a repository.
+ */
+export function hashIndexInputs(documents: IndexableDocument[], profileText: string): string {
+  const hash = createHash('sha256');
+  const sortedDocs = [...documents].sort((a, b) => a.source.localeCompare(b.source));
+  for (const doc of sortedDocs) {
+    hash.update(doc.source);
+    hash.update('\n');
+    hash.update(doc.content);
+    hash.update('\n');
+  }
+  hash.update('__profile__');
+  hash.update('\n');
+  hash.update(profileText);
+  return hash.digest('hex');
 }
 
 /**

@@ -38,7 +38,12 @@ import { normalizeConcurrency, runWithConcurrency } from '../lib/concurrency.js'
 import { openDb, closeDb } from '../lib/db.js';
 import { syncRegistryToDb } from '../lib/db-sync.js';
 import { ensureSearchTables, indexReadme } from '../lib/db-search.js';
-import { readReadmeContent, hashContent, chunkText } from '../lib/readme.js';
+import {
+  readIndexableDocuments,
+  buildRepoProfileText,
+  hashIndexInputs,
+  chunkText,
+} from '../lib/readme.js';
 import type { RegistryEntry, UpdateResult, Registry } from '../types/index.js';
 
 interface UpdateSummary {
@@ -491,10 +496,10 @@ export default defineCommand({
       }
 
       // ═══════════════════════════════════════════════════════════════════
-      // PHASE 5: INDEX READMEs
+      // PHASE 5: INDEX SEARCH CONTENT
       // ═══════════════════════════════════════════════════════════════════
       if (!dryRun && !noticeCancellation()) {
-        p.log.step('Phase 5: Indexing READMEs...');
+        p.log.step('Phase 5: Indexing search content...');
 
         try {
           const db = await openDb();
@@ -513,7 +518,7 @@ export default defineCommand({
               p.log.info('  No managed repos to index');
             } else {
               const log = p.taskLog({
-                title: 'Indexing READMEs',
+                title: 'Indexing search content',
                 retainLog: true,
                 signal: syncOptions.signal,
               });
@@ -530,19 +535,21 @@ export default defineCommand({
                 const name = `${entry.owner}/${entry.repo}`;
 
                 try {
-                  const content = await readReadmeContent(localPath);
+                  const documents = await readIndexableDocuments(localPath);
+                  const profileText = buildRepoProfileText(entry);
+                  const fileChunks = documents.flatMap((doc) => chunkText(doc.content));
+                  const profileChunks = chunkText(profileText, 500, 0);
+                  const chunks = [...fileChunks, ...profileChunks];
 
-                  if (!content) {
-                    log.message(`  ○ ${name} (no README found)`);
+                  if (chunks.length === 0) {
+                    log.message(`  ○ ${name} (no indexable content)`);
                     skipped += 1;
                     continue;
                   }
 
-                  const contentHash = hashContent(content);
-                  const chunks = chunkText(content);
-
-                  indexReadme(db, entry.id, content, contentHash, chunks);
-                  log.message(`  ✓ ${name} (indexed)`);
+                  const contentHash = hashIndexInputs(documents, profileText);
+                  indexReadme(db, entry.id, profileText, contentHash, chunks);
+                  log.message(`  ✓ ${name} (${documents.length} files + profile)`);
                   indexed += 1;
                 } catch (error) {
                   errors += 1;

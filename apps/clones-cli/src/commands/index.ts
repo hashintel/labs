@@ -4,7 +4,12 @@ import { openDb, closeDb } from '../lib/db.js';
 import { readRegistry } from '../lib/registry.js';
 import { syncRegistryToDb } from '../lib/db-sync.js';
 import { ensureSearchTables, clearAllChunks, indexReadme } from '../lib/db-search.js';
-import { readReadmeContent, hashContent, chunkText } from '../lib/readme.js';
+import {
+  readIndexableDocuments,
+  buildRepoProfileText,
+  hashIndexInputs,
+  chunkText,
+} from '../lib/readme.js';
 import { getRepoPath } from '../lib/config.js';
 
 const rebuildCommand = defineCommand({
@@ -61,33 +66,25 @@ const rebuildCommand = defineCommand({
         const name = `${repo.owner}/${repo.repo}`;
 
         try {
-          // Read README
-          const readmeContent = await readReadmeContent(localPath);
-
-          if (!readmeContent) {
-            progress.message(`  ○ ${name} (no README)`);
-            skipped += 1;
-            progress.advance(1, `${indexed} indexed, ${skipped} skipped, ${errors} errors`);
-            continue;
-          }
-
-          // Hash content
-          const contentHash = hashContent(readmeContent);
-
-          // Chunk text
-          const chunks = chunkText(readmeContent);
+          const documents = await readIndexableDocuments(localPath);
+          const profileText = buildRepoProfileText(repo);
+          const fileChunks = documents.flatMap((doc) => chunkText(doc.content));
+          const profileChunks = chunkText(profileText, 500, 0);
+          const chunks = [...fileChunks, ...profileChunks];
 
           if (chunks.length === 0) {
-            progress.message(`  ○ ${name} (empty README)`);
+            progress.message(`  ○ ${name} (no indexable content)`);
             skipped += 1;
             progress.advance(1, `${indexed} indexed, ${skipped} skipped, ${errors} errors`);
             continue;
           }
 
-          // Index README
-          indexReadme(db, repo.id, readmeContent, contentHash, chunks);
+          const contentHash = hashIndexInputs(documents, profileText);
+          indexReadme(db, repo.id, profileText, contentHash, chunks);
 
-          progress.message(`  ✓ ${name} (${chunks.length} chunks)`);
+          progress.message(
+            `  ✓ ${name} (${chunks.length} chunks, ${documents.length} files + profile)`
+          );
           indexed += 1;
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
