@@ -160,6 +160,13 @@ Planned phases:
 - Phase 2: vector embeddings and hybrid BM25 + semantic fusion
 - Phase 3: quality harness for resurfacing difficult starred repos
 
+Current `search` supports:
+
+- `--mode bm25|vector|hybrid` (default: `hybrid`)
+- `--blend <0..1>` lexical weight in hybrid mode (default: `0.5`)
+- `--rerank-top <N>` optional rerank pass over top-N hybrid candidates
+- `--explain` score breakdown (`bm25`, `vector`, `rrf`, optional `rerank`)
+
 `registry.toml` remains the portable source of truth; the local database is derived state and can be rebuilt.
 
 ## Configuration

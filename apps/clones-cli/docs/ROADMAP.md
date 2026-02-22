@@ -6,9 +6,9 @@ Items are intentionally scoped and can be revisited as user needs evolve.
 ## Status Snapshot (2026-02-22)
 
 - `✅ Done`: multi-repo `clones add`, post-add action menu, implicit single selection in browse multiselect, copy remote URL actions.
-- `🟡 In progress`: lexical README chunk indexing/search baseline.
+- `🟡 In progress`: lexical + local semantic retrieval baseline (`bm25|vector|hybrid` with RRF/explain).
 - `✅ Done`: SQLite sidecar adoption for browse/search reads with lazy status caching.
-- `⚪ Not started`: semantic retrieval (`vector|hybrid`/RRF/explain), quality harness metrics, subgroup support, display casing fields, path sanitization mode, adopt-mismatch modes, hard-cancel in-flight git operations.
+- `⚪ Not started`: quality harness metrics, subgroup support, display casing fields, path sanitization mode, adopt-mismatch modes, hard-cancel in-flight git operations.
 
 ## Active Priorities
 
@@ -28,11 +28,11 @@ Status: `✅ Done`
 
 Move from substring filtering to chunked retrieval with hybrid lexical + semantic ranking.
 
-Status: `🟡 In progress` (Phase 1 partial; Phases 2-3 not started)
+Status: `🟡 In progress` (Phase 1 done; Phase 2 partial; Phase 3 not started)
 
 #### Phase 1: lexical baseline
 
-Status: `🟡 Partial`
+Status: `✅ Done`
 
 - Add chunk tables for README/high-signal files and a profile chunk per repo.
 - Add FTS5 BM25 over chunk text + profile fields.
@@ -41,12 +41,13 @@ Status: `🟡 Partial`
 
 #### Phase 2: semantic retrieval
 
-Status: `⚪ Not started`
+Status: `🟡 Partial`
 
-- Add embeddings for chunks/profile text.
-- Add `--mode bm25|vector|hybrid` and configurable blend weight.
-- Fuse candidates with RRF and optional top-N rerank.
-- Add `--explain` output for score transparency.
+- Add embeddings for chunks/profile text. `✅` (local deterministic embeddings baseline)
+- Add `--mode bm25|vector|hybrid` and configurable blend weight. `✅`
+- Fuse candidates with RRF and optional top-N rerank. `✅`
+- Add `--explain` output for score transparency. `✅`
+- Add pluggable external embedding providers for higher-fidelity semantics. `⚪`
 
 #### Phase 3: quality harness
 

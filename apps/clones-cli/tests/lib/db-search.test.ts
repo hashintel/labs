@@ -4,9 +4,11 @@ import {
   ensureSearchTables,
   indexReadme,
   searchReadmes,
+  searchRepos,
   clearAllChunks,
   sanitizeFtsQuery,
   rankReposByQuery,
+  rankReposByVector,
 } from '../../src/lib/db-search.js';
 import { chunkText, hashContent } from '../../src/lib/readme.js';
 
@@ -41,6 +43,23 @@ describe('db-search.ts', () => {
     ensureSearchTables(db);
   });
 
+  const insertRepo = (repoId: string, owner = 'owner', repo = 'repo') => {
+    db.prepare(
+      'INSERT INTO repos (id, host, owner, repo, cloneUrl, defaultRemoteName, updateStrategy, submodules, lfs, managed) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(
+      repoId,
+      'github.com',
+      owner,
+      repo,
+      `https://github.com/${owner}/${repo}.git`,
+      'origin',
+      'hard-reset',
+      'none',
+      'auto',
+      1
+    );
+  };
+
   describe('ensureSearchTables', () => {
     it('should create readme_chunks table', () => {
       const tables = db
@@ -52,6 +71,13 @@ describe('db-search.ts', () => {
     it('should create readme_fts virtual table', () => {
       const tables = db
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='readme_fts'")
+        .all();
+      expect(tables.length).toBe(1);
+    });
+
+    it('should create readme_embeddings table', () => {
+      const tables = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='readme_embeddings'")
         .all();
       expect(tables.length).toBe(1);
     });
@@ -161,6 +187,28 @@ describe('db-search.ts', () => {
       const stored = db.prepare('SELECT * FROM readme_chunks WHERE repo_id = ?').all(repoId);
       expect(stored.length).toBe(chunks2.length);
     });
+
+    it('should insert semantic embeddings for each chunk', () => {
+      const repoId = 'test-repo';
+      const content = 'Build terminal tools with ergonomic prompts';
+      const hash = hashContent(content);
+      const chunks = chunkText(content, 20, 0);
+
+      insertRepo(repoId);
+
+      indexReadme(db, repoId, content, hash, chunks);
+
+      const rows = db
+        .prepare('SELECT chunk_index, embedding_json FROM readme_embeddings WHERE repo_id = ?')
+        .all(repoId) as { chunk_index: number; embedding_json: string }[];
+
+      expect(rows.length).toBe(chunks.length);
+      rows.forEach((row) => {
+        const parsed = JSON.parse(row.embedding_json);
+        expect(Array.isArray(parsed)).toBe(true);
+        expect(parsed.length).toBe(128);
+      });
+    });
   });
 
   describe('searchReadmes', () => {
@@ -255,6 +303,13 @@ describe('db-search.ts', () => {
         count: number;
       };
       expect(count.count).toBe(0);
+
+      const embeddingCount = db
+        .prepare('SELECT COUNT(*) as count FROM readme_embeddings')
+        .get() as {
+        count: number;
+      };
+      expect(embeddingCount.count).toBe(0);
     });
   });
 
@@ -334,6 +389,95 @@ describe('db-search.ts', () => {
       const result = sanitizeFtsQuery('test');
       expect(result).toMatch(/"test"\*/);
       expect(result).not.toMatch(/"test\*"/);
+    });
+  });
+
+  describe('rankReposByVector', () => {
+    it('should return empty Map for empty query', () => {
+      const result = rankReposByVector(db, '');
+      expect(result).toEqual(new Map());
+    });
+
+    it('should return vector scores for semantically similar content', () => {
+      const repoA = 'repo-a';
+      const repoB = 'repo-b';
+      insertRepo(repoA, 'owner', 'prompts');
+      insertRepo(repoB, 'owner', 'vision');
+
+      const contentA = 'Interactive terminal prompt toolkit for command line applications';
+      const contentB = 'Computer vision dataset and model training guide';
+
+      indexReadme(db, repoA, contentA, hashContent(contentA), chunkText(contentA, 200, 0));
+      indexReadme(db, repoB, contentB, hashContent(contentB), chunkText(contentB, 200, 0));
+
+      const result = rankReposByVector(db, 'terminal prompts for cli', 10);
+      const ranked = [...result.entries()];
+
+      expect(ranked.length).toBeGreaterThan(0);
+      expect(ranked[0][0]).toBe(repoA);
+      expect(ranked[0][1]).toBeGreaterThan(0);
+    });
+  });
+
+  describe('searchRepos', () => {
+    it('should support bm25 mode with explain metadata', () => {
+      const repoId = 'repo-bm25';
+      insertRepo(repoId, 'owner', 'bm25');
+
+      const content = 'A kubernetes deployment checklist for production rollouts';
+      indexReadme(db, repoId, content, hashContent(content), chunkText(content, 200, 0));
+
+      const results = searchRepos(db, 'kubernetes deployment', {
+        mode: 'bm25',
+        limit: 5,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].repoId).toBe(repoId);
+      expect(results[0].explain.bm25Rank).toBeDefined();
+      expect(results[0].explain.vectorRank).toBeUndefined();
+    });
+
+    it('should support vector mode with explain metadata', () => {
+      const repoId = 'repo-vector';
+      insertRepo(repoId, 'owner', 'vector');
+
+      const content = 'Build polished terminal prompts and command line flows';
+      indexReadme(db, repoId, content, hashContent(content), chunkText(content, 200, 0));
+
+      const results = searchRepos(db, 'terminal prompts', {
+        mode: 'vector',
+        limit: 5,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].repoId).toBe(repoId);
+      expect(results[0].explain.vectorRank).toBeDefined();
+      expect(results[0].explain.bm25Rank).toBeUndefined();
+    });
+
+    it('should support hybrid mode with optional rerank', () => {
+      const repoA = 'repo-hybrid-a';
+      const repoB = 'repo-hybrid-b';
+      insertRepo(repoA, 'owner', 'hybrid-a');
+      insertRepo(repoB, 'owner', 'hybrid-b');
+
+      const contentA = 'Command line prompts and terminal interface recipes';
+      const contentB = 'Prompt engineering notes for language models';
+
+      indexReadme(db, repoA, contentA, hashContent(contentA), chunkText(contentA, 200, 0));
+      indexReadme(db, repoB, contentB, hashContent(contentB), chunkText(contentB, 200, 0));
+
+      const results = searchRepos(db, 'prompt terminal', {
+        mode: 'hybrid',
+        blend: 0.6,
+        rerankTop: 5,
+        limit: 5,
+      });
+
+      expect(results.length).toBeGreaterThan(0);
+      expect(results[0].explain.rrfScore).toBeGreaterThan(0);
+      expect(results[0].explain.rerankScore).toBeDefined();
     });
   });
 
