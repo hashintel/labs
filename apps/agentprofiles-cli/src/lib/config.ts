@@ -409,14 +409,13 @@ export class ConfigManager {
     const profileDir = path.join(this.contentDir, agent, profileName);
 
     // Handle existing profile
+    let profileDirExists = false;
     try {
       await fs.access(profileDir);
+      profileDirExists = true;
       if (options.replaceExisting) {
         await fs.rm(profileDir, { recursive: true, force: true });
-      } else {
-        throw new Error(
-          `Cannot adopt: profile '${profileName}' already exists for agent '${agent}'`
-        );
+        profileDirExists = false;
       }
     } catch (err) {
       if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
@@ -426,7 +425,9 @@ export class ConfigManager {
       }
     }
 
-    await fs.mkdir(profileDir, { recursive: true });
+    if (!profileDirExists) {
+      await fs.mkdir(profileDir, { recursive: true });
+    }
 
     const include = this.getProfileInclude(agent);
     if (!include) {
@@ -434,6 +435,9 @@ export class ConfigManager {
     }
 
     // Process allow-listed entries
+    const backupBase = `${globalPath}.bak-${Date.now()}`;
+    let backupCreated = false;
+
     for (const entry of [...include.files, ...include.dirs]) {
       const isDir = include.dirs.includes(entry);
       const globalEntryPath = path.join(globalPath, entry);
@@ -455,16 +459,35 @@ export class ConfigManager {
       }
 
       if (entryStat) {
-        // Real file or dir: move it into the profile
-        await movePath(globalEntryPath, profileEntryPath);
-      } else if (isDir) {
-        // Dir entry that doesn't exist yet: create empty dir + .gitkeep
-        await fs.mkdir(profileEntryPath, { recursive: true });
-        await fs.writeFile(path.join(profileEntryPath, '.gitkeep'), '');
-      } else {
-        // File entry that doesn't exist: skip (don't create dangling symlink)
-        continue;
+        // Real file or dir exists in global dir
+        const profileEntryExists = await pathExists(profileEntryPath);
+        if (profileDirExists && profileEntryExists) {
+          // Profile already has this entry — back up the global copy instead of overwriting
+          if (!backupCreated) {
+            await fs.mkdir(backupBase, { recursive: true });
+            backupCreated = true;
+          }
+          const backupEntryPath = path.join(backupBase, entry);
+          await fs.mkdir(path.dirname(backupEntryPath), { recursive: true });
+          await movePath(globalEntryPath, backupEntryPath);
+        } else {
+          // Profile doesn't have this entry — move global copy into profile
+          await movePath(globalEntryPath, profileEntryPath);
+        }
+      } else if (!profileDirExists || !(await pathExists(profileEntryPath))) {
+        if (isDir) {
+          // Dir entry that doesn't exist yet in either place: scaffold with .gitkeep
+          await fs.mkdir(profileEntryPath, { recursive: true });
+          await fs.writeFile(path.join(profileEntryPath, '.gitkeep'), '');
+        } else {
+          // File entry missing from both global and profile: skip (no dangling symlink)
+          continue;
+        }
       }
+      // If profileDirExists && profileEntryExists && !entryStat: profile already has it, nothing to move
+
+      // Only create symlink if target now exists in the profile
+      if (!(await pathExists(profileEntryPath))) continue;
 
       // Create symlink: globalPath/{entry} -> relative path to profile/{entry}
       await fs.mkdir(path.dirname(globalEntryPath), { recursive: true });
@@ -472,15 +495,18 @@ export class ConfigManager {
       await fs.symlink(relTarget, globalEntryPath);
     }
 
-    // Write meta.json
-    const meta: Meta = {
-      name: profileName,
-      slug: profileName,
-      agent,
-      description: 'Base profile (adopted from original config)',
-      created_at: new Date().toISOString(),
-    };
-    await fs.writeFile(path.join(profileDir, 'meta.json'), JSON.stringify(meta, null, 2));
+    // Write meta.json if not already present
+    const metaPath = path.join(profileDir, 'meta.json');
+    if (!(await pathExists(metaPath))) {
+      const meta: Meta = {
+        name: profileName,
+        slug: profileName,
+        agent,
+        description: 'Base profile (adopted from original config)',
+        created_at: new Date().toISOString(),
+      };
+      await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
+    }
 
     // Write .profileinclude and .gitignore to agent content dir if missing
     await this.ensureIncludeAgentFiles(agent);
@@ -565,8 +591,11 @@ export class ConfigManager {
       return 'unmanaged';
     }
 
-    // Check for broken per-entry symlinks
+    // Require at least one per-entry symlink pointing into contentDir
     const include = this.getProfileInclude(agent);
+    const contentDirAbs = path.resolve(this.contentDir);
+    let managedSymlinkCount = 0;
+
     if (include) {
       for (const entry of [...include.files, ...include.dirs]) {
         const entryPath = path.join(globalPath, entry);
@@ -574,16 +603,29 @@ export class ConfigManager {
         try {
           entryStat = await fs.lstat(entryPath);
         } catch {
-          continue; // Missing entry — not a broken link
+          continue; // Missing entry
         }
-        if (entryStat.isSymbolicLink()) {
-          try {
-            await fs.access(entryPath); // follows symlink
-          } catch {
-            return 'broken';
-          }
+        if (!entryStat.isSymbolicLink()) continue;
+
+        // Check if this symlink points into our contentDir
+        const target = await fs.readlink(entryPath);
+        const absTarget = path.isAbsolute(target)
+          ? target
+          : path.resolve(path.dirname(entryPath), target);
+        if (!absTarget.startsWith(contentDirAbs + path.sep)) continue;
+
+        // It's a managed symlink — check if it's broken
+        try {
+          await fs.access(entryPath); // follows symlink
+        } catch {
+          return 'broken';
         }
+        managedSymlinkCount++;
       }
+    }
+
+    if (managedSymlinkCount === 0) {
+      return 'unmanaged';
     }
 
     return 'active';
@@ -903,14 +945,13 @@ export class ConfigManager {
     const profileDir = path.join(this.contentDir, agent, profileName);
 
     // Check if profile already exists
+    let profileDirExists = false;
     try {
       await fs.access(profileDir);
+      profileDirExists = true;
       if (options.replaceExisting) {
         await fs.rm(profileDir, { recursive: true, force: true });
-      } else {
-        throw new Error(
-          `Cannot adopt: profile '${profileName}' already exists for agent '${agent}'`
-        );
+        profileDirExists = false;
       }
     } catch (err) {
       if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
@@ -920,34 +961,41 @@ export class ConfigManager {
       }
     }
 
-    // Move the real directory to profile location
-    await moveDirectory(globalPath, profileDir);
+    if (!profileDirExists) {
+      // Move the real directory to profile location
+      await moveDirectory(globalPath, profileDir);
 
-    // Create meta.json for the adopted profile
-    const meta: Meta = {
-      name: profileName,
-      slug: profileName,
-      agent,
-      description: 'Base profile (adopted from original config)',
-      created_at: new Date().toISOString(),
-    };
-    await fs.writeFile(path.join(profileDir, 'meta.json'), JSON.stringify(meta, null, 2));
+      // Create meta.json for the adopted profile
+      const meta: Meta = {
+        name: profileName,
+        slug: profileName,
+        agent,
+        description: 'Base profile (adopted from original config)',
+        created_at: new Date().toISOString(),
+      };
+      await fs.writeFile(path.join(profileDir, 'meta.json'), JSON.stringify(meta, null, 2));
 
-    // Create symlink back to the profile with rollback on failure
-    try {
-      await atomicSymlink(profileDir, globalPath);
-    } catch (err) {
-      // Rollback: move the directory back to its original location
+      // Create symlink back to the profile with rollback on failure
       try {
-        await moveDirectory(profileDir, globalPath);
-      } catch (rollbackErr) {
-        // If rollback fails, throw both errors
-        throw new Error(
-          `Failed to create symlink and rollback failed: ${err instanceof Error ? err.message : String(err)}. ` +
-            `Rollback error: ${rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)}`
-        );
+        await atomicSymlink(profileDir, globalPath);
+      } catch (err) {
+        // Rollback: move the directory back to its original location
+        try {
+          await moveDirectory(profileDir, globalPath);
+        } catch (rollbackErr) {
+          // If rollback fails, throw both errors
+          throw new Error(
+            `Failed to create symlink and rollback failed: ${err instanceof Error ? err.message : String(err)}. ` +
+              `Rollback error: ${rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)}`
+          );
+        }
+        throw err;
       }
-      throw err;
+    } else {
+      // Profile already exists (e.g. content repo cloned) — back up globalPath and symlink to existing profile
+      const backupPath = `${globalPath}.bak-${Date.now()}`;
+      await moveDirectory(globalPath, backupPath);
+      await atomicSymlink(profileDir, globalPath);
     }
   }
 
@@ -1194,9 +1242,10 @@ export class ConfigManager {
     }
 
     // Check if content path already exists
+    let contentPathExists = false;
     try {
       await fs.access(contentPath);
-      throw new Error(`Cannot adopt: shared dir content already exists at ${contentPath}`);
+      contentPathExists = true;
     } catch (err) {
       if (err instanceof Error && 'code' in err && err.code === 'ENOENT') {
         // Good, doesn't exist
@@ -1205,8 +1254,14 @@ export class ConfigManager {
       }
     }
 
-    // Move the real directory to content location
-    await moveDirectory(globalPath, contentPath);
+    if (!contentPathExists) {
+      // Move the real directory to content location
+      await moveDirectory(globalPath, contentPath);
+    } else {
+      // Content already exists (e.g. content repo cloned) — back up globalPath and symlink to existing content
+      const backupPath = `${globalPath}.bak-${Date.now()}`;
+      await moveDirectory(globalPath, backupPath);
+    }
 
     // Create symlink back
     await atomicSymlink(contentPath, globalPath);

@@ -44,7 +44,7 @@ export async function removeCommand(agent?: string, name?: string) {
 
   // Block removal of reserved non-profile directories
   if (resolvedName === SHARED_PROFILE_SLUG) {
-    console.error(color.red(`Cannot remove reserved directory (${SHARED_PROFILE_SLUG}).`));
+    console.error(color.red(`Cannot remove reserved profile name (${SHARED_PROFILE_SLUG}).`));
     process.exit(1);
   }
 

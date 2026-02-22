@@ -301,20 +301,63 @@ describe('ConfigManager symlink-based profile management', () => {
     await expect(fs.access(path.join(contentDir, 'claude', SHARED_PROFILE_SLUG))).rejects.toThrow();
   });
 
-  it('adoptExisting throws if _base profile already exists (include strategy)', async () => {
+  it('adoptExisting (include strategy) with pre-existing _base creates symlinks without error', async () => {
     const config = new ConfigManager();
     await config.ensureConfigDir();
 
     const globalPath = path.join(tmpHome, '.claude');
     await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"first":true}');
 
-    // Adopt it once
+    // Adopt once — moves settings.json to _base, creates symlink
     await config.adoptExisting('claude', BASE_PROFILE_SLUG);
 
-    // Try to adopt again — fails because _base already exists
-    await expect(config.adoptExisting('claude', BASE_PROFILE_SLUG)).rejects.toThrow(
-      /profile '_base' already exists/
+    const baseProfileDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+
+    // Place a new settings.json in globalPath (simulating a file that appeared after adopt)
+    // First unlink the existing symlink so we can place a real file
+    await fs.unlink(path.join(globalPath, 'settings.json'));
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"second":true}');
+
+    // Adopt again — should NOT throw; settings.json conflicts so gets backed up
+    await expect(config.adoptExisting('claude', BASE_PROFILE_SLUG)).resolves.toBeUndefined();
+
+    // Symlink at globalPath/settings.json should point to _base
+    const linkStat = await fs.lstat(path.join(globalPath, 'settings.json'));
+    expect(linkStat.isSymbolicLink()).toBe(true);
+    const target = await fs.readlink(path.join(globalPath, 'settings.json'));
+    const absTarget = path.isAbsolute(target)
+      ? target
+      : path.resolve(path.dirname(path.join(globalPath, 'settings.json')), target);
+    expect(absTarget).toBe(path.join(baseProfileDir, 'settings.json'));
+
+    // A backup directory should exist under globalPath.bak-*
+    const parentEntries = await fs.readdir(tmpHome);
+    const backups = parentEntries.filter((e) => e.startsWith('.claude.bak-'));
+    expect(backups.length).toBeGreaterThan(0);
+
+    // The backed-up file should have the second content
+    const backupDir = path.join(tmpHome, backups[0]!);
+    await expect(fs.readFile(path.join(backupDir, 'settings.json'), 'utf-8')).resolves.toBe(
+      '{"second":true}'
     );
+  });
+
+  it('getIncludeSymlinkStatus returns "unmanaged" when _base exists but no per-entry symlinks', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Create _base dir in contentDir (simulates a content repo clone)
+    const basePath = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await fs.mkdir(basePath, { recursive: true });
+
+    // Create a real (non-symlinked) global dir
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+
+    // No per-entry symlinks in globalPath
+    const status = await config.getSymlinkStatus('claude');
+    expect(status).toBe('unmanaged');
   });
 
   it('switchProfile (include strategy) repoints per-entry symlinks', async () => {
@@ -516,6 +559,47 @@ describe('ConfigManager symlink-based profile management', () => {
     // Check status
     const status = await config.getSharedDirStatus('agents');
     expect(status).toBe('active');
+  });
+
+  it('adoptSharedDir when contentPath already exists backs up globalPath and creates symlink', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    // Pre-populate contentPath (simulates content repo already cloned)
+    const contentPath = path.join(contentDir, '_agents');
+    await fs.mkdir(contentPath, { recursive: true });
+    await fs.writeFile(path.join(contentPath, 'repo-content.txt'), 'from repo');
+
+    // Also create a real global dir with different content
+    const globalPath = path.join(tmpHome, '.agents');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'local-content.txt'), 'local only');
+
+    // adoptSharedDir should NOT throw
+    await expect(config.adoptSharedDir('agents')).resolves.toBeUndefined();
+
+    // globalPath is now a symlink pointing to contentPath
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+    const target = await fs.readlink(globalPath);
+    const absTarget = path.isAbsolute(target)
+      ? target
+      : path.resolve(path.dirname(globalPath), target);
+    expect(absTarget).toBe(contentPath);
+
+    // Repo content is accessible via the symlink
+    await expect(fs.readFile(path.join(globalPath, 'repo-content.txt'), 'utf-8')).resolves.toBe(
+      'from repo'
+    );
+
+    // A backup of the original global dir exists with .agents.bak- prefix
+    const homeEntries = await fs.readdir(tmpHome);
+    const backups = homeEntries.filter((e) => e.startsWith('.agents.bak-'));
+    expect(backups.length).toBeGreaterThan(0);
+    const backupDir = path.join(tmpHome, backups[0]!);
+    await expect(fs.readFile(path.join(backupDir, 'local-content.txt'), 'utf-8')).resolves.toBe(
+      'local only'
+    );
   });
 
   it('unlinkSharedDir moves directory back to global location', async () => {
