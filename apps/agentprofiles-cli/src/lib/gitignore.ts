@@ -15,6 +15,7 @@ _shared/
 */shell-snapshots
 */statsig
 */tasks
+*/telemetry
 */todos
 */history.jsonl
 */stats-cache.json
