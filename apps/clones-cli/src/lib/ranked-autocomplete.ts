@@ -182,7 +182,8 @@ export async function rankedAutocompleteMultiselect<Value>(
           const barStr = barColor(S_BAR);
 
           if (modes.length > 1) {
-            const directModeMax = Math.min(modes.length, 9);
+            const functionKeyModeMax = Math.min(modes.length, 12);
+            const altDigitModeMax = Math.min(modes.length, 9);
             const modeTabs = modes
               .map((mode, index) =>
                 index === activeModeIndex ? color.cyan(`[${mode.label}]`) : color.dim(mode.label)
@@ -191,7 +192,9 @@ export async function rankedAutocompleteMultiselect<Value>(
             const modeHint = activeMode.hint ? color.dim(` (${activeMode.hint})`) : '';
             lines.push(`${barStr}  ${color.dim('Mode:')} ${modeTabs}${modeHint}`);
             lines.push(
-              `${barStr}  ${color.dim(`Alt+1..${directModeMax} jump mode | Ctrl+Left/Right cycle`)}`
+              `${barStr}  ${color.dim(
+                `F1..${functionKeyModeMax} jump | Ctrl+P/N cycle | Alt+1..${altDigitModeMax} fallback`
+              )}`
             );
           }
 
@@ -265,11 +268,11 @@ export async function rankedAutocompleteMultiselect<Value>(
 }
 
 function getModeSwitchDirection(keyInfo: Key): -1 | 0 | 1 {
-  if (keyInfo.ctrl && keyInfo.name === 'left') {
+  if (keyInfo.ctrl && (keyInfo.name === 'p' || keyInfo.name === 'left')) {
     return -1;
   }
 
-  if (keyInfo.ctrl && keyInfo.name === 'right') {
+  if (keyInfo.ctrl && (keyInfo.name === 'n' || keyInfo.name === 'right')) {
     return 1;
   }
 
@@ -281,6 +284,11 @@ function getModeJumpIndex(
   keyInfo: Key,
   modeCount: number
 ): number | null {
+  const functionKeyIndex = getFunctionKeyJumpIndex(keyInfo.name, modeCount);
+  if (functionKeyIndex !== null) {
+    return functionKeyIndex;
+  }
+
   if (!keyInfo.meta) {
     return null;
   }
@@ -291,6 +299,24 @@ function getModeJumpIndex(
   }
 
   const index = Number.parseInt(digit, 10) - 1;
+  if (index < 0 || index >= modeCount) {
+    return null;
+  }
+
+  return index;
+}
+
+function getFunctionKeyJumpIndex(keyName: string | undefined, modeCount: number): number | null {
+  if (!keyName) {
+    return null;
+  }
+
+  const match = /^f([1-9]|1[0-2])$/.exec(keyName);
+  if (!match) {
+    return null;
+  }
+
+  const index = Number.parseInt(match[1], 10) - 1;
   if (index < 0 || index >= modeCount) {
     return null;
   }
