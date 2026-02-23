@@ -1,5 +1,6 @@
 import { AutocompletePrompt } from '@clack/core';
 import type { Option } from '@clack/prompts';
+import type { Key } from 'node:readline';
 import {
   S_BAR,
   S_CHECKBOX_SELECTED,
@@ -10,6 +11,18 @@ import {
 } from '@clack/prompts';
 import color from 'picocolors';
 
+export interface RankedAutocompleteMode {
+  id: string;
+  label: string;
+  hint?: string;
+}
+
+export interface RankedAutocompleteContext {
+  mode: RankedAutocompleteMode;
+  modeIndex: number;
+  modeCount: number;
+}
+
 export interface RankedAutocompleteMultiSelectOptions<Value> {
   message: string;
   options: Option<Value>[];
@@ -17,47 +30,66 @@ export interface RankedAutocompleteMultiSelectOptions<Value> {
   initialValues?: Value[];
   required?: boolean;
   maxItems?: number;
+  modes?: RankedAutocompleteMode[];
+  initialModeId?: string;
   /** Called on every keystroke with the search text.
    *  Return a Map<string, number> of option-identifier → BM25 score.
    *  Options in the map appear first, sorted by ascending score. */
-  rankFn?: (searchText: string) => Map<string, number>;
+  rankFn?: (searchText: string, context?: RankedAutocompleteContext) => Map<string, number>;
   /** Map option value to its identifier for rankFn lookup.
    *  Defaults to using value directly if it's a string. */
   getOptionId?: (value: Value) => string;
   /** Optional custom metadata filter. Called with (searchText, option).
    *  Return true if the option matches on metadata (name, tags, description, etc.).
    *  If not provided, defaults to label/hint substring match. */
-  metadataFilter?: (searchText: string, option: Option<Value>) => boolean;
+  metadataFilter?: (
+    searchText: string,
+    option: Option<Value>,
+    context?: RankedAutocompleteContext
+  ) => boolean;
 }
 
 export async function rankedAutocompleteMultiselect<Value>(
   opts: RankedAutocompleteMultiSelectOptions<Value>
 ): Promise<Value[] | symbol | undefined> {
-  // Build a cache for rank results to avoid redundant calls
+  const modes =
+    opts.modes && opts.modes.length > 0 ? opts.modes : [{ id: 'default', label: 'All' }];
+  const initialModeIndex = opts.initialModeId
+    ? Math.max(
+        0,
+        modes.findIndex((mode) => mode.id === opts.initialModeId)
+      )
+    : 0;
+  let activeModeIndex = initialModeIndex;
+
+  const getModeContext = (): RankedAutocompleteContext => ({
+    mode: modes[activeModeIndex],
+    modeIndex: activeModeIndex,
+    modeCount: modes.length,
+  });
+
+  const getRankCacheKey = (searchText: string): string =>
+    `${getModeContext().mode.id}\u0000${searchText}`;
+
   const rankCache = new Map<string, Map<string, number>>();
 
-  // Compute getOptionId once so both getOptions and filterFn use the same default
   const getOptionId = opts.getOptionId || ((v: Value) => String(v));
 
-  // Create the options function that will be called on every keystroke
-  // This MUST be a regular function (not arrow) so `this` is properly bound
   function getOptions(this: AutocompletePrompt<Option<Value>>): Option<Value>[] {
     const searchText = this.userInput;
     const allOptions = opts.options;
 
-    // If no rankFn provided, return options in original order
     if (!opts.rankFn) {
       return allOptions;
     }
 
-    // Get or compute ranks for this search text
-    let ranks = rankCache.get(searchText);
+    const cacheKey = getRankCacheKey(searchText);
+    let ranks = rankCache.get(cacheKey);
     if (!ranks) {
-      ranks = opts.rankFn(searchText);
-      rankCache.set(searchText, ranks);
+      ranks = opts.rankFn(searchText, getModeContext());
+      rankCache.set(cacheKey, ranks);
     }
 
-    // Separate ranked and unranked options
     const ranked: Option<Value>[] = [];
     const unranked: Option<Value>[] = [];
 
@@ -70,43 +102,36 @@ export async function rankedAutocompleteMultiselect<Value>(
       }
     }
 
-    // Sort ranked options by score (ascending = better relevance)
     ranked.sort((a, b) => {
       const scoreA = ranks!.get(getOptionId(a.value)) ?? Infinity;
       const scoreB = ranks!.get(getOptionId(b.value)) ?? Infinity;
       return scoreA - scoreB;
     });
 
-    // Return ranked first, then unranked in original order
     return [...ranked, ...unranked];
   }
 
-  // Create a filter function that accepts ranked matches + metadata matches
   const filterFn = (searchText: string, option: Option<Value>): boolean => {
     if (!searchText) return true;
 
-    // If this option was matched by FTS ranking, always include it
     if (opts.rankFn) {
-      const lastRankMap = rankCache.get(searchText);
+      const lastRankMap = rankCache.get(getRankCacheKey(searchText));
       if (lastRankMap) {
         const id = getOptionId(option.value);
         if (lastRankMap.has(id)) return true;
       }
     }
 
-    // Otherwise, use metadataFilter if provided, or default to label/hint match
     if (opts.metadataFilter) {
-      return opts.metadataFilter(searchText, option);
+      return opts.metadataFilter(searchText, option, getModeContext());
     }
 
-    // Default: label or hint substring match
     const term = searchText.toLowerCase();
     const label = (option.label ?? String(option.value)).toLowerCase();
     const hint = (option.hint ?? '').toLowerCase();
     return label.includes(term) || hint.includes(term);
   };
 
-  // Create the AutocompletePrompt with custom render
   const prompt = new AutocompletePrompt<Option<Value>>({
     options: getOptions,
     filter: filterFn,
@@ -117,8 +142,8 @@ export async function rankedAutocompleteMultiselect<Value>(
       const selectedValues = this.selectedValues;
       const filteredOptions = this.filteredOptions;
       const allOptions = this.options;
+      const activeMode = modes[activeModeIndex];
 
-      // Helper to render a single option
       const renderOption = (option: Option<Value>, isFocused: boolean): string => {
         const isSelected = selectedValues.includes(option.value);
         const label = option.label ?? String(option.value);
@@ -135,7 +160,7 @@ export async function rankedAutocompleteMultiselect<Value>(
       switch (state) {
         case 'submit': {
           const count = selectedValues.length;
-          return `${header}${bar}  ${color.dim(`${count} items selected`)}`;
+          return `${header}${bar}  ${color.dim(`${count} items selected (${activeMode.label})`)}`;
         }
         case 'cancel': {
           const input = this.userInput ? color.strikethrough(color.dim(this.userInput)) : '';
@@ -156,6 +181,17 @@ export async function rankedAutocompleteMultiselect<Value>(
           const barColor = state === 'error' ? color.yellow : color.cyan;
           const barStr = barColor(S_BAR);
 
+          if (modes.length > 1) {
+            const modeTabs = modes
+              .map((mode, index) =>
+                index === activeModeIndex ? color.cyan(`[${mode.label}]`) : color.dim(mode.label)
+              )
+              .join(' ');
+            const modeHint = activeMode.hint ? color.dim(` (${activeMode.hint})`) : '';
+            lines.push(`${barStr}  ${color.dim('Mode:')} ${modeTabs}${modeHint}`);
+            lines.push(`${barStr}  ${color.dim('Ctrl+Left/Right switch mode')}`);
+          }
+
           lines.push(`${barStr}  ${color.dim('Search:')} ${searchInput}${matchCount}`);
 
           if (filteredOptions.length === 0 && this.userInput) {
@@ -166,7 +202,6 @@ export async function rankedAutocompleteMultiselect<Value>(
             lines.push(`${barStr}  ${color.yellow(this.error)}`);
           }
 
-          // Render options with pagination
           const optionLines = limitOptions({
             cursor: this.cursor,
             options: filteredOptions,
@@ -185,6 +220,22 @@ export async function rankedAutocompleteMultiselect<Value>(
     },
   });
 
+  if (modes.length > 1) {
+    prompt.on('key', (_char, keyInfo) => {
+      const direction = getModeSwitchDirection(keyInfo);
+      if (direction === 0) {
+        return;
+      }
+
+      activeModeIndex = (activeModeIndex + direction + modes.length) % modes.length;
+      rankCache.clear();
+
+      // Force an in-place refresh without changing visible query text.
+      prompt.emit('userInput', `${prompt.userInput}\u0000`);
+      prompt.emit('userInput', prompt.userInput);
+    });
+  }
+
   const result = await prompt.prompt();
 
   if (typeof result === 'symbol' || result === undefined) {
@@ -197,4 +248,16 @@ export async function rankedAutocompleteMultiselect<Value>(
   }
 
   return selected;
+}
+
+function getModeSwitchDirection(keyInfo: Key): -1 | 0 | 1 {
+  if (keyInfo.ctrl && keyInfo.name === 'left') {
+    return -1;
+  }
+
+  if (keyInfo.ctrl && keyInfo.name === 'right') {
+    return 1;
+  }
+
+  return 0;
 }

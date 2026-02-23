@@ -10,11 +10,31 @@ import { ExitRequestedError } from '../lib/browse/errors.js';
 import { showSingleRepoActions } from '../lib/browse/single-actions.js';
 import { openDb, closeDb, getAllRepos, updateRepoStatusCache } from '../lib/db.js';
 import { syncRegistryToDb } from '../lib/db-sync.js';
-import { ensureSearchTables, sanitizeFtsQuery, rankReposByQuery } from '../lib/db-search.js';
-import { rankedAutocompleteMultiselect } from '../lib/ranked-autocomplete.js';
+import {
+  ensureSearchTables,
+  sanitizeFtsQuery,
+  rankReposByQuery,
+  rankReposByVector,
+  searchRepos,
+} from '../lib/db-search.js';
+import {
+  rankedAutocompleteMultiselect,
+  type RankedAutocompleteContext,
+} from '../lib/ranked-autocomplete.js';
 import type { DbRepoRow, RepoStatus } from '../types/index.js';
 
 const STATUS_CACHE_STALE_MS = 15 * 60 * 1000;
+const MAX_HINT_LENGTH = 96;
+
+const BROWSE_SEARCH_MODES = [
+  { id: 'metadata', label: 'Metadata', hint: 'name + description + tags' },
+  { id: 'tags', label: 'Tags', hint: 'declared tags only' },
+  { id: 'bm25', label: 'BM25', hint: 'lexical README/profile search' },
+  { id: 'vector', label: 'Vector', hint: 'semantic embedding similarity' },
+  { id: 'hybrid', label: 'Hybrid', hint: 'RRF blend of bm25 + vector' },
+] as const;
+
+type BrowseSearchModeId = (typeof BROWSE_SEARCH_MODES)[number]['id'];
 
 function requestExit(): never {
   throw new ExitRequestedError();
@@ -116,6 +136,39 @@ async function refreshSelectedStatuses(selected: RepoInfo[]): Promise<RepoInfo[]
   );
 }
 
+function truncateInline(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
+}
+
+function negateScores(scores: Map<string, number>): Map<string, number> {
+  const negated = new Map<string, number>();
+
+  for (const [repoId, score] of scores.entries()) {
+    negated.set(repoId, -score);
+  }
+
+  return negated;
+}
+
+function getBrowseModeId(context?: RankedAutocompleteContext): BrowseSearchModeId {
+  const modeId = context?.mode.id;
+  if (
+    modeId === 'metadata' ||
+    modeId === 'tags' ||
+    modeId === 'bm25' ||
+    modeId === 'vector' ||
+    modeId === 'hybrid'
+  ) {
+    return modeId;
+  }
+
+  return 'metadata';
+}
+
 export default defineCommand({
   meta: {
     name: 'browse',
@@ -173,44 +226,98 @@ async function browseRepos(): Promise<void> {
     s.stop(`${repos.length} repositories loaded`);
 
     const options: Option<RepoInfo>[] = repos.map((repo) => {
-      const hints: string[] = [];
+      const statusHints: string[] = [];
       if (!repo.status.exists) {
-        hints.push('missing');
+        statusHints.push('missing');
       } else if (repo.status.isDirty) {
-        hints.push('dirty');
+        statusHints.push('dirty');
       }
       if (staleStatusRepoIds.has(repo.entry.id)) {
-        hints.push('stale');
+        statusHints.push('stale');
+      }
+
+      const detailHints: string[] = [];
+      if (repo.entry.tags && repo.entry.tags.length > 0) {
+        detailHints.push(`tags: ${repo.entry.tags.slice(0, 4).join(', ')}`);
+      }
+      if (repo.entry.description) {
+        detailHints.push(`desc: ${truncateInline(repo.entry.description, MAX_HINT_LENGTH)}`);
+      }
+      if (statusHints.length > 0) {
+        detailHints.push(`status: ${statusHints.join(', ')}`);
       }
 
       return {
         value: repo,
         label: `${repo.entry.owner}/${repo.entry.repo}`,
-        hint: hints.length > 0 ? hints.join(', ') : undefined,
+        hint: detailHints.length > 0 ? detailHints.join(' | ') : undefined,
       };
     });
 
-    const rankFn = (searchText: string) => {
-      const ftsQuery = sanitizeFtsQuery(searchText);
-      return rankReposByQuery(db!, ftsQuery);
+    const rankFn = (searchText: string, context?: RankedAutocompleteContext) => {
+      const mode = getBrowseModeId(context);
+
+      if (mode === 'metadata' || mode === 'tags') {
+        return new Map<string, number>();
+      }
+
+      if (mode === 'bm25') {
+        const ftsQuery = sanitizeFtsQuery(searchText);
+        return rankReposByQuery(db!, ftsQuery);
+      }
+
+      if (mode === 'vector') {
+        const scores = rankReposByVector(db!, searchText);
+        return negateScores(scores);
+      }
+
+      const limit = Math.max(100, repos.length);
+      const results = searchRepos(db!, searchText, {
+        mode: 'hybrid',
+        limit,
+        candidateLimit: Math.max(limit, repos.length * 4),
+      });
+
+      const scores = new Map<string, number>();
+      for (const result of results) {
+        scores.set(result.repoId, -result.score);
+      }
+      return scores;
     };
 
     const getOptionId = (repo: RepoInfo) => repo.entry.id;
 
-    const metadataFilter = (searchText: string, option: Option<RepoInfo>): boolean => {
+    const metadataFilter = (
+      searchText: string,
+      option: Option<RepoInfo>,
+      context?: RankedAutocompleteContext
+    ): boolean => {
       if (!searchText) return true;
+
+      const mode = getBrowseModeId(context);
       const term = searchText.toLowerCase();
       const entry = option.value.entry;
       const label = `${entry.owner}/${entry.repo}`.toLowerCase();
       const tags = entry.tags?.join(' ').toLowerCase() ?? '';
       const desc = entry.description?.toLowerCase() ?? '';
-      return label.includes(term) || tags.includes(term) || desc.includes(term);
+
+      if (mode === 'metadata') {
+        return label.includes(term) || tags.includes(term) || desc.includes(term);
+      }
+
+      if (mode === 'tags') {
+        return tags.includes(term);
+      }
+
+      return false;
     };
 
     const selected = await rankedAutocompleteMultiselect({
-      message: 'Select repositories (type to filter, Tab to select)',
+      message: 'Select repositories (type to search, Ctrl+Left/Right mode, Tab to select)',
       options,
       placeholder: 'Type to search...',
+      modes: [...BROWSE_SEARCH_MODES],
+      initialModeId: 'hybrid',
       rankFn,
       getOptionId,
       metadataFilter,
