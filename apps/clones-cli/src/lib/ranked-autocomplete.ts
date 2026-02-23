@@ -182,6 +182,7 @@ export async function rankedAutocompleteMultiselect<Value>(
           const barStr = barColor(S_BAR);
 
           if (modes.length > 1) {
+            const directModeMax = Math.min(modes.length, 9);
             const modeTabs = modes
               .map((mode, index) =>
                 index === activeModeIndex ? color.cyan(`[${mode.label}]`) : color.dim(mode.label)
@@ -189,7 +190,9 @@ export async function rankedAutocompleteMultiselect<Value>(
               .join(' ');
             const modeHint = activeMode.hint ? color.dim(` (${activeMode.hint})`) : '';
             lines.push(`${barStr}  ${color.dim('Mode:')} ${modeTabs}${modeHint}`);
-            lines.push(`${barStr}  ${color.dim('Ctrl+Left/Right switch mode')}`);
+            lines.push(
+              `${barStr}  ${color.dim(`Alt+1..${directModeMax} jump mode | Ctrl+Left/Right cycle`)}`
+            );
           }
 
           lines.push(`${barStr}  ${color.dim('Search:')} ${searchInput}${matchCount}`);
@@ -221,7 +224,21 @@ export async function rankedAutocompleteMultiselect<Value>(
   });
 
   if (modes.length > 1) {
-    prompt.on('key', (_char, keyInfo) => {
+    const refreshPrompt = () => {
+      // Force an in-place refresh without changing visible query text.
+      prompt.emit('userInput', `${prompt.userInput}\u0000`);
+      prompt.emit('userInput', prompt.userInput);
+    };
+
+    prompt.on('key', (char, keyInfo) => {
+      const modeJumpIndex = getModeJumpIndex(char, keyInfo, modes.length);
+      if (modeJumpIndex !== null && modeJumpIndex !== activeModeIndex) {
+        activeModeIndex = modeJumpIndex;
+        rankCache.clear();
+        refreshPrompt();
+        return;
+      }
+
       const direction = getModeSwitchDirection(keyInfo);
       if (direction === 0) {
         return;
@@ -229,10 +246,7 @@ export async function rankedAutocompleteMultiselect<Value>(
 
       activeModeIndex = (activeModeIndex + direction + modes.length) % modes.length;
       rankCache.clear();
-
-      // Force an in-place refresh without changing visible query text.
-      prompt.emit('userInput', `${prompt.userInput}\u0000`);
-      prompt.emit('userInput', prompt.userInput);
+      refreshPrompt();
     });
   }
 
@@ -260,4 +274,26 @@ function getModeSwitchDirection(keyInfo: Key): -1 | 0 | 1 {
   }
 
   return 0;
+}
+
+function getModeJumpIndex(
+  char: string | undefined,
+  keyInfo: Key,
+  modeCount: number
+): number | null {
+  if (!keyInfo.meta) {
+    return null;
+  }
+
+  const digit = char ?? keyInfo.name;
+  if (!digit || !/^[1-9]$/.test(digit)) {
+    return null;
+  }
+
+  const index = Number.parseInt(digit, 10) - 1;
+  if (index < 0 || index >= modeCount) {
+    return null;
+  }
+
+  return index;
 }

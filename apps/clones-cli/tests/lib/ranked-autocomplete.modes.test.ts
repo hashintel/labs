@@ -86,7 +86,7 @@ describe('rankedAutocompleteMultiselect mode switching', () => {
     promptInstances.length = 0;
   });
 
-  it('keeps query live and switches ranking context with Ctrl+Left/Right', async () => {
+  it('keeps query live and switches ranking context with Ctrl+Left/Right fallback', async () => {
     const rankFn = vi.fn(() => new Map<string, number>());
 
     const pending = rankedAutocompleteMultiselect({
@@ -113,6 +113,44 @@ describe('rankedAutocompleteMultiselect mode switching', () => {
 
     expect(rankFn).toHaveBeenLastCalledWith(
       'prompt toolkit',
+      expect.objectContaining({ mode: expect.objectContaining({ id: 'vector' }) })
+    );
+
+    const cancelSymbol = Symbol('cancel');
+    promptResolvers[0](cancelSymbol);
+
+    const result = await pending;
+    expect(result).toBe(cancelSymbol);
+  });
+
+  it('supports direct mode jumps with Alt+number', async () => {
+    const rankFn = vi.fn(() => new Map<string, number>());
+
+    const pending = rankedAutocompleteMultiselect({
+      message: 'test',
+      options: [{ value: 'repo-a', label: 'repo-a' }],
+      modes: [
+        { id: 'metadata', label: 'Metadata' },
+        { id: 'bm25', label: 'BM25' },
+        { id: 'vector', label: 'Vector' },
+      ],
+      rankFn,
+    });
+
+    const prompt = promptInstances[0];
+    prompt.userInput = 'terminal';
+
+    void prompt.options;
+    expect(rankFn).toHaveBeenLastCalledWith(
+      'terminal',
+      expect.objectContaining({ mode: expect.objectContaining({ id: 'metadata' }) })
+    );
+
+    prompt.emit('key', '3', { name: '3', meta: true } as any);
+    void prompt.options;
+
+    expect(rankFn).toHaveBeenLastCalledWith(
+      'terminal',
       expect.objectContaining({ mode: expect.objectContaining({ id: 'vector' }) })
     );
 

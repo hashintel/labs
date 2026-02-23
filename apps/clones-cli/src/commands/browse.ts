@@ -313,7 +313,7 @@ async function browseRepos(): Promise<void> {
     };
 
     const selected = await rankedAutocompleteMultiselect({
-      message: 'Select repositories (type to search, Ctrl+Left/Right mode, Tab to select)',
+      message: 'Select repositories (type to search, Alt+1..5 mode, Tab to select)',
       options,
       placeholder: 'Type to search...',
       modes: [...BROWSE_SEARCH_MODES],
