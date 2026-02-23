@@ -8,6 +8,7 @@ const promptInstances: MockAutocompletePrompt[] = [];
 class MockAutocompletePrompt {
   private handlers = new Map<string, MockPromptHandler[]>();
   private optionsSource: unknown;
+  private renderSource: ((this: MockAutocompletePrompt) => string) | undefined;
 
   state = 'active';
   error = '';
@@ -18,8 +19,11 @@ class MockAutocompletePrompt {
   focusedValue: unknown = undefined;
   cursor = 0;
 
-  constructor(private readonly opts: { options: unknown }) {
+  constructor(
+    private readonly opts: { options: unknown; render?: (this: MockAutocompletePrompt) => string }
+  ) {
     this.optionsSource = opts.options;
+    this.renderSource = opts.render;
     promptInstances.push(this);
   }
 
@@ -51,6 +55,10 @@ class MockAutocompletePrompt {
       promptResolvers.push(resolve);
     });
   }
+
+  renderFrame() {
+    return this.renderSource?.call(this) ?? '';
+  }
 }
 
 vi.mock('@clack/core', () => ({
@@ -78,6 +86,7 @@ vi.mock('picocolors', () => ({
 }));
 
 const { rankedAutocompleteMultiselect } = await import('../../src/lib/ranked-autocomplete.js');
+const { limitOptions: mockLimitOptions } = await import('@clack/prompts');
 
 describe('rankedAutocompleteMultiselect mode switching', () => {
   beforeEach(() => {
@@ -198,6 +207,34 @@ describe('rankedAutocompleteMultiselect mode switching', () => {
     expect(rankFn).toHaveBeenLastCalledWith(
       'terminal',
       expect.objectContaining({ mode: expect.objectContaining({ id: 'vector' }) })
+    );
+
+    const cancelSymbol = Symbol('cancel');
+    promptResolvers[0](cancelSymbol);
+
+    const result = await pending;
+    expect(result).toBe(cancelSymbol);
+  });
+
+  it('reserves viewport space so mode controls stay visible', async () => {
+    const pending = rankedAutocompleteMultiselect({
+      message: 'test',
+      options: [{ value: 'repo-a', label: 'repo-a' }],
+      modes: [
+        { id: 'metadata', label: 'Metadata' },
+        { id: 'vector', label: 'Vector' },
+      ],
+    });
+
+    const prompt = promptInstances[0];
+    prompt.filteredOptions = prompt.options as unknown[];
+    void prompt.renderFrame();
+
+    expect(mockLimitOptions).toHaveBeenCalledWith(
+      expect.objectContaining({
+        columnPadding: 3,
+        rowPadding: 7,
+      })
     );
 
     const cancelSymbol = Symbol('cancel');

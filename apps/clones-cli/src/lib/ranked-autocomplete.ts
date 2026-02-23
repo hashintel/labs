@@ -208,10 +208,26 @@ export async function rankedAutocompleteMultiselect<Value>(
             lines.push(`${barStr}  ${color.yellow(this.error)}`);
           }
 
+          const headerRowCount = 3; // top guide + prompt message + spacer newline in header
+          const modeRowCount = modes.length > 1 ? 2 : 0;
+          const searchRowCount = 1;
+          const noMatchRowCount = filteredOptions.length === 0 && this.userInput ? 1 : 0;
+          const errorRowCount = state === 'error' ? 1 : 0;
+          const footerRowCount = 1; // closing symbol bar
+          const rowPadding =
+            headerRowCount +
+            modeRowCount +
+            searchRowCount +
+            noMatchRowCount +
+            errorRowCount +
+            footerRowCount;
+
           const optionLines = limitOptions({
             cursor: this.cursor,
             options: filteredOptions,
             maxItems: opts.maxItems,
+            columnPadding: 3, // account for the rendered `${barStr}  ` prefix on every option line
+            rowPadding,
             style: (option, isFocused) => renderOption(option, isFocused),
           });
 
