@@ -243,4 +243,29 @@ describe('rankedAutocompleteMultiselect mode switching', () => {
     const result = await pending;
     expect(result).toBe(cancelSymbol);
   });
+
+  it('hard-caps focused hint text to avoid awkward wrapping', async () => {
+    const limitOptionsSpy = mockLimitOptions as unknown as ReturnType<typeof vi.fn>;
+    limitOptionsSpy.mockImplementation(({ options, style }: any) => [style(options[0], true)]);
+
+    const longHint = 'h'.repeat(90);
+    const pending = rankedAutocompleteMultiselect({
+      message: 'test',
+      options: [{ value: 'repo-a', label: 'repo-a', hint: longHint }],
+      modes: [{ id: 'metadata', label: 'Metadata' }],
+    });
+
+    const prompt = promptInstances[0];
+    prompt.filteredOptions = prompt.options as unknown[];
+    const frame = prompt.renderFrame();
+
+    expect(frame).toContain(`(${`${'h'.repeat(69)}...`})`);
+    expect(frame).not.toContain(`(${longHint})`);
+
+    const cancelSymbol = Symbol('cancel');
+    promptResolvers[0](cancelSymbol);
+
+    const result = await pending;
+    expect(result).toBe(cancelSymbol);
+  });
 });

@@ -11,6 +11,8 @@ import {
 } from '@clack/prompts';
 import color from 'picocolors';
 
+const OPTION_HINT_HARD_MAX_LENGTH = 72;
+
 export interface RankedAutocompleteMode {
   id: string;
   label: string;
@@ -147,7 +149,10 @@ export async function rankedAutocompleteMultiselect<Value>(
       const renderOption = (option: Option<Value>, isFocused: boolean): string => {
         const isSelected = selectedValues.includes(option.value);
         const label = option.label ?? String(option.value);
-        const hint = option.hint && isFocused ? color.dim(` (${option.hint})`) : '';
+        const truncatedHint = option.hint
+          ? truncateInline(option.hint, OPTION_HINT_HARD_MAX_LENGTH)
+          : undefined;
+        const hint = truncatedHint && isFocused ? color.dim(` (${truncatedHint})`) : '';
         const checkbox = isSelected
           ? color.green(S_CHECKBOX_SELECTED)
           : color.dim(S_CHECKBOX_INACTIVE);
@@ -338,4 +343,16 @@ function getFunctionKeyJumpIndex(keyName: string | undefined, modeCount: number)
   }
 
   return index;
+}
+
+function truncateInline(text: string, maxLength: number): string {
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  if (maxLength <= 3) {
+    return '.'.repeat(Math.max(maxLength, 0));
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
 }
