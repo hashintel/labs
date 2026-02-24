@@ -14,12 +14,31 @@ interface InstallOptions {
   verbose?: boolean;
 }
 
-function executeCliCommand(cli: string, args: string[]): boolean {
+import type { InstallAction } from '../types.js';
+
+interface CommandResult {
+  ok: boolean;
+  stderr: string | null;
+}
+
+interface ActionOutcome {
+  action: InstallAction;
+  ok: boolean;
+  error?: string;
+}
+
+function executeCliCommand(cli: string, args: string[]): CommandResult {
   try {
     execFileSync(cli, args, { stdio: ['pipe', 'pipe', 'pipe'] });
-    return true;
-  } catch {
-    return false;
+    return { ok: true, stderr: null };
+  } catch (err: unknown) {
+    let stderr: string | null = null;
+    if (err && typeof err === 'object' && 'stderr' in err) {
+      const raw = (err as { stderr: Buffer | string }).stderr;
+      stderr = typeof raw === 'string' ? raw : raw.toString('utf-8');
+      stderr = stderr.trim() || null;
+    }
+    return { ok: false, stderr };
   }
 }
 
@@ -144,48 +163,69 @@ export async function runInstall(options: InstallOptions): Promise<void> {
   const spinner = p.spinner();
   spinner.start(`Executing ${plan.length} actions...`);
 
-  let success = 0;
-  let failed = 0;
+  const outcomes: ActionOutcome[] = [];
   const toDisable: string[] = [];
   const toEnable: string[] = [];
 
   for (const action of plan) {
     spinner.message(describeAction(action));
 
-    let ok = false;
     switch (action.type) {
       case 'install':
-      case 'update':
-        ok = executeCliCommand(targetIDE.cli, ['--install-extension', action.vsixPath!, '--force']);
+      case 'update': {
+        const result = executeCliCommand(targetIDE.cli, [
+          '--install-extension',
+          action.vsixPath!,
+          '--force',
+        ]);
+        outcomes.push({ action, ok: result.ok, error: result.stderr ?? undefined });
         break;
-      case 'uninstall':
-        ok = executeCliCommand(targetIDE.cli, ['--uninstall-extension', action.extensionId]);
+      }
+      case 'uninstall': {
+        const result = executeCliCommand(targetIDE.cli, [
+          '--uninstall-extension',
+          action.extensionId,
+        ]);
+        outcomes.push({ action, ok: result.ok, error: result.stderr ?? undefined });
         break;
+      }
       case 'disable':
         toDisable.push(action.extensionId);
-        continue; // counted in batch below
+        continue;
       case 'enable':
         toEnable.push(action.extensionId);
-        continue; // counted in batch below
-    }
-
-    if (ok) {
-      success++;
-    } else {
-      failed++;
+        continue;
     }
   }
 
   if (toDisable.length > 0 || toEnable.length > 0) {
     const settingsPath = getSettingsPath(targetIDE.dataFolderName);
     const ok = updateDisabledExtensions(settingsPath, toDisable, toEnable);
-    if (ok) {
-      success += toDisable.length + toEnable.length;
-    } else {
-      failed += toDisable.length + toEnable.length;
+    for (const id of toDisable) {
+      outcomes.push({ action: { type: 'disable', extensionId: id }, ok });
+    }
+    for (const id of toEnable) {
+      outcomes.push({ action: { type: 'enable', extensionId: id }, ok });
     }
   }
 
   spinner.stop('Installation complete');
-  p.log.success(`${success} succeeded, ${failed} failed`);
+
+  const successCount = outcomes.filter((o) => o.ok).length;
+  const failedCount = outcomes.filter((o) => !o.ok).length;
+  p.log.success(`${successCount} succeeded, ${failedCount} failed`);
+
+  const failures = outcomes.filter((o) => !o.ok);
+  for (const f of failures) {
+    const desc = describeAction(f.action);
+    const reason = f.error ? `: ${f.error}` : '';
+    p.log.warn(`  FAILED ${desc}${reason}`);
+  }
+
+  if (options.verbose) {
+    const successes = outcomes.filter((o) => o.ok);
+    for (const s of successes) {
+      p.log.step(`  OK ${describeAction(s.action)}`);
+    }
+  }
 }
