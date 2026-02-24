@@ -138,8 +138,11 @@ const isMainModule =
   import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('/vsix-bridge');
 
 if (isMainModule) {
-  main().catch((err) => {
-    console.error(err);
-    process.exit(1);
-  });
+  main().then(
+    () => process.exit(0),
+    (err) => {
+      console.error(err);
+      process.exit(1);
+    }
+  );
 }
