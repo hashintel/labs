@@ -84,7 +84,7 @@ Options:
 async function main(): Promise<void> {
   const args = parseCliArgs(process.argv.slice(2));
 
-  if (!args.quiet && !args.help) {
+  if (!args.quiet) {
     renderBanner();
     renderInfo(pkg);
   }
