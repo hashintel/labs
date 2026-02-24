@@ -21,9 +21,14 @@ interface MarketplaceResponse {
   }>;
 }
 
-export async function fetchExtensionMetadata(
+export interface FetchResult {
+  metadata: MarketplaceExtension | null;
+  error: string | null;
+}
+
+export async function fetchExtensionMetadataWithReason(
   extensionId: string
-): Promise<MarketplaceExtension | null> {
+): Promise<FetchResult> {
   const payload = {
     filters: [
       {
@@ -49,18 +54,18 @@ export async function fetchExtensionMetadata(
     });
 
     if (!response.ok) {
-      return null;
+      return { metadata: null, error: `HTTP ${response.status}` };
     }
 
     const data = (await response.json()) as MarketplaceResponse;
     const results = data.results ?? [];
     const firstResult = results[0];
     if (!results.length || !firstResult?.extensions?.length) {
-      return null;
+      return { metadata: null, error: 'Not found in marketplace' };
     }
 
     const ext = firstResult.extensions[0];
-    if (!ext) return null;
+    if (!ext) return { metadata: null, error: 'No extension data in response' };
     const publisher = ext.publisher.publisherName;
     const name = ext.extensionName;
     const versions: MarketplaceVersion[] = [];
@@ -89,14 +94,25 @@ export async function fetchExtensionMetadata(
     }
 
     return {
-      id: extensionId.toLowerCase(),
-      publisher,
-      name,
-      versions,
+      metadata: {
+        id: extensionId.toLowerCase(),
+        publisher,
+        name,
+        versions,
+      },
+      error: null,
     };
-  } catch {
-    return null;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return { metadata: null, error: message };
   }
+}
+
+export async function fetchExtensionMetadata(
+  extensionId: string
+): Promise<MarketplaceExtension | null> {
+  const result = await fetchExtensionMetadataWithReason(extensionId);
+  return result.metadata;
 }
 
 export function parseExtensionId(extensionId: string): {
