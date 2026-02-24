@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__auggie-mcp__codebase-retrieval",
+      "Bash(curl:*)",
+      "Bash(echo === $\\(basename \"$app\"\\) ===:*)",
+      "Bash(grep:*)",
+      "mcp__plugin_claude-double-agent_double_agent__pair_review"
+    ]
+  }
+}
