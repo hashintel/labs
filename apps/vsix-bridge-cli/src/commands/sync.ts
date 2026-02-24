@@ -7,7 +7,8 @@ import { satisfiesEngineSpec, compareVersions } from '../lib/semver.js';
 import { downloadVsix, getVsixPath, ensureVsixCacheDir, cleanupStaleVsix } from '../lib/vsix.js';
 import { getVsixFilename } from '../lib/marketplace.js';
 import { mapWithConcurrency } from '../lib/concurrency.js';
-import { runInstallForIDE } from './install.js';
+import { buildInstallPlan, performInstallActions, type ActionOutcome } from './install.js';
+import { describeAction } from '../lib/install-plan.js';
 
 const DEFAULT_CONCURRENCY = 8;
 
@@ -39,6 +40,14 @@ interface ExtensionWithMetadata {
   ext: Extension;
   metadata: MarketplaceExtension | null;
   error: string | null;
+}
+
+interface DownloadTask {
+  ext: Extension;
+  ideIndex: number;
+  compatible: MarketplaceVersion;
+  vsixPath: string;
+  filename: string;
 }
 
 function findCompatibleVersion(
@@ -91,7 +100,6 @@ export async function runSync(options: SyncOptions): Promise<void> {
 
   const extensions = getExtensionsWithState(vscode.cli, vscode.dataFolderName);
   p.log.info(`Found ${extensions.length} extensions in VS Code`);
-  p.log.info(`Using concurrency: ${concurrency}`);
 
   for (const ide of targetIDEs) {
     ensureVsixCacheDir(ide.id);
@@ -111,128 +119,129 @@ export async function runSync(options: SyncOptions): Promise<void> {
     expectedFilesByIde.set(ide.id, new Set());
   }
 
-  const spinner = p.spinner();
+  // Variables populated by tasks
+  let extensionsWithMetadata: ExtensionWithMetadata[] = [];
 
-  spinner.start(`Fetching metadata for ${extensions.length} extensions...`);
-
-  let fetchedCount = 0;
-  const extensionsWithMetadata = await mapWithConcurrency(
-    extensions,
-    async (ext): Promise<ExtensionWithMetadata> => {
-      const result = await fetchExtensionMetadataWithReason(ext.id);
-      fetchedCount++;
-      spinner.message(`Fetched ${fetchedCount}/${extensions.length}: ${ext.id}`);
-      return { ext, metadata: result.metadata, error: result.error };
+  // Phase 1: Fetch metadata + Download VSIX files
+  await p.tasks([
+    {
+      title: 'Fetching extension metadata',
+      task: async (message) => {
+        let fetchedCount = 0;
+        extensionsWithMetadata = await mapWithConcurrency(
+          extensions,
+          async (ext): Promise<ExtensionWithMetadata> => {
+            const result = await fetchExtensionMetadataWithReason(ext.id);
+            fetchedCount++;
+            message(`Fetching metadata (${fetchedCount}/${extensions.length})`);
+            return { ext, metadata: result.metadata, error: result.error };
+          },
+          concurrency
+        );
+        return `Fetched metadata for ${extensions.length} extensions`;
+      },
     },
-    concurrency
-  );
+    {
+      title: 'Downloading VSIX files',
+      task: async (message) => {
+        const downloadTasks: DownloadTask[] = [];
 
-  spinner.message('Downloading VSIX files...');
+        for (const { ext, metadata, error } of extensionsWithMetadata) {
+          if (!metadata) {
+            for (const result of results) {
+              result.failed++;
+              result.details.push({
+                extensionId: ext.id,
+                status: 'failed',
+                reason: error ?? 'Unknown error',
+              });
+            }
+            continue;
+          }
 
-  interface DownloadTask {
-    ext: Extension;
-    ideIndex: number;
-    compatible: MarketplaceVersion;
-    vsixPath: string;
-    filename: string;
-  }
+          for (let i = 0; i < targetIDEs.length; i++) {
+            const ide = targetIDEs[i]!;
+            const result = results[i]!;
 
-  const downloadTasks: DownloadTask[] = [];
+            const compatible = findCompatibleVersion(metadata.versions, ide.engineVersion);
 
-  for (const { ext, metadata, error } of extensionsWithMetadata) {
-    if (!metadata) {
-      for (const result of results) {
-        result.failed++;
-        result.details.push({
-          extensionId: ext.id,
-          status: 'failed',
-          reason: error ?? 'Unknown error',
-        });
-      }
-      continue;
-    }
+            if (!compatible || !compatible.vsixUrl) {
+              result.skipped++;
+              result.details.push({
+                extensionId: ext.id,
+                status: 'skipped',
+                reason: `No version compatible with engine ${ide.engineVersion}`,
+              });
+              continue;
+            }
 
-    for (let i = 0; i < targetIDEs.length; i++) {
-      const ide = targetIDEs[i]!;
-      const result = results[i]!;
+            const filename = getVsixFilename(ext.id, compatible.version);
+            const vsixPath = getVsixPath(ide.id, ext.id, compatible.version);
+            downloadTasks.push({ ext, ideIndex: i, compatible, vsixPath, filename });
+          }
+        }
 
-      const compatible = findCompatibleVersion(metadata.versions, ide.engineVersion);
+        let downloadedCount = 0;
+        await mapWithConcurrency(
+          downloadTasks,
+          async (task) => {
+            const success = await downloadVsix(task.compatible.vsixUrl!, task.vsixPath);
+            downloadedCount++;
+            message(`Downloading (${downloadedCount}/${downloadTasks.length})`);
 
-      if (!compatible || !compatible.vsixUrl) {
-        result.skipped++;
-        result.details.push({
-          extensionId: ext.id,
-          status: 'skipped',
-          reason: `No version compatible with engine ${ide.engineVersion}`,
-        });
-        continue;
-      }
+            const result = results[task.ideIndex]!;
+            if (success) {
+              const ide = targetIDEs[task.ideIndex]!;
+              expectedFilesByIde.get(ide.id)!.add(task.filename);
+              result.synced++;
+              result.details.push({ extensionId: task.ext.id, status: 'synced' });
+            } else {
+              result.failed++;
+              result.details.push({
+                extensionId: task.ext.id,
+                status: 'failed',
+                reason: 'Download failed',
+              });
+            }
+          },
+          concurrency
+        );
 
-      const filename = getVsixFilename(ext.id, compatible.version);
-      const vsixPath = getVsixPath(ide.id, ext.id, compatible.version);
-      downloadTasks.push({ ext, ideIndex: i, compatible, vsixPath, filename });
-    }
-  }
+        // Cleanup stale cached files
+        for (let i = 0; i < targetIDEs.length; i++) {
+          const ide = targetIDEs[i]!;
+          const result = results[i]!;
+          const expectedFiles = expectedFilesByIde.get(ide.id)!;
+          const removed = cleanupStaleVsix(ide.id, expectedFiles);
+          result.cleaned = removed.length;
+        }
 
-  let downloadedCount = 0;
-  await mapWithConcurrency(
-    downloadTasks,
-    async (task) => {
-      const success = await downloadVsix(task.compatible.vsixUrl!, task.vsixPath);
-      downloadedCount++;
-      spinner.message(`Downloaded ${downloadedCount}/${downloadTasks.length}`);
-
-      const result = results[task.ideIndex]!;
-      if (success) {
-        const ide = targetIDEs[task.ideIndex]!;
-        expectedFilesByIde.get(ide.id)!.add(task.filename);
-        result.synced++;
-        result.details.push({ extensionId: task.ext.id, status: 'synced' });
-      } else {
-        result.failed++;
-        result.details.push({
-          extensionId: task.ext.id,
-          status: 'failed',
-          reason: 'Download failed',
-        });
-      }
+        return `Downloaded ${downloadTasks.length} VSIX files`;
+      },
     },
-    concurrency
-  );
+  ]);
 
-  // expectedFiles populated only after successful downloads (see above)
-  for (let i = 0; i < targetIDEs.length; i++) {
-    const ide = targetIDEs[i]!;
-    const result = results[i]!;
-    const expectedFiles = expectedFilesByIde.get(ide.id)!;
-    const removed = cleanupStaleVsix(ide.id, expectedFiles);
-    result.cleaned = removed.length;
-  }
-
-  spinner.stop('Sync complete');
-
+  // Sync summary
   const verbose = options.verbose ?? false;
 
   for (const result of results) {
-    p.log.success(
-      `${result.ide}: ${result.synced} synced, ${result.skipped} skipped, ${result.failed} failed, ${result.cleaned} cleaned`
-    );
+    const parts = [`${result.synced} synced`];
+    if (result.skipped > 0) parts.push(`${result.skipped} skipped`);
+    if (result.failed > 0) parts.push(`${result.failed} failed`);
+    if (result.cleaned > 0) parts.push(`${result.cleaned} cleaned`);
+    p.log.success(`${result.ide}: ${parts.join(', ')}`);
 
     const failures = result.details.filter((d) => d.status === 'failed');
     for (const f of failures) {
       p.log.warn(`  FAILED ${f.extensionId}: ${f.reason}`);
     }
 
-    const skips = result.details.filter((d) => d.status === 'skipped');
-    const skipsToShow = verbose ? skips : skips.slice(0, 5);
-    for (const s of skipsToShow) {
-      p.log.warn(`  SKIPPED ${s.extensionId}: ${s.reason}`);
-    }
-    if (!verbose && skips.length > 5) {
-      p.log.warn(`  ... and ${skips.length - 5} more skipped (use --verbose to see all)`);
-    }
-
     if (verbose) {
+      const skips = result.details.filter((d) => d.status === 'skipped');
+      for (const s of skips) {
+        p.log.warn(`  SKIPPED ${s.extensionId}: ${s.reason}`);
+      }
+
       const synced = result.details.filter((d) => d.status === 'synced');
       for (const s of synced) {
         p.log.step(`  OK ${s.extensionId}`);
@@ -244,17 +253,66 @@ export async function runSync(options: SyncOptions): Promise<void> {
     return;
   }
 
-  // Install synced extensions into each target IDE
-  for (const ide of targetIDEs) {
-    if (!ide.cliAvailable) {
-      p.log.warn(`Skipping install for ${ide.name}: CLI '${ide.cli}' not available.`);
-      continue;
+  // Phase 2: Install extensions into target IDEs
+  const installableIDEs = targetIDEs.filter((ide) => ide.cliAvailable);
+  const skippedIDEs = targetIDEs.filter((ide) => !ide.cliAvailable);
+
+  for (const ide of skippedIDEs) {
+    p.log.warn(`Skipping install for ${ide.name}: CLI '${ide.cli}' not available.`);
+  }
+
+  if (installableIDEs.length === 0) {
+    return;
+  }
+
+  // Collect outcomes for failure reporting after all tasks complete
+  const installOutcomes = new Map<string, ActionOutcome[]>();
+
+  await p.tasks(
+    installableIDEs.map((ide) => ({
+      title: `Installing to ${ide.name}`,
+      task: (message: (msg: string) => void) => {
+        const { plan, cachedCount } = buildInstallPlan(ide, vscode.dataFolderName, {
+          syncRemovals: options.syncRemovals ?? false,
+        });
+
+        if (cachedCount === 0 || plan.length === 0) {
+          return `${ide.name}: already in sync`;
+        }
+
+        if (options.dryRun) {
+          return `${ide.name}: ${plan.length} actions planned (dry run)`;
+        }
+
+        const { outcomes } = performInstallActions(ide, plan, (current, total, desc) => {
+          message(`${ide.name} (${current + 1}/${total}): ${desc}`);
+        });
+
+        installOutcomes.set(ide.name, outcomes);
+
+        const ok = outcomes.filter((o) => o.ok).length;
+        const fail = outcomes.filter((o) => !o.ok).length;
+        return fail > 0
+          ? `${ide.name}: ${ok} succeeded, ${fail} failed`
+          : `${ide.name}: installed ${ok} extensions`;
+      },
+    }))
+  );
+
+  // Show install failures and verbose details after all tasks
+  for (const [, outcomes] of installOutcomes) {
+    const failures = outcomes.filter((o) => !o.ok);
+    for (const f of failures) {
+      const desc = describeAction(f.action);
+      const reason = f.error ? `: ${f.error}` : '';
+      p.log.warn(`  FAILED ${desc}${reason}`);
     }
 
-    await runInstallForIDE(ide, vscode.dataFolderName, {
-      syncRemovals: options.syncRemovals ?? false,
-      verbose: options.verbose,
-      dryRun: options.dryRun,
-    });
+    if (verbose) {
+      const successes = outcomes.filter((o) => o.ok);
+      for (const s of successes) {
+        p.log.step(`  OK ${describeAction(s.action)}`);
+      }
+    }
   }
 }

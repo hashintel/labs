@@ -26,9 +26,7 @@ export interface FetchResult {
   error: string | null;
 }
 
-export async function fetchExtensionMetadataWithReason(
-  extensionId: string
-): Promise<FetchResult> {
+export async function fetchExtensionMetadataWithReason(extensionId: string): Promise<FetchResult> {
   const payload = {
     filters: [
       {

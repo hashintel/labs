@@ -1,7 +1,7 @@
 import * as p from '@clack/prompts';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import type { DetectedIDE } from '../types.js';
+import type { DetectedIDE, InstallAction } from '../types.js';
 import { detectAllIDEs, detectVSCode, getSettingsPath } from '../lib/ide-registry.js';
 import { getExtensionsWithState, getDisabledExtensions } from '../lib/extensions.js';
 import { listCachedVsix } from '../lib/vsix.js';
@@ -14,18 +14,22 @@ interface InstallOptions {
   verbose?: boolean;
 }
 
-import type { InstallAction } from '../types.js';
-
 interface CommandResult {
   ok: boolean;
   stderr: string | null;
 }
 
-interface ActionOutcome {
+export interface ActionOutcome {
   action: InstallAction;
   ok: boolean;
   error?: string;
 }
+
+export interface InstallResult {
+  outcomes: ActionOutcome[];
+}
+
+// --- Internal helpers ---
 
 function executeCliCommand(cli: string, args: string[]): CommandResult {
   try {
@@ -77,6 +81,92 @@ function updateDisabledExtensions(
   }
 }
 
+// --- Data layer (no UI) ---
+
+export function buildInstallPlan(
+  targetIDE: DetectedIDE,
+  vscodeDataFolderName: string,
+  options: { syncRemovals: boolean }
+): { plan: InstallAction[]; cachedCount: number } {
+  const vscodeDisabled = getDisabledExtensions(vscodeDataFolderName);
+
+  const cachedVsix = listCachedVsix(targetIDE.id).map((vsix) => ({
+    ...vsix,
+    sourceDisabled: vscodeDisabled.has(vsix.extensionId),
+  }));
+
+  if (cachedVsix.length === 0) {
+    return { plan: [], cachedCount: 0 };
+  }
+
+  const targetExtensions = getExtensionsWithState(targetIDE.cli, targetIDE.dataFolderName);
+
+  const plan = generateInstallPlan(targetExtensions, cachedVsix, {
+    syncRemovals: options.syncRemovals,
+  });
+
+  return { plan, cachedCount: cachedVsix.length };
+}
+
+export function performInstallActions(
+  targetIDE: DetectedIDE,
+  plan: InstallAction[],
+  onProgress?: (current: number, total: number, description: string) => void
+): InstallResult {
+  const outcomes: ActionOutcome[] = [];
+  const toDisable: string[] = [];
+  const toEnable: string[] = [];
+  let completed = 0;
+
+  for (const action of plan) {
+    onProgress?.(completed, plan.length, describeAction(action));
+
+    switch (action.type) {
+      case 'install':
+      case 'update': {
+        const result = executeCliCommand(targetIDE.cli, [
+          '--install-extension',
+          action.vsixPath!,
+          '--force',
+        ]);
+        outcomes.push({ action, ok: result.ok, error: result.stderr ?? undefined });
+        completed++;
+        break;
+      }
+      case 'uninstall': {
+        const result = executeCliCommand(targetIDE.cli, [
+          '--uninstall-extension',
+          action.extensionId,
+        ]);
+        outcomes.push({ action, ok: result.ok, error: result.stderr ?? undefined });
+        completed++;
+        break;
+      }
+      case 'disable':
+        toDisable.push(action.extensionId);
+        continue;
+      case 'enable':
+        toEnable.push(action.extensionId);
+        continue;
+    }
+  }
+
+  if (toDisable.length > 0 || toEnable.length > 0) {
+    const settingsPath = getSettingsPath(targetIDE.dataFolderName);
+    const ok = updateDisabledExtensions(settingsPath, toDisable, toEnable);
+    for (const id of toDisable) {
+      outcomes.push({ action: { type: 'disable', extensionId: id }, ok });
+    }
+    for (const id of toEnable) {
+      outcomes.push({ action: { type: 'enable', extensionId: id }, ok });
+    }
+  }
+
+  return { outcomes };
+}
+
+// --- UI layer ---
+
 async function selectTargetIDE(targetIDEs: DetectedIDE[]): Promise<DetectedIDE | null> {
   if (targetIDEs.length === 1) {
     return targetIDEs[0] ?? null;
@@ -115,26 +205,19 @@ export async function runInstallForIDE(
     return;
   }
 
-  const vscodeDisabled = getDisabledExtensions(vscodeDataFolderName);
-
-  const cachedVsix = listCachedVsix(targetIDE.id).map((vsix) => ({
-    ...vsix,
-    sourceDisabled: vscodeDisabled.has(vsix.extensionId),
-  }));
-
-  if (cachedVsix.length === 0) {
-    p.log.warn(`No synced VSIX files for ${targetIDE.name}. Run 'vsix-bridge sync --sync-only' first.`);
-    return;
-  }
-
-  const targetExtensions = getExtensionsWithState(targetIDE.cli, targetIDE.dataFolderName);
-
-  const plan = generateInstallPlan(targetExtensions, cachedVsix, {
+  const { plan, cachedCount } = buildInstallPlan(targetIDE, vscodeDataFolderName, {
     syncRemovals: options.syncRemovals,
   });
 
+  if (cachedCount === 0) {
+    p.log.warn(
+      `No synced VSIX files for ${targetIDE.name}. Run 'vsix-bridge sync --sync-only' first.`
+    );
+    return;
+  }
+
   if (plan.length === 0) {
-    p.log.success(`${targetIDE.name} is already in sync.`);
+    p.log.success(`${targetIDE.name}: already in sync`);
     return;
   }
 
@@ -148,59 +231,20 @@ export async function runInstallForIDE(
   }
 
   const spinner = p.spinner();
-  spinner.start(`Installing ${plan.length} extensions for ${targetIDE.name}...`);
+  spinner.start(`Installing to ${targetIDE.name}...`);
 
-  const outcomes: ActionOutcome[] = [];
-  const toDisable: string[] = [];
-  const toEnable: string[] = [];
-
-  for (const action of plan) {
-    spinner.message(describeAction(action));
-
-    switch (action.type) {
-      case 'install':
-      case 'update': {
-        const result = executeCliCommand(targetIDE.cli, [
-          '--install-extension',
-          action.vsixPath!,
-          '--force',
-        ]);
-        outcomes.push({ action, ok: result.ok, error: result.stderr ?? undefined });
-        break;
-      }
-      case 'uninstall': {
-        const result = executeCliCommand(targetIDE.cli, [
-          '--uninstall-extension',
-          action.extensionId,
-        ]);
-        outcomes.push({ action, ok: result.ok, error: result.stderr ?? undefined });
-        break;
-      }
-      case 'disable':
-        toDisable.push(action.extensionId);
-        continue;
-      case 'enable':
-        toEnable.push(action.extensionId);
-        continue;
-    }
-  }
-
-  if (toDisable.length > 0 || toEnable.length > 0) {
-    const settingsPath = getSettingsPath(targetIDE.dataFolderName);
-    const ok = updateDisabledExtensions(settingsPath, toDisable, toEnable);
-    for (const id of toDisable) {
-      outcomes.push({ action: { type: 'disable', extensionId: id }, ok });
-    }
-    for (const id of toEnable) {
-      outcomes.push({ action: { type: 'enable', extensionId: id }, ok });
-    }
-  }
-
-  spinner.stop('Installation complete');
+  const { outcomes } = performInstallActions(targetIDE, plan, (current, total, desc) => {
+    spinner.message(`${desc} (${current + 1}/${total})`);
+  });
 
   const successCount = outcomes.filter((o) => o.ok).length;
   const failedCount = outcomes.filter((o) => !o.ok).length;
-  p.log.success(`${targetIDE.name}: ${successCount} succeeded, ${failedCount} failed`);
+
+  if (failedCount > 0) {
+    spinner.stop(`${targetIDE.name}: ${successCount} succeeded, ${failedCount} failed`);
+  } else {
+    spinner.stop(`${targetIDE.name}: installed ${successCount} extensions`);
+  }
 
   const failures = outcomes.filter((o) => !o.ok);
   for (const f of failures) {
