@@ -97,29 +97,17 @@ async function selectTargetIDE(targetIDEs: DetectedIDE[]): Promise<DetectedIDE |
   return targetIDEs.find((ide) => ide.id === selected) ?? null;
 }
 
-export async function runInstall(options: InstallOptions): Promise<void> {
-  const vscode = detectVSCode();
-  if (!vscode) {
-    p.log.error('VS Code not found. Cannot determine source extension state.');
-    return;
-  }
+export interface InstallForIDEOptions {
+  syncRemovals: boolean;
+  verbose?: boolean;
+  dryRun?: boolean;
+}
 
-  let targetIDEs = detectAllIDEs();
-  if (options.to.length > 0) {
-    targetIDEs = targetIDEs.filter((ide) => options.to.includes(ide.id));
-  }
-
-  if (targetIDEs.length === 0) {
-    p.log.error('No target IDEs detected. Install Cursor, Antigravity, or Windsurf.');
-    return;
-  }
-
-  const targetIDE = await selectTargetIDE(targetIDEs);
-  if (!targetIDE) {
-    p.log.warn('Cancelled.');
-    return;
-  }
-
+export async function runInstallForIDE(
+  targetIDE: DetectedIDE,
+  vscodeDataFolderName: string,
+  options: InstallForIDEOptions
+): Promise<void> {
   if (!targetIDE.cliAvailable) {
     p.log.error(
       `CLI '${targetIDE.cli}' not available. Run "Shell Command: Install '${targetIDE.cli}' command in PATH" from ${targetIDE.name}.`
@@ -127,7 +115,7 @@ export async function runInstall(options: InstallOptions): Promise<void> {
     return;
   }
 
-  const vscodeDisabled = getDisabledExtensions(vscode.dataFolderName);
+  const vscodeDisabled = getDisabledExtensions(vscodeDataFolderName);
 
   const cachedVsix = listCachedVsix(targetIDE.id).map((vsix) => ({
     ...vsix,
@@ -135,7 +123,7 @@ export async function runInstall(options: InstallOptions): Promise<void> {
   }));
 
   if (cachedVsix.length === 0) {
-    p.log.warn(`No synced VSIX files for ${targetIDE.name}. Run 'vsix-bridge sync' first.`);
+    p.log.warn(`No synced VSIX files for ${targetIDE.name}. Run 'vsix-bridge sync --sync-only' first.`);
     return;
   }
 
@@ -150,18 +138,17 @@ export async function runInstall(options: InstallOptions): Promise<void> {
     return;
   }
 
-  p.log.info(`${plan.length} actions planned for ${targetIDE.name}:`);
-  for (const action of plan) {
-    p.log.step(describeAction(action));
-  }
-
   if (options.dryRun) {
+    p.log.info(`${plan.length} actions planned for ${targetIDE.name}:`);
+    for (const action of plan) {
+      p.log.step(describeAction(action));
+    }
     p.log.warn('Dry run - no changes made.');
     return;
   }
 
   const spinner = p.spinner();
-  spinner.start(`Executing ${plan.length} actions...`);
+  spinner.start(`Installing ${plan.length} extensions for ${targetIDE.name}...`);
 
   const outcomes: ActionOutcome[] = [];
   const toDisable: string[] = [];
@@ -213,7 +200,7 @@ export async function runInstall(options: InstallOptions): Promise<void> {
 
   const successCount = outcomes.filter((o) => o.ok).length;
   const failedCount = outcomes.filter((o) => !o.ok).length;
-  p.log.success(`${successCount} succeeded, ${failedCount} failed`);
+  p.log.success(`${targetIDE.name}: ${successCount} succeeded, ${failedCount} failed`);
 
   const failures = outcomes.filter((o) => !o.ok);
   for (const f of failures) {
@@ -228,4 +215,34 @@ export async function runInstall(options: InstallOptions): Promise<void> {
       p.log.step(`  OK ${describeAction(s.action)}`);
     }
   }
+}
+
+export async function runInstall(options: InstallOptions): Promise<void> {
+  const vscode = detectVSCode();
+  if (!vscode) {
+    p.log.error('VS Code not found. Cannot determine source extension state.');
+    return;
+  }
+
+  let targetIDEs = detectAllIDEs();
+  if (options.to.length > 0) {
+    targetIDEs = targetIDEs.filter((ide) => options.to.includes(ide.id));
+  }
+
+  if (targetIDEs.length === 0) {
+    p.log.error('No target IDEs detected. Install Cursor, Antigravity, or Windsurf.');
+    return;
+  }
+
+  const targetIDE = await selectTargetIDE(targetIDEs);
+  if (!targetIDE) {
+    p.log.warn('Cancelled.');
+    return;
+  }
+
+  await runInstallForIDE(targetIDE, vscode.dataFolderName, {
+    syncRemovals: options.syncRemovals,
+    verbose: options.verbose,
+    dryRun: options.dryRun,
+  });
 }

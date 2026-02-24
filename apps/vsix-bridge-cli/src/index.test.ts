@@ -72,6 +72,11 @@ describe('parseCliArgs', () => {
     expect(args.verbose).toBe(true);
   });
 
+  it('parses --sync-only flag', () => {
+    const args = parseCliArgs(['sync', '--sync-only']);
+    expect(args.syncOnly).toBe(true);
+  });
+
   it('parses combined flags', () => {
     const args = parseCliArgs(['install', '--to', 'cursor', '--sync-removals', '--dry-run']);
     expect(args.command).toBe('install');

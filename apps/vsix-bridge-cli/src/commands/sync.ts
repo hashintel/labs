@@ -7,6 +7,7 @@ import { satisfiesEngineSpec, compareVersions } from '../lib/semver.js';
 import { downloadVsix, getVsixPath, ensureVsixCacheDir, cleanupStaleVsix } from '../lib/vsix.js';
 import { getVsixFilename } from '../lib/marketplace.js';
 import { mapWithConcurrency } from '../lib/concurrency.js';
+import { runInstallForIDE } from './install.js';
 
 const DEFAULT_CONCURRENCY = 8;
 
@@ -14,6 +15,9 @@ interface SyncOptions {
   to: string[];
   concurrency?: number;
   verbose?: boolean;
+  syncOnly?: boolean;
+  syncRemovals?: boolean;
+  dryRun?: boolean;
 }
 
 interface ExtensionOutcome {
@@ -234,5 +238,23 @@ export async function runSync(options: SyncOptions): Promise<void> {
         p.log.step(`  OK ${s.extensionId}`);
       }
     }
+  }
+
+  if (options.syncOnly) {
+    return;
+  }
+
+  // Install synced extensions into each target IDE
+  for (const ide of targetIDEs) {
+    if (!ide.cliAvailable) {
+      p.log.warn(`Skipping install for ${ide.name}: CLI '${ide.cli}' not available.`);
+      continue;
+    }
+
+    await runInstallForIDE(ide, vscode.dataFolderName, {
+      syncRemovals: options.syncRemovals ?? false,
+      verbose: options.verbose,
+      dryRun: options.dryRun,
+    });
   }
 }

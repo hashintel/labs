@@ -19,6 +19,7 @@ interface ParsedArgs {
   command: Command | null;
   to: string[];
   dryRun: boolean;
+  syncOnly: boolean;
   syncRemovals: boolean;
   help: boolean;
   quiet: boolean;
@@ -31,6 +32,7 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
     options: {
       to: { type: 'string', multiple: true, default: [] },
       'dry-run': { type: 'boolean', default: false },
+      'sync-only': { type: 'boolean', default: false },
       'sync-removals': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
       quiet: { type: 'boolean', short: 'q', default: false },
@@ -46,6 +48,7 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
     command,
     to: values.to ?? [],
     dryRun: values['dry-run'] ?? false,
+    syncOnly: values['sync-only'] ?? false,
     syncRemovals: values['sync-removals'] ?? false,
     help: values.help ?? false,
     quiet: values.quiet ?? false,
@@ -61,8 +64,8 @@ Usage:
   vsix-bridge <command> [options]
 
 Commands:
-  sync      Download compatible VSIX files from Microsoft Marketplace
-  install   Install synced VSIX files into target IDEs
+  sync      Sync and install VS Code extensions to fork IDEs
+  install   Install previously synced VSIX files into a target IDE
   status    Show extension diff between VS Code and forks
   detect    Auto-detect installed IDEs and their configuration
   init      Initialize vsix-bridge configuration
@@ -70,6 +73,7 @@ Commands:
 Options:
   --to <ide>         Target IDE(s) (cursor, antigravity, windsurf)
   --dry-run          Show what would be done without doing it
+  --sync-only        Only download VSIX files, skip installation
   --sync-removals    Uninstall extensions in fork not in VS Code
   -v, --verbose      Show per-extension details
   -q, --quiet        Suppress banner output
@@ -103,7 +107,13 @@ async function main(): Promise<void> {
 
   switch (args.command) {
     case 'sync':
-      await runSync({ to: args.to, verbose: args.verbose });
+      await runSync({
+        to: args.to,
+        verbose: args.verbose,
+        syncOnly: args.syncOnly,
+        syncRemovals: args.syncRemovals,
+        dryRun: args.dryRun,
+      });
       break;
     case 'install':
       await runInstall({
