@@ -2,7 +2,7 @@ import * as p from '@clack/prompts';
 import type { Extension, MarketplaceExtension, MarketplaceVersion } from '../types.js';
 import { detectAllIDEs, detectVSCode } from '../lib/ide-registry.js';
 import { getExtensionsWithState } from '../lib/extensions.js';
-import { fetchExtensionMetadata } from '../lib/marketplace.js';
+import { fetchExtensionMetadataWithReason } from '../lib/marketplace.js';
 import { satisfiesEngineSpec, compareVersions } from '../lib/semver.js';
 import { downloadVsix, getVsixPath, ensureVsixCacheDir, cleanupStaleVsix } from '../lib/vsix.js';
 import { getVsixFilename } from '../lib/marketplace.js';
@@ -16,17 +16,25 @@ interface SyncOptions {
   verbose?: boolean;
 }
 
+interface ExtensionOutcome {
+  extensionId: string;
+  status: 'synced' | 'skipped' | 'failed';
+  reason?: string;
+}
+
 interface SyncResult {
   ide: string;
   synced: number;
   skipped: number;
   failed: number;
   cleaned: number;
+  details: ExtensionOutcome[];
 }
 
 interface ExtensionWithMetadata {
   ext: Extension;
   metadata: MarketplaceExtension | null;
+  error: string | null;
 }
 
 function findCompatibleVersion(
@@ -91,6 +99,7 @@ export async function runSync(options: SyncOptions): Promise<void> {
     skipped: 0,
     failed: 0,
     cleaned: 0,
+    details: [] as ExtensionOutcome[],
   }));
 
   const expectedFilesByIde = new Map<string, Set<string>>();
@@ -106,10 +115,10 @@ export async function runSync(options: SyncOptions): Promise<void> {
   const extensionsWithMetadata = await mapWithConcurrency(
     extensions,
     async (ext): Promise<ExtensionWithMetadata> => {
-      const metadata = await fetchExtensionMetadata(ext.id);
+      const result = await fetchExtensionMetadataWithReason(ext.id);
       fetchedCount++;
       spinner.message(`Fetched ${fetchedCount}/${extensions.length}: ${ext.id}`);
-      return { ext, metadata };
+      return { ext, metadata: result.metadata, error: result.error };
     },
     concurrency
   );
@@ -126,10 +135,15 @@ export async function runSync(options: SyncOptions): Promise<void> {
 
   const downloadTasks: DownloadTask[] = [];
 
-  for (const { ext, metadata } of extensionsWithMetadata) {
+  for (const { ext, metadata, error } of extensionsWithMetadata) {
     if (!metadata) {
       for (const result of results) {
         result.failed++;
+        result.details.push({
+          extensionId: ext.id,
+          status: 'failed',
+          reason: error ?? 'Unknown error',
+        });
       }
       continue;
     }
@@ -142,6 +156,11 @@ export async function runSync(options: SyncOptions): Promise<void> {
 
       if (!compatible || !compatible.vsixUrl) {
         result.skipped++;
+        result.details.push({
+          extensionId: ext.id,
+          status: 'skipped',
+          reason: `No version compatible with engine ${ide.engineVersion}`,
+        });
         continue;
       }
 
@@ -164,8 +183,14 @@ export async function runSync(options: SyncOptions): Promise<void> {
         const ide = targetIDEs[task.ideIndex]!;
         expectedFilesByIde.get(ide.id)!.add(task.filename);
         result.synced++;
+        result.details.push({ extensionId: task.ext.id, status: 'synced' });
       } else {
         result.failed++;
+        result.details.push({
+          extensionId: task.ext.id,
+          status: 'failed',
+          reason: 'Download failed',
+        });
       }
     },
     concurrency
@@ -182,9 +207,32 @@ export async function runSync(options: SyncOptions): Promise<void> {
 
   spinner.stop('Sync complete');
 
+  const verbose = options.verbose ?? false;
+
   for (const result of results) {
     p.log.success(
       `${result.ide}: ${result.synced} synced, ${result.skipped} skipped, ${result.failed} failed, ${result.cleaned} cleaned`
     );
+
+    const failures = result.details.filter((d) => d.status === 'failed');
+    for (const f of failures) {
+      p.log.warn(`  FAILED ${f.extensionId}: ${f.reason}`);
+    }
+
+    const skips = result.details.filter((d) => d.status === 'skipped');
+    const skipsToShow = verbose ? skips : skips.slice(0, 5);
+    for (const s of skipsToShow) {
+      p.log.warn(`  SKIPPED ${s.extensionId}: ${s.reason}`);
+    }
+    if (!verbose && skips.length > 5) {
+      p.log.warn(`  ... and ${skips.length - 5} more skipped (use --verbose to see all)`);
+    }
+
+    if (verbose) {
+      const synced = result.details.filter((d) => d.status === 'synced');
+      for (const s of synced) {
+        p.log.step(`  OK ${s.extensionId}`);
+      }
+    }
   }
 }
