@@ -1,5 +1,11 @@
+import pc from 'picocolors';
+
 declare const __DEV__: boolean;
+declare const __BUILD_TIME__: string;
+declare const __GIT_SHA__: string;
 const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : true;
+const buildTime = typeof __BUILD_TIME__ !== 'undefined' ? __BUILD_TIME__ : '';
+const gitSha = typeof __GIT_SHA__ !== 'undefined' ? __GIT_SHA__ : '';
 
 // Pre-generated banner (cfonts tiny/candy)
 const BANNER =
@@ -10,8 +16,12 @@ export function renderBanner(): void {
 }
 
 export function renderInfo(pkg: { name: string; version: string; description?: string }): void {
-  const devTag = isDev ? ' \x1b[33m(dev)\x1b[0m' : '';
-  const info = `│  ${pkg.name} v${pkg.version}${devTag}`;
-  const desc = pkg.description ? ` — ${pkg.description}` : '';
-  console.log(`${info}${desc}\n`);
+  const devMetaParts: string[] = [];
+  if (gitSha) devMetaParts.push(gitSha);
+  if (buildTime) devMetaParts.push(`@ ${buildTime}`);
+  const devLabel = devMetaParts.length > 0 ? `dev ${devMetaParts.join(' ')}` : 'dev';
+  const devTag = isDev ? pc.yellow(` (${devLabel})`) : '';
+  const info = `${pc.dim(pkg.name)} ${pc.cyan(`v${pkg.version}`)}${devTag}`;
+  const desc = pkg.description ? pc.dim(` — ${pkg.description}`) : '';
+  console.log(`│  ${info}${desc}\n`);
 }
