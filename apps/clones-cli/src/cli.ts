@@ -59,4 +59,4 @@ if (!isInitCommand && !isHelpOrVersion) {
   await ensureInitialized();
 }
 
-runMain(main);
+runMain(main).then(() => process.exit(0));

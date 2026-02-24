@@ -72,5 +72,5 @@ if (!hasSubcommand && !isHelpOrVersion) {
     },
   });
 
-  runMain(main);
+  runMain(main).then(() => process.exit(0));
 }
