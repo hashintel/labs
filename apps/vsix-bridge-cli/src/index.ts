@@ -22,6 +22,7 @@ interface ParsedArgs {
   syncRemovals: boolean;
   help: boolean;
   quiet: boolean;
+  verbose: boolean;
 }
 
 export function parseCliArgs(argv: string[]): ParsedArgs {
@@ -33,6 +34,7 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
       'sync-removals': { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
       quiet: { type: 'boolean', short: 'q', default: false },
+      verbose: { type: 'boolean', short: 'v', default: false },
     },
     allowPositionals: true,
   });
@@ -47,6 +49,7 @@ export function parseCliArgs(argv: string[]): ParsedArgs {
     syncRemovals: values['sync-removals'] ?? false,
     help: values.help ?? false,
     quiet: values.quiet ?? false,
+    verbose: values.verbose ?? false,
   };
 }
 
@@ -68,6 +71,7 @@ Options:
   --to <ide>         Target IDE(s) (cursor, antigravity, windsurf)
   --dry-run          Show what would be done without doing it
   --sync-removals    Uninstall extensions in fork not in VS Code
+  -v, --verbose      Show per-extension details
   -q, --quiet        Suppress banner output
   -h, --help         Show this help message
 `);
@@ -99,13 +103,14 @@ async function main(): Promise<void> {
 
   switch (args.command) {
     case 'sync':
-      await runSync({ to: args.to });
+      await runSync({ to: args.to, verbose: args.verbose });
       break;
     case 'install':
       await runInstall({
         to: args.to,
         dryRun: args.dryRun,
         syncRemovals: args.syncRemovals,
+        verbose: args.verbose,
       });
       break;
     case 'status':

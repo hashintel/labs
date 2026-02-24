@@ -13,6 +13,7 @@ const DEFAULT_CONCURRENCY = 8;
 interface SyncOptions {
   to: string[];
   concurrency?: number;
+  verbose?: boolean;
 }
 
 interface SyncResult {

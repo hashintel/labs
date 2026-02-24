@@ -11,6 +11,7 @@ interface InstallOptions {
   to: string[];
   dryRun: boolean;
   syncRemovals: boolean;
+  verbose?: boolean;
 }
 
 function executeCliCommand(cli: string, args: string[]): boolean {
