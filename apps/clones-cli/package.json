@@ -1,0 +1,73 @@
+{
+  "name": "clones-cli",
+  "version": "0.4.1",
+  "description": "A read-only Git repository manager for exploration and reference",
+  "keywords": [
+    "git",
+    "clone",
+    "repository",
+    "manager",
+    "cli"
+  ],
+  "homepage": "https://github.com/hashintel/labs/tree/main/apps/clones-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hashintel/labs",
+    "directory": "apps/clones-cli"
+  },
+  "license": "(MIT OR Apache-2.0)",
+  "author": {
+    "name": "Lu Nelson"
+  },
+  "type": "module",
+  "bin": {
+    "clones": "./dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "prepack": "RELEASE=true npm run build",
+    "prepublishOnly": "npm test",
+    "release": "release-it",
+    "release:ci": "release-it --ci",
+    "release:dry": "release-it --dry-run --no-github.release",
+    "start": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.0.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.6.2",
+    "citty": "^0.2.1",
+    "fast-wrap-ansi": "^0.2.0",
+    "is-unicode-supported": "^2.1.0",
+    "picocolors": "^1.1.1",
+    "simple-git": "^3.31.1",
+    "sisteransi": "^1.0.5",
+    "update-notifier": "^7.3.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^25.3.0",
+    "@types/update-notifier": "^6.0.8",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1",
+    "release-it": "17.0.0",
+    "tsup": "^8.5.1",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.0",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchExtensionMetadata, parseExtensionId, getVsixFilename } from './marketplace.js';
+import {
+  fetchExtensionMetadata,
+  fetchExtensionMetadataWithReason,
+  parseExtensionId,
+  getVsixFilename,
+} from './marketplace.js';
 
 describe('marketplace', () => {
   describe('parseExtensionId', () => {
@@ -133,6 +138,12 @@ describe('marketplace', () => {
       expect(result?.versions[0]?.vsixUrl).toContain('1.0.0');
     });
 
+    it('delegates to fetchExtensionMetadataWithReason', async () => {
+      mockFetch.mockRejectedValue(new Error('Network error'));
+      const result = await fetchExtensionMetadata('test.extension');
+      expect(result).toBeNull();
+    });
+
     it('defaults to * engine spec when property missing', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
@@ -159,6 +170,74 @@ describe('marketplace', () => {
 
       const result = await fetchExtensionMetadata('testpub.testname');
       expect(result?.versions[0]?.engineSpec).toBe('*');
+    });
+  });
+
+  describe('fetchExtensionMetadataWithReason', () => {
+    const mockFetch = vi.fn();
+    const originalFetch = globalThis.fetch;
+
+    beforeEach(() => {
+      globalThis.fetch = mockFetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+      mockFetch.mockReset();
+    });
+
+    it('returns error message on network error', async () => {
+      mockFetch.mockRejectedValue(new Error('ECONNRESET'));
+      const result = await fetchExtensionMetadataWithReason('test.extension');
+      expect(result.metadata).toBeNull();
+      expect(result.error).toBe('ECONNRESET');
+    });
+
+    it('returns HTTP status on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 429 });
+      const result = await fetchExtensionMetadataWithReason('test.extension');
+      expect(result.metadata).toBeNull();
+      expect(result.error).toBe('HTTP 429');
+    });
+
+    it('returns "Not found" when marketplace has no results', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({ results: [{ extensions: [] }] }),
+      });
+      const result = await fetchExtensionMetadataWithReason('test.extension');
+      expect(result.metadata).toBeNull();
+      expect(result.error).toBe('Not found in marketplace');
+    });
+
+    it('returns metadata with null error on success', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          results: [
+            {
+              extensions: [
+                {
+                  publisher: { publisherName: 'testpub' },
+                  extensionName: 'testname',
+                  versions: [
+                    {
+                      version: '1.0.0',
+                      properties: [],
+                      files: [],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        }),
+      });
+
+      const result = await fetchExtensionMetadataWithReason('testpub.testname');
+      expect(result.metadata).not.toBeNull();
+      expect(result.error).toBeNull();
+      expect(result.metadata?.id).toBe('testpub.testname');
     });
   });
 });

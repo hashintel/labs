@@ -1,7 +1,24 @@
 {
   "name": "vsix-bridge-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Sync VS Code extensions to fork IDEs (Cursor, Antigravity, Windsurf)",
+  "keywords": [
+    "vscode",
+    "vsix",
+    "cursor",
+    "windsurf",
+    "extensions"
+  ],
+  "homepage": "https://github.com/hashintel/labs/tree/main/apps/vsix-bridge-cli#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hashintel/labs",
+    "directory": "apps/vsix-bridge-cli"
+  },
+  "license": "(MIT OR Apache-2.0)",
+  "author": {
+    "name": "Lu Nelson"
+  },
   "type": "module",
   "main": "dist/index.js",
   "bin": {
@@ -13,55 +30,43 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "prepack": "RELEASE=true npm run build",
+    "prepublishOnly": "npm run test",
+    "release": "release-it",
+    "release:ci": "release-it --ci",
+    "release:dry": "release-it --dry-run --no-github.release",
     "start": "tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "release": "np",
-    "prepack": "RELEASE=true npm run build",
-    "prepublishOnly": "npm run test"
+    "typecheck": "tsc --noEmit"
   },
-  "keywords": [
-    "vscode",
-    "vsix",
-    "cursor",
-    "windsurf",
-    "extensions"
-  ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/lunelson/vsix-bridge-cli.git"
-  },
-  "author": {
-    "name": "Lu Nelson"
-  },
-  "license": "(MIT OR Apache-2.0)",
-  "engines": {
-    "node": ">=18"
+  "dependencies": {
+    "@clack/prompts": "^1.0.1",
+    "picocolors": "^1.1.1",
+    "semver": "^7.7.4",
+    "update-notifier": "^7.3.1"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.0",
+    "@eslint/js": "^9.39.2",
     "@tsconfig/node18": "^18.2.4",
     "@tsconfig/strictest": "^2.0.8",
-    "@types/node": "^22.0.0",
+    "@types/node": "^25.3.0",
     "@types/semver": "^7.7.1",
     "@types/update-notifier": "^6.0.8",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
-    "np": "^10.2.0",
     "prettier": "^3.8.0",
+    "release-it": "17.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.7.0",
-    "typescript-eslint": "^8.53.1",
+    "typescript-eslint": "^8.56.0",
     "vitest": "^4.0.0"
   },
-  "dependencies": {
-    "@clack/prompts": "^0.10.0",
-    "semver": "^7.7.0",
-    "update-notifier": "^7.3.1"
+  "engines": {
+    "node": ">=18"
   }
 }
