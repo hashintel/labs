@@ -23,19 +23,6 @@ run_cli() {
   (cd "${tmp_dir}" && ${CLI_CMD} "$@")
 }
 
-has_rg() {
-  command -v rg >/dev/null 2>&1
-}
-
-debug_dump() {
-  local file="$1"
-  if [[ "${DEBUG:-}" == "1" && -f "${file}" ]]; then
-    echo "--- ${file} ---" >&2
-    cat "${file}" >&2
-    echo "---" >&2
-  fi
-}
-
 fail() {
   local message="$1"
   echo "${message}" >&2
@@ -48,14 +35,19 @@ assert_symlink() {
   if [[ ! -L "${path}" ]]; then
     fail "Expected ${path} to be a symlink"
   fi
-  local actual_target
+  local actual_target abs_actual_target
   actual_target=$(readlink "${path}")
-  if [[ "${actual_target}" != "${expected_target}" ]]; then
+  abs_actual_target=$(
+    cd "$(dirname "${path}")" &&
+      cd "$(dirname "${actual_target}")" &&
+      printf '%s/%s' "$(pwd)" "$(basename "${actual_target}")"
+  )
+  if [[ "${abs_actual_target}" != "${expected_target}" ]]; then
     fail "Expected ${path} to point to ${expected_target}, but points to ${actual_target}"
   fi
 }
 
-assert_is_dir() {
+assert_is_real_dir() {
   local path="$1"
   if [[ ! -d "${path}" ]] || [[ -L "${path}" ]]; then
     fail "Expected ${path} to be a real directory (not a symlink)"
@@ -103,26 +95,41 @@ echo "Test 4: Adopt and switch..."
 # Create a real directory at global path
 mkdir -p "${tmp_home}/.claude"
 echo '{"existing":"config"}' > "${tmp_home}/.claude/settings.json"
+mkdir -p "${tmp_home}/.claude/agents"
+echo "# test agent" > "${tmp_home}/.claude/agents/TEST.md"
 
-# Manually adopt it (simulate what setup would do)
+# Manually adopt include-strategy entries to _base (simulate setup behavior)
 mkdir -p "${AGENTPROFILES_CONTENT_DIR}/claude/_base"
-mv "${tmp_home}/.claude"/* "${AGENTPROFILES_CONTENT_DIR}/claude/_base/" 2>/dev/null || true
-rmdir "${tmp_home}/.claude"
-ln -s "${AGENTPROFILES_CONTENT_DIR}/claude/_base" "${tmp_home}/.claude"
+mv "${tmp_home}/.claude/settings.json" "${AGENTPROFILES_CONTENT_DIR}/claude/_base/settings.json"
+mv "${tmp_home}/.claude/agents" "${AGENTPROFILES_CONTENT_DIR}/claude/_base/agents"
+ln -s "${AGENTPROFILES_CONTENT_DIR}/claude/_base/settings.json" "${tmp_home}/.claude/settings.json"
+ln -s "${AGENTPROFILES_CONTENT_DIR}/claude/_base/agents" "${tmp_home}/.claude/agents"
 
 # Verify it was adopted as _base
 if [[ ! -f "${AGENTPROFILES_CONTENT_DIR}/claude/_base/settings.json" ]]; then
   fail "Existing directory not adopted as _base"
 fi
+if [[ ! -f "${AGENTPROFILES_CONTENT_DIR}/claude/_base/agents/TEST.md" ]]; then
+  fail "Existing claude agents directory not adopted as _base"
+fi
 
-# Verify global path is now a symlink
-assert_symlink "${tmp_home}/.claude" "${AGENTPROFILES_CONTENT_DIR}/claude/_base"
+# Include-strategy invariant: global path remains a real directory
+assert_is_real_dir "${tmp_home}/.claude"
+assert_symlink "${tmp_home}/.claude/settings.json" "${AGENTPROFILES_CONTENT_DIR}/claude/_base/settings.json"
+assert_symlink "${tmp_home}/.claude/agents" "${AGENTPROFILES_CONTENT_DIR}/claude/_base/agents"
+
+# Ensure target entries exist in work profile so switch can repoint managed symlinks
+mkdir -p "${AGENTPROFILES_CONTENT_DIR}/claude/work/agents"
+echo '{"profile":"work"}' > "${AGENTPROFILES_CONTENT_DIR}/claude/work/settings.json"
+echo "# work agent" > "${AGENTPROFILES_CONTENT_DIR}/claude/work/agents/WORK.md"
 
 # Switch to work profile
 run_cli set claude work
 
-# Verify symlink now points to work
-assert_symlink "${tmp_home}/.claude" "${AGENTPROFILES_CONTENT_DIR}/claude/work"
+# Verify managed entries now point to work profile while global dir stays real
+assert_is_real_dir "${tmp_home}/.claude"
+assert_symlink "${tmp_home}/.claude/settings.json" "${AGENTPROFILES_CONTENT_DIR}/claude/work/settings.json"
+assert_symlink "${tmp_home}/.claude/agents" "${AGENTPROFILES_CONTENT_DIR}/claude/work/agents"
 
 # Test 5: Status command
 echo "Test 5: Status..."
@@ -138,23 +145,11 @@ fi
 echo "Test 6: Unset..."
 run_cli unset claude
 
-# Verify symlink now points to _base
-assert_symlink "${tmp_home}/.claude" "${AGENTPROFILES_CONTENT_DIR}/claude/_base"
+# Verify include-strategy switches managed entries back to _base
+assert_is_real_dir "${tmp_home}/.claude"
+assert_symlink "${tmp_home}/.claude/settings.json" "${AGENTPROFILES_CONTENT_DIR}/claude/_base/settings.json"
+assert_symlink "${tmp_home}/.claude/agents" "${AGENTPROFILES_CONTENT_DIR}/claude/_base/agents"
 
-# Test 7: Verify symlink structure
-echo "Test 7: Verify symlink structure..."
-# Verify that the symlink is correctly set up
-if [[ ! -L "${tmp_home}/.claude" ]]; then
-  fail "Global path should be a symlink"
-fi
-
-# Verify symlink target
-target=$(readlink "${tmp_home}/.claude")
-if [[ "${target}" != "${AGENTPROFILES_CONTENT_DIR}/claude/_base" ]]; then
-  fail "Symlink should point to _base profile, but points to ${target}"
-fi
-
-echo "✓ Symlink structure verified"
+echo "✓ Include strategy structure verified"
 
 echo "✅ Smoke test passed: ${tmp_dir}"
-
