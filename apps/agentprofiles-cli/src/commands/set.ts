@@ -1,13 +1,55 @@
 import { defineCommand } from 'citty';
-import { outro, select, text, isCancel, cancel, note } from '@clack/prompts';
+import { outro, select, text, confirm, isCancel, cancel, note } from '@clack/prompts';
 import { ConfigManager } from '../lib/config.js';
 import { SUPPORTED_TOOLS, BASE_PROFILE_SLUG } from '../types/index.js';
 import color from 'picocolors';
 import { validateNewProfileName, validateProfileName, slugify } from '../lib/validation.js';
 import { joyful } from 'joyful';
 import { promptForAgent } from '../lib/prompts.js';
+import { hasCacheDirs, inspectAgentCacheDirs, clearCacheDirs } from '../lib/cache.js';
 
-async function batchSwitchAll(profileName: string): Promise<void> {
+async function maybeClearCache(agent: string, clearCacheFlag: boolean): Promise<void> {
+  if (!clearCacheFlag || !hasCacheDirs(agent)) return;
+
+  const info = await inspectAgentCacheDirs(agent);
+  if (!info) return;
+
+  const existingSafe = info.safe.filter((d) => d.exists);
+  const existingOptional = info.optional.filter((d) => d.exists);
+
+  if (existingSafe.length === 0 && existingOptional.length === 0) return;
+
+  // Auto-clear safe dirs
+  if (existingSafe.length > 0) {
+    const results = await clearCacheDirs(existingSafe);
+    for (const r of results) {
+      if (r.cleared) {
+        console.log(color.green(`  ✓ Cleared ${r.dir.label}`));
+      }
+    }
+  }
+
+  // Prompt for optional dirs
+  for (const dir of existingOptional) {
+    const shouldClear = await confirm({
+      message: `Also clear ${dir.dir.label}? ${color.dim('(loses prefs/history)')}`,
+      initialValue: false,
+    });
+
+    if (isCancel(shouldClear)) break;
+
+    if (shouldClear) {
+      const results = await clearCacheDirs([dir]);
+      for (const r of results) {
+        if (r.cleared) {
+          console.log(color.green(`  ✓ Cleared ${r.dir.label}`));
+        }
+      }
+    }
+  }
+}
+
+async function batchSwitchAll(profileName: string, clearCache = false): Promise<void> {
   const config = new ConfigManager();
   await config.init();
   const resolvedProfileName =
@@ -39,6 +81,7 @@ async function batchSwitchAll(profileName: string): Promise<void> {
 
       // Switch the profile
       await config.switchProfile(agent, resolvedProfileName);
+      await maybeClearCache(agent, clearCache);
       results.switched.push(agent);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -68,7 +111,7 @@ async function batchSwitchAll(profileName: string): Promise<void> {
   );
 }
 
-export async function setCommand(agent?: string, name?: string) {
+export async function setCommand(agent?: string, name?: string, clearCache = false) {
   const resolvedAgent: string = agent ?? (await promptForAgent('Select agent to set profile for:'));
 
   if (!SUPPORTED_TOOLS[resolvedAgent]) {
@@ -169,6 +212,7 @@ export async function setCommand(agent?: string, name?: string) {
       await config.ensureBaseProfileLayout(resolvedAgent);
     }
     await config.switchProfile(resolvedAgent, resolvedName);
+    await maybeClearCache(resolvedAgent, clearCache);
     outro(`Activated ${color.cyan(resolvedName)} profile for ${resolvedAgent}.`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -198,8 +242,15 @@ export default defineCommand({
       description: 'Switch all managed agents to the same profile',
       required: false,
     },
+    'clear-cache': {
+      type: 'boolean',
+      description: 'Clear cache/state directories after switching (opencode, amp)',
+      required: false,
+    },
   },
   async run({ args }) {
+    const clearCache = !!args['clear-cache'];
+
     // Handle --all flag: agentprofiles set --all <profile>
     if (args.all) {
       const profileName = args.agent; // When --all is used, first positional is the profile name
@@ -207,7 +258,7 @@ export default defineCommand({
         console.error(color.red('Profile name is required when using --all flag'));
         process.exit(1);
       }
-      await batchSwitchAll(profileName);
+      await batchSwitchAll(profileName, clearCache);
       return;
     }
 
@@ -216,12 +267,12 @@ export default defineCommand({
       // Check if this looks like a profile name (not an agent name)
       // If agent is not in SUPPORTED_TOOLS, treat it as a profile name for --all
       if (!SUPPORTED_TOOLS[args.agent]) {
-        await batchSwitchAll(args.agent);
+        await batchSwitchAll(args.agent, clearCache);
         return;
       }
     }
 
     // Normal flow: agentprofiles set <agent> [name]
-    await setCommand(args.agent, args.name);
+    await setCommand(args.agent, args.name, clearCache);
   },
 });

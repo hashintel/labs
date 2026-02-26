@@ -9,7 +9,8 @@ type MenuAction =
   | 'edit'
   | 'remove'
   | 'release'
-  | 'doctor';
+  | 'doctor'
+  | 'clear-cache';
 
 const menuOptions: Array<{ value: MenuAction; label: string; hint: string }> = [
   { value: 'status', label: 'Status', hint: 'Show agent profile status' },
@@ -21,6 +22,7 @@ const menuOptions: Array<{ value: MenuAction; label: string; hint: string }> = [
   { value: 'remove', label: 'Remove profile', hint: 'Delete a profile' },
   { value: 'release', label: 'Release agent', hint: 'Stop managing an agent' },
   { value: 'doctor', label: 'Doctor / Repair', hint: 'Scan for and repair issues' },
+  { value: 'clear-cache', label: 'Clear cache', hint: 'Clear agent cache/state dirs' },
 ];
 
 export async function showMainMenu(): Promise<void> {
@@ -80,6 +82,11 @@ export async function showMainMenu(): Promise<void> {
     case 'doctor': {
       const { doctorCommand } = await import('../commands/doctor.js');
       await doctorCommand();
+      break;
+    }
+    case 'clear-cache': {
+      const { clearCacheCommand } = await import('../commands/clear-cache.js');
+      await clearCacheCommand();
       break;
     }
   }
