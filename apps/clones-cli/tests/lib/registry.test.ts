@@ -10,7 +10,7 @@ import {
   removeTombstone,
   filterByTags,
   filterByPattern,
-  stringifyRegistryToml,
+  stringifyRegistry,
   parseRegistryContent,
 } from '../../src/lib/registry.js';
 import type { Registry, RegistryEntry } from '../../src/types/index.js';
@@ -371,7 +371,7 @@ describe('filterByPattern', () => {
   });
 });
 
-describe('TOML serialization with source and starredAt', () => {
+describe('JSONL serialization with source and starredAt', () => {
   it('includes source field when present', () => {
     const entry = createTestEntry({
       source: 'manual',
@@ -382,9 +382,9 @@ describe('TOML serialization with source and starredAt', () => {
       tombstones: [],
     };
 
-    const toml = stringifyRegistryToml(registry);
+    const jsonl = stringifyRegistry(registry);
 
-    expect(toml).toContain('source = "manual"');
+    expect(jsonl).toContain('"source":"manual"');
   });
 
   it('includes starredAt field when present', () => {
@@ -397,9 +397,9 @@ describe('TOML serialization with source and starredAt', () => {
       tombstones: [],
     };
 
-    const toml = stringifyRegistryToml(registry);
+    const jsonl = stringifyRegistry(registry);
 
-    expect(toml).toContain('starredAt = "2024-01-15T10:30:00Z"');
+    expect(jsonl).toContain('"starredAt":"2024-01-15T10:30:00Z"');
   });
 
   it('omits source field when undefined', () => {
@@ -412,9 +412,9 @@ describe('TOML serialization with source and starredAt', () => {
       tombstones: [],
     };
 
-    const toml = stringifyRegistryToml(registry);
+    const jsonl = stringifyRegistry(registry);
 
-    expect(toml).not.toContain('source');
+    expect(jsonl).not.toContain('"source"');
   });
 
   it('omits starredAt field when undefined', () => {
@@ -427,12 +427,12 @@ describe('TOML serialization with source and starredAt', () => {
       tombstones: [],
     };
 
-    const toml = stringifyRegistryToml(registry);
+    const jsonl = stringifyRegistry(registry);
 
-    expect(toml).not.toContain('starredAt');
+    expect(jsonl).not.toContain('"starredAt"');
   });
 
-  it('round-trip: parse TOML with new fields and serialize again', () => {
+  it('round-trip: parse JSONL with new fields and serialize again', () => {
     const entry = createTestEntry({
       source: 'github-star',
       starredAt: '2024-01-15T10:30:00Z',
@@ -443,11 +443,11 @@ describe('TOML serialization with source and starredAt', () => {
       tombstones: [],
     };
 
-    // Serialize to TOML
-    const toml = stringifyRegistryToml(registry);
+    // Serialize to JSONL
+    const jsonl = stringifyRegistry(registry);
 
-    // Parse back from TOML
-    const parsed = parseRegistryContent(toml, 'toml', 'test.toml');
+    // Parse back from JSONL
+    const parsed = parseRegistryContent(jsonl, 'jsonl', 'test.jsonl');
 
     // Verify fields are preserved
     expect((parsed as any).repos[0].source).toBe('github-star');
@@ -465,9 +465,9 @@ describe('TOML serialization with source and starredAt', () => {
       tombstones: [],
     };
 
-    const toml = stringifyRegistryToml(registry);
+    const jsonl = stringifyRegistry(registry);
 
-    expect(toml).toContain('source = "github-star"');
-    expect(toml).toContain('starredAt = "2024-01-15T10:30:00Z"');
+    expect(jsonl).toContain('"source":"github-star"');
+    expect(jsonl).toContain('"starredAt":"2024-01-15T10:30:00Z"');
   });
 });
