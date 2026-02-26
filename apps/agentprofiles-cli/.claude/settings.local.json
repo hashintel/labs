@@ -1,7 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "mcp__auggie-mcp__codebase-retrieval"
+      "mcp__auggie-mcp__codebase-retrieval",
+      "mcp__plugin_claude-double-agent_double_agent__pair_review",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:ampcode.com)",
+      "WebFetch(domain:google-gemini.github.io)",
+      "WebFetch(domain:opencode.ai)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(gh api:*)",
+      "Bash(gh search:*)",
+      "WebFetch(domain:deepwiki.com)"
     ]
   }
 }

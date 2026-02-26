@@ -10,6 +10,7 @@ declare module 'sql.js' {
   export interface Statement {
     bind(params?: unknown[] | Record<string, unknown>): boolean;
     step(): boolean;
+    reset(): boolean;
     getAsObject(): Record<string, unknown>;
     free(): void;
   }

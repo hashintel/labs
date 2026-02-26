@@ -137,7 +137,7 @@ export function indexReadme(
 }
 
 /**
- * Search chunks using FTS4 full-text matching.
+ * Search chunks using FTS4 with BM25 ranking.
  */
 export function searchReadmes(db: SqlDatabase, query: string, limit = 10): SearchResult[] {
   if (!query || query.trim().length === 0) {
@@ -145,6 +145,8 @@ export function searchReadmes(db: SqlDatabase, query: string, limit = 10): Searc
   }
 
   try {
+    const totalDocs = getTotalChunkCount(db);
+
     const rows = db
       .prepare(
         `
@@ -152,17 +154,24 @@ export function searchReadmes(db: SqlDatabase, query: string, limit = 10): Searc
         rc.repo_id as repoId,
         r.owner,
         r.repo,
-        rc.chunk_text as snippet
+        rc.chunk_text as snippet,
+        matchinfo(readme_fts, 'pcx') as mi
       FROM readme_fts rf
       INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
       INNER JOIN repos r ON rc.repo_id = r.id
       WHERE rf.chunk_text MATCH ?
-      LIMIT ?
     `
       )
-      .all(query, limit) as unknown as Omit<SearchResult, 'score'>[];
+      .all(query) as unknown as (Omit<SearchResult, 'score'> & { mi: Uint8Array })[];
 
-    return rows.map((row, index) => ({ ...row, score: -(index + 1) }));
+    const scored = rows.map((row) => {
+      const info = parseFts4Matchinfo(row.mi);
+      const score = computeBm25Score(info, totalDocs);
+      return { repoId: row.repoId, owner: row.owner, repo: row.repo, snippet: row.snippet, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
   } catch {
     return [];
   }
@@ -275,10 +284,59 @@ export function sanitizeFtsQuery(input: string): string {
   return quoted.join(' ');
 }
 
+function getTotalChunkCount(db: SqlDatabase): number {
+  const row = db.prepare('SELECT COUNT(*) as cnt FROM readme_chunks').get() as
+    | { cnt: number }
+    | undefined;
+  return row?.cnt ?? 0;
+}
+
+interface Fts4MatchInfo {
+  phrases: number;
+  columns: number;
+  hits: Array<{ hitsInRow: number; hitsInAllRows: number; docsWithHits: number }>;
+}
+
+function parseFts4Matchinfo(blob: Uint8Array): Fts4MatchInfo {
+  const view = new DataView(blob.buffer, blob.byteOffset, blob.byteLength);
+  const phrases = view.getUint32(0, true);
+  const columns = view.getUint32(4, true);
+
+  const hits: Fts4MatchInfo['hits'] = [];
+  let offset = 8;
+  for (let p = 0; p < phrases; p++) {
+    for (let c = 0; c < columns; c++) {
+      hits.push({
+        hitsInRow: view.getUint32(offset, true),
+        hitsInAllRows: view.getUint32(offset + 4, true),
+        docsWithHits: view.getUint32(offset + 8, true),
+      });
+      offset += 12;
+    }
+  }
+
+  return { phrases, columns, hits };
+}
+
+function computeBm25Score(info: Fts4MatchInfo, totalDocs: number): number {
+  const k1 = 1.2;
+  let score = 0;
+
+  for (const hit of info.hits) {
+    if (hit.docsWithHits === 0 || hit.hitsInRow === 0) continue;
+
+    const n = hit.docsWithHits;
+    const idf = Math.log((totalDocs - n + 0.5) / (n + 0.5) + 1);
+    const tf = (hit.hitsInRow * (k1 + 1)) / (hit.hitsInRow + k1);
+    score += idf * tf;
+  }
+
+  return score;
+}
+
 /**
- * Get matching repos for a search query via FTS4.
- * Returns a uniform score for all matches; ranking is handled
- * by the hybrid fusion layer (vector search provides gradient).
+ * Get BM25 scores per repo for a search query via FTS4 matchinfo.
+ * Higher score is better.
  */
 export function rankReposByQuery(db: SqlDatabase, query: string, limit = 100): Map<string, number> {
   if (!query || query.trim().length === 0) {
@@ -286,24 +344,38 @@ export function rankReposByQuery(db: SqlDatabase, query: string, limit = 100): M
   }
 
   try {
-    const results = db
+    const totalDocs = getTotalChunkCount(db);
+    if (totalDocs === 0) return new Map();
+
+    const rows = db
       .prepare(
         `
-      SELECT DISTINCT rc.repo_id
+      SELECT rc.repo_id, matchinfo(readme_fts, 'pcx') as mi
       FROM readme_fts rf
       INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
       WHERE rf.chunk_text MATCH ?
-      LIMIT ?
     `
       )
-      .all(query, limit) as { repo_id: string }[];
+      .all(query) as { repo_id: string; mi: Uint8Array }[];
 
-    const rankMap = new Map<string, number>();
-    for (const row of results) {
-      rankMap.set(row.repo_id, -1);
+    const bestScores = new Map<string, number>();
+    for (const row of rows) {
+      const info = parseFts4Matchinfo(row.mi);
+      const score = computeBm25Score(info, totalDocs);
+      const prev = bestScores.get(row.repo_id);
+      if (prev === undefined || score > prev) {
+        bestScores.set(row.repo_id, score);
+      }
     }
 
-    return rankMap;
+    const sorted = [...bestScores.entries()]
+      .sort((a, b) => {
+        const d = b[1] - a[1];
+        return d !== 0 ? d : a[0].localeCompare(b[0]);
+      })
+      .slice(0, limit);
+
+    return new Map(sorted);
   } catch {
     return new Map();
   }
@@ -370,7 +442,7 @@ function fuseCandidates(
   vectorScores: Map<string, number>,
   options: { blend: number; rerankTop: number; rrfK: number }
 ): FusedCandidate[] {
-  const bm25Signals = buildRankedSignals(bm25Scores, 'asc');
+  const bm25Signals = buildRankedSignals(bm25Scores, 'desc');
   const vectorSignals = buildRankedSignals(vectorScores, 'desc');
 
   const lexicalWeight = mode === 'hybrid' ? options.blend : mode === 'bm25' ? 1 : 0;

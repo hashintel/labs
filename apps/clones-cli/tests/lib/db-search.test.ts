@@ -544,7 +544,7 @@ describe('db-search.ts', () => {
 
       const result = rankReposByQuery(db, 'kubernetes');
       expect(result.has(repoId)).toBe(true);
-      expect(result.get(repoId)).toBeLessThan(0);
+      expect(result.get(repoId)).toBeGreaterThan(0);
     });
 
     it('should handle invalid FTS4 syntax without throwing', () => {
