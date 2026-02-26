@@ -45,14 +45,13 @@
   },
   "dependencies": {
     "@clack/prompts": "^1.0.1",
-    "@types/better-sqlite3": "^7.6.13",
-    "better-sqlite3": "^12.6.2",
     "citty": "^0.2.1",
     "fast-wrap-ansi": "^0.2.0",
     "is-unicode-supported": "^2.1.0",
     "picocolors": "^1.1.1",
     "simple-git": "^3.31.1",
     "sisteransi": "^1.0.5",
+    "sql.js": "^1.14.0",
     "update-notifier": "^7.3.1"
   },
   "devDependencies": {

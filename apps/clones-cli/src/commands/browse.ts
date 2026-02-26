@@ -1,7 +1,7 @@
 import { defineCommand } from 'citty';
 import * as p from '@clack/prompts';
 import type { Option } from '@clack/prompts';
-import type Database from 'better-sqlite3';
+import type { SqlDatabase } from '../lib/sql-database.js';
 import { readRegistry } from '../lib/registry.js';
 import { getRepoStatus } from '../lib/git.js';
 import { getRepoPath } from '../lib/config.js';
@@ -70,7 +70,7 @@ function isStatusCacheStale(repo: DbRepoRow): boolean {
   return Date.now() - checkedAt > STATUS_CACHE_STALE_MS;
 }
 
-async function ensureBrowseReposInDb(db: Database.Database): Promise<DbRepoRow[]> {
+async function ensureBrowseReposInDb(db: SqlDatabase): Promise<DbRepoRow[]> {
   let repos = getAllRepos();
   if (repos.length > 0) {
     return repos;
@@ -208,7 +208,7 @@ async function browseRepos(): Promise<void> {
   const s = p.spinner();
   s.start('Loading repositories...');
 
-  let db: Database.Database | null = null;
+  let db: SqlDatabase | null = null;
 
   try {
     db = await openDb();

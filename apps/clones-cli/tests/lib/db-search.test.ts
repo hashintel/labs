@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
+import { SqlDatabase } from '../../src/lib/sql-database.js';
 import {
   ensureSearchTables,
   indexReadme,
@@ -13,11 +13,11 @@ import {
 import { chunkText, hashContent } from '../../src/lib/readme.js';
 
 describe('db-search.ts', () => {
-  let db: Database.Database;
+  let db: SqlDatabase;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Create in-memory database for testing
-    db = new Database(':memory:');
+    db = await SqlDatabase.open(':memory:');
 
     // Create repos table matching db.ts schema exactly
     db.exec(`
@@ -547,7 +547,7 @@ describe('db-search.ts', () => {
       expect(result.get(repoId)).toBeLessThan(0);
     });
 
-    it('should handle invalid FTS5 syntax without throwing', () => {
+    it('should handle invalid FTS4 syntax without throwing', () => {
       const repoId = 'test-repo';
       const content = 'Test content';
       const hash = hashContent(content);

@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { SqlDatabase } from './sql-database.js';
 
 export interface SearchResult {
   repoId: string;
@@ -55,10 +55,10 @@ const TOKEN_PATTERN = /[\p{L}\p{N}_-]+/gu;
 const STEM_SUFFIXES = ['ments', 'ment', 'ation', 'ations', 'ing', 'ed', 'ies', 's'];
 
 /**
- * Create the readme_chunks and FTS5 virtual table if they don't exist.
+ * Create the readme_chunks and FTS4 virtual table if they don't exist.
  * Assumes the repos table already exists.
  */
-export function ensureSearchTables(db: Database.Database): void {
+export function ensureSearchTables(db: SqlDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS readme_chunks (
       rowid INTEGER PRIMARY KEY,
@@ -72,10 +72,9 @@ export function ensureSearchTables(db: Database.Database): void {
   `);
 
   db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS readme_fts USING fts5(
+    CREATE VIRTUAL TABLE IF NOT EXISTS readme_fts USING fts4(
       chunk_text,
-      content='readme_chunks',
-      content_rowid='rowid'
+      tokenize=unicode61
     )
   `);
 
@@ -96,7 +95,7 @@ export function ensureSearchTables(db: Database.Database): void {
  * Checks content hash first for incremental no-op behavior.
  */
 export function indexReadme(
-  db: Database.Database,
+  db: SqlDatabase,
   repoId: string,
   _content: string,
   contentHash: string,
@@ -111,7 +110,7 @@ export function indexReadme(
   }
 
   db.prepare(
-    "INSERT INTO readme_fts(readme_fts, rowid, chunk_text) SELECT 'delete', rowid, chunk_text FROM readme_chunks WHERE repo_id = ?"
+    'DELETE FROM readme_fts WHERE rowid IN (SELECT rowid FROM readme_chunks WHERE repo_id = ?)'
   ).run(repoId);
 
   db.prepare('DELETE FROM readme_chunks WHERE repo_id = ?').run(repoId);
@@ -138,34 +137,32 @@ export function indexReadme(
 }
 
 /**
- * Search chunks using FTS5 BM25 ranking.
+ * Search chunks using FTS4 full-text matching.
  */
-export function searchReadmes(db: Database.Database, query: string, limit = 10): SearchResult[] {
+export function searchReadmes(db: SqlDatabase, query: string, limit = 10): SearchResult[] {
   if (!query || query.trim().length === 0) {
     return [];
   }
 
   try {
-    const results = db
+    const rows = db
       .prepare(
         `
       SELECT
         rc.repo_id as repoId,
         r.owner,
         r.repo,
-        rc.chunk_text as snippet,
-        rf.rank as score
+        rc.chunk_text as snippet
       FROM readme_fts rf
       INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
       INNER JOIN repos r ON rc.repo_id = r.id
       WHERE rf.chunk_text MATCH ?
-      ORDER BY rf.rank ASC
       LIMIT ?
     `
       )
-      .all(query, limit) as SearchResult[];
+      .all(query, limit) as unknown as Omit<SearchResult, 'score'>[];
 
-    return results;
+    return rows.map((row, index) => ({ ...row, score: -(index + 1) }));
   } catch {
     return [];
   }
@@ -175,7 +172,7 @@ export function searchReadmes(db: Database.Database, query: string, limit = 10):
  * Search repos with bm25, vector, or hybrid retrieval.
  */
 export function searchRepos(
-  db: Database.Database,
+  db: SqlDatabase,
   query: string,
   options: RepoSearchOptions = {}
 ): RepoSearchResult[] {
@@ -244,14 +241,14 @@ export function searchRepos(
 /**
  * Delete all chunks, FTS entries, and semantic embeddings (for rebuild).
  */
-export function clearAllChunks(db: Database.Database): void {
+export function clearAllChunks(db: SqlDatabase): void {
   db.prepare('DELETE FROM readme_chunks').run();
   db.exec('DELETE FROM readme_fts');
   db.prepare('DELETE FROM readme_embeddings').run();
 }
 
 /**
- * Sanitize user input for FTS5 MATCH queries.
+ * Sanitize user input for FTS4 MATCH queries.
  * Wraps each word in double quotes, appends * to last word for prefix matching.
  * Returns empty string if no valid search terms.
  */
@@ -279,14 +276,11 @@ export function sanitizeFtsQuery(input: string): string {
 }
 
 /**
- * Get BM25 scores per repo for a search query.
- * Lower score is better for SQLite FTS5 rank.
+ * Get matching repos for a search query via FTS4.
+ * Returns a uniform score for all matches; ranking is handled
+ * by the hybrid fusion layer (vector search provides gradient).
  */
-export function rankReposByQuery(
-  db: Database.Database,
-  query: string,
-  limit = 100
-): Map<string, number> {
+export function rankReposByQuery(db: SqlDatabase, query: string, limit = 100): Map<string, number> {
   if (!query || query.trim().length === 0) {
     return new Map();
   }
@@ -295,20 +289,18 @@ export function rankReposByQuery(
     const results = db
       .prepare(
         `
-      SELECT rc.repo_id, MIN(rf.rank) as best_rank
+      SELECT DISTINCT rc.repo_id
       FROM readme_fts rf
       INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
       WHERE rf.chunk_text MATCH ?
-      GROUP BY rc.repo_id
-      ORDER BY best_rank ASC
       LIMIT ?
     `
       )
-      .all(query, limit) as { repo_id: string; best_rank: number }[];
+      .all(query, limit) as { repo_id: string }[];
 
     const rankMap = new Map<string, number>();
     for (const row of results) {
-      rankMap.set(row.repo_id, row.best_rank);
+      rankMap.set(row.repo_id, -1);
     }
 
     return rankMap;
@@ -322,7 +314,7 @@ export function rankReposByQuery(
  * Higher score is better.
  */
 export function rankReposByVector(
-  db: Database.Database,
+  db: SqlDatabase,
   query: string,
   limit = 100
 ): Map<string, number> {
@@ -509,7 +501,7 @@ function buildRankedSignals(
 }
 
 function getRepoMetadata(
-  db: Database.Database,
+  db: SqlDatabase,
   repoIds: string[]
 ): Map<string, { owner: string; repo: string }> {
   const metadata = new Map<string, { owner: string; repo: string }>();
@@ -534,7 +526,7 @@ function getRepoMetadata(
 }
 
 function getRepoSnippets(
-  db: Database.Database,
+  db: SqlDatabase,
   repoIds: string[],
   ftsQuery: string
 ): Map<string, string> {
@@ -556,8 +548,7 @@ function getRepoSnippets(
             SELECT
               rc.repo_id as repo_id,
               rc.chunk_text as chunk_text,
-              rf.rank as rank,
-              ROW_NUMBER() OVER (PARTITION BY rc.repo_id ORDER BY rf.rank ASC) as row_num
+              ROW_NUMBER() OVER (PARTITION BY rc.repo_id ORDER BY rc.chunk_index ASC) as row_num
             FROM readme_fts rf
             INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
             WHERE rf.chunk_text MATCH ? AND rc.repo_id IN (${placeholders})
