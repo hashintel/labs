@@ -71,20 +71,11 @@ function isStatusCacheStale(repo: DbRepoRow): boolean {
 }
 
 async function ensureBrowseReposInDb(db: SqlDatabase): Promise<DbRepoRow[]> {
-  let repos = getAllRepos();
-  if (repos.length > 0) {
-    return repos;
-  }
-
-  // One-time bootstrap path for users with a populated registry but empty DB.
   const registry = await readRegistry();
-  if (registry.repos.length === 0) {
-    return [];
+  if (registry.repos.length > 0) {
+    syncRegistryToDb(db, registry);
   }
-
-  syncRegistryToDb(db, registry);
-  repos = getAllRepos();
-  return repos;
+  return getAllRepos();
 }
 
 async function buildRepoInfos(
