@@ -1,3 +1,8 @@
+export interface MarketplaceSettings {
+  serviceUrlKey: string;
+  itemUrlKey?: string;
+}
+
 export interface IDEConfig {
   id: string;
   name: string;
@@ -5,6 +10,7 @@ export interface IDEConfig {
   appPath: string;
   engineVersionKey: string;
   dataFolderName: string;
+  marketplaceSettings: MarketplaceSettings;
 }
 
 export interface DetectedIDE extends IDEConfig {

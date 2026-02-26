@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { execSync } from 'node:child_process';
 import type { IDEConfig, DetectedIDE } from '../types.js';
+import { CLI_WHICH_TIMEOUT_MS } from './timeouts.js';
 
 const IDE_CONFIGS: IDEConfig[] = [
   {
@@ -12,6 +13,9 @@ const IDE_CONFIGS: IDEConfig[] = [
     appPath: '/Applications/Cursor.app',
     engineVersionKey: 'vscodeVersion',
     dataFolderName: 'Cursor',
+    marketplaceSettings: {
+      serviceUrlKey: 'extensions.gallery.serviceUrl',
+    },
   },
   {
     id: 'antigravity',
@@ -20,6 +24,10 @@ const IDE_CONFIGS: IDEConfig[] = [
     appPath: '/Applications/Antigravity.app',
     engineVersionKey: 'version',
     dataFolderName: 'Antigravity',
+    marketplaceSettings: {
+      serviceUrlKey: 'antigravity.marketplaceExtensionGalleryServiceURL',
+      itemUrlKey: 'antigravity.marketplaceGalleryItemURL',
+    },
   },
   {
     id: 'windsurf',
@@ -28,6 +36,10 @@ const IDE_CONFIGS: IDEConfig[] = [
     appPath: '/Applications/Windsurf.app',
     engineVersionKey: 'version',
     dataFolderName: 'Windsurf',
+    marketplaceSettings: {
+      serviceUrlKey: 'windsurf.marketplaceExtensionGalleryServiceURL',
+      itemUrlKey: 'windsurf.marketplaceGalleryItemURL',
+    },
   },
 ];
 
@@ -38,6 +50,9 @@ const VSCODE_CONFIG: IDEConfig = {
   appPath: '/Applications/Visual Studio Code.app',
   engineVersionKey: 'version',
   dataFolderName: 'Code',
+  marketplaceSettings: {
+    serviceUrlKey: 'extensions.gallery.serviceUrl',
+  },
 };
 
 export function getIDEConfigs(): IDEConfig[] {
@@ -72,7 +87,7 @@ export function readEngineVersion(appPath: string, versionKey: string): string |
 
 export function isCliAvailable(cli: string): boolean {
   try {
-    execSync(`which ${cli}`, { stdio: 'ignore' });
+    execSync(`which ${cli}`, { stdio: 'ignore', timeout: CLI_WHICH_TIMEOUT_MS });
     return true;
   } catch {
     return false;

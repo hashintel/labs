@@ -1,4 +1,5 @@
 import type { MarketplaceExtension, MarketplaceVersion } from '../types.js';
+import { FETCH_METADATA_TIMEOUT_MS } from './timeouts.js';
 
 const MS_MARKETPLACE_API =
   'https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery';
@@ -49,6 +50,7 @@ export async function fetchExtensionMetadataWithReason(extensionId: string): Pro
         Accept: 'application/json;api-version=3.0-preview.1',
       },
       body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(FETCH_METADATA_TIMEOUT_MS),
     });
 
     if (!response.ok) {
@@ -101,6 +103,12 @@ export async function fetchExtensionMetadataWithReason(extensionId: string): Pro
       error: null,
     };
   } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      return {
+        metadata: null,
+        error: `Request timed out after ${FETCH_METADATA_TIMEOUT_MS / 1000}s`,
+      };
+    }
     const message = err instanceof Error ? err.message : 'Unknown error';
     return { metadata: null, error: message };
   }

@@ -95,8 +95,15 @@ export async function runSync(options: SyncOptions): Promise<void> {
   }
 
   p.log.info(
-    `Syncing to: ${targetIDEs.map((ide) => `${ide.name} (engine ${ide.engineVersion})`).join(', ')}`
+    `Syncing to: ${targetIDEs.map((ide) => `${ide.name} (engine ${ide.engineVersion}${ide.cliAvailable ? '' : ', no CLI'})`).join(', ')}`
   );
+
+  const cliLessIDEs = targetIDEs.filter((ide) => !ide.cliAvailable);
+  for (const ide of cliLessIDEs) {
+    p.log.warn(
+      `${ide.name}: CLI '${ide.cli}' not found — VSIX files will be downloaded but install will be skipped. Run "Shell Command: Install '${ide.cli}' command in PATH" from ${ide.name} to fix.`
+    );
+  }
 
   const extensions = getExtensionsWithState(vscode.cli, vscode.dataFolderName);
   p.log.info(`Found ${extensions.length} extensions in VS Code`);
@@ -255,11 +262,6 @@ export async function runSync(options: SyncOptions): Promise<void> {
 
   // Phase 2: Install extensions into target IDEs
   const installableIDEs = targetIDEs.filter((ide) => ide.cliAvailable);
-  const skippedIDEs = targetIDEs.filter((ide) => !ide.cliAvailable);
-
-  for (const ide of skippedIDEs) {
-    p.log.warn(`Skipping install for ${ide.name}: CLI '${ide.cli}' not available.`);
-  }
 
   if (installableIDEs.length === 0) {
     return;
