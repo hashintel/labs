@@ -134,8 +134,6 @@ export const createCompleteManifest = (appState: AppState): RawManifest => {
       ),
     }),
   );
-  console.log("added shared behaviors", behaviorsToAdd);
-
   // The API relies on shortname
   // The name might be "My number 1 behavior!"
   // But the shortname is "number1behavior.js"

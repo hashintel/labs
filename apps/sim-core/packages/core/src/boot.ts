@@ -1,4 +1,4 @@
-import { enableMapSet } from "immer";
+import { enableMapSet, setAutoFreeze } from "immer";
 
 import * as api from "./util/api";
 import { buildSimulationProvider } from "./features/simulator/simulate/buildprovider";
@@ -22,6 +22,7 @@ export const boot = async (forExperiments: boolean) => {
 
   configureTheme();
   enableMapSet();
+  setAutoFreeze(false);
   configureMonaco();
   buildSimulationProvider(forExperiments);
 

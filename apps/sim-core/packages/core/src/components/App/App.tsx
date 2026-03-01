@@ -10,6 +10,7 @@ import { MonacoContainerProvider } from "../TabbedEditor/hooks";
 import { SceneProvider } from "../AgentScene/state/SceneContext";
 import { SearchProvider } from "../../features/search/SearchContext";
 import { SimulatorProvider } from "../../features/simulator/context";
+import { MonacoModelSync } from "../../features/monaco/MonacoModelSync";
 import { StoreSync } from "../../features/simulator/simulate/StoreSync";
 import { ToastProvider } from "../../features/toast/ToastContext";
 import { UserProvider } from "../../features/user/UserContext";
@@ -30,6 +31,7 @@ export const App: FC<PropsWithChildren> = ({ children }) => (
           <ToastProvider>
             <FilesProvider>
               <ProjectProvider>
+                <MonacoModelSync />
                 <SearchProvider>
                   <SceneProvider>
                     <SimulatorProvider>
