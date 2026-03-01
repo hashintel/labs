@@ -17,16 +17,17 @@
     "fmt": "prettier \"*.{ts,tsx,js,jsx,json,css,scss}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss}\" --write; eslint --quiet --fix \"*.{ts,tsx,js}\" \"{scripts,src}/**/*.{ts,tsx,js}\"",
     "fmt-check": "prettier \"*.{ts,tsx,js,jsx,json,css,scss}\" \"{scripts,src}/**/*.{ts,tsx,js,jsx,json,css,scss}\" --check || exit 1; eslint --quiet \"*.{ts,tsx,js}\" \"{scripts,src}/**/*.{ts,tsx,js}\"",
     "g": "ts-node --project scripts/tsconfig.json scripts/cli",
-    "test": "jest --forceExit --testPathIgnorePatterns '/node_modules/|/tests/e2e/'",
+    "test": "jest --forceExit",
     "test:e2e": "playwright test --config=tests/e2e/playwright.config.ts",
     "test:e2e:smoke": "playwright test --config=tests/e2e/playwright.config.ts --grep Smoke",
     "test:e2e:ui": "playwright test --config=tests/e2e/playwright.config.ts --ui",
     "test:e2e:headed": "playwright test --config=tests/e2e/playwright.config.ts --headed",
     "test:e2e:debug": "playwright test --config=tests/e2e/playwright.config.ts --debug",
     "test:e2e:build": "cross-env E2E_USE_BUILD=1 playwright test --config=tests/e2e/playwright.config.ts",
-    "test:all": "jest --forceExit --testPathIgnorePatterns '/node_modules/|/tests/e2e/' && playwright test --config=tests/e2e/playwright.config.ts"
+    "test:all": "jest --forceExit && playwright test --config=tests/e2e/playwright.config.ts"
   },
   "jest": {
+    "testPathIgnorePatterns": ["/node_modules/", "/tests/e2e/"],
     "testEnvironment": "jest-environment-jsdom",
     "transform": {
       "^.+\\.[jt]sx?$": ["babel-jest", { "configFile": "./babel.jest.config.js" }]

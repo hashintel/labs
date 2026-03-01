@@ -81,7 +81,7 @@ export const WasmRequestHandler = async (
     }
   } catch (err) {
     console.error("Failed handling request", err);
-    runner.runnerError = err;
+    runner.runnerError = err instanceof Error ? err : new Error(String(err));
   }
 
   if (runner.runnerError) {

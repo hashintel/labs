@@ -27,7 +27,7 @@ import {
   canAutosuggestKeysForFile,
   globalsFileId,
 } from "../../../features/files/utils";
-import { getTextModelRequired } from "../../../features/monaco";
+import { getTextModel } from "../../../features/monaco";
 import { selectShouldShowBehaviorKeys } from "../../../features/files/selectors";
 import { useProject } from "../../../features/project/ProjectContext";
 
@@ -100,14 +100,18 @@ export const HashCoreEditorFile: FC<{
           file={file}
           nextContents={nextContents}
         />
-      ) : (
-        <TabbedEditorPanel
-          editorInstance={editorInstance}
-          textModel={getTextModelRequired(file, projectUrl)}
-          readOnly={!canModifyFile}
-          viewStatesRef={viewStatesRef}
-        />
-      )}
+      ) : (() => {
+        const textModel = getTextModel(file, projectUrl);
+        if (!textModel) return null;
+        return (
+          <TabbedEditorPanel
+            editorInstance={editorInstance}
+            textModel={textModel}
+            readOnly={!canModifyFile}
+            viewStatesRef={viewStatesRef}
+          />
+        );
+      })()}
     </>
   );
 };

@@ -58,8 +58,9 @@ export class JsCustomBehavior {
       } catch (err) {
         // Errors from flushing to Rust do not go through our extended EvalError
         // We need to add information about the behavior and cause
+        const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
-          `error setting agent state after behavior ${this.name}: ${err.message}`
+          `error setting agent state after behavior ${this.name}: ${msg}`
         );
       }
     } catch (e) {
@@ -67,7 +68,7 @@ export class JsCustomBehavior {
        * @todo this context is lost when stringifying in WasmRequestHandler
        *    figure out why and do something about it, or stop adding it.
        */
-      e.args = {
+      (e as Error & { args?: unknown }).args = {
         context: {
           messages: JSON.parse(JSON.stringify(context.messages())),
           neighbors: JSON.parse(JSON.stringify(context.neighbors())),
@@ -97,10 +98,11 @@ export class JsCustomBehavior {
         state.wrapper.set(key, value);
       } catch (err) {
         const agent_id = state.wrapper.get("agent_id");
+        const msg = err instanceof Error ? err.message : String(err);
         throw new Error(
           `could not set state variable '${key}' to value ${JSON.stringify(
             value
-          )} on agent with id '${agent_id}': ${err.message}`
+          )} on agent with id '${agent_id}': ${msg}`
         );
       }
     });

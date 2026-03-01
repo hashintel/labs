@@ -70,10 +70,34 @@ export default defineConfig(({ mode }) => {
     },
     build: {
       outDir: "dist",
+      reportCompressedSize: false,
+      chunkSizeWarningLimit: 2000,
       rollupOptions: {
+        // Rollup's native tree-shaking crashes on Windows (NAPI module fault
+        // during recursive module-graph walk with 7100+ modules and deep
+        // circular dependencies in @msrvida/sanddance-explorer, @fluentui,
+        // office-ui-fabric-react, etc.). esbuild minification still performs
+        // expression-level dead-code elimination.
+        treeshake: false,
         input: {
           main: path.resolve(__dirname, "index.html"),
           embed: path.resolve(__dirname, "embed.html"),
+        },
+        onLog(level, log) {
+          if (log.code === "CIRCULAR_DEPENDENCY") return;
+          if (log.message?.includes("__vite-browser-external")) return;
+        },
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules/monaco-editor/")) return "vendor-monaco";
+            if (id.includes("node_modules/three/") || id.includes("node_modules/three-stdlib/") || id.includes("node_modules/@react-three/")) return "vendor-three";
+            if (id.includes("node_modules/plotly.js") || id.includes("node_modules/react-plotly")) return "vendor-plotly";
+            if (id.includes("node_modules/@deck.gl/") || id.includes("node_modules/@luma.gl/") || id.includes("node_modules/@loaders.gl/") || id.includes("node_modules/mapbox-gl") || id.includes("node_modules/react-mapbox-gl")) return "vendor-geo";
+            if (id.includes("node_modules/@fluentui/") || id.includes("node_modules/office-ui-fabric-react/") || id.includes("node_modules/@uifabric/") || id.includes("node_modules/@microsoft/load-themed-styles")) return "vendor-fluentui";
+            if (id.includes("node_modules/@msrvida/") || id.includes("node_modules/vega")) return "vendor-sanddance";
+            if (id.includes("node_modules/d3")) return "vendor-d3";
+            if (id.includes("node_modules/lodash")) return "vendor-lodash";
+          },
         },
       },
     },

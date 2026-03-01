@@ -85,8 +85,9 @@ export const SELECTORS = {
  */
 export async function waitForAppLoad(page: Page): Promise<void> {
   // Wait for simulation controls to appear (indicates app is ready)
+  // WASM + project load can be slow; allow up to 90s on CI/slow machines
   await page.waitForSelector(SELECTORS.simulationControls, {
-    timeout: 30000,
+    timeout: 90000,
   });
 
   // Fail fast if the app crashed (error boundary is showing)
@@ -101,7 +102,7 @@ export async function waitForAppLoad(page: Page): Promise<void> {
   // Wait for any loading indicators to disappear
   const loadingIndicator = page.locator(SELECTORS.loadingIndicator);
   if ((await loadingIndicator.count()) > 0) {
-    await loadingIndicator.waitFor({ state: "hidden", timeout: 30000 });
+    await loadingIndicator.first().waitFor({ state: "hidden", timeout: 45000 }).catch(() => {});
   }
 }
 

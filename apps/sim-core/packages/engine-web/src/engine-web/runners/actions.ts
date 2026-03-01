@@ -93,7 +93,8 @@ const initialize = async (
       request.pyodideEnabled
     );
   } catch (err) {
-    if (err.message === "Cannot load pyodide") {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === "Cannot load pyodide") {
       runner.pyodide = "errored";
       return false;
     } else {

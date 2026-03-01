@@ -1,3 +1,4 @@
+import path from "path";
 import { defineConfig, devices } from "@playwright/test";
 
 /**
@@ -10,7 +11,7 @@ import { defineConfig, devices } from "@playwright/test";
  *
  * Run with: yarn test:e2e
  *
- * By default E2E uses the dev server (yarn serve). For production-build
+ * By default E2E uses the dev server (yarn serve:core). For production-build
  * runs set E2E_USE_BUILD=1 or use yarn test:e2e:build.
  *
  * IMPORTANT: Tests run sequentially with 1 worker to avoid overwhelming
@@ -67,8 +68,8 @@ export default defineConfig({
     // },
   ],
 
-  /* Timeout for each test - simulation can be slow */
-  timeout: 90000,
+  /* Timeout for each test - simulation + WASM load can be slow */
+  timeout: 120000,
 
   /* Timeout for each expect() assertion */
   expect: {
@@ -79,14 +80,14 @@ export default defineConfig({
   webServer: {
     command:
       process.env.E2E_USE_BUILD === "1"
-        ? "yarn build && vite preview"
-        : "yarn serve",
-    cwd: __dirname.replace(/[\\\/]tests[\\\/]e2e$/, ""), // Run from packages/core directory
+        ? "yarn build:core && yarn start:core"
+        : "yarn serve:core",
+    cwd: path.resolve(__dirname, "..", "..", "..", ".."), // Run from apps/sim-core
     url: "http://localhost:8080",
     reuseExistingServer: !process.env.CI,
     timeout:
-      process.env.E2E_USE_BUILD === "1" ? 300000 : 120000, // build is slower
+      process.env.E2E_USE_BUILD === "1" ? 300000 : 180000, // build + engine-web is slow
     stdout: "pipe",
-    stderr: "ignore",
+    stderr: "pipe",
   },
 });

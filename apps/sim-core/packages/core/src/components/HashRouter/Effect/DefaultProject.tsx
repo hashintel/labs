@@ -7,6 +7,12 @@ import { urlFromProject } from "../../../routes";
 import { useUser } from "../../../features/user/UserContext";
 import { useExamples } from "../../../features/examples/ExamplesContext";
 
+/** Fallback when no projects exist (e.g. bootstrap failed or localStorage empty) */
+const FALLBACK_PROJECT: LinkableProject = {
+  pathWithNamespace: "@hash/wildfires-regrowth",
+  ref: "main",
+};
+
 export const HashRouterEffectDefaultProject: FC = () => {
   const { bootstrapped, userProjects } = useUser();
   const { examples } = useExamples();
@@ -16,16 +22,12 @@ export const HashRouterEffectDefaultProject: FC = () => {
       const listToUse = userProjects.length ? userProjects : examples;
       const project = orderBy(listToUse, "updatedAt", "desc")[0];
 
-      const defaultProject: LinkableProject | null = project
+      const defaultProject: LinkableProject = project
         ? {
             pathWithNamespace: project.pathWithNamespace,
-            ref: userProjects.length ? "main" : project.ref,
+            ref: userProjects.length ? "main" : project.ref ?? "main",
           }
-        : null;
-
-      if (!defaultProject) {
-        throw new Error("Could not find a default project");
-      }
+        : FALLBACK_PROJECT;
 
       navigate(urlFromProject(defaultProject));
     }
