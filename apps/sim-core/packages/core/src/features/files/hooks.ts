@@ -95,7 +95,7 @@ export const useImportFiles = () => {
     const file = files[0];
 
     if (file.type !== "application/zip") {
-      throw "Please upload a .zip file";
+      throw new Error("Please upload a .zip file");
     }
 
     const fileName = file.name.split(".").slice(0, -1).join(".");
@@ -103,8 +103,9 @@ export const useImportFiles = () => {
     let zip: JSZip;
     try {
       zip = await JSZip.loadAsync(file);
-    } catch (err: any) {
-      throw "Error unzipping " + file.name + ": " + err.message;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`Error unzipping ${file.name}: ${msg}`);
     }
     const projectFiles: ProjectFile[] = [];
     const zipFiles: {
@@ -186,12 +187,19 @@ export const useImportFiles = () => {
       files: projectFiles,
     };
 
-    const project: SimulationProjectWithHcFiles = {
-      ...importedProject,
-      config: toHcConfig(importedProject),
-      files: toHcFiles(importedProject),
-      ref: importedProject.ref ?? "main",
-    };
+    let project: SimulationProjectWithHcFiles;
+    try {
+      project = {
+        ...importedProject,
+        config: toHcConfig(importedProject),
+        files: toHcFiles(importedProject),
+        ref: importedProject.ref ?? "main",
+      };
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : String(err ?? "Unknown error");
+      throw new Error(`Error parsing imported project: ${msg}`);
+    }
 
     addUserProject(preparePartialSimulationProject(project));
     contextSetProjectWithMeta(project);

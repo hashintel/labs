@@ -239,7 +239,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 if (files) {
                   importFiles(files).catch((err) =>
                     console.error(
-                      `Error importing project files: ${err.message}`,
+                      `Error importing project files: ${err instanceof Error ? err.message : String(err ?? "Unknown error")}`,
                     ),
                   );
                 }
@@ -294,7 +294,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                   clearAll();
                   exportFiles().catch((err) =>
                     console.error(
-                      `Error exporting project files: ${err.message}`,
+                      `Error exporting project files: ${err instanceof Error ? err.message : String(err ?? "Unknown error")}`,
                     ),
                   );
                 }}

@@ -108,6 +108,7 @@ cargo fmt && cargo clippy  # Lint
 ### Documentation
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Detailed technical architecture with code references
+- **[docs/TESTING_STRATEGY.md](docs/TESTING_STRATEGY.md)** - Testing strategy and TDD workflow for bug fixes
 - **[TODO.md](TODO.md)** - Technical debt, outdated dependencies, and modernization roadmap
 - **[.cursor/rules/hash-labs.mdc](.cursor/rules/hash-labs.mdc)** - AI agent guidelines and conventions
 - **[.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)** - Contribution process

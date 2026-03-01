@@ -3,7 +3,8 @@
 This document tracks outdated dependencies, deprecated patterns, and proposed upgrades for the HASH Labs monorepo.
 
 **Last Updated**: February 2026  
-**Analysis Scope**: sim-core, sim-engine, hash-agents
+**Analysis Scope**: sim-core, sim-engine, hash-agents  
+**Review Panel**: Expert personas (QA, Frontend, WASM, UX, DevOps, Documentation) reviewed TODO plan and PR work; recommendations captured in "Review Panel" sections below.
 
 ---
 
@@ -1126,6 +1127,70 @@ const [value, setValue] = useState(initial);
 // Persistence
 localStorage.setItem('project:' + projectId, JSON.stringify(projectData));
 ```
+
+---
+
+## Review Panel: TODO Plan Additions (Feb 2026)
+
+Expert panel review of the TODO plan — suggested additions:
+
+### QA Engineer
+- [ ] **Investigate "object is not extensible" console error** — occurs when adding simulation run to store; may indicate frozen object mutation. Root cause in simulator/history store.
+- [ ] **Fix flaky E2E tests** — `experiments.spec.ts` (open menu, create experiment) and `wasm-worker-smoke.spec.ts` timeout at 2m. Add retries or fix selectors.
+- [ ] **Add Step Explorer E2E coverage** — agent state inspection not yet tested.
+- [ ] **Add E2E regression test for ActivityHistory** — ensure useSyncExternalStore fix doesn't regress.
+
+### Frontend Architect
+- [ ] **Audit other useSyncExternalStore usages** — useSimulatorSelector fix (shallow array equality) may be needed elsewhere. Check for similar getSnapshot patterns.
+- [ ] **Consider extracting shallowEqualArrays** — if used in multiple selectors, move to shared util.
+- [ ] **Document Monaco workaround** — HashCoreEditorFile uses getTextModel + null return as interim fix; full fix requires wiring subscribe to appBridge.
+
+### WASM Expert
+- [ ] **Audit engine-web catch blocks** — ensure all `err.message` access uses `err instanceof Error ? err.message : String(err)`. actions.ts, wasm-runner.ts, JsCustomBehavior.ts done.
+- [ ] **Investigate "object is not extensible"** — may relate to Rust→JS serialization producing frozen objects. Check simulation data flow.
+
+### UX Expert
+- [ ] **Empty editor UX** — when Monaco model missing, HashCoreEditorFile returns null; user sees blank. Consider loading skeleton or "Opening file…" placeholder.
+- [ ] **Verify DefaultProject fallback** — ensure @hash/wildfires-regrowth loads correctly on first visit with empty localStorage.
+
+### Performance Engineer
+- [ ] **Track treeshake: false impact** — bundle ~53s build; re-enable when Rollup fixes or @fluentui/sanddance replaced. Add bundle size baseline.
+- [ ] **Verify manualChunks sizes** — vendor-monaco, vendor-plotly, etc. Ensure no single chunk exceeds reasonable limits.
+
+### DevOps/CI Specialist
+- [ ] **Add smoke-only CI gate** — run `yarn test:e2e:smoke` (4 tests, ~11s) as required check; full E2E can be optional/scheduled.
+- [ ] **Document flaky E2E tests** — experiments.spec.ts, wasm-worker-smoke.spec.ts. Add to CI retry or skip until fixed.
+- [ ] **Add WASM build to CI** — verify wasm-pack build succeeds on Rust changes.
+
+### Documentation Advocate
+- [ ] **Document useSimulatorSelector pattern** — shallow array equality for useSyncExternalStore. Add to Code Guidance or ARCHITECTURE.md.
+- [ ] **Update Monaco E2E blocker** — note interim workaround (getTextModel + null) in Known Build Issues.
+
+### Security Reviewer
+- [ ] **Review "object is not extensible"** — frozen object mutation could indicate unsafe Object.freeze usage or prototype pollution. Low priority if internal only.
+
+---
+
+## Review Panel: PR Work Recommendations (Feb 2026)
+
+Expert panel review of commits 39ab6a5–2178f59 (WIP fixes, ActivityHistory, reviewer rules):
+
+### Summary
+| Persona | Critical | Nice-to-have |
+|---------|----------|--------------|
+| QA Engineer | Fix flaky E2E; investigate object extensible | Step Explorer E2E |
+| Frontend Architect | Audit useSyncExternalStore; document Monaco workaround | Extract shallowEqual |
+| WASM Expert | Audit remaining catch blocks | — |
+| UX Expert | Consider editor placeholder when model missing | — |
+| DevOps/CI | Smoke gate in CI; document flaky tests | WASM build in CI |
+| Documentation | Document useSimulatorSelector pattern | Update Monaco blocker text |
+
+### Captured in TODO
+All recommendations above have been added to the "Review Panel: TODO Plan Additions" section.
+
+### Deferred
+- **HashCoreEditorFile placeholder** — UX improvement; not blocking. Can add when Monaco subscribe is fixed.
+- **Shallow-equal for objects** — useSimulatorSelector only needs arrays for historySelectors.selectAll. Objects use reference equality.
 
 ---
 

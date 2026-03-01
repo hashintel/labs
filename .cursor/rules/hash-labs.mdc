@@ -119,6 +119,8 @@ When replacing a library or changing function signatures:
 
 ## Build & Test Verification
 
+**Bug fixes:** When fixing bugs, use a TDD approach — write a failing test first, then fix. Prefer unit/component tests; use E2E only when necessary. See [testing-bugs.mdc](mdc:.cursor/rules/testing-bugs.mdc) and [docs/TESTING_STRATEGY.md](mdc:docs/TESTING_STRATEGY.md).
+
 After every meaningful batch of changes (not just at the end of a phase):
 
 1. **Run unit tests**: `npx jest --forceExit --testPathIgnorePatterns "e2e"` in `apps/sim-core/packages/core`
