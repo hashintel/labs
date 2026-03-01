@@ -2,6 +2,10 @@ import { IDisposable, Uri, editor } from "monaco-editor";
 import { debounce } from "lodash-es";
 import { v4 as uuid } from "uuid";
 
+if (typeof window !== "undefined") {
+  (window as any).__monacoEditor = editor;
+}
+
 import { Ext } from "../../util/files/enums";
 
 import type { Dispatch } from "react";
@@ -152,10 +156,6 @@ const createMonacoSubscriber = () => {
     if (!isReadOnly(file, true) || !isReadOnly(file, false)) {
       model.onDidChangeContent(() => {
         const contents = model.getValue();
-
-        if (!document.hasFocus()) {
-          return;
-        }
 
         if (contents !== fileEntities[file.id]?.contents) {
           filesDispatch(updateFile({ id: file.id, contents }));

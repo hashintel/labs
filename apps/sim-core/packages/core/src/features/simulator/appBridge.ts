@@ -13,20 +13,27 @@ const listeners = new Set<Listener>();
  * fromStore() can create RxJS observables from it.
  */
 export const appBridge = {
-  _state: {
-    files: {} as any,
-    project: {} as any,
-    viewer: { editor: true, currentTab: "3d" } as any,
-  },
+  _files: {} as any,
+  _project: {} as any,
+  _viewer: { editor: true, currentTab: "3d" } as any,
+  _snapshot: null as any,
 
   getState(): any {
-    return appBridge._state;
+    if (!appBridge._snapshot) {
+      appBridge._snapshot = {
+        files: appBridge._files,
+        project: appBridge._project,
+        viewer: appBridge._viewer,
+      };
+    }
+    return appBridge._snapshot;
   },
 
   setState(next: { files?: any; project?: any; viewer?: any }) {
-    if (next.files !== undefined) appBridge._state.files = next.files;
-    if (next.project !== undefined) appBridge._state.project = next.project;
-    if (next.viewer !== undefined) appBridge._state.viewer = next.viewer;
+    if (next.files !== undefined) appBridge._files = next.files;
+    if (next.project !== undefined) appBridge._project = next.project;
+    if (next.viewer !== undefined) appBridge._viewer = next.viewer;
+    appBridge._snapshot = null;
     listeners.forEach((fn) => fn());
   },
 
@@ -43,3 +50,7 @@ export const appBridge = {
   dispatchTrackEvent: (_event: any) => {},
   dispatchTrackEvents: (_events: any[]) => {},
 };
+
+if (typeof window !== "undefined") {
+  (window as any).__appBridge = appBridge;
+}

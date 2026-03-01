@@ -1,4 +1,3 @@
-import { check } from "prettier";
 import { v4 as uuid } from "uuid";
 
 import {
