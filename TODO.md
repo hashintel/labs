@@ -1045,6 +1045,11 @@ Found during a comprehensive codebase audit after completing Phases 1–4.
 | `lodash` + `lodash-es` imports | `lodash-es` only (20+ files to fix) |
 | `WEBPACK_BUILD_STAMP` variable | Rename to `BUILD_STAMP` |
 | `process.env.NODE_ENV` | `import.meta.env.PROD` (Vite) |
+| `yarn.lock` (sim-core) + `package-lock.json` (subdirs) | Yarn everywhere |
+
+- [ ] **Standardize package manager to Yarn** across entire monorepo
+  - Remove `package-lock.json` from `packages/core/tests/`, `sim-engine/stdlib/`, `sim-engine/apache-arrow-js-bundle/`
+  - Convert those subprojects to use Yarn (or integrate into parent workspace) so all JS/TS deps use `yarn.lock` only
 
 ---
 
@@ -1059,6 +1064,26 @@ When working on this codebase:
 3. **NO CLOUD FEATURES**: Don't add cloud storage, sharing, or server-side features
 4. **NO ANALYTICS**: Don't add Sentry, FullStory, or tracking code
 5. **GitHub sync is FUTURE**: Don't implement GitHub integration yet (post-migration)
+
+### Known Build Issues
+
+**Rollup tree-shaking crash on Windows**: Rollup 4's tree-shaking algorithm crashes silently during
+production builds on Windows. The process is killed by the OS (no JavaScript error, no exit handler)
+during the recursive module-graph walk with 7100+ modules. The crash persists across Node 22/24,
+64MB native stacks, WASM Rollup backend, and JIT-disabled modes. Root cause is likely in Rollup's
+native NAPI module corrupting the call stack during tree-shaking of deeply circular dependency chains
+(`@msrvida/sanddance-explorer`, `office-ui-fabric-react`, `@fluentui/react`).
+
+**Workaround**: `treeshake: false` in `vite.config.ts` rollupOptions. esbuild minification still
+performs expression-level dead-code elimination. Manual chunks split vendor dependencies for caching.
+Build completes in ~53s. Re-enabling tree-shaking is blocked on either a Rollup fix or replacing
+the circular-dependency-heavy packages (`@fluentui/react` v7 → v9, `@msrvida/sanddance-explorer`).
+
+### Monaco Model Creation (E2E Blocker)
+
+After Redux removal, the Monaco editor's `subscribe()` was never wired to the appBridge. The monaco creates text models in response to store changes, but no code calls `subscribe(appBridge)`. As a result, `getTextModelRequired` throws "text model does not exist" when opening files, causing the app to hit the error boundary. This blocks E2E tests.
+
+**Fix required**: Wire `subscribe` from `features/monaco` to `appBridge` in StoreSync, and add `appBridge.dispatch` that forwards `updateFile` actions to `filesDispatch`. Care must be taken to avoid infinite loops (model.setValue → onDidChangeContent → dispatch → setState → monaco listener → model.setValue).
 
 ### Code Guidance
 
