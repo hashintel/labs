@@ -46,7 +46,7 @@ export const loadGeometryMesh = async (
       return pickedMesh();
     default:
       try {
-        const model = await polyLoader(userMeshName);
+        const model = await polyLoader(userMeshName, num);
         return model;
       } catch {
         // Fail through and produce a box
@@ -114,7 +114,10 @@ const pickedMesh = (): RawGeometry => {
 /**
  * Fetch a model from the API and return its geoemtry and materials
  */
-export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
+export const polyLoader = async (
+  meshName: string,
+  numMeshes: number,
+): Promise<RawGeometry> => {
   // Check for a built-in and any specific rotation information
   const builtin = BUILTIN_MODELS[meshName];
   if (!builtin) {
@@ -181,7 +184,20 @@ export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
   geometry.rotateY((rotY ?? 0) * (Math.PI / 180));
   geometry.rotateZ((rotZ ?? 0) * (Math.PI / 180));
 
-  return [geometry, material];
+  // Per-instance color buffer so each agent can have its own color from the
+  // simulation state (e.g. green for healthy trees, red for fire).
+  const colors = new Float32Array(numMeshes * 3).map(() => 0);
+  geometry.setAttribute(
+    "color",
+    new THREE.InstancedBufferAttribute(colors, 3),
+  );
+  const coloredMaterial = new THREE.MeshPhongMaterial({
+    vertexColors: true,
+    shininess: 0.1,
+    reflectivity: 0.1,
+  });
+
+  return [geometry, coloredMaterial];
 };
 
 const fetchPolyFromBuiltinDb = async (slug: string) => {
