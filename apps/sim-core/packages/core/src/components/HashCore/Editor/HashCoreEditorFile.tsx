@@ -102,7 +102,22 @@ export const HashCoreEditorFile: FC<{
         />
       ) : (() => {
         const textModel = getTextModel(file, projectUrl);
-        if (!textModel) return null;
+        if (!textModel) {
+          return (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: "var(--theme-dark-text, #aaa)",
+                fontSize: 13,
+              }}
+            >
+              Loading editor...
+            </div>
+          );
+        }
         return (
           <TabbedEditorPanel
             editorInstance={editorInstance}

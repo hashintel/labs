@@ -1003,6 +1003,28 @@ const running = useSimulatorSelector(selectRunning);
 const dispatch = useSimulatorDispatch();
 ```
 
+**`useSimulatorSelector` and shallow equality**: The simulator store uses `useSyncExternalStore`
+under the hood. The `useSimulatorSelector` hook includes a `shallowEqualArrays` check to avoid
+infinite re-render loops when selectors return new array references with identical contents
+(e.g. `historySelectors.selectAll`). For object-returning selectors, reference equality is
+sufficient because `createSelector` memoizes output references. If you add a new selector that
+creates a new object on every call, you must either memoize it with `createSelector` or extend
+`useSimulatorSelector` to support shallow object comparison.
+
+### Monaco Editor Model Lifecycle
+
+Monaco text models are created asynchronously via `syncModels()` in `MonacoModelSync`. Because
+this runs in a `useEffect`, there is a brief render window where a file's text model does not yet
+exist. The `HashCoreEditorFile` component handles this by calling `getTextModel(file, projectUrl)`
+(the optional variant, not `getTextModelRequired`) and rendering a "Loading editor..." placeholder
+when the model is `null`. Once `syncModels` runs and creates the model, the component re-renders
+with the full editor.
+
+The `appBridge` singleton bridges React context state to the external simulator. `StoreSync`
+pushes `FilesContext` and `ProjectContext` state into `appBridge` on every change, and the
+`appBridge` snapshot invalidation pattern (returning a new object reference from `getState()`)
+ensures that `reselect` selectors recompute when file contents change.
+
 ### Scopes (Permissions)
 
 The scopes system determines what actions are available:
@@ -1034,8 +1056,8 @@ const [showModal, hideModal] = useModal(() => (
 
 ## Additional Resources
 
-- [sim-core README](apps/sim-core/README.md) — Setup and running instructions
-- [sim-engine README](apps/sim-engine/README.md) — Rust engine documentation
+- [sim-core README](README.md) — Setup and running instructions
 - [TODO.md](TODO.md) — Technical debt and modernization roadmap
+- [TESTING_STRATEGY.md](TESTING_STRATEGY.md) — Test pyramid and conventions
 - [CONTRIBUTING.md](.github/CONTRIBUTING.md) — Contribution guidelines
 - [.cursor/rules/hash-labs.mdc](.cursor/rules/hash-labs.mdc) — AI agent guidelines

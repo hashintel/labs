@@ -1065,16 +1065,16 @@ Expert panel review of the TODO plan Ã¢â‚¬â€ suggested additions:
 
 ### Frontend Architect
 - [x] **Audit other useSyncExternalStore usages** Ã¢â‚¬â€ useSimulatorSelector fix (shallow array equality) may be needed elsewhere. Check for similar getSnapshot patterns.
-- [ ] **Consider extracting shallowEqualArrays** Ã¢â‚¬â€ if used in multiple selectors, move to shared util.
-- [ ] **Document Monaco workaround** Ã¢â‚¬â€ HashCoreEditorFile uses getTextModel + null return as interim fix; full fix requires wiring subscribe to appBridge.
+- [x] **Consider extracting shallowEqualArrays** Ã¢â‚¬â€ if used in multiple selectors, move to shared util.
+- [x] **Document Monaco workaround** Ã¢â‚¬â€ HashCoreEditorFile uses getTextModel + null return as interim fix; full fix requires wiring subscribe to appBridge.
 
 ### WASM Expert
 - [x] **Audit engine-web catch blocks** Ã¢â‚¬â€ ensure all `err.message` access uses `err instanceof Error ? err.message : String(err)`. actions.ts, wasm-runner.ts, JsCustomBehavior.ts done.
 - [x] **Investigate "object is not extensible"** Ã¢â‚¬â€ may relate to RustÃ¢â€ â€™JS serialization producing frozen objects. Check simulation data flow.
 
 ### UX Expert
-- [ ] **Empty editor UX** Ã¢â‚¬â€ when Monaco model missing, HashCoreEditorFile returns null; user sees blank. Consider loading skeleton or "Opening fileÃ¢â‚¬Â¦" placeholder.
-- [ ] **Verify DefaultProject fallback** Ã¢â‚¬â€ ensure @hash/wildfires-regrowth loads correctly on first visit with empty localStorage.
+- [x] **Empty editor UX** Ã¢â‚¬â€ when Monaco model missing, HashCoreEditorFile returns null; user sees blank. Consider loading skeleton or "Opening fileÃ¢â‚¬Â¦" placeholder.
+- [x] **Verify DefaultProject fallback** Ã¢â‚¬â€ ensure @hash/wildfires-regrowth loads correctly on first visit with empty localStorage.
 
 ### Performance Engineer
 - [ ] **Track treeshake: false impact** Ã¢â‚¬â€ bundle ~53s build; re-enable when Rollup fixes or @fluentui/sanddance replaced. Add bundle size baseline.
@@ -1086,8 +1086,8 @@ Expert panel review of the TODO plan Ã¢â‚¬â€ suggested additions:
 - [ ] **Add WASM build to CI** Ã¢â‚¬â€ verify wasm-pack build succeeds on Rust changes.
 
 ### Documentation Advocate
-- [ ] **Document useSimulatorSelector pattern** Ã¢â‚¬â€ shallow array equality for useSyncExternalStore. Add to Code Guidance or ARCHITECTURE.md.
-- [ ] **Update Monaco E2E blocker** Ã¢â‚¬â€ note interim workaround (getTextModel + null) in Known Build Issues.
+- [x] **Document useSimulatorSelector pattern** Ã¢â‚¬â€ shallow array equality for useSyncExternalStore. Add to Code Guidance or ARCHITECTURE.md.
+- [x] **Update Monaco E2E blocker** Ã¢â‚¬â€ note interim workaround (getTextModel + null) in Known Build Issues.
 
 ### Security Reviewer
 - [x] **Review "object is not extensible"** Ã¢â‚¬â€ frozen object mutation could indicate unsafe Object.freeze usage or prototype pollution. Low priority if internal only.
