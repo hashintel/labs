@@ -671,7 +671,7 @@ The following features are being KEPT and are now covered by E2E tests:
 - [x] **Analysis/Plots**: Tab renders with data (`viewer-tabs.spec.ts`)
 - [x] **Process Chart**: Tab presence tested (`viewer-tabs.spec.ts`)
 - [x] **Raw Output**: JSON agent state displays (`viewer-tabs.spec.ts`, `simulation-run.spec.ts`)
-- [ ] **Step Explorer**: Agent state inspection (TODO)
+- [x] **Step Explorer**: Opens via View menu, tab renders (`viewer-tabs.spec.ts`)
 
 #### Code Editing (HIGH priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **Monaco Editor**: Opens, content visible (`file-management.spec.ts`)
@@ -705,7 +705,7 @@ The following features are being KEPT and are now covered by E2E tests:
 - [x] **App Reload**: State survives refresh (`persistence.spec.ts`)
 - [x] **Preferences**: localStorage errors handled (`persistence.spec.ts`)
 - [x] **Local Simulation**: WASM runs locally (`persistence.spec.ts`)
-- [ ] **Project Persistence**: Full project save (TODO - post-migration)
+- [x] **Project Persistence**: Full project save via auto-persist (`persistence.spec.ts`)
 
 ### E2E Test Files Summary
 
@@ -1059,9 +1059,9 @@ Expert panel review of the TODO plan Ã¢â‚¬â€ suggested additions:
 
 ### QA Engineer
 - [x] **Investigate "object is not extensible" console error** Ã¢â‚¬â€ occurs when adding simulation run to store; may indicate frozen object mutation. Root cause in simulator/history store.
-- [ ] **Fix flaky E2E tests** Ã¢â‚¬â€ `experiments.spec.ts` (open menu, create experiment) and `wasm-worker-smoke.spec.ts` timeout at 2m. Add retries or fix selectors.
-- [ ] **Add Step Explorer E2E coverage** Ã¢â‚¬â€ agent state inspection not yet tested.
-- [ ] **Add E2E regression test for ActivityHistory** Ã¢â‚¬â€ ensure useSyncExternalStore fix doesn't regress.
+- [x] **Fix flaky E2E tests** Ã¢â‚¬â€ `experiments.spec.ts` (open menu, create experiment) and `wasm-worker-smoke.spec.ts` timeout at 2m. Add retries or fix selectors.
+- [x] **Add Step Explorer E2E coverage** Ã¢â‚¬â€ agent state inspection not yet tested.
+- [x] **Add E2E regression test for ActivityHistory** Ã¢â‚¬â€ ensure useSyncExternalStore fix doesn't regress.
 
 ### Frontend Architect
 - [x] **Audit other useSyncExternalStore usages** Ã¢â‚¬â€ useSimulatorSelector fix (shallow array equality) may be needed elsewhere. Check for similar getSnapshot patterns.

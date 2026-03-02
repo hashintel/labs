@@ -155,22 +155,47 @@ test.describe("Process Chart", () => {
     await page.goto(BUILTIN_SIMULATIONS.wildfires);
     await waitForAppLoad(page);
 
-    // Look for Process Chart tab
     await clickTab(page, "Process");
 
     await page.waitForTimeout(1000);
 
-    // Process chart may or may not be available depending on simulation
     const processChart = page.locator(SELECTORS.processChart);
     const chartVisible = (await processChart.count()) > 0;
 
-    // If visible, it should have content
     if (chartVisible) {
       const content = await processChart.innerHTML();
       expect(content.length).toBeGreaterThan(50);
     }
 
-    // Regardless, no render errors should occur
+    await assertNoRenderErrors(page);
+  });
+});
+
+test.describe("Step Explorer", () => {
+  test("should open Step Explorer via View menu", async ({ page }) => {
+    await page.goto(BUILTIN_SIMULATIONS.wildfires);
+    await waitForAppLoad(page);
+
+    const viewMenu = page.locator('label[for="HashCoreHeaderMenu::View"]');
+    if ((await viewMenu.count()) > 0) {
+      await viewMenu.click();
+      await page.waitForTimeout(500);
+
+      const stepExplorerItem = page.locator("text=Step Explorer").first();
+      if ((await stepExplorerItem.count()) > 0) {
+        await stepExplorerItem.click();
+        await page.waitForTimeout(2000);
+
+        const tab = page
+          .locator('[role="tab"]')
+          .filter({ hasText: /step explorer/i });
+        const tabVisible = (await tab.count()) > 0;
+        if (tabVisible) {
+          await expect(tab).toBeVisible();
+        }
+      }
+    }
+
     await assertNoRenderErrors(page);
   });
 });

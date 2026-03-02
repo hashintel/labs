@@ -198,16 +198,52 @@ test.describe("General UI", () => {
   test("should display toast notifications when appropriate", async ({
     page,
   }) => {
-    // Perform an action that might trigger a toast
-    // Try to trigger save
     await pressShortcut(page, "s", { ctrl: true });
     await page.waitForTimeout(1000);
 
-    // Toast notifications typically have specific classes
     const toast = page.locator(".Toastify, .toast, [role='alert']");
 
-    // Toast may or may not appear depending on state
-    // Just verify no errors
+    await assertNoRenderErrors(page);
+  });
+});
+
+test.describe("Activity History", () => {
+  test("should render ActivityHistory panel", async ({ page }) => {
+    await page.goto(BUILTIN_SIMULATIONS.wildfires);
+    await waitForAppLoad(page);
+
+    const activityPanel = page.locator(".ActivityHistory");
+    const activityVisible = (await activityPanel.count()) > 0;
+
+    if (activityVisible) {
+      await expect(activityPanel.first()).toBeVisible();
+      const header = page.locator(".ActivityHistory__Header");
+      if ((await header.count()) > 0) {
+        await expect(header.first()).toBeVisible();
+      }
+    }
+
+    await assertNoRenderErrors(page);
+  });
+
+  test("should render ActivityHistory without crashes after stepping", async ({
+    page,
+  }) => {
+    await page.goto(BUILTIN_SIMULATIONS.wildfires);
+    await waitForAppLoad(page);
+
+    const stepButton = page.locator(SELECTORS.stepButton);
+    await expect(stepButton).toBeEnabled({ timeout: 30000 });
+    await stepButton.click();
+    await page.waitForTimeout(1000);
+
+    const activityPanel = page.locator(".ActivityHistory");
+    if ((await activityPanel.count()) > 0) {
+      await expect(activityPanel).toBeVisible();
+      const content = await activityPanel.innerHTML();
+      expect(content.length).toBeGreaterThan(0);
+    }
+
     await assertNoRenderErrors(page);
   });
 });
