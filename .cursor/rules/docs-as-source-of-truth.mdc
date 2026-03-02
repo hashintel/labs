@@ -11,10 +11,10 @@ The following documents define how the project is structured, what decisions hav
 
 | Document | Purpose | Update When |
 |----------|---------|-------------|
-| [ARCHITECTURE.md](mdc:ARCHITECTURE.md) | System structure, component relationships, data flow | Adding/removing/moving modules, changing state management, altering data flow |
-| [TODO.md](mdc:TODO.md) | Technical debt, migration roadmap, dependency status | Completing a TODO item, discovering new debt, upgrading a dependency |
-| [docs/TESTING_STRATEGY.md](mdc:docs/TESTING_STRATEGY.md) | Test pyramid, TDD workflow, test conventions | Adding new test patterns, changing test tooling, updating commands |
-| [README.md](mdc:README.md) | Entry point, build commands, project overview | Changing build commands, adding new apps/docs, altering project structure |
+| [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md) | System structure, component relationships, data flow | Adding/removing/moving modules, changing state management, altering data flow |
+| [TODO.md](mdc:apps/sim-core/TODO.md) | Technical debt, migration roadmap, dependency status | Completing a TODO item, discovering new debt, upgrading a dependency |
+| [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md) | Test pyramid, TDD workflow, test conventions | Adding new test patterns, changing test tooling, updating commands |
+| [README.md](mdc:apps/sim-core/README.md) | Entry point, build commands, project overview | Changing build commands, adding new apps/docs, altering project structure |
 | [.cursor/rules/hash-labs.mdc](mdc:.cursor/rules/hash-labs.mdc) | AI agent conventions, error policies, build verification | Changing conventions, updating known-error lists, adding new patterns |
 
 ## Before Making Changes

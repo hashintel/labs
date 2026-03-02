@@ -1,9 +1,83 @@
-import { defineConfig } from "vite";
+import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
 import monacoEditorPlugin from "vite-plugin-monaco-editor-esm";
 import path from "path";
+import fs from "fs";
+
+/**
+ * Dev-only Vite plugin that captures all browser console output and uncaught
+ * errors to a log file on disk. The file can be read in Cursor for diagnostics.
+ */
+function consoleToDisk(logPath: string): Plugin {
+  return {
+    name: "console-to-disk",
+    apply: "serve",
+
+    configureServer(server) {
+      fs.writeFileSync(logPath, "", "utf-8");
+
+      server.middlewares.use("/__console-log", (req, res) => {
+        if (req.method !== "POST") {
+          res.statusCode = 405;
+          res.end();
+          return;
+        }
+        let body = "";
+        req.on("data", (chunk: Buffer) => { body += chunk; });
+        req.on("end", () => {
+          fs.appendFile(logPath, body + "\n", () => {});
+          res.statusCode = 204;
+          res.end();
+        });
+      });
+    },
+
+    transformIndexHtml() {
+      return [
+        {
+          tag: "script",
+          attrs: { type: "module" },
+          injectTo: "head-prepend",
+          children: `
+(function() {
+  var levels = ["log","warn","error","info","debug"];
+  var originals = {};
+  levels.forEach(function(level) { originals[level] = console[level]; });
+
+  function send(level, args) {
+    try {
+      var msg = Array.prototype.map.call(args, function(a) {
+        if (a instanceof Error) return a.stack || a.message;
+        if (typeof a === "object") try { return JSON.stringify(a); } catch(e) { return String(a); }
+        return String(a);
+      }).join(" ");
+      var entry = JSON.stringify({ ts: new Date().toISOString(), level: level, msg: msg });
+      fetch("/__console-log", { method: "POST", body: entry, keepalive: true });
+    } catch(e) {}
+  }
+
+  levels.forEach(function(level) {
+    console[level] = function() {
+      originals[level].apply(console, arguments);
+      send(level, arguments);
+    };
+  });
+
+  window.addEventListener("error", function(ev) {
+    send("uncaught", [ev.error ? (ev.error.stack || ev.error.message) : ev.message]);
+  });
+  window.addEventListener("unhandledrejection", function(ev) {
+    send("unhandledrejection", [ev.reason instanceof Error ? (ev.reason.stack || ev.reason.message) : String(ev.reason)]);
+  });
+})();
+`,
+        },
+      ];
+    },
+  };
+}
 
 export default defineConfig(({ mode }) => {
   const isProduction = mode === "production";
@@ -20,6 +94,7 @@ export default defineConfig(({ mode }) => {
   return {
     root: ".",
     plugins: [
+      consoleToDisk(path.resolve(__dirname, "../../console.log")),
       react(),
       wasm(),
       topLevelAwait(),

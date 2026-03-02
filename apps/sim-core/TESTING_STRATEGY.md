@@ -1,6 +1,8 @@
 # Testing Strategy
 
-This document describes how to approach testing in the HASH Labs monorepo, with emphasis on **test-driven bug fixes**.
+This document describes how to approach testing in sim-core, with emphasis on **test-driven bug fixes**.
+
+> **Scope**: Covers `apps/sim-core/` only.
 
 ## Test Pyramid
 

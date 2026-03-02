@@ -1,6 +1,8 @@
-# HASH Labs Architecture
+# sim-core Architecture
 
-This document provides detailed technical architecture documentation for the HASH Labs monorepo, with a focus on **sim-core** (hCore), a free, fully-featured, local-first simulation IDE.
+This document provides technical architecture documentation for **sim-core** (hCore), a free, fully-featured, local-first simulation IDE.
+
+> **Scope**: This document covers `apps/sim-core/` only. sim-engine, hash-agents, and other monorepo contents are out of scope. sim-core will be extracted into its own repository at the end of this project.
 
 ## Table of Contents
 

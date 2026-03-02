@@ -8,17 +8,31 @@ alwaysApply: true
 
 When the user says "proceed", "keep going", "continue", or similar:
 
-1. Check [TODO.md](mdc:TODO.md) for the next incomplete item
+1. Check [TODO.md](mdc:apps/sim-core/TODO.md) for the next incomplete item NOT in the "Follow-up Required" section
 2. Plan the work, execute it, test it, commit it
 3. **Then immediately pick up the next item** — do NOT stop and ask for permission
-4. Repeat until all TODO items are complete or you hit a genuine blocker
+4. Repeat until all actionable TODO items are complete or you hit a genuine blocker
 
-## What Counts as a Blocker (stop and ask)
+## Handling Blockers: Follow-up Required Section
+
+When you encounter an item that genuinely requires user intervention:
+1. Move it to the **"Follow-up Required TODOs"** section at the bottom of TODO.md
+2. Add a note explaining what decision or input is needed
+3. **Continue working on the next actionable item** — do NOT stop
+
+## Console Errors and E2E Errors
+
+- **Fix all console errors** that appear during normal operation or E2E tests (unless deliberately caused as part of a test)
+- After each batch of fixes, check `apps/sim-core/console.log` (written by the consoleToDisk Vite plugin) for new errors
+- React warnings (unknown props, deprecated APIs) should be fixed at the source, not suppressed
+- Failed fetch calls to removed cloud APIs should be removed from code entirely
+
+## What Counts as a Blocker (move to follow-up)
 
 - A design decision with multiple valid approaches and significant trade-offs
-- A change that would take more than ~30 minutes of wall-clock execution time
-- A test failure you cannot diagnose after 2 attempts
 - A dependency upgrade that requires user input (e.g. paid API keys, license decisions)
+- A hosting/deployment platform choice
+- A change that touches code outside `apps/sim-core/` (out of scope)
 
 ## What Does NOT Count as a Blocker (keep going)
 
@@ -26,19 +40,26 @@ When the user says "proceed", "keep going", "continue", or similar:
 - You finished a commit — check for the next item and continue
 - Tests pass — move on to the next phase
 - A file needs reading before editing — read it and edit it
+- A test failure you cannot diagnose after 2 attempts — move to follow-up, continue with next item
 
 ## Work Loop
 
 ```
-while (TODO has incomplete items) {
+while (TODO has incomplete items outside "Follow-up Required") {
   item = next incomplete item from TODO.md
   plan sub-tasks
   execute each sub-task (edit, test, fix)
+  check console.log for new errors, fix them
   run E2E smoke tests
   commit with descriptive message
-  update TODO.md
+  update TODO.md (mark complete, move blockers to follow-up)
 }
 ```
+
+## Scope Boundary
+
+Everything outside `apps/sim-core/` is out of scope. Do not modify files there.
+The `.cursor/rules/` directory is an exception (IDE config).
 
 ## Commit Cadence
 

@@ -32,4 +32,4 @@ When the user reports a bug, **always take a TDD approach**. Do not modify produ
 
 ## Full Strategy
 
-See [docs/TESTING_STRATEGY.md](mdc:docs/TESTING_STRATEGY.md) for the complete testing strategy, test pyramid, and conventions.
+See [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md) for the complete testing strategy, test pyramid, and conventions.

@@ -7,9 +7,19 @@ alwaysApply: true
 
 This is HASH's labs monorepo containing experimental simulation tools and proof-of-concepts. The primary application is sim-core (hCore), an in-browser IDE for building and running agent-based simulations.
 
+## IMPORTANT: Scope Boundary
+
+**Everything outside `apps/sim-core/` is OUT OF SCOPE.**
+
+- Do NOT modify files outside `apps/sim-core/` (no changes to root configs, `sim-engine/`, `sim-core-plugins/`, `pocs/`, `.github/`, root `.gitignore`, etc.)
+- All plan documents (`TODO.md`, `ARCHITECTURE.md`, `TESTING_STRATEGY.md`) live inside `apps/sim-core/`
+- All build, test, and dev commands run from within `apps/sim-core/`
+- The `.cursor/rules/` directory is an exception (IDE config, not repo content)
+- **Goal:** `apps/sim-core/` will be extracted into its own repository at the end of this project. Keep it self-contained.
+
 ## Important: Technical Debt Awareness
 
-Before making changes, review [TODO.md](mdc:TODO.md) for:
+Before making changes, review [TODO.md](mdc:apps/sim-core/TODO.md) for:
 - Outdated dependencies that should NOT be upgraded in isolation
 - Deprecated packages that need replacement
 - Planned modernization phases
@@ -17,8 +27,6 @@ Before making changes, review [TODO.md](mdc:TODO.md) for:
 
 Key warnings:
 - React 18.2 (upgraded from 16.14). react-three-fiber/drei still on old versions (need @react-three/* migration)
-- Python hash-agents uses completely outdated LangChain/OpenAI APIs
-- Rust nightly updated to 2024-12-01 but cargo build not yet verified on all targets
 - Build tooling: Vite 7 (migrated from Webpack 4; engine-web stdlib still uses webpack)
 
 ## IMPORTANT: Application is Becoming Local-First
@@ -68,13 +76,13 @@ If you need to add new state management:
 - DO use React's built-in useState, useReducer, useContext
 - DO keep state as local as possible (lift only when necessary)
 - DO use localStorage for persistence
-- See TODO.md for the full removal plan
+- See [TODO.md](mdc:apps/sim-core/TODO.md) for the full removal plan
 
 ## Architecture Alignment
 
 Before implementing any feature or making significant changes:
 
-1. Review [ARCHITECTURE.md](mdc:ARCHITECTURE.md) to understand:
+1. Review [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md) to understand:
    - How the component/feature fits into the overall system
    - Existing patterns for similar functionality
 
@@ -119,7 +127,7 @@ When replacing a library or changing function signatures:
 
 ## Build & Test Verification
 
-**Bug fixes:** When fixing bugs, use a TDD approach — write a failing test first, then fix. Prefer unit/component tests; use E2E only when necessary. See [testing-bugs.mdc](mdc:.cursor/rules/testing-bugs.mdc) and [docs/TESTING_STRATEGY.md](mdc:docs/TESTING_STRATEGY.md).
+**Bug fixes:** When fixing bugs, use a TDD approach — write a failing test first, then fix. Prefer unit/component tests; use E2E only when necessary. See [testing-bugs.mdc](mdc:.cursor/rules/testing-bugs.mdc) and [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md).
 
 After every meaningful batch of changes (not just at the end of a phase):
 
@@ -138,7 +146,7 @@ After editing any source file, **always check for and fix TypeScript and lint er
 4. **Deliberately skipping errors is OK** only when ALL of these are true:
    - The error is in code that is **explicitly scheduled for removal** (e.g. Redux slices, `react-redux` Provider types)
    - The error is **pre-existing** (not introduced by your change)
-   - The error is **documented** in TODO.md or this file
+   - The error is **documented** in [TODO.md](mdc:apps/sim-core/TODO.md) or this file
 5. **When skipping errors, state explicitly** which errors are being skipped and why (e.g. "Skipping 24 TS2769 dispatch errors in Redux code scheduled for removal per TODO.md").
 
 **Known pre-existing errors that are OK to skip:**
@@ -171,7 +179,7 @@ After completing each major phase (e.g. "Phase 1: Cleanup & Simplification", "Ph
 3. **Full E2E test suite**: Run `yarn test:e2e` and confirm all tests pass. Do NOT skip this.
 4. **Orphan scan**: Search for files referencing deleted modules (spec files, scss files, e2e tests, stale comments).
 4. **Dependency audit**: Verify no packages were left dangling in the wrong package.json.
-5. **Documentation review**: Update TODO.md, ARCHITECTURE.md, this rules file, and README.md to reflect completed work.
+5. **Documentation review**: Update [TODO.md](mdc:apps/sim-core/TODO.md), [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md), this rules file, and [README.md](mdc:apps/sim-core/README.md) to reflect completed work.
 6. **Plan reassessment**: Based on what was learned during the phase, identify:
    - Tasks that turned out easier or harder than expected
    - New issues discovered
@@ -195,22 +203,30 @@ This prevents work from being lost and keeps the history clean and reviewable.
 
 After completing significant changes, update:
 
-1. [ARCHITECTURE.md](mdc:ARCHITECTURE.md) - For structural changes
-2. [README.md](mdc:README.md) - For entry point/build changes
-3. [TODO.md](mdc:TODO.md) - For dependency updates or new tech debt
+1. [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md) - For structural changes
+2. [README.md](mdc:apps/sim-core/README.md) - For entry point/build changes
+3. [TODO.md](mdc:apps/sim-core/TODO.md) - For dependency updates or new tech debt
 4. This rules file - For convention changes (propose changes, get approval)
 
-## Repository Structure
+## Repository Structure (In-Scope)
 
-hashintel-labs/
-  apps/
-    sim-core/           - Primary: React/TypeScript simulation IDE
-    sim-engine/         - Standalone Rust simulation engine
-    sim-core-plugins/   - hCore plugins
-  pocs/                 - Proof of concepts (may be stale)
-  .github/              - CI/CD workflows
+apps/sim-core/               - **ALL WORK HAPPENS HERE**
+  ARCHITECTURE.md            - System structure docs
+  TODO.md                    - Migration roadmap / tech debt tracker
+  TESTING_STRATEGY.md        - Test pyramid and conventions
+  packages/core/             - React/TypeScript simulation IDE (hCore)
+  packages/engine-web/       - WASM simulation engine bridge
+  packages/engine/           - Rust ↔ JS engine bindings
+  packages/utils/            - Shared utilities
+  packages/sim-engine-types/ - Type definitions for the engine
 
-## Tech Stack (Note: Many packages outdated - see TODO.md)
+Out of scope (do not modify):
+  apps/sim-engine/           - Standalone Rust engine
+  apps/sim-core-plugins/     - hCore plugins
+  pocs/                      - Proof of concepts
+  .github/                   - CI/CD workflows
+
+## Tech Stack (Note: Many packages outdated - see [TODO.md](mdc:apps/sim-core/TODO.md))
 
 sim-core Frontend:
 - React 18.2.0 (upgraded from 16.14)
@@ -219,17 +235,12 @@ sim-core Frontend:
 - Vite 7 (migrated from Webpack 4)
 - SCSS modules for styling
 
-sim-engine:
-- Rust nightly-2024-12-01 (updated), edition 2021
-- JavaScript and Python behavior support
-- FlatBuffers for IPC
-
 ## Two Redux Stores Pattern (LEGACY - Being Deleted)
 
 App Store (features/store.ts) - General UI state
 Simulator Store (features/simulator/store.ts) - High-frequency simulation updates
 
-**DO NOT USE** - These are scheduled for complete removal. See TODO.md.
+**DO NOT USE** - These are scheduled for complete removal. See [TODO.md](mdc:apps/sim-core/TODO.md).
 
 ## Build Commands
 
@@ -239,12 +250,6 @@ sim-core:
   yarn build:core       - Production build
   yarn fmt:core         - Format code
   yarn test:core        - Run tests
-
-sim-engine:
-  cargo build           - Build
-  cargo fmt             - Format
-  cargo clippy          - Lint
-  cargo test            - Test
 
 ## Common Gotchas
 
@@ -257,7 +262,6 @@ sim-engine:
 ## References
 
 - [sim-core README](mdc:apps/sim-core/README.md)
-- [sim-engine README](mdc:apps/sim-engine/README.md)
-- [ARCHITECTURE.md](mdc:ARCHITECTURE.md)
-- [TODO.md](mdc:TODO.md)
-- [CONTRIBUTING.md](mdc:.github/CONTRIBUTING.md)
+- [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md)
+- [TODO.md](mdc:apps/sim-core/TODO.md)
+- [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md)
