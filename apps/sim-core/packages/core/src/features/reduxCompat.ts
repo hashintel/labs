@@ -5,6 +5,7 @@
  */
 import { produce, current, freeze } from "immer";
 import type { Draft } from "immer";
+import { observable as rxjsSymbol } from "rxjs";
 
 export { produce, current, freeze };
 export type { Draft };
@@ -339,5 +340,18 @@ export function createStore<S>(
     return chainedDispatch(action);
   }
 
-  return { getState, dispatch, subscribe };
+  return {
+    getState,
+    dispatch,
+    subscribe,
+    [rxjsSymbol]() {
+      return {
+        subscribe(observer: { next: (v: any) => void; complete?: () => void }) {
+          observer.next(getState());
+          const unsub = subscribe(() => observer.next(getState()));
+          return { unsubscribe: unsub };
+        },
+      };
+    },
+  };
 }

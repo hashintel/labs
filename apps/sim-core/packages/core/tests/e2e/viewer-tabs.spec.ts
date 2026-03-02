@@ -29,7 +29,7 @@ test.describe("Viewer Tabs", () => {
     // Step button does not enable in E2E/headless; skip stepping
   });
 
-  test.skip("should display 3D viewer tab", async ({ page }) => {
+  test("should display 3D viewer tab", async ({ page }) => {
     // Look for 3D/Agent tab
     await clickTab(page, "3D");
 
@@ -51,7 +51,7 @@ test.describe("Viewer Tabs", () => {
     await assertNoRenderErrors(page);
   });
 
-  test.skip("should display Raw Output tab with JSON", async ({ page }) => {
+  test("should display Raw Output tab with JSON", async ({ page }) => {
     // Click on Raw Output tab
     await clickTab(page, "Raw");
 
@@ -74,24 +74,14 @@ test.describe("Viewer Tabs", () => {
     await assertNoRenderErrors(page);
   });
 
-  test.skip("should display Analysis/Plots tab", async ({ page }) => {
-    // Click on Analysis or Plots tab
+  test("should display Analysis/Plots tab", async ({ page }) => {
     await clickTab(page, "Analysis");
+    await page.waitForTimeout(2000);
 
-    await page.waitForTimeout(1000);
-
-    // Check for analysis viewer or plot viewer
-    const analysisVisible = await isTabContentVisible(
-      page,
-      SELECTORS.analysisViewer
-    );
-    const plotVisible = await isTabContentVisible(page, SELECTORS.plotViewer);
-
-    // At least one should be present
     const viewerMain = page.locator(SELECTORS.simulationViewerMain);
-    const content = await viewerMain.innerHTML();
+    await expect(viewerMain).toBeVisible({ timeout: 10000 });
 
-    // Should have some content in the viewer area
+    const content = await viewerMain.innerHTML();
     expect(content.length).toBeGreaterThan(100);
 
     await assertNoRenderErrors(page);
@@ -140,7 +130,7 @@ test.describe("Viewer Tabs", () => {
     await assertNoRenderErrors(page);
   });
 
-  test.skip("should maintain tab state during simulation steps", async ({
+  test("should maintain tab state during simulation steps", async ({
     page,
   }) => {
     // Switch to Raw Output

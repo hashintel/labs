@@ -56,7 +56,7 @@ test.describe("Simulation Execution", () => {
     await assertNoRenderErrors(page);
   });
 
-  test.skip(
+  test(
     "should execute single simulation step",
     async ({ page }) => {
       // Click step button once
@@ -71,7 +71,7 @@ test.describe("Simulation Execution", () => {
     },
   );
 
-  test.skip(
+  test(
     "should execute multiple simulation steps",
     async ({ page }) => {
     // Run 3 steps (reasonable for testing)
@@ -93,7 +93,7 @@ test.describe("Simulation Execution", () => {
     },
   );
 
-  test.skip(
+  test(
     "should play and pause simulation",
     async ({ page }) => {
       await playSimulation(page);
@@ -109,7 +109,7 @@ test.describe("Simulation Execution", () => {
     },
   );
 
-  test.skip("should reset simulation", async ({ page }) => {
+  test("should reset simulation", async ({ page }) => {
     // Run 3 steps before reset
     await stepSimulationTimes(page, 3);
     await page.waitForTimeout(500);
@@ -125,7 +125,7 @@ test.describe("Simulation Execution", () => {
     await assertNoRenderErrors(page);
   });
 
-  test.skip("should maintain state integrity through step-reset-step cycle", async ({
+  test("should maintain state integrity through step-reset-step cycle", async ({
     page,
   }) => {
     // Step 3 times
@@ -154,7 +154,7 @@ test.describe("Simulation Display", () => {
     await waitForAppLoad(page);
   });
 
-  test.skip("should display agent viewer after running steps", async ({ page }) => {
+  test("should display agent viewer after running steps", async ({ page }) => {
     // Run 3 steps
     await stepSimulationTimes(page, 3);
     await page.waitForTimeout(1000);
@@ -172,7 +172,7 @@ test.describe("Simulation Display", () => {
     expect(viewerContent.length).toBeGreaterThan(100);
   });
 
-  test.skip("should show raw output data as JSON", async ({ page }) => {
+  test("should show raw output data as JSON", async ({ page }) => {
     // Run 3 steps
     await stepSimulationTimes(page, 3);
     await page.waitForTimeout(1000);
@@ -223,7 +223,7 @@ test.describe("Error Handling", () => {
     await expect(stepButton).toBeAttached();
   });
 
-  test.skip("should handle play-pause-play sequence", async ({ page }) => {
+  test("should handle play-pause-play sequence", async ({ page }) => {
     await page.goto(BUILTIN_SIMULATIONS.wildfires);
     await waitForAppLoad(page);
 

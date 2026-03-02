@@ -1,3 +1,5 @@
+import { observable as rxjsSymbol } from "rxjs";
+
 import type { UserAlert } from "../viewer/types";
 
 type Listener = () => void;
@@ -41,6 +43,16 @@ export const appBridge = {
     listeners.add(fn);
     return () => {
       listeners.delete(fn);
+    };
+  },
+
+  [rxjsSymbol]() {
+    return {
+      subscribe(observer: { next: (v: any) => void; complete?: () => void }) {
+        observer.next(appBridge.getState());
+        const unsub = appBridge.subscribe(() => observer.next(appBridge.getState()));
+        return { unsubscribe: unsub };
+      },
     };
   },
 

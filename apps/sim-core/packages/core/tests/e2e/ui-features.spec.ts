@@ -173,12 +173,8 @@ test.describe("General UI", () => {
     await assertNoRenderErrors(page);
   });
 
-  test.skip("should display loading indicators appropriately", async ({
-    page,
-  }) => {
-    // Step button does not enable in E2E/headless
+  test("should display loading indicators appropriately", async ({ page }) => {
     await stepSimulation(page);
-    const loadingIndicator = page.locator(SELECTORS.loadingIndicator);
     await page.waitForTimeout(2000);
     await assertNoRenderErrors(page);
   });

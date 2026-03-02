@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef } from "react";
+import { FC, useCallback, useEffect, useRef } from "react";
 
 import { TabKind } from "../../viewer/enums";
 import { useFiles } from "../../files/FilesContext";
@@ -13,6 +13,8 @@ import {
 } from "./slice";
 import { resetSimulationDataAndHistory, updateRunnerGlobals } from "./thunks";
 import { selectRunning } from "./selectors";
+import { selectAllFilesLocal } from "../../files/selectors";
+import { setLocalStorageProject } from "../../middleware/localStorage";
 
 /**
  * Replaces the old syncStores RxJS-based sync between the app Redux store
@@ -96,6 +98,27 @@ export const StoreSync: FC = () => {
   useEffect(() => {
     simulatorStore.dispatch(setCloudDisabled(true));
   }, []);
+
+  const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistProject = useCallback(() => {
+    if (!currentProject) return;
+    const allFiles = selectAllFilesLocal(filesState);
+    const actions = filesState.actions ?? [];
+    setLocalStorageProject({
+      ...currentProject,
+      files: allFiles,
+      actions,
+    });
+  }, [currentProject, filesState]);
+
+  useEffect(() => {
+    if (!currentProject) return;
+    if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = setTimeout(persistProject, 500);
+    return () => {
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+    };
+  }, [filesState, currentProject, persistProject]);
 
   return null;
 };

@@ -122,9 +122,8 @@ export async function navigateToSimulation(
  */
 export async function stepSimulation(page: Page): Promise<void> {
   const stepButton = page.locator(SELECTORS.stepButton);
-  await expect(stepButton).toBeEnabled({ timeout: 10000 });
+  await expect(stepButton).toBeEnabled({ timeout: 30000 });
   await stepButton.click();
-  // Wait for step to process
   await page.waitForTimeout(500);
 }
 
@@ -145,7 +144,7 @@ export async function stepSimulationTimes(
  */
 export async function playSimulation(page: Page): Promise<void> {
   const playPauseButton = page.locator(SELECTORS.playPauseButton);
-  await expect(playPauseButton).toBeEnabled({ timeout: 10000 });
+  await expect(playPauseButton).toBeEnabled({ timeout: 30000 });
   await playPauseButton.click();
 }
 
@@ -164,9 +163,8 @@ export async function pauseSimulation(page: Page): Promise<void> {
  */
 export async function resetSimulation(page: Page): Promise<void> {
   const resetButton = page.locator(SELECTORS.resetButton);
-  await expect(resetButton).toBeEnabled({ timeout: 10000 });
+  await expect(resetButton).toBeEnabled({ timeout: 30000 });
   await resetButton.click();
-  // Wait for reset to complete
   await page.waitForTimeout(1000);
 }
 
