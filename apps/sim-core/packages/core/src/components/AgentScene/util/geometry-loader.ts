@@ -83,8 +83,7 @@ const geoHelper = (
   geometry.setAttribute("color", new THREE.InstancedBufferAttribute(colors, 3));
   const material = new THREE.MeshPhongMaterial({
     vertexColors: true,
-    shininess: 0.1,
-    reflectivity: 0.1,
+    shininess: 30,
   });
   return [geometry, material];
 };
@@ -193,8 +192,7 @@ export const polyLoader = async (
   );
   const coloredMaterial = new THREE.MeshPhongMaterial({
     vertexColors: true,
-    shininess: 0.1,
-    reflectivity: 0.1,
+    shininess: 30,
   });
 
   return [geometry, coloredMaterial];

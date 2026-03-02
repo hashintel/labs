@@ -148,7 +148,8 @@ export const AgentScene = ({
         />
         {edgesEnabled && <NetworkEdges mappedTransitions={mappedTransitions} />}
         <ambientLight intensity={0.65} />
-        <pointLight position={[0, 0, 30]} up={[0, 0, 1]} intensity={0.8} />
+        <directionalLight position={[10, 10, 30]} intensity={1.5} />
+        <directionalLight position={[-5, -5, 10]} intensity={0.3} />
         <ViewerStage />
         <AgentRenderer mappedTransitions={mappedTransitions} />
         <HoveredAgent transitions={mappedTransitions} />
