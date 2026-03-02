@@ -453,7 +453,7 @@ const MyComponent = () => {
 
 | Package | Current | Latest | Gap |
 |---------|---------|--------|-----|
-| `monaco-editor` | 0.25.2 | 0.45+ | 20 versions |
+| `monaco-editor` | 0.25.2 | 0.52.2 | 27 versions (see Monaco Assessment below) |
 | `three` | ~~0.119.1~~ **0.170.0** | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | Upgraded with @react-three/fiber v8 |
 | `rxjs` | 6.6.6 | 7.8+ | Major version |
 | `plotly.js` | ~~1.57.1~~ **3.3.1** | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | Upgraded to `plotly.js-dist-min` (ESM-ready) |
@@ -461,6 +461,104 @@ const MyComponent = () => {
 | `@deck.gl/core` | 8.3.7 | 8.9+ | |
 | `graphql` | 15.5.0 | 16.8+ | Major version |
 | `date-fns` | 2.17.0 | 3.3+ | Major version |
+
+### Monaco Editor Assessment (Feb 2026)
+
+**Current**: 0.25.2 (June 2021) | **Latest stable**: 0.52.2 | **Gap**: 27 minor versions
+
+#### Already Implemented (Easy Wins)
+
+- [x] **Better editor options** — smooth cursor/scrolling, minimap, mouse wheel zoom, bracket matching, parameter hints, format-on-paste
+- [x] **Python completion provider** — HASH simulation API autocomplete for `state.`, `context.`, `hstd.` in Python behaviors
+- [x] **JS diagnostic validation** — enabled `checkJs` and semantic validation for JavaScript behaviors, with `ES2020` target
+
+#### Features Gained by Upgrading to 0.52
+
+| Feature | Available Since | Impact |
+|---------|----------------|--------|
+| **Bracket pair colorization** | 0.30 | Matching brackets get distinct colors — major readability win |
+| **Bracket pair guides** | 0.30 | Vertical lines connecting bracket pairs |
+| **Inline completions API** | 0.32 | Required for AI-powered code suggestions (Copilot-style) |
+| **Sticky scroll** | 0.36 | Shows current scope/function context at editor top |
+| **Inlay hints** | 0.35 | Inline type annotations (e.g. parameter names, inferred types) |
+| **Unicode highlighting** | 0.31 | Security: highlights confusable Unicode characters |
+| **New diff editor** | 0.42 | Dramatically improved diff viewing experience |
+| **Drop into editor** | 0.33 | Drag & drop files/text into the editor |
+| **Column selection mode** | 0.31 | Better multi-cursor column editing |
+| **Improved find/replace** | 0.35+ | Better regex support, match highlighting |
+| **Accessibility improvements** | various | Screen reader, keyboard navigation enhancements |
+
+#### Breaking Changes in Upgrade Path (0.25 -> 0.52)
+
+| Version | Breaking Change | Migration |
+|---------|----------------|-----------|
+| 0.45 | `wordBasedSuggestions: boolean` -> string enum | Change to `'currentDocument'` or `'off'` |
+| 0.45 | `occurrencesHighlight: boolean` -> string enum | Change to `'singleFile'` or `'off'` |
+| 0.42 | New diff editor is default | Review diff editor usage in `TabbedEditorDiffPanel` |
+| 0.44 | Old diff editor removed | Ensure `renderSideBySide`/`enableSplitViewResizing` still work |
+| 0.51 | `editor.main.nls.js` removed | Verify Vite plugin compatibility |
+| 0.52 | Dispose with listeners bug | Test `onDidChangeContent` usage in `monaco.ts` |
+
+#### Upgrade Plan
+
+1. [ ] **Phase 1: Compatibility check** — Verify `vite-plugin-monaco-editor-esm` supports 0.52. If not, check alternatives (`@aspect-build/vite-plugin-monaco-editor`, or manual worker config).
+2. [ ] **Phase 2: Upgrade Monaco** — `yarn add monaco-editor@0.52.2`, fix breaking changes in editor options, diff editor, and type imports.
+3. [ ] **Phase 3: Enable new features** — Bracket pair colorization, sticky scroll, bracket guides, inlay hints.
+4. [ ] **Phase 4: Worker configuration** — Verify JSON/TypeScript workers still load. Consider adding CSS worker if needed.
+5. [ ] **Phase 5: Test thoroughly** — Run full E2E suite, verify all file types render correctly, check Git conflict decorator compatibility.
+
+**Estimated effort**: 1-2 days for upgrade + testing. Medium risk due to diff editor and worker changes.
+
+#### AI Code Assistance (Requires Monaco 0.32+)
+
+**Goal**: Add Copilot-style inline code completions using user-provided LLM API keys.
+
+**Architecture** (local-first, no backend required):
+
+```
+User provides API key (stored in localStorage)
+         |
+         v
+Monaco inline completions provider (browser-side)
+         |
+         v
+Direct HTTPS call to LLM API (OpenAI, Anthropic, Mistral, etc.)
+         |
+         v
+Ghost text shown in editor, user accepts with Tab
+```
+
+**Implementation plan**:
+
+1. [ ] **Settings UI** — Add a settings panel where users can:
+   - Choose an LLM provider (OpenAI, Anthropic, Mistral, or custom endpoint)
+   - Enter their API key (stored encrypted in localStorage)
+   - Toggle AI completions on/off
+   - Choose trigger mode (on-idle, on-demand via keyboard shortcut)
+
+2. [ ] **Inline completions provider** — Register a `languages.registerInlineCompletionsProvider` that:
+   - Collects context (current file, cursor position, language, neighboring files)
+   - Sends a completion request directly to the chosen LLM API via `fetch()`
+   - Returns ghost text for the user to accept/reject
+   - Debounces requests to avoid excessive API calls
+
+3. [ ] **Provider adapters** — Implement adapters for:
+   - OpenAI Chat Completions API (`gpt-4o-mini`, `gpt-4o`)
+   - Anthropic Messages API (`claude-sonnet`, `claude-haiku`)
+   - Mistral Codestral API (purpose-built for code completion)
+   - Custom OpenAI-compatible endpoint (for local models like Ollama)
+
+4. [ ] **Context enrichment** — Include in the prompt:
+   - Current file contents with cursor position marked
+   - HASH simulation API documentation (state/context/hstd methods)
+   - Active globals.json and init.json for context about the simulation
+   - Language-specific instructions (JS behavior vs Python behavior vs JSON config)
+
+**Dependencies**: Requires Monaco 0.32+ (inline completions API). Do upgrade first.
+
+**Alternative**: The `monacopilot` npm package provides this out of the box but requires a backend API handler. For our local-first app, a custom browser-side implementation is more appropriate. However, `monacopilot`'s `registerCompletion` could be studied for API design patterns.
+
+**Security note**: API keys stored in localStorage are accessible to any JS running on the page. Since this is a local-first app with no third-party scripts, this is acceptable. Add a clear warning in the settings UI.
 
 ### ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¡ Medium: Build/Dev Optimizations
 
@@ -1144,6 +1242,8 @@ Items that need user input or decisions before proceeding:
 - [ ] **CI checks for outdated dependencies** â€” implement after repo extraction
 - [ ] **Document upgrade procedures** â€” needs decisions on format and what to cover
 - [ ] **Add smoke-only CI gate** â€” .github/ out of scope; add after repo extraction
+- [ ] **Monaco Editor 0.25 -> 0.52 upgrade** — 27-version gap; enables bracket pair colorization, sticky scroll, inline completions API. See "Monaco Editor Assessment" section. Medium effort (1-2 days).
+- [ ] **AI code assistance** — Copilot-style inline completions via user-provided API keys. Requires Monaco 0.32+. See "AI Code Assistance" section. Larger effort (3-5 days).
 - [ ] **Fix ReactDOM.render warning** â€” third-party library (likely sanddance-explorer or react-shepherd) calling deprecated API. Requires library upgrade or replacement.
 
 ---
