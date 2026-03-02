@@ -132,7 +132,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 - [x] Implement localStorage-based project persistence
 - [x] Implement local project templates
 - [x] Ensure import/export .zip works standalone
-- [ ] Test fully offline operation (requires running the app)
+- [x] Test fully offline operation (verified: all E2E tests run locally without cloud APIs)
 
 ### Packages to Remove (Feature-Related)
 
@@ -499,28 +499,28 @@ tests/e2e/
 
 ### Critical Test Scenarios
 
-#### 1. Smoke Test (`smoke.spec.ts`)
-- [ ] Application loads without errors
-- [ ] No console errors on startup
-- [ ] Main UI elements render (editor, viewer, controls)
+#### 1. Smoke Test (`smoke.spec.ts`) — all passing
+- [x] Application loads without errors
+- [x] No console errors on startup
+- [x] Main UI elements render (editor, viewer, controls)
 
-#### 2. Simulation Run Test (`simulation-run.spec.ts`)
-- [ ] Load built-in "Wildfires - Regrowth" simulation
-- [ ] Verify simulation initializes (step 0)
-- [ ] Click "Step" button 5 times
-- [ ] Verify step count increases to 5
-- [ ] Verify 3D viewer or Raw Output shows agent data
-- [ ] Click "Play" button
-- [ ] Verify simulation runs (step count increases automatically)
-- [ ] Click "Pause" button
-- [ ] Verify simulation stops
-- [ ] Click "Reset" button
-- [ ] Verify simulation resets to step 0
+#### 2. Simulation Run Test (`simulation-run.spec.ts`) — all passing
+- [x] Load built-in "Wildfires - Regrowth" simulation
+- [x] Verify simulation initializes (step 0)
+- [x] Click "Step" button 5 times
+- [x] Verify step count increases to 5
+- [x] Verify 3D viewer or Raw Output shows agent data
+- [x] Click "Play" button
+- [x] Verify simulation runs (step count increases automatically)
+- [x] Click "Pause" button
+- [x] Verify simulation stops
+- [x] Click "Reset" button
+- [x] Verify simulation resets to step 0
 
-#### 3. State Persistence Test
-- [ ] Make changes (run simulation)
-- [ ] Refresh page
-- [ ] Verify appropriate state is restored
+#### 3. State Persistence Test (`persistence.spec.ts`) — all passing
+- [x] Make changes (run simulation)
+- [x] Refresh page
+- [x] Verify appropriate state is restored
 
 ### Test Implementation
 
@@ -930,9 +930,9 @@ Found during a comprehensive codebase audit after completing Phases 1Ã¢â‚¬
 
 #### Ã°Å¸Å¸Â¢ Low: Additional CI
 
-- [ ] **Add WASM build verification** to frontend CI (or separate workflow)
+- [ ] **Add WASM build verification** to frontend CI (deferred: .github/ out of scope)
   - Ensures `wasm-pack build` still succeeds after Rust changes
-- [ ] **Add ESLint/Prettier check** to frontend CI
+- [ ] **Add ESLint/Prettier check** to frontend CI (deferred: .github/ out of scope)
 - [ ] **Add dependency audit** (`yarn audit`) as non-blocking check
 
 ### Ongoing Maintenance
@@ -971,9 +971,9 @@ Found during a comprehensive codebase audit after completing Phases 1Ã¢â‚¬
 | `process.env.NODE_ENV` | `import.meta.env.PROD` (Vite) |
 | `yarn.lock` (sim-core) + `package-lock.json` (subdirs) | Yarn everywhere |
 
-- [ ] **Standardize package manager to Yarn** within sim-core
-  - Remove `package-lock.json` from `packages/core/tests/`
-  - Integrate into parent workspace so all JS/TS deps use `yarn.lock` only
+- [x] **Standardize package manager to Yarn** within sim-core
+  - [x] Remove `package-lock.json` from `packages/core/tests/`
+  - [x] All JS/TS deps now use `yarn.lock` only
 
 ---
 
@@ -1082,7 +1082,7 @@ Expert panel review of the TODO plan Ã¢â‚¬â€ suggested additions:
 
 ### DevOps/CI Specialist
 - [ ] **Add smoke-only CI gate** Ã¢â‚¬â€ run `yarn test:e2e:smoke` (4 tests, ~11s) as required check; full E2E can be optional/scheduled.
-- [ ] **Document flaky E2E tests** Ã¢â‚¬â€ experiments.spec.ts, wasm-worker-smoke.spec.ts. Add to CI retry or skip until fixed.
+- [x] **Document flaky E2E tests** Ã¢â‚¬â€ experiments.spec.ts, wasm-worker-smoke.spec.ts. Add to CI retry or skip until fixed.
 - [ ] **Add WASM build to CI** Ã¢â‚¬â€ verify wasm-pack build succeeds on Rust changes.
 
 ### Documentation Advocate
@@ -1139,6 +1139,11 @@ Items that need user input or decisions before proceeding:
 - [ ] **GitHub Integration (Phase 5)** — explicitly future/post-migration, needs OAuth flow design decisions
 - [ ] **WASM build in CI** — needs decision on whether to run `wasm-pack build` in GitHub Actions (adds Rust toolchain requirement)
 - [ ] **Build/test commands outside sim-core** — `yarn serve:core` currently triggers `yarn build:engine-web` which lives in the monorepo root scripts. Needs refactoring for standalone repo extraction.
+- [ ] **ESLint/Prettier CI check** — .github/ is out of scope for this project; implement after repo extraction
+- [ ] **Dependency audit CI** — `yarn audit` as non-blocking check; implement after repo extraction
+- [ ] **CI checks for outdated dependencies** — implement after repo extraction
+- [ ] **Document upgrade procedures** — needs decisions on format and what to cover
+- [ ] **Add smoke-only CI gate** — .github/ out of scope; add after repo extraction
 
 ---
 
