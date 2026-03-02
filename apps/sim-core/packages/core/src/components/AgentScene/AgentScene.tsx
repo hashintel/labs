@@ -134,12 +134,9 @@ export const AgentScene = ({
           precision: getSampleLevel(sampleLevel),
         }}
         camera={orthoCamera}
-        /**
-         * Keeping react-three-fiber's color management on leads to them looking 'washed out' compared to the previous look
-         */
-        colorManagement={false}
+        flat
         onCreated={({ gl }) => gl.setClearColor("#0e0d15")}
-        invalidateFrameloop={!updatesEnabled}
+        frameloop={updatesEnabled ? "always" : "demand"}
       >
         <fog args={["white", 50000, 3000000]} attach="fog" />
         <ViewerControls

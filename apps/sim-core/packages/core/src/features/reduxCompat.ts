@@ -227,7 +227,7 @@ export function createEntityAdapter<T>(
     updateOne(state: any, update: { id: EntityId; changes: Partial<T> }) {
       const existing = state.entities[update.id];
       if (!existing) return state;
-      Object.assign(existing, update.changes);
+      state.entities[update.id] = { ...existing, ...update.changes };
       return state;
     },
 
@@ -235,7 +235,7 @@ export function createEntityAdapter<T>(
       const id = selectId(entity);
       const existing = state.entities[id];
       if (existing) {
-        Object.assign(existing, entity);
+        state.entities[id] = { ...existing, ...entity };
       } else {
         state.entities[id] = entity;
         insertSorted(state, id);
