@@ -33,7 +33,45 @@ const editorOptions: EditorConstructionsOptions = {
   fixedOverflowWidgets: true,
   scrollBeyondLastLine: false,
   fontFamily: "var(--code-font)",
+  fontSize: 13,
+  tabSize: 2,
   theme: "hash",
+
+  // Smooth editing experience
+  cursorBlinking: "smooth",
+  cursorSmoothCaretAnimation: true,
+  smoothScrolling: true,
+
+  // Code intelligence
+  formatOnPaste: true,
+  autoClosingBrackets: "languageDefined",
+  autoClosingQuotes: "languageDefined",
+  autoSurround: "languageDefined",
+  suggest: {
+    showKeywords: true,
+    showSnippets: true,
+    showFunctions: true,
+    showVariables: true,
+    showConstants: true,
+  },
+  quickSuggestions: {
+    other: true,
+    comments: false,
+    strings: false,
+  },
+  parameterHints: { enabled: true },
+
+  // Readability
+  renderWhitespace: "selection",
+  renderLineHighlight: "all",
+  matchBrackets: "always",
+  mouseWheelZoom: true,
+  minimap: {
+    enabled: true,
+    showSlider: "mouseover",
+    maxColumn: 80,
+  },
+
   scrollbar: {
     horizontalScrollbarSize: 3,
     verticalScrollbarSize: 3,
