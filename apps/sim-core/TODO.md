@@ -1144,6 +1144,7 @@ Items that need user input or decisions before proceeding:
 - [ ] **CI checks for outdated dependencies** — implement after repo extraction
 - [ ] **Document upgrade procedures** — needs decisions on format and what to cover
 - [ ] **Add smoke-only CI gate** — .github/ out of scope; add after repo extraction
+- [ ] **Fix ReactDOM.render warning** — third-party library (likely sanddance-explorer or react-shepherd) calling deprecated API. Requires library upgrade or replacement.
 
 ---
 
