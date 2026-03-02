@@ -744,7 +744,7 @@ The following features are being KEPT and are now covered by E2E tests:
 - [x] `.gitignore` entries are in `apps/sim-core/.gitignore` (not the root)
 - [x] Console log Vite plugin writes to `apps/sim-core/console.log` (not repo root)
 - [x] All E2E test fixtures and configs are self-contained within `apps/sim-core/`
-- [ ] README.md in `apps/sim-core/` is complete for standalone use
+- [x] README.md in `apps/sim-core/` is complete for standalone use
 
 > **Note**: sim-engine (Rust) and hash-agents (Python) are outside the scope of this project.
 
@@ -1078,7 +1078,7 @@ Expert panel review of the TODO plan Ã¢â‚¬â€ suggested additions:
 
 ### Performance Engineer
 - [ ] **Track treeshake: false impact** Ã¢â‚¬â€ bundle ~53s build; re-enable when Rollup fixes or @fluentui/sanddance replaced. Add bundle size baseline.
-- [ ] **Verify manualChunks sizes** Ã¢â‚¬â€ vendor-monaco, vendor-plotly, etc. Ensure no single chunk exceeds reasonable limits.
+- [x] **Verify manualChunks sizes** Ã¢â‚¬â€ vendor-monaco, vendor-plotly, etc. Ensure no single chunk exceeds reasonable limits.
 
 ### DevOps/CI Specialist
 - [ ] **Add smoke-only CI gate** Ã¢â‚¬â€ run `yarn test:e2e:smoke` (4 tests, ~11s) as required check; full E2E can be optional/scheduled.
