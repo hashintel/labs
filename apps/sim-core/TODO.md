@@ -3,7 +3,7 @@
 This document tracks outdated dependencies, deprecated patterns, and proposed upgrades for the sim-core application.
 
 **Last Updated**: February 2026  
-**Scope**: `apps/sim-core/` only â€” everything else in the monorepo is out of scope  
+**Scope**: `apps/sim-core/` only Ã¢â‚¬â€ everything else in the monorepo is out of scope  
 **Extraction Goal**: sim-core will be extracted into its own repository at the end of this project  
 **Review Panel**: Expert personas (QA, Frontend, WASM, UX, DevOps, Documentation) reviewed TODO plan and PR work; recommendations captured in "Review Panel" sections below.
 
@@ -13,13 +13,13 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 | Area | Severity | Effort | Notes |
 |------|----------|--------|-------|
-| ~~React & React Ecosystem~~ | âœ… Done | â€” | React 18.2, @react-three/fiber 8, drei 9, Recoil removed |
-| ~~Redux Removal~~ | âœ… Done | â€” | Redux entirely removed; replaced with React Context + reduxCompat.ts |
-| ~~Feature Removal~~ | âœ… Done | â€” | Cloud/auth/sharing features removed |
-| ~~Sentry Removal~~ | âœ… Done | â€” | Sentry + FullStory analytics removed |
-| ~~Dev Tooling Cleanup~~ | âœ… Done | â€” | why-did-you-render removed |
-| ~~Build Tooling~~ | âœ… Done | â€” | Migrated to Vite 7.3 |
-| ~~Deprecated Packages~~ | âœ… Done | â€” | All deprecated packages replaced or removed |
+| ~~React & React Ecosystem~~ | Ã¢Å“â€¦ Done | Ã¢â‚¬â€ | React 18.2, @react-three/fiber 8, drei 9, Recoil removed |
+| ~~Redux Removal~~ | Ã¢Å“â€¦ Done | Ã¢â‚¬â€ | Redux entirely removed; replaced with React Context + reduxCompat.ts |
+| ~~Feature Removal~~ | Ã¢Å“â€¦ Done | Ã¢â‚¬â€ | Cloud/auth/sharing features removed |
+| ~~Sentry Removal~~ | Ã¢Å“â€¦ Done | Ã¢â‚¬â€ | Sentry + FullStory analytics removed |
+| ~~Dev Tooling Cleanup~~ | Ã¢Å“â€¦ Done | Ã¢â‚¬â€ | why-did-you-render removed |
+| ~~Build Tooling~~ | Ã¢Å“â€¦ Done | Ã¢â‚¬â€ | Migrated to Vite 7.3 |
+| ~~Deprecated Packages~~ | Ã¢Å“â€¦ Done | Ã¢â‚¬â€ | All deprecated packages replaced or removed |
 
 ---
 
@@ -47,7 +47,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 ### Features to REMOVE
 
-#### âŒ User & Cloud Features (Item 6) - REMOVE ENTIRELY
+#### Ã¢ÂÅ’ User & Cloud Features (Item 6) - REMOVE ENTIRELY
 | Feature | Files to Delete |
 |---------|-----------------|
 | User Authentication | `ModalSignin`, `ModalSignup`, auth flows |
@@ -59,7 +59,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 **Rationale**: App becomes free and fully-featured, no accounts needed.
 
-#### âŒ Project Management (Item 7) - REMOVE ENTIRELY
+#### Ã¢ÂÅ’ Project Management (Item 7) - REMOVE ENTIRELY
 | Feature | Files to Delete |
 |---------|-----------------|
 | New Project (server) | `ModalNewProject` (replace with local template) |
@@ -70,7 +70,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 **Rationale**: Projects stored locally; GitHub sync added post-migration.
 
-#### âŒ Integrations (Item 10) - REMOVE MOST
+#### Ã¢ÂÅ’ Integrations (Item 10) - REMOVE MOST
 | Feature | Action |
 |---------|--------|
 | Sentry | REMOVE (already planned) |
@@ -81,25 +81,25 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 ### Simplified Architecture
 
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚                    sim-core (Local-First)                       â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚  React Frontend           â”‚    WASM Engine (Web Workers)       â”‚
-â”‚  â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€        â”‚    â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€       â”‚
-â”‚  â€¢ HashCore (IDE shell)   â”‚    â€¢ engine-web bindings           â”‚
-â”‚  â€¢ SimulationRunner       â”‚    â€¢ Rust â†’ WASM compilation       â”‚
-â”‚  â€¢ AgentScene (3D)        â”‚    â€¢ Local execution only          â”‚
-â”‚  â€¢ Monaco Editor          â”‚                                     â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚  Local State Only:                                              â”‚
-â”‚  â€¢ React Context + useState for UI state                        â”‚
-â”‚  â€¢ localStorage for project persistence                         â”‚
-â”‚  â€¢ IndexedDB for larger datasets (future)                       â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚  Future: GitHub Integration                                     â”‚
-â”‚  â€¢ Save/load projects from user's GitHub repos                  â”‚
-â”‚  â€¢ No HASH account required                                     â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
+Ã¢â€â€š                    sim-core (Local-First)                       Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š  React Frontend           Ã¢â€â€š    WASM Engine (Web Workers)       Ã¢â€â€š
+Ã¢â€â€š  Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬        Ã¢â€â€š    Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬       Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ HashCore (IDE shell)   Ã¢â€â€š    Ã¢â‚¬Â¢ engine-web bindings           Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ SimulationRunner       Ã¢â€â€š    Ã¢â‚¬Â¢ Rust Ã¢â€ â€™ WASM compilation       Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ AgentScene (3D)        Ã¢â€â€š    Ã¢â‚¬Â¢ Local execution only          Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ Monaco Editor          Ã¢â€â€š                                     Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š  Local State Only:                                              Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ React Context + useState for UI state                        Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ localStorage for project persistence                         Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ IndexedDB for larger datasets (future)                       Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š  Future: GitHub Integration                                     Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ Save/load projects from user's GitHub repos                  Ã¢â€â€š
+Ã¢â€â€š  Ã¢â‚¬Â¢ No HASH account required                                     Ã¢â€â€š
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
 ```
 
 ### Migration Phases for Feature Removal
@@ -161,26 +161,26 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 ## sim-core Frontend
 
-### ðŸ”´ Critical: React Ecosystem (Major Version Behind)
+### Ã°Å¸â€Â´ Critical: React Ecosystem (Major Version Behind)
 
 | Package | Current | Latest | Action |
 |---------|---------|--------|--------|
-| `react` | ~~16.14.0~~ **18.2.0** | âœ… Done | Upgraded via 16â†’17â†’18 |
-| `react-dom` | ~~16.14.0~~ **18.2.0** | âœ… Done | createRoot migrated |
-| `react-redux` | ~~7.2.4~~ | âœ… Removed | Replaced with `useSyncExternalStore` |
-| `@reduxjs/toolkit` | ~~1.5.0~~ | âœ… Removed | Replaced with `reduxCompat.ts` |
-| `redux` | ~~*~~ | âœ… Removed | Transitive dep of RTK, no longer needed |
-| `recoil` | ~~0.4.1~~ | âœ… Removed | Replaced with React Context |
+| `react` | ~~16.14.0~~ **18.2.0** | Ã¢Å“â€¦ Done | Upgraded via 16Ã¢â€ â€™17Ã¢â€ â€™18 |
+| `react-dom` | ~~16.14.0~~ **18.2.0** | Ã¢Å“â€¦ Done | createRoot migrated |
+| `react-redux` | ~~7.2.4~~ | Ã¢Å“â€¦ Removed | Replaced with `useSyncExternalStore` |
+| `@reduxjs/toolkit` | ~~1.5.0~~ | Ã¢Å“â€¦ Removed | Replaced with `reduxCompat.ts` |
+| `redux` | ~~*~~ | Ã¢Å“â€¦ Removed | Transitive dep of RTK, no longer needed |
+| `recoil` | ~~0.4.1~~ | Ã¢Å“â€¦ Removed | Replaced with React Context |
 
-**React Migration**: âœ… COMPLETE (16 â†’ 17 â†’ 18.2)
+**React Migration**: Ã¢Å“â€¦ COMPLETE (16 Ã¢â€ â€™ 17 Ã¢â€ â€™ 18.2)
 - No legacy lifecycle methods found (0 instances)
-- Only 2 class components (ErrorBoundary, StepExplorer) â€” both compatible
+- Only 2 class components (ErrorBoundary, StepExplorer) Ã¢â‚¬â€ both compatible
 - Entry points migrated to createRoot API
 - Test files still use legacy ReactDOM.render (deprecated warnings; clean up with Jest 29)
 
 ---
 
-### ðŸ”´ Critical: Redux Removal
+### Ã°Å¸â€Â´ Critical: Redux Removal
 
 **Decision**: Remove Redux entirely. Use React's built-in state management (no replacement library).
 
@@ -193,56 +193,56 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 **Current Redux Architecture (TO BE DELETED)**:
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚ App Store (features/store.ts)                           â”‚
-â”‚ â”œâ”€â”€ files slice (1200+ lines)                          â”‚
-â”‚ â”œâ”€â”€ project slice                                       â”‚
-â”‚ â”œâ”€â”€ user slice                                          â”‚
-â”‚ â”œâ”€â”€ viewer slice                                        â”‚
-â”‚ â”œâ”€â”€ search slice                                        â”‚
-â”‚ â”œâ”€â”€ toast slice                                         â”‚
-â”‚ â””â”€â”€ examples slice                                      â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚ Simulator Store (features/simulator/store.ts)           â”‚
-â”‚ â””â”€â”€ simulator slice (1800+ lines)                      â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚ Middleware: localStorage, analytics, RxJS sync          â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚ Async: createAppAsyncThunk                              â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
+Ã¢â€â€š App Store (features/store.ts)                           Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ files slice (1200+ lines)                          Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ project slice                                       Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ user slice                                          Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ viewer slice                                        Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ search slice                                        Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ toast slice                                         Ã¢â€â€š
+Ã¢â€â€š Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ examples slice                                      Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š Simulator Store (features/simulator/store.ts)           Ã¢â€â€š
+Ã¢â€â€š Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ simulator slice (1800+ lines)                      Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š Middleware: localStorage, analytics, RxJS sync          Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š Async: createAppAsyncThunk                              Ã¢â€â€š
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
 ```
 
 **Target Architecture (React Built-ins Only)**:
 ```
-â”Œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”
-â”‚ React Context + Hooks (where truly needed)              â”‚
-â”‚ â”œâ”€â”€ ProjectContext - project state                     â”‚
-â”‚ â”œâ”€â”€ SimulatorContext - simulation state                â”‚
-â”‚ â””â”€â”€ Component-local state for everything else          â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚ Simple hooks for persistence                            â”‚
-â”‚ â””â”€â”€ useLocalStorage() for persistence                  â”‚
-â”œâ”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”¤
-â”‚ Async: Regular async functions                          â”‚
-â””â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”˜
+Ã¢â€Å’Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â
+Ã¢â€â€š React Context + Hooks (where truly needed)              Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ ProjectContext - project state                     Ã¢â€â€š
+Ã¢â€â€š Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ SimulatorContext - simulation state                Ã¢â€â€š
+Ã¢â€â€š Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ Component-local state for everything else          Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š Simple hooks for persistence                            Ã¢â€â€š
+Ã¢â€â€š Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ useLocalStorage() for persistence                  Ã¢â€â€š
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Â¤
+Ã¢â€â€š Async: Regular async functions                          Ã¢â€â€š
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€Ëœ
 ```
 
 **Packages Removed**:
-- ~~`@reduxjs/toolkit`~~ âœ… Removed â€” replaced with `reduxCompat.ts`
-- ~~`react-redux`~~ âœ… Removed â€” replaced with `useSyncExternalStore`
-- ~~`redux`~~ âœ… Removed â€” transitive dep of RTK
-- ~~`recoil`~~ âœ… Removed â€” replaced with React Context
-- `rxjs` â€” still used (analysis middleware, experiment queueing, search)
+- ~~`@reduxjs/toolkit`~~ Ã¢Å“â€¦ Removed Ã¢â‚¬â€ replaced with `reduxCompat.ts`
+- ~~`react-redux`~~ Ã¢Å“â€¦ Removed Ã¢â‚¬â€ replaced with `useSyncExternalStore`
+- ~~`redux`~~ Ã¢Å“â€¦ Removed Ã¢â‚¬â€ transitive dep of RTK
+- ~~`recoil`~~ Ã¢Å“â€¦ Removed Ã¢â‚¬â€ replaced with React Context
+- `rxjs` Ã¢â‚¬â€ still used (analysis middleware, experiment queueing, search)
 
 **Redux Slice Migration Progress**:
-- [x] `search` (4 consumers) â†’ `SearchContext` â€” fully removed from Redux
-- [x] `viewer` (22 consumers) â†’ `ViewerContext` â€” pure React (useReducer), no Redux dependency
-- [x] `user` (15 consumers) â†’ `UserContext` â€” pure React (useReducer), no Redux dependency
-- [x] `toast` (4 consumers) â†’ `ToastContext` â€” pure React (useState), no Redux dependency
-- [x] `examples` (2 consumers) â†’ `ExamplesContext` â€” pure React (useState), no Redux dependency
-- [x] `project` (88 consumers) â†’ `ProjectContext` â€” pure React (useReducer), no Redux dependency
-- [x] `files` (80 consumers) â†’ `FilesContext` â€” pure Immer reducer with useReducer, no RTK dependency
-- [x] `simulator` store (35 consumers) â†’ still uses Redux (useSimulatorSelector/useSimulatorDispatch)
+- [x] `search` (4 consumers) Ã¢â€ â€™ `SearchContext` Ã¢â‚¬â€ fully removed from Redux
+- [x] `viewer` (22 consumers) Ã¢â€ â€™ `ViewerContext` Ã¢â‚¬â€ pure React (useReducer), no Redux dependency
+- [x] `user` (15 consumers) Ã¢â€ â€™ `UserContext` Ã¢â‚¬â€ pure React (useReducer), no Redux dependency
+- [x] `toast` (4 consumers) Ã¢â€ â€™ `ToastContext` Ã¢â‚¬â€ pure React (useState), no Redux dependency
+- [x] `examples` (2 consumers) Ã¢â€ â€™ `ExamplesContext` Ã¢â‚¬â€ pure React (useState), no Redux dependency
+- [x] `project` (88 consumers) Ã¢â€ â€™ `ProjectContext` Ã¢â‚¬â€ pure React (useReducer), no Redux dependency
+- [x] `files` (80 consumers) Ã¢â€ â€™ `FilesContext` Ã¢â‚¬â€ pure Immer reducer with useReducer, no RTK dependency
+- [x] `simulator` store (35 consumers) Ã¢â€ â€™ still uses Redux (useSimulatorSelector/useSimulatorDispatch)
 - [x] Swap context facade internals from Redux to pure React state (useReducer)
   - App Store completely removed; all 7 app contexts are pure React
   - Files slice converted from RTK `createSlice` to pure Immer reducer
@@ -267,7 +267,7 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 ---
 
-### âœ… Done: Sentry Removal
+### Ã¢Å“â€¦ Done: Sentry Removal
 
 Sentry and related analytics integrations have been removed:
 - `@sentry/browser`, `@sentry/integrations`, `@sentry/tracing`, `@sentry/fullstory`, `@sentry/webpack-plugin` removed
@@ -278,7 +278,7 @@ Sentry and related analytics integrations have been removed:
 
 ---
 
-### âœ… Done: Dev Tooling Cleanup
+### Ã¢Å“â€¦ Done: Dev Tooling Cleanup
 
 - `@welldone-software/why-did-you-render` removed
 - Initialization code removed from `src/index.tsx`
@@ -389,18 +389,18 @@ const MyComponent = () => {
 - Standard React patterns - no learning curve
 - Dramatically simpler mental model
 
-### ðŸ”´ Critical: Abandoned/Deprecated Packages
+### Ã°Å¸â€Â´ Critical: Abandoned/Deprecated Packages
 
 | Package | Status | Replacement |
 |---------|--------|-------------|
-| `hookrouter` 1.2.3 | âœ… Removed | Custom `usePathRouter` + `navigate` utilities |
-| `request` 2.88.2 | âœ… Removed | `fetch` API |
-| `request-promise-native` | âœ… Removed | `fetch` API |
-| `@material-ui/core` 4.11.4 | âš ï¸ Renamed/Deprecated | `@mui/material` 5.x |
-| `@material-ui/lab` | âš ï¸ Renamed/Deprecated | `@mui/lab` 5.x |
-| `react-three-fiber` 5.0.6 | âœ… Migrated | `@react-three/fiber` 8.18.0 |
-| `drei` 1.5.7 | âœ… Migrated | `@react-three/drei` 9.122.0 |
-| `recoil` 0.4.1 | âœ… Removed | Replaced with React Context (`SceneContext.tsx`) |
+| `hookrouter` 1.2.3 | Ã¢Å“â€¦ Removed | Custom `usePathRouter` + `navigate` utilities |
+| `request` 2.88.2 | Ã¢Å“â€¦ Removed | `fetch` API |
+| `request-promise-native` | Ã¢Å“â€¦ Removed | `fetch` API |
+| `@material-ui/core` 4.11.4 | Ã¢Å¡Â Ã¯Â¸Â Renamed/Deprecated | `@mui/material` 5.x |
+| `@material-ui/lab` | Ã¢Å¡Â Ã¯Â¸Â Renamed/Deprecated | `@mui/lab` 5.x |
+| `react-three-fiber` 5.0.6 | Ã¢Å“â€¦ Migrated | `@react-three/fiber` 8.18.0 |
+| `drei` 1.5.7 | Ã¢Å“â€¦ Migrated | `@react-three/drei` 9.122.0 |
+| `recoil` 0.4.1 | Ã¢Å“â€¦ Removed | Replaced with React Context (`SceneContext.tsx`) |
 
 **Action Items**:
 - [x] Replace `hookrouter` with custom `usePathRouter` + `navigate` utilities
@@ -411,20 +411,20 @@ const MyComponent = () => {
 - [x] Upgrade `three` 0.119.1 to 0.170.0
 - [x] Remove `recoil` 0.4.1 (replaced with React Context in SceneContext.tsx)
 
-### âœ… Done: Build Tooling â€” Migrate Webpack 4 â†’ Vite
+### Ã¢Å“â€¦ Done: Build Tooling Ã¢â‚¬â€ Migrate Webpack 4 Ã¢â€ â€™ Vite
 
 | Package | Current | Action | Notes |
 |---------|---------|--------|-------|
-| `webpack` | ~~4.44.2~~ **removed** | âœ… Done | Replaced by Vite 7 |
-| `webpack-cli` | ~~3.3.12~~ **removed** | âœ… Done | |
-| `webpack-dev-server` | ~~3.11.0~~ **removed** | âœ… Done | Vite dev server replaces this |
-| `typescript` | ~~4.1.3~~ **5.3.3** | âœ… Done | `satisfies`, const type params, decorators |
+| `webpack` | ~~4.44.2~~ **removed** | Ã¢Å“â€¦ Done | Replaced by Vite 7 |
+| `webpack-cli` | ~~3.3.12~~ **removed** | Ã¢Å“â€¦ Done | |
+| `webpack-dev-server` | ~~3.11.0~~ **removed** | Ã¢Å“â€¦ Done | Vite dev server replaces this |
+| `typescript` | ~~4.1.3~~ **5.3.3** | Ã¢Å“â€¦ Done | `satisfies`, const type params, decorators |
 | `jest` | 26.6.3 | 29.7+ | Or migrate to Vitest |
-| `ts-jest` | ~~26.4.4~~ **removed** | âœ… Done | Switched to `babel-jest` (ts-jest 26 incompatible with TS 5) |
-| `babel-loader` | ~~8.2.1~~ **removed** | âœ… Done | Vite uses esbuild for dev, Rollup for prod |
-| `Node.js` | ~~20.8.0~~ **24.13.1** | âœ… Done | Upgraded to 24 LTS |
+| `ts-jest` | ~~26.4.4~~ **removed** | Ã¢Å“â€¦ Done | Switched to `babel-jest` (ts-jest 26 incompatible with TS 5) |
+| `babel-loader` | ~~8.2.1~~ **removed** | Ã¢Å“â€¦ Done | Vite uses esbuild for dev, Rollup for prod |
+| `Node.js` | ~~20.8.0~~ **24.13.1** | Ã¢Å“â€¦ Done | Upgraded to 24 LTS |
 
-**Decision**: âœ… COMPLETE - Migrated to Vite 7. Benefits achieved:
+**Decision**: Ã¢Å“â€¦ COMPLETE - Migrated to Vite 7. Benefits achieved:
 - Sub-second dev server startup (vs 30s+ with Webpack 4)
 - Native ESM, HMR via esbuild
 - Eliminates `--openssl-legacy-provider` workaround
@@ -432,44 +432,44 @@ const MyComponent = () => {
 - Simpler config (~30 lines vs ~300 lines)
 
 **Migration completed**: All steps completed successfully:
-1. âœ… Upgraded Node.js 20 â†’ 24 LTS
-2. âœ… Installed Vite + plugins (`@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`)
-3. âœ… Created `vite.config.ts` with resolve aliases, define globals, SCSS support
-4. âœ… Moved HTML entry to project root (Vite convention), added module script tags
-5. âœ… Replaced `!!raw-loader!` imports with Vite `?raw` suffix
-6. âœ… Refactored worker loading for Vite
-7. âœ… Verified WASM loading works via `vite-plugin-wasm`
-8. âœ… Removed webpack magic comments from dynamic imports
-9. âœ… Simplified build stamp system
-10. âœ… Updated npm scripts, verified build + tests, removed all webpack infrastructure
+1. Ã¢Å“â€¦ Upgraded Node.js 20 Ã¢â€ â€™ 24 LTS
+2. Ã¢Å“â€¦ Installed Vite + plugins (`@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`)
+3. Ã¢Å“â€¦ Created `vite.config.ts` with resolve aliases, define globals, SCSS support
+4. Ã¢Å“â€¦ Moved HTML entry to project root (Vite convention), added module script tags
+5. Ã¢Å“â€¦ Replaced `!!raw-loader!` imports with Vite `?raw` suffix
+6. Ã¢Å“â€¦ Refactored worker loading for Vite
+7. Ã¢Å“â€¦ Verified WASM loading works via `vite-plugin-wasm`
+8. Ã¢Å“â€¦ Removed webpack magic comments from dynamic imports
+9. Ã¢Å“â€¦ Simplified build stamp system
+10. Ã¢Å“â€¦ Updated npm scripts, verified build + tests, removed all webpack infrastructure
 
 **Packages to add**: `vite`, `@vitejs/plugin-react`, `vite-plugin-wasm`, `vite-plugin-top-level-await`, `vite-plugin-monaco-editor`
 
 **Packages removed**: `webpack`, `webpack-cli`, `webpack-dev-server`, `html-webpack-plugin`, `webpack-manifest-plugin`, `webpack-messages`, `webpack-retry-chunk-load-plugin`, `unused-modules-webpack-plugin`, `url-loader`, `file-loader`, `raw-loader`, `css-loader`, `style-loader`, `babel-loader`, `source-map-loader`, `null-loader`, `monaco-editor-webpack-plugin`, `postcss-loader`, `sass-loader`, and many `@babel/*` packages (Vite uses esbuild).
 
-**Note**: `engine-web/webpack.config.js` (stdlib build) is a separate concern â€” can stay on Webpack or be converted to esbuild later.
+**Note**: `engine-web/webpack.config.js` (stdlib build) is a separate concern Ã¢â‚¬â€ can stay on Webpack or be converted to esbuild later.
 
-### ðŸŸ  High: Significant Version Gaps
+### Ã°Å¸Å¸Â  High: Significant Version Gaps
 
 | Package | Current | Latest | Gap |
 |---------|---------|--------|-----|
 | `monaco-editor` | 0.25.2 | 0.45+ | 20 versions |
-| `three` | ~~0.119.1~~ **0.170.0** | âœ… Done | Upgraded with @react-three/fiber v8 |
+| `three` | ~~0.119.1~~ **0.170.0** | Ã¢Å“â€¦ Done | Upgraded with @react-three/fiber v8 |
 | `rxjs` | 6.6.6 | 7.8+ | Major version |
-| `plotly.js` | ~~1.57.1~~ **3.3.1** | âœ… Done | Upgraded to `plotly.js-dist-min` (ESM-ready) |
+| `plotly.js` | ~~1.57.1~~ **3.3.1** | Ã¢Å“â€¦ Done | Upgraded to `plotly.js-dist-min` (ESM-ready) |
 | `@sentry/browser` | 6.2.0 | - | **REMOVING** |
 | `@deck.gl/core` | 8.3.7 | 8.9+ | |
 | `graphql` | 15.5.0 | 16.8+ | Major version |
 | `date-fns` | 2.17.0 | 3.3+ | Major version |
 
-### ðŸŸ¡ Medium: Build/Dev Optimizations
+### Ã°Å¸Å¸Â¡ Medium: Build/Dev Optimizations
 
 - [x] Silence SCSS deprecation warnings (silenceDeprecations in vite.config.ts)
 - [x] Fix `?? false` esbuild warning in Analysis/modals.ts
 - [x] Suppress Playwright webServer stderr for cleaner E2E output
 - [x] Add `serve:quiet` script for minimal-output dev server
 
-### ðŸŸ¡ Medium: Testing Infrastructure
+### Ã°Å¸Å¸Â¡ Medium: Testing Infrastructure
 
 | Issue | Current State | Recommended |
 |-------|---------------|-------------|
@@ -490,11 +490,11 @@ These E2E tests should pass before AND after each migration phase:
 
 ```
 tests/e2e/
-â”œâ”€â”€ playwright.config.ts     # Playwright configuration
-â”œâ”€â”€ smoke.spec.ts            # Quick health check
-â”œâ”€â”€ simulation-run.spec.ts   # Core simulation functionality  
-â””â”€â”€ fixtures/
-    â””â”€â”€ test-helpers.ts      # Shared test utilities
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ playwright.config.ts     # Playwright configuration
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ smoke.spec.ts            # Quick health check
+Ã¢â€Å“Ã¢â€â‚¬Ã¢â€â‚¬ simulation-run.spec.ts   # Core simulation functionality  
+Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ fixtures/
+    Ã¢â€â€Ã¢â€â‚¬Ã¢â€â‚¬ test-helpers.ts      # Shared test utilities
 ```
 
 ### Critical Test Scenarios
@@ -647,25 +647,25 @@ Run E2E tests at each migration phase:
 
 | Phase | Before | After | Notes |
 |-------|--------|-------|-------|
-| Analytics removal | âœ“ | âœ“ | Should have no impact |
-| Auth/Cloud removal | âœ“ | âœ“ | May simplify app |
-| Dev tooling removal | âœ“ | âœ“ | Should have no impact |
-| Redux removal Step 1 | âœ“ | âœ“ | Create contexts |
-| Redux removal Step 2 | âœ“ | âœ“ | Migrate components |
-| Redux removal Step 3 | âœ“ | âœ“ | Delete Redux files |
-| React 16 â†’ 17 | âœ“ | âœ“ | Compatibility |
-| React 17 â†’ 18 | âœ“ | âœ“ | createRoot migration |
+| Analytics removal | Ã¢Å“â€œ | Ã¢Å“â€œ | Should have no impact |
+| Auth/Cloud removal | Ã¢Å“â€œ | Ã¢Å“â€œ | May simplify app |
+| Dev tooling removal | Ã¢Å“â€œ | Ã¢Å“â€œ | Should have no impact |
+| Redux removal Step 1 | Ã¢Å“â€œ | Ã¢Å“â€œ | Create contexts |
+| Redux removal Step 2 | Ã¢Å“â€œ | Ã¢Å“â€œ | Migrate components |
+| Redux removal Step 3 | Ã¢Å“â€œ | Ã¢Å“â€œ | Delete Redux files |
+| React 16 Ã¢â€ â€™ 17 | Ã¢Å“â€œ | Ã¢Å“â€œ | Compatibility |
+| React 17 Ã¢â€ â€™ 18 | Ã¢Å“â€œ | Ã¢Å“â€œ | createRoot migration |
 
 ### Feature Coverage for E2E Tests
 
 The following features are being KEPT and are now covered by E2E tests:
 
-#### Core Simulation (HIGH priority) âœ… IMPLEMENTED
+#### Core Simulation (HIGH priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **Simulation Controls**: Step, Play/Pause, Reset (`simulation-run.spec.ts`)
 - [x] **Timeline/Scrubber**: Timeline presence verified (`simulation-run.spec.ts`)
 - [x] **Simulation Initialization**: Load builtin simulation (`smoke.spec.ts`)
 
-#### Viewer Tabs (MEDIUM priority) âœ… IMPLEMENTED
+#### Viewer Tabs (MEDIUM priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **3D Viewer (AgentScene)**: Viewer displays content (`viewer-tabs.spec.ts`)
 - [x] **Geospatial (MapViewer)**: Tab loads when available (`viewer-tabs.spec.ts`)
 - [x] **Analysis/Plots**: Tab renders with data (`viewer-tabs.spec.ts`)
@@ -673,34 +673,34 @@ The following features are being KEPT and are now covered by E2E tests:
 - [x] **Raw Output**: JSON agent state displays (`viewer-tabs.spec.ts`, `simulation-run.spec.ts`)
 - [ ] **Step Explorer**: Agent state inspection (TODO)
 
-#### Code Editing (HIGH priority) âœ… IMPLEMENTED
+#### Code Editing (HIGH priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **Monaco Editor**: Opens, content visible (`file-management.spec.ts`)
 - [x] **Multi-file tabs**: Can switch files (`file-management.spec.ts`)
 - [x] **File Tree**: Navigate project files (`file-management.spec.ts`)
 - [x] **Create Behavior**: Add behavior action available (`dependencies.spec.ts`)
 - [x] **Behavior Keys**: Context tested (`dependencies.spec.ts`)
 
-#### File Management (MEDIUM priority) âœ… IMPLEMENTED
+#### File Management (MEDIUM priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **File Tree Operations**: Display and click (`file-management.spec.ts`)
 - [x] **Import .zip**: File input accessible (`file-management.spec.ts`)
 - [x] **Export .zip**: Export option accessible (`file-management.spec.ts`)
 
-#### Experiments (LOW priority) âœ… IMPLEMENTED
+#### Experiments (LOW priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **Local Experiment Runner**: Button, menu, modal tested (`experiments.spec.ts`)
 - [x] **Experiment Configuration**: Parameter sweep options (`experiments.spec.ts`)
 
-#### Dependencies (MEDIUM priority) âœ… IMPLEMENTED
+#### Dependencies (MEDIUM priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **hIndex Search**: Search functionality present (`dependencies.spec.ts`)
 - [x] **Add Dependency**: Add behavior action accessible (`dependencies.spec.ts`)
 - [x] **Shared Behavior Indicator**: Indicator checked (`dependencies.spec.ts`)
 
-#### UI/UX (LOW priority) âœ… IMPLEMENTED
+#### UI/UX (LOW priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **Onboarding Tour**: Tour dismissible, elements render (`ui-features.spec.ts`)
 - [x] **Keyboard Shortcuts**: Step, search, save tested (`ui-features.spec.ts`)
 - [x] **Error Boundaries**: No render errors assertion (`all spec files`)
 - [x] **Window Resize**: Graceful handling (`ui-features.spec.ts`)
 
-#### Local Storage (HIGH priority) âœ… IMPLEMENTED
+#### Local Storage (HIGH priority) Ã¢Å“â€¦ IMPLEMENTED
 - [x] **localStorage Usage**: Values stored (`persistence.spec.ts`)
 - [x] **App Reload**: State survives refresh (`persistence.spec.ts`)
 - [x] **Preferences**: localStorage errors handled (`persistence.spec.ts`)
@@ -711,25 +711,25 @@ The following features are being KEPT and are now covered by E2E tests:
 
 | File | Tests | Status |
 |------|-------|--------|
-| `smoke.spec.ts` | 4 | âœ… All passing |
-| `simulation-run.spec.ts` | 10 | âœ… Core passing |
-| `viewer-tabs.spec.ts` | 7 | âœ… Implemented |
-| `file-management.spec.ts` | 8 | âœ… Implemented |
-| `experiments.spec.ts` | 5 | âœ… All passing |
-| `ui-features.spec.ts` | 9 | âœ… Implemented |
-| `persistence.spec.ts` | 9 | âœ… Implemented |
-| `dependencies.spec.ts` | 7 | âœ… Implemented |
+| `smoke.spec.ts` | 4 | Ã¢Å“â€¦ All passing |
+| `simulation-run.spec.ts` | 10 | Ã¢Å“â€¦ Core passing |
+| `viewer-tabs.spec.ts` | 7 | Ã¢Å“â€¦ Implemented |
+| `file-management.spec.ts` | 8 | Ã¢Å“â€¦ Implemented |
+| `experiments.spec.ts` | 5 | Ã¢Å“â€¦ All passing |
+| `ui-features.spec.ts` | 9 | Ã¢Å“â€¦ Implemented |
+| `persistence.spec.ts` | 9 | Ã¢Å“â€¦ Implemented |
+| `dependencies.spec.ts` | 7 | Ã¢Å“â€¦ Implemented |
 
 **Total: 66 tests covering all identified features**
 
-### ðŸŸ¢ Low: Minor Updates Needed
+### Ã°Å¸Å¸Â¢ Low: Minor Updates Needed
 
 | Package | Current | Latest |
 |---------|---------|--------|
 | `classnames` | 2.3.1 | 2.5+ |
 | `uuid` | 8.3.1 | 9.0+ |
 | `jszip` | 3.7.0 | 3.10+ |
-| `lodash-es` | 4.17.21 | 4.17.21 âœ“ |
+| `lodash-es` | 4.17.21 | 4.17.21 Ã¢Å“â€œ |
 | `immer` | (via RTK) | Included in RTK 2.x |
 
 ---
@@ -739,11 +739,11 @@ The following features are being KEPT and are now covered by E2E tests:
 **Goal**: Extract `apps/sim-core/` into its own standalone repository at the end of this project.
 
 **Preparation checklist**:
-- [ ] All plan docs live inside `apps/sim-core/` (TODO.md, ARCHITECTURE.md, TESTING_STRATEGY.md)
+- [x] All plan docs live inside `apps/sim-core/` (TODO.md, ARCHITECTURE.md, TESTING_STRATEGY.md)
 - [ ] No build/test commands depend on files outside `apps/sim-core/`
-- [ ] `.gitignore` entries are in `apps/sim-core/.gitignore` (not the root)
-- [ ] Console log Vite plugin writes to `apps/sim-core/console.log` (not repo root)
-- [ ] All E2E test fixtures and configs are self-contained within `apps/sim-core/`
+- [x] `.gitignore` entries are in `apps/sim-core/.gitignore` (not the root)
+- [x] Console log Vite plugin writes to `apps/sim-core/console.log` (not repo root)
+- [x] All E2E test fixtures and configs are self-contained within `apps/sim-core/`
 - [ ] README.md in `apps/sim-core/` is complete for standalone use
 
 > **Note**: sim-engine (Rust) and hash-agents (Python) are outside the scope of this project.
@@ -769,23 +769,23 @@ During Phase 1 verification, we discovered and fixed:
 - **`bowser` dependency**: Was declared in `core/package.json` but only used by `engine-web`. Moved to `engine-web/package.json` where it belongs. This was a pre-existing build error.
 - **TypeScript errors from hookrouter migration**: `navigate()` type signature didn't accept boolean query params (hookrouter did). `RouteHandler` type was too strict. `useScopes` called with 1 arg after `Scope.login` removal (requires 2; switched to `useScope`). All fixed.
 - **Build verification**: Vite production build passes (exit 0, warnings only). Jest 124/124 suites pass, 369 tests pass.
-- **Pre-existing warnings**: wasm critical dependency warning in engine-web, asset size limit warnings â€” resolved with Vite migration.
+- **Pre-existing warnings**: wasm critical dependency warning in engine-web, asset size limit warnings Ã¢â‚¬â€ resolved with Vite migration.
 
-### Phase 2: Remove Auth & Cloud Features â€” âœ… COMPLETE
-All items completed in Migration Phases above (Phases 2â€“5).
+### Phase 2: Remove Auth & Cloud Features Ã¢â‚¬â€ Ã¢Å“â€¦ COMPLETE
+All items completed in Migration Phases above (Phases 2Ã¢â‚¬â€œ5).
 - [x] Remove user authentication, signin/signup, cloud credits
 - [x] Remove hCloud runners, server-side save, sharing, access codes
 - [x] Remove ModalRelease, fork, server metadata sync
 - [x] Implement localStorage persistence, local templates, zip import/export
 
 ### Phase 3: Build System Modernization
-1. [x] Upgrade TypeScript 4.1 â†’ 5.3.3
+1. [x] Upgrade TypeScript 4.1 Ã¢â€ â€™ 5.3.3
    - fork-ts-checker-webpack-plugin upgraded to 6.5.3
    - Jest switched from ts-jest to babel-jest (ts-jest 26 incompatible with TS 5)
    - ~80 RTK 1.5 dispatch type errors suppressed (resolve when Redux removed)
    - `useUnknownInCatchVariables: false` set in tsconfig (re-enable after Redux removal)
-2. [x] Upgrade Node.js 20 â†’ 24 LTS
-3. [x] Migrate Webpack 4 â†’ Vite (see Build Tooling section for detailed plan)
+2. [x] Upgrade Node.js 20 Ã¢â€ â€™ 24 LTS
+3. [x] Migrate Webpack 4 Ã¢â€ â€™ Vite (see Build Tooling section for detailed plan)
    - [x] Install Vite + plugins, create vite.config.ts
    - [x] Create HTML entry files at project root
    - [x] Replace raw-loader imports with ?raw suffix
@@ -796,7 +796,7 @@ All items completed in Migration Phases above (Phases 2â€“5).
    - [x] Update scripts, verify build + tests
    - [x] Remove webpack infrastructure and dependencies
 4. [x] Remove `--openssl-legacy-provider` workaround (resolved by Vite migration)
-5. [x] Update Jest 26 â†’ 29
+5. [x] Update Jest 26 Ã¢â€ â€™ 29
    - Upgraded jest, @types/jest, babel-jest to 29.7.0
    - Added jest-environment-jsdom, removed ts-jest
    - Fixed ESM compatibility (nanoid, TextEncoder polyfill)
@@ -804,8 +804,8 @@ All items completed in Migration Phases above (Phases 2â€“5).
    - 118/119 suites pass, 310 tests pass
 
 ### Phase 4: React & State Management
-1. [x] React 16 â†’ 17 â†’ 18.2 migration (no legacy lifecycle blockers; createRoot migrated)
-2. [x] **Remove Redux entirely** â€” âœ… COMPLETE
+1. [x] React 16 Ã¢â€ â€™ 17 Ã¢â€ â€™ 18.2 migration (no legacy lifecycle blockers; createRoot migrated)
+2. [x] **Remove Redux entirely** Ã¢â‚¬â€ Ã¢Å“â€¦ COMPLETE
    - [x] All 7 app context facades migrated to pure React (useState/useReducer)
    - [x] Files slice: pure Immer reducer, pure entity adapter
    - [x] Simulator store: replaced with SimpleStore (reduxCompat.ts)
@@ -814,72 +814,72 @@ All items completed in Migration Phases above (Phases 2â€“5).
    - [x] `useUnknownInCatchVariables` re-enabled
    - [x] Clean up .spec.tsx test files (removed react-redux from 14 files)
 3. [x] ~~Remove Recoil~~ Already removed (replaced with SceneContext.tsx)
-4. [x] ~~@material-ui â†’ @mui migration~~ Removed (only used by deleted staging tool)
-5. [x] ~~react-three-fiber â†’ @react-three/fiber~~ Migrated to v8.18.0
-6. [x] ~~drei â†’ @react-three/drei~~ Migrated to v9.122.0
+4. [x] ~~@material-ui Ã¢â€ â€™ @mui migration~~ Removed (only used by deleted staging tool)
+5. [x] ~~react-three-fiber Ã¢â€ â€™ @react-three/fiber~~ Migrated to v8.18.0
+6. [x] ~~drei Ã¢â€ â€™ @react-three/drei~~ Migrated to v9.122.0
 
 ### Phase 4b: Post-Migration Cleanup (Codebase Assessment Feb 2026)
 
-Found during a comprehensive codebase audit after completing Phases 1â€“4.
+Found during a comprehensive codebase audit after completing Phases 1Ã¢â‚¬â€œ4.
 
-#### ðŸ”´ High: Dead Code Removal
+#### Ã°Å¸â€Â´ High: Dead Code Removal
 
 - [x] **Delete dead GraphQL query files** (5 files):
-  - `src/util/api/queries/trackTourProgress.ts` â€” tour progress stored locally
-  - `src/util/api/queries/myProjects.ts` â€” server call never invoked (move `prepareUserProjects` to bootstrapQuery)
-  - `src/util/api/queries/exampleSimulations.ts` â€” server call never invoked (move `prepareExamples` to bootstrapQuery)
-  - `src/util/api/queries/createDatasetQuery.ts` â€” imported but never called
-  - `src/util/api/queries/addDatasetToProject.ts` â€” not imported anywhere
+  - `src/util/api/queries/trackTourProgress.ts` Ã¢â‚¬â€ tour progress stored locally
+  - `src/util/api/queries/myProjects.ts` Ã¢â‚¬â€ server call never invoked (move `prepareUserProjects` to bootstrapQuery)
+  - `src/util/api/queries/exampleSimulations.ts` Ã¢â‚¬â€ server call never invoked (move `prepareExamples` to bootstrapQuery)
+  - `src/util/api/queries/createDatasetQuery.ts` Ã¢â‚¬â€ imported but never called
+  - `src/util/api/queries/addDatasetToProject.ts` Ã¢â‚¬â€ not imported anywhere
   - Remove dead exports from `util/api/index.ts` and `util/api/queries/index.ts`
 - [x] **Remove stale hCloud UI references** (5 files):
-  - `components/Modal/Experiments/ExperimentModal.tsx` â€” "Save and run in hCloud" button text, "in hCloud" vs "locally" text
-  - `components/HashCore/Header/Menu/CloudStatus/HashCoreHeaderMenuCloudStatus.tsx` â€” "Contact us to use hCloud" text
-  - `components/FileBanner/PythonSafari/FileBannerPythonSafari.tsx` â€” hCloud text reference
-  - `features/simulator/simulate/provider.ts` â€” stale comment
+  - `components/Modal/Experiments/ExperimentModal.tsx` Ã¢â‚¬â€ "Save and run in hCloud" button text, "in hCloud" vs "locally" text
+  - `components/HashCore/Header/Menu/CloudStatus/HashCoreHeaderMenuCloudStatus.tsx` Ã¢â‚¬â€ "Contact us to use hCloud" text
+  - `components/FileBanner/PythonSafari/FileBannerPythonSafari.tsx` Ã¢â‚¬â€ hCloud text reference
+  - `features/simulator/simulate/provider.ts` Ã¢â‚¬â€ stale comment
 - [x] **Remove stale login/signin component** (FileBannerSignIn deleted):
-  - `components/FileBanner/SignIn/FileBannerSignIn.tsx` â€” component for deleted feature
-  - `components/FileBanner/Wrapper/FileBannerWrapper.tsx` â€” imports and uses FileBannerSignIn
-  - `features/user/utils.ts` â€” `navigate("/signin")` call
-  - `features/scopes.ts` â€” `Scope.login`, `Scope.forkIfSignedIn`, `Scope.saveIfSignedIn` are dead
-  - `components/HashRouter/Effect/routes.tsx` â€” `/signup`, `/signin` route stubs
+  - `components/FileBanner/SignIn/FileBannerSignIn.tsx` Ã¢â‚¬â€ component for deleted feature
+  - `components/FileBanner/Wrapper/FileBannerWrapper.tsx` Ã¢â‚¬â€ imports and uses FileBannerSignIn
+  - `features/user/utils.ts` Ã¢â‚¬â€ `navigate("/signin")` call
+  - `features/scopes.ts` Ã¢â‚¬â€ `Scope.login`, `Scope.forkIfSignedIn`, `Scope.saveIfSignedIn` are dead
+  - `components/HashRouter/Effect/routes.tsx` Ã¢â‚¬â€ `/signup`, `/signin` route stubs
 - [x] **Remove dead release toast components**:
   - `components/Toast/ReleaseSuccess/ToastReleaseSuccess.tsx`
   - `components/Toast/ReadOnlyRelease/ToastReadOnlyRelease.tsx`
   - `components/Toast/ReleaseBehaviorSuccess/ToastReleaseBehaviorSuccess.tsx`
 - [x] **Remove Discord remnants**:
-  - `components/Icon/Discord/` â€” icon component directory
-  - `styles.css` â€” CSS variables `--discord-button-y-offset`, `--discord-button-size`
-  - `components/ActivityHistory/Inspector/Inspector.css` â€” uses Discord CSS variables
+  - `components/Icon/Discord/` Ã¢â‚¬â€ icon component directory
+  - `styles.css` Ã¢â‚¬â€ CSS variables `--discord-button-y-offset`, `--discord-button-size`
+  - `components/ActivityHistory/Inspector/Inspector.css` Ã¢â‚¬â€ uses Discord CSS variables
 - [x] **Remove dead utility files**:
-  - `util/postFormData.ts` â€” file upload utility (server uploads removed)
-  - `util/prepareFormDataWithFile.ts` â€” file upload utility (server uploads removed)
+  - `util/postFormData.ts` Ã¢â‚¬â€ file upload utility (server uploads removed)
+  - `util/prepareFormDataWithFile.ts` Ã¢â‚¬â€ file upload utility (server uploads removed)
   - Remove imports from `features/files/slice.ts`
 
-#### ðŸ”´ High: Module Modernization
+#### Ã°Å¸â€Â´ High: Module Modernization
 
 - [x] **Replace `lodash` imports with `lodash-es`** (27 files):
   - `features/simulator/simulate/util.ts`, `features/monaco/monaco.ts`, `features/files/selectors.ts`,
     `features/files/FilesContext.tsx`, `components/Analysis/AnalysisViewer.tsx`, and 15+ more
-  - Currently importing CommonJS `lodash` instead of ESM `lodash-es` â€” prevents tree-shaking
-  - Global find-replace: `from "lodash` â†’ `from "lodash-es` (and `from "lodash/` â†’ `from "lodash-es/`)
-- [x] ~~**Replace `process.env.NODE_ENV`**~~ â€” kept as-is; Vite natively replaces `process.env.NODE_ENV`
-- [x] **Rename `WEBPACK_BUILD_STAMP` to `BUILD_STAMP`** â€” all webpack naming removed from source
+  - Currently importing CommonJS `lodash` instead of ESM `lodash-es` Ã¢â‚¬â€ prevents tree-shaking
+  - Global find-replace: `from "lodash` Ã¢â€ â€™ `from "lodash-es` (and `from "lodash/` Ã¢â€ â€™ `from "lodash-es/`)
+- [x] ~~**Replace `process.env.NODE_ENV`**~~ Ã¢â‚¬â€ kept as-is; Vite natively replaces `process.env.NODE_ENV`
+- [x] **Rename `WEBPACK_BUILD_STAMP` to `BUILD_STAMP`** Ã¢â‚¬â€ all webpack naming removed from source
 
-#### ðŸŸ¡ Medium: Commented/Stubbed Code Cleanup
+#### Ã°Å¸Å¸Â¡ Medium: Commented/Stubbed Code Cleanup
 
-- [x] **Clean up stubbed GraphQL queries** â€” removed commented-out server calls from 3 files
-- [x] **Clean up stale SCSS comments** â€” ModalShare reference removed
-- [x] **Remove `trackEvent` stubs** â€” deleted `features/analytics.ts` and all 20+ call sites
-- [x] **Remove `require()` in ProjectContext.tsx** â€” replaced with static import
+- [x] **Clean up stubbed GraphQL queries** Ã¢â‚¬â€ removed commented-out server calls from 3 files
+- [x] **Clean up stale SCSS comments** Ã¢â‚¬â€ ModalShare reference removed
+- [x] **Remove `trackEvent` stubs** Ã¢â‚¬â€ deleted `features/analytics.ts` and all 20+ call sites
+- [x] **Remove `require()` in ProjectContext.tsx** Ã¢â‚¬â€ replaced with static import
 
-#### ðŸŸ¡ Medium: Stale Dependencies
+#### Ã°Å¸Å¸Â¡ Medium: Stale Dependencies
 
-- [x] **Remove unused packages from workspace root** â€” `yarn-audit-fix`, `yarn-run-all` removed
-- [x] **Move webpack-only deps to engine-web** â€” webpack, webpack-cli, babel-loader moved
-- [x] **Upgrade Babel packages** â€” all @babel/* to 7.28+, removed obsolete proposal plugins, removed core-js
+- [x] **Remove unused packages from workspace root** Ã¢â‚¬â€ `yarn-audit-fix`, `yarn-run-all` removed
+- [x] **Move webpack-only deps to engine-web** Ã¢â‚¬â€ webpack, webpack-cli, babel-loader moved
+- [x] **Upgrade Babel packages** Ã¢â‚¬â€ all @babel/* to 7.28+, removed obsolete proposal plugins, removed core-js
 - [x] **Upgrade linting/formatting tools**:
-  - ESLint 7.29 â†’ 9.39, flat config format, typescript-eslint 8.56
-  - Prettier 2.2 â†’ 3.8
+  - ESLint 7.29 Ã¢â€ â€™ 9.39, flat config format, typescript-eslint 8.56
+  - Prettier 2.2 Ã¢â€ â€™ 3.8
   - Removed eslint-plugin-react, eslint-plugin-import (simplified)
   - Fixed 87 lint errors (unused imports + short identifiers)
   - Added @types/lodash-es
@@ -890,49 +890,45 @@ Found during a comprehensive codebase audit after completing Phases 1â€“4.
   - Removed `graphql`, `@graphql-codegen/*` packages (5 packages)
   - Deleted dead `partialProjectByPath.ts` query
   - Note: 6 queries still send GraphQL strings via fetch; the server API hasn't changed
-- [x] **Upgrade @testing-library/react** 11.2 â†’ 14.2 (+ @testing-library/dom 9)
+- [x] **Upgrade @testing-library/react** 11.2 Ã¢â€ â€™ 14.2 (+ @testing-library/dom 9)
 
-#### ðŸŸ¢ Low: Type Safety Improvements
+#### Ã°Å¸Å¸Â¢ Low: Type Safety Improvements
 
 - [x] **Audit and fix `@ts-ignore` / `@ts-expect-error` comments**:
   - Fixed 17 of 30 instances (removed 4, replaced 8 with casts, converted 5 to @ts-expect-error)
   - 10 remaining are in dead `whyDidYouRender` blocks (commented-out code)
-  - 3 remaining are genuine library type gaps (deck.gl, luma.gl, gradient-path â€” no types)
-- [x] **Fix TypeScript errors** â€” reduced from 45 to 40 (all remaining are library type issues)
-- [x] **Migrate test files from `ReactDOM.render` to `@testing-library/react`** â€” 107 spec files migrated
+  - 3 remaining are genuine library type gaps (deck.gl, luma.gl, gradient-path Ã¢â‚¬â€ no types)
+- [x] **Fix TypeScript errors** Ã¢â‚¬â€ reduced from 45 to 40 (all remaining are library type issues)
+- [x] **Migrate test files from `ReactDOM.render` to `@testing-library/react`** Ã¢â‚¬â€ 107 spec files migrated
 
 ### Phase 5: Future - GitHub Integration (Post-Migration)
 - [ ] Design GitHub OAuth flow (no HASH account)
 - [ ] Implement save/load from user's GitHub repos
 - [ ] Add project sync functionality
 
-### Phase 6: Python Modernization (If Needed)
-1. [ ] OpenAI 0.27 â†’ 1.x migration
-2. [ ] Pydantic 1.x â†’ 2.x migration
-3. [ ] LangChain complete rewrite to 0.1.x architecture
 
 ### CI/CD (assessed Feb 2026)
 
-**Current state**: Only Rust CI exists (`.github/workflows/rust.yml`). There is NO frontend CI â€” TypeScript errors, test failures, and build breakages are not caught automatically.
+**Current state**: Only Rust CI exists (`.github/workflows/rust.yml`). There is NO frontend CI Ã¢â‚¬â€ TypeScript errors, test failures, and build breakages are not caught automatically.
 
-#### ðŸ”´ High: Add Frontend CI
+#### Ã°Å¸â€Â´ High: Add Frontend CI
 
 - [x] **Create `frontend.yml` workflow**: ESLint + TypeScript + Jest + Vite build
 - [x] **Create `e2e.yml` workflow**: Playwright E2E tests with artifact upload
 
-#### ðŸŸ¡ Medium: Deployment Pipeline
+#### Ã°Å¸Å¸Â¡ Medium: Deployment Pipeline
 
 - [ ] **Create `deploy.yml` workflow**: Deploy to static hosting
   - Options: GitHub Pages, Netlify, Vercel, Cloudflare Pages
   - Trigger: push to `main` (or manual dispatch)
   - Remove legacy `scripts/deploy.ts` (AWS S3 deployment)
 
-#### ðŸŸ¡ Medium: Clean Up Existing CI
+#### Ã°Å¸Å¸Â¡ Medium: Clean Up Existing CI
 
-- [x] **Update action versions** in `rust.yml` â€” checkout v4, setup-python v5, rust-cache v2, codeql-action v3
-- [x] **Clean up Renovate config** â€” removed stale groups, added relevant package groups
+- [x] **Update action versions** in `rust.yml` Ã¢â‚¬â€ checkout v4, setup-python v5, rust-cache v2, codeql-action v3
+- [x] **Clean up Renovate config** Ã¢â‚¬â€ removed stale groups, added relevant package groups
 
-#### ðŸŸ¢ Low: Additional CI
+#### Ã°Å¸Å¸Â¢ Low: Additional CI
 
 - [ ] **Add WASM build verification** to frontend CI (or separate workflow)
   - Ensures `wasm-pack build` still succeeds after Rust changes
@@ -952,11 +948,11 @@ Found during a comprehensive codebase audit after completing Phases 1â€“4.
 
 | Package | Status | Notes |
 |---------|--------|-------|
-| `recoil` | âœ… Removed | Replaced with SceneContext |
-| `@fullstory/browser` | âœ… Removed | Analytics removed |
-| `@sentry/*` | âœ… Removed | Analytics removed |
-| `@reduxjs/toolkit` | âœ… Removed | Replaced with reduxCompat.ts |
-| `react-redux` | âœ… Removed | Replaced with useSyncExternalStore |
+| `recoil` | Ã¢Å“â€¦ Removed | Replaced with SceneContext |
+| `@fullstory/browser` | Ã¢Å“â€¦ Removed | Analytics removed |
+| `@sentry/*` | Ã¢Å“â€¦ Removed | Analytics removed |
+| `@reduxjs/toolkit` | Ã¢Å“â€¦ Removed | Replaced with reduxCompat.ts |
+| `react-redux` | Ã¢Å“â€¦ Removed | Replaced with useSyncExternalStore |
 | `react-shepherd` | **KEEP** | Onboarding tour is staying |
 | `@msrvida/sanddance-explorer` | **KEEP** | Data visualization staying |
 | `gradient-path` | **KEEP** | Used in SVG visualization |
@@ -1005,46 +1001,46 @@ native NAPI module corrupting the call stack during tree-shaking of deeply circu
 **Workaround**: `treeshake: false` in `vite.config.ts` rollupOptions. esbuild minification still
 performs expression-level dead-code elimination. Manual chunks split vendor dependencies for caching.
 Build completes in ~53s. Re-enabling tree-shaking is blocked on either a Rollup fix or replacing
-the circular-dependency-heavy packages (`@fluentui/react` v7 â†’ v9, `@msrvida/sanddance-explorer`).
+the circular-dependency-heavy packages (`@fluentui/react` v7 Ã¢â€ â€™ v9, `@msrvida/sanddance-explorer`).
 
 ### Monaco Model Creation (E2E Blocker)
 
 After Redux removal, the Monaco editor's `subscribe()` was never wired to the appBridge. The monaco creates text models in response to store changes, but no code calls `subscribe(appBridge)`. As a result, `getTextModelRequired` throws "text model does not exist" when opening files, causing the app to hit the error boundary. This blocks E2E tests.
 
-**Fix required**: Wire `subscribe` from `features/monaco` to `appBridge` in StoreSync, and add `appBridge.dispatch` that forwards `updateFile` actions to `filesDispatch`. Care must be taken to avoid infinite loops (model.setValue â†’ onDidChangeContent â†’ dispatch â†’ setState â†’ monaco listener â†’ model.setValue).
+**Fix required**: Wire `subscribe` from `features/monaco` to `appBridge` in StoreSync, and add `appBridge.dispatch` that forwards `updateFile` actions to `filesDispatch`. Care must be taken to avoid infinite loops (model.setValue Ã¢â€ â€™ onDidChangeContent Ã¢â€ â€™ dispatch Ã¢â€ â€™ setState Ã¢â€ â€™ monaco listener Ã¢â€ â€™ model.setValue).
 
 ### Code Guidance
 
-1. **Redux is gone** â€” `@reduxjs/toolkit` and `react-redux` have been removed. Use React Context + hooks.
-2. **Use `reduxCompat.ts` only for the simulator store** â€” all other state uses React Context directly.
-3. **Test thoroughly after any dependency update** â€” many packages are interconnected.
+1. **Redux is gone** Ã¢â‚¬â€ `@reduxjs/toolkit` and `react-redux` have been removed. Use React Context + hooks.
+2. **Use `reduxCompat.ts` only for the simulator store** Ã¢â‚¬â€ all other state uses React Context directly.
+3. **Test thoroughly after any dependency update** Ã¢â‚¬â€ many packages are interconnected.
 4. **Check for breaking changes** before upgrading any major version.
-5. **Import from `lodash-es`** not `lodash` â€” prevents tree-shaking issues.
-6. **Use `import.meta.env`** not `process.env` â€” we use Vite, not Webpack.
-7. **The Python POC may be stale** â€” verify if hash-agents is actively used before investing in updates.
+5. **Import from `lodash-es`** not `lodash` Ã¢â‚¬â€ prevents tree-shaking issues.
+6. **Use `import.meta.env`** not `process.env` Ã¢â‚¬â€ we use Vite, not Webpack.
+7. **The Python POC may be stale** Ã¢â‚¬â€ verify if hash-agents is actively used before investing in updates.
 
 ### Features Already REMOVED (do not re-introduce)
 
-- User authentication (ModalSignin, ModalSignup) â€” DELETED
-- Cloud credits / CloudUsage â€” DELETED
-- Project sharing (ModalShare*) â€” DELETED
-- Access codes â€” DELETED
-- Server project storage â€” DELETED
-- Project releases/versioning (ModalRelease*) â€” DELETED
-- hCloud experiment runners â€” DELETED
-- Sentry / FullStory analytics â€” DELETED
-- Discord widget â€” DELETED
-- Redux / @reduxjs/toolkit / react-redux â€” DELETED
+- User authentication (ModalSignin, ModalSignup) Ã¢â‚¬â€ DELETED
+- Cloud credits / CloudUsage Ã¢â‚¬â€ DELETED
+- Project sharing (ModalShare*) Ã¢â‚¬â€ DELETED
+- Access codes Ã¢â‚¬â€ DELETED
+- Server project storage Ã¢â‚¬â€ DELETED
+- Project releases/versioning (ModalRelease*) Ã¢â‚¬â€ DELETED
+- hCloud experiment runners Ã¢â‚¬â€ DELETED
+- Sentry / FullStory analytics Ã¢â‚¬â€ DELETED
+- Discord widget Ã¢â‚¬â€ DELETED
+- Redux / @reduxjs/toolkit / react-redux Ã¢â‚¬â€ DELETED
 
 ### State Management (Current)
 
 ```typescript
-// App state â€” use context hooks
+// App state Ã¢â‚¬â€ use context hooks
 const { allFiles, updateFile } = useFiles();
 const { currentProject } = useProject();
 const { currentTab } = useViewer();
 
-// Simulation state â€” use simulator hooks
+// Simulation state Ã¢â‚¬â€ use simulator hooks
 const running = useSimulatorSelector(selectRunning);
 const dispatch = useSimulatorDispatch();
 
@@ -1059,56 +1055,56 @@ localStorage.setItem('project:' + projectId, JSON.stringify(projectData));
 
 ## Review Panel: TODO Plan Additions (Feb 2026)
 
-Expert panel review of the TODO plan â€” suggested additions:
+Expert panel review of the TODO plan Ã¢â‚¬â€ suggested additions:
 
 ### QA Engineer
-- [ ] **Investigate "object is not extensible" console error** â€” occurs when adding simulation run to store; may indicate frozen object mutation. Root cause in simulator/history store.
-- [ ] **Fix flaky E2E tests** â€” `experiments.spec.ts` (open menu, create experiment) and `wasm-worker-smoke.spec.ts` timeout at 2m. Add retries or fix selectors.
-- [ ] **Add Step Explorer E2E coverage** â€” agent state inspection not yet tested.
-- [ ] **Add E2E regression test for ActivityHistory** â€” ensure useSyncExternalStore fix doesn't regress.
+- [x] **Investigate "object is not extensible" console error** Ã¢â‚¬â€ occurs when adding simulation run to store; may indicate frozen object mutation. Root cause in simulator/history store.
+- [ ] **Fix flaky E2E tests** Ã¢â‚¬â€ `experiments.spec.ts` (open menu, create experiment) and `wasm-worker-smoke.spec.ts` timeout at 2m. Add retries or fix selectors.
+- [ ] **Add Step Explorer E2E coverage** Ã¢â‚¬â€ agent state inspection not yet tested.
+- [ ] **Add E2E regression test for ActivityHistory** Ã¢â‚¬â€ ensure useSyncExternalStore fix doesn't regress.
 
 ### Frontend Architect
-- [ ] **Audit other useSyncExternalStore usages** â€” useSimulatorSelector fix (shallow array equality) may be needed elsewhere. Check for similar getSnapshot patterns.
-- [ ] **Consider extracting shallowEqualArrays** â€” if used in multiple selectors, move to shared util.
-- [ ] **Document Monaco workaround** â€” HashCoreEditorFile uses getTextModel + null return as interim fix; full fix requires wiring subscribe to appBridge.
+- [x] **Audit other useSyncExternalStore usages** Ã¢â‚¬â€ useSimulatorSelector fix (shallow array equality) may be needed elsewhere. Check for similar getSnapshot patterns.
+- [ ] **Consider extracting shallowEqualArrays** Ã¢â‚¬â€ if used in multiple selectors, move to shared util.
+- [ ] **Document Monaco workaround** Ã¢â‚¬â€ HashCoreEditorFile uses getTextModel + null return as interim fix; full fix requires wiring subscribe to appBridge.
 
 ### WASM Expert
-- [ ] **Audit engine-web catch blocks** â€” ensure all `err.message` access uses `err instanceof Error ? err.message : String(err)`. actions.ts, wasm-runner.ts, JsCustomBehavior.ts done.
-- [ ] **Investigate "object is not extensible"** â€” may relate to Rustâ†’JS serialization producing frozen objects. Check simulation data flow.
+- [x] **Audit engine-web catch blocks** Ã¢â‚¬â€ ensure all `err.message` access uses `err instanceof Error ? err.message : String(err)`. actions.ts, wasm-runner.ts, JsCustomBehavior.ts done.
+- [x] **Investigate "object is not extensible"** Ã¢â‚¬â€ may relate to RustÃ¢â€ â€™JS serialization producing frozen objects. Check simulation data flow.
 
 ### UX Expert
-- [ ] **Empty editor UX** â€” when Monaco model missing, HashCoreEditorFile returns null; user sees blank. Consider loading skeleton or "Opening fileâ€¦" placeholder.
-- [ ] **Verify DefaultProject fallback** â€” ensure @hash/wildfires-regrowth loads correctly on first visit with empty localStorage.
+- [ ] **Empty editor UX** Ã¢â‚¬â€ when Monaco model missing, HashCoreEditorFile returns null; user sees blank. Consider loading skeleton or "Opening fileÃ¢â‚¬Â¦" placeholder.
+- [ ] **Verify DefaultProject fallback** Ã¢â‚¬â€ ensure @hash/wildfires-regrowth loads correctly on first visit with empty localStorage.
 
 ### Performance Engineer
-- [ ] **Track treeshake: false impact** â€” bundle ~53s build; re-enable when Rollup fixes or @fluentui/sanddance replaced. Add bundle size baseline.
-- [ ] **Verify manualChunks sizes** â€” vendor-monaco, vendor-plotly, etc. Ensure no single chunk exceeds reasonable limits.
+- [ ] **Track treeshake: false impact** Ã¢â‚¬â€ bundle ~53s build; re-enable when Rollup fixes or @fluentui/sanddance replaced. Add bundle size baseline.
+- [ ] **Verify manualChunks sizes** Ã¢â‚¬â€ vendor-monaco, vendor-plotly, etc. Ensure no single chunk exceeds reasonable limits.
 
 ### DevOps/CI Specialist
-- [ ] **Add smoke-only CI gate** â€” run `yarn test:e2e:smoke` (4 tests, ~11s) as required check; full E2E can be optional/scheduled.
-- [ ] **Document flaky E2E tests** â€” experiments.spec.ts, wasm-worker-smoke.spec.ts. Add to CI retry or skip until fixed.
-- [ ] **Add WASM build to CI** â€” verify wasm-pack build succeeds on Rust changes.
+- [ ] **Add smoke-only CI gate** Ã¢â‚¬â€ run `yarn test:e2e:smoke` (4 tests, ~11s) as required check; full E2E can be optional/scheduled.
+- [ ] **Document flaky E2E tests** Ã¢â‚¬â€ experiments.spec.ts, wasm-worker-smoke.spec.ts. Add to CI retry or skip until fixed.
+- [ ] **Add WASM build to CI** Ã¢â‚¬â€ verify wasm-pack build succeeds on Rust changes.
 
 ### Documentation Advocate
-- [ ] **Document useSimulatorSelector pattern** â€” shallow array equality for useSyncExternalStore. Add to Code Guidance or ARCHITECTURE.md.
-- [ ] **Update Monaco E2E blocker** â€” note interim workaround (getTextModel + null) in Known Build Issues.
+- [ ] **Document useSimulatorSelector pattern** Ã¢â‚¬â€ shallow array equality for useSyncExternalStore. Add to Code Guidance or ARCHITECTURE.md.
+- [ ] **Update Monaco E2E blocker** Ã¢â‚¬â€ note interim workaround (getTextModel + null) in Known Build Issues.
 
 ### Security Reviewer
-- [ ] **Review "object is not extensible"** â€” frozen object mutation could indicate unsafe Object.freeze usage or prototype pollution. Low priority if internal only.
+- [x] **Review "object is not extensible"** Ã¢â‚¬â€ frozen object mutation could indicate unsafe Object.freeze usage or prototype pollution. Low priority if internal only.
 
 ---
 
 ## Review Panel: PR Work Recommendations (Feb 2026)
 
-Expert panel review of commits 39ab6a5â€“2178f59 (WIP fixes, ActivityHistory, reviewer rules):
+Expert panel review of commits 39ab6a5Ã¢â‚¬â€œ2178f59 (WIP fixes, ActivityHistory, reviewer rules):
 
 ### Summary
 | Persona | Critical | Nice-to-have |
 |---------|----------|--------------|
 | QA Engineer | Fix flaky E2E; investigate object extensible | Step Explorer E2E |
 | Frontend Architect | Audit useSyncExternalStore; document Monaco workaround | Extract shallowEqual |
-| WASM Expert | Audit remaining catch blocks | â€” |
-| UX Expert | Consider editor placeholder when model missing | â€” |
+| WASM Expert | Audit remaining catch blocks | Ã¢â‚¬â€ |
+| UX Expert | Consider editor placeholder when model missing | Ã¢â‚¬â€ |
 | DevOps/CI | Smoke gate in CI; document flaky tests | WASM build in CI |
 | Documentation | Document useSimulatorSelector pattern | Update Monaco blocker text |
 
@@ -1116,8 +1112,33 @@ Expert panel review of commits 39ab6a5â€“2178f59 (WIP fixes, ActivityHistor
 All recommendations above have been added to the "Review Panel: TODO Plan Additions" section.
 
 ### Deferred
-- **HashCoreEditorFile placeholder** â€” UX improvement; not blocking. Can add when Monaco subscribe is fixed.
-- **Shallow-equal for objects** â€” useSimulatorSelector only needs arrays for historySelectors.selectAll. Objects use reference equality.
+- **HashCoreEditorFile placeholder** Ã¢â‚¬â€ UX improvement; not blocking. Can add when Monaco subscribe is fixed.
+- **Shallow-equal for objects** Ã¢â‚¬â€ useSimulatorSelector only needs arrays for historySelectors.selectAll. Objects use reference equality.
+
+---
+
+## Console Error Policy
+
+All console errors and warnings during normal operation and E2E tests should be fixed, not suppressed.
+
+**Fixed (Feb 2026)**:
+- [x] R3F deprecated props (`colorManagement`, `invalidateFrameloop`) replaced with v8 equivalents (`flat`, `frameloop`)
+- [x] Cloud API fetch errors (`projectHistory`, `searchResourceProjects`) replaced with local no-op stubs
+- [x] "object is not extensible" entity adapter mutations fixed (spread instead of Object.assign)
+- [x] engine-web catch blocks audited and fixed for `err instanceof Error` pattern
+
+**Monitoring**: The `consoleToDisk` Vite plugin writes all browser console output to `apps/sim-core/console.log`. Check this file after E2E runs for new errors.
+
+---
+
+## Follow-up Required TODOs
+
+Items that need user input or decisions before proceeding:
+
+- [ ] **Deploy.yml workflow** — needs hosting platform decision (GitHub Pages, Netlify, Vercel, Cloudflare Pages?)
+- [ ] **GitHub Integration (Phase 5)** — explicitly future/post-migration, needs OAuth flow design decisions
+- [ ] **WASM build in CI** — needs decision on whether to run `wasm-pack build` in GitHub Actions (adds Rust toolchain requirement)
+- [ ] **Build/test commands outside sim-core** — `yarn serve:core` currently triggers `yarn build:engine-web` which lives in the monorepo root scripts. Needs refactoring for standalone repo extraction.
 
 ---
 
@@ -1125,6 +1146,4 @@ All recommendations above have been added to the "Review Panel: TODO Plan Additi
 
 - [React 18 Upgrade Guide](https://react.dev/blog/2022/03/08/react-18-upgrade-guide)
 - [React Context Documentation](https://react.dev/reference/react/useContext)
-- [LangChain 0.1.x Migration](https://python.langchain.com/docs/versions/migrating_chains)
-- [OpenAI Python 1.x Migration](https://github.com/openai/openai-python/discussions/742)
 - [Vite Migration from Webpack](https://vitejs.dev/guide/migration-from-v4)

@@ -147,7 +147,7 @@ const step = async (
   runner.running = true;
 
   await runSim(runner).catch((err) => {
-    runner.runnerError = err;
+    runner.runnerError = err instanceof Error ? err : new Error(String(err));
   });
 };
 
@@ -161,7 +161,7 @@ const play = (request: RunnerRequestArgs<"play">, runner: RunnerState) => {
     runner.running = true;
 
     runSim(runner).catch((err) => {
-      runner.runnerError = err;
+      runner.runnerError = err instanceof Error ? err : new Error(String(err));
     });
   }
 };

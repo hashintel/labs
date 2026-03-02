@@ -64,19 +64,15 @@ export class JsCustomBehavior {
         );
       }
     } catch (e) {
-      /**
-       * @todo this context is lost when stringifying in WasmRequestHandler
-       *    figure out why and do something about it, or stop adding it.
-       */
-      (e as Error & { args?: unknown }).args = {
+      const err: Error & { args?: unknown } =
+        e instanceof Error ? e : new Error(String(e));
+      err.args = {
         context: {
           messages: JSON.parse(JSON.stringify(context.messages())),
           neighbors: JSON.parse(JSON.stringify(context.neighbors())),
-          // do not copy properties: it might be tens of megabytes!
-          // use the copy in the main thread.
         },
       };
-      throw e;
+      throw err;
     } finally {
       /**
        * Make sure to free memory!

@@ -65,7 +65,7 @@ function extractOriginalMessage(original: any): string {
     return original.toString();
   }
 
-  return original.message;
+  return original?.message ?? String(original);
 }
 
 function parseStack(stack: string, original: any): Trace {
