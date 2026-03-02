@@ -464,7 +464,7 @@ const MyComponent = () => {
 
 ### Monaco Editor Assessment (Feb 2026)
 
-**Current**: 0.25.2 (June 2021) | **Latest stable**: 0.52.2 | **Gap**: 27 minor versions
+**Current**: 0.52.2 (upgraded from 0.25.2) | **Latest stable**: 0.55.1 | **Gap**: 3 minor versions
 
 #### Already Implemented (Easy Wins)
 
@@ -1242,8 +1242,8 @@ Items that need user input or decisions before proceeding:
 - [ ] **CI checks for outdated dependencies** â€” implement after repo extraction
 - [ ] **Document upgrade procedures** â€” needs decisions on format and what to cover
 - [ ] **Add smoke-only CI gate** â€” .github/ out of scope; add after repo extraction
-- [ ] **Monaco Editor 0.25 -> 0.52 upgrade** — 27-version gap; enables bracket pair colorization, sticky scroll, inline completions API. See "Monaco Editor Assessment" section. Medium effort (1-2 days).
-- [ ] **AI code assistance** — Copilot-style inline completions via user-provided API keys. Requires Monaco 0.32+. See "AI Code Assistance" section. Larger effort (3-5 days).
+- [x] **Monaco Editor 0.25 -> 0.52 upgrade** — Completed. Bracket pair colorization, sticky scroll, inlay hints, and improved worker configuration all enabled. See "Monaco Editor Assessment" section.
+- [ ] **AI code assistance** — Copilot-style inline completions via user-provided API keys. Monaco 0.52 has full inline completions API support. See "AI Code Assistance" section. Larger effort (3-5 days).
 - [ ] **Fix ReactDOM.render warning** â€” third-party library (likely sanddance-explorer or react-shepherd) calling deprecated API. Requires library upgrade or replacement.
 
 ---
