@@ -226,7 +226,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
     if (editorInstance && selectedTab === TabKind.RawOutput) {
       rawOutputTextModel.setValue(serializeRawOutput(viewingStep));
 
-      (rawOutputTextModel as any).forceTokenization(
+      rawOutputTextModel.tokenization.forceTokenization(
         rawOutputTextModel.getLineCount(),
       );
     }

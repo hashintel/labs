@@ -95,7 +95,7 @@
     "line-column": "1.0.2",
     "lodash-es": "4.17.21",
     "mapbox-gl": "1.13.1",
-    "monaco-editor": "0.25.2",
+    "monaco-editor": "0.52.2",
     "monaco-themes": "0.3.3",
     "monocle-ts": "2.3.5",
     "neverthrow": "4.2.1",
@@ -143,7 +143,6 @@
     "postcss": "8.2.13",
     "sass": "^1.97.3",
     "vite": "^7.3.1",
-    "vite-plugin-monaco-editor-esm": "^2.0.2",
     "vite-plugin-top-level-await": "^1.6.0",
     "vite-plugin-wasm": "^3.5.0"
   }

@@ -2,7 +2,6 @@ import { defineConfig, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import wasm from "vite-plugin-wasm";
 import topLevelAwait from "vite-plugin-top-level-await";
-import monacoEditorPlugin from "vite-plugin-monaco-editor-esm";
 import path from "path";
 import fs from "fs";
 
@@ -98,9 +97,6 @@ export default defineConfig(({ mode }) => {
       react(),
       wasm(),
       topLevelAwait(),
-      monacoEditorPlugin({
-        languageWorkers: ["editorWorkerService", "json", "typescript"],
-      }),
     ],
     resolve: {
       alias: {
@@ -225,7 +221,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     worker: {
-      plugins: () => [wasm(), topLevelAwait()],
+      format: "es",
     },
   };
 });

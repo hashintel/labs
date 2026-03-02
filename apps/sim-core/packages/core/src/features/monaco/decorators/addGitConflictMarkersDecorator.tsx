@@ -380,7 +380,7 @@ export const addGitConflictMarkersDecorator = (
     );
     return;
   }
-  const currentLanguage = editorInstance?.getModel()?.getModeId();
+  const currentLanguage = editorInstance?.getModel()?.getLanguageId();
   if (!currentLanguage) {
     console.error(
       "addGitConflictMarkersDecorator: could not detect current language",

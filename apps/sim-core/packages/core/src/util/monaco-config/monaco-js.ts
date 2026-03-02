@@ -17,6 +17,11 @@ export function configureJsCompletions() {
     noSyntaxValidation: false,
   });
 
+  languages.typescript.javascriptDefaults.setInlayHintsOptions({
+    includeInlayParameterNameHints: "literals",
+    includeInlayFunctionLikeReturnTypeHints: true,
+  });
+
   languages.typescript.javascriptDefaults.addExtraLib(completions);
   languages.typescript.javascriptDefaults.addExtraLib(completionsHStd);
   languages.typescript.javascriptDefaults.addExtraLib(
