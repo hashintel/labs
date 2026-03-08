@@ -1,6 +1,6 @@
 {
   "name": "agentprofiles-cli",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "Manage configuration profiles for LLM agent tools",
   "keywords": [
     "cli",
