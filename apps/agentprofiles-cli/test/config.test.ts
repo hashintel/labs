@@ -187,6 +187,10 @@ describe('ConfigManager contentDir resolution', () => {
     expect(agentsDirStat.isDirectory()).toBe(true);
     await expect(fs.access(path.join(baseDir, 'agents', '.gitkeep'))).resolves.toBeUndefined();
 
+    // File entries are scaffolded so they can always be linked into the global dir
+    await expect(fs.access(path.join(baseDir, 'settings.json'))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(baseDir, 'settings.local.json'))).resolves.toBeUndefined();
+
     // No _shared directory is created for include agents
     await expect(fs.access(path.join(contentDir, 'claude', SHARED_PROFILE_SLUG))).rejects.toThrow();
   });
@@ -357,8 +361,34 @@ describe('ConfigManager symlink-based profile management', () => {
     const settingsStat = await fs.lstat(path.join(baseDir, 'settings.json'));
     expect(settingsStat.isSymbolicLink()).toBe(false);
 
+    // Missing file entries are also scaffolded so global symlinks exist immediately
+    await expect(fs.access(path.join(baseDir, 'settings.local.json'))).resolves.toBeUndefined();
+    const settingsLocalLink = await fs.lstat(path.join(globalPath, 'settings.local.json'));
+    expect(settingsLocalLink.isSymbolicLink()).toBe(true);
+
     // No _shared directory
     await expect(fs.access(path.join(contentDir, 'claude', SHARED_PROFILE_SLUG))).rejects.toThrow();
+  });
+
+  it('adoptExisting (include strategy) scaffolds missing file entries and symlinks them back', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    const baseDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await expect(fs.readFile(path.join(baseDir, 'settings.json'), 'utf-8')).resolves.toBe('');
+    await expect(fs.readFile(path.join(baseDir, 'settings.local.json'), 'utf-8')).resolves.toBe('');
+
+    for (const file of ['settings.json', 'settings.local.json']) {
+      const linkPath = path.join(globalPath, file);
+      expect((await fs.lstat(linkPath)).isSymbolicLink()).toBe(true);
+      const target = await fs.readlink(linkPath);
+      expect(path.resolve(path.dirname(linkPath), target)).toBe(path.join(baseDir, file));
+    }
   });
 
   it('adoptExisting (include strategy) with pre-existing _base creates symlinks without error', async () => {
@@ -456,6 +486,30 @@ describe('ConfigManager symlink-based profile management', () => {
     expect(entryStat.isSymbolicLink()).toBe(true);
     const entryContent = await fs.readFile(path.join(globalPath, 'settings.json'), 'utf-8');
     expect(entryContent).toBe('{"work":true}');
+  });
+
+  it('ensureIncludeProfileLayout reads the checked-in .profileinclude file from contentDir', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const includePath = path.join(contentDir, 'claude', '.profileinclude');
+    await fs.writeFile(
+      includePath,
+      '# custom include\nskills/\nsettings.json\nsettings.local.json\nREADME.md\n'
+    );
+
+    const profileDir = path.join(contentDir, 'claude', 'work');
+    await fs.mkdir(profileDir, { recursive: true });
+    await fs.writeFile(
+      path.join(profileDir, 'meta.json'),
+      JSON.stringify({ name: 'work', slug: 'work', agent: 'claude' }, null, 2)
+    );
+
+    await config.ensureIncludeProfileLayout('claude', 'work');
+
+    await expect(fs.access(path.join(profileDir, 'README.md'))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(profileDir, 'settings.json'))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(profileDir, 'skills', '.gitkeep'))).resolves.toBeUndefined();
   });
 
   it('getProfiles includes _base and excludes reserved shared directory', async () => {

@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -15,6 +16,7 @@ import { getAgentGitignore } from './gitignore.js';
 import {
   getAgentStrategy as _getAgentStrategy,
   getDefaultProfileInclude,
+  parseProfileInclude,
   resolveProfileInclude,
   type ProfileInclude,
 } from './profileinclude.js';
@@ -651,7 +653,7 @@ export class ConfigManager {
   /**
    * Ensure all allow-listed dir entries exist in a profile directory.
    * - Dir entries: create empty dir + .gitkeep if missing
-   * - File entries: skip (user/agent creates them)
+   * - File entries: create empty file if missing
    * - Creates parent directories for nested entries
    */
   async ensureIncludeProfileLayout(agent: string, profileSlug: string): Promise<void> {
@@ -672,7 +674,16 @@ export class ConfigManager {
         }
       }
     }
-    // File entries: no action — created by user or agent
+
+    const instructionFile = getProfileInstructionFile(agent);
+    for (const file of include.files) {
+      if (file === instructionFile) continue;
+      const filePath = path.join(profileDir, file);
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      if (!(await pathExists(filePath))) {
+        await fs.writeFile(filePath, '');
+      }
+    }
   }
 
   /**
@@ -776,8 +787,12 @@ export class ConfigManager {
           await fs.mkdir(profileEntryPath, { recursive: true });
           await fs.writeFile(path.join(profileEntryPath, '.gitkeep'), '');
         } else {
-          // File entry missing from both global and profile: skip (no dangling symlink)
-          continue;
+          const instructionFile = getProfileInstructionFile(agent);
+          if (entry === instructionFile) {
+            continue;
+          }
+          // File entry missing from both global and profile: scaffold empty file
+          await fs.writeFile(profileEntryPath, '');
         }
       }
       // If profileDirExists && profileEntryExists && !entryStat: profile already has it, nothing to move
@@ -1110,6 +1125,15 @@ export class ConfigManager {
    * is implemented.
    */
   getProfileInclude(agent: string): ProfileInclude | null {
+    const includePath = path.join(this.contentDir, agent, '.profileinclude');
+    try {
+      if (fsSync.existsSync(includePath)) {
+        const content = fsSync.readFileSync(includePath, 'utf-8');
+        return parseProfileInclude(content);
+      }
+    } catch {
+      // Fall back to inline defaults below.
+    }
     return resolveProfileInclude(agent);
   }
 
