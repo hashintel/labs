@@ -149,7 +149,24 @@ export async function doctorCommand() {
   // Check shared directories
   for (const [, sharedDir] of Object.entries(SHARED_DIRECTORIES)) {
     const status = await config.getSharedDirStatus(sharedDir.name);
-    if (status === 'broken') {
+    if (status === 'missing') {
+      issues.push(`Shared directory ${sharedDir.description}: missing symlink`);
+      const shouldCreate = await confirm({
+        message: `Create managed symlink for ${color.cyan(sharedDir.globalPath)}?`,
+        initialValue: true,
+      });
+      if (shouldCreate) {
+        try {
+          const result = await config.ensureSharedDirManaged(sharedDir.name);
+          if (result !== 'unchanged') {
+            fixes.push(`Created managed symlink for ${sharedDir.description}`);
+          }
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error(color.red(`  Error: ${msg}`));
+        }
+      }
+    } else if (status === 'broken') {
       issues.push(`Shared directory ${sharedDir.description}: broken symlink`);
       const shouldRemove = await confirm({
         message: `Remove broken symlink for ${color.cyan(sharedDir.globalPath)}?`,

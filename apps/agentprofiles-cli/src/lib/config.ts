@@ -60,6 +60,17 @@ async function lstatOrNull(targetPath: string) {
   }
 }
 
+async function isEmptyDirectory(targetPath: string): Promise<boolean> {
+  try {
+    const stat = await fs.lstat(targetPath);
+    if (!stat.isDirectory()) return false;
+    const entries = await fs.readdir(targetPath);
+    return entries.length === 0;
+  } catch {
+    return false;
+  }
+}
+
 function isSubpath(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
@@ -216,6 +227,11 @@ export class ConfigManager {
       const toolDir = path.join(this.contentDir, tool);
       await fs.mkdir(toolDir, { recursive: true });
       await this.ensureAgentGitignore(toolDir, tool);
+    }
+
+    // Create shared content directories inside content dir
+    for (const sharedDir of Object.values(SHARED_DIRECTORIES)) {
+      await fs.mkdir(path.join(this.contentDir, sharedDir.contentDirName), { recursive: true });
     }
   }
 
@@ -1460,6 +1476,31 @@ export class ConfigManager {
     return path.join(this.contentDir, sharedDir.contentDirName);
   }
 
+  async ensureSharedDirManaged(name: string): Promise<'created' | 'adopted' | 'unchanged'> {
+    const status = await this.getSharedDirStatus(name);
+    const globalPath = this.getSharedDirGlobalPath(name);
+    const contentPath = this.getSharedDirContentPath(name);
+
+    await fs.mkdir(contentPath, { recursive: true });
+
+    if (status === 'active') {
+      return 'unchanged';
+    }
+
+    if (status === 'missing') {
+      await fs.mkdir(path.dirname(globalPath), { recursive: true });
+      await atomicSymlink(contentPath, globalPath);
+      return 'created';
+    }
+
+    if (status === 'unmanaged') {
+      await this.adoptSharedDir(name);
+      return 'adopted';
+    }
+
+    throw new Error(`Cannot ensure shared dir '${name}': status is '${status}'`);
+  }
+
   /**
    * Check the state of a shared directory (same as getSymlinkStatus).
    */
@@ -1532,6 +1573,11 @@ export class ConfigManager {
       } else {
         throw err;
       }
+    }
+
+    if (contentPathExists && (await isEmptyDirectory(contentPath))) {
+      await fs.rm(contentPath, { recursive: true, force: true });
+      contentPathExists = false;
     }
 
     if (!contentPathExists) {
