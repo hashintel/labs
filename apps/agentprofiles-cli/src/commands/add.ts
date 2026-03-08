@@ -51,12 +51,12 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
   try {
     const profileDir = await config.createProfile(resolvedAgent, name);
     const slug = slugify(name);
+    const sourceSlug = from ? slugify(from) : BASE_PROFILE_SLUG;
 
     // Determine source profile directory
     let sourceDir: string;
     if (from) {
       // Use the specified source profile
-      const sourceSlug = slugify(from);
       sourceDir = path.join(config.getContentDir(), resolvedAgent, sourceSlug);
       try {
         await fs.access(sourceDir);
@@ -91,6 +91,10 @@ export async function addCommand(agent?: string, name?: string, from?: string) {
 
     // Scaffold include-list dir entries for include-based agents.
     await config.ensureIncludeProfileLayout(resolvedAgent, slug);
+
+    if (sourceSlug === BASE_PROFILE_SLUG) {
+      await config.ensureNewProfileDefaultInstructionLink(resolvedAgent, slug);
+    }
 
     outro(`Profile created at ${color.cyan(profileDir)}`);
 

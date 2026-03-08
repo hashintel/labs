@@ -243,6 +243,16 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
     }
   }
 
+  try {
+    await config.ensureManagedContentConventions();
+  } catch (error) {
+    p.log.warn(
+      `Could not finalize managed content conventions: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
+  }
+
   // Show summary
   let summary = color.green('Setup complete!');
   if (adoptedAgents.length > 0 || adoptedSharedDirs.length > 0) {

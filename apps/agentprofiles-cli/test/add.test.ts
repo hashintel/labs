@@ -131,6 +131,39 @@ describe('addCommand symlink preservation', () => {
     expect(newMeta.agent).toBe('claude');
   });
 
+  it('links new profiles back to _base instructions when cloning from _base', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const sharedDir = path.join(contentDir, '_agents');
+    await fs.mkdir(sharedDir, { recursive: true });
+    await fs.writeFile(path.join(sharedDir, 'AGENTS.md'), '# Shared instructions\n');
+
+    const baseDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await fs.mkdir(baseDir, { recursive: true });
+    await fs.writeFile(
+      path.join(baseDir, 'meta.json'),
+      JSON.stringify(
+        {
+          name: BASE_PROFILE_SLUG,
+          slug: BASE_PROFILE_SLUG,
+          agent: 'claude',
+          created_at: new Date().toISOString(),
+        },
+        null,
+        2
+      )
+    );
+    await fs.symlink('../../_agents/AGENTS.md', path.join(baseDir, 'CLAUDE.md'));
+
+    const { addCommand } = await import('../src/commands/add.js');
+    await addCommand('claude', 'work');
+
+    const profileInstruction = path.join(contentDir, 'claude', 'work', 'CLAUDE.md');
+    expect((await fs.lstat(profileInstruction)).isSymbolicLink()).toBe(true);
+    expect(await fs.readlink(profileInstruction)).toBe('../_base/CLAUDE.md');
+  });
+
   it('clones from arbitrary profile with --from flag', async () => {
     // Setup: Create a source profile with specific content
     const config = new ConfigManager();

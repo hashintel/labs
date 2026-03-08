@@ -398,11 +398,16 @@ describe('ConfigManager symlink-based profile management', () => {
     expect(entryContent).toBe('{"work":true}');
   });
 
-  it('getProfiles excludes reserved shared directory', async () => {
+  it('getProfiles includes _base and excludes reserved shared directory', async () => {
     const config = new ConfigManager();
     await config.ensureConfigDir();
 
     const claudeDir = path.join(contentDir, 'claude');
+    await fs.mkdir(path.join(claudeDir, BASE_PROFILE_SLUG), { recursive: true });
+    await fs.writeFile(
+      path.join(claudeDir, BASE_PROFILE_SLUG, 'meta.json'),
+      JSON.stringify({ name: '_base', slug: BASE_PROFILE_SLUG, agent: 'claude' }, null, 2)
+    );
     await fs.mkdir(path.join(claudeDir, SHARED_PROFILE_SLUG), { recursive: true });
 
     const workDir = path.join(claudeDir, 'work');
@@ -414,8 +419,64 @@ describe('ConfigManager symlink-based profile management', () => {
 
     const profiles = await config.getProfiles('claude');
 
+    expect(profiles.some((profile) => profile.slug === BASE_PROFILE_SLUG)).toBe(true);
     expect(profiles.some((profile) => profile.slug === SHARED_PROFILE_SLUG)).toBe(false);
     expect(profiles.some((profile) => profile.slug === 'work')).toBe(true);
+  });
+
+  it('ensureManagedContentConventions creates default instruction links for existing profiles', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const sharedDir = path.join(contentDir, '_agents');
+    await fs.mkdir(sharedDir, { recursive: true });
+    await fs.writeFile(path.join(sharedDir, 'AGENTS.md'), '# Shared instructions\n');
+
+    for (const profile of [BASE_PROFILE_SLUG, 'work']) {
+      const profileDir = path.join(contentDir, 'claude', profile);
+      await fs.mkdir(profileDir, { recursive: true });
+      await fs.writeFile(
+        path.join(profileDir, 'meta.json'),
+        JSON.stringify({ name: profile, slug: profile, agent: 'claude' }, null, 2)
+      );
+    }
+
+    const changes = await config.ensureManagedContentConventions();
+    expect(changes.length).toBeGreaterThan(0);
+
+    const baseInstruction = path.join(contentDir, 'claude', BASE_PROFILE_SLUG, 'CLAUDE.md');
+    const workInstruction = path.join(contentDir, 'claude', 'work', 'CLAUDE.md');
+
+    expect((await fs.lstat(baseInstruction)).isSymbolicLink()).toBe(true);
+    expect((await fs.lstat(workInstruction)).isSymbolicLink()).toBe(true);
+    expect(await fs.readlink(baseInstruction)).toBe('../../_agents/AGENTS.md');
+    expect(await fs.readlink(workInstruction)).toBe('../_base/CLAUDE.md');
+  });
+
+  it('managed content convention issues ignore unrelated broken profile symlinks', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const sharedDir = path.join(contentDir, '_agents');
+    await fs.mkdir(sharedDir, { recursive: true });
+    await fs.writeFile(path.join(sharedDir, 'AGENTS.md'), '# Shared instructions\n');
+
+    for (const profile of [BASE_PROFILE_SLUG, 'work']) {
+      const profileDir = path.join(contentDir, 'claude', profile);
+      await fs.mkdir(profileDir, { recursive: true });
+      await fs.writeFile(
+        path.join(profileDir, 'meta.json'),
+        JSON.stringify({ name: profile, slug: profile, agent: 'claude' }, null, 2)
+      );
+    }
+
+    await config.ensureManagedContentConventions();
+
+    const pluginDir = path.join(contentDir, 'claude', 'work', 'plugins');
+    await fs.mkdir(pluginDir, { recursive: true });
+    await fs.symlink('./missing-plugin', path.join(pluginDir, 'custom-plugin'));
+
+    await expect(config.getManagedContentConventionIssues()).resolves.toEqual([]);
   });
 
   it('switchProfile rejects reserved shared directory', async () => {
