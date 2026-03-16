@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import Database from 'better-sqlite3';
+import { SqlDatabase } from '../../src/lib/sql-database.js';
 import type { DbRepoRow } from '../../src/types/index.js';
 
 // Mock the config module to use in-memory database for tests
@@ -33,7 +33,7 @@ describe('Database Layer', () => {
     it('opens a database connection', async () => {
       const db = getDb();
       expect(db).toBeDefined();
-      expect(db).toBeInstanceOf(Database);
+      expect(db).toBeInstanceOf(SqlDatabase);
     });
 
     it('returns the same connection on subsequent calls', async () => {

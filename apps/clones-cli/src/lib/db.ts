@@ -1,23 +1,20 @@
-import Database from 'better-sqlite3';
+import { SqlDatabase } from './sql-database.js';
 import { getDbPath, ensureConfigDir } from './config.js';
 import type { DbRepoRow, RepoStatus } from '../types/index.js';
 
-let db: Database.Database | null = null;
+let db: SqlDatabase | null = null;
 
 /**
  * Open or create the SQLite database
- * Enables WAL mode and runs migrations
+ * Runs migrations
  */
-export async function openDb(): Promise<Database.Database> {
+export async function openDb(): Promise<SqlDatabase> {
   if (db) return db;
 
   await ensureConfigDir();
   const dbPath = getDbPath();
 
-  db = new Database(dbPath);
-
-  // Enable WAL mode for better concurrency
-  db.pragma('journal_mode = WAL');
+  db = await SqlDatabase.open(dbPath);
 
   // Run migrations
   migrate();
@@ -39,7 +36,7 @@ export function closeDb(): void {
  * Get the current database connection
  * Throws if database is not open
  */
-export function getDb(): Database.Database {
+export function getDb(): SqlDatabase {
   if (!db) {
     throw new Error('Database not open. Call openDb() first.');
   }

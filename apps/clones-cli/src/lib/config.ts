@@ -66,7 +66,7 @@ export function getSyncConcurrency(): number | undefined {
 }
 
 /**
- * Get the config directory (for registry.toml and local.json)
+ * Get the config directory (for registry.jsonl and local.json)
  * Uses CLONES_CONFIG_DIR if set, otherwise XDG_CONFIG_HOME/clones, otherwise ~/.config/clones
  */
 export function getConfigDir(): string {
@@ -79,9 +79,16 @@ export function getConfigDir(): string {
 }
 
 /**
- * Get the path to registry.toml (shared across machines)
+ * Get the path to registry.jsonl (shared across machines)
  */
 export function getRegistryPath(): string {
+  return join(getConfigDir(), 'registry.jsonl');
+}
+
+/**
+ * Get the path to the legacy registry.toml (shared across machines)
+ */
+export function getLegacyRegistryTomlPath(): string {
   return join(getConfigDir(), 'registry.toml');
 }
 

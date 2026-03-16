@@ -192,7 +192,17 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
   for (const [name, sharedDir] of Object.entries(SHARED_DIRECTORIES)) {
     const status = await config.getSharedDirStatus(name);
 
-    if (status === 'unmanaged') {
+    if (status === 'missing') {
+      try {
+        await config.ensureSharedDirManaged(name);
+        adoptedSharedDirs.push(name);
+        p.log.success(`Created ${sharedDir.description}`);
+      } catch (error) {
+        p.log.error(
+          `Failed to create ${name}: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    } else if (status === 'unmanaged') {
       const globalPath = config.getSharedDirGlobalPath(name);
       const shouldAdopt = await p.confirm({
         message: `Found existing ${sharedDir.description} at ${color.dim(globalPath)}. Adopt?`,
@@ -241,6 +251,16 @@ export async function runOnboarding(options: { isRerun?: boolean } = {}): Promis
         }`
       );
     }
+  }
+
+  try {
+    await config.ensureManagedContentConventions();
+  } catch (error) {
+    p.log.warn(
+      `Could not finalize managed content conventions: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    );
   }
 
   // Show summary

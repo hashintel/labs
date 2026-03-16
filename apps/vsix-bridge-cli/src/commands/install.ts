@@ -2,6 +2,7 @@ import * as p from '@clack/prompts';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import type { DetectedIDE, InstallAction } from '../types.js';
+import { CLI_INSTALL_TIMEOUT_MS } from '../lib/timeouts.js';
 import { detectAllIDEs, detectVSCode, getSettingsPath } from '../lib/ide-registry.js';
 import { getExtensionsWithState, getDisabledExtensions } from '../lib/extensions.js';
 import { listCachedVsix } from '../lib/vsix.js';
@@ -33,9 +34,12 @@ export interface InstallResult {
 
 function executeCliCommand(cli: string, args: string[]): CommandResult {
   try {
-    execFileSync(cli, args, { stdio: ['pipe', 'pipe', 'pipe'] });
+    execFileSync(cli, args, { stdio: ['pipe', 'pipe', 'pipe'], timeout: CLI_INSTALL_TIMEOUT_MS });
     return { ok: true, stderr: null };
   } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'killed' in err && (err as { killed: boolean }).killed) {
+      return { ok: false, stderr: `Command timed out after ${CLI_INSTALL_TIMEOUT_MS / 1000}s` };
+    }
     let stderr: string | null = null;
     if (err && typeof err === 'object' && 'stderr' in err) {
       const raw = (err as { stderr: Buffer | string }).stderr;

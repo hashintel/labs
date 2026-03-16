@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
+import { SqlDatabase } from '../../src/lib/sql-database.js';
 import { syncRegistryToDb } from '../../src/lib/db-sync.js';
 import type { Registry, RegistryEntry } from '../../src/types/index.js';
 
@@ -29,8 +29,8 @@ function createTestRegistry(entries: RegistryEntry[] = []): Registry {
   };
 }
 
-function setupDb(): Database.Database {
-  const db = new Database(':memory:');
+async function setupDb(): Promise<SqlDatabase> {
+  const db = await SqlDatabase.open(':memory:');
   db.exec(`
     CREATE TABLE repos (
       id TEXT PRIMARY KEY,
@@ -56,10 +56,10 @@ function setupDb(): Database.Database {
 }
 
 describe('syncRegistryToDb', () => {
-  let db: Database.Database;
+  let db: SqlDatabase;
 
-  beforeEach(() => {
-    db = setupDb();
+  beforeEach(async () => {
+    db = await setupDb();
   });
 
   it('inserts new repos', () => {

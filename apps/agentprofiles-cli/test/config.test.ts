@@ -105,6 +105,12 @@ describe('ConfigManager contentDir resolution', () => {
     for (const agent of Object.keys(SUPPORTED_TOOLS)) {
       await expect(fs.access(path.join(contentDir, agent))).resolves.toBeUndefined();
     }
+
+    for (const sharedDir of Object.values(SHARED_DIRECTORIES)) {
+      await expect(
+        fs.access(path.join(contentDir, sharedDir.contentDirName))
+      ).resolves.toBeUndefined();
+    }
   });
 
   it('writes claude gitignore with deny-all + include allowlist', async () => {
@@ -180,6 +186,10 @@ describe('ConfigManager contentDir resolution', () => {
     const agentsDirStat = await fs.lstat(path.join(baseDir, 'agents'));
     expect(agentsDirStat.isDirectory()).toBe(true);
     await expect(fs.access(path.join(baseDir, 'agents', '.gitkeep'))).resolves.toBeUndefined();
+
+    // File entries are scaffolded so they can always be linked into the global dir
+    await expect(fs.access(path.join(baseDir, 'settings.json'))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(baseDir, 'settings.local.json'))).resolves.toBeUndefined();
 
     // No _shared directory is created for include agents
     await expect(fs.access(path.join(contentDir, 'claude', SHARED_PROFILE_SLUG))).rejects.toThrow();
@@ -266,10 +276,64 @@ describe('ConfigManager symlink-based profile management', () => {
     // globalPath/settings.json is now a symlink pointing into _base
     const entryStat = await fs.lstat(path.join(globalPath, 'settings.json'));
     expect(entryStat.isSymbolicLink()).toBe(true);
+    const entryTarget = await fs.readlink(path.join(globalPath, 'settings.json'));
+    expect(path.isAbsolute(entryTarget)).toBe(false);
+    expect(path.resolve(path.dirname(path.join(globalPath, 'settings.json')), entryTarget)).toBe(
+      path.join(baseProfileDir, 'settings.json')
+    );
 
     // Status is active
     const status = await config.getSymlinkStatus('claude');
     expect(status).toBe('active');
+  });
+
+  it('adoptExisting (directory strategy) creates a managed global symlink to the active profile', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const globalPath = path.join(tmpHome, '.config', 'amp');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"theme":"light"}');
+
+    await config.adoptExisting('amp', BASE_PROFILE_SLUG);
+
+    const baseProfileDir = path.join(contentDir, 'amp', BASE_PROFILE_SLUG);
+    const stat = await fs.lstat(globalPath);
+    expect(stat.isSymbolicLink()).toBe(true);
+
+    const target = await fs.readlink(globalPath);
+    expect(path.resolve(path.dirname(globalPath), target)).toBe(baseProfileDir);
+    await expect(fs.readFile(path.join(globalPath, 'settings.json'), 'utf-8')).resolves.toBe(
+      '{"theme":"light"}'
+    );
+  });
+
+  it('switchProfile (directory strategy) repoints the user-level symlink to the selected profile', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const globalPath = path.join(tmpHome, '.config', 'amp');
+    await fs.mkdir(globalPath, { recursive: true });
+    await fs.writeFile(path.join(globalPath, 'settings.json'), '{"theme":"light"}');
+
+    await config.adoptExisting('amp', BASE_PROFILE_SLUG);
+
+    const workProfileDir = path.join(contentDir, 'amp', 'work');
+    await fs.mkdir(workProfileDir, { recursive: true });
+    await fs.writeFile(
+      path.join(workProfileDir, 'meta.json'),
+      JSON.stringify({ name: 'work', slug: 'work', agent: 'amp' }, null, 2)
+    );
+    await fs.writeFile(path.join(workProfileDir, 'settings.json'), '{"theme":"dark"}');
+
+    await config.switchProfile('amp', 'work');
+
+    expect((await fs.lstat(globalPath)).isSymbolicLink()).toBe(true);
+    const target = await fs.readlink(globalPath);
+    expect(path.resolve(path.dirname(globalPath), target)).toBe(workProfileDir);
+    await expect(fs.readFile(path.join(globalPath, 'settings.json'), 'utf-8')).resolves.toBe(
+      '{"theme":"dark"}'
+    );
   });
 
   it('adoptExisting (include strategy) scaffolds missing dir entries with .gitkeep', async () => {
@@ -297,8 +361,34 @@ describe('ConfigManager symlink-based profile management', () => {
     const settingsStat = await fs.lstat(path.join(baseDir, 'settings.json'));
     expect(settingsStat.isSymbolicLink()).toBe(false);
 
+    // Missing file entries are also scaffolded so global symlinks exist immediately
+    await expect(fs.access(path.join(baseDir, 'settings.local.json'))).resolves.toBeUndefined();
+    const settingsLocalLink = await fs.lstat(path.join(globalPath, 'settings.local.json'));
+    expect(settingsLocalLink.isSymbolicLink()).toBe(true);
+
     // No _shared directory
     await expect(fs.access(path.join(contentDir, 'claude', SHARED_PROFILE_SLUG))).rejects.toThrow();
+  });
+
+  it('adoptExisting (include strategy) scaffolds missing file entries and symlinks them back', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const globalPath = path.join(tmpHome, '.claude');
+    await fs.mkdir(globalPath, { recursive: true });
+
+    await config.adoptExisting('claude', BASE_PROFILE_SLUG);
+
+    const baseDir = path.join(contentDir, 'claude', BASE_PROFILE_SLUG);
+    await expect(fs.readFile(path.join(baseDir, 'settings.json'), 'utf-8')).resolves.toBe('');
+    await expect(fs.readFile(path.join(baseDir, 'settings.local.json'), 'utf-8')).resolves.toBe('');
+
+    for (const file of ['settings.json', 'settings.local.json']) {
+      const linkPath = path.join(globalPath, file);
+      expect((await fs.lstat(linkPath)).isSymbolicLink()).toBe(true);
+      const target = await fs.readlink(linkPath);
+      expect(path.resolve(path.dirname(linkPath), target)).toBe(path.join(baseDir, file));
+    }
   });
 
   it('adoptExisting (include strategy) with pre-existing _base creates symlinks without error', async () => {
@@ -398,11 +488,40 @@ describe('ConfigManager symlink-based profile management', () => {
     expect(entryContent).toBe('{"work":true}');
   });
 
-  it('getProfiles excludes reserved shared directory', async () => {
+  it('ensureIncludeProfileLayout reads the checked-in .profileinclude file from contentDir', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const includePath = path.join(contentDir, 'claude', '.profileinclude');
+    await fs.writeFile(
+      includePath,
+      '# custom include\nskills/\nsettings.json\nsettings.local.json\nREADME.md\n'
+    );
+
+    const profileDir = path.join(contentDir, 'claude', 'work');
+    await fs.mkdir(profileDir, { recursive: true });
+    await fs.writeFile(
+      path.join(profileDir, 'meta.json'),
+      JSON.stringify({ name: 'work', slug: 'work', agent: 'claude' }, null, 2)
+    );
+
+    await config.ensureIncludeProfileLayout('claude', 'work');
+
+    await expect(fs.access(path.join(profileDir, 'README.md'))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(profileDir, 'settings.json'))).resolves.toBeUndefined();
+    await expect(fs.access(path.join(profileDir, 'skills', '.gitkeep'))).resolves.toBeUndefined();
+  });
+
+  it('getProfiles includes _base and excludes reserved shared directory', async () => {
     const config = new ConfigManager();
     await config.ensureConfigDir();
 
     const claudeDir = path.join(contentDir, 'claude');
+    await fs.mkdir(path.join(claudeDir, BASE_PROFILE_SLUG), { recursive: true });
+    await fs.writeFile(
+      path.join(claudeDir, BASE_PROFILE_SLUG, 'meta.json'),
+      JSON.stringify({ name: '_base', slug: BASE_PROFILE_SLUG, agent: 'claude' }, null, 2)
+    );
     await fs.mkdir(path.join(claudeDir, SHARED_PROFILE_SLUG), { recursive: true });
 
     const workDir = path.join(claudeDir, 'work');
@@ -414,8 +533,92 @@ describe('ConfigManager symlink-based profile management', () => {
 
     const profiles = await config.getProfiles('claude');
 
+    expect(profiles.some((profile) => profile.slug === BASE_PROFILE_SLUG)).toBe(true);
     expect(profiles.some((profile) => profile.slug === SHARED_PROFILE_SLUG)).toBe(false);
     expect(profiles.some((profile) => profile.slug === 'work')).toBe(true);
+  });
+
+  it('ensureManagedContentConventions creates default instruction links for existing profiles', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const sharedDir = path.join(contentDir, '_agents');
+    await fs.mkdir(sharedDir, { recursive: true });
+    await fs.writeFile(path.join(sharedDir, 'AGENTS.md'), '# Shared instructions\n');
+
+    for (const profile of [BASE_PROFILE_SLUG, 'work']) {
+      const profileDir = path.join(contentDir, 'claude', profile);
+      await fs.mkdir(profileDir, { recursive: true });
+      await fs.writeFile(
+        path.join(profileDir, 'meta.json'),
+        JSON.stringify({ name: profile, slug: profile, agent: 'claude' }, null, 2)
+      );
+    }
+
+    const changes = await config.ensureManagedContentConventions();
+    expect(changes.length).toBeGreaterThan(0);
+
+    const baseInstruction = path.join(contentDir, 'claude', BASE_PROFILE_SLUG, 'CLAUDE.md');
+    const workInstruction = path.join(contentDir, 'claude', 'work', 'CLAUDE.md');
+
+    expect((await fs.lstat(baseInstruction)).isSymbolicLink()).toBe(true);
+    expect((await fs.lstat(workInstruction)).isSymbolicLink()).toBe(true);
+    expect(await fs.readlink(baseInstruction)).toBe('../../_agents/AGENTS.md');
+    expect(await fs.readlink(workInstruction)).toBe('../_base/CLAUDE.md');
+  });
+
+  it('ensureBaseProfileLayout creates relative default instruction links for directory-strategy agents', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    await fs.writeFile(path.join(contentDir, '_agents', 'AGENTS.md'), '# Shared instructions\n');
+
+    await config.ensureBaseProfileLayout('amp');
+
+    const instructionPath = path.join(contentDir, 'amp', BASE_PROFILE_SLUG, 'AGENTS.md');
+    expect((await fs.lstat(instructionPath)).isSymbolicLink()).toBe(true);
+    expect(await fs.readlink(instructionPath)).toBe('../../_agents/AGENTS.md');
+  });
+
+  it('managed content convention issues ignore unrelated broken profile symlinks', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const sharedDir = path.join(contentDir, '_agents');
+    await fs.mkdir(sharedDir, { recursive: true });
+    await fs.writeFile(path.join(sharedDir, 'AGENTS.md'), '# Shared instructions\n');
+
+    for (const profile of [BASE_PROFILE_SLUG, 'work']) {
+      const profileDir = path.join(contentDir, 'claude', profile);
+      await fs.mkdir(profileDir, { recursive: true });
+      await fs.writeFile(
+        path.join(profileDir, 'meta.json'),
+        JSON.stringify({ name: profile, slug: profile, agent: 'claude' }, null, 2)
+      );
+    }
+
+    await config.ensureManagedContentConventions();
+
+    const pluginDir = path.join(contentDir, 'claude', 'work', 'plugins');
+    await fs.mkdir(pluginDir, { recursive: true });
+    await fs.symlink('./missing-plugin', path.join(pluginDir, 'custom-plugin'));
+
+    await expect(config.getManagedContentConventionIssues()).resolves.toEqual([]);
+  });
+
+  it('ensureSharedDirManaged creates a managed symlink when the global shared dir is missing', async () => {
+    const config = new ConfigManager();
+    await config.ensureConfigDir();
+
+    const result = await config.ensureSharedDirManaged('agents');
+    expect(result).toBe('created');
+
+    const globalPath = path.join(tmpHome, '.agents');
+    const contentPath = path.join(contentDir, '_agents');
+    expect((await fs.lstat(globalPath)).isSymbolicLink()).toBe(true);
+
+    const target = await fs.readlink(globalPath);
+    expect(path.resolve(path.dirname(globalPath), target)).toBe(contentPath);
   });
 
   it('switchProfile rejects reserved shared directory', async () => {

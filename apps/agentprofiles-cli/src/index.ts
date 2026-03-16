@@ -29,6 +29,7 @@ const knownSubcommands = [
   'status',
   'release',
   'doctor',
+  'clear-cache',
 ];
 
 const args = process.argv.slice(2);
@@ -69,6 +70,7 @@ if (!hasSubcommand && !isHelpOrVersion) {
       status: () => import('./commands/status.js').then((m) => m.default),
       release: () => import('./commands/release.js').then((m) => m.default),
       doctor: () => import('./commands/doctor.js').then((m) => m.default),
+      'clear-cache': () => import('./commands/clear-cache.js').then((m) => m.default),
     },
   });
 

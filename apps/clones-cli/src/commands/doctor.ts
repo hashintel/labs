@@ -8,7 +8,7 @@ import {
   parseRegistryContent,
   readRegistryFile,
   readRegistry,
-  stringifyRegistryToml,
+  stringifyRegistry,
   writeRegistry,
 } from '../lib/registry.js';
 import { createEmptyLocalState, writeLocalState } from '../lib/local-state.js';
@@ -55,8 +55,8 @@ async function doctorRegistry(): Promise<void> {
   }
 
   const normalized = normalizeRegistry(raw);
-  const canonical = stringifyRegistryToml(normalized.data);
-  const needsWrite = registryFile.format === 'json' || canonical !== registryFile.content;
+  const canonical = stringifyRegistry(normalized.data);
+  const needsWrite = registryFile.format !== 'jsonl' || canonical !== registryFile.content;
 
   if (needsWrite) {
     await writeRegistry(normalized.data);

@@ -74,7 +74,12 @@ export async function scanClonesDir(): Promise<ScanResult> {
 
   for (const owner of ownerDirs) {
     // Skip hidden files and registry files
-    if (owner.startsWith('.') || owner === 'registry.json' || owner === 'registry.toml') {
+    if (
+      owner.startsWith('.') ||
+      owner === 'registry.json' ||
+      owner === 'registry.toml' ||
+      owner === 'registry.jsonl'
+    ) {
       continue;
     }
     if (!isSafePathSegment(owner)) {

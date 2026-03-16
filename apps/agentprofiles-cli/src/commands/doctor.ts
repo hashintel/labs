@@ -98,15 +98,7 @@ export async function doctorCommand() {
         });
         if (shouldCreate) {
           try {
-            await fs.mkdir(baseDir, { recursive: true });
-            const meta = {
-              name: BASE_PROFILE_SLUG,
-              slug: BASE_PROFILE_SLUG,
-              agent: agentKey,
-              description: 'Base profile (created by doctor)',
-              created_at: new Date().toISOString(),
-            };
-            await fs.writeFile(path.join(baseDir, 'meta.json'), JSON.stringify(meta, null, 2));
+            await config.ensureBaseProfileLayout(agentKey);
             fixes.push(`Created _base profile for ${agentKey}`);
           } catch (error) {
             const msg = error instanceof Error ? error.message : String(error);
@@ -157,7 +149,24 @@ export async function doctorCommand() {
   // Check shared directories
   for (const [, sharedDir] of Object.entries(SHARED_DIRECTORIES)) {
     const status = await config.getSharedDirStatus(sharedDir.name);
-    if (status === 'broken') {
+    if (status === 'missing') {
+      issues.push(`Shared directory ${sharedDir.description}: missing symlink`);
+      const shouldCreate = await confirm({
+        message: `Create managed symlink for ${color.cyan(sharedDir.globalPath)}?`,
+        initialValue: true,
+      });
+      if (shouldCreate) {
+        try {
+          const result = await config.ensureSharedDirManaged(sharedDir.name);
+          if (result !== 'unchanged') {
+            fixes.push(`Created managed symlink for ${sharedDir.description}`);
+          }
+        } catch (error) {
+          const msg = error instanceof Error ? error.message : String(error);
+          console.error(color.red(`  Error: ${msg}`));
+        }
+      }
+    } else if (status === 'broken') {
       issues.push(`Shared directory ${sharedDir.description}: broken symlink`);
       const shouldRemove = await confirm({
         message: `Remove broken symlink for ${color.cyan(sharedDir.globalPath)}?`,
@@ -176,33 +185,18 @@ export async function doctorCommand() {
     }
   }
 
-  // Recursively scan all managed profile content for broken symlinks.
-  const contentDir = config.getContentDir();
-  const brokenSymlinks = await config.findBrokenSymlinks(contentDir);
-  if (brokenSymlinks.length > 0) {
-    issues.push(`Managed content: ${brokenSymlinks.length} broken symlink(s) found`);
+  const conventionIssues = await config.getManagedContentConventionIssues();
+  if (conventionIssues.length > 0) {
+    issues.push(...conventionIssues.map((issue) => `Managed content: ${issue}`));
 
-    for (const link of brokenSymlinks) {
-      const relativePath = path.relative(contentDir, link.linkPath);
-      issues.push(`Broken symlink: ${relativePath} -> ${link.target}`);
-    }
-
-    const shouldRemove = await confirm({
-      message: `Remove ${brokenSymlinks.length} broken symlink(s) found under managed content?`,
-      initialValue: false,
+    const shouldRepair = await confirm({
+      message: 'Repair CLI-managed content conventions?',
+      initialValue: true,
     });
 
-    if (shouldRemove) {
-      for (const link of brokenSymlinks) {
-        try {
-          await fs.unlink(link.linkPath);
-          const relativePath = path.relative(contentDir, link.linkPath);
-          fixes.push(`Removed broken symlink ${relativePath}`);
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
-          console.error(color.red(`  Error removing broken symlink ${link.linkPath}: ${msg}`));
-        }
-      }
+    if (shouldRepair) {
+      const appliedFixes = await config.ensureManagedContentConventions();
+      fixes.push(...appliedFixes);
     }
   }
 
