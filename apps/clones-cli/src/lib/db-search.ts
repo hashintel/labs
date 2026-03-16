@@ -278,7 +278,8 @@ export function sanitizeFtsQuery(input: string): string {
   }
 
   const quoted = tokens.map((token, index) => {
-    return index === tokens.length - 1 ? `"${token}"*` : `"${token}"`;
+    // FTS4 prefix matching requires bare token* (not "token"*)
+    return index === tokens.length - 1 ? `${token}*` : `"${token}"`;
   });
 
   return quoted.join(' ');

@@ -72,4 +72,7 @@ function handleExit() {
 process.on('SIGINT', handleExit);
 process.on('SIGTERM', handleExit);
 
-runMain(main).then(() => process.exit(0));
+runMain(main).then(() => {
+  closeDb();
+  process.exit(0);
+});
