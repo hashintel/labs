@@ -1,3 +1,5 @@
+*.local
+*.local.*
 .DS_Store
 .awcache
 .env
