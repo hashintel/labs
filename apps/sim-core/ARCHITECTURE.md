@@ -39,8 +39,9 @@ hashintel-labs/
 │   │   │   ├── engine/              # Legacy Rust simulation engine (WASM)
 │   │   │   ├── engine-web/          # WASM bindings and TypeScript API
 │   │   │   ├── sim-engine-types/    # Shared Rust types
+│   │   │   │   └── public/
+│   │   │   │       └── example_projects/  # Sample simulation .zip files + manifest.json
 │   │   │   └── utils/               # Shared utilities
-│   │   └── example_projects/        # Sample simulation projects (.zip)
 │   ├── sim-engine/                  # Standalone Rust simulation engine
 │   │   ├── bin/                     # CLI and engine binaries
 │   │   ├── lib/                     # Core library crates

@@ -84,14 +84,127 @@ export const useExportFiles = () => {
   return exportFiles;
 };
 
+/**
+ * Parse a zip buffer into a SimulationProjectWithHcFiles.
+ * Pure function — no React context or navigation side-effects.
+ */
+export async function parseZipToProject(
+  data: ArrayBuffer | Blob,
+  projectName: string,
+  namespace = "@imported",
+): Promise<SimulationProjectWithHcFiles> {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(data);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Error unzipping ${projectName}: ${msg}`);
+  }
+
+  const projectFiles: ProjectFile[] = [];
+  const zipFiles: { name: string; contentPromise: Promise<string> }[] = [];
+
+  zip.forEach((_relativePath, zipEntry) => {
+    if (zipEntry.dir) return;
+
+    while (zipEntry.name.startsWith("/")) {
+      zipEntry.name = zipEntry.name.slice(1);
+    }
+    if (zipEntry.name.startsWith(".")) return;
+
+    let parsed: FilePathParts | null = null;
+    try {
+      parsed = fromFormatted(zipEntry.name);
+    } catch (err) {
+      console.warn("Skipping file in import:", zipEntry.name, err);
+      return;
+    }
+
+    if (parsed.dir) {
+      const permittedDirs = ["src", "data", "views", "dependencies"];
+      const candidateDir = parsed.dir.split("/")[0];
+      if (!permittedDirs.includes(candidateDir)) {
+        console.warn("Skipping directory in import", parsed.dir);
+        return;
+      }
+    }
+
+    zipFiles.push({
+      name: zipEntry.name,
+      contentPromise: zipEntry.async("text"),
+    });
+  });
+
+  for (const zipFile of zipFiles) {
+    const contents = await zipFile.contentPromise;
+    projectFiles.push({
+      name: zipFile.name.replace(/^.*[\\\/]/, ""),
+      path: zipFile.name,
+      contents,
+      ref: "1.0",
+    });
+  }
+
+  const path = slugify(projectName);
+
+  const importedProject: RemoteSimulationProject = {
+    id: path,
+    name: projectName,
+    description: "",
+    image: null,
+    thumbnail: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    canUserEdit: true,
+    pathWithNamespace: `${namespace}/${path}`,
+    namespace,
+    type: "Simulation",
+    ref: "main",
+    visibility: "public",
+    ownerType: "User",
+    forkOf: null,
+    latestRelease: null,
+    license: { id: "5dc3da73cc0cf804dcc66a51", name: "MIT License" },
+    keywords: [],
+    files: projectFiles,
+  };
+
+  try {
+    return {
+      ...importedProject,
+      config: toHcConfig(importedProject),
+      files: toHcFiles(importedProject),
+      ref: importedProject.ref ?? "main",
+    };
+  } catch (err) {
+    const msg =
+      err instanceof Error ? err.message : String(err ?? "Unknown error");
+    throw new Error(`Error parsing imported project: ${msg}`);
+  }
+}
+
+/**
+ * Fetch a zip from a URL and parse it into a project.
+ */
+export async function fetchAndParseProject(
+  url: string,
+  projectName: string,
+  namespace = "@example",
+): Promise<SimulationProjectWithHcFiles> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+  }
+  const buffer = await response.arrayBuffer();
+  return parseZipToProject(buffer, projectName, namespace);
+}
+
 export const useImportFiles = () => {
   const { addUserProject } = useUser();
   const { setProjectWithMeta: contextSetProjectWithMeta } = useProject();
 
   const importFiles = async (files: FileList) => {
-    if (files.length === 0) {
-      return;
-    }
+    if (files.length === 0) return;
     const file = files[0];
 
     if (file.type !== "application/zip") {
@@ -99,114 +212,27 @@ export const useImportFiles = () => {
     }
 
     const fileName = file.name.split(".").slice(0, -1).join(".");
-
-    let zip: JSZip;
-    try {
-      zip = await JSZip.loadAsync(file);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      throw new Error(`Error unzipping ${file.name}: ${msg}`);
-    }
-    const projectFiles: ProjectFile[] = [];
-    const zipFiles: {
-      name: string;
-      contentPromise: Promise<string>;
-    }[] = [];
-
-    zip.forEach((_relativePath, zipEntry) => {
-      if (zipEntry.dir) {
-        return;
-      }
-
-      while (zipEntry.name.startsWith("/")) {
-        zipEntry.name = zipEntry.name.slice(1);
-      }
-
-      if (zipEntry.name.startsWith(".")) {
-        return;
-      }
-
-      let parsed: FilePathParts | null = null;
-      try {
-        parsed = fromFormatted(zipEntry.name);
-      } catch (err) {
-        console.warn("Skipping file in import:", zipEntry.name, err);
-        return;
-      }
-
-      if (parsed.dir) {
-        const permittedDirs = ["src", "data", "views", "dependencies"];
-        const candidateDir = parsed.dir.split("/")[0];
-        if (!permittedDirs.includes(candidateDir)) {
-          console.warn("Skipping directory in import", parsed.dir);
-          return;
-        }
-      }
-
-      zipFiles.push({
-        name: zipEntry.name,
-        contentPromise: zipEntry.async("text"),
-      });
-    });
-
-    for (const zipFile of zipFiles) {
-      const contents = await zipFile.contentPromise;
-      projectFiles.push({
-        name: zipFile.name.replace(/^.*[\\\/]/, ""),
-        path: zipFile.name,
-        contents: contents,
-        ref: "1.0",
-      });
-    }
-
-    const namespace = "@imported";
-    const path = slugify(fileName);
-
-    const importedProject: RemoteSimulationProject = {
-      id: `${path}`,
-      name: path,
-      description: "",
-      image: null,
-      thumbnail: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      canUserEdit: true,
-      pathWithNamespace: `${namespace}/${path}`,
-      namespace: namespace,
-      type: "Simulation",
-      ref: "main",
-      visibility: "public",
-      ownerType: "User",
-      forkOf: null,
-      latestRelease: null,
-      license: {
-        id: "5dc3da73cc0cf804dcc66a51",
-        name: "MIT License",
-      },
-      keywords: [],
-      files: projectFiles,
-    };
-
-    let project: SimulationProjectWithHcFiles;
-    try {
-      project = {
-        ...importedProject,
-        config: toHcConfig(importedProject),
-        files: toHcFiles(importedProject),
-        ref: importedProject.ref ?? "main",
-      };
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : String(err ?? "Unknown error");
-      throw new Error(`Error parsing imported project: ${msg}`);
-    }
+    const project = await parseZipToProject(file, fileName);
 
     addUserProject(preparePartialSimulationProject(project));
     contextSetProjectWithMeta(project);
     navigate(urlFromProject(project), false, {}, true);
-    // TODO: save() was an async thunk that saved to server.
-    // In local-first mode, state is auto-persisted to localStorage.
   };
 
   return importFiles;
+};
+
+export const useImportProjectFromUrl = () => {
+  const { addUserProject } = useUser();
+  const { setProjectWithMeta: contextSetProjectWithMeta } = useProject();
+
+  return async (url: string, projectName: string, shouldNavigate = true) => {
+    const project = await fetchAndParseProject(url, projectName);
+
+    addUserProject(preparePartialSimulationProject(project));
+    contextSetProjectWithMeta(project);
+    if (shouldNavigate) {
+      navigate(urlFromProject(project), false, {}, true);
+    }
+  };
 };

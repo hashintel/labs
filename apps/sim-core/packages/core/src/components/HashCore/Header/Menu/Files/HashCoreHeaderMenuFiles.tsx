@@ -16,6 +16,7 @@ import { useUser } from "../../../../../features/user/UserContext";
 import {
   useExportFiles,
   useImportFiles,
+  useImportProjectFromUrl,
 } from "../../../../../features/files/hooks";
 import { useNameNewBehaviorModal } from "../../../Files/hooks";
 import { useSaveOrFork } from "../../../../../hooks/useSaveOrFork";
@@ -49,7 +50,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     onMouseEnterSubmenuItem,
     onMouseLeaveSubmenuItem,
     userProjects,
-    exampleProjects: _exampleProjects,
+    exampleProjects,
   }) => {
     const { userProfileUrl } = useUser();
     const { currentProject: project } = useProject();
@@ -63,6 +64,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
 
     const exportFiles = useExportFiles();
     const importFiles = useImportFiles();
+    const importProjectFromUrl = useImportProjectFromUrl();
     const importFileRef = useRef<HTMLInputElement | null>(null);
     const onImportClick = () => {
       importFileRef.current?.click();
@@ -80,11 +82,28 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
 
     const toListItem =
       (type: "Example" | "User") => (item: PartialSimulationProject) => {
-        const href =
-          type === "User"
-            ? mainProjectPath(item.pathWithNamespace)
-            : urlFromProject(item);
+        if (type === "Example") {
+          const slug = item.pathWithNamespace.split("/").pop() ?? "";
+          const zipUrl = `/example_projects/${slug}.zip`;
+          return (
+            <li key={item.pathWithNamespace}>
+              <Link
+                onClick={(evt) => {
+                  evt.preventDefault();
+                  clearAll();
+                  importProjectFromUrl(zipUrl, item.name).catch((err) =>
+                    console.error(`Error importing example: ${err instanceof Error ? err.message : String(err)}`),
+                  );
+                }}
+                className="HashCoreHeaderMenuProjectLink"
+              >
+                <span>{item.name}</span>
+              </Link>
+            </li>
+          );
+        }
 
+        const href = mainProjectPath(item.pathWithNamespace);
         return (
           <li key={href}>
             <Link
@@ -207,7 +226,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               </ul>
             </li>
           ) : null}
-          {/* {exampleProjects.length ? (
+          {exampleProjects.length ? (
             <li
               className="HashCoreHeaderMenu-submenu-item"
               onMouseEnter={onMouseEnterSubmenuItem}
@@ -225,7 +244,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                   .map(toListItem("Example"))}
               </ul>
             </li>
-          ) : null} */}
+          ) : null}
           <li className="HashCoreHeaderMenu-submenu-item">
             <input
               type="file"

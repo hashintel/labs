@@ -245,11 +245,16 @@ export async function assertNoRenderErrors(page: Page): Promise<void> {
 }
 
 /**
- * Built-in simulations that can be used for testing
+ * The app auto-imports the default example project on first visit to "/".
+ * Tests should navigate here and wait for the project to load.
+ *
+ * @deprecated kept for backward compat with existing tests. Use DEFAULT_URL.
  */
 export const BUILTIN_SIMULATIONS = {
-  wildfires: "/@hash/wildfires-regrowth/main",
+  wildfires: "/",
 } as const;
+
+export const DEFAULT_URL = "/";
 
 /**
  * Click a tab by its text content

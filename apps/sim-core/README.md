@@ -86,7 +86,7 @@ apps/sim-core/
 ## Usage
 
 1. **Import a simulation**: Use the import button to load a `.zip` file containing a simulation project
-2. **Browse examples**: Import example projects from the `example_projects/` folder
+2. **Browse examples**: Use **File > Example projects** to load any of the built-in examples (served from `packages/core/public/example_projects/`)
 3. **Edit code**: Modify behavior files, init files, and globals in the Monaco editor
 4. **Run simulations**: Use the step/play/pause/reset controls to execute your simulation
 5. **Analyze results**: Switch between viewer tabs to see 3D visualization, plots, raw data, etc.

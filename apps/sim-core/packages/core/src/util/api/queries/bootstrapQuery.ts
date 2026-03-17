@@ -1,17 +1,17 @@
-import { BUILTIN_SIMULATIONS } from "../../builtinSimulations";
 import { LocalStorageProject } from "../../../features/project/types";
 import { ProjectTypeName, VisibilityLevel } from "../apiTypes";
 import type { User } from "../types";
 import { getItem } from "../../../hooks/useLocalStorage";
+import { preparePartialSimulationProject } from "../../../features/project/utils";
 import {
-  getLocalStorageProject,
-  preparePartialSimulationProject,
-} from "../../../features/project/utils";
-import { setLocalStorageProject } from "../../../features/middleware/localStorage";
+  fetchExampleManifest,
+  ExampleManifestEntry,
+} from "../../exampleProjects";
 
 export const bootstrapQuery = async () => {
   try {
-    const result = bootstrapQueryResponse();
+    const manifest = await fetchExampleManifest();
+    const result = bootstrapQueryResponse(manifest);
 
     const examples = result.specialProjects.map(
       preparePartialSimulationProject,
@@ -37,17 +37,7 @@ export const bootstrapQuery = async () => {
   }
 };
 
-const bootstrapQueryResponse = () => {
-  for (const simulation of BUILTIN_SIMULATIONS) {
-    const existingProject = getLocalStorageProject(
-      simulation.pathWithNamespace,
-      simulation.ref,
-    );
-    if (!existingProject) {
-      setLocalStorageProject({ ...simulation, actions: [] });
-    }
-  }
-
+const bootstrapQueryResponse = (manifest: ExampleManifestEntry[]) => {
   const myProjects = [];
   for (const key in localStorage) {
     if (
@@ -95,15 +85,13 @@ const bootstrapQueryResponse = () => {
         results: myProjects,
       },
     },
-    specialProjects: [
-      {
-        pathWithNamespace: "@hash/wildfires-regrowth",
-        name: "Wildfires - Regrowth",
-        updatedAt: "2022-05-19T13:57:26.000Z",
-        type: ProjectTypeName.Simulation,
-        visibility: VisibilityLevel.Public,
-        forkOf: null,
-      },
-    ],
+    specialProjects: manifest.map((entry) => ({
+      pathWithNamespace: `@example/${entry.slug}`,
+      name: entry.name,
+      updatedAt: new Date().toISOString(),
+      type: (entry.type ?? "Simulation") as ProjectTypeName,
+      visibility: "public" as VisibilityLevel,
+      forkOf: null,
+    })),
   };
 };

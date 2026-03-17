@@ -1,0 +1,94 @@
+[
+  {
+    "slug": "ant-foraging",
+    "name": "Ant Foraging",
+    "file": "ant-foraging.zip",
+    "type": "Simulation",
+    "description": "A model of ants foraging for food. This is a classic agent-based modeling example that shows intelligent system behavior emerging from simple individual behavior.",
+    "default": true
+  },
+  {
+    "slug": "boids-3d",
+    "name": "Boids 3D",
+    "file": "boids-3d.zip",
+    "type": "Simulation",
+    "description": "Demonstrates the \"Boids\" flocking algorithm in both 2D and 3D space."
+  },
+  {
+    "slug": "city-infection-model",
+    "name": "City Infection Model",
+    "file": "city-infection-model.zip",
+    "type": "Simulation",
+    "description": "This model simulates how a virus spreads through a human population."
+  },
+  {
+    "slug": "connection-example",
+    "name": "Connection Example",
+    "file": "connection-example.zip",
+    "type": "Simulation",
+    "description": "The simulation demonstrates how you might handle agents linking, or connecting, while avoiding any race conditions."
+  },
+  {
+    "slug": "empty-project",
+    "name": "Empty Project",
+    "file": "empty-project.zip",
+    "type": "Simulation",
+    "description": "This is a new simulation — an empty scaffold to build from."
+  },
+  {
+    "slug": "empty-template-project",
+    "name": "Empty Template Project",
+    "file": "empty-template-project.zip",
+    "type": "Simulation",
+    "description": "This starter template shows how to use basic features of HASH."
+  },
+  {
+    "slug": "model-market",
+    "name": "Model Market",
+    "file": "model-market.zip",
+    "type": "Simulation",
+    "description": "This model contains two types of agents: shops and buyers."
+  },
+  {
+    "slug": "published-display-behaviors",
+    "name": "Published Display Behaviors",
+    "file": "published-display-behaviors.zip",
+    "type": "Simulation",
+    "description": "Separate all display elements from agents with published composable behaviors."
+  },
+  {
+    "slug": "rainfall",
+    "name": "Rainfall",
+    "file": "rainfall.zip",
+    "type": "Simulation",
+    "description": "Demonstrates the use of library behaviors to simulate rainfall and pooling behavior."
+  },
+  {
+    "slug": "rumor-mill-public-health-practices",
+    "name": "Rumor Mill: Public Health Practices",
+    "file": "rumor-mill-public-health-practices.zip",
+    "type": "Simulation",
+    "description": "This simulation models the spread of hygiene practices in a community, and their trust in a federal authority."
+  },
+  {
+    "slug": "sugarscape",
+    "name": "Sugarscape",
+    "file": "sugarscape.zip",
+    "type": "Simulation",
+    "description": "This simulation implements Epstein and Axtell's Sugarscape model."
+  },
+  {
+    "slug": "virus-mutation-and-drug-resistance",
+    "name": "Virus Mutation and Drug Resistance",
+    "file": "virus-mutation-and-drug-resistance.zip",
+    "type": "Simulation",
+    "description": "This model simulates mutation in viruses and bacteria, with vaccine introduction at a specific timestep."
+  },
+  {
+    "slug": "warehouse-logistics",
+    "name": "Warehouse Logistics",
+    "file": "warehouse-logistics.zip",
+    "type": "Simulation",
+    "description": "A basic warehouse model with shelf agents and worker agents handling item storage and retrieval."
+  }
+]
