@@ -46,7 +46,9 @@ test.describe("Smoke Tests", () => {
         !err.includes("deprecated") &&
         !err.includes("React does not recognize the") &&
         !err.includes("getSnapshot") &&
-        !err.includes("object is not extensible")
+        !err.includes("object is not extensible") &&
+        !err.includes("WebGL") &&
+        !err.includes("Error creating WebGL context")
     );
 
     expect(

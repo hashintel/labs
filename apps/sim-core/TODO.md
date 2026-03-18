@@ -2,8 +2,8 @@
 
 This document tracks outdated dependencies, deprecated patterns, and proposed upgrades for the sim-core application.
 
-**Last Updated**: February 2026  
-**Scope**: `apps/sim-core/` only ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â everything else in the monorepo is out of scope  
+**Last Updated**: May 2026  
+**Scope**: `apps/sim-core/` only — everything else in the monorepo is out of scope  
 **Extraction Goal**: sim-core will be extracted into its own repository at the end of this project  
 **Review Panel**: Expert personas (QA, Frontend, WASM, UX, DevOps, Documentation) reviewed TODO plan and PR work; recommendations captured in "Review Panel" sections below.
 
@@ -13,13 +13,14 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 
 | Area | Severity | Effort | Notes |
 |------|----------|--------|-------|
-| ~~React & React Ecosystem~~ | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â | React 18.2, @react-three/fiber 8, drei 9, Recoil removed |
-| ~~Redux Removal~~ | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â | Redux entirely removed; replaced with React Context + reduxCompat.ts |
-| ~~Feature Removal~~ | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â | Cloud/auth/sharing features removed |
-| ~~Sentry Removal~~ | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â | Sentry + FullStory analytics removed |
-| ~~Dev Tooling Cleanup~~ | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â | why-did-you-render removed |
-| ~~Build Tooling~~ | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â | Migrated to Vite 7.3 |
-| ~~Deprecated Packages~~ | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Done | ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â | All deprecated packages replaced or removed |
+| ~~React & React Ecosystem~~ | ✅ Done | — | React 18.2, @react-three/fiber 8, drei 9, Recoil removed |
+| ~~Redux Removal~~ | ✅ Done | — | Redux entirely removed; replaced with React Context + reduxCompat.ts |
+| ~~Feature Removal~~ | ✅ Done | — | Cloud/auth/sharing features removed |
+| ~~Sentry Removal~~ | ✅ Done | — | Sentry + FullStory analytics removed |
+| ~~Dev Tooling Cleanup~~ | ✅ Done | — | why-did-you-render removed |
+| ~~Build Tooling~~ | ✅ Done | — | Migrated to Vite 7.3 |
+| ~~Deprecated Packages~~ | ✅ Done | — | All deprecated packages replaced or removed |
+| ~~Example Projects~~ | ✅ Done | — | Zip-based loading from public/example_projects/; inline blob deleted |
 
 ---
 
@@ -134,6 +135,16 @@ This document tracks outdated dependencies, deprecated patterns, and proposed up
 - [x] Ensure import/export .zip works standalone
 - [x] Test fully offline operation (verified: all E2E tests run locally without cloud APIs)
 
+
+#### Phase 5b: Example Projects Architecture (Mar 2026)
+- [x] Move example .zip files from `example_projects/` to `packages/core/public/example_projects/`
+- [x] Create `manifest.json` with metadata for all 13 examples
+- [x] Delete `builtinSimulations.ts` (177-line inline data blob)
+- [x] Rewrite bootstrap to fetch manifest instead of reading inline data
+- [x] Auto-import default example zip on first visit (no hardcoded localStorage seed)
+- [x] Example projects menu fetches + imports zips on click
+- [x] Extract reusable `parseZipToProject()`, `fetchAndParseProject()`, `useImportProjectFromUrl()`
+- [x] Add E2E test coverage: `example-projects.spec.ts` (13 tests, one per example zip)
 ### Packages to Remove (Feature-Related)
 
 ```
@@ -809,16 +820,17 @@ The following features are being KEPT and are now covered by E2E tests:
 
 | File | Tests | Status |
 |------|-------|--------|
-| `smoke.spec.ts` | 4 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ All passing |
-| `simulation-run.spec.ts` | 10 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Core passing |
-| `viewer-tabs.spec.ts` | 7 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Implemented |
-| `file-management.spec.ts` | 8 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Implemented |
-| `experiments.spec.ts` | 5 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ All passing |
-| `ui-features.spec.ts` | 9 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Implemented |
-| `persistence.spec.ts` | 9 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Implemented |
-| `dependencies.spec.ts` | 7 | ÃƒÂ¢Ã…â€œÃ¢â‚¬Â¦ Implemented |
+| `smoke.spec.ts` | 4 | ✅ All passing |
+| `simulation-run.spec.ts` | 10 | ✅ Core passing |
+| `viewer-tabs.spec.ts` | 7 | ✅ Implemented |
+| `file-management.spec.ts` | 8 | ✅ Implemented |
+| `experiments.spec.ts` | 5 | ✅ All passing |
+| `ui-features.spec.ts` | 9 | ✅ Implemented |
+| `persistence.spec.ts` | 9 | ✅ Implemented |
+| `dependencies.spec.ts` | 7 | ✅ Implemented |
+| `example-projects.spec.ts` | 13 | ✅ Implemented |
 
-**Total: 66 tests covering all identified features**
+**Total: 72 tests covering all identified features** (59 in the eight original spec files + 13 in `example-projects.spec.ts`)
 
 ### ÃƒÂ°Ã…Â¸Ã…Â¸Ã‚Â¢ Low: Minor Updates Needed
 
@@ -1171,8 +1183,8 @@ Expert panel review of the TODO plan ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â sugg
 - [x] **Investigate "object is not extensible"** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â may relate to RustÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢JS serialization producing frozen objects. Check simulation data flow.
 
 ### UX Expert
-- [x] **Empty editor UX** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â when Monaco model missing, HashCoreEditorFile returns null; user sees blank. Consider loading skeleton or "Opening fileÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" placeholder.
-- [x] **Verify DefaultProject fallback** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ensure @hash/wildfires-regrowth loads correctly on first visit with empty localStorage.
+- [x] **Empty editor UX** — when Monaco model missing, HashCoreEditorFile returns null; user sees blank. Consider loading skeleton or "Opening file…" placeholder.
+- [x] **Verify DefaultProject fallback** (now auto-imports default example zip) — ensure @hash/wildfires-regrowth loads correctly on first visit with empty localStorage.
 
 ### Performance Engineer
 - [x] **Track treeshake: false impact** ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â bundle ~53s build; re-enable when Rollup fixes or @fluentui/sanddance replaced. Add bundle size baseline.
