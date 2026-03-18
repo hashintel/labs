@@ -49,11 +49,64 @@ function loadManifest(): ManifestEntry[] {
 
 const manifest = loadManifest();
 
+async function openExampleFromMenu(page: import("@playwright/test").Page, name: string) {
+  const fileMenu = page
+    .locator(SELECTORS.hashCoreHeader)
+    .locator("label, button")
+    .filter({ hasText: /^file$/i });
+  await fileMenu.first().click();
+  await page.waitForTimeout(300);
+
+  const examplesSubmenu = page.locator("label").filter({
+    hasText: /example projects/i,
+  });
+  await examplesSubmenu.first().hover();
+  await page.waitForTimeout(300);
+
+  const exampleLink = page
+    .locator(".HashCoreHeaderMenuProjectLink span")
+    .filter({ hasText: name });
+  await exampleLink.first().click();
+}
+
 test.describe("Example Projects", () => {
   test.skip(
     manifest.length === 0,
     `No examples found in ${EXAMPLE_PROJECTS_DIR}/manifest.json`,
   );
+
+  test("switching between example projects should not crash", async ({
+    page,
+  }) => {
+    const consoleErrors = setupConsoleErrorCapture(page);
+
+    await page.goto("/");
+    await waitForAppLoad(page);
+    await assertNoRenderErrors(page);
+
+    // Pick two different examples from the manifest
+    const first = manifest[0];
+    const second = manifest.find((e) => e.slug !== first.slug) ?? manifest[0];
+
+    // Load the first example from the File menu
+    await openExampleFromMenu(page, first.name);
+    await page.waitForTimeout(2000);
+    await assertNoRenderErrors(page);
+
+    // Load a different example — this is where "Data missing for run" used to crash
+    await openExampleFromMenu(page, second.name);
+    await page.waitForTimeout(2000);
+    await assertNoRenderErrors(page);
+
+    // Verify no "Data missing" errors in console
+    const dataMissingErrors = consoleErrors.filter(
+      (e) => e.includes("Data missing for run") || e.includes("data missing for experiment"),
+    );
+    expect(
+      dataMissingErrors,
+      "Switching projects must not produce 'Data missing' errors",
+    ).toHaveLength(0);
+  });
 
   test("File menu should list all example projects", async ({ page }) => {
     await page.goto("/");
