@@ -4,8 +4,7 @@
     "name": "Ant Foraging",
     "file": "ant-foraging.zip",
     "type": "Simulation",
-    "description": "A model of ants foraging for food. This is a classic agent-based modeling example that shows intelligent system behavior emerging from simple individual behavior.",
-    "default": true
+    "description": "A model of ants foraging for food. This is a classic agent-based modeling example that shows intelligent system behavior emerging from simple individual behavior."
   },
   {
     "slug": "boids-3d",
@@ -90,5 +89,13 @@
     "file": "warehouse-logistics.zip",
     "type": "Simulation",
     "description": "A basic warehouse model with shelf agents and worker agents handling item storage and retrieval."
+  },
+  {
+    "slug": "wildfires-regrowth",
+    "name": "Wildfires - Regrowth",
+    "file": "wildfires-regrowth.zip",
+    "type": "Simulation",
+    "description": "This model simulates the spread of wildfires in a regrowing forest. Trees grow over time and have a small chance of being struck by lightning.",
+    "default": true
   }
 ]

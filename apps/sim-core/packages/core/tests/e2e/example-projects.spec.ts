@@ -55,6 +55,40 @@ test.describe("Example Projects", () => {
     `No examples found in ${EXAMPLE_PROJECTS_DIR}/manifest.json`,
   );
 
+  test("File menu should list all example projects", async ({ page }) => {
+    await page.goto("/");
+    await waitForAppLoad(page);
+
+    // Open File menu
+    const fileMenu = page
+      .locator(SELECTORS.hashCoreHeader)
+      .locator("label, button")
+      .filter({ hasText: /^file$/i });
+    await fileMenu.first().click();
+    await page.waitForTimeout(300);
+
+    // Hover over "Example projects" submenu to open it
+    const examplesSubmenu = page.locator("label").filter({
+      hasText: /example projects/i,
+    });
+    await examplesSubmenu.first().hover();
+    await page.waitForTimeout(300);
+
+    // Collect all example project names from the menu
+    const menuLinks = page.locator(".HashCoreHeaderMenuProjectLink span");
+    const linkTexts = await menuLinks.allTextContents();
+
+    // Verify each manifest entry is listed
+    for (const entry of manifest) {
+      expect(
+        linkTexts,
+        `Menu should include "${entry.name}"`,
+      ).toContain(entry.name);
+    }
+
+    expect(linkTexts.length).toBeGreaterThanOrEqual(manifest.length);
+  });
+
   for (const entry of manifest) {
     test(`should load and step: ${entry.slug}`, async ({ page }) => {
       const consoleErrors = setupConsoleErrorCapture(page);
