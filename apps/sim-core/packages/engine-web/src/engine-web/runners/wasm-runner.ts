@@ -3,6 +3,7 @@ import { DatasetCache, HashPyodide, SimulationComponents } from "../simulation";
 import { RawManifest, ReadyHandler, RunnerRequest, RunnerStatus } from "../";
 import { StateIteratorWrapper } from "../../../wasm/bundler";
 import { runnerActions as actions } from "./actions";
+import { toError } from "./toError";
 
 export interface RunnerState {
   // Runner controls
@@ -81,7 +82,7 @@ export const WasmRequestHandler = async (
     }
   } catch (err) {
     console.error("Failed handling request", err);
-    runner.runnerError = err instanceof Error ? err : new Error(String(err));
+    runner.runnerError = toError(err);
   }
 
   if (runner.runnerError) {

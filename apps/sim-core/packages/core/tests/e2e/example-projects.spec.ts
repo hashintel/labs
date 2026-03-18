@@ -180,13 +180,53 @@ test.describe("Example Projects", () => {
         `Loading ${entry.slug} must not produce import errors`,
       ).toHaveLength(0);
 
-      // Try stepping the simulation
-      try {
-        await stepSimulation(page);
+      // Run 5 simulation steps and verify no errors after each
+      for (let step = 1; step <= 5; step++) {
+        const stepBtn = page.locator(SELECTORS.stepButton);
+
+        // Wait up to 10s for the step button to become enabled.
+        // If it doesn't, capture the simulation error for diagnostics.
+        try {
+          await expect(stepBtn).toBeEnabled({ timeout: 10000 });
+        } catch {
+          // Grab the error text from the app's error console bar
+          const errorBar = page.locator(".ErrorConsole, .UserAlerts, [class*=error], [class*=Error]").first();
+          const errorText = await errorBar.textContent().catch(() => "");
+
+          const allErrors = consoleErrors.filter(
+            (e) => !e.includes("WebGL") && !e.includes("THREE."),
+          );
+          const errDetail = [
+            errorText ? `UI error bar: ${errorText}` : "",
+            allErrors.length ? `Console (${allErrors.length}): ${allErrors.join(" | ")}` : "",
+          ].filter(Boolean).join("\n") || "(no errors captured)";
+
+          throw new Error(
+            `${entry.slug}: step button disabled before step ${step}. ` +
+              `Simulation likely errored:\n${errDetail}`,
+          );
+        }
+        await stepBtn.click();
+        await page.waitForTimeout(1000);
         await assertNoRenderErrors(page);
-      } catch {
-        // Stepping is best-effort for some examples that need special init
       }
+
+      // Verify no critical console errors occurred during simulation
+      const criticalErrors = consoleErrors.filter(
+        (e) =>
+          !e.includes("WebGL") &&
+          !e.includes("Error creating WebGL context") &&
+          !e.includes("THREE.") &&
+          !e.includes("404") &&
+          (e.includes("Error") ||
+            e.includes("error") ||
+            e.includes("Uncaught") ||
+            e.includes("unhandled")),
+      );
+      expect(
+        criticalErrors,
+        `Running ${entry.slug} for 5 steps must not produce critical errors`,
+      ).toHaveLength(0);
     });
   }
 });

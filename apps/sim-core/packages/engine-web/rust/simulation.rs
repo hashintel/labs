@@ -1,7 +1,7 @@
 use crate::behavior::{behavior_from_js_behavior, JsCustomBehaviors};
 use crate::messagehandler::{run_message_handler, JsMessageHandlers};
 
-use crate::util::{err_to_jsvalue, to_js_json};
+use crate::util::{err_to_jsvalue, from_js_json, to_js_json};
 use futures::future::FutureExt;
 use futures::stream::{Stream, StreamExt};
 use hashintel_core::prelude::*;
@@ -20,8 +20,7 @@ pub fn start_simulation(
     js_custom_behaviors: &JsCustomBehaviors,
     js_message_handlers: &JsMessageHandlers,
 ) -> Result<StateIteratorWrapper, JsValue> {
-    let initial_state: SimulationState =
-        serde_wasm_bindgen::from_value(initial_state.clone()).map_err(crate::util::serde_wasm_err_to_jsvalue)?;
+    let initial_state: SimulationState = from_js_json(initial_state)?;
 
     // Create a place in memory to store our behavior lambdas
     let mut custom_behaviors = vec![];

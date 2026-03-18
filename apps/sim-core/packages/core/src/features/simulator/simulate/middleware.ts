@@ -34,9 +34,18 @@ export const simulatorMiddleware: Middleware<{}, SimulatorRootState> = (
     dispatch(simulationRunUpdated(message));
 
     if (message.runnerError) {
+      const rawErr = message.runnerError;
+      const errMsg =
+        typeof rawErr === "string"
+          ? rawErr
+          : rawErr instanceof Error
+            ? rawErr.message
+            : typeof rawErr.message === "string"
+              ? rawErr.message
+              : JSON.stringify(rawErr);
       appBridge.dispatchUserAlert({
         type: "error",
-        message: message.runnerError.message ?? "error",
+        message: errMsg || "unknown simulation error",
         context: "",
         timestamp: Date.now(),
         simulationId: message.simulationRunId,
