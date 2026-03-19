@@ -108,6 +108,72 @@ test.describe("Example Projects", () => {
     ).toHaveLength(0);
   });
 
+  test("editor content should update when switching example projects", async ({
+    page,
+  }) => {
+    const consoleErrors = setupConsoleErrorCapture(page);
+
+    await page.goto("/");
+    await waitForAppLoad(page);
+
+    const first = manifest[0];
+    const second = manifest.find((e) => e.slug !== first.slug) ?? manifest[0];
+    test.skip(first.slug === second.slug, "Need at least 2 examples");
+
+    // Load the first example
+    await openExampleFromMenu(page, first.name);
+    await page.waitForTimeout(2000);
+    await assertNoRenderErrors(page);
+
+    // Click the description tab (README.md) to ensure it's active
+    const descTab = page.locator(".react-tabs__tab.tab-description");
+    if (await descTab.count()) {
+      await descTab.first().click();
+      await page.waitForTimeout(500);
+    }
+
+    // Read the visible text rendered inside the Monaco editor
+    const getEditorVisibleText = async () => {
+      return page.evaluate(() => {
+        const viewLines = document.querySelector(".monaco-editor .view-lines");
+        return viewLines?.textContent ?? "";
+      });
+    };
+
+    const firstContent = await getEditorVisibleText();
+    expect(firstContent.length, "First project's README should have visible content").toBeGreaterThan(0);
+
+    // Load a different example
+    await openExampleFromMenu(page, second.name);
+    await page.waitForTimeout(2000);
+    await assertNoRenderErrors(page);
+
+    // Click the description tab again
+    if (await descTab.count()) {
+      await descTab.first().click();
+      await page.waitForTimeout(500);
+    }
+
+    // The visible text should have changed to the second project's content
+    const secondContent = await getEditorVisibleText();
+
+    expect(
+      secondContent,
+      `Editor should show ${second.name}'s content, not ${first.name}'s`,
+    ).not.toEqual(firstContent);
+    expect(secondContent.length, "Second project's README should have content").toBeGreaterThan(0);
+
+    // No critical errors
+    const criticalErrors = consoleErrors.filter(
+      (e) =>
+        !e.includes("WebGL") &&
+        !e.includes("THREE.") &&
+        !e.includes("404") &&
+        (e.includes("Error") || e.includes("Uncaught")),
+    );
+    expect(criticalErrors).toHaveLength(0);
+  });
+
   test("File menu should list all example projects", async ({ page }) => {
     await page.goto("/");
     await waitForAppLoad(page);
