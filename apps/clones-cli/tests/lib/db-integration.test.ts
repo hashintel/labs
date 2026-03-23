@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import Database from 'better-sqlite3';
+import { SqlDatabase } from '../../src/lib/sql-database.js';
 import { syncRegistryToDb } from '../../src/lib/db-sync.js';
 import { ensureSearchTables, indexReadme, searchReadmes } from '../../src/lib/db-search.js';
 import { chunkText, hashContent } from '../../src/lib/readme.js';
@@ -10,10 +10,10 @@ import type { Registry, RegistryEntry } from '../../src/types/index.js';
  * Verifies that the three modules work correctly when integrated
  */
 describe('db-sync + db-search integration', () => {
-  let db: Database.Database;
+  let db: SqlDatabase;
 
-  beforeEach(() => {
-    db = new Database(':memory:');
+  beforeEach(async () => {
+    db = await SqlDatabase.open(':memory:');
 
     // Create repos table using the exact schema from db.ts
     db.exec(`

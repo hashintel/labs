@@ -5,6 +5,7 @@ import { Readable } from 'node:stream';
 import { ensureDir, getVsixCacheDir } from './storage.js';
 import { getVsixFilename } from './marketplace.js';
 import type { SyncedVSIX } from '../types.js';
+import { FETCH_VSIX_TIMEOUT_MS } from './timeouts.js';
 
 export async function downloadVsix(url: string, destPath: string): Promise<boolean> {
   if (existsSync(destPath)) {
@@ -12,7 +13,7 @@ export async function downloadVsix(url: string, destPath: string): Promise<boole
   }
 
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_VSIX_TIMEOUT_MS) });
     if (!response.ok || !response.body) {
       return false;
     }
@@ -22,6 +23,9 @@ export async function downloadVsix(url: string, destPath: string): Promise<boole
     await pipeline(nodeStream, fileStream);
     return true;
   } catch {
+    if (existsSync(destPath)) {
+      unlinkSync(destPath);
+    }
     return false;
   }
 }

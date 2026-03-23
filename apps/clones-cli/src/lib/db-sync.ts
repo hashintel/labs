@@ -1,12 +1,12 @@
-import type Database from 'better-sqlite3';
+import type { SqlDatabase } from './sql-database.js';
 import type { Registry } from '../types/index.js';
 
 /**
  * Sync registry entries to the SQLite database.
  * Upserts all repos by id, removes rows not in registry.
- * This is a one-way sync: registry.toml is the source of truth.
+ * This is a one-way sync: registry is the source of truth.
  */
-export function syncRegistryToDb(db: Database.Database, registry: Registry): void {
+export function syncRegistryToDb(db: SqlDatabase, registry: Registry): void {
   const stmt = db.prepare(`
     INSERT INTO repos (
       id, host, owner, repo, cloneUrl, description, tags,

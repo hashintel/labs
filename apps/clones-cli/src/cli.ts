@@ -2,6 +2,7 @@ import { defineCommand, runMain } from 'citty';
 import { createRequire } from 'node:module';
 import { renderBanner, renderInfo } from './lib/banner.js';
 import { hasSubcommandArg } from './lib/cli-args.js';
+import { closeDb } from './lib/db.js';
 import { checkForUpdates } from './lib/update.js';
 
 const require = createRequire(import.meta.url);
@@ -59,4 +60,19 @@ if (!isInitCommand && !isHelpOrVersion) {
   await ensureInitialized();
 }
 
-runMain(main).then(() => process.exit(0));
+function handleExit() {
+  try {
+    closeDb();
+  } catch {
+    // Best-effort flush on exit
+  }
+  process.exit(0);
+}
+
+process.on('SIGINT', handleExit);
+process.on('SIGTERM', handleExit);
+
+runMain(main).then(() => {
+  closeDb();
+  process.exit(0);
+});

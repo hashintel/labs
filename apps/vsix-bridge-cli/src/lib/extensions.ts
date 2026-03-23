@@ -2,12 +2,14 @@ import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import type { Extension } from '../types.js';
 import { getSettingsPath } from './ide-registry.js';
+import { CLI_LIST_EXTENSIONS_TIMEOUT_MS } from './timeouts.js';
 
 export function listInstalledExtensions(cli: string): Extension[] {
   try {
     const output = execSync(`${cli} --list-extensions --show-versions`, {
       encoding: 'utf-8',
       stdio: ['pipe', 'pipe', 'pipe'],
+      timeout: CLI_LIST_EXTENSIONS_TIMEOUT_MS,
     });
 
     const extensions: Extension[] = [];
@@ -23,7 +25,12 @@ export function listInstalledExtensions(cli: string): Extension[] {
       }
     }
     return extensions;
-  } catch {
+  } catch (err: unknown) {
+    if (err && typeof err === 'object' && 'killed' in err && (err as { killed: boolean }).killed) {
+      console.warn(
+        `Warning: '${cli} --list-extensions' timed out after ${CLI_LIST_EXTENSIONS_TIMEOUT_MS / 1000}s`
+      );
+    }
     return [];
   }
 }

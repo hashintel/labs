@@ -1,0 +1,15 @@
+{
+  "name": "pragma",
+  "version": "0.1.0",
+  "description": "Tracer-bullet development methodology — invariant-driven planning, slicing, and delivery skills for Claude Code",
+  "author": {
+    "name": "lunelson"
+  },
+  "keywords": [
+    "methodology",
+    "tracer-bullet",
+    "invariant-threshold",
+    "planning",
+    "development"
+  ]
+}

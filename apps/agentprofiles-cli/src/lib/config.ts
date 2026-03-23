@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import fsSync from 'node:fs';
 import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -15,6 +16,7 @@ import { getAgentGitignore } from './gitignore.js';
 import {
   getAgentStrategy as _getAgentStrategy,
   getDefaultProfileInclude,
+  parseProfileInclude,
   resolveProfileInclude,
   type ProfileInclude,
 } from './profileinclude.js';
@@ -25,6 +27,11 @@ import {
   moveDirectory,
   copyDirectory,
 } from './symlink.js';
+import {
+  getProfileInstructionFile,
+  renderContentDirAgentsMd,
+  SHARED_AGENT_INSTRUCTIONS_FILE,
+} from './contentconventions.js';
 
 // Resolution order for contentDir:
 // 1. AGENTPROFILES_CONTENT_DIR environment variable
@@ -47,9 +54,32 @@ async function pathExists(targetPath: string): Promise<boolean> {
   }
 }
 
+async function lstatOrNull(targetPath: string) {
+  try {
+    return await fs.lstat(targetPath);
+  } catch {
+    return null;
+  }
+}
+
+async function isEmptyDirectory(targetPath: string): Promise<boolean> {
+  try {
+    const stat = await fs.lstat(targetPath);
+    if (!stat.isDirectory()) return false;
+    const entries = await fs.readdir(targetPath);
+    return entries.length === 0;
+  } catch {
+    return false;
+  }
+}
+
 function isSubpath(parent: string, child: string): boolean {
   const relative = path.relative(parent, child);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function resolveLinkTarget(linkPath: string, target: string): string {
+  return path.isAbsolute(target) ? target : path.resolve(path.dirname(linkPath), target);
 }
 
 async function copyPathDereferenced(sourcePath: string, destinationPath: string): Promise<void> {
@@ -200,6 +230,11 @@ export class ConfigManager {
       await fs.mkdir(toolDir, { recursive: true });
       await this.ensureAgentGitignore(toolDir, tool);
     }
+
+    // Create shared content directories inside content dir
+    for (const sharedDir of Object.values(SHARED_DIRECTORIES)) {
+      await fs.mkdir(path.join(this.contentDir, sharedDir.contentDirName), { recursive: true });
+    }
   }
 
   private async ensureAgentGitignore(agentDir: string, agent: string) {
@@ -215,6 +250,269 @@ export class ConfigManager {
     await fs.writeFile(gitignorePath, content);
   }
 
+  private getContentGuidePath(): string {
+    return path.join(this.contentDir, 'AGENTS.md');
+  }
+
+  private getSharedAgentInstructionsPath(): string {
+    return path.join(this.getSharedDirContentPath('agents'), SHARED_AGENT_INSTRUCTIONS_FILE);
+  }
+
+  private getProfileInstructionPath(agent: string, profileSlug: string): string | null {
+    const instructionFile = getProfileInstructionFile(agent);
+    if (!instructionFile) return null;
+    return path.join(this.contentDir, agent, profileSlug, instructionFile);
+  }
+
+  private async writeContentGuide(): Promise<boolean> {
+    const contentDirName = path.basename(this.contentDir) || 'profiles';
+    const expected = renderContentDirAgentsMd(contentDirName, this.tools, SHARED_DIRECTORIES);
+    const guidePath = this.getContentGuidePath();
+
+    let current: string | null = null;
+    try {
+      current = await fs.readFile(guidePath, 'utf-8');
+    } catch {
+      // Missing file — will be created below.
+    }
+
+    if (current === expected) {
+      return false;
+    }
+
+    await fs.writeFile(guidePath, expected);
+    return true;
+  }
+
+  private async ensureSharedAgentInstructionsFile(): Promise<boolean> {
+    const sharedDirPath = this.getSharedDirContentPath('agents');
+    if (!(await pathExists(sharedDirPath))) {
+      return false;
+    }
+
+    const instructionsPath = this.getSharedAgentInstructionsPath();
+    if ((await lstatOrNull(instructionsPath)) !== null) {
+      return false;
+    }
+
+    await fs.writeFile(instructionsPath, '');
+    return true;
+  }
+
+  private async applyDefaultProfileInstructionLink(
+    agent: string,
+    profileSlug: string,
+    options: { force?: boolean } = {}
+  ): Promise<'created' | 'repaired' | 'unchanged' | 'skipped'> {
+    const instructionPath = this.getProfileInstructionPath(agent, profileSlug);
+    if (!instructionPath) return 'skipped';
+
+    const profileDir = path.join(this.contentDir, agent, profileSlug);
+    if (!(await pathExists(profileDir))) return 'skipped';
+
+    const sharedInstructionsPath = this.getSharedAgentInstructionsPath();
+    const baseInstructionPath = this.getProfileInstructionPath(agent, BASE_PROFILE_SLUG);
+
+    let desiredTargetPath: string | null;
+    if (profileSlug === BASE_PROFILE_SLUG) {
+      desiredTargetPath = (await pathExists(sharedInstructionsPath))
+        ? sharedInstructionsPath
+        : null;
+    } else {
+      if (!baseInstructionPath) return 'skipped';
+      const baseProfileDir = path.join(this.contentDir, agent, BASE_PROFILE_SLUG);
+      if (!(await pathExists(baseProfileDir))) return 'skipped';
+      if (
+        (await lstatOrNull(baseInstructionPath)) === null &&
+        !(await pathExists(baseInstructionPath))
+      ) {
+        await this.applyDefaultProfileInstructionLink(agent, BASE_PROFILE_SLUG);
+      }
+      if (
+        (await lstatOrNull(baseInstructionPath)) === null &&
+        !(await pathExists(baseInstructionPath))
+      ) {
+        return 'skipped';
+      }
+      desiredTargetPath = baseInstructionPath;
+    }
+
+    if (!desiredTargetPath) return 'skipped';
+
+    const instructionStat = await lstatOrNull(instructionPath);
+
+    if (options.force) {
+      if (instructionStat?.isDirectory()) {
+        return 'skipped';
+      }
+      if (instructionStat) {
+        await fs.unlink(instructionPath);
+      }
+      const relTarget = path.relative(path.dirname(instructionPath), desiredTargetPath);
+      await fs.symlink(relTarget, instructionPath);
+      return 'repaired';
+    }
+
+    if (!instructionStat) {
+      const relTarget = path.relative(path.dirname(instructionPath), desiredTargetPath);
+      await fs.symlink(relTarget, instructionPath);
+      return 'created';
+    }
+
+    if (!instructionStat.isSymbolicLink()) {
+      return 'skipped';
+    }
+
+    try {
+      await fs.access(instructionPath);
+      return 'unchanged';
+    } catch {
+      const target = await fs.readlink(instructionPath);
+      const resolvedTarget = resolveLinkTarget(instructionPath, target);
+      const acceptableTargets =
+        profileSlug === BASE_PROFILE_SLUG
+          ? [sharedInstructionsPath]
+          : [desiredTargetPath, sharedInstructionsPath];
+      const isCliOwnedLink = acceptableTargets.some(
+        (candidate) => path.resolve(candidate) === path.resolve(resolvedTarget)
+      );
+
+      if (!isCliOwnedLink) {
+        return 'skipped';
+      }
+
+      await fs.unlink(instructionPath);
+      const relTarget = path.relative(path.dirname(instructionPath), desiredTargetPath);
+      await fs.symlink(relTarget, instructionPath);
+      return 'repaired';
+    }
+  }
+
+  private async getProfileInstructionConventionIssue(
+    agent: string,
+    profileSlug: string
+  ): Promise<string | null> {
+    const instructionPath = this.getProfileInstructionPath(agent, profileSlug);
+    if (!instructionPath) return null;
+
+    const sharedInstructionsPath = this.getSharedAgentInstructionsPath();
+    const baseInstructionPath = this.getProfileInstructionPath(agent, BASE_PROFILE_SLUG);
+    const instructionStat = await lstatOrNull(instructionPath);
+
+    if (!instructionStat) {
+      if (profileSlug === BASE_PROFILE_SLUG) {
+        if (await pathExists(sharedInstructionsPath)) {
+          return `${agent}/${profileSlug}: missing default ${path.basename(instructionPath)}`;
+        }
+        return null;
+      }
+
+      if (!baseInstructionPath) return null;
+      const baseStat = await lstatOrNull(baseInstructionPath);
+      if (baseStat || (await pathExists(baseInstructionPath))) {
+        return `${agent}/${profileSlug}: missing default ${path.basename(instructionPath)}`;
+      }
+      return null;
+    }
+
+    if (!instructionStat.isSymbolicLink()) {
+      return null;
+    }
+
+    try {
+      await fs.access(instructionPath);
+      return null;
+    } catch {
+      const target = await fs.readlink(instructionPath);
+      const resolvedTarget = resolveLinkTarget(instructionPath, target);
+      const acceptableTargets =
+        profileSlug === BASE_PROFILE_SLUG
+          ? [sharedInstructionsPath]
+          : [baseInstructionPath, sharedInstructionsPath].filter((candidate): candidate is string =>
+              Boolean(candidate)
+            );
+
+      const isCliOwnedLink = acceptableTargets.some(
+        (candidate) => path.resolve(candidate) === path.resolve(resolvedTarget)
+      );
+
+      if (!isCliOwnedLink) {
+        return null;
+      }
+
+      return `${agent}/${profileSlug}: broken default ${path.basename(instructionPath)}`;
+    }
+  }
+
+  async getManagedContentConventionIssues(): Promise<string[]> {
+    const issues: string[] = [];
+    const guidePath = this.getContentGuidePath();
+    const contentDirName = path.basename(this.contentDir) || 'profiles';
+    const expectedGuide = renderContentDirAgentsMd(contentDirName, this.tools, SHARED_DIRECTORIES);
+
+    let currentGuide: string | null = null;
+    try {
+      currentGuide = await fs.readFile(guidePath, 'utf-8');
+    } catch {
+      // Missing guide is handled below.
+    }
+
+    if (currentGuide !== expectedGuide) {
+      issues.push('content guide AGENTS.md is missing or outdated');
+    }
+
+    const sharedDirPath = this.getSharedDirContentPath('agents');
+    const sharedInstructionsPath = this.getSharedAgentInstructionsPath();
+    if ((await pathExists(sharedDirPath)) && (await lstatOrNull(sharedInstructionsPath)) === null) {
+      issues.push('_agents/AGENTS.md is missing');
+    }
+
+    for (const agent of Object.keys(this.tools)) {
+      const profiles = await this.getProfiles(agent);
+      for (const profile of profiles) {
+        const issue = await this.getProfileInstructionConventionIssue(agent, profile.slug);
+        if (issue) {
+          issues.push(issue);
+        }
+      }
+    }
+
+    return issues;
+  }
+
+  async ensureManagedContentConventions(): Promise<string[]> {
+    const changes: string[] = [];
+
+    if (await this.writeContentGuide()) {
+      changes.push('Updated content guide AGENTS.md');
+    }
+
+    if (await this.ensureSharedAgentInstructionsFile()) {
+      changes.push('Created _agents/AGENTS.md');
+    }
+
+    for (const agent of Object.keys(this.tools)) {
+      const profiles = await this.getProfiles(agent);
+      for (const profile of profiles) {
+        const result = await this.applyDefaultProfileInstructionLink(agent, profile.slug);
+        const instructionPath = this.getProfileInstructionPath(agent, profile.slug);
+        if (!instructionPath) continue;
+        const label = `${agent}/${profile.slug}/${path.basename(instructionPath)}`;
+        if (result === 'created') {
+          changes.push(`Created ${label}`);
+        } else if (result === 'repaired') {
+          changes.push(`Repaired ${label}`);
+        }
+      }
+    }
+
+    return changes;
+  }
+
+  async ensureNewProfileDefaultInstructionLink(agent: string, profileSlug: string): Promise<void> {
+    await this.applyDefaultProfileInstructionLink(agent, profileSlug, { force: true });
+  }
+
   async getProfiles(agent: string): Promise<Meta[]> {
     const agentDir = path.join(this.contentDir, agent);
     try {
@@ -225,7 +523,7 @@ export class ConfigManager {
         if (!entry.isDirectory()) continue;
         const dirName = entry.name;
         if (dirName === SHARED_PROFILE_SLUG) continue;
-        if (validateSlug(dirName) !== null) continue;
+        if (dirName !== BASE_PROFILE_SLUG && validateSlug(dirName) !== null) continue;
 
         const metaPath = path.join(agentDir, dirName, 'meta.json');
         let meta: Partial<Meta> = {};
@@ -325,7 +623,7 @@ export class ConfigManager {
       await this.ensureIncludeAgentFiles(agent);
       await this.ensureIncludeProfileLayout(agent, BASE_PROFILE_SLUG);
     }
-    // Directory-strategy agents don't need additional layout scaffolding
+    await this.applyDefaultProfileInstructionLink(agent, BASE_PROFILE_SLUG);
   }
 
   // ============================================================================
@@ -355,7 +653,7 @@ export class ConfigManager {
   /**
    * Ensure all allow-listed dir entries exist in a profile directory.
    * - Dir entries: create empty dir + .gitkeep if missing
-   * - File entries: skip (user/agent creates them)
+   * - File entries: create empty file if missing
    * - Creates parent directories for nested entries
    */
   async ensureIncludeProfileLayout(agent: string, profileSlug: string): Promise<void> {
@@ -376,7 +674,16 @@ export class ConfigManager {
         }
       }
     }
-    // File entries: no action — created by user or agent
+
+    const instructionFile = getProfileInstructionFile(agent);
+    for (const file of include.files) {
+      if (file === instructionFile) continue;
+      const filePath = path.join(profileDir, file);
+      await fs.mkdir(path.dirname(filePath), { recursive: true });
+      if (!(await pathExists(filePath))) {
+        await fs.writeFile(filePath, '');
+      }
+    }
   }
 
   /**
@@ -480,8 +787,12 @@ export class ConfigManager {
           await fs.mkdir(profileEntryPath, { recursive: true });
           await fs.writeFile(path.join(profileEntryPath, '.gitkeep'), '');
         } else {
-          // File entry missing from both global and profile: skip (no dangling symlink)
-          continue;
+          const instructionFile = getProfileInstructionFile(agent);
+          if (entry === instructionFile) {
+            continue;
+          }
+          // File entry missing from both global and profile: scaffold empty file
+          await fs.writeFile(profileEntryPath, '');
         }
       }
       // If profileDirExists && profileEntryExists && !entryStat: profile already has it, nothing to move
@@ -814,6 +1125,15 @@ export class ConfigManager {
    * is implemented.
    */
   getProfileInclude(agent: string): ProfileInclude | null {
+    const includePath = path.join(this.contentDir, agent, '.profileinclude');
+    try {
+      if (fsSync.existsSync(includePath)) {
+        const content = fsSync.readFileSync(includePath, 'utf-8');
+        return parseProfileInclude(content);
+      }
+    } catch {
+      // Fall back to inline defaults below.
+    }
     return resolveProfileInclude(agent);
   }
 
@@ -1180,6 +1500,31 @@ export class ConfigManager {
     return path.join(this.contentDir, sharedDir.contentDirName);
   }
 
+  async ensureSharedDirManaged(name: string): Promise<'created' | 'adopted' | 'unchanged'> {
+    const status = await this.getSharedDirStatus(name);
+    const globalPath = this.getSharedDirGlobalPath(name);
+    const contentPath = this.getSharedDirContentPath(name);
+
+    await fs.mkdir(contentPath, { recursive: true });
+
+    if (status === 'active') {
+      return 'unchanged';
+    }
+
+    if (status === 'missing') {
+      await fs.mkdir(path.dirname(globalPath), { recursive: true });
+      await atomicSymlink(contentPath, globalPath);
+      return 'created';
+    }
+
+    if (status === 'unmanaged') {
+      await this.adoptSharedDir(name);
+      return 'adopted';
+    }
+
+    throw new Error(`Cannot ensure shared dir '${name}': status is '${status}'`);
+  }
+
   /**
    * Check the state of a shared directory (same as getSymlinkStatus).
    */
@@ -1252,6 +1597,11 @@ export class ConfigManager {
       } else {
         throw err;
       }
+    }
+
+    if (contentPathExists && (await isEmptyDirectory(contentPath))) {
+      await fs.rm(contentPath, { recursive: true, force: true });
+      contentPathExists = false;
     }
 
     if (!contentPathExists) {

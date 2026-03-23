@@ -15,7 +15,7 @@ Owns the TypeScript CLI entrypoint, command definitions, and shared libraries fo
 
 - Commands export a default `defineCommand(...)` and are registered in `src/cli.ts`.
 - Persistent state lives under the config dir from `src/lib/config.ts` and is read/written via:
-- `src/lib/registry.ts` (registry.toml)
+- `src/lib/registry.ts` (registry.jsonl)
   - `src/lib/local-state.ts` (local.json)
 - Registry/local state writes are atomic (write temp file, then rename). Preserve that behavior.
 

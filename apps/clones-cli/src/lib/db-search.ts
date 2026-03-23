@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import type { SqlDatabase } from './sql-database.js';
 
 export interface SearchResult {
   repoId: string;
@@ -55,10 +55,10 @@ const TOKEN_PATTERN = /[\p{L}\p{N}_-]+/gu;
 const STEM_SUFFIXES = ['ments', 'ment', 'ation', 'ations', 'ing', 'ed', 'ies', 's'];
 
 /**
- * Create the readme_chunks and FTS5 virtual table if they don't exist.
+ * Create the readme_chunks and FTS4 virtual table if they don't exist.
  * Assumes the repos table already exists.
  */
-export function ensureSearchTables(db: Database.Database): void {
+export function ensureSearchTables(db: SqlDatabase): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS readme_chunks (
       rowid INTEGER PRIMARY KEY,
@@ -72,10 +72,9 @@ export function ensureSearchTables(db: Database.Database): void {
   `);
 
   db.exec(`
-    CREATE VIRTUAL TABLE IF NOT EXISTS readme_fts USING fts5(
+    CREATE VIRTUAL TABLE IF NOT EXISTS readme_fts USING fts4(
       chunk_text,
-      content='readme_chunks',
-      content_rowid='rowid'
+      tokenize=unicode61
     )
   `);
 
@@ -96,7 +95,7 @@ export function ensureSearchTables(db: Database.Database): void {
  * Checks content hash first for incremental no-op behavior.
  */
 export function indexReadme(
-  db: Database.Database,
+  db: SqlDatabase,
   repoId: string,
   _content: string,
   contentHash: string,
@@ -111,7 +110,7 @@ export function indexReadme(
   }
 
   db.prepare(
-    "INSERT INTO readme_fts(readme_fts, rowid, chunk_text) SELECT 'delete', rowid, chunk_text FROM readme_chunks WHERE repo_id = ?"
+    'DELETE FROM readme_fts WHERE rowid IN (SELECT rowid FROM readme_chunks WHERE repo_id = ?)'
   ).run(repoId);
 
   db.prepare('DELETE FROM readme_chunks WHERE repo_id = ?').run(repoId);
@@ -138,15 +137,17 @@ export function indexReadme(
 }
 
 /**
- * Search chunks using FTS5 BM25 ranking.
+ * Search chunks using FTS4 with BM25 ranking.
  */
-export function searchReadmes(db: Database.Database, query: string, limit = 10): SearchResult[] {
+export function searchReadmes(db: SqlDatabase, query: string, limit = 10): SearchResult[] {
   if (!query || query.trim().length === 0) {
     return [];
   }
 
   try {
-    const results = db
+    const totalDocs = getTotalChunkCount(db);
+
+    const rows = db
       .prepare(
         `
       SELECT
@@ -154,18 +155,23 @@ export function searchReadmes(db: Database.Database, query: string, limit = 10):
         r.owner,
         r.repo,
         rc.chunk_text as snippet,
-        rf.rank as score
+        matchinfo(readme_fts, 'pcx') as mi
       FROM readme_fts rf
       INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
       INNER JOIN repos r ON rc.repo_id = r.id
       WHERE rf.chunk_text MATCH ?
-      ORDER BY rf.rank ASC
-      LIMIT ?
     `
       )
-      .all(query, limit) as SearchResult[];
+      .all(query) as unknown as (Omit<SearchResult, 'score'> & { mi: Uint8Array })[];
 
-    return results;
+    const scored = rows.map((row) => {
+      const info = parseFts4Matchinfo(row.mi);
+      const score = computeBm25Score(info, totalDocs);
+      return { repoId: row.repoId, owner: row.owner, repo: row.repo, snippet: row.snippet, score };
+    });
+
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit);
   } catch {
     return [];
   }
@@ -175,7 +181,7 @@ export function searchReadmes(db: Database.Database, query: string, limit = 10):
  * Search repos with bm25, vector, or hybrid retrieval.
  */
 export function searchRepos(
-  db: Database.Database,
+  db: SqlDatabase,
   query: string,
   options: RepoSearchOptions = {}
 ): RepoSearchResult[] {
@@ -244,14 +250,14 @@ export function searchRepos(
 /**
  * Delete all chunks, FTS entries, and semantic embeddings (for rebuild).
  */
-export function clearAllChunks(db: Database.Database): void {
+export function clearAllChunks(db: SqlDatabase): void {
   db.prepare('DELETE FROM readme_chunks').run();
   db.exec('DELETE FROM readme_fts');
   db.prepare('DELETE FROM readme_embeddings').run();
 }
 
 /**
- * Sanitize user input for FTS5 MATCH queries.
+ * Sanitize user input for FTS4 MATCH queries.
  * Wraps each word in double quotes, appends * to last word for prefix matching.
  * Returns empty string if no valid search terms.
  */
@@ -272,46 +278,105 @@ export function sanitizeFtsQuery(input: string): string {
   }
 
   const quoted = tokens.map((token, index) => {
-    return index === tokens.length - 1 ? `"${token}"*` : `"${token}"`;
+    // FTS4 prefix matching requires bare token* (not "token"*)
+    return index === tokens.length - 1 ? `${token}*` : `"${token}"`;
   });
 
   return quoted.join(' ');
 }
 
+function getTotalChunkCount(db: SqlDatabase): number {
+  const row = db.prepare('SELECT COUNT(*) as cnt FROM readme_chunks').get() as
+    | { cnt: number }
+    | undefined;
+  return row?.cnt ?? 0;
+}
+
+interface Fts4MatchInfo {
+  phrases: number;
+  columns: number;
+  hits: Array<{ hitsInRow: number; hitsInAllRows: number; docsWithHits: number }>;
+}
+
+function parseFts4Matchinfo(blob: Uint8Array): Fts4MatchInfo {
+  const view = new DataView(blob.buffer, blob.byteOffset, blob.byteLength);
+  const phrases = view.getUint32(0, true);
+  const columns = view.getUint32(4, true);
+
+  const hits: Fts4MatchInfo['hits'] = [];
+  let offset = 8;
+  for (let p = 0; p < phrases; p++) {
+    for (let c = 0; c < columns; c++) {
+      hits.push({
+        hitsInRow: view.getUint32(offset, true),
+        hitsInAllRows: view.getUint32(offset + 4, true),
+        docsWithHits: view.getUint32(offset + 8, true),
+      });
+      offset += 12;
+    }
+  }
+
+  return { phrases, columns, hits };
+}
+
+function computeBm25Score(info: Fts4MatchInfo, totalDocs: number): number {
+  const k1 = 1.2;
+  let score = 0;
+
+  for (const hit of info.hits) {
+    if (hit.docsWithHits === 0 || hit.hitsInRow === 0) continue;
+
+    const n = hit.docsWithHits;
+    const idf = Math.log((totalDocs - n + 0.5) / (n + 0.5) + 1);
+    const tf = (hit.hitsInRow * (k1 + 1)) / (hit.hitsInRow + k1);
+    score += idf * tf;
+  }
+
+  return score;
+}
+
 /**
- * Get BM25 scores per repo for a search query.
- * Lower score is better for SQLite FTS5 rank.
+ * Get BM25 scores per repo for a search query via FTS4 matchinfo.
+ * Higher score is better.
  */
-export function rankReposByQuery(
-  db: Database.Database,
-  query: string,
-  limit = 100
-): Map<string, number> {
+export function rankReposByQuery(db: SqlDatabase, query: string, limit = 100): Map<string, number> {
   if (!query || query.trim().length === 0) {
     return new Map();
   }
 
   try {
-    const results = db
+    const totalDocs = getTotalChunkCount(db);
+    if (totalDocs === 0) return new Map();
+
+    const rows = db
       .prepare(
         `
-      SELECT rc.repo_id, MIN(rf.rank) as best_rank
+      SELECT rc.repo_id, matchinfo(readme_fts, 'pcx') as mi
       FROM readme_fts rf
       INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
       WHERE rf.chunk_text MATCH ?
-      GROUP BY rc.repo_id
-      ORDER BY best_rank ASC
-      LIMIT ?
     `
       )
-      .all(query, limit) as { repo_id: string; best_rank: number }[];
+      .all(query) as { repo_id: string; mi: Uint8Array }[];
 
-    const rankMap = new Map<string, number>();
-    for (const row of results) {
-      rankMap.set(row.repo_id, row.best_rank);
+    const bestScores = new Map<string, number>();
+    for (const row of rows) {
+      const info = parseFts4Matchinfo(row.mi);
+      const score = computeBm25Score(info, totalDocs);
+      const prev = bestScores.get(row.repo_id);
+      if (prev === undefined || score > prev) {
+        bestScores.set(row.repo_id, score);
+      }
     }
 
-    return rankMap;
+    const sorted = [...bestScores.entries()]
+      .sort((a, b) => {
+        const d = b[1] - a[1];
+        return d !== 0 ? d : a[0].localeCompare(b[0]);
+      })
+      .slice(0, limit);
+
+    return new Map(sorted);
   } catch {
     return new Map();
   }
@@ -322,7 +387,7 @@ export function rankReposByQuery(
  * Higher score is better.
  */
 export function rankReposByVector(
-  db: Database.Database,
+  db: SqlDatabase,
   query: string,
   limit = 100
 ): Map<string, number> {
@@ -378,7 +443,7 @@ function fuseCandidates(
   vectorScores: Map<string, number>,
   options: { blend: number; rerankTop: number; rrfK: number }
 ): FusedCandidate[] {
-  const bm25Signals = buildRankedSignals(bm25Scores, 'asc');
+  const bm25Signals = buildRankedSignals(bm25Scores, 'desc');
   const vectorSignals = buildRankedSignals(vectorScores, 'desc');
 
   const lexicalWeight = mode === 'hybrid' ? options.blend : mode === 'bm25' ? 1 : 0;
@@ -509,7 +574,7 @@ function buildRankedSignals(
 }
 
 function getRepoMetadata(
-  db: Database.Database,
+  db: SqlDatabase,
   repoIds: string[]
 ): Map<string, { owner: string; repo: string }> {
   const metadata = new Map<string, { owner: string; repo: string }>();
@@ -534,7 +599,7 @@ function getRepoMetadata(
 }
 
 function getRepoSnippets(
-  db: Database.Database,
+  db: SqlDatabase,
   repoIds: string[],
   ftsQuery: string
 ): Map<string, string> {
@@ -556,8 +621,7 @@ function getRepoSnippets(
             SELECT
               rc.repo_id as repo_id,
               rc.chunk_text as chunk_text,
-              rf.rank as rank,
-              ROW_NUMBER() OVER (PARTITION BY rc.repo_id ORDER BY rf.rank ASC) as row_num
+              ROW_NUMBER() OVER (PARTITION BY rc.repo_id ORDER BY rc.chunk_index ASC) as row_num
             FROM readme_fts rf
             INNER JOIN readme_chunks rc ON rf.rowid = rc.rowid
             WHERE rf.chunk_text MATCH ? AND rc.repo_id IN (${placeholders})

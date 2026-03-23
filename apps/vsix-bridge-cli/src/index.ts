@@ -8,11 +8,12 @@ import { runSync } from './commands/sync.js';
 import { runInstall } from './commands/install.js';
 import { runStatus } from './commands/status.js';
 import { runDetect } from './commands/detect.js';
+import { runLock, runUnlock } from './commands/lock.js';
 
 const require = createRequire(import.meta.url);
 const pkg = require('../package.json');
 
-const COMMANDS = ['sync', 'install', 'status', 'detect', 'init'] as const;
+const COMMANDS = ['sync', 'install', 'status', 'detect', 'lock', 'unlock', 'init'] as const;
 type Command = (typeof COMMANDS)[number];
 
 interface ParsedArgs {
@@ -68,6 +69,8 @@ Commands:
   install   Install previously synced VSIX files into a target IDE
   status    Show extension diff between VS Code and forks
   detect    Auto-detect installed IDEs and their configuration
+  lock      Block marketplace access in fork IDEs
+  unlock    Restore marketplace access in fork IDEs
   init      Initialize vsix-bridge configuration
 
 Options:
@@ -128,6 +131,12 @@ async function main(): Promise<void> {
       break;
     case 'detect':
       await runDetect();
+      break;
+    case 'lock':
+      await runLock({ to: args.to });
+      break;
+    case 'unlock':
+      await runUnlock({ to: args.to });
       break;
   }
 

@@ -1,0 +1,85 @@
+%% Companion visualization for pragma/horizon lifecycle documents.
+%% Non-authoritative: if this diagram conflicts with text, `pragma-lifecycle.md`
+%% and its authority matrix take precedence.
+%% Related docs: `invariant-threshold.md`, `pragma-skills.md`.
+
+flowchart LR
+  %% ===== Horizon lane =====
+  subgraph H["Horizon (slow strategic churn)"]
+    A[Initiative starts]
+    B{"Direction + active phase/work area clear?"}
+    R1[Roadmap create/update<br/>strategic intent, bets, sequencing]
+    M1[Milestone create/update<br/>active phase plan]
+    R3[Roadmap update<br/>phase complete + next phase active]
+  end
+
+  %% ===== Pragma lane =====
+  subgraph P["Pragma (delivery + semantic authority)"]
+    C{"Capsule exists for selected work area?"}
+    CAP1[Capsule create/update<br/>glossary + laws + happy path + non-goals]
+    EXEC[Run cards/slices/spikes]
+    M2[Milestone update<br/>scope/sequence/status]
+    M3[Milestone refresh]
+    EXIT{"Milestone exit criteria met?"}
+  end
+
+  %% ===== Governance lane =====
+  subgraph G["Governance (high epistemic churn)"]
+    AS1[Assumptions ledger update<br/>after every slice/spike]
+    ASDEC{"Assumption outcome?"}
+    SPIKE[Run spike or narrow scope]
+    CAP2[Promote to capsule invariant<br/>then enforce via contracts/tests]
+    DEC[Decisions log update]
+    R2[Roadmap update<br/>decision state + sequencing]
+    ASHIST[Mark invalidated/obsolete<br/>retain history]
+    MREV{"Milestone review trigger hit?"}
+  end
+
+  %% ===== Main flow =====
+  A --> B
+  B -- "No" --> R1
+  R1 --> B
+
+  B -- "Yes" --> M1
+  M1 --> C
+
+  C -- "No" --> CAP1
+  C -- "Yes" --> EXEC
+  CAP1 --> EXEC
+
+  EXEC --> AS1
+  AS1 --> ASDEC
+
+  ASDEC -- "Uncertain / low confidence" --> SPIKE
+  SPIKE --> AS1
+
+  ASDEC -- "Stabilized semantic law" --> CAP2
+  CAP2 --> EXEC
+
+  ASDEC -- "Strategic choice or reversal" --> DEC
+  DEC --> R2
+  R2 --> MREV
+
+  ASDEC -- "Temporary phase deferment/ordering" --> M2
+  M2 --> EXEC
+
+  ASDEC -- "Invalidated" --> ASHIST
+  ASHIST --> EXEC
+
+  EXEC --> MREV
+  MREV -- "No" --> EXEC
+  MREV -- "Yes" --> M3
+  M3 --> EXIT
+
+  EXIT -- "No" --> EXEC
+  EXIT -- "Yes" --> R3
+  R3 --> M1
+
+  %% ===== Churn styling =====
+  classDef low fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px,color:#1b5e20;
+  classDef med fill:#fff8e1,stroke:#ef6c00,stroke-width:1px,color:#e65100;
+  classDef high fill:#ffebee,stroke:#c62828,stroke-width:1px,color:#b71c1c;
+
+  class R1,R3,CAP1 low;
+  class M1,M2,M3 med;
+  class AS1,ASDEC,SPIKE,DEC,ASHIST,MREV,R2,CAP2 high;

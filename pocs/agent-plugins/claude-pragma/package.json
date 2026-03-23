@@ -1,0 +1,6 @@
+{
+  "name": "claude-pragma",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Claude Code plugin: tracer-bullet development methodology"
+}
