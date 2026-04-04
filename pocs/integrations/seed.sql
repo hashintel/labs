@@ -1,0 +1,31 @@
+CREATE TABLE organizations (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email TEXT NOT NULL,
+    first_name TEXT,
+    last_name TEXT,
+    organization_id INTEGER REFERENCES organizations(id),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- For full before-images on update/delete
+ALTER TABLE users REPLICA IDENTITY FULL;
+ALTER TABLE organizations REPLICA IDENTITY FULL;
+
+-- Publication for CDC
+CREATE PUBLICATION hash_cdc FOR TABLE users, organizations;
+
+-- Replication slot
+SELECT pg_create_logical_replication_slot('hash_slot', 'pgoutput');
+
+-- Seed data
+INSERT INTO organizations (name) VALUES ('Acme Corp'), ('Globex Inc');
+INSERT INTO users (email, first_name, last_name, organization_id) VALUES
+    ('alice@acme.com', 'Alice', 'Smith', 1),
+    ('bob@acme.com', 'Bob', 'Jones', 1),
+    ('carol@globex.com', 'Carol', 'White', 2);

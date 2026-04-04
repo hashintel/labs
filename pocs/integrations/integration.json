@@ -1,0 +1,11 @@
+{
+  "id": "crm",
+  "mode": "cdc",
+  "url": "postgres://postgres:postgres@localhost:5432/demo",
+  "publication": "hash_cdc",
+  "slot": "hash_slot",
+  "tables": {
+    "users": { "primaryKey": "id" },
+    "organizations": { "primaryKey": "id" }
+  }
+}
