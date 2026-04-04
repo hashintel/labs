@@ -16,12 +16,7 @@ export type PostgresCdcConfig = {
   pollTimeoutMs?: number;
 };
 
-const DML_TAGS = new Set<string>(["insert", "update", "delete"]);
-
-function toDmlOp(tag: string): ChangeOp {
-  if (tag === "insert" || tag === "update" || tag === "delete") return tag;
-  throw new Error(`Unexpected DML tag: ${tag}`);
-}
+const DML_OPS: Record<string, ChangeOp> = { insert: "insert", update: "update", delete: "delete" };
 
 function parsePostgresUrl(url: string) {
   const parsed = new URL(url);
@@ -74,7 +69,8 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
         service.on("data", async (msgLsn: string, msg: Pgoutput.Message) => {
           lastLsn = msgLsn;
 
-          if (DML_TAGS.has(msg.tag)) {
+          const op = DML_OPS[msg.tag];
+          if (op) {
             const dml = msg as Pgoutput.MessageInsert | Pgoutput.MessageUpdate | Pgoutput.MessageDelete;
             const after = "new" in dml ? (dml.new as Record<string, unknown>) : null;
             const before = "old" in dml ? (dml.old as Record<string, unknown> | undefined) : undefined;
@@ -82,7 +78,7 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
 
             events.push({
               table: dml.relation.name,
-              op: toDmlOp(msg.tag),
+              op,
               key: extractKey(after ?? before, tc?.primaryKey ?? []),
               row: after,
               before: before ?? undefined,
