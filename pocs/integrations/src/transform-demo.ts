@@ -3,7 +3,8 @@ import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
 import { createConnector, type ConnectorDef } from "./connector/index.js";
-import { createStagingDb, META_COLUMNS } from "./staging/db.js";
+import { createDuckDbStaging } from "./staging/duckdb.js";
+import { META_COLUMNS } from "./staging/types.js";
 import {
   pipe,
   sql,
@@ -65,7 +66,7 @@ function printSinkActions(rows: Record<string, unknown>[]) {
 }
 
 async function main() {
-  const db = await createStagingDb();
+  const db = await createDuckDbStaging();
   let cursor: unknown;
   let validated = false;
 
@@ -81,7 +82,8 @@ async function main() {
     }
 
     console.log(`Pulled ${events.length} events (cursor: ${cursor})`);
-    await db.loadEvents(def.id, events);
+    await db.append(def.id, "users", events);
+    await db.materialize(def.id, "users");
 
     if (!validated) {
       await validatePipeline(usersPipeline, db);

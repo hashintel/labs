@@ -1,7 +1,7 @@
 import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { Schema } from "effect";
-import type { StagingDb } from "../staging/db.js";
-import { META_COLUMNS } from "../staging/db.js";
+import type { QueryableStore } from "../staging/types.js";
+import { META_COLUMNS } from "../staging/types.js";
 import { decodeRows, assertSchemaColumns, type DuckSchema } from "./schema.js";
 
 export type Row = Record<string, unknown>;
@@ -67,7 +67,7 @@ function assertMeta(schema: DuckSchema, stepId: string): void {
   }
 }
 
-export async function validatePipeline(pipeline: Pipeline, db: StagingDb): Promise<void> {
+export async function validatePipeline(pipeline: Pipeline, db: QueryableStore): Promise<void> {
   let currentTable = pipeline.source;
 
   for (const step of pipeline.steps) {
@@ -89,7 +89,7 @@ export async function validatePipeline(pipeline: Pipeline, db: StagingDb): Promi
   }
 }
 
-export async function runPipeline(pipeline: Pipeline, db: StagingDb): Promise<PipelineResult> {
+export async function runPipeline(pipeline: Pipeline, db: QueryableStore): Promise<PipelineResult> {
   const stepResults: Record<string, StepResult> = {};
   const validated = new Set<string>();
   let currentTable = pipeline.source;
@@ -120,7 +120,7 @@ async function execTsStep(
   step: TsStep,
   inputTable: string,
   outputTable: string,
-  db: StagingDb,
+  db: QueryableStore,
   validated: Set<string>,
 ): Promise<void> {
   const { rows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
@@ -143,7 +143,7 @@ async function execTsStep(
   assertMeta(await db.schemaOf(outputTable), step.id);
 }
 
-async function writeRows(rows: Row[], table: string, db: StagingDb): Promise<void> {
+async function writeRows(rows: Row[], table: string, db: QueryableStore): Promise<void> {
   if (rows.length === 0) {
     await db.exec(`CREATE OR REPLACE TABLE ${qi(table)} AS SELECT 1 WHERE false`);
     return;

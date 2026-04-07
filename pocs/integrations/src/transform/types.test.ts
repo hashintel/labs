@@ -1,24 +1,27 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Schema } from "effect";
-import { createStagingDb, META_COLUMNS, type StagingDb } from "../staging/db.js";
+import { createDuckDbStaging, type DuckDbStaging } from "../staging/duckdb.js";
+import { META_COLUMNS } from "../staging/types.js";
 import { pipe, sql, ts, runPipeline, validatePipeline } from "./types.js";
 
-let db: StagingDb;
+let db: DuckDbStaging;
 
 afterEach(() => db?.close());
 
-async function seedUsers(db: StagingDb) {
-  await db.loadEvents("test", [
-    { table: "users", op: "insert", key: { id: 1 }, row: { id: "1", email: "alice@acme.com", first_name: "Alice", last_name: "Smith" } },
-    { table: "users", op: "update", key: { id: 2 }, row: { id: "2", email: "bob@acme.com", first_name: "Bob", last_name: "Jones" } },
-    { table: "users", op: "delete", key: { id: 3 }, row: null },
-  ]);
+async function seedUsers(db: DuckDbStaging) {
+  const events = [
+    { table: "users", op: "insert" as const, key: { id: 1 }, row: { id: "1", email: "alice@acme.com", first_name: "Alice", last_name: "Smith" } },
+    { table: "users", op: "update" as const, key: { id: 2 }, row: { id: "2", email: "bob@acme.com", first_name: "Bob", last_name: "Jones" } },
+    { table: "users", op: "delete" as const, key: { id: 3 }, row: null },
+  ];
+  await db.append("test", "users", events);
+  await db.materialize("test", "users");
 }
 
 describe("pipe + runPipeline", () => {
   it("SELECT * carries _op/_key through", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -33,7 +36,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("chains SQL steps", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -48,7 +51,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("SQL WHERE filter works with full SQL power", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -62,7 +65,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("SQL aggregation works when user provides _op/_key", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -76,7 +79,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("TS step sees _op and _key, carries them through via spread", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -89,7 +92,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("TS step receives _op and _key alongside data", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     let receivedKeys: string[] = [];
@@ -103,7 +106,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("TS step can filter rows", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -117,7 +120,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("TS step that drops _op/_key throws", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     await assert.rejects(
@@ -129,7 +132,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("mixes SQL and TS steps", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -144,7 +147,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("handles empty pipeline (zero steps)", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users"), db);
@@ -153,11 +156,13 @@ describe("pipe + runPipeline", () => {
   });
 
   it("handles all-delete input", async () => {
-    db = await createStagingDb();
-    await db.loadEvents("test", [
-      { table: "users", op: "delete", key: { id: 1 }, row: null },
-      { table: "users", op: "delete", key: { id: 2 }, row: null },
-    ]);
+    db = await createDuckDbStaging();
+    const deletes = [
+      { table: "users", op: "delete" as const, key: { id: 1 }, row: null },
+      { table: "users", op: "delete" as const, key: { id: 2 }, row: null },
+    ];
+    await db.append("test", "users", deletes);
+    await db.materialize("test", "users");
 
     const result = await runPipeline(pipe("test/users",
       sql({ id: "pass", query: `SELECT * FROM input` }),
@@ -168,7 +173,7 @@ describe("pipe + runPipeline", () => {
   });
 
   it("second run overwrites step tables", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const p = pipe("test/users", sql({ id: "pass", query: `SELECT * FROM input` }));
@@ -182,7 +187,7 @@ describe("pipe + runPipeline", () => {
 
 describe("_op/_key enforcement (SQL)", () => {
   it("throws when SQL step drops _op/_key", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     await assert.rejects(
@@ -194,19 +199,19 @@ describe("_op/_key enforcement (SQL)", () => {
 
 describe("validatePipeline", () => {
   it("passes for valid SQL steps", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
     await validatePipeline(pipe("test/users", sql({ id: "ok", query: `SELECT * FROM input` })), db);
   });
 
   it("throws for SQL referencing nonexistent column", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
     await assert.rejects(() => validatePipeline(pipe("test/users", sql({ id: "bad", query: `SELECT nope FROM input` })), db));
   });
 
   it("catches _op/_key drop at validation time", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
     await assert.rejects(
       () => validatePipeline(pipe("test/users", sql({ id: "bad", query: `SELECT id FROM input` })), db),
@@ -215,7 +220,7 @@ describe("validatePipeline", () => {
   });
 
   it("skips TS steps", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
     await validatePipeline(pipe("test/users",
       sql({ id: "first", query: `SELECT * FROM input` }),
@@ -229,7 +234,7 @@ describe("Effect Schema validation", () => {
   const UserOut = Schema.Struct({ id: Schema.String, email: Schema.String });
 
   it("validates SQL step output (schema excludes _op/_key)", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
@@ -241,7 +246,7 @@ describe("Effect Schema validation", () => {
   });
 
   it("validatePipeline catches missing schema column", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const Bad = Schema.Struct({ nope: Schema.String });
@@ -253,7 +258,7 @@ describe("Effect Schema validation", () => {
   });
 
   it("TS step validates clean rows (no _op/_key in schema)", async () => {
-    db = await createStagingDb();
+    db = await createDuckDbStaging();
     await seedUsers(db);
 
     const UserIn = Schema.Struct({ id: Schema.String, email: Schema.String });
