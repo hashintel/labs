@@ -5,14 +5,17 @@ import { META_COLUMNS } from "../staging/types.js";
 import { decodeRows, assertSchemaColumns, type DuckSchema } from "./schema.js";
 
 export type Row = Record<string, unknown>;
+export type Envelope = { _op: string; _key: string };
 
 export type SqlStep = {
+  kind: "sql";
   id: string;
   sql: string;
   output?: Schema.Schema<any, any>;
 };
 
 export type TsStep = {
+  kind: "ts";
   id: string;
   input?: Schema.Schema<any, any>;
   output?: Schema.Schema<any, any>;
@@ -37,10 +40,8 @@ export type PipelineResult = {
 };
 
 export function sql<O>(opts: { id: string; query: string; output?: Schema.Schema<O, any> }): SqlStep {
-  return { id: opts.id, sql: opts.query, output: opts.output };
+  return { kind: "sql", id: opts.id, sql: opts.query, output: opts.output };
 }
-
-export type Envelope = { _op: string; _key: string };
 
 export function ts<I extends Row = Row, O extends Row = Row>(opts: {
   id: string;
@@ -48,11 +49,12 @@ export function ts<I extends Row = Row, O extends Row = Row>(opts: {
   input?: Schema.Schema<I, any>;
   output?: Schema.Schema<O, any>;
 }): TsStep {
-  return { id: opts.id, transform: opts.transform, input: opts.input, output: opts.output };
+  return { kind: "ts", id: opts.id, transform: opts.transform, input: opts.input, output: opts.output };
 }
 
-export function pipe(source: string, ...steps: Step[]): Pipeline {
-  return { source, steps };
+export function pipe(source: string | Pipeline, ...steps: Step[]): Pipeline {
+  if (typeof source === "string") return { source, steps };
+  return { source: source.source, steps: [...source.steps, ...steps] };
 }
 
 function stripMetaColumns(schema: DuckSchema): DuckSchema {
@@ -63,7 +65,7 @@ function assertMeta(schema: DuckSchema, stepId: string): void {
   const names = new Set(schema.map((c) => c.name));
   const missing = [META_COLUMNS.op, META_COLUMNS.key].filter((c) => !names.has(c));
   if (missing.length > 0) {
-    throw new Error(`Step "${stepId}" output is missing ${missing.join(", ")}. SQL steps must carry _op and _key through (use SELECT * or include them explicitly).`);
+    throw new Error(`Step "${stepId}" output is missing ${missing.join(", ")}. Include _op and _key in your output.`);
   }
 }
 
@@ -71,7 +73,7 @@ export async function validatePipeline(pipeline: Pipeline, db: QueryableStore): 
   let currentTable = pipeline.source;
 
   for (const step of pipeline.steps) {
-    if (!("sql" in step)) continue;
+    if (step.kind !== "sql") continue;
 
     const tmpTable = `_validate/${step.id}`;
     await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(currentTable)} LIMIT 0`);
@@ -97,23 +99,28 @@ export async function runPipeline(pipeline: Pipeline, db: QueryableStore): Promi
   for (const step of pipeline.steps) {
     const outputTable = `_step/${step.id}`;
 
-    if ("sql" in step) {
-      await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(currentTable)}`);
-      await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS ${step.sql}`);
-      await db.exec(`DROP VIEW IF EXISTS "input"`);
-
-      const duckSchema = await db.schemaOf(outputTable);
-      assertMeta(duckSchema, step.id);
-      stepResults[step.id] = { table: outputTable, duckSchema };
-    } else if ("transform" in step) {
-      await execTsStep(step, currentTable, outputTable, db, validated);
-      stepResults[step.id] = { table: outputTable, duckSchema: await db.schemaOf(outputTable) };
+    switch (step.kind) {
+      case "sql":
+        await execSqlStep(step, currentTable, outputTable, db);
+        break;
+      case "ts":
+        await execTsStep(step, currentTable, outputTable, db, validated);
+        break;
     }
 
+    const duckSchema = await db.schemaOf(outputTable);
+    assertMeta(duckSchema, step.id);
+    stepResults[step.id] = { table: outputTable, duckSchema };
     currentTable = outputTable;
   }
 
   return { outputTable: currentTable, stepResults };
+}
+
+async function execSqlStep(step: SqlStep, inputTable: string, outputTable: string, db: QueryableStore): Promise<void> {
+  await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(inputTable)}`);
+  await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS ${step.sql}`);
+  await db.exec(`DROP VIEW IF EXISTS "input"`);
 }
 
 async function execTsStep(
@@ -140,7 +147,6 @@ async function execTsStep(
   }
 
   await writeRows(transformed, outputTable, db);
-  assertMeta(await db.schemaOf(outputTable), step.id);
 }
 
 async function writeRows(rows: Row[], table: string, db: QueryableStore): Promise<void> {
