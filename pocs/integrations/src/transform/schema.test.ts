@@ -2,7 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { Schema } from "effect";
 import { DuckDBTypeId } from "@duckdb/node-api";
-import { formatDuckSchema, decodeRows, assertSchemaColumns, type DuckSchema } from "./schema.js";
+import { formatDuckSchema, decodeRows, assertSchemaColumns, assertSchemasCompatible, effectSchemaFromDuck, type DuckSchema } from "./schema.js";
 
 describe("formatDuckSchema", () => {
   it("formats column names and types", () => {
@@ -61,5 +61,45 @@ describe("assertSchemaColumns", () => {
 
   it("no-ops for non-struct schemas", () => {
     assertSchemaColumns(Schema.String, [], "s");
+  });
+});
+
+describe("assertSchemasCompatible", () => {
+  it("passes when producer has all columns consumer needs", () => {
+    const producer: DuckSchema = [
+      { name: "id", typeId: DuckDBTypeId.VARCHAR },
+      { name: "email", typeId: DuckDBTypeId.VARCHAR },
+      { name: "extra", typeId: DuckDBTypeId.VARCHAR },
+    ];
+    const consumer = Schema.Struct({ id: Schema.String, email: Schema.String });
+    assertSchemasCompatible(producer, consumer, "step-a", "step-b");
+  });
+
+  it("throws when producer is missing a column consumer needs", () => {
+    const producer: DuckSchema = [{ name: "id", typeId: DuckDBTypeId.VARCHAR }];
+    const consumer = Schema.Struct({ id: Schema.String, email: Schema.String });
+    assert.throws(
+      () => assertSchemasCompatible(producer, consumer, "step-a", "step-b"),
+      (err: Error) => err.message.includes("email") && err.message.includes("step-b"),
+    );
+  });
+});
+
+describe("effectSchemaFromDuck", () => {
+  it("generates a struct schema from DuckSchema columns", () => {
+    const duck: DuckSchema = [
+      { name: "id", typeId: DuckDBTypeId.VARCHAR },
+      { name: "name", typeId: DuckDBTypeId.VARCHAR },
+    ];
+    const generated = effectSchemaFromDuck(duck);
+    const decoded = Schema.decodeUnknownSync(generated)({ id: "1", name: "alice" });
+    assert.equal(decoded.id, "1");
+  });
+
+  it("accepts null values", () => {
+    const duck: DuckSchema = [{ name: "val", typeId: DuckDBTypeId.VARCHAR }];
+    const generated = effectSchemaFromDuck(duck);
+    const decoded = Schema.decodeUnknownSync(generated)({ val: null });
+    assert.equal(decoded.val, null);
   });
 });

@@ -2,7 +2,7 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { Schema } from "effect";
 import type { QueryableStore } from "../staging/types.js";
 import { META_COLUMNS } from "../staging/types.js";
-import { decodeRows, assertSchemaColumns, type DuckSchema } from "./schema.js";
+import { decodeRows, assertSchemaColumns, assertSchemasCompatible, effectSchemaFromDuck, formatDuckSchema, type DuckSchema } from "./schema.js";
 
 export type Row = Record<string, unknown>;
 export type Envelope = { _op: string; _key: string };
@@ -69,26 +69,59 @@ function assertMeta(schema: DuckSchema, stepId: string): void {
   }
 }
 
-export async function validatePipeline(pipeline: Pipeline, db: QueryableStore): Promise<void> {
+export type ValidatedPipeline = Pipeline & {
+  schemas: Record<string, DuckSchema>;
+};
+
+export type ValidateOptions = {
+  debug?: boolean;
+};
+
+export async function validatePipeline(pipeline: Pipeline, db: QueryableStore, opts?: ValidateOptions): Promise<ValidatedPipeline> {
+  const log = opts?.debug ? (msg: string) => console.log(`[validate] ${msg}`) : () => {};
+
   let currentTable = pipeline.source;
+  let currentSchema = await db.schemaOf(currentTable);
+  const schemas: Record<string, DuckSchema> = { [currentTable]: currentSchema };
+  let previousStepId = currentTable;
+
+  log(`source "${currentTable}": ${formatDuckSchema(stripMetaColumns(currentSchema))}`);
 
   for (const step of pipeline.steps) {
-    if (step.kind !== "sql") continue;
+    const dataColumns = stripMetaColumns(currentSchema);
 
-    const tmpTable = `_validate/${step.id}`;
-    await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(currentTable)} LIMIT 0`);
-    await db.exec(`CREATE OR REPLACE TABLE ${qi(tmpTable)} AS ${step.sql} LIMIT 0`);
-    await db.exec(`DROP VIEW IF EXISTS "input"`);
+    if (step.kind === "sql") {
+      const tmpTable = `_validate/${step.id}`;
+      await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(currentTable)} LIMIT 0`);
+      await db.exec(`CREATE OR REPLACE TABLE ${qi(tmpTable)} AS ${step.sql} LIMIT 0`);
+      await db.exec(`DROP VIEW IF EXISTS "input"`);
 
-    const outSchema = await db.schemaOf(tmpTable);
-    assertMeta(outSchema, step.id);
+      currentSchema = await db.schemaOf(tmpTable);
+      assertMeta(currentSchema, step.id);
 
-    if (step.output) {
-      assertSchemaColumns(step.output, stripMetaColumns(outSchema), step.id);
+      const outData = stripMetaColumns(currentSchema);
+      log(`sql "${step.id}": ${formatDuckSchema(outData)}`);
+
+      if (step.output) {
+        assertSchemaColumns(step.output, outData, step.id);
+        log(`  output schema: ok`);
+      }
+
+      currentTable = tmpTable;
     }
 
-    currentTable = tmpTable;
+    if (step.kind === "ts") {
+      const inputSchema = step.input ?? effectSchemaFromDuck(dataColumns);
+      assertSchemasCompatible(dataColumns, inputSchema, previousStepId, step.id);
+      log(`ts "${step.id}": input compatible with "${previousStepId}" (${dataColumns.map((c) => c.name).join(", ")})`);
+    }
+
+    schemas[step.id] = currentSchema;
+    previousStepId = step.id;
   }
+
+  log(`validated ${pipeline.steps.length} steps`);
+  return { ...pipeline, schemas };
 }
 
 export async function runPipeline(pipeline: Pipeline, db: QueryableStore): Promise<PipelineResult> {

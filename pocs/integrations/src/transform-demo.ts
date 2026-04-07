@@ -86,7 +86,7 @@ async function main() {
     await db.materialize(def.id, "users");
 
     if (!validated) {
-      await validatePipeline(usersPipeline, db);
+      await validatePipeline(usersPipeline, db, { debug: true });
       validated = true;
     }
 

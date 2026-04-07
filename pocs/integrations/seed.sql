@@ -24,8 +24,8 @@ CREATE PUBLICATION hash_cdc FOR TABLE users, organizations;
 SELECT pg_create_logical_replication_slot('hash_slot', 'pgoutput');
 
 -- Seed data
-INSERT INTO organizations (name) VALUES ('Acme Corp'), ('Globex Inc');
+INSERT INTO organizations (name) VALUES ('Acme Corp'), ('Widgets Ltd');
 INSERT INTO users (email, first_name, last_name, organization_id) VALUES
-    ('alice@acme.com', 'Alice', 'Smith', 1),
-    ('bob@acme.com', 'Bob', 'Jones', 1),
-    ('carol@globex.com', 'Carol', 'White', 2);
+    ('alice@acme.example.com', 'Alice', 'Smith', 1),
+    ('bob@acme.example.com', 'Bob', 'Jones', 1),
+    ('carol@widgets.example.com', 'Carol', 'White', 2);

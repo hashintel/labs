@@ -11,8 +11,8 @@ afterEach(() => db?.close());
 
 async function seedUsers(db: DuckDbStaging) {
   const events = [
-    { table: "users", op: "insert" as const, key: { id: 1 }, row: { id: "1", email: "alice@acme.com", first_name: "Alice", last_name: "Smith" } },
-    { table: "users", op: "update" as const, key: { id: 2 }, row: { id: "2", email: "bob@acme.com", first_name: "Bob", last_name: "Jones" } },
+    { table: "users", op: "insert" as const, key: { id: 1 }, row: { id: "1", email: "alice@example.com", first_name: "Alice", last_name: "Smith" } },
+    { table: "users", op: "update" as const, key: { id: 2 }, row: { id: "2", email: "bob@example.com", first_name: "Bob", last_name: "Jones" } },
     { table: "users", op: "delete" as const, key: { id: 3 }, row: null },
   ];
   await db.append("test", "users", events);
@@ -55,7 +55,7 @@ describe("pipe + runPipeline", () => {
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
-      sql({ id: "filter", query: `SELECT * FROM input WHERE email LIKE '%acme%'` }),
+      sql({ id: "filter", query: `SELECT * FROM input WHERE email LIKE '%example%'` }),
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}" ORDER BY id`);
@@ -87,7 +87,7 @@ describe("pipe + runPipeline", () => {
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}" WHERE _op = 'insert'`);
-    assert.equal(rows[0].email, "ALICE@ACME.COM");
+    assert.equal(rows[0].email, "ALICE@EXAMPLE.COM");
     assert.equal(rows[0][META_COLUMNS.op], "insert");
   });
 
@@ -110,7 +110,7 @@ describe("pipe + runPipeline", () => {
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
-      ts({ id: "filter", transform: (rows) => rows.filter((r) => r.email && String(r.email).includes("acme")) }),
+      ts({ id: "filter", transform: (rows) => rows.filter((r) => r.email && String(r.email).includes("example")) }),
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
@@ -270,5 +270,32 @@ describe("Effect Schema validation", () => {
 
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
     assert.equal(rows.length, 3);
+  });
+
+  it("validatePipeline catches TS input schema incompatible with preceding SQL output", async () => {
+    db = await createDuckDbStaging();
+    await seedUsers(db);
+
+    const WantsName = Schema.Struct({ full_name: Schema.String });
+
+    await assert.rejects(
+      () => validatePipeline(pipe("test/users",
+        sql({ id: "pick", query: `SELECT _op, _key, id, email FROM input` }),
+        ts({ id: "needs-name", transform: (rows) => rows, input: WantsName }),
+      ), db),
+      (err: Error) => err.message.includes("full_name") && err.message.includes("needs-name"),
+    );
+  });
+
+  it("validatePipeline passes when TS input schema matches preceding SQL output", async () => {
+    db = await createDuckDbStaging();
+    await seedUsers(db);
+
+    const HasIdEmail = Schema.Struct({ id: Schema.String, email: Schema.String });
+
+    await validatePipeline(pipe("test/users",
+      sql({ id: "pick", query: `SELECT _op, _key, id, email FROM input` }),
+      ts({ id: "ok", transform: (rows) => rows, input: HasIdEmail }),
+    ), db);
   });
 });

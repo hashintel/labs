@@ -43,3 +43,29 @@ export function assertSchemaColumns(
     throw new Error(`Schema validation failed at step "${stepId}": output missing columns [${missing.join(", ")}]`);
   }
 }
+
+export function effectSchemaFromDuck(duck: DuckSchema): Schema.Schema<any, any> {
+  const fields: Record<string, Schema.Schema<any, any>> = {};
+  for (const col of duck) {
+    fields[col.name] = Schema.NullOr(Schema.String);
+  }
+  return Schema.Struct(fields);
+}
+
+export function assertSchemasCompatible(
+  producer: DuckSchema,
+  consumer: Schema.Schema<any, any>,
+  producerStepId: string,
+  consumerStepId: string,
+): void {
+  const ast = Schema.encodedSchema(consumer).ast;
+  if (ast._tag !== "TypeLiteral") return;
+  const required = ast.propertySignatures.map((p) => String(p.name));
+  const available = new Set(producer.map((c) => c.name));
+  const missing = required.filter((k) => !available.has(k));
+  if (missing.length > 0) {
+    throw new Error(
+      `Pipeline type error: step "${consumerStepId}" expects columns [${missing.join(", ")}] not produced by step "${producerStepId}"`
+    );
+  }
+}
