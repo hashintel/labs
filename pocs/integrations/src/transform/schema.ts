@@ -17,12 +17,13 @@ export function formatDuckSchema(schema: DuckSchema): string {
   return schema.map((c) => `${c.name}: ${DuckDBTypeId[c.typeId]}`).join(", ");
 }
 
-export function decodeRows<A, I>(
-  schema: Schema.Schema<A, I>,
+export function decodeRows(
+  schema: Schema.Schema.All,
   rows: unknown[],
   stepId: string,
-): readonly A[] {
-  const decode = Schema.decodeUnknownEither(Schema.Array(schema), { errors: "all" });
+): readonly unknown[] {
+  const s = schema as Schema.Schema<unknown>;
+  const decode = Schema.decodeUnknownEither(Schema.Array(s), { errors: "all" });
   const result = decode(rows);
   if (Either.isRight(result)) return result.right;
   const formatted = ParseResult.TreeFormatter.formatErrorSync(result.left);
@@ -30,12 +31,12 @@ export function decodeRows<A, I>(
 }
 
 export function assertSchemaColumns(
-  effectSchema: Schema.Schema<any, any>,
+  effectSchema: Schema.Schema.All,
   duckSchema: DuckSchema,
   stepId: string,
 ): void {
   const actual = new Set(duckSchema.map((c) => c.name));
-  const ast = Schema.encodedSchema(effectSchema).ast;
+  const ast = Schema.encodedSchema(effectSchema as Schema.Schema<unknown>).ast;
   if (ast._tag !== "TypeLiteral") return;
   const expected = ast.propertySignatures.map((p) => String(p.name));
   const missing = expected.filter((k) => !actual.has(k));
@@ -44,8 +45,8 @@ export function assertSchemaColumns(
   }
 }
 
-export function effectSchemaFromDuck(duck: DuckSchema): Schema.Schema<any, any> {
-  const fields: Record<string, Schema.Schema<any, any>> = {};
+export function effectSchemaFromDuck(duck: DuckSchema): Schema.Schema.All {
+  const fields: Record<string, Schema.Schema<string | null>> = {};
   for (const col of duck) {
     fields[col.name] = Schema.NullOr(Schema.String);
   }
@@ -54,11 +55,11 @@ export function effectSchemaFromDuck(duck: DuckSchema): Schema.Schema<any, any> 
 
 export function assertSchemasCompatible(
   producer: DuckSchema,
-  consumer: Schema.Schema<any, any>,
+  consumer: Schema.Schema.All,
   producerStepId: string,
   consumerStepId: string,
 ): void {
-  const ast = Schema.encodedSchema(consumer).ast;
+  const ast = Schema.encodedSchema(consumer as Schema.Schema<unknown>).ast;
   if (ast._tag !== "TypeLiteral") return;
   const required = ast.propertySignatures.map((p) => String(p.name));
   const available = new Set(producer.map((c) => c.name));

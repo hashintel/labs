@@ -1,4 +1,4 @@
-import { MongoClient, type ChangeStream, type ChangeStreamDocument, type Document, type ResumeToken } from "mongodb";
+import { MongoClient, type ChangeStream, type ChangeStreamDocument, type ChangeStreamInsertDocument, type ChangeStreamUpdateDocument, type ChangeStreamReplaceDocument, type ChangeStreamDeleteDocument, type Document, type ResumeToken } from "mongodb";
 import type { Batch, BatchHandler, ChangeEvent, ChangeOp, Connector, PullResult, Subscription, TableConfig, ColumnInfo } from "./types.js";
 
 export type MongoStreamConfig = {
@@ -7,13 +7,6 @@ export type MongoStreamConfig = {
   database: string;
   collections: Record<string, TableConfig>;
   pollTimeoutMs?: number;
-};
-
-const OP_MAP: Record<string, ChangeOp | undefined> = {
-  insert: "insert",
-  update: "update",
-  replace: "update",
-  delete: "delete",
 };
 
 function serializeDoc(doc: Document): Record<string, unknown> {
@@ -28,24 +21,35 @@ function serializeDoc(doc: Document): Record<string, unknown> {
   return row;
 }
 
-function toChangeEvent(change: ChangeStreamDocument, pk: string[]): ChangeEvent | null {
-  const op = OP_MAP[change.operationType];
-  if (!op) return null;
+type DmlChange =
+  | ChangeStreamInsertDocument
+  | ChangeStreamUpdateDocument
+  | ChangeStreamReplaceDocument
+  | ChangeStreamDeleteDocument;
 
-  if (op === "delete") {
-    const docKey = (change as any).documentKey;
-    return { table: (change.ns as any).coll, op: "delete", key: docKey ? serializeDoc(docKey) : {}, row: null };
+const OP_MAP: Record<string, ChangeOp | undefined> = {
+  insert: "insert",
+  update: "update",
+  replace: "update",
+  delete: "delete",
+};
+
+function isDml(change: ChangeStreamDocument): change is DmlChange {
+  return change.operationType in OP_MAP;
+}
+
+function toChangeEvent(change: DmlChange, pk: string[]): ChangeEvent {
+  const op = OP_MAP[change.operationType]!;
+  const coll = change.ns.coll;
+
+  if (change.operationType === "delete") {
+    return { table: coll, op: "delete", key: change.documentKey ? serializeDoc(change.documentKey) : {}, row: null };
   }
 
-  const fullDoc = (change as any).fullDocument;
-  if (!fullDoc) return null;
+  const fullDoc = change.fullDocument;
+  if (!fullDoc) return { table: coll, op, key: {}, row: {} };
   const row = serializeDoc(fullDoc);
-  return {
-    table: (change.ns as any).coll,
-    op,
-    key: Object.fromEntries(pk.map((k) => [k, row[k]])),
-    row,
-  };
+  return { table: coll, op, key: Object.fromEntries(pk.map((k) => [k, row[k]])), row };
 }
 
 export function createMongoStreamConnector(config: MongoStreamConfig): Connector {
@@ -99,8 +103,7 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
 
         const change = await stream.next();
         resumeToken = change._id;
-        const ev = toChangeEvent(change, pk);
-        if (ev) events.push(ev);
+        if (isDml(change)) events.push(toChangeEvent(change, pk));
       }
 
       await stream.close();
@@ -123,8 +126,7 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
       (async () => {
         for await (const change of stream) {
           resumeToken = change._id;
-          const ev = toChangeEvent(change, pk);
-          if (ev) await onBatch({ events: [ev], cursor: resumeToken });
+          if (isDml(change)) await onBatch({ events: [toChangeEvent(change, pk)], cursor: resumeToken });
         }
       })();
 

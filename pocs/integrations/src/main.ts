@@ -7,7 +7,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const configPath = resolve(process.argv[2] ?? resolve(root, "..", "integration.json"));
 const def: ConnectorDef = JSON.parse(readFileSync(configPath, "utf-8"));
 const connector = createConnector(def);
-const table = process.argv[3] ?? Object.keys(def.tables)[0]!;
+const table = process.argv[3] ?? Object.keys("tables" in def ? def.tables : def.collections)[0]!;
 
 async function main() {
   const schema = await connector.introspect();

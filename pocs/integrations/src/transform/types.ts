@@ -11,15 +11,15 @@ export type SqlStep = {
   kind: "sql";
   id: string;
   sql: string;
-  output?: Schema.Schema<any, any>;
+  output?: Schema.Schema.All;
 };
 
 export type TsStep = {
   kind: "ts";
   id: string;
-  input?: Schema.Schema<any, any>;
-  output?: Schema.Schema<any, any>;
-  transform: (rows: any[]) => any[] | Promise<any[]>;
+  input?: Schema.Schema.All;
+  output?: Schema.Schema.All;
+  transform: (rows: (Row & Envelope)[]) => (Row & Envelope)[] | Promise<(Row & Envelope)[]>;
 };
 
 export type Step = SqlStep | TsStep;
@@ -39,7 +39,7 @@ export type PipelineResult = {
   stepResults: Record<string, StepResult>;
 };
 
-export function sqlStep<O>(opts: { id: string; query: string | { sql: string }; output?: Schema.Schema<O, any> }): SqlStep {
+export function sqlStep<O>(opts: { id: string; query: string | { sql: string }; output?: Schema.Schema<O> }): SqlStep {
   const query = typeof opts.query === "string" ? opts.query : opts.query.sql;
   return { kind: "sql", id: opts.id, sql: query, output: opts.output };
 }
@@ -47,10 +47,10 @@ export function sqlStep<O>(opts: { id: string; query: string | { sql: string }; 
 export function lambdaStep<I extends Row = Row, O extends Row = Row>(opts: {
   id: string;
   transform: (rows: (I & Envelope)[]) => (O & Envelope)[] | Promise<(O & Envelope)[]>;
-  input?: Schema.Schema<I, any>;
-  output?: Schema.Schema<O, any>;
+  input?: Schema.Schema<I>;
+  output?: Schema.Schema<O>;
 }): TsStep {
-  return { kind: "ts", id: opts.id, transform: opts.transform, input: opts.input, output: opts.output };
+  return { kind: "ts", id: opts.id, transform: opts.transform as TsStep["transform"], input: opts.input, output: opts.output };
 }
 
 export function pipe(source: string | Pipeline, ...steps: Step[]): Pipeline {
@@ -70,12 +70,13 @@ function assertMeta(schema: DuckSchema, stepId: string): void {
   }
 }
 
-export type ValidatedPipeline = Pipeline & {
-  schemas: Record<string, DuckSchema>;
-};
-
 export type ValidateOptions = {
   debug?: boolean;
+  forEach?: (row: Record<string, unknown>) => void | Promise<void>;
+};
+
+export type ValidatedPipeline = Pipeline & {
+  schemas: Record<string, DuckSchema>;
 };
 
 export async function validatePipeline(pipeline: Pipeline, db: QueryableStore, opts?: ValidateOptions): Promise<ValidatedPipeline> {
@@ -172,7 +173,7 @@ async function execTsStep(
     validated.add(`${step.id}/in`);
   }
 
-  const transformed = await step.transform(rows);
+  const transformed = await step.transform(rows as (Row & Envelope)[]);
 
   if (step.output && !validated.has(`${step.id}/out`)) {
     const nonDelete = transformed.filter((r) => r._op !== "delete");
@@ -181,6 +182,7 @@ async function execTsStep(
   }
 
   await writeRows(transformed, outputTable, db);
+  assertMeta(await db.schemaOf(outputTable), step.id);
 }
 
 async function writeRows(rows: Row[], table: string, db: QueryableStore): Promise<void> {

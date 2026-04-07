@@ -136,7 +136,7 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
       return {
         async stop() {
           await service.stop();
-          try { (service as any).client?.end?.(); } catch {}
+          try { (service as unknown as { client?: { end?(): void } }).client?.end?.(); } catch {}
         },
       };
     },

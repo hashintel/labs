@@ -126,6 +126,7 @@ describe("pipe + runPipeline", () => {
 
     await assert.rejects(
       () => runPipeline(pipe("test/users",
+        // @ts-expect-error intentionally stripping _op/_key to test runtime enforcement
         lambdaStep({ id: "bad", transform: (rows) => rows.map(({ _op, _key, ...data }) => data) }),
       ), db),
       (err: Error) => err.message.includes("missing"),

@@ -24,7 +24,7 @@ describe("decodeRows", () => {
   it("decodes valid rows", () => {
     const decoded = decodeRows(TestSchema, [{ id: "1", email: "a@b.com" }], "s");
     assert.equal(decoded.length, 1);
-    assert.equal(decoded[0].id, "1");
+    assert.equal((decoded[0] as Record<string, unknown>).id, "1");
   });
 
   it("throws with step id in error for invalid rows", () => {
@@ -91,14 +91,14 @@ describe("effectSchemaFromDuck", () => {
       { name: "id", typeId: DuckDBTypeId.VARCHAR },
       { name: "name", typeId: DuckDBTypeId.VARCHAR },
     ];
-    const generated = effectSchemaFromDuck(duck);
+    const generated = effectSchemaFromDuck(duck) as Schema.Schema<Record<string, unknown>>;
     const decoded = Schema.decodeUnknownSync(generated)({ id: "1", name: "alice" });
     assert.equal(decoded.id, "1");
   });
 
   it("accepts null values", () => {
     const duck: DuckSchema = [{ name: "val", typeId: DuckDBTypeId.VARCHAR }];
-    const generated = effectSchemaFromDuck(duck);
+    const generated = effectSchemaFromDuck(duck) as Schema.Schema<Record<string, unknown>>;
     const decoded = Schema.decodeUnknownSync(generated)({ val: null });
     assert.equal(decoded.val, null);
   });

@@ -77,18 +77,14 @@ export function createMongoConnector(config: MongoConnectorConfig): Connector {
       const pk = Array.isArray(cc.primaryKey) ? cc.primaryKey : [cc.primaryKey];
 
       const filter: Filter<Document> = { ...cc.filter };
-      const sort: Sort = {};
 
       if (cc.watermark && cursor != null) {
         filter[cc.watermark] = { $gt: cursor };
       }
-      if (cc.watermark) {
-        sort[cc.watermark] = 1;
-      }
 
       const docs = await coll.find(filter, {
         projection: cc.projection,
-        sort,
+        sort: cc.watermark ? { [cc.watermark]: 1 } as Sort : undefined,
       }).toArray();
 
       const isSnapshot = cursor == null;
