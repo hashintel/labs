@@ -1,7 +1,6 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Schema } from "effect";
-import { DuckDBTypeId } from "@duckdb/node-api";
 import { createStagingDb, META_COLUMNS, type StagingDb } from "../staging/db.js";
 import { pipe, sql, ts, runPipeline, validatePipeline } from "./types.js";
 
@@ -18,19 +17,19 @@ async function seedUsers(db: StagingDb) {
 }
 
 describe("pipe + runPipeline", () => {
-  it("auto-preserves _op/_key through SQL", async () => {
+  it("SELECT * carries _op/_key through", async () => {
     db = await createStagingDb();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
-      sql({ id: "pass", query: `SELECT * FROM input`, key: "id" }),
+      sql({ id: "pass", query: `SELECT * FROM input` }),
     ), db);
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
 
     assert.equal(rows.length, 3);
-    assert.equal(rows[0][META_COLUMNS.op], "insert");
-    assert.equal(rows[1][META_COLUMNS.op], "update");
-    assert.equal(rows[2][META_COLUMNS.op], "delete");
+    assert.ok(rows.some((r) => r[META_COLUMNS.op] === "insert"));
+    assert.ok(rows.some((r) => r[META_COLUMNS.op] === "update"));
+    assert.ok(rows.some((r) => r[META_COLUMNS.op] === "delete"));
   });
 
   it("chains SQL steps", async () => {
@@ -38,37 +37,45 @@ describe("pipe + runPipeline", () => {
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
-      sql({ id: "fullname", query: `SELECT *, first_name || ' ' || last_name AS full_name FROM input`, key: "id" }),
-      sql({ id: "pick", query: `SELECT id, email, full_name FROM input`, key: "id" }),
-    ), db);
-
-    const { rows } = await db.query(`SELECT * FROM "${result.outputTable}" WHERE _op != 'delete'`);
-    assert.equal(rows.length, 2);
-    assert.equal(rows[0].full_name, "Alice Smith");
-    assert.ok(rows[0][META_COLUMNS.op]);
-  });
-
-  it("SQL filter preserves correct _op/_key via key join", async () => {
-    db = await createStagingDb();
-    await seedUsers(db);
-
-    const result = await runPipeline(pipe("test/users",
-      sql({ id: "filter", query: `SELECT * FROM input WHERE email LIKE '%acme%'`, key: "id" }),
+      sql({ id: "fullname", query: `SELECT *, first_name || ' ' || last_name AS full_name FROM input` }),
+      sql({ id: "pick", query: `SELECT _op, _key, id, email, full_name FROM input` }),
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}" WHERE _op != 'delete' ORDER BY id`);
     assert.equal(rows.length, 2);
-
-    const ops = new Set(rows.map((r) => r[META_COLUMNS.op]));
-    assert.ok(ops.has("insert"));
-    assert.ok(ops.has("update"));
-
-    const keys = rows.map((r) => JSON.parse(r[META_COLUMNS.key] as string).id);
-    assert.ok(keys.includes(1));
-    assert.ok(keys.includes(2));
+    assert.equal(rows[0].full_name, "Alice Smith");
+    assert.equal(rows[1].full_name, "Bob Jones");
   });
 
-  it("auto-strips and re-attaches envelope for TS steps", async () => {
+  it("SQL WHERE filter works with full SQL power", async () => {
+    db = await createStagingDb();
+    await seedUsers(db);
+
+    const result = await runPipeline(pipe("test/users",
+      sql({ id: "filter", query: `SELECT * FROM input WHERE email LIKE '%acme%'` }),
+    ), db);
+
+    const { rows } = await db.query(`SELECT * FROM "${result.outputTable}" ORDER BY id`);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0][META_COLUMNS.op], "insert");
+    assert.equal(rows[1][META_COLUMNS.op], "update");
+  });
+
+  it("SQL aggregation works when user provides _op/_key", async () => {
+    db = await createStagingDb();
+    await seedUsers(db);
+
+    const result = await runPipeline(pipe("test/users",
+      sql({ id: "count", query: `SELECT 'aggregate' AS _op, '{}' AS _key, count(*) AS total FROM input WHERE _op != 'delete'` }),
+    ), db);
+
+    const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
+    assert.equal(rows.length, 1);
+    assert.equal(String(rows[0].total), "2");
+    assert.equal(rows[0][META_COLUMNS.op], "aggregate");
+  });
+
+  it("TS step sees _op and _key, carries them through via spread", async () => {
     db = await createStagingDb();
     await seedUsers(db);
 
@@ -81,7 +88,7 @@ describe("pipe + runPipeline", () => {
     assert.equal(rows[0][META_COLUMNS.op], "insert");
   });
 
-  it("TS step receives clean rows without _op/_key", async () => {
+  it("TS step receives _op and _key alongside data", async () => {
     db = await createStagingDb();
     await seedUsers(db);
 
@@ -90,9 +97,35 @@ describe("pipe + runPipeline", () => {
       ts({ id: "inspect", transform: (rows) => { receivedKeys = Object.keys(rows[0]); return rows; } }),
     ), db);
 
-    assert.ok(!receivedKeys.includes("_op"));
-    assert.ok(!receivedKeys.includes("_key"));
+    assert.ok(receivedKeys.includes("_op"));
+    assert.ok(receivedKeys.includes("_key"));
     assert.ok(receivedKeys.includes("email"));
+  });
+
+  it("TS step can filter rows", async () => {
+    db = await createStagingDb();
+    await seedUsers(db);
+
+    const result = await runPipeline(pipe("test/users",
+      ts({ id: "filter", transform: (rows) => rows.filter((r) => r.email && String(r.email).includes("acme")) }),
+    ), db);
+
+    const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
+    assert.equal(rows.length, 2);
+    assert.ok(rows.some((r) => r[META_COLUMNS.op] === "insert"));
+    assert.ok(rows.some((r) => r[META_COLUMNS.op] === "update"));
+  });
+
+  it("TS step that drops _op/_key throws", async () => {
+    db = await createStagingDb();
+    await seedUsers(db);
+
+    await assert.rejects(
+      () => runPipeline(pipe("test/users",
+        ts({ id: "bad", transform: (rows) => rows.map(({ _op, _key, ...data }) => data) }),
+      ), db),
+      (err: Error) => err.message.includes("missing"),
+    );
   });
 
   it("mixes SQL and TS steps", async () => {
@@ -100,11 +133,11 @@ describe("pipe + runPipeline", () => {
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
-      sql({ id: "filter", query: `SELECT * FROM input WHERE id IS NOT NULL`, key: "id" }),
+      sql({ id: "filter", query: `SELECT * FROM input WHERE _op != 'delete'` }),
       ts({ id: "tag", transform: (rows) => rows.map((r) => ({ ...r, source: "crm" })) }),
     ), db);
 
-    const { rows } = await db.query(`SELECT * FROM "${result.outputTable}" WHERE _op != 'delete'`);
+    const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
     assert.equal(rows.length, 2);
     assert.equal(rows[0].source, "crm");
     assert.ok(rows[0][META_COLUMNS.op]);
@@ -119,18 +152,6 @@ describe("pipe + runPipeline", () => {
     assert.deepEqual(result.stepResults, {});
   });
 
-  it("populates stepResults with DuckDB schema", async () => {
-    db = await createStagingDb();
-    await seedUsers(db);
-
-    const result = await runPipeline(pipe("test/users",
-      sql({ id: "pass", query: `SELECT * FROM input`, key: "id" }),
-    ), db);
-    const schema = result.stepResults["pass"].duckSchema;
-    assert.ok(schema.length > 0);
-    assert.ok(schema.some((c) => c.name === "_op"));
-  });
-
   it("handles all-delete input", async () => {
     db = await createStagingDb();
     await db.loadEvents("test", [
@@ -139,7 +160,7 @@ describe("pipe + runPipeline", () => {
     ]);
 
     const result = await runPipeline(pipe("test/users",
-      sql({ id: "pass", query: `SELECT * FROM input`, key: "id" }),
+      sql({ id: "pass", query: `SELECT * FROM input` }),
     ), db);
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
     assert.equal(rows.length, 2);
@@ -150,7 +171,7 @@ describe("pipe + runPipeline", () => {
     db = await createStagingDb();
     await seedUsers(db);
 
-    const p = pipe("test/users", sql({ id: "pass", query: `SELECT * FROM input`, key: "id" }));
+    const p = pipe("test/users", sql({ id: "pass", query: `SELECT * FROM input` }));
     await runPipeline(p, db);
     const result = await runPipeline(p, db);
 
@@ -159,26 +180,47 @@ describe("pipe + runPipeline", () => {
   });
 });
 
+describe("_op/_key enforcement (SQL)", () => {
+  it("throws when SQL step drops _op/_key", async () => {
+    db = await createStagingDb();
+    await seedUsers(db);
+
+    await assert.rejects(
+      () => runPipeline(pipe("test/users", sql({ id: "bad", query: `SELECT id, email FROM input` })), db),
+      (err: Error) => err.message.includes("missing"),
+    );
+  });
+});
+
 describe("validatePipeline", () => {
   it("passes for valid SQL steps", async () => {
     db = await createStagingDb();
     await seedUsers(db);
-    await validatePipeline(pipe("test/users", sql({ id: "ok", query: `SELECT * FROM input`, key: "id" })), db);
+    await validatePipeline(pipe("test/users", sql({ id: "ok", query: `SELECT * FROM input` })), db);
   });
 
   it("throws for SQL referencing nonexistent column", async () => {
     db = await createStagingDb();
     await seedUsers(db);
-    await assert.rejects(() => validatePipeline(pipe("test/users", sql({ id: "bad", query: `SELECT nope FROM input`, key: "id" })), db));
+    await assert.rejects(() => validatePipeline(pipe("test/users", sql({ id: "bad", query: `SELECT nope FROM input` })), db));
   });
 
-  it("skips TS steps without error", async () => {
+  it("catches _op/_key drop at validation time", async () => {
+    db = await createStagingDb();
+    await seedUsers(db);
+    await assert.rejects(
+      () => validatePipeline(pipe("test/users", sql({ id: "bad", query: `SELECT id FROM input` })), db),
+      (err: Error) => err.message.includes("missing"),
+    );
+  });
+
+  it("skips TS steps", async () => {
     db = await createStagingDb();
     await seedUsers(db);
     await validatePipeline(pipe("test/users",
-      sql({ id: "first", query: `SELECT * FROM input`, key: "id" }),
+      sql({ id: "first", query: `SELECT * FROM input` }),
       ts({ id: "middle", transform: (rows) => rows }),
-      sql({ id: "last", query: `SELECT * FROM input`, key: "id" }),
+      sql({ id: "last", query: `SELECT * FROM input` }),
     ), db);
   });
 });
@@ -186,12 +228,12 @@ describe("validatePipeline", () => {
 describe("Effect Schema validation", () => {
   const UserOut = Schema.Struct({ id: Schema.String, email: Schema.String });
 
-  it("validates SQL step output against declared schema", async () => {
+  it("validates SQL step output (schema excludes _op/_key)", async () => {
     db = await createStagingDb();
     await seedUsers(db);
 
     const result = await runPipeline(pipe("test/users",
-      sql({ id: "pick", query: `SELECT id, email FROM input`, key: "id", output: UserOut }),
+      sql({ id: "pick", query: `SELECT _op, _key, id, email FROM input`, output: UserOut }),
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
@@ -205,7 +247,7 @@ describe("Effect Schema validation", () => {
     const Bad = Schema.Struct({ nope: Schema.String });
 
     await assert.rejects(
-      () => validatePipeline(pipe("test/users", sql({ id: "pick", query: `SELECT id FROM input`, key: "id", output: Bad })), db),
+      () => validatePipeline(pipe("test/users", sql({ id: "pick", query: `SELECT _op, _key, id FROM input`, output: Bad })), db),
       (err: Error) => err.message.includes("nope"),
     );
   });
@@ -217,7 +259,7 @@ describe("Effect Schema validation", () => {
     const UserIn = Schema.Struct({ id: Schema.String, email: Schema.String });
 
     const result = await runPipeline(pipe("test/users",
-      sql({ id: "pick", query: `SELECT id, email FROM input`, key: "id" }),
+      sql({ id: "pick", query: `SELECT _op, _key, id, email FROM input` }),
       ts({ id: "check", transform: (rows) => rows, input: UserIn }),
     ), db);
 

@@ -4,11 +4,19 @@ import { fileURLToPath } from "node:url";
 import { Schema } from "effect";
 import { createConnector, type ConnectorDef } from "./connector/index.js";
 import { createStagingDb, META_COLUMNS } from "./staging/db.js";
-import { pipe, sql, ts, runPipeline, validatePipeline } from "./transform/types.js";
+import {
+  pipe,
+  sql,
+  ts,
+  runPipeline,
+  validatePipeline,
+} from "./transform/types.js";
 import { formatDuckSchema } from "./transform/schema.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const configPath = resolve(process.argv[2] ?? resolve(root, "..", "integration-watermark.json"));
+const configPath = resolve(
+  process.argv[2] ?? resolve(root, "..", "integration-watermark.json"),
+);
 const def: ConnectorDef = JSON.parse(readFileSync(configPath, "utf-8"));
 const connector = createConnector(def);
 
@@ -26,32 +34,27 @@ const EnrichedUser = Schema.Struct({
 });
 type EnrichedUser = typeof EnrichedUser.Type;
 
-const usersPipeline = pipe(`${def.id}/users`,
-  sql({ id: "clean-names", query: `SELECT *, trim(first_name || ' ' || last_name) AS full_name FROM input`, key: "id" }),
-  sql({ id: "map-entities", query: `SELECT id AS "primaryKey", email, full_name AS "displayName", organization_id AS "orgId" FROM input`, key: "id", output: UserEntity }),
+const usersPipeline = pipe(
+  `${def.id}/users`,
+  sql({
+    id: "clean-names",
+    query: `SELECT *, trim(first_name || ' ' || last_name) AS full_name FROM input`,
+  }),
+  sql({
+    id: "map-entities",
+    query: `SELECT _op, _key, id AS "primaryKey", email, full_name AS "displayName", organization_id AS "orgId" FROM input`,
+    output: UserEntity,
+  }),
   ts<UserEntity, EnrichedUser>({
     id: "upper-email",
-    transform: (rows) => rows.map((r) => ({ ...r, emailUpper: r.email.toUpperCase() })),
+    transform: (rows) =>
+      rows.map((r) => ({ ...r, emailUpper: r.email.toUpperCase() })),
     output: EnrichedUser,
   }),
 );
 
-async function main() {
-  const db = await createStagingDb();
-
-  const { events, cursor } = await connector.pull("users", undefined);
-  console.log(`Pulled ${events.length} events (cursor: ${cursor})\n`);
-  await db.loadEvents(def.id, events);
-
-  await validatePipeline(usersPipeline, db);
-  const result = await runPipeline(usersPipeline, db);
-
-  const { rows: finalRows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
-  console.log(`Final output (${formatDuckSchema(result.stepResults["upper-email"].duckSchema)}):\n`);
-  console.table(finalRows);
-
-  console.log("\nSink actions:");
-  for (const row of finalRows) {
+function printSinkActions(rows: Record<string, unknown>[]) {
+  for (const row of rows) {
     const op = row[META_COLUMNS.op] as string;
     const key = JSON.parse(row[META_COLUMNS.key] as string);
     const { [META_COLUMNS.op]: _, [META_COLUMNS.key]: __, ...properties } = row;
@@ -59,10 +62,57 @@ async function main() {
     if (op === "delete") console.log(`  ARCHIVE entity ${JSON.stringify(key)}`);
     else console.log(`  UPSERT entity ${JSON.stringify(key)} →`, properties);
   }
+}
+
+async function main() {
+  const db = await createStagingDb();
+  let cursor: unknown;
+  let validated = false;
+
+  console.log(`Mode: ${def.mode}\n`);
+
+  while (true) {
+    const { events, cursor: next } = await connector.pull("users", cursor);
+    cursor = next;
+
+    if (events.length === 0) {
+      if (def.mode === "watermark") break;
+      continue;
+    }
+
+    console.log(`Pulled ${events.length} events (cursor: ${cursor})`);
+    await db.loadEvents(def.id, events);
+
+    if (!validated) {
+      await validatePipeline(usersPipeline, db);
+      validated = true;
+    }
+
+    const result = await runPipeline(usersPipeline, db);
+    const { rows } = await db.query(`SELECT * FROM "${result.outputTable}"`);
+
+    console.log(
+      `Output (${formatDuckSchema(result.stepResults["upper-email"].duckSchema)}):`,
+    );
+    printSinkActions(rows);
+    console.log();
+
+    await db.exec(`DROP TABLE IF EXISTS "${def.id}/users"`);
+
+    if (def.mode === "watermark") break;
+  }
 
   db.close();
   await connector.close();
 }
+
+let shuttingDown = false;
+process.on("SIGINT", async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  await connector.close();
+  process.exit(0);
+});
 
 main().catch((err) => {
   console.error(err);

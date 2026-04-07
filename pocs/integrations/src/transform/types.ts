@@ -9,7 +9,6 @@ export type Row = Record<string, unknown>;
 export type SqlStep = {
   id: string;
   sql: string;
-  key: string;
   output?: Schema.Schema<any, any>;
 };
 
@@ -37,13 +36,15 @@ export type PipelineResult = {
   stepResults: Record<string, StepResult>;
 };
 
-export function sql<O>(opts: { id: string; query: string; key: string; output?: Schema.Schema<O, any> }): SqlStep {
-  return { id: opts.id, sql: opts.query, key: opts.key, output: opts.output };
+export function sql<O>(opts: { id: string; query: string; output?: Schema.Schema<O, any> }): SqlStep {
+  return { id: opts.id, sql: opts.query, output: opts.output };
 }
 
-export function ts<I, O>(opts: {
+export type Envelope = { _op: string; _key: string };
+
+export function ts<I extends Row = Row, O extends Row = Row>(opts: {
   id: string;
-  transform: (rows: I[]) => O[] | Promise<O[]>;
+  transform: (rows: (I & Envelope)[]) => (O & Envelope)[] | Promise<(O & Envelope)[]>;
   input?: Schema.Schema<I, any>;
   output?: Schema.Schema<O, any>;
 }): TsStep {
@@ -54,42 +55,16 @@ export function pipe(source: string, ...steps: Step[]): Pipeline {
   return { source, steps };
 }
 
-function hasDataColumns(schema: DuckSchema): boolean {
-  return schema.some((c) => c.name !== "_op" && c.name !== "_key");
-}
-
 function stripMetaColumns(schema: DuckSchema): DuckSchema {
   return schema.filter((c) => c.name !== "_op" && c.name !== "_key");
 }
 
-function envelopeSql(userSql: string, keyCol: string): string {
-  const qk = qi(keyCol);
-  const rewritten = userSql.replace(/"input"/g, "_data").replace(/\binput\b/g, "_data");
-  return `
-    WITH _data AS (
-      SELECT COLUMNS(c -> c NOT IN ('_op', '_key')) FROM "input"
-    ),
-    _meta AS (
-      SELECT "_op", "_key", ${qk} AS _join_key, row_number() OVER () AS _rn FROM "input"
-    ),
-    _transformed AS (${rewritten})
-    SELECT _meta."_op", _meta."_key", _transformed.*
-    FROM _meta
-    LEFT JOIN _transformed ON _transformed.${qk} IS NOT DISTINCT FROM _meta._join_key
-  `;
-}
-
-async function execSqlStep(step: SqlStep, inputTable: string, outputTable: string, db: StagingDb): Promise<void> {
-  const schema = await db.schemaOf(inputTable);
-  await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(inputTable)}`);
-
-  if (hasDataColumns(schema)) {
-    await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS ${envelopeSql(step.sql, step.key)}`);
-  } else {
-    await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS SELECT * FROM "input"`);
+function assertMeta(schema: DuckSchema, stepId: string): void {
+  const names = new Set(schema.map((c) => c.name));
+  const missing = [META_COLUMNS.op, META_COLUMNS.key].filter((c) => !names.has(c));
+  if (missing.length > 0) {
+    throw new Error(`Step "${stepId}" output is missing ${missing.join(", ")}. SQL steps must carry _op and _key through (use SELECT * or include them explicitly).`);
   }
-
-  await db.exec(`DROP VIEW IF EXISTS "input"`);
 }
 
 export async function validatePipeline(pipeline: Pipeline, db: StagingDb): Promise<void> {
@@ -99,18 +74,15 @@ export async function validatePipeline(pipeline: Pipeline, db: StagingDb): Promi
     if (!("sql" in step)) continue;
 
     const tmpTable = `_validate/${step.id}`;
-    const srcSchema = await db.schemaOf(currentTable);
-
     await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(currentTable)} LIMIT 0`);
-    if (hasDataColumns(srcSchema)) {
-      await db.exec(`CREATE OR REPLACE TABLE ${qi(tmpTable)} AS ${envelopeSql(step.sql, step.key)} LIMIT 0`);
-    } else {
-      await db.exec(`CREATE OR REPLACE TABLE ${qi(tmpTable)} AS SELECT * FROM "input" LIMIT 0`);
-    }
+    await db.exec(`CREATE OR REPLACE TABLE ${qi(tmpTable)} AS ${step.sql} LIMIT 0`);
     await db.exec(`DROP VIEW IF EXISTS "input"`);
 
+    const outSchema = await db.schemaOf(tmpTable);
+    assertMeta(outSchema, step.id);
+
     if (step.output) {
-      assertSchemaColumns(step.output, stripMetaColumns(await db.schemaOf(tmpTable)), step.id);
+      assertSchemaColumns(step.output, stripMetaColumns(outSchema), step.id);
     }
 
     currentTable = tmpTable;
@@ -126,13 +98,18 @@ export async function runPipeline(pipeline: Pipeline, db: StagingDb): Promise<Pi
     const outputTable = `_step/${step.id}`;
 
     if ("sql" in step) {
-      await execSqlStep(step, currentTable, outputTable, db);
+      await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(currentTable)}`);
+      await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS ${step.sql}`);
+      await db.exec(`DROP VIEW IF EXISTS "input"`);
+
+      const duckSchema = await db.schemaOf(outputTable);
+      assertMeta(duckSchema, step.id);
+      stepResults[step.id] = { table: outputTable, duckSchema };
     } else if ("transform" in step) {
       await execTsStep(step, currentTable, outputTable, db, validated);
+      stepResults[step.id] = { table: outputTable, duckSchema: await db.schemaOf(outputTable) };
     }
 
-    const duckSchema = await db.schemaOf(outputTable);
-    stepResults[step.id] = { table: outputTable, duckSchema };
     currentTable = outputTable;
   }
 
@@ -146,34 +123,24 @@ async function execTsStep(
   db: StagingDb,
   validated: Set<string>,
 ): Promise<void> {
-  const { rows: envelopedRows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
-
-  const stripped: Row[] = [];
-  const metas: { _op: unknown; _key: unknown }[] = [];
-  for (const { _op, _key, ...data } of envelopedRows) {
-    metas.push({ _op, _key });
-    stripped.push(data);
-  }
-
-  const nonDeleteIndices = metas.reduce<number[]>((acc, m, i) => {
-    if (m._op !== "delete") acc.push(i);
-    return acc;
-  }, []);
+  const { rows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
 
   if (step.input && !validated.has(`${step.id}/in`)) {
-    decodeRows(step.input, nonDeleteIndices.map((i) => stripped[i]), step.id);
+    const nonDelete = rows.filter((r) => r._op !== "delete");
+    decodeRows(step.input, nonDelete.map(({ _op, _key, ...data }) => data), step.id);
     validated.add(`${step.id}/in`);
   }
 
-  const transformed = await step.transform(stripped);
+  const transformed = await step.transform(rows);
 
   if (step.output && !validated.has(`${step.id}/out`)) {
-    decodeRows(step.output, nonDeleteIndices.map((i) => transformed[i]), step.id);
+    const nonDelete = transformed.filter((r) => r._op !== "delete");
+    decodeRows(step.output, nonDelete.map(({ _op, _key, ...data }) => data), step.id);
     validated.add(`${step.id}/out`);
   }
 
-  const result = transformed.map((row, i) => ({ ...metas[i], ...row }));
-  await writeRows(result, outputTable, db);
+  await writeRows(transformed, outputTable, db);
+  assertMeta(await db.schemaOf(outputTable), step.id);
 }
 
 async function writeRows(rows: Row[], table: string, db: StagingDb): Promise<void> {
