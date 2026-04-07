@@ -39,11 +39,12 @@ export type PipelineResult = {
   stepResults: Record<string, StepResult>;
 };
 
-export function sql<O>(opts: { id: string; query: string; output?: Schema.Schema<O, any> }): SqlStep {
-  return { kind: "sql", id: opts.id, sql: opts.query, output: opts.output };
+export function sqlStep<O>(opts: { id: string; query: string | { sql: string }; output?: Schema.Schema<O, any> }): SqlStep {
+  const query = typeof opts.query === "string" ? opts.query : opts.query.sql;
+  return { kind: "sql", id: opts.id, sql: query, output: opts.output };
 }
 
-export function ts<I extends Row = Row, O extends Row = Row>(opts: {
+export function lambdaStep<I extends Row = Row, O extends Row = Row>(opts: {
   id: string;
   transform: (rows: (I & Envelope)[]) => (O & Envelope)[] | Promise<(O & Envelope)[]>;
   input?: Schema.Schema<I, any>;

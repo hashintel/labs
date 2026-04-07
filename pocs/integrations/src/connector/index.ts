@@ -3,8 +3,14 @@ export {
   type ChangeOp,
   type ColumnInfo,
   type Connector,
+  type PollConnector,
+  type StreamConnector,
+  type FieldKind,
   type ForeignKey,
+  type Batch,
+  type BatchHandler,
   type PullResult,
+  type Subscription,
   type TableConfig,
   extractKey,
   pkColumns,
@@ -20,3 +26,5 @@ export {
   type PostgresCdcConfig,
 } from "./postgres-cdc.js";
 export { createConnector, type ConnectorDef } from "./create.js";
+export { createMongoConnector, type MongoCollectionConfig, type MongoConnectorConfig } from "./mongodb.js";
+export { createMongoStreamConnector, type MongoStreamConfig } from "./mongodb-stream.js";

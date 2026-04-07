@@ -10,3 +10,29 @@ services:
     command: postgres -c wal_level=logical -c max_replication_slots=4 -c max_wal_senders=4
     volumes:
       - ./seed.sql:/docker-entrypoint-initdb.d/seed.sql
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    command: mongod --replSet rs0
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')", "--quiet"]
+      interval: 2s
+      start_period: 5s
+      retries: 10
+
+  mongo-init:
+    image: mongo:7
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["bash", "-c"]
+    command:
+      - |
+        mongosh --host mongo --eval "try { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }); } catch(e) { if (e.codeName !== 'AlreadyInitialized') throw e; }"
+        until mongosh --host mongo --eval "rs.isMaster().ismaster" --quiet | grep -q true; do sleep 1; done
+        mongosh --host mongo demo /seed.js
+    volumes:
+      - ./seed-mongo.js:/seed.js:ro

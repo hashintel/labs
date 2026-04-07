@@ -1,0 +1,12 @@
+{
+  "id": "crm",
+  "mode": "mongo",
+  "url": "mongodb://localhost:27017",
+  "database": "demo",
+  "collections": {
+    "users": {
+      "primaryKey": "_id",
+      "watermark": "updatedAt"
+    }
+  }
+}

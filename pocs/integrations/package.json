@@ -10,6 +10,8 @@
   "dependencies": {
     "@duckdb/node-api": "1.5.1-r.1",
     "effect": "^3.21.0",
+    "sql-template-tag": "^5.2.0",
+    "mongodb": "^6.16.0",
     "pg": "^8.13.0",
     "pg-logical-replication": "^2.2.1"
   },

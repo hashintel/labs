@@ -1,0 +1,11 @@
+{
+  "id": "crm",
+  "mode": "mongo-stream",
+  "url": "mongodb://localhost:27017/?replicaSet=rs0",
+  "database": "demo",
+  "collections": {
+    "users": {
+      "primaryKey": "_id"
+    }
+  }
+}

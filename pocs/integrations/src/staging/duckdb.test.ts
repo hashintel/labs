@@ -13,15 +13,16 @@ function ev(table: string, op: ChangeEvent["op"], key: Record<string, unknown>, 
   return { table, op, key, row };
 }
 
-async function appendAndMaterialize(db: DuckDbStaging, connectorId: string, events: ChangeEvent[]) {
-  await db.append(connectorId, events[0].table, events);
-  return db.materialize(connectorId, events[0].table);
+async function ingest(db: DuckDbStaging, id: string, events: ChangeEvent[]) {
+  await db.append(id, events[0].table, events);
+  const { events: stored } = await db.read(id, events[0].table);
+  return db.materialize(id, events[0].table, stored);
 }
 
-describe("append + materialize", () => {
+describe("append + read + materialize", () => {
   it("materializes inserts with _op and _key", async () => {
     db = await createDuckDbStaging();
-    await appendAndMaterialize(db, "t", [
+    await ingest(db, "t", [
       ev("users", "insert", { id: 1 }, { id: "1", email: "a@b.com" }),
       ev("users", "insert", { id: 2 }, { id: "2", email: "c@d.com" }),
     ]);
@@ -35,7 +36,7 @@ describe("append + materialize", () => {
 
   it("preserves update op", async () => {
     db = await createDuckDbStaging();
-    await appendAndMaterialize(db, "t", [
+    await ingest(db, "t", [
       ev("users", "update", { id: 1 }, { id: "1", email: "new@b.com" }),
     ]);
 
@@ -45,11 +46,13 @@ describe("append + materialize", () => {
 
   it("materializes deletes with null data columns", async () => {
     db = await createDuckDbStaging();
-    await db.append("t", "users", [
+    const events = [
       ev("users", "insert", { id: 1 }, { id: "1", email: "a@b.com" }),
       ev("users", "delete", { id: 1 }, null),
-    ]);
-    await db.materialize("t", "users");
+    ];
+    await db.append("t", "users", events);
+    const { events: stored } = await db.read("t", "users");
+    await db.materialize("t", "users", stored);
 
     const { rows } = await db.query(`SELECT * FROM "t/users" WHERE _op = 'delete'`);
     assert.equal(rows.length, 1);
@@ -58,7 +61,7 @@ describe("append + materialize", () => {
 
   it("handles batch of only deletes", async () => {
     db = await createDuckDbStaging();
-    await appendAndMaterialize(db, "t", [ev("users", "delete", { id: 1 }, null)]);
+    await ingest(db, "t", [ev("users", "delete", { id: 1 }, null)]);
 
     const { rows } = await db.query(`SELECT * FROM "t/users"`);
     assert.equal(rows.length, 1);
@@ -73,7 +76,7 @@ describe("append + materialize", () => {
 
   it("serializes compound keys as JSON", async () => {
     db = await createDuckDbStaging();
-    await appendAndMaterialize(db, "t", [
+    await ingest(db, "t", [
       ev("lines", "insert", { order_id: 1, line_id: 2 }, { order_id: "1", line_id: "2", qty: "5" }),
     ]);
 
@@ -85,7 +88,7 @@ describe("append + materialize", () => {
 
   it("handles values with special characters", async () => {
     db = await createDuckDbStaging();
-    await appendAndMaterialize(db, "t", [
+    await ingest(db, "t", [
       ev("users", "insert", { id: 1 }, { id: "1", name: "O'Malley \"Bob\"", bio: "line1\nline2" }),
     ]);
 
@@ -94,13 +97,15 @@ describe("append + materialize", () => {
     assert.equal(rows[0].bio, "line1\nline2");
   });
 
-  it("materialize with fromSeq skips earlier events", async () => {
+  it("read with fromSeq skips earlier events", async () => {
     db = await createDuckDbStaging();
     await db.append("t", "users", [
       ev("users", "insert", { id: 1 }, { id: "1", email: "a@b.com" }),
       ev("users", "insert", { id: 2 }, { id: "2", email: "c@d.com" }),
     ]);
-    await db.materialize("t", "users", 1);
+
+    const { events } = await db.read("t", "users", 1);
+    await db.materialize("t", "users", events);
 
     const { rows } = await db.query(`SELECT * FROM "t/users"`);
     assert.equal(rows.length, 1);
@@ -113,16 +118,16 @@ describe("append + materialize", () => {
       ev("users", "insert", { id: 1 }, { id: "1", email: "a@b.com" }),
       ev("users", "insert", { id: 2 }, { id: "2", email: "c@d.com" }),
     ]);
-    const r1 = await db.materialize("t", "users");
+    const r1 = await db.read("t", "users");
     assert.equal(r1.nextSeq, 2);
-    assert.equal(r1.rowCount, 2);
+    assert.equal(r1.events.length, 2);
 
     await db.append("t", "users", [
       ev("users", "insert", { id: 3 }, { id: "3", email: "e@f.com" }),
     ]);
-    const r2 = await db.materialize("t", "users", r1.nextSeq);
+    const r2 = await db.read("t", "users", r1.nextSeq);
     assert.equal(r2.nextSeq, 3);
-    assert.equal(r2.rowCount, 1);
+    assert.equal(r2.events.length, 1);
   });
 });
 
@@ -149,5 +154,49 @@ describe("schemaOf", () => {
     assert.equal(schema.length, 2);
     assert.equal(schema[0].name, "id");
     assert.equal(schema[1].name, "name");
+  });
+});
+
+describe("document data (nested objects)", () => {
+  it("auto-detects objects and stores as JSON columns", async () => {
+    db = await createDuckDbStaging();
+    const events = [ev("users", "insert", { _id: "abc" }, {
+      _id: "abc",
+      name: "Alice",
+      address: { city: "NYC", zip: "10001" },
+      tags: ["admin", "user"],
+    })];
+    await db.materialize("t", "users", events);
+
+    const { rows } = await db.query(`SELECT * FROM "t/users"`);
+    assert.equal(rows[0].name, "Alice");
+    assert.equal(typeof rows[0].address, "string");
+    assert.ok(String(rows[0].address).includes("NYC"));
+  });
+
+  it("SQL step can extract nested fields via JSON operators", async () => {
+    db = await createDuckDbStaging();
+    const events = [ev("users", "insert", { _id: "abc" }, {
+      _id: "abc",
+      name: "Alice",
+      address: { city: "NYC", zip: "10001" },
+    })];
+    await db.materialize("t", "users", events);
+
+    const { rows } = await db.query(`SELECT name, address->>'city' AS city FROM "t/users"`);
+    assert.equal(rows[0].city, "NYC");
+  });
+
+  it("explicit column metadata overrides auto-detection", async () => {
+    db = await createDuckDbStaging();
+    const events = [ev("docs", "insert", { id: "1" }, { id: "1", payload: { nested: true } })];
+    await db.materialize("t", "docs", events, [
+      { name: "id", type: "text", nullable: false },
+      { name: "payload", type: "json", nullable: false, kind: "json" },
+    ]);
+
+    const schema = await db.schemaOf("t/docs");
+    const payloadCol = schema.find((c) => c.name === "payload");
+    assert.ok(payloadCol);
   });
 });

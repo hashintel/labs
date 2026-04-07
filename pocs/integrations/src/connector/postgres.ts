@@ -14,6 +14,7 @@ export type PostgresConnectorConfig = {
   id: string;
   url: string;
   tables: Record<string, PostgresTableConfig>;
+  pollIntervalMs?: number;
 };
 
 export function createPostgresConnector(config: PostgresConnectorConfig): Connector {
@@ -21,6 +22,8 @@ export function createPostgresConnector(config: PostgresConnectorConfig): Connec
 
   return {
     id: config.id,
+    mode: "poll" as const,
+    pollIntervalMs: config.pollIntervalMs,
 
     async introspect() {
       return introspectTables(config.url, config.tables);

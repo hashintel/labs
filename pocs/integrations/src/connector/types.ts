@@ -14,10 +14,13 @@ export type ForeignKey = {
   on?: string | string[];
 };
 
+export type FieldKind = "scalar" | "json";
+
 export type ColumnInfo = {
   name: string;
   type: string;
   nullable: boolean;
+  kind?: FieldKind;
 };
 
 export type TableConfig = {
@@ -31,12 +34,36 @@ export type PullResult = {
   cursor: unknown;
 };
 
-export type Connector = {
+export type Batch = {
+  events: ChangeEvent[];
+  cursor: unknown;
+};
+
+export type BatchHandler = (batch: Batch) => void | Promise<void>;
+
+export type Subscription = {
+  stop(): Promise<void>;
+};
+
+type ConnectorBase = {
   readonly id: string;
   introspect(): Promise<Record<string, TableConfig>>;
-  pull(table: string, cursor: unknown): Promise<PullResult>;
   close(): Promise<void>;
 };
+
+export type PollConnector = ConnectorBase & {
+  readonly mode: "poll";
+  readonly pollIntervalMs?: number;
+  pull(table: string, cursor: unknown): Promise<PullResult>;
+};
+
+export type StreamConnector = ConnectorBase & {
+  readonly mode: "stream";
+  pull(table: string, cursor: unknown): Promise<PullResult>;
+  subscribe(table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription>;
+};
+
+export type Connector = PollConnector | StreamConnector;
 
 export function pkColumns(pk: string | string[]): string[] {
   return Array.isArray(pk) ? pk : [pk];
