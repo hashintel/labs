@@ -30,21 +30,6 @@ export function decodeRows(
   throw new Error(`Schema validation failed at step "${stepId}":\n${formatted}`);
 }
 
-export function assertSchemaColumns(
-  effectSchema: Schema.Schema.All,
-  duckSchema: DuckSchema,
-  stepId: string,
-): void {
-  const actual = new Set(duckSchema.map((c) => c.name));
-  const ast = Schema.encodedSchema(effectSchema as Schema.Schema<unknown>).ast;
-  if (ast._tag !== "TypeLiteral") return;
-  const expected = ast.propertySignatures.map((p) => String(p.name));
-  const missing = expected.filter((k) => !actual.has(k));
-  if (missing.length > 0) {
-    throw new Error(`Schema validation failed at step "${stepId}": output missing columns [${missing.join(", ")}]`);
-  }
-}
-
 export function effectSchemaFromDuck(duck: DuckSchema): Schema.Schema.All {
   const fields: Record<string, Schema.Schema<string | null>> = {};
   for (const col of duck) {

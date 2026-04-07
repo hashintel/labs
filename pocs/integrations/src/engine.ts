@@ -1,111 +1,120 @@
-import type { Connector, Batch, PollConnector, StreamConnector } from "./connector/types.js";
+import { quotedIdentifier as qi } from "@duckdb/node-api";
+import type { Batch, PollConnector, StreamConnector } from "./connector/types.js";
+import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
-import type { Pipeline, PipelineResult } from "./transform/types.js";
-import { validatePipeline, runPipeline, type ValidateOptions } from "./transform/types.js";
+import type { Pipeline, TransformFn, TransformResolver } from "./transform/pipeline.js";
+import { validatePipeline, runPipeline } from "./transform/run.js";
 
-export type IntegrationDef = {
-  /** The connector to pull/stream data from. */
-  connector: Connector;
-  /** Which table or collection to watch. */
+export type StoreDef = { kind: "duckdb" } | { kind: "ref"; fn: string };
+
+export type IntegrationSpec = {
+  connector: ConnectorDef;
   table: string;
-  /** Durable event log. Events are appended here and read back for materialization. */
-  eventStore: EventStore;
-  /** DuckDB (or compatible) store for materializing events and running SQL transforms. */
-  queryStore: QueryableStore;
-  /** The transform pipeline to run on each batch. */
+  store: StoreDef;
   pipeline: Pipeline;
-  /** Pipeline options. { debug: true } enables validation logging. forEach: per-row callback (omit to skip deserialization). */
-  opts?: ValidateOptions & { forEach?: (row: Record<string, unknown>) => void | Promise<void> };
+  validate?: boolean;
+  debug?: boolean;
 };
 
-export type Integration = {
-  run(): Promise<void>;
-  stop(): Promise<void>;
+export type StoreFactory = () => Promise<{ eventStore: EventStore; queryStore: QueryableStore }>;
+
+export type RuntimeBindings = {
+  transforms?: Record<string, TransformFn>;
+  stores?: Record<string, StoreFactory>;
 };
 
-export function integrate(def: IntegrationDef): Integration {
-  const { connector, table, eventStore, queryStore, pipeline, opts } = def;
-  const forEach = opts?.forEach;
+export type Integration = { run(): Promise<void>; stop(): Promise<void> };
+
+function resolve<T>(registry: Record<string, T> | undefined, key: string, label: string): T {
+  const val = registry?.[key];
+  if (!val) throw new Error(`${label} "${key}" not found in runtime bindings`);
+  return val;
+}
+
+export function integrate(spec: IntegrationSpec, bindings: RuntimeBindings = {}): Integration {
+  const { pipeline, table } = spec;
   let stopped = false;
+
+  const resolveTransform: TransformResolver = (name) => resolve(bindings.transforms, name, "Transform");
+  const storeKey = spec.store.kind === "duckdb" ? "duckdb" : spec.store.fn;
+
+  for (const step of pipeline.steps) {
+    if (step.kind === "ref") resolveTransform(step.fn);
+  }
 
   return {
     async run() {
-      let validated = false;
-      let seq = 0;
+      const connector = createConnector(spec.connector);
+      const { eventStore, queryStore } = await resolve(bindings.stores, storeKey, "Store")();
 
-      for await (const batch of open(connector, table)) {
-        if (stopped) break;
+      try {
+        switch (connector.mode) {
+          case "poll": await runPoll(connector); break;
+          case "stream": await runStream(connector); break;
+        }
+      } finally {
+        await connector.close();
+        queryStore.close();
+      }
 
-        await eventStore.append(connector.id, table, batch.events);
-        const { events, nextSeq } = await eventStore.read(connector.id, table, seq);
-        seq = nextSeq;
-
+      async function processBatch(batch: Batch, validated: { done: boolean }) {
+        const relevant = batch.events.filter((e) => e.table === table);
+        if (relevant.length === 0) return;
+        await eventStore.append(connector.id, table, relevant);
+        const { events } = await eventStore.read(connector.id, table);
         await queryStore.materialize(connector.id, table, events);
 
-        if (!validated) {
-          await validatePipeline(pipeline, queryStore, opts);
-          validated = true;
+        if (!validated.done && spec.validate !== false) {
+          await validatePipeline(pipeline, queryStore, { debug: spec.debug, resolveTransform });
+          validated.done = true;
         }
 
-        const result = await runPipeline(pipeline, queryStore);
+        await runPipeline(pipeline, queryStore, resolveTransform);
+        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`${connector.id}/${table}`)}`);
+      }
 
-        if (forEach) {
-          const { rows } = await queryStore.query(`SELECT * FROM "${result.outputTable}"`);
-          for (const row of rows) await forEach(row);
+      async function runPoll(c: PollConnector) {
+        const intervalMs = c.pollIntervalMs ?? 5000;
+        let cursor: unknown;
+        const validated = { done: false };
+
+        while (!stopped) {
+          const batch = await c.pull(table, cursor);
+          if (stopped) break;
+
+          if (batch.events.length > 0) {
+            await processBatch(batch, validated);
+            cursor = batch.cursor;
+          } else if (intervalMs > 0) {
+            await sleep(intervalMs);
+          } else {
+            break;
+          }
         }
+      }
 
-        await queryStore.exec(`DROP TABLE IF EXISTS "${connector.id}/${table}"`);
+      async function runStream(c: StreamConnector) {
+        const validated = { done: false };
+
+        const sub = await c.subscribe(table, undefined, async (batch) => {
+          if (stopped) return;
+          await processBatch(batch, validated);
+        });
+
+        await new Promise<void>((resolve) => {
+          const check = setInterval(() => {
+            if (stopped) { clearInterval(check); resolve(); }
+          }, 100);
+        });
+
+        await sub.stop();
       }
     },
 
-    async stop() {
-      stopped = true;
-      await connector.close();
-    },
+    async stop() { stopped = true; },
   };
 }
 
-export async function* open(connector: Connector, table: string): AsyncGenerator<Batch> {
-  switch (connector.mode) {
-    case "poll": yield* poll(connector, table); break;
-    case "stream": yield* stream(connector, table); break;
-  }
-}
-
-async function* poll(connector: PollConnector, table: string): AsyncGenerator<Batch> {
-  const intervalMs = connector.pollIntervalMs ?? 5000;
-  let cursor: unknown;
-  while (true) {
-    const result = await connector.pull(table, cursor);
-    if (result.events.length > 0) {
-      yield result;
-      cursor = result.cursor;
-    } else if (intervalMs > 0) {
-      await new Promise((r) => setTimeout(r, intervalMs));
-    } else {
-      return;
-    }
-  }
-}
-
-async function* stream(connector: StreamConnector, table: string): AsyncGenerator<Batch> {
-  const queue: Batch[] = [];
-  let wake: (() => void) | null = null;
-
-  const sub = await connector.subscribe(table, undefined, async (batch) => {
-    queue.push(batch);
-    if (wake) { wake(); wake = null; }
-  });
-
-  try {
-    while (true) {
-      if (queue.length > 0) {
-        yield queue.shift()!;
-      } else {
-        await new Promise<void>((r) => { wake = r; });
-      }
-    }
-  } finally {
-    await sub.stop();
-  }
+function sleep(ms: number): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
 }
