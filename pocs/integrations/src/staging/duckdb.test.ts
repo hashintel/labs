@@ -1,6 +1,5 @@
 import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { DuckDBTypeId } from "@duckdb/node-api";
 import { createDuckDbQueryStore } from "./duckdb.js";
 import { META_COLUMNS, type QueryableStore } from "./types.js";
 import type { ChangeEvent } from "../connector/types.js";
@@ -80,7 +79,7 @@ describe("materialize", () => {
     assert.equal(rows[0].bio, "line1\nline2");
   });
 
-  it("additive across batches — preserves schema for delete-only batch", async () => {
+  it("preserves schema for delete-only batch after table drop", async () => {
     db = await createDuckDbQueryStore();
     await db.materialize("t", "users", [ev("users", "insert", { id: 1 }, { id: "1", email: "a@b.com" })]);
     await db.exec(`DROP TABLE "t/users"`);
@@ -94,28 +93,23 @@ describe("materialize", () => {
 });
 
 describe("query", () => {
-  it("returns duckSchema alongside rows", async () => {
+  it("returns column names alongside rows", async () => {
     db = await createDuckDbQueryStore();
     await db.exec(`CREATE TABLE test (id INTEGER, name VARCHAR)`);
     await db.exec(`INSERT INTO test VALUES (1, 'alice')`);
 
-    const { rows, duckSchema } = await db.query(`SELECT * FROM test`);
+    const { rows, columns } = await db.query(`SELECT * FROM test`);
     assert.equal(rows.length, 1);
-    assert.equal(duckSchema.length, 2);
-    assert.equal(duckSchema[0].name, "id");
-    assert.equal(duckSchema[0].typeId, DuckDBTypeId.INTEGER);
-    assert.equal(duckSchema[1].typeId, DuckDBTypeId.VARCHAR);
+    assert.deepEqual(columns, ["id", "name"]);
   });
 });
 
 describe("schemaOf", () => {
-  it("returns column names and types", async () => {
+  it("returns column names", async () => {
     db = await createDuckDbQueryStore();
     await db.exec(`CREATE TABLE test (id INTEGER, name VARCHAR)`);
-    const schema = await db.schemaOf("test");
-    assert.equal(schema.length, 2);
-    assert.equal(schema[0].name, "id");
-    assert.equal(schema[1].name, "name");
+    const columns = await db.schemaOf("test");
+    assert.deepEqual(columns, ["id", "name"]);
   });
 });
 
@@ -131,7 +125,7 @@ describe("document data (nested objects)", () => {
     assert.ok(String(rows[0].address).includes("NYC"));
   });
 
-  it("SQL step can extract nested fields via JSON operators", async () => {
+  it("extracts nested fields via JSON operators", async () => {
     db = await createDuckDbQueryStore();
     await db.materialize("t", "users", [ev("users", "insert", { _id: "abc" }, {
       _id: "abc", name: "Alice", address: { city: "NYC", zip: "10001" },
@@ -148,7 +142,7 @@ describe("document data (nested objects)", () => {
       { name: "payload", type: "json", nullable: false, kind: "json" },
     ]);
 
-    const schema = await db.schemaOf("t/docs");
-    assert.ok(schema.find((c) => c.name === "payload"));
+    const columns = await db.schemaOf("t/docs");
+    assert.ok(columns.includes("payload"));
   });
 });

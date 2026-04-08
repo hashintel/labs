@@ -1,6 +1,5 @@
 import { DuckDBInstance, quotedIdentifier as qi } from "@duckdb/node-api";
 import type { ChangeEvent, ColumnInfo, FieldKind } from "../connector/types.js";
-import { duckSchemaFrom } from "../transform/schema.js";
 import { META_COLUMNS, type QueryableStore } from "./types.js";
 
 type TableSchema = { dataColumns: string[]; kinds: Map<string, FieldKind> };
@@ -80,9 +79,9 @@ export async function createDuckDbQueryStore(): Promise<QueryableStore> {
 
     async query(sql) {
       const reader = await conn.runAndReadAll(sql);
-      const duckSchema = duckSchemaFrom(reader.columnNames(), reader.columnTypes());
+      const columns = reader.columnNames();
       const rows = reader.getRowObjectsJson() as Record<string, unknown>[];
-      return { rows, duckSchema };
+      return { rows, columns };
     },
 
     async exec(sql, params) {
@@ -95,7 +94,7 @@ export async function createDuckDbQueryStore(): Promise<QueryableStore> {
 
     async schemaOf(table) {
       const reader = await conn.runAndReadAll(`SELECT * FROM ${qi(table)} LIMIT 0`);
-      return duckSchemaFrom(reader.columnNames(), reader.columnTypes());
+      return reader.columnNames();
     },
 
     close() {

@@ -3,7 +3,7 @@ import type { QueryableStore } from "../staging/types.js";
 import { META_COLUMNS } from "../staging/types.js";
 import type { Pipeline, TransformFn, TransformResolver, SchemaDecl, Row, Envelope } from "./pipeline.js";
 import { toEffectSchema, assertSchemaDeclColumns } from "./pipeline.js";
-import { decodeRows, assertSchemasCompatible, effectSchemaFromDuck, formatDuckSchema, type DuckSchema } from "./schema.js";
+import { decodeRows } from "./schema.js";
 
 export async function validatePipeline(
   pipeline: Pipeline,
@@ -13,26 +13,26 @@ export async function validatePipeline(
   const log = opts?.debug ? (msg: string) => console.log(`[validate] ${msg}`) : () => {};
 
   let currentTable = pipeline.source;
-  let currentSchema = await db.schemaOf(currentTable);
+  let columns = await db.schemaOf(currentTable);
   let previousStepId = currentTable;
 
-  log(`source "${currentTable}": ${formatDuckSchema(stripMeta(currentSchema))}`);
+  log(`source "${currentTable}": ${stripMeta(columns).join(", ")}`);
 
   for (const step of pipeline.steps) {
-    const dataColumns = stripMeta(currentSchema);
+    const dataColumns = stripMeta(columns);
 
     if (step.kind === "sql") {
       const tmpTable = `_validate/${step.id}`;
       await execSql(step.sql, currentTable, tmpTable, db, "LIMIT 0");
 
-      currentSchema = await db.schemaOf(tmpTable);
-      assertMeta(currentSchema, step.id);
+      columns = await db.schemaOf(tmpTable);
+      assertMeta(columns, step.id);
 
-      const outData = stripMeta(currentSchema);
-      log(`sql "${step.id}": ${formatDuckSchema(outData)}`);
+      const outData = stripMeta(columns);
+      log(`sql "${step.id}": ${outData.join(", ")}`);
 
       if (step.output) {
-        assertSchemaDeclColumns(step.output, new Set(outData.map((c) => c.name)), step.id);
+        assertSchemaDeclColumns(step.output, new Set(outData), step.id);
         log(`  output schema: ok`);
       }
 
@@ -41,9 +41,8 @@ export async function validatePipeline(
 
     if (step.kind === "fn") {
       if (typeof step.transform === "string" && opts?.resolveTransform) opts.resolveTransform(step.transform);
-      const inputSchema = step.input ? toEffectSchema(step.input) : effectSchemaFromDuck(dataColumns);
-      assertSchemasCompatible(dataColumns, inputSchema, previousStepId, step.id);
-      log(`fn "${step.id}": input compatible with "${previousStepId}" (${dataColumns.map((c) => c.name).join(", ")})`);
+      assertColumnsCompatible(dataColumns, step.input, previousStepId, step.id);
+      log(`fn "${step.id}": input compatible with "${previousStepId}" (${dataColumns.join(", ")})`);
     }
 
     previousStepId = step.id;
@@ -89,15 +88,29 @@ async function execSql(sql: string, inputTable: string, outputTable: string, db:
   await db.exec(`DROP VIEW IF EXISTS "input"`);
 }
 
-function stripMeta(schema: DuckSchema): DuckSchema {
-  return schema.filter((c) => c.name !== "_op" && c.name !== "_key");
+function stripMeta(columns: string[]): string[] {
+  return columns.filter((c) => c !== META_COLUMNS.op && c !== META_COLUMNS.key);
 }
 
-function assertMeta(schema: DuckSchema, stepId: string): void {
-  const names = new Set(schema.map((c) => c.name));
+function assertMeta(columns: string[], stepId: string): void {
+  const names = new Set(columns);
   const absent = [META_COLUMNS.op, META_COLUMNS.key].filter((c) => !names.has(c));
   if (absent.length > 0) {
     throw new Error(`Step "${stepId}" output is missing ${absent.join(", ")}. Include _op and _key in your output.`);
+  }
+}
+
+function assertColumnsCompatible(
+  producerColumns: string[],
+  consumerSchema: SchemaDecl | undefined,
+  producerStepId: string,
+  consumerStepId: string,
+): void {
+  if (!consumerSchema) return;
+  const available = new Set(producerColumns);
+  const missing = Object.keys(consumerSchema).filter((k) => !available.has(k));
+  if (missing.length > 0) {
+    throw new Error(`Pipeline type error: step "${consumerStepId}" expects columns [${missing.join(", ")}] not produced by step "${producerStepId}"`);
   }
 }
 

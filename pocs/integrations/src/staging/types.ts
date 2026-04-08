@@ -1,5 +1,4 @@
 import type { ChangeEvent, ColumnInfo } from "../connector/types.js";
-import type { DuckSchema } from "../transform/schema.js";
 
 export const META_COLUMNS = { op: "_op", key: "_key" } as const;
 
@@ -11,8 +10,8 @@ export type EventStore = {
 
 export type QueryableStore = {
   materialize(connectorId: string, table: string, events: ChangeEvent[], columns?: ColumnInfo[]): Promise<void>;
-  query(sql: string): Promise<{ rows: Record<string, unknown>[]; duckSchema: DuckSchema }>;
+  query(sql: string): Promise<{ rows: Record<string, unknown>[]; columns: string[] }>;
   exec(sql: string, params?: (string | null)[]): Promise<void>;
-  schemaOf(table: string): Promise<DuckSchema>;
+  schemaOf(table: string): Promise<string[]>;
   close(): void;
 };
