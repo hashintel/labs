@@ -1,6 +1,6 @@
-import { MongoClient, type Collection, type Document, type Filter, type Sort } from "mongodb";
+import { MongoClient, type Document, type Filter, type Sort } from "mongodb";
 import type { ChangeEvent, Connector, Batch, TableConfig, ColumnInfo } from "./types.js";
-import { extractKey } from "./types.js";
+import { extractKey, pkColumns } from "./types.js";
 
 export type MongoCollectionConfig = TableConfig & {
   watermark?: string;
@@ -74,7 +74,7 @@ export function createMongoConnector(config: MongoConnectorConfig): Connector {
       if (!cc) throw new Error(`Collection "${collection}" not configured on connector "${config.id}"`);
 
       const coll = db.collection(collection);
-      const pk = Array.isArray(cc.primaryKey) ? cc.primaryKey : [cc.primaryKey];
+      const pk = pkColumns(cc.primaryKey);
 
       const filter: Filter<Document> = { ...cc.filter };
 

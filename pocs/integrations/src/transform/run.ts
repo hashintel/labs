@@ -1,16 +1,17 @@
 import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { QueryableStore } from "../staging/types.js";
 import { META_COLUMNS } from "../staging/types.js";
-import type { Pipeline, TransformFn, TransformResolver, SchemaDecl, Row, Envelope } from "./pipeline.js";
+import type { Pipeline, TransformFn, TransformResolver, SchemaDecl, Row, Envelope, SideEffectHandler } from "./pipeline.js";
 import { toEffectSchema, assertSchemaDeclColumns } from "./pipeline.js";
 import { decodeRows } from "./schema.js";
+import type { Logger } from "../log.js";
 
 export async function validatePipeline(
   pipeline: Pipeline,
   db: QueryableStore,
-  opts?: { debug?: boolean; resolveTransform?: TransformResolver },
+  opts?: { log?: Logger; resolveTransform?: TransformResolver },
 ): Promise<void> {
-  const log = opts?.debug ? (msg: string) => console.log(`[validate] ${msg}`) : () => {};
+  const log = opts?.log ? (msg: string) => opts.log!.debug(msg) : () => {};
 
   let currentTable = pipeline.source;
   let columns = await db.schemaOf(currentTable);
@@ -20,6 +21,19 @@ export async function validatePipeline(
 
   for (const step of pipeline.steps) {
     const dataColumns = stripMeta(columns);
+
+    if (step.kind === "graph-sink") {
+      const stringAccessors = [
+        ...(typeof step.config.entityId === "string" ? [step.config.entityId] : []),
+        ...Object.values(step.config.properties).filter((a): a is string => typeof a === "string"),
+        ...(step.config.links ?? []).map((l) => l.column),
+      ];
+      const available = new Set(dataColumns);
+      const missing = stringAccessors.filter((c) => !available.has(c));
+      if (missing.length > 0) throw new Error(`GraphSinkStep "${step.id}" references columns [${missing.join(", ")}] not in pipeline output`);
+      log(`graph-sink "${step.id}": ${Object.keys(step.config.properties).length} properties, ${step.config.links?.length ?? 0} links`);
+      continue;
+    }
 
     if (step.kind === "sql") {
       const tmpTable = `_validate/${step.id}`;
@@ -55,23 +69,27 @@ export async function runPipeline(
   pipeline: Pipeline,
   db: QueryableStore,
   resolveTransform?: TransformResolver,
+  onSideEffect?: SideEffectHandler,
 ): Promise<string> {
   let currentTable = pipeline.source;
 
   for (const step of pipeline.steps) {
-    const outputTable = `_step/${step.id}`;
-
     if (step.kind === "sql") {
+      const outputTable = `_step/${step.id}`;
       await execSql(step.sql, currentTable, outputTable, db);
-    } else {
+      assertMeta(await db.schemaOf(outputTable), step.id);
+      currentTable = outputTable;
+    } else if (step.kind === "fn") {
+      const outputTable = `_step/${step.id}`;
       const transform = typeof step.transform === "string"
         ? resolveOrThrow(step.id, step.transform, resolveTransform)
         : step.transform;
       await execTransform(step, transform, currentTable, outputTable, db);
+      assertMeta(await db.schemaOf(outputTable), step.id);
+      currentTable = outputTable;
+    } else {
+      await onSideEffect?.(step, currentTable);
     }
-
-    assertMeta(await db.schemaOf(outputTable), step.id);
-    currentTable = outputTable;
   }
 
   return currentTable;

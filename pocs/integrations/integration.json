@@ -1,7 +1,7 @@
 {
   "id": "crm",
   "mode": "cdc",
-  "url": "postgres://postgres:postgres@localhost:5432/demo",
+  "url": "postgres://postgres:postgres@localhost:5433/demo",
   "publication": "hash_cdc",
   "slot": "hash_slot",
   "tables": {

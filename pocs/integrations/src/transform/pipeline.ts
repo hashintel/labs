@@ -9,6 +9,8 @@ export type Envelope = { _op: string; _key: string };
 export type TransformFn = (rows: (Row & Envelope)[]) => (Row & Envelope)[] | Promise<(Row & Envelope)[]>;
 export type TransformResolver = (name: string) => TransformFn;
 
+export type VersionedUrl = string;
+
 export type SqlStep = { kind: "sql"; id: string; sql: string; output?: SchemaDecl };
 
 export type FnStep = {
@@ -19,8 +21,37 @@ export type FnStep = {
   output?: SchemaDecl;
 };
 
-export type Step = SqlStep | FnStep;
+export type LinkMapping = {
+  column: string;
+  linkType: VersionedUrl;
+  targetEntityType: VersionedUrl;
+};
+
+export type Accessor = string | ((data: Row) => unknown);
+
+export type ProvenanceConfig = {
+  location?: { name?: string; uri?: string; description?: string };
+  authors?: string[];
+};
+
+export type GraphSinkConfig = {
+  entityType: VersionedUrl;
+  entityId: Accessor;
+  webId: string;
+  properties: Record<VersionedUrl, Accessor>;
+  links?: LinkMapping[];
+  provenance?: ProvenanceConfig;
+};
+
+export type GraphSinkStep = {
+  kind: "graph-sink";
+  id: string;
+  config: GraphSinkConfig;
+};
+
+export type Step = SqlStep | FnStep | GraphSinkStep;
 export type Pipeline = { source: string; steps: Step[] };
+export type SideEffectHandler = (step: Step, currentTable: string) => Promise<void>;
 
 export function sqlStep(opts: { id: string; query: string | { sql: string }; output?: SchemaDecl }): SqlStep {
   const query = typeof opts.query === "string" ? opts.query : opts.query.sql;
@@ -29,6 +60,18 @@ export function sqlStep(opts: { id: string; query: string | { sql: string }; out
 
 export function fnStep(opts: { id: string; transform: string | TransformFn; input?: SchemaDecl; output?: SchemaDecl }): FnStep {
   return { kind: "fn", id: opts.id, transform: opts.transform, input: opts.input, output: opts.output };
+}
+
+export function graphSinkStep(config: GraphSinkConfig & { id?: string }): GraphSinkStep {
+  return { kind: "graph-sink", id: config.id ?? "graph-sink", config };
+}
+
+export function namespace(base: string) {
+  return {
+    entity:   (name: string): VersionedUrl => `${base}/entity-type/${name}`,
+    property: (name: string): VersionedUrl => `${base}/property-type/${name}`,
+    link:     (name: string): VersionedUrl => `${base}/entity-type/${name}`,
+  };
 }
 
 export function pipe(source: string | Pipeline, ...steps: Step[]): Pipeline {

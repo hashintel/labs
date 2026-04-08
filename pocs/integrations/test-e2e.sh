@@ -24,6 +24,10 @@ stop_bg() {
 
 docker compose down -v 2>/dev/null || true
 
+echo "--- seed graph ---"
+eval "$(npx tsx src/e2e/seed-graph.ts 2>&1 | grep '^export HASH_')"
+npx tsx src/e2e/seed-orgs.ts 1 2
+
 echo "--- postgres: start ---"
 docker compose up -d postgres
 sleep 2
@@ -42,7 +46,7 @@ BG_PID=$!
 sleep 2
 
 docker exec integrations-postgres-1 psql -U postgres -d demo -q -c \
-  "INSERT INTO users (email, first_name, last_name, organization_id) VALUES ('eve@example.com', 'Eve', 'Green', 2);"
+  "INSERT INTO users (email, first_name, last_name, city, organization_id) VALUES ('eve@example.com', 'Eve', 'Green', 'Berlin', 2);"
 sleep 0.5
 
 docker exec integrations-postgres-1 psql -U postgres -d demo -q -c \
@@ -58,6 +62,9 @@ echo "--- postgres: cdc output ---"
 cat /tmp/pg-cdc.log
 
 echo ""
+echo "--- re-seed graph ---"
+eval "$(npx tsx src/e2e/seed-graph.ts 2>&1 | grep '^export HASH_')"
+
 echo "--- mongo: start ---"
 docker compose up -d mongo
 sleep 3
@@ -69,6 +76,8 @@ until docker exec integrations-mongo-1 mongosh --quiet --eval "rs.isMaster().ism
 
 docker exec -i integrations-mongo-1 mongosh --quiet demo < seed-mongo.js
 
+npx tsx src/e2e/seed-orgs.ts acme widgets
+
 echo "--- mongo: watermark snapshot ---"
 npx tsx src/demo.ts integration-mongo.json > /tmp/mongo-watermark.log 2>&1 &
 BG_PID=$!
@@ -76,6 +85,10 @@ sleep 3
 stop_bg
 echo "--- mongo: watermark output ---"
 cat /tmp/mongo-watermark.log
+
+echo ""
+echo "--- graph entities ---"
+npx tsx src/e2e/view-graph.ts
 
 echo ""
 echo "--- done ---"

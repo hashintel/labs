@@ -2,8 +2,11 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { Batch, PollConnector, StreamConnector } from "./connector/types.js";
 import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
-import type { Pipeline, TransformFn, TransformResolver } from "./transform/pipeline.js";
+import type { Pipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
+import type { GraphClient } from "./graph/types.js";
+import { processGraphSink } from "./graph/sink.js";
+import { createLogger, type LogLevel, type Logger } from "./log.js";
 
 export type IntegrationSpec = {
   connector: ConnectorDef;
@@ -12,7 +15,10 @@ export type IntegrationSpec = {
   queryStore: QueryableStore;
   pipeline: Pipeline;
   transforms?: Record<string, TransformFn>;
+  graphClient?: GraphClient;
   validate?: boolean;
+  logLevel?: LogLevel;
+  /** @deprecated Use logLevel instead */
   debug?: boolean;
 };
 
@@ -20,6 +26,7 @@ export type Integration = { run(): Promise<void>; stop(): Promise<void> };
 
 export function integrate(spec: IntegrationSpec): Integration {
   const { pipeline, table, eventStore, queryStore } = spec;
+  const log = createLogger("engine", spec.logLevel ?? (spec.debug ? "debug" : "info"));
   let stopped = false;
 
   const resolveTransform: TransformResolver | undefined = spec.transforms
@@ -29,6 +36,16 @@ export function integrate(spec: IntegrationSpec): Integration {
         return fn;
       }
     : undefined;
+
+  const hasGraphSink = pipeline.steps.some((s) => s.kind === "graph-sink");
+  if (hasGraphSink && !spec.graphClient) throw new Error("Pipeline has graph-sink steps but no graphClient was provided");
+
+  const sinkLog = log.child({ component: "graph-sink" });
+  const onSideEffect: SideEffectHandler = async (step, currentTable) => {
+    if (step.kind === "graph-sink") {
+      await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLog);
+    }
+  };
 
   for (const step of pipeline.steps) {
     if (step.kind === "fn" && typeof step.transform === "string") {
@@ -40,6 +57,7 @@ export function integrate(spec: IntegrationSpec): Integration {
   return {
     async run() {
       const connector = createConnector(spec.connector);
+      log.info(`connector "${connector.id}" mode=${connector.mode}`);
 
       try {
         switch (connector.mode) {
@@ -55,25 +73,28 @@ export function integrate(spec: IntegrationSpec): Integration {
         const relevant = batch.events.filter((e) => e.table === table);
         if (relevant.length === 0) return seq;
 
+        log.debug(`batch: ${relevant.length} events for "${table}"`);
+
         await eventStore.append(connector.id, table, relevant);
         const { events, nextSeq } = await eventStore.read(connector.id, table, seq);
         await queryStore.materialize(connector.id, table, events);
         eventStore.trim(connector.id, table, nextSeq);
 
         if (!validated.done && spec.validate !== false) {
-          await validatePipeline(pipeline, queryStore, { debug: spec.debug, resolveTransform });
+          await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
           validated.done = true;
         }
 
-        await runPipeline(pipeline, queryStore, resolveTransform);
-        await cleanup();
+        await runPipeline(pipeline, queryStore, resolveTransform, onSideEffect);
 
+        await cleanup();
         return nextSeq;
       }
 
       async function cleanup() {
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`${connector.id}/${table}`)}`);
         for (const step of pipeline.steps) {
+          if (step.kind === "graph-sink") continue;
           await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${step.id}`)}`);
           await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${step.id}`)}`);
         }

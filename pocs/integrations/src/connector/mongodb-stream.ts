@@ -1,5 +1,6 @@
 import { MongoClient, type ChangeStream, type ChangeStreamDocument, type ChangeStreamInsertDocument, type ChangeStreamUpdateDocument, type ChangeStreamReplaceDocument, type ChangeStreamDeleteDocument, type Document, type ResumeToken } from "mongodb";
 import type { BatchHandler, ChangeEvent, ChangeOp, Connector, Subscription, TableConfig, ColumnInfo } from "./types.js";
+import { pkColumns } from "./types.js";
 
 export type MongoStreamConfig = {
   id: string;
@@ -83,7 +84,7 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
       const tc = config.collections[collection];
       if (!tc) throw new Error(`Collection "${collection}" not configured on connector "${config.id}"`);
 
-      const pk = Array.isArray(tc.primaryKey) ? tc.primaryKey : [tc.primaryKey];
+      const pk = pkColumns(tc.primaryKey);
       let resumeToken = cursor as ResumeToken | undefined;
 
       const stream: ChangeStream = db.watch([{ $match: { "ns.coll": collection } }], {
