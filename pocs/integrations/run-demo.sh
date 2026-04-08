@@ -28,11 +28,8 @@ stop_bg() {
 echo "=== seed graph ==="
 eval "$(npx tsx src/e2e/seed-graph.ts 2>&1 | grep '^export HASH_')"
 
-echo "=== seed orgs ==="
-npx tsx src/e2e/seed-orgs.ts 1 2
-
 echo "=== run demo ==="
-npx tsx src/demo.ts "${1:-integration-watermark.json}" > /tmp/demo.log 2>&1 &
+npx tsx src/main.ts "${1:-integration-watermark.json}" > /tmp/demo.log 2>&1 &
 BG_PID=$!
 sleep 3
 stop_bg

@@ -8,6 +8,10 @@ function resolve(accessor: Accessor, data: Row): unknown {
   return typeof accessor === "string" ? data[accessor] : accessor(data);
 }
 
+function typeSlug(url: string): string {
+  return url.split("/entity-type/")[1] ?? url;
+}
+
 function buildProvenance(config: GraphSinkConfig): SourceProvenance {
   return {
     type: "integration",
@@ -50,8 +54,6 @@ export async function processGraphSink(
 ): Promise<void> {
   const provenance = buildProvenance(config);
   const { rows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
-
-  const typeSlug = (url: string) => url.split("/entity-type/")[1] ?? url;
 
   for (const row of rows) {
     const op = rowToGraphOp(row as Row & Envelope, config, provenance);

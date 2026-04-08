@@ -17,7 +17,7 @@ const config: GraphSinkConfig = {
   },
   links: [{
     column: "orgId",
-    linkType: T.link("member-of/v/1"),
+    linkType: T.link("is-member-of/v/1"),
     targetEntityType: T.entity("organization/v/1"),
   }],
 };

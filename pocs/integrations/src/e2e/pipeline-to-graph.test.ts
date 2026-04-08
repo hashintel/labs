@@ -69,7 +69,7 @@ const pipeline = pipe("test/users",
     },
     links: [{
       column: "orgId",
-      linkType: T.link("member-of/v/1"),
+      linkType: T.link("is-member-of/v/1"),
       targetEntityType: T.entity("organization/v/1"),
     }],
     provenance: { location: { name: "e2e-test" } },
@@ -140,7 +140,7 @@ describe("e2e: events → pipeline → graph", () => {
 
     const link1 = requests[1];
     assert.equal(link1.method, "POST");
-    assert.deepEqual(link1.body.entityTypeIds, [T.link("member-of/v/1")]);
+    assert.deepEqual(link1.body.entityTypeIds, [T.link("is-member-of/v/1")]);
     assert.ok(link1.body.linkData);
 
     const p2 = propsOf(requests[2]);

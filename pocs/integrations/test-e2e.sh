@@ -25,15 +25,14 @@ stop_bg() {
 docker compose down -v 2>/dev/null || true
 
 echo "--- seed graph ---"
-eval "$(npx tsx src/e2e/seed-graph.ts 2>&1 | grep '^export HASH_')"
-npx tsx src/e2e/seed-orgs.ts 1 2
+eval "$(npx tsx src/e2e/seed-graph.ts --graph-url http://localhost:14000 --admin-url http://localhost:14001 2>&1 | grep '^export HASH_')"
 
 echo "--- postgres: start ---"
 docker compose up -d postgres
 sleep 2
 
 echo "--- postgres: watermark snapshot ---"
-npx tsx src/demo.ts integration-watermark.json > /tmp/pg-watermark.log 2>&1 &
+npx tsx src/main.ts integration-watermark.json > /tmp/pg-watermark.log 2>&1 &
 BG_PID=$!
 sleep 3
 stop_bg
@@ -41,7 +40,7 @@ echo "--- postgres: watermark output ---"
 cat /tmp/pg-watermark.log
 
 echo "--- postgres: cdc ---"
-npx tsx src/demo.ts integration.json > /tmp/pg-cdc.log 2>&1 &
+npx tsx src/main.ts integration.json > /tmp/pg-cdc.log 2>&1 &
 BG_PID=$!
 sleep 2
 
@@ -63,7 +62,7 @@ cat /tmp/pg-cdc.log
 
 echo ""
 echo "--- re-seed graph ---"
-eval "$(npx tsx src/e2e/seed-graph.ts 2>&1 | grep '^export HASH_')"
+eval "$(npx tsx src/e2e/seed-graph.ts --graph-url http://localhost:14000 --admin-url http://localhost:14001 2>&1 | grep '^export HASH_')"
 
 echo "--- mongo: start ---"
 docker compose up -d mongo
@@ -76,10 +75,8 @@ until docker exec integrations-mongo-1 mongosh --quiet --eval "rs.isMaster().ism
 
 docker exec -i integrations-mongo-1 mongosh --quiet demo < seed-mongo.js
 
-npx tsx src/e2e/seed-orgs.ts acme widgets
-
 echo "--- mongo: watermark snapshot ---"
-npx tsx src/demo.ts integration-mongo.json > /tmp/mongo-watermark.log 2>&1 &
+npx tsx src/main.ts integration-mongo.json > /tmp/mongo-watermark.log 2>&1 &
 BG_PID=$!
 sleep 3
 stop_bg

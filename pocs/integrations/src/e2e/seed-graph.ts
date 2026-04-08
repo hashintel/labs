@@ -1,13 +1,20 @@
 /**
  * Seeds the HASH graph with the minimum types needed for e2e testing.
- * Wipes state, restores via snapshot, seeds policies.
+ * DESTRUCTIVE — wipes all state before restoring.
  *
- * Usage: npx tsx src/e2e/seed-graph.ts
+ * Usage: npx tsx src/e2e/seed-graph.ts [--graph-url URL] [--admin-url URL]
+ *
+ * Defaults to ports 14000/14001 (test graph) to avoid wiping the live graph on 4000/4001.
  */
 import { randomUUID } from "node:crypto";
 
-const GRAPH_URL = process.env.GRAPH_URL ?? "http://localhost:4000";
-const ADMIN_URL = process.env.ADMIN_URL ?? "http://localhost:4001";
+function arg(name: string, fallback: string): string {
+  const idx = process.argv.indexOf(name);
+  return idx >= 0 && process.argv[idx + 1] ? process.argv[idx + 1] : fallback;
+}
+
+const GRAPH_URL = arg("--graph-url", process.env.GRAPH_URL ?? "http://localhost:14000");
+const ADMIN_URL = arg("--admin-url", process.env.ADMIN_URL ?? "http://localhost:14001");
 
 // Wipe — purge entities first (accounts DELETE fails on FK constraints otherwise)
 console.log("[seed] wiping...");
@@ -156,6 +163,7 @@ const entries = [
   propertyType("email", "Email", "text"),
   propertyType("display-name", "Display Name", "text"),
   propertyType("city", "City", "text"),
+  propertyType("organization-name", "Organization Name", "text"),
 
   // Entity types — base link type must exist for link entity types
   {
@@ -170,9 +178,9 @@ const entries = [
       provenance: prov, ownedById: WEB_ID, temporalVersioning: temporal, fetchedAt: now,
     },
   },
-  entityType("organization", "Organization", []),
-  entityType("member-of", "Member Of", [], undefined, [`${BP_LINK}/v/1`]),
-  entityType("user", "User", ["email", "display-name", "city"], { "member-of": "organization" }),
+  entityType("organization", "Organization", ["organization-name"]),
+  entityType("is-member-of", "Is Member Of", [], undefined, [`${BP_LINK}/v/1`]),
+  entityType("user", "User", ["email", "display-name", "city"], { "is-member-of": "organization" }),
 ];
 
 // Restore

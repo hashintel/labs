@@ -66,7 +66,6 @@ function compositeEntityId(webId: string, entityUuid: string): string {
   return `${webId}~${entityUuid}`;
 }
 
-/** Strip version suffix to get the base URL: "https://...email/v/1" → "https://...email/" */
 function toBaseUrl(versionedUrl: string): string {
   return versionedUrl.replace(/v\/\d+$/, "");
 }
@@ -207,6 +206,29 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
   };
 }
 
+async function ensureEntity(
+  config: GraphClientConfig,
+  entityType: string,
+  entityId: unknown,
+  webId: string,
+  provenance: HASHProvenance,
+): Promise<void> {
+  const uuid = deterministicUuid(entityType, entityId);
+  try {
+    await request("POST", config, "/entities", {
+      webId,
+      entityTypeIds: [entityType],
+      properties: { value: {} },
+      draft: false,
+      provenance,
+      entityUuid: uuid,
+    } satisfies CreateEntityParams);
+  } catch (e) {
+    if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) return;
+    throw e;
+  }
+}
+
 async function upsertLink(
   config: GraphClientConfig,
   op: Extract<GraphOp, { kind: "upsert" }>,
@@ -216,24 +238,34 @@ async function upsertLink(
 ): Promise<void> {
   const targetUuid = deterministicUuid(link.targetEntityType, link.targetId);
   const rightEntityId = compositeEntityId(op.webId, targetUuid);
-  // Deterministic from (source, linkType, target) triple
   const linkUuid = deterministicUuid(link.linkType, `${op.entityId}::${link.targetId}`);
 
+  const createLink = () => request("POST", config, "/entities", {
+    webId: op.webId,
+    entityTypeIds: [link.linkType],
+    properties: { value: {} },
+    draft: false,
+    provenance,
+    entityUuid: linkUuid,
+    linkData: { leftEntityId, rightEntityId },
+  } satisfies CreateEntityParams);
+
   try {
-    await request("POST", config, "/entities", {
-      webId: op.webId,
-      entityTypeIds: [link.linkType],
-      properties: { value: {} },
-      draft: false,
-      provenance,
-      entityUuid: linkUuid,
-      linkData: { leftEntityId, rightEntityId },
-    } satisfies CreateEntityParams);
+    await createLink();
   } catch (e) {
-    if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
-      // Link exists, no properties to update
-    } else {
-      throw e;
+    if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) return;
+    if (e instanceof GraphApiError && isFkViolation(e)) {
+      await ensureEntity(config, link.targetEntityType, link.targetId, op.webId, provenance);
+      try { await createLink(); } catch (e2) {
+        if (e2 instanceof GraphApiError && (e2.status === 409 || isDuplicate(e2))) return;
+        throw e2;
+      }
+      return;
     }
+    throw e;
   }
+}
+
+function isFkViolation(e: GraphApiError): boolean {
+  return e.body.includes("foreign key constraint") || e.body.includes("entity_edge");
 }

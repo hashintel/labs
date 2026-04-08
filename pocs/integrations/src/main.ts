@@ -1,48 +1,55 @@
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createConnector, type ConnectorDef } from "./connector/index.js";
+import { integrate, type TablePipeline } from "./engine.js";
+import { createMemoryEventStore } from "./staging/memory.js";
+import { createDuckDbQueryStore } from "./staging/duckdb.js";
+import { createStubGraphClient } from "./graph/stub.js";
+import { createGraphClient } from "./graph/client.js";
+import { postgresPipelines, mongoPipelines, type PipelineEnv } from "./pipelines.js";
+import type { GraphClient } from "./graph/types.js";
+import type { LogLevel } from "./log.js";
 
 const root = dirname(fileURLToPath(import.meta.url));
-const configPath = resolve(process.argv[2] ?? resolve(root, "..", "integration.json"));
-const def: ConnectorDef = JSON.parse(readFileSync(configPath, "utf-8"));
-const connector = createConnector(def);
-const table = process.argv[3] ?? Object.keys("tables" in def ? def.tables : def.collections)[0]!;
 
-async function main() {
-  const schema = await connector.introspect();
-  for (const [name, tc] of Object.entries(schema)) {
-    const cols = tc.columns?.map((c) => `${c.name} (${c.type})`).join(", ");
-    console.log(`${name}: ${cols ?? "no column info"}`);
-    if (tc.foreignKeys) console.log(`  fks: ${JSON.stringify(tc.foreignKeys)}`);
+const env: PipelineEnv = {
+  typeBase: process.env.HASH_TYPE_BASE ?? "http://localhost:3000/@e2e/types",
+  webId: process.env.HASH_WEB_ID ?? "unknown",
+};
+
+const pipelineFactories: Record<string, (env: PipelineEnv) => TablePipeline[]> = {
+  watermark: postgresPipelines,
+  cdc: postgresPipelines,
+  mongo: mongoPipelines,
+  "mongo-stream": mongoPipelines,
+};
+
+function buildGraphClient(): GraphClient {
+  const baseUrl = process.env.HASH_GRAPH_URL;
+  const actorId = process.env.HASH_ACTOR_ID;
+  if (baseUrl && actorId) {
+    console.log(`[graph] ${baseUrl}`);
+    return createGraphClient({ baseUrl, actorId });
   }
-  console.log();
-
-  if (connector.mode !== "poll") { console.error("main.ts only supports poll connectors"); process.exit(1); }
-
-  let cursor: unknown;
-  while (true) {
-    const { events, cursor: next } = await connector.pull(table, cursor);
-    cursor = next;
-
-    for (const ev of events) {
-      console.log(`[${ev.op.toUpperCase()}] ${ev.table}`, ev.key);
-      if (ev.row) console.log("  row:", ev.row);
-      if (ev.before) console.log("  before:", ev.before);
-    }
-    if (events.length > 0) console.log(`cursor: ${cursor}\n`);
-  }
+  console.log("[graph] stub (set HASH_GRAPH_URL + HASH_ACTOR_ID for real graph)");
+  return createStubGraphClient();
 }
 
-let shuttingDown = false;
-process.on("SIGINT", async () => {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  await connector.close();
-  process.exit(0);
+const args = process.argv.slice(2);
+const logLevel = (args.find((a) => a.startsWith("--log="))?.split("=")[1] ?? "debug") as LogLevel;
+const configPath = args.find((a) => !a.startsWith("--")) ?? resolve(root, "..", "integration.json");
+const config = JSON.parse(readFileSync(resolve(configPath), "utf-8"));
+
+const factory = pipelineFactories[config.mode as string] ?? postgresPipelines;
+
+const app = integrate({
+  connector: config,
+  pipelines: factory(env),
+  eventStore: createMemoryEventStore(),
+  queryStore: await createDuckDbQueryStore(),
+  graphClient: buildGraphClient(),
+  logLevel,
 });
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+process.on("SIGINT", () => { app.stop(); process.exit(0); });
+app.run().catch((err) => { console.error(err); process.exit(1); });

@@ -49,15 +49,8 @@ function toChangeEvent(msg: Pgoutput.Message, tables: Record<string, TableConfig
 
 export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector {
   const connParams = parsePostgresUrl(config.url);
-  const timeoutMs = config.pollTimeoutMs ?? 5000;
-
-  function createService() {
-    return new LogicalReplicationService(connParams, { acknowledge: { auto: false, timeoutSeconds: 0 } });
-  }
-
-  function createPlugin() {
-    return new PgoutputPlugin({ protoVersion: 1, publicationNames: [config.publication] });
-  }
+  let service: LogicalReplicationService | null = null;
+  const handlers = new Map<string, BatchHandler>();
 
   return {
     id: config.id,
@@ -67,42 +60,68 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
       return introspectTables(config.url, config.tables);
     },
 
-    async subscribe(_table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription> {
-      const service = createService();
-      let lsn = (cursor as string) ?? "0/0";
-      let events: ChangeEvent[] = [];
+    async subscribe(table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription> {
+      handlers.set(table, onBatch);
 
-      service.on("data", async (msgLsn: string, msg: Pgoutput.Message) => {
-        lsn = msgLsn;
-        const ev = toChangeEvent(msg, config.tables);
-        if (ev) events.push(ev);
+      if (!service) {
+        service = new LogicalReplicationService(connParams, { acknowledge: { auto: false, timeoutSeconds: 0 } });
+        let lsn = (cursor as string) ?? "0/0";
+        let events: ChangeEvent[] = [];
 
-        if (msg.tag === "commit") {
-          await service.acknowledge(msgLsn);
-          const batch = events;
-          events = [];
-          await onBatch({ events: batch, cursor: lsn });
-        }
-      });
+        service.on("data", async (msgLsn: string, msg: Pgoutput.Message) => {
+          lsn = msgLsn;
+          const ev = toChangeEvent(msg, config.tables);
+          if (ev) events.push(ev);
 
-      service.on("heartbeat", async (hbLsn: string, _ts: unknown, shouldRespond: boolean) => {
-        if (shouldRespond) await service.acknowledge(hbLsn);
-      });
+          if (msg.tag === "commit") {
+            await service!.acknowledge(msgLsn);
+            const batch = events;
+            events = [];
 
-      service.on("error", (err: Error) => {
-        console.error("CDC stream error:", err);
-      });
+            const byTable = new Map<string, ChangeEvent[]>();
+            for (const ev of batch) {
+              const list = byTable.get(ev.table) ?? [];
+              list.push(ev);
+              byTable.set(ev.table, list);
+            }
+            for (const [tbl, evts] of byTable) {
+              const handler = handlers.get(tbl);
+              if (handler) await handler({ events: evts, cursor: lsn });
+            }
+          }
+        });
 
-      await service.subscribe(createPlugin(), config.slot, lsn);
+        service.on("heartbeat", async (hbLsn: string, _ts: unknown, shouldRespond: boolean) => {
+          if (shouldRespond) await service!.acknowledge(hbLsn);
+        });
+
+        service.on("error", (err: Error) => {
+          console.error("CDC stream error:", err);
+        });
+
+        const plugin = new PgoutputPlugin({ protoVersion: 1, publicationNames: [config.publication] });
+        service.subscribe(plugin, config.slot, lsn);
+      }
 
       return {
         async stop() {
-          await service.stop();
-          try { (service as unknown as { client?: { end?(): void } }).client?.end?.(); } catch {}
+          handlers.delete(table);
+          if (handlers.size === 0 && service) {
+            await service.stop();
+            try { (service as unknown as { client?: { end?(): void } }).client?.end?.(); } catch {}
+            service = null;
+          }
         },
       };
     },
 
-    async close() {},
+    async close() {
+      if (service) {
+        await service.stop();
+        try { (service as unknown as { client?: { end?(): void } }).client?.end?.(); } catch {}
+        service = null;
+      }
+      handlers.clear();
+    },
   };
 }

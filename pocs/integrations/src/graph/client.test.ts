@@ -120,7 +120,7 @@ describe("createGraphClient", () => {
       entityId: "u-1",
       webId: "web-1",
       properties: {},
-      links: [{ linkType: T.link("member-of/v/1"), targetEntityType: T.entity("org/v/1"), targetId: "org-1" }],
+      links: [{ linkType: T.link("is-member-of/v/1"), targetEntityType: T.entity("org/v/1"), targetId: "org-1" }],
       provenance: prov,
     });
     await mock.close();
@@ -130,7 +130,7 @@ describe("createGraphClient", () => {
     assert.equal(linkReq.method, "POST");
 
     const body = linkReq.body as Record<string, unknown>;
-    assert.deepEqual(body.entityTypeIds, [T.link("member-of/v/1")]);
+    assert.deepEqual(body.entityTypeIds, [T.link("is-member-of/v/1")]);
     assert.ok(body.linkData);
     const ld = body.linkData as { leftEntityId: string; rightEntityId: string };
     assert.ok(ld.leftEntityId.startsWith("web-1~"));
