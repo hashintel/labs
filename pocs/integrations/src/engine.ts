@@ -5,47 +5,41 @@ import type { EventStore, QueryableStore } from "./staging/types.js";
 import type { Pipeline, TransformFn, TransformResolver } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
 
-export type StoreDef = { kind: "duckdb" } | { kind: "ref"; fn: string };
-
 export type IntegrationSpec = {
   connector: ConnectorDef;
   table: string;
-  store: StoreDef;
+  eventStore: EventStore;
+  queryStore: QueryableStore;
   pipeline: Pipeline;
+  transforms?: Record<string, TransformFn>;
   validate?: boolean;
   debug?: boolean;
 };
 
-export type StoreFactory = () => Promise<{ eventStore: EventStore; queryStore: QueryableStore }>;
-
-export type RuntimeBindings = {
-  transforms?: Record<string, TransformFn>;
-  stores?: Record<string, StoreFactory>;
-};
-
 export type Integration = { run(): Promise<void>; stop(): Promise<void> };
 
-function resolve<T>(registry: Record<string, T> | undefined, key: string, label: string): T {
-  const val = registry?.[key];
-  if (!val) throw new Error(`${label} "${key}" not found in runtime bindings`);
-  return val;
-}
-
-export function integrate(spec: IntegrationSpec, bindings: RuntimeBindings = {}): Integration {
-  const { pipeline, table } = spec;
+export function integrate(spec: IntegrationSpec): Integration {
+  const { pipeline, table, eventStore, queryStore } = spec;
   let stopped = false;
 
-  const resolveTransform: TransformResolver = (name) => resolve(bindings.transforms, name, "Transform");
-  const storeKey = spec.store.kind === "duckdb" ? "duckdb" : spec.store.fn;
+  const resolveTransform: TransformResolver | undefined = spec.transforms
+    ? (name) => {
+        const fn = spec.transforms![name];
+        if (!fn) throw new Error(`Transform "${name}" not found`);
+        return fn;
+      }
+    : undefined;
 
   for (const step of pipeline.steps) {
-    if (step.kind === "ref") resolveTransform(step.fn);
+    if (step.kind === "fn" && typeof step.transform === "string") {
+      if (!resolveTransform) throw new Error(`FnStep "${step.id}" references transform "${step.transform}" but no transforms were provided`);
+      resolveTransform(step.transform);
+    }
   }
 
   return {
     async run() {
       const connector = createConnector(spec.connector);
-      const { eventStore, queryStore } = await resolve(bindings.stores, storeKey, "Store")();
 
       try {
         switch (connector.mode) {
@@ -57,12 +51,14 @@ export function integrate(spec: IntegrationSpec, bindings: RuntimeBindings = {})
         queryStore.close();
       }
 
-      async function processBatch(batch: Batch, validated: { done: boolean }) {
+      async function processBatch(batch: Batch, seq: number, validated: { done: boolean }): Promise<number> {
         const relevant = batch.events.filter((e) => e.table === table);
-        if (relevant.length === 0) return;
+        if (relevant.length === 0) return seq;
+
         await eventStore.append(connector.id, table, relevant);
-        const { events } = await eventStore.read(connector.id, table);
+        const { events, nextSeq } = await eventStore.read(connector.id, table, seq);
         await queryStore.materialize(connector.id, table, events);
+        eventStore.trim(connector.id, table, nextSeq);
 
         if (!validated.done && spec.validate !== false) {
           await validatePipeline(pipeline, queryStore, { debug: spec.debug, resolveTransform });
@@ -70,12 +66,24 @@ export function integrate(spec: IntegrationSpec, bindings: RuntimeBindings = {})
         }
 
         await runPipeline(pipeline, queryStore, resolveTransform);
+        await cleanup();
+
+        return nextSeq;
+      }
+
+      async function cleanup() {
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`${connector.id}/${table}`)}`);
+        for (const step of pipeline.steps) {
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${step.id}`)}`);
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${step.id}`)}`);
+        }
+        await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
       }
 
       async function runPoll(c: PollConnector) {
         const intervalMs = c.pollIntervalMs ?? 5000;
         let cursor: unknown;
+        let seq = 0;
         const validated = { done: false };
 
         while (!stopped) {
@@ -83,7 +91,7 @@ export function integrate(spec: IntegrationSpec, bindings: RuntimeBindings = {})
           if (stopped) break;
 
           if (batch.events.length > 0) {
-            await processBatch(batch, validated);
+            seq = await processBatch(batch, seq, validated);
             cursor = batch.cursor;
           } else if (intervalMs > 0) {
             await sleep(intervalMs);
@@ -94,11 +102,12 @@ export function integrate(spec: IntegrationSpec, bindings: RuntimeBindings = {})
       }
 
       async function runStream(c: StreamConnector) {
+        let seq = 0;
         const validated = { done: false };
 
         const sub = await c.subscribe(table, undefined, async (batch) => {
           if (stopped) return;
-          await processBatch(batch, validated);
+          seq = await processBatch(batch, seq, validated);
         });
 
         await new Promise<void>((resolve) => {

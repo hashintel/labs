@@ -10,40 +10,31 @@ export type TransformFn = (rows: (Row & Envelope)[]) => (Row & Envelope)[] | Pro
 export type TransformResolver = (name: string) => TransformFn;
 
 export type SqlStep = { kind: "sql"; id: string; sql: string; output?: SchemaDecl };
-export type RefStep = { kind: "ref"; id: string; fn: string; input?: SchemaDecl; output?: SchemaDecl };
-export type LambdaStep = { kind: "lambda"; id: string; transform: TransformFn; input?: SchemaDecl; output?: SchemaDecl };
 
-export type Step = SqlStep | RefStep | LambdaStep;
-export type SerializableStep = SqlStep | RefStep;
+export type FnStep = {
+  kind: "fn";
+  id: string;
+  transform: string | TransformFn;
+  input?: SchemaDecl;
+  output?: SchemaDecl;
+};
 
+export type Step = SqlStep | FnStep;
 export type Pipeline = { source: string; steps: Step[] };
-export type PipelineDef = { source: string; steps: SerializableStep[] };
 
 export function sqlStep(opts: { id: string; query: string | { sql: string }; output?: SchemaDecl }): SqlStep {
   const query = typeof opts.query === "string" ? opts.query : opts.query.sql;
   return { kind: "sql", id: opts.id, sql: query, output: opts.output };
 }
 
-export function refStep(opts: { id: string; fn: string; input?: SchemaDecl; output?: SchemaDecl }): RefStep {
-  return { kind: "ref", id: opts.id, fn: opts.fn, input: opts.input, output: opts.output };
+export function fnStep(opts: { id: string; transform: string | TransformFn; input?: SchemaDecl; output?: SchemaDecl }): FnStep {
+  return { kind: "fn", id: opts.id, transform: opts.transform, input: opts.input, output: opts.output };
 }
 
-export function lambdaStep<I extends Row = Row, O extends Row = Row>(opts: {
-  id: string;
-  transform: (rows: (I & Envelope)[]) => (O & Envelope)[] | Promise<(O & Envelope)[]>;
-  input?: SchemaDecl;
-  output?: SchemaDecl;
-}): LambdaStep {
-  return { kind: "lambda", id: opts.id, transform: opts.transform as TransformFn, input: opts.input, output: opts.output };
-}
-
-function compose<S extends Step>(source: string | { source: string; steps: S[] }, steps: S[]): { source: string; steps: S[] } {
+export function pipe(source: string | Pipeline, ...steps: Step[]): Pipeline {
   if (typeof source === "string") return { source, steps };
   return { source: source.source, steps: [...source.steps, ...steps] };
 }
-
-export function pipe(source: string | Pipeline, ...steps: Step[]): Pipeline { return compose(source, steps); }
-export function pipelineDef(source: string | PipelineDef, ...steps: SerializableStep[]): PipelineDef { return compose(source, steps); }
 
 export function toEffectSchema(decl: SchemaDecl): Schema.Schema.All {
   const fields: Record<string, Schema.Schema.All> = {};

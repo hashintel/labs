@@ -1,5 +1,5 @@
 import pg from "pg";
-import type { ChangeEvent, Connector, PullResult, TableConfig } from "./types.js";
+import type { ChangeEvent, Connector, Batch, TableConfig } from "./types.js";
 import { extractKey } from "./types.js";
 import { introspectTables } from "./pg-introspect.js";
 
@@ -29,7 +29,7 @@ export function createPostgresConnector(config: PostgresConnectorConfig): Connec
       return introspectTables(config.url, config.tables);
     },
 
-    async pull(table: string, cursor: unknown): Promise<PullResult> {
+    async pull(table: string, cursor: unknown): Promise<Batch> {
       const tc = config.tables[table];
       if (!tc) throw new Error(`Unknown table "${table}" on connector "${config.id}"`);
 

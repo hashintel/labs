@@ -9,7 +9,6 @@ export {
   type ForeignKey,
   type Batch,
   type BatchHandler,
-  type PullResult,
   type Subscription,
   type TableConfig,
   extractKey,

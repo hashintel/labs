@@ -3,7 +3,7 @@ import {
   Pgoutput,
   PgoutputPlugin,
 } from "pg-logical-replication";
-import type { Batch, BatchHandler, ChangeEvent, ChangeOp, Connector, PullResult, Subscription, TableConfig } from "./types.js";
+import type { BatchHandler, ChangeEvent, ChangeOp, Connector, Subscription, TableConfig } from "./types.js";
 import { extractKey } from "./types.js";
 import { introspectTables } from "./pg-introspect.js";
 
@@ -65,44 +65,6 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
 
     async introspect() {
       return introspectTables(config.url, config.tables);
-    },
-
-    async pull(_table: string, cursor: unknown): Promise<PullResult> {
-      const service = createService();
-      const lsn = (cursor as string) ?? "0/0";
-      const events: ChangeEvent[] = [];
-      let lastLsn = lsn;
-
-      return new Promise<PullResult>((resolve, reject) => {
-        const done = (err?: Error) => {
-          clearTimeout(timer);
-          service.removeAllListeners("data");
-          service.removeAllListeners("heartbeat");
-          service.removeAllListeners("error");
-          if (err) reject(err);
-          else service.stop().then(() => resolve({ events, cursor: lastLsn }));
-        };
-
-        const timer = setTimeout(() => done(), timeoutMs);
-
-        service.on("data", async (msgLsn: string, msg: Pgoutput.Message) => {
-          lastLsn = msgLsn;
-          const ev = toChangeEvent(msg, config.tables);
-          if (ev) events.push(ev);
-
-          if (msg.tag === "commit") {
-            await service.acknowledge(msgLsn);
-            done();
-          }
-        });
-
-        service.on("heartbeat", async (hbLsn: string, _ts: unknown, shouldRespond: boolean) => {
-          if (shouldRespond) await service.acknowledge(hbLsn);
-        });
-
-        service.on("error", (err: Error) => done(err));
-        service.subscribe(createPlugin(), config.slot, lsn).catch(reject);
-      });
     },
 
     async subscribe(_table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription> {

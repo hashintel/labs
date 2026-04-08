@@ -39,11 +39,11 @@ export async function validatePipeline(
       currentTable = tmpTable;
     }
 
-    if (step.kind === "ref" || step.kind === "lambda") {
-      if (step.kind === "ref" && opts?.resolveTransform) opts.resolveTransform(step.fn);
+    if (step.kind === "fn") {
+      if (typeof step.transform === "string" && opts?.resolveTransform) opts.resolveTransform(step.transform);
       const inputSchema = step.input ? toEffectSchema(step.input) : effectSchemaFromDuck(dataColumns);
       assertSchemasCompatible(dataColumns, inputSchema, previousStepId, step.id);
-      log(`${step.kind} "${step.id}": input compatible with "${previousStepId}" (${dataColumns.map((c) => c.name).join(", ")})`);
+      log(`fn "${step.id}": input compatible with "${previousStepId}" (${dataColumns.map((c) => c.name).join(", ")})`);
     }
 
     previousStepId = step.id;
@@ -65,8 +65,8 @@ export async function runPipeline(
     if (step.kind === "sql") {
       await execSql(step.sql, currentTable, outputTable, db);
     } else {
-      const transform = step.kind === "ref"
-        ? (resolveTransform ?? noResolver(step.id))(step.fn)
+      const transform = typeof step.transform === "string"
+        ? resolveOrThrow(step.id, step.transform, resolveTransform)
         : step.transform;
       await execTransform(step, transform, currentTable, outputTable, db);
     }
@@ -78,14 +78,15 @@ export async function runPipeline(
   return currentTable;
 }
 
+function resolveOrThrow(stepId: string, name: string, resolver?: TransformResolver): TransformFn {
+  if (!resolver) throw new Error(`FnStep "${stepId}" references transform "${name}" but no resolver was provided`);
+  return resolver(name);
+}
+
 async function execSql(sql: string, inputTable: string, outputTable: string, db: QueryableStore, suffix = ""): Promise<void> {
   await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(inputTable)} ${suffix}`);
   await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS ${sql} ${suffix}`);
   await db.exec(`DROP VIEW IF EXISTS "input"`);
-}
-
-function noResolver(stepId: string): TransformResolver {
-  return () => { throw new Error(`RefStep "${stepId}" requires a transform resolver but none was provided`); };
 }
 
 function stripMeta(schema: DuckSchema): DuckSchema {

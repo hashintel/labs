@@ -1,5 +1,5 @@
 import { MongoClient, type Collection, type Document, type Filter, type Sort } from "mongodb";
-import type { ChangeEvent, Connector, PullResult, TableConfig, ColumnInfo } from "./types.js";
+import type { ChangeEvent, Connector, Batch, TableConfig, ColumnInfo } from "./types.js";
 import { extractKey } from "./types.js";
 
 export type MongoCollectionConfig = TableConfig & {
@@ -68,7 +68,7 @@ export function createMongoConnector(config: MongoConnectorConfig): Connector {
       return result;
     },
 
-    async pull(collection: string, cursor: unknown): Promise<PullResult> {
+    async pull(collection: string, cursor: unknown): Promise<Batch> {
       await client.connect();
       const cc = config.collections[collection];
       if (!cc) throw new Error(`Collection "${collection}" not configured on connector "${config.id}"`);

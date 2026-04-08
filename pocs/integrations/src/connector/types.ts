@@ -29,11 +29,6 @@ export type TableConfig = {
   columns?: ColumnInfo[];
 };
 
-export type PullResult = {
-  events: ChangeEvent[];
-  cursor: unknown;
-};
-
 export type Batch = {
   events: ChangeEvent[];
   cursor: unknown;
@@ -54,12 +49,11 @@ type ConnectorBase = {
 export type PollConnector = ConnectorBase & {
   readonly mode: "poll";
   readonly pollIntervalMs?: number;
-  pull(table: string, cursor: unknown): Promise<PullResult>;
+  pull(table: string, cursor: unknown): Promise<Batch>;
 };
 
 export type StreamConnector = ConnectorBase & {
   readonly mode: "stream";
-  pull(table: string, cursor: unknown): Promise<PullResult>;
   subscribe(table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription>;
 };
 

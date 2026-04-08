@@ -18,6 +18,8 @@ async function main() {
   }
   console.log();
 
+  if (connector.mode !== "poll") { console.error("main.ts only supports poll connectors"); process.exit(1); }
+
   let cursor: unknown;
   while (true) {
     const { events, cursor: next } = await connector.pull(table, cursor);

@@ -1,5 +1,5 @@
 import { MongoClient, type ChangeStream, type ChangeStreamDocument, type ChangeStreamInsertDocument, type ChangeStreamUpdateDocument, type ChangeStreamReplaceDocument, type ChangeStreamDeleteDocument, type Document, type ResumeToken } from "mongodb";
-import type { Batch, BatchHandler, ChangeEvent, ChangeOp, Connector, PullResult, Subscription, TableConfig, ColumnInfo } from "./types.js";
+import type { BatchHandler, ChangeEvent, ChangeOp, Connector, Subscription, TableConfig, ColumnInfo } from "./types.js";
 
 export type MongoStreamConfig = {
   id: string;
@@ -76,38 +76,6 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
         result[name] = { primaryKey: tc.primaryKey, foreignKeys: tc.foreignKeys, columns };
       }
       return result;
-    },
-
-    async pull(collection: string, cursor: unknown): Promise<PullResult> {
-      await client.connect();
-      const tc = config.collections[collection];
-      if (!tc) throw new Error(`Collection "${collection}" not configured on connector "${config.id}"`);
-
-      const pk = Array.isArray(tc.primaryKey) ? tc.primaryKey : [tc.primaryKey];
-      const events: ChangeEvent[] = [];
-      let resumeToken = cursor as ResumeToken | undefined;
-
-      const stream = db.watch([{ $match: { "ns.coll": collection } }], {
-        resumeAfter: resumeToken ?? undefined,
-        fullDocument: "updateLookup",
-        maxAwaitTimeMS: timeoutMs,
-      });
-
-      const deadline = Date.now() + timeoutMs;
-      while (Date.now() < deadline) {
-        const hasNext = await Promise.race([
-          stream.hasNext(),
-          new Promise<false>((resolve) => setTimeout(() => resolve(false), deadline - Date.now())),
-        ]);
-        if (!hasNext) break;
-
-        const change = await stream.next();
-        resumeToken = change._id;
-        if (isDml(change)) events.push(toChangeEvent(change, pk));
-      }
-
-      await stream.close();
-      return { events, cursor: resumeToken };
     },
 
     async subscribe(collection: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription> {

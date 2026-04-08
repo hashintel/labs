@@ -1,21 +1,16 @@
 import { DuckDBInstance, quotedIdentifier as qi } from "@duckdb/node-api";
 import type { ChangeEvent, ColumnInfo, FieldKind } from "../connector/types.js";
-import { duckSchemaFrom, type DuckSchema } from "../transform/schema.js";
-import { META_COLUMNS, type EventStore, type AppendResult, type MaterializeResult, type QueryableStore } from "./types.js";
+import { duckSchemaFrom } from "../transform/schema.js";
+import { META_COLUMNS, type QueryableStore } from "./types.js";
 
-export type DuckDbStaging = EventStore & QueryableStore;
+type TableSchema = { dataColumns: string[]; kinds: Map<string, FieldKind> };
 
-export async function createDuckDbStaging(): Promise<DuckDbStaging> {
+export async function createDuckDbQueryStore(): Promise<QueryableStore> {
   const instance = await DuckDBInstance.create();
   const conn = await instance.connect();
+  const schemas = new Map<string, TableSchema>();
 
-  const streams = new Map<string, { events: ChangeEvent[]; seq: number }>();
-
-  function streamKey(connectorId: string, table: string): string {
-    return `${connectorId}/${table}`;
-  }
-
-  function fieldKinds(dataColumns: string[], row: Record<string, unknown>, columns?: ColumnInfo[]): Map<string, FieldKind> {
+  function detectFieldKinds(dataColumns: string[], row: Record<string, unknown>, columns?: ColumnInfo[]): Map<string, FieldKind> {
     const kinds = new Map<string, FieldKind>();
     if (columns) {
       for (const col of columns) kinds.set(col.name, col.kind ?? "scalar");
@@ -34,55 +29,42 @@ export async function createDuckDbStaging(): Promise<DuckDbStaging> {
     return String(val);
   }
 
+  function tableKey(connectorId: string, table: string): string {
+    return `${connectorId}/${table}`;
+  }
+
+  async function ensureTable(key: string, dataColumns: string[], kinds: Map<string, FieldKind>): Promise<void> {
+    const allColumns = [META_COLUMNS.op, META_COLUMNS.key, ...dataColumns];
+    const colDefs = allColumns.map((c) => {
+      if (c === META_COLUMNS.op || c === META_COLUMNS.key) return `${qi(c)} VARCHAR`;
+      return `${qi(c)} ${kinds.get(c) === "json" ? "JSON" : "VARCHAR"}`;
+    }).join(", ");
+    await conn.run(`CREATE TABLE IF NOT EXISTS ${qi(key)} (${colDefs})`);
+    schemas.set(key, { dataColumns, kinds });
+  }
+
   return {
-    async append(connectorId: string, table: string, events: ChangeEvent[]): Promise<AppendResult> {
-      if (events.length === 0) return { seq: 0 };
+    async materialize(connectorId, table, events, columns) {
+      const key = tableKey(connectorId, table);
+      if (events.length === 0) return;
 
-      const key = streamKey(connectorId, table);
-      const stream = streams.get(key) ?? { events: [], seq: 0 };
-      stream.events.push(...events);
-      stream.seq += events.length;
-      streams.set(key, stream);
-
-      return { seq: stream.seq };
-    },
-
-    async read(connectorId: string, table: string, fromSeq?: number) {
-      const key = streamKey(connectorId, table);
-      const stream = streams.get(key);
-      if (!stream) return { events: [], nextSeq: fromSeq ?? 0 };
-
-      const startIdx = fromSeq ?? 0;
-      return { events: stream.events.slice(startIdx), nextSeq: stream.seq };
-    },
-
-    async materialize(connectorId: string, table: string, events: ChangeEvent[], columns?: ColumnInfo[]): Promise<MaterializeResult> {
-      const key = streamKey(connectorId, table);
-      if (events.length === 0) return { tableName: key, rowCount: 0 };
-
-      const tableName = qi(key);
       const firstWithRow = events.find((e) => e.row != null);
+      const cached = schemas.get(key);
 
-      if (!firstWithRow?.row) {
-        await conn.run(`CREATE OR REPLACE TABLE ${tableName} ("_op" VARCHAR, "_key" VARCHAR)`);
-        for (const ev of events) {
-          await conn.run(`INSERT INTO ${tableName} VALUES ($1, $2)`, [ev.op, JSON.stringify(ev.key)]);
-        }
-        return { tableName: key, rowCount: events.length };
+      if (firstWithRow?.row) {
+        const dataColumns = Object.keys(firstWithRow.row);
+        const kinds = detectFieldKinds(dataColumns, firstWithRow.row, columns);
+        await ensureTable(key, dataColumns, kinds);
+      } else if (cached) {
+        await ensureTable(key, cached.dataColumns, cached.kinds);
+      } else {
+        await ensureTable(key, [], new Map());
       }
 
-      const dataColumns = Object.keys(firstWithRow.row);
-      const kinds = fieldKinds(dataColumns, firstWithRow.row, columns);
-
-      const allColumns = ["_op", "_key", ...dataColumns];
-      const colDefs = allColumns.map((c) => {
-        if (c === "_op" || c === "_key") return `${qi(c)} VARCHAR`;
-        return `${qi(c)} ${kinds.get(c) === "json" ? "JSON" : "VARCHAR"}`;
-      }).join(", ");
-      await conn.run(`CREATE OR REPLACE TABLE ${tableName} (${colDefs})`);
-
+      const { dataColumns, kinds } = schemas.get(key)!;
+      const allColumns = [META_COLUMNS.op, META_COLUMNS.key, ...dataColumns];
       const placeholders = allColumns.map((_, i) => `$${i + 1}`).join(", ");
-      const insertSql = `INSERT INTO ${tableName} VALUES (${placeholders})`;
+      const insertSql = `INSERT INTO ${qi(key)} VALUES (${placeholders})`;
 
       for (const ev of events) {
         const keyJson = JSON.stringify(ev.key);
@@ -94,18 +76,16 @@ export async function createDuckDbStaging(): Promise<DuckDbStaging> {
           await conn.run(insertSql, [ev.op, keyJson, ...nulls]);
         }
       }
-
-      return { tableName: key, rowCount: events.length };
     },
 
-    async query(sql: string) {
+    async query(sql) {
       const reader = await conn.runAndReadAll(sql);
       const duckSchema = duckSchemaFrom(reader.columnNames(), reader.columnTypes());
       const rows = reader.getRowObjectsJson() as Record<string, unknown>[];
       return { rows, duckSchema };
     },
 
-    async exec(sql: string, params?: (string | null)[]) {
+    async exec(sql, params) {
       if (params) {
         await conn.run(sql, params);
       } else {
@@ -113,7 +93,7 @@ export async function createDuckDbStaging(): Promise<DuckDbStaging> {
       }
     },
 
-    async schemaOf(table: string) {
+    async schemaOf(table) {
       const reader = await conn.runAndReadAll(`SELECT * FROM ${qi(table)} LIMIT 0`);
       return duckSchemaFrom(reader.columnNames(), reader.columnTypes());
     },
