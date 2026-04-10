@@ -1,40 +1,28 @@
-import type { HasVersionControlMetadata } from "@patchwork/sdk/versionControl";
-import { type DataTypeImplementation, initFrom } from "@patchwork/sdk";
+import type { DatatypeImplementation } from "@inkandswitch/patchwork-plugins";
 import type { SDCPN } from "@hashintel/petrinaut";
 
-export type Doc = HasVersionControlMetadata<unknown, unknown> & {
+export type Doc = {
 	title: string;
 	petriNetDefinition: SDCPN;
 };
 
-export const markCopy = (doc: Doc) => {
-	doc.title = `Copy of ${doc.title}`;
-};
+const defaultTitle = "Untitled Petri Net";
 
-const setTitle = async (doc: Doc, title: string) => {
-	doc.title = title;
-};
-
-const getTitle = async (doc: Doc) => {
-	return doc.title || "Petrinaut";
-};
-
-export const init = (doc: Doc) => {
-	initFrom(doc, {
-		title: "Untitled Petri Net",
-		petriNetDefinition: {
+export const PetrinautDataType: DatatypeImplementation<Doc> = {
+	setTitle: (doc, title) => {
+		doc.title = title;
+	},
+	getTitle: (doc) => {
+		return doc.title || "Untitled Petri Net";
+	},
+	init: (doc) => {
+		doc.title = defaultTitle;
+		doc.petriNetDefinition = {
 			places: [],
 			transitions: [],
 			types: [],
 			parameters: [],
 			differentialEquations: [],
-		},
-	});
-};
-
-export const dataType: DataTypeImplementation<Doc, unknown> = {
-	init,
-	getTitle,
-	setTitle,
-	markCopy,
+		};
+	},
 };

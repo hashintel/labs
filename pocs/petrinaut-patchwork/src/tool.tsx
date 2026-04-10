@@ -1,13 +1,19 @@
-import { useDocHandle } from "@automerge/automerge-repo-react-hooks";
-import type { EditorProps } from "@patchwork/sdk";
-import type React from "react";
+import {
+	RepoContext,
+	useDocHandle,
+	useDocument,
+} from "@automerge/automerge-repo-react-hooks";
+import "@hashintel/petrinaut/dist/main.css";
+import type { AutomergeUrl } from "@automerge/automerge-repo";
 import type { Doc } from "./datatype";
 import { Petrinaut } from "@hashintel/petrinaut";
+import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
+import { createElement } from "react";
+import { createRoot } from "react-dom/client";
 
-export const Tool: React.FC<EditorProps<Doc, string>> = ({ docUrl }) => {
-	const handle = useDocHandle<Doc>(docUrl, { suspense: true });
+export const PetrinautEditor = ({ docUrl }: { docUrl: AutomergeUrl }) => {
+	const [doc, changeDoc] = useDocument<Doc>(docUrl, { suspense: true });
 
-	const doc = handle.doc();
 	if (!doc) return null;
 
 	return (
@@ -18,8 +24,8 @@ export const Tool: React.FC<EditorProps<Doc, string>> = ({ docUrl }) => {
 			petriNetDefinition={doc.petriNetDefinition}
 			existingNets={[]}
 			mutatePetriNetDefinition={(mutationFn) => {
-				handle.change((d) => {
-					mutationFn(d.petriNetDefinition);
+				changeDoc((doc) => {
+					mutationFn(doc.petriNetDefinition);
 				});
 			}}
 			createNewNet={() => {
@@ -40,3 +46,26 @@ export const Tool: React.FC<EditorProps<Doc, string>> = ({ docUrl }) => {
 		/>
 	);
 };
+
+export function toolify(editorComponent: React.FC<any>): ToolImplementation {
+	return (handle, element) => {
+		const root = createRoot(element);
+
+		root.render(
+			createElement(
+				RepoContext.Provider,
+				{ value: element.repo },
+				createElement(editorComponent, {
+					docUrl: handle.url,
+					element,
+				}),
+			),
+		);
+
+		return () => {
+			root.unmount();
+		};
+	};
+}
+
+export const renderPetrinautEditor = toolify(PetrinautEditor);

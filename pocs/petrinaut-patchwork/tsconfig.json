@@ -20,6 +20,6 @@
 		"noUnusedParameters": true,
 		"noFallthroughCasesInSwitch": true
 	},
-	"include": ["theme-override.d.ts", "./src/"],
+	"include": ["./src/"],
 	"references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -2,64 +2,19 @@
 
 ## Installation
 
-Clone patchwork & build it
+`pnpm install`
 
-```
-git clone git@github.com:inkandswitch/patchwork.git
-cd patchwork
-pnpm install
-pnpm build
-```
+## Sync to Patchwork
 
-Link patchwork cli
+`npx pushwork@latest init`
+`npx pushwork@latest sync`
 
-```
-cd patchwork-cli
-yarn link
-```
+You can add the petrinaut tool to your profile on `gaios.sgai.uk` or `patchwork.inkandswitch.com` by use the URL returned by `npx pushwork@latest url` (UI for doing this varies between the two).
 
-In `petrinaut-patchwork` update `@patchwork/sdk` in `package.json` to point to where you've cloned
-the patchwork repo in step 1
+## Using LLM commands
 
-```
-{
-  "name": "@patchwork/petrinaut",
-  "version": "0.0.1",
-  "description": "Petrinaut – Petri Net editor",
-  "type": "module",
-  "main": "src/index.ts",
+As of 2025-12-03 (but likely to change), you will need to register and enable the 'Satisfaction' tool in Patchwork to enable LLM actions:
 
-   // ....
-
-
-  "dependencies": {
-
-     // ...
-
-     // this path needs to point
-
-    "@patchwork/sdk": "file:../../../patchwork/sdk",
-
-
-    // ...
-  },
-
- // ...
-}
-```
-
-Finally you can push the petrinaut tool with
-
-```
-yarn push
-```
-
-Or you can watch continously with
-
-```
-yarn watch
-```
-
-You don't need to run patchwork locally you can add the petrinaut tool to your profile on `patchwork.inkandswitch.com` by following these steps:
-
-![alt text](<Screenshot 2025-08-29 at 15.58.13.png>)
+1. Register `automerge:3kLVjhAVGtYDbESgjicibmR24bgP` as a module (as you did for syncing the tool itself)
+2. Click the 'Satisfaction' button in the top right (you should see a new pane with registered actions)
+3. Click 'Review' in the top right, then 'Bot', and ask the LLM to add things to the net
