@@ -4,6 +4,7 @@ export type ResolvedLink = {
   linkType: VersionedUrl;
   targetEntityType: VersionedUrl;
   targetId: unknown;
+  properties?: Record<VersionedUrl, unknown>;
 };
 
 export type SourceProvenance = {

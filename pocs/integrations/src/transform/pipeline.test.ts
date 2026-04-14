@@ -2,7 +2,7 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createDuckDbQueryStore } from "../staging/duckdb.js";
 import { META_COLUMNS, type QueryableStore } from "../staging/types.js";
-import { pipe, sqlStep, fnStep, type Row, type Envelope, type SchemaDecl } from "./pipeline.js";
+import { pipe, sqlStep, fnStep, branch, graphSinkStep, namespace, type Row, type Envelope, type SchemaDecl, type SideEffectHandler } from "./pipeline.js";
 import { runPipeline, validatePipeline } from "./run.js";
 
 let db: QueryableStore;
@@ -345,5 +345,60 @@ describe("SchemaDecl validation", () => {
       sqlStep({ id: "pick", query: `SELECT _op, _key, id, email FROM input` }),
       fnStep({ id: "ok", transform: (rows) => rows, input: { id: "string", email: "string" } }),
     ), db);
+  });
+});
+
+describe("branch step", () => {
+  const T = namespace("https://hash.ai/@test/types");
+
+  it("fan-out: two branches read from the same input", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+
+    const sinkCalls: string[] = [];
+    const handler: SideEffectHandler = async (step, table) => {
+      if (step.kind === "graph-sink") {
+        const { rows } = await db.query(`SELECT * FROM "${table}"`);
+        sinkCalls.push(`${step.id}:${rows.length}`);
+      }
+    };
+
+    const p = pipe("test/users",
+      branch("fan",
+        [
+          sqlStep({ id: "emails", query: `SELECT _op, _key, _before, email FROM input` }),
+          graphSinkStep({ id: "sink-emails", entityType: T.entity("e/v/1"), entityId: "email", webId: "w", properties: {} }),
+        ],
+        [
+          sqlStep({ id: "names", query: `SELECT _op, _key, _before, first_name FROM input` }),
+          graphSinkStep({ id: "sink-names", entityType: T.entity("n/v/1"), entityId: "first_name", webId: "w", properties: {} }),
+        ],
+      ),
+    );
+
+    await runPipeline(p, db, undefined, handler);
+
+    assert.equal(sinkCalls.length, 2);
+    assert.ok(sinkCalls[0].startsWith("sink-emails:"));
+    assert.ok(sinkCalls[1].startsWith("sink-names:"));
+  });
+
+  it("branch is identity on main pipeline flow", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+
+    const p = pipe("test/users",
+      sqlStep({ id: "add-col", query: `SELECT *, 'before' AS phase FROM input` }),
+      branch("fan",
+        [sqlStep({ id: "b1", query: `SELECT _op, _key, _before, email FROM input` })],
+      ),
+      sqlStep({ id: "after", query: `SELECT *, 'after' AS phase2 FROM input` }),
+    );
+
+    const out = await runPipeline(p, db);
+    const { rows } = await db.query(`SELECT * FROM "${out}"`);
+    assert.equal(rows[0].phase, "before");
+    assert.equal(rows[0].phase2, "after");
+    assert.ok(rows[0].email);
   });
 });

@@ -1,5 +1,5 @@
 import pg from "pg";
-import type { ChangeEvent, BatchConnector, Batch, TableConfig } from "./types.js";
+import type { ChangeEvent, BatchConnector, TableConfig } from "./types.js";
 import { extractKey, pkColumns } from "./types.js";
 import { introspectTables } from "./pg-introspect.js";
 

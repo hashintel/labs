@@ -59,6 +59,35 @@ export async function validatePipeline(
       log(`fn "${step.id}": input compatible with "${previousStepId}" (${dataColumns.join(", ")})`);
     }
 
+    if (step.kind === "branch") {
+      log(`branch "${step.id}": ${step.branches.length} branches`);
+      for (const branchSteps of step.branches) {
+        let branchTable = currentTable;
+        let branchCols = columns;
+        for (const s of branchSteps) {
+          const branchData = stripMeta(branchCols);
+          if (s.kind === "sql") {
+            const tmpTable = `_validate/${s.id}`;
+            await execSql(s.sql, branchTable, tmpTable, db, "LIMIT 0");
+            branchCols = await db.schemaOf(tmpTable);
+            assertMeta(branchCols, s.id);
+            log(`  sql "${s.id}": ${stripMeta(branchCols).join(", ")}`);
+            branchTable = tmpTable;
+          } else if (s.kind === "graph-sink") {
+            const stringAccessors = [
+              ...(typeof s.config.entityId === "string" ? [s.config.entityId] : []),
+              ...Object.values(s.config.properties).filter((a): a is string => typeof a === "string"),
+              ...(s.config.links ?? []).map((l) => l.column),
+            ];
+            const available = new Set(branchData);
+            const missing = stringAccessors.filter((c) => !available.has(c));
+            if (missing.length > 0) throw new Error(`GraphSinkStep "${s.id}" references columns [${missing.join(", ")}] not in branch output`);
+            log(`  graph-sink "${s.id}": ${Object.keys(s.config.properties).length} properties, ${s.config.links?.length ?? 0} links`);
+          }
+        }
+      }
+    }
+
     previousStepId = step.id;
   }
 
@@ -87,6 +116,30 @@ export async function runPipeline(
       await execTransform(step, transform, currentTable, outputTable, db);
       assertMeta(await db.schemaOf(outputTable), step.id);
       currentTable = outputTable;
+    } else if (step.kind === "branch") {
+      for (const branchSteps of step.branches) {
+        let branchTable = currentTable;
+        for (const s of branchSteps) {
+          if (s.kind === "sql") {
+            const out = `_step/${s.id}`;
+            await execSql(s.sql, branchTable, out, db);
+            assertMeta(await db.schemaOf(out), s.id);
+            branchTable = out;
+          } else if (s.kind === "fn") {
+            const out = `_step/${s.id}`;
+            const tf = typeof s.transform === "string"
+              ? resolveOrThrow(s.id, s.transform, resolveTransform)
+              : s.transform;
+            await execTransform(s, tf, branchTable, out, db);
+            assertMeta(await db.schemaOf(out), s.id);
+            branchTable = out;
+          } else if (s.kind === "graph-sink") {
+            await onSideEffect?.(s, branchTable);
+          } else if (s.kind === "branch") {
+            throw new Error("Nested branches are not supported");
+          }
+        }
+      }
     } else {
       await onSideEffect?.(step, currentTable);
     }

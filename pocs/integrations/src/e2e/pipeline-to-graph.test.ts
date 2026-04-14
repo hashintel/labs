@@ -239,6 +239,41 @@ describe("e2e: events to pipeline to graph", () => {
     assert.equal(rows[0].phase, "after", "post-sink step should have added its column");
   });
 
+  it("FK change produces stale link archive + new link", async () => {
+    const linkPipeline = pipe("test/users",
+      sqlStep({ id: "pass", query: sql`SELECT _op, _key, _before, id AS userId, email, org_id AS orgId FROM input` }),
+      graphSinkStep({
+        id: "write",
+        entityType: T.entity("user/v/1"),
+        entityId: "userId",
+        webId: "web-test",
+        properties: { [T.property("email/v/1")]: "email" },
+        links: [{ column: "orgId", sourceColumn: "org_id", linkType: T.link("is-member-of/v/1"), targetEntityType: T.entity("organization/v/1") }],
+        provenance: { location: { name: "e2e-test" } },
+      }),
+    );
+
+    const events: ChangeEvent[] = [
+      { table: "users", op: "update", key: { id: 1 }, row: { id: "1", email: "a@b.com", org_id: "org-2" }, before: { id: "1", email: "a@b.com", org_id: "org-1" } },
+    ];
+    const eventStore = createMemoryEventStore();
+    await eventStore.append("test", "users", events);
+    const { events: stored, nextSeq } = await eventStore.read("test", "users");
+    await queryStore.materialize("test", "users", stored);
+    eventStore.trim("test", "users", nextSeq);
+
+    await runPipeline(linkPipeline, queryStore, undefined, buildSideEffectHandler());
+
+    const entityPost = graphServer.requests.find((r) => !r.body.linkData && (r.body.entityTypeIds as string[])?.[0]?.includes("user"));
+    assert.ok(entityPost);
+
+    const linkPost = graphServer.requests.find((r) => r.body.linkData && r.method === "POST");
+    assert.ok(linkPost, "new link should be created");
+
+    const stalePatch = graphServer.requests.find((r) => r.method === "PATCH" && r.body.archived === true);
+    assert.ok(stalePatch, "stale link should be archived");
+  });
+
   it("validation catches missing columns", async () => {
     const badPipeline = pipe("test/users",
       sqlStep({ id: "drop-cols", query: sql`SELECT _op, _key, id FROM input` }),

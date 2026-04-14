@@ -26,6 +26,7 @@ export type LinkMapping = {
   sourceColumn?: string;
   linkType: VersionedUrl;
   targetEntityType: VersionedUrl;
+  properties?: Record<VersionedUrl, Accessor>;
 };
 
 export type Accessor = string | ((data: Row) => unknown);
@@ -50,7 +51,13 @@ export type GraphSinkStep = {
   config: GraphSinkConfig;
 };
 
-export type Step = SqlStep | FnStep | GraphSinkStep;
+export type BranchStep = {
+  kind: "branch";
+  id: string;
+  branches: Step[][];
+};
+
+export type Step = SqlStep | FnStep | GraphSinkStep | BranchStep;
 export type Pipeline = { source: string; steps: Step[] };
 export type SideEffectHandler = (step: Step, currentTable: string) => Promise<void>;
 
@@ -65,6 +72,10 @@ export function fnStep(opts: { id: string; transform: string | TransformFn; inpu
 
 export function graphSinkStep(config: GraphSinkConfig & { id?: string }): GraphSinkStep {
   return { kind: "graph-sink", id: config.id ?? "graph-sink", config };
+}
+
+export function branch(id: string, ...branches: Step[][]): BranchStep {
+  return { kind: "branch", id, branches };
 }
 
 export function namespace(base: string) {

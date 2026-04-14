@@ -41,7 +41,7 @@ const config = JSON.parse(readFileSync(resolve(configPath), "utf-8"));
 
 const mode = config.mode as string;
 const factory = pipelineFactories[mode] ?? postgresPipelines;
-const isBatch = mode === "batch";
+const isBatch = mode === "batch" || mode === "rest-api";
 
 const app = integrate({
   connector: config,

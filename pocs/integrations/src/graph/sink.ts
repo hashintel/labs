@@ -41,7 +41,16 @@ export function rowToGraphOp(row: Row & Envelope, config: GraphSinkConfig, prove
 
   const links: ResolvedLink[] = (config.links ?? [])
     .filter((l) => data[l.column] != null)
-    .map((l) => ({ linkType: l.linkType, targetEntityType: l.targetEntityType, targetId: data[l.column] }));
+    .map((l) => {
+      const resolved: ResolvedLink = { linkType: l.linkType, targetEntityType: l.targetEntityType, targetId: data[l.column] };
+      if (l.properties) {
+        resolved.properties = {};
+        for (const [url, accessor] of Object.entries(l.properties)) {
+          resolved.properties[url] = resolve(accessor, data);
+        }
+      }
+      return resolved;
+    });
 
   let before: Record<string, unknown> | null = null;
   if (rawBefore != null) {
@@ -120,12 +129,17 @@ export async function diffAndSync(
 
   if (!entityIdCol) throw new Error("diffAndSync requires a string entityId accessor");
 
+  const linkCols = (config.links ?? []).map((l) => l.column);
+  const linkColsSql = linkCols.map((c) => `${qi(c)}::VARCHAR AS ${qi("_lk_" + c)}`).join(", ");
+  const linkColsSelect = linkCols.length > 0 ? `, ${linkColsSql}` : "";
+
   if (inputTable) {
     await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
-      SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, md5(data::VARCHAR) AS _content_hash
+      SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, md5(data::VARCHAR) AS _content_hash${linkColsSelect}
       FROM (SELECT * EXCLUDE (${qi("_op")}, ${qi("_key")}, ${qi("_before")}) FROM ${qi(inputTable)}) data`);
   } else {
-    await db.exec(`CREATE OR REPLACE TABLE ${currentTable} (_entity_id VARCHAR, _content_hash VARCHAR)`);
+    const linkColDefs = linkCols.map((c) => `${qi("_lk_" + c)} VARCHAR`).join(", ");
+    await db.exec(`CREATE OR REPLACE TABLE ${currentTable} (_entity_id VARCHAR, _content_hash VARCHAR${linkColDefs ? ", " + linkColDefs : ""})`);
   }
 
   let hasPrevious = false;
@@ -176,6 +190,29 @@ export async function diffAndSync(
       if (op.kind === "upsert") {
         log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}`);
         await client.upsertEntity(op);
+      }
+    }
+  }
+
+  if (updates.length > 0 && hasPrevious && linkCols.length > 0) {
+    const updList = updates.map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+    for (const l of config.links ?? []) {
+      const lkCol = qi("_lk_" + l.column);
+      const { rows: changed } = await db.query(
+        `SELECT p._entity_id, p.${lkCol} AS old_val, c.${lkCol} AS new_val
+         FROM ${stateTable} p JOIN ${currentTable} c ON p._entity_id = c._entity_id
+         WHERE p._entity_id IN (${updList}) AND p.${lkCol} IS NOT NULL AND p.${lkCol} != c.${lkCol}`,
+      );
+      for (const row of changed) {
+        log?.info(`archive stale link ${typeSlug(l.linkType)} ${row._entity_id} -> ${String(row.old_val)}`);
+        const staleLinkId = `${row._entity_id}::${String(row.old_val)}`;
+        await client.archiveEntity({
+          kind: "archive",
+          entityType: l.linkType,
+          entityId: staleLinkId,
+          provenance,
+          webId: config.webId,
+        });
       }
     }
   }

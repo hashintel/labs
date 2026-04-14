@@ -2,7 +2,7 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { Batch, StreamConnector } from "./connector/types.js";
 import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
-import type { Pipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
+import type { Pipeline, Step, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
 import type { GraphClient } from "./graph/types.js";
 import { processGraphSink, archiveDeletes, diffAndSync, type SyncResult } from "./graph/sink.js";
@@ -109,10 +109,9 @@ export function integrate(spec: IntegrationSpec): Integration {
         });
 
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
-        for (const step of pipeline.steps) {
-          if (step.kind === "graph-sink") continue;
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${step.id}`)}`);
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${step.id}`)}`);
+        for (const id of allStepIds(pipeline.steps)) {
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
         }
         await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
       }
@@ -232,10 +231,9 @@ export function integrate(spec: IntegrationSpec): Integration {
         await runPipeline(pipeline, queryStore, resolveTransform, onSideEffect);
 
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`${connector.id}/${table}`)}`);
-        for (const step of pipeline.steps) {
-          if (step.kind === "graph-sink") continue;
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${step.id}`)}`);
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${step.id}`)}`);
+        for (const id of allStepIds(pipeline.steps)) {
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
         }
         await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
 
@@ -249,4 +247,16 @@ export function integrate(spec: IntegrationSpec): Integration {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function allStepIds(steps: Step[]): string[] {
+  const ids: string[] = [];
+  for (const s of steps) {
+    if (s.kind === "branch") {
+      for (const branch of s.branches) ids.push(...allStepIds(branch));
+    } else if (s.kind !== "graph-sink") {
+      ids.push(s.id);
+    }
+  }
+  return ids;
 }

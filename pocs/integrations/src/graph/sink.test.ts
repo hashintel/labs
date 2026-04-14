@@ -101,6 +101,42 @@ describe("rowToGraphOp", () => {
       assert.equal(op.properties[T.property("email/v/1")], "a@example.com");
     }
   });
+
+  it("detects stale links from _before when FK changes", () => {
+    const withSource: GraphSinkConfig = {
+      ...config,
+      links: [{ column: "orgId", sourceColumn: "org_id", linkType: T.link("is-member-of/v/1"), targetEntityType: T.entity("organization/v/1") }],
+    };
+    const row: Row & Envelope = {
+      _op: "update", _key: '{"id":1}',
+      _before: JSON.stringify({ id: 1, org_id: "old-org" }),
+      userId: "1", email: "a@example.com", name: "Alice", orgId: "new-org",
+    };
+    const op = rowToGraphOp(row, withSource, prov);
+    assert.equal(op.kind, "upsert");
+    if (op.kind === "upsert") {
+      assert.equal(op.links.length, 1);
+      assert.equal(op.links[0].targetId, "new-org");
+      assert.equal(op.staleLinks.length, 1);
+      assert.equal(op.staleLinks[0].targetId, "old-org");
+    }
+  });
+
+  it("no stale links when FK unchanged", () => {
+    const row: Row & Envelope = {
+      _op: "update", _key: '{"id":1}',
+      _before: JSON.stringify({ id: 1, orgId: "org-1" }),
+      userId: "1", email: "new@example.com", name: "Alice", orgId: "org-1",
+    };
+    const op = rowToGraphOp(row, config, prov);
+    if (op.kind === "upsert") assert.equal(op.staleLinks.length, 0);
+  });
+
+  it("no stale links when _before is absent", () => {
+    const row: Row & Envelope = { _op: "update", _key: '{"id":1}', userId: "1", email: "a@example.com", name: "Alice", orgId: "org-1" };
+    const op = rowToGraphOp(row, config, prov);
+    if (op.kind === "upsert") assert.equal(op.staleLinks.length, 0);
+  });
 });
 
 describe("GraphSinkStep serialization", () => {

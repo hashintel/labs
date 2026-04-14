@@ -256,10 +256,12 @@ async function upsertLink(
   const rightEntityId = compositeEntityId(op.webId, targetUuid);
   const linkUuid = deterministicUuid(link.linkType, `${op.entityId}::${link.targetId}`);
 
+  const linkProps = link.properties ? mapProperties(link.properties as Record<VersionedUrl, unknown>) : { value: {} };
+
   const createLink = () => request("POST", config, "/entities", {
     webId: op.webId,
     entityTypeIds: [link.linkType],
-    properties: { value: {} },
+    properties: linkProps,
     draft: false,
     provenance,
     entityUuid: linkUuid,
@@ -270,6 +272,7 @@ async function upsertLink(
     entityId: compositeEntityId(op.webId, linkUuid),
     provenance,
     archived: false,
+    ...(link.properties ? { properties: mapPropertiesAsPatch(link.properties as Record<VersionedUrl, unknown>) } : {}),
   } satisfies PatchEntityParams);
 
   try {
