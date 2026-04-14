@@ -1,7 +1,7 @@
 import type { Connector, TableConfig } from "./types.js";
 import { createPostgresBatchConnector, type PostgresTableConfig } from "./postgres.js";
 import { createPostgresCdcConnector } from "./postgres-cdc.js";
-import { createMongoStreamConnector, type MongoStreamConfig } from "./mongodb-stream.js";
+import { createMongoStreamConnector } from "./mongodb-stream.js";
 import { createRestApiBatchConnector, type RestApiBatchConfig, type RestApiEndpoint } from "./rest-api.js";
 
 export type ConnectorDef = { id: string } & (

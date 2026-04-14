@@ -5,6 +5,19 @@ import type { Accessor, GraphSinkConfig, Row, Envelope } from "../transform/pipe
 import type { GraphOp, ResolvedLink, SourceProvenance, GraphClient } from "./types.js";
 import type { Logger } from "../log.js";
 
+const DEFAULT_CONCURRENCY = 5;
+
+async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      await fn(items[idx]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
+}
+
 function resolve(accessor: Accessor, data: Row): unknown {
   return typeof accessor === "string" ? data[accessor] : accessor(data);
 }
@@ -84,10 +97,11 @@ export async function processGraphSink(
 ): Promise<string[]> {
   const provenance = buildProvenance(config);
   const { rows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
+
+  const ops = rows.map((row) => rowToGraphOp(row as Row & Envelope, config, provenance));
   const syncedIds: string[] = [];
 
-  for (const row of rows) {
-    const op = rowToGraphOp(row as Row & Envelope, config, provenance);
+  await parallel(ops, DEFAULT_CONCURRENCY, async (op) => {
     switch (op.kind) {
       case "upsert":
         log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}${op.staleLinks.length ? ` stale=${op.staleLinks.length}` : ""}`);
@@ -99,7 +113,7 @@ export async function processGraphSink(
         await client.archiveEntity(op);
         break;
     }
-  }
+  });
 
   return syncedIds;
 }
@@ -185,13 +199,13 @@ export async function diffAndSync(
     const { rows } = await db.query(
       `SELECT * FROM ${qi(inputTable)} WHERE CAST(${qi(entityIdCol)} AS VARCHAR) IN (${idList})`,
     );
-    for (const row of rows) {
-      const op = rowToGraphOp(row as Row & Envelope, config, provenance);
+    const ops = rows.map((row) => rowToGraphOp(row as Row & Envelope, config, provenance));
+    await parallel(ops, DEFAULT_CONCURRENCY, async (op) => {
       if (op.kind === "upsert") {
         log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}`);
         await client.upsertEntity(op);
       }
-    }
+    });
   }
 
   if (updates.length > 0 && hasPrevious && linkCols.length > 0) {
@@ -217,7 +231,7 @@ export async function diffAndSync(
     }
   }
 
-  for (const entityId of deletes) {
+  await parallel(deletes, DEFAULT_CONCURRENCY, async (entityId) => {
     log?.info(`archive ${typeSlug(config.entityType)} id=${entityId} (removed)`);
     await client.archiveEntity({
       kind: "archive",
@@ -226,7 +240,7 @@ export async function diffAndSync(
       provenance,
       webId: config.webId,
     });
-  }
+  });
 
   await db.exec(`CREATE OR REPLACE TABLE ${stateTable} AS SELECT * FROM ${currentTable}`);
   await db.exec(`DROP TABLE IF EXISTS ${currentTable}`);
@@ -251,7 +265,7 @@ export async function archiveDeletes(
   if (deletes.length === 0) return;
   const provenance = buildProvenance(config);
 
-  for (const del of deletes) {
+  await parallel(deletes, DEFAULT_CONCURRENCY, async (del) => {
     const entityId = entityIdFromKey(del.key);
     log?.info(`archive ${typeSlug(config.entityType)} id=${String(entityId)}`);
     await client.archiveEntity({
@@ -261,5 +275,5 @@ export async function archiveDeletes(
       provenance,
       webId: config.webId,
     });
-  }
+  });
 }

@@ -1,5 +1,5 @@
 import { DuckDBInstance, quotedIdentifier as qi } from "@duckdb/node-api";
-import type { ChangeEvent, ColumnInfo, FieldKind } from "../connector/types.js";
+import type { ColumnInfo, FieldKind } from "../connector/types.js";
 import { META_COLUMNS, type QueryableStore } from "./types.js";
 
 type TableSchema = { dataColumns: string[]; kinds: Map<string, FieldKind> };

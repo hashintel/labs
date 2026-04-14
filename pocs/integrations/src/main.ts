@@ -7,6 +7,7 @@ import { createDuckDbQueryStore } from "./staging/duckdb.js";
 import { createStubGraphClient } from "./graph/stub.js";
 import { createGraphClient } from "./graph/client.js";
 import { postgresPipelines, mongoPipelines, type PipelineEnv } from "./pipelines.js";
+import { aviationPipelines } from "./pipelines/aviation.js";
 import type { GraphClient } from "./graph/types.js";
 import type { LogLevel } from "./log.js";
 
@@ -21,6 +22,7 @@ const pipelineFactories: Record<string, (env: PipelineEnv) => TablePipeline[]> =
   batch: postgresPipelines,
   cdc: postgresPipelines,
   "mongo-stream": mongoPipelines,
+  "rest-api": (e) => aviationPipelines({ webId: e.webId }),
 };
 
 function buildGraphClient(): GraphClient {

@@ -123,26 +123,29 @@ describe("e2e: events to pipeline to graph", () => {
 
     assert.equal(requests.length, 4);
 
-    const user1 = requests[0];
-    assert.equal(user1.method, "POST");
-    assert.equal(user1.path, "/entities");
-    assert.deepEqual(user1.body.entityTypeIds, [T.entity("user/v/1")]);
-    assert.equal(user1.body.webId, "web-test");
-    assert.equal(user1.body.draft, false);
+    const entities = requests.filter((r) => !r.body.linkData);
+    const links = requests.filter((r) => r.body.linkData);
+    assert.equal(entities.length, 2);
+    assert.equal(links.length, 2);
 
-    const p1 = propsOf(user1);
-    assert.equal(p1[T.property("email/")], "alice@example.com");
-    assert.equal(p1[T.property("display-name/")], "Alice Smith");
-    assert.equal(p1[T.property("city/")], "NYC");
+    const alice = entities.find((r) => {
+      const p = propsOf(r);
+      return p[T.property("email/")] === "alice@example.com";
+    });
+    assert.ok(alice);
+    assert.equal(alice.method, "POST");
+    assert.deepEqual(alice.body.entityTypeIds, [T.entity("user/v/1")]);
+    assert.equal(alice.body.webId, "web-test");
+    assert.equal(propsOf(alice)[T.property("display-name/")], "Alice Smith");
 
-    const link1 = requests[1];
-    assert.equal(link1.method, "POST");
-    assert.deepEqual(link1.body.entityTypeIds, [T.link("is-member-of/v/1")]);
-    assert.ok(link1.body.linkData);
+    const bob = entities.find((r) => propsOf(r)[T.property("email/")] === "bob@example.com");
+    assert.ok(bob);
+    assert.equal(propsOf(bob)[T.property("display-name/")], "Bob Jones");
 
-    const p2 = propsOf(requests[2]);
-    assert.equal(p2[T.property("email/")], "bob@example.com");
-    assert.equal(p2[T.property("display-name/")], "Bob Jones");
+    for (const link of links) {
+      assert.equal(link.method, "POST");
+      assert.deepEqual((link.body.entityTypeIds as string[]), [T.link("is-member-of/v/1")]);
+    }
 
     for (const req of requests) {
       const prov = req.body.provenance as { actorType: string; origin: { type: string }; sources: { type: string; location: { name: string } }[] };
@@ -179,12 +182,10 @@ describe("e2e: events to pipeline to graph", () => {
 
     const entityPosts = requests.filter((r) => !r.body.linkData);
     assert.equal(entityPosts.length, 2);
-    assert.equal(entityPosts[0].method, "POST");
-    assert.equal(entityPosts[1].method, "POST");
 
-    const p2 = propsOf(entityPosts[1]);
-    assert.equal(p2[T.property("email/")], "alice.new@example.com");
-    assert.equal(p2[T.property("city/")], "SF");
+    const updated = entityPosts.find((r) => propsOf(r)[T.property("email/")] === "alice.new@example.com");
+    assert.ok(updated);
+    assert.equal(propsOf(updated)[T.property("city/")], "SF");
   });
 
   it("SQL transforms are applied (LOWER, TRIM, aliasing)", async () => {

@@ -103,3 +103,22 @@ Create these in the HASH UI under your web:
 - **Is Member Of** link type on User, targeting Organization
 
 Then `discover-graph.ts --web <shortname>` picks them up.
+
+---
+
+## 3. Aviation (REST API)
+
+Syncs flight data from FlightAware AeroAPI. Creates flights, airports, airlines with links.
+
+```bash
+export AERO_API_KEY=your-key-here
+eval "$(npx tsx src/e2e/discover-graph.ts --web <your-shortname> 2>&1 | grep '^export HASH_')"
+npx tsx src/main.ts integration-aviation.json
+```
+
+Uses the branch step to extract 3 entity types from one API response:
+- Flights with departs-from/arrives-at/operated-by links (including timing properties)
+- Airports (deduplicated from origin/destination)
+- Airlines (deduplicated from operator)
+
+The aviation entity types (flight, airport, airline, departs-from, arrives-at, operated-by) are system types at `hash.ai/@h/types/`.

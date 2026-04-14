@@ -73,17 +73,19 @@ function toBaseUrl(versionedUrl: string): string {
 function mapProperties(props: Record<VersionedUrl, unknown>): PropertyObjectWithMetadata {
   const value: Record<string, PropertyValueWithMetadata> = {};
   for (const [url, val] of Object.entries(props)) {
-    value[toBaseUrl(url)] = { value: val, metadata: { dataTypeId: null } };
+    if (val != null) value[toBaseUrl(url)] = { value: val, metadata: { dataTypeId: null } };
   }
   return { value };
 }
 
 function mapPropertiesAsPatch(props: Record<VersionedUrl, unknown>): PatchEntityParams["properties"] {
-  return Object.entries(props).map(([url, val]) => ({
-    op: "replace" as const,
-    path: [toBaseUrl(url)],
-    property: { value: val, metadata: { dataTypeId: null } },
-  }));
+  return Object.entries(props)
+    .filter(([, val]) => val != null)
+    .map(([url, val]) => ({
+      op: "replace" as const,
+      path: [toBaseUrl(url)],
+      property: { value: val, metadata: { dataTypeId: null } },
+    }));
 }
 
 function mapProvenance(source: SourceProvenance): HASHProvenance {
