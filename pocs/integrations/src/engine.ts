@@ -1,11 +1,11 @@
 import { quotedIdentifier as qi } from "@duckdb/node-api";
-import type { Batch, PollConnector, StreamConnector } from "./connector/types.js";
+import type { Batch, StreamConnector } from "./connector/types.js";
 import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
 import type { Pipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
 import type { GraphClient } from "./graph/types.js";
-import { processGraphSink, archiveDeletes } from "./graph/sink.js";
+import { processGraphSink, archiveDeletes, diffAndSync, type SyncResult } from "./graph/sink.js";
 import { createLogger, type LogLevel } from "./log.js";
 
 export type TablePipeline = { table: string; pipeline: Pipeline };
@@ -19,9 +19,16 @@ export type IntegrationSpec = {
   graphClient?: GraphClient;
   validate?: boolean;
   logLevel?: LogLevel;
+  syncIntervalMs?: number;
 };
 
-export type Integration = { run(): Promise<void>; stop(): Promise<void> };
+export type Integration = {
+  run(): Promise<void>;
+  stop(): Promise<void>;
+  sync(): Promise<SyncResult>;
+};
+
+export { type SyncResult };
 
 export function integrate(spec: IntegrationSpec): Integration {
   const { pipelines, eventStore, queryStore } = spec;
@@ -40,11 +47,6 @@ export function integrate(spec: IntegrationSpec): Integration {
   if (hasGraphSink && !spec.graphClient) throw new Error("Pipeline has graph-sink steps but no graphClient was provided");
 
   const sinkLog = log.child({ component: "graph-sink" });
-  const onSideEffect: SideEffectHandler = async (step, currentTable) => {
-    if (step.kind === "graph-sink") {
-      await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLog);
-    }
-  };
 
   for (const { pipeline } of pipelines) {
     for (const step of pipeline.steps) {
@@ -55,30 +57,145 @@ export function integrate(spec: IntegrationSpec): Integration {
     }
   }
 
+  let syncing = false;
+
+  async function doSync(): Promise<SyncResult> {
+    if (syncing) return { inserts: 0, updates: 0, deletes: 0, unchanged: 0, durationMs: 0 };
+    syncing = true;
+    const start = Date.now();
+    const totals = { inserts: 0, updates: 0, deletes: 0, unchanged: 0 };
+
+    const connector = createConnector(spec.connector);
+    if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
+
+    log.info(`sync: connector "${connector.id}" tables=[${pipelines.map((tp) => tp.table).join(", ")}]`);
+
+    try {
+      for (const { table, pipeline } of pipelines) {
+        let pageCount = 0;
+        await connector.pull(table, async (page) => {
+          await queryStore.materialize(connector.id, table, page.events);
+          pageCount++;
+        });
+
+        const sourceTable = `${connector.id}/${table}`;
+
+        if (pageCount === 0) {
+          log.debug(`"${table}" is empty`);
+          for (const step of pipeline.steps) {
+            if (step.kind === "graph-sink" && spec.graphClient) {
+              const result = await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLog);
+              totals.inserts += result.inserts;
+              totals.updates += result.updates;
+              totals.deletes += result.deletes;
+              totals.unchanged += result.unchanged;
+            }
+          }
+          continue;
+        }
+
+        if (spec.validate !== false) {
+          await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
+        }
+
+        await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
+          if (step.kind === "graph-sink" && spec.graphClient) {
+            const result = await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLog);
+            totals.inserts += result.inserts;
+            totals.updates += result.updates;
+            totals.deletes += result.deletes;
+            totals.unchanged += result.unchanged;
+          }
+        });
+
+        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
+        for (const step of pipeline.steps) {
+          if (step.kind === "graph-sink") continue;
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${step.id}`)}`);
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${step.id}`)}`);
+        }
+        await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
+      }
+    } finally {
+      await connector.close();
+      syncing = false;
+    }
+
+    const durationMs = Date.now() - start;
+    log.info(`sync complete: ${totals.inserts} inserts, ${totals.updates} updates, ${totals.deletes} deletes, ${totals.unchanged} unchanged (${durationMs}ms)`);
+    return { ...totals, durationMs };
+  }
+
   return {
+    sync: doSync,
+
     async run() {
-      const connector = createConnector(spec.connector);
-      log.info(`connector "${connector.id}" mode=${connector.mode} tables=[${pipelines.map((tp) => tp.table).join(", ")}]`);
+      const probe = createConnector(spec.connector);
+      const mode = probe.mode;
+      log.info(`connector "${probe.id}" mode=${mode} tables=[${pipelines.map((tp) => tp.table).join(", ")}]`);
+
+      if (mode === "batch") {
+        await probe.close();
+        await doSync();
+        const intervalMs = spec.syncIntervalMs;
+        if (intervalMs && intervalMs > 0) {
+          while (!stopped) {
+            await sleep(intervalMs);
+            if (stopped) break;
+            if (syncing) { log.warn("sync still running, skipping"); continue; }
+            await doSync();
+          }
+        }
+        queryStore.close();
+        return;
+      }
 
       try {
-        switch (connector.mode) {
-          case "poll": await runPoll(connector); break;
-          case "stream": await runStream(connector); break;
-        }
+        await runStream(probe as StreamConnector);
       } finally {
-        await connector.close();
+        await probe.close();
         queryStore.close();
       }
 
-      async function processBatch(
+      async function runStream(c: StreamConnector) {
+        const subs = [];
+        const state = pipelines.map(() => ({ seq: 0, validated: { done: false } }));
+        let lock = Promise.resolve();
+
+        for (let i = 0; i < pipelines.length; i++) {
+          const { table, pipeline } = pipelines[i];
+          const s = state[i];
+
+          const sub = await c.subscribe(table, undefined, (batch) => {
+            lock = lock.then(async () => {
+              if (stopped) return;
+              const { nextSeq } = await processStreamBatch(table, pipeline, batch, s.seq, s.validated, c);
+              s.seq = nextSeq;
+            });
+            return lock;
+          });
+          subs.push(sub);
+        }
+
+        await new Promise<void>((resolve) => {
+          const check = setInterval(() => {
+            if (stopped) { clearInterval(check); resolve(); }
+          }, 100);
+        });
+
+        for (const sub of subs) await sub.stop();
+      }
+
+      async function processStreamBatch(
         table: string,
         pipeline: Pipeline,
         batch: Batch,
         seq: number,
         validated: { done: boolean },
-      ): Promise<number> {
+        connector: StreamConnector,
+      ): Promise<{ nextSeq: number }> {
         const relevant = batch.events.filter((e) => e.table === table);
-        if (relevant.length === 0) return seq;
+        if (relevant.length === 0) return { nextSeq: seq };
 
         const deletes = relevant.filter((e) => e.op === "delete");
         const data = relevant.filter((e) => e.op !== "delete");
@@ -92,7 +209,7 @@ export function integrate(spec: IntegrationSpec): Integration {
           }
         }
 
-        if (data.length === 0) return seq;
+        if (data.length === 0) return { nextSeq: seq };
 
         log.debug(`batch: ${data.length} events for "${table}"`);
 
@@ -106,13 +223,14 @@ export function integrate(spec: IntegrationSpec): Integration {
           validated.done = true;
         }
 
+        const onSideEffect: SideEffectHandler = async (step, currentTable) => {
+          if (step.kind === "graph-sink") {
+            await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLog);
+          }
+        };
+
         await runPipeline(pipeline, queryStore, resolveTransform, onSideEffect);
 
-        await cleanup(table, pipeline);
-        return nextSeq;
-      }
-
-      async function cleanup(table: string, pipeline: Pipeline) {
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`${connector.id}/${table}`)}`);
         for (const step of pipeline.steps) {
           if (step.kind === "graph-sink") continue;
@@ -120,61 +238,8 @@ export function integrate(spec: IntegrationSpec): Integration {
           await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${step.id}`)}`);
         }
         await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
-      }
 
-      async function runPoll(c: PollConnector) {
-        const intervalMs = c.pollIntervalMs ?? 5000;
-        const state = pipelines.map(() => ({ cursor: undefined as unknown, seq: 0, validated: { done: false } }));
-
-        while (!stopped) {
-          let anyEvents = false;
-
-          for (let i = 0; i < pipelines.length; i++) {
-            const { table, pipeline } = pipelines[i];
-            const s = state[i];
-
-            const batch = await c.pull(table, s.cursor);
-            if (stopped) return;
-
-            if (batch.events.length > 0) {
-              s.seq = await processBatch(table, pipeline, batch, s.seq, s.validated);
-              s.cursor = batch.cursor;
-              anyEvents = true;
-            }
-          }
-
-          if (!anyEvents) {
-            if (intervalMs > 0) {
-              await sleep(intervalMs);
-            } else {
-              break;
-            }
-          }
-        }
-      }
-
-      async function runStream(c: StreamConnector) {
-        const subs = [];
-        const state = pipelines.map(() => ({ seq: 0, validated: { done: false } }));
-
-        for (let i = 0; i < pipelines.length; i++) {
-          const { table, pipeline } = pipelines[i];
-          const s = state[i];
-
-          const sub = await c.subscribe(table, undefined, async (batch) => {
-            if (stopped) return;
-            s.seq = await processBatch(table, pipeline, batch, s.seq, s.validated);
-          });
-          subs.push(sub);
-        }
-
-        await new Promise<void>((resolve) => {
-          const check = setInterval(() => {
-            if (stopped) { clearInterval(check); resolve(); }
-          }, 100);
-        });
-
-        for (const sub of subs) await sub.stop();
+        return { nextSeq };
       }
     },
 

@@ -4,8 +4,8 @@ import { META_COLUMNS, type QueryableStore } from "./types.js";
 
 type TableSchema = { dataColumns: string[]; kinds: Map<string, FieldKind> };
 
-export async function createDuckDbQueryStore(): Promise<QueryableStore> {
-  const instance = await DuckDBInstance.create();
+export async function createDuckDbQueryStore(path?: string): Promise<QueryableStore> {
+  const instance = await DuckDBInstance.create(path ?? ":memory:");
   const conn = await instance.connect();
   const schemas = new Map<string, TableSchema>();
 

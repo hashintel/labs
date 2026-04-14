@@ -1,9 +1,0 @@
-{
-  "id": "crm",
-  "mode": "watermark",
-  "url": "postgres://postgres:postgres@localhost:5433/demo",
-  "tables": {
-    "users": { "primaryKey": "id", "watermark": "updated_at" },
-    "organizations": { "primaryKey": "id", "watermark": "updated_at" }
-  }
-}

@@ -18,9 +18,8 @@ const env: PipelineEnv = {
 };
 
 const pipelineFactories: Record<string, (env: PipelineEnv) => TablePipeline[]> = {
-  watermark: postgresPipelines,
+  batch: postgresPipelines,
   cdc: postgresPipelines,
-  mongo: mongoPipelines,
   "mongo-stream": mongoPipelines,
 };
 
@@ -40,13 +39,15 @@ const logLevel = (args.find((a) => a.startsWith("--log="))?.split("=")[1] ?? "de
 const configPath = args.find((a) => !a.startsWith("--")) ?? resolve(root, "..", "integration.json");
 const config = JSON.parse(readFileSync(resolve(configPath), "utf-8"));
 
-const factory = pipelineFactories[config.mode as string] ?? postgresPipelines;
+const mode = config.mode as string;
+const factory = pipelineFactories[mode] ?? postgresPipelines;
+const isBatch = mode === "batch";
 
 const app = integrate({
   connector: config,
   pipelines: factory(env),
   eventStore: createMemoryEventStore(),
-  queryStore: await createDuckDbQueryStore(),
+  queryStore: await createDuckDbQueryStore(isBatch ? ".integration-state.db" : undefined),
   graphClient: buildGraphClient(),
   logLevel,
 });

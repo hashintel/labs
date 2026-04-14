@@ -23,6 +23,7 @@ export type FnStep = {
 
 export type LinkMapping = {
   column: string;
+  sourceColumn?: string;
   linkType: VersionedUrl;
   targetEntityType: VersionedUrl;
 };

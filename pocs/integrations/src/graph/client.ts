@@ -266,14 +266,26 @@ async function upsertLink(
     linkData: { leftEntityId, rightEntityId },
   } satisfies CreateEntityParams);
 
+  const reviveLink = () => request("PATCH", config, "/entities", {
+    entityId: compositeEntityId(op.webId, linkUuid),
+    provenance,
+    archived: false,
+  } satisfies PatchEntityParams);
+
   try {
     await createLink();
   } catch (e) {
-    if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) return;
+    if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
+      await reviveLink();
+      return;
+    }
     if (e instanceof GraphApiError && isFkViolation(e)) {
       await ensureEntity(config, link.targetEntityType, link.targetId, op.webId, provenance);
       try { await createLink(); } catch (e2) {
-        if (e2 instanceof GraphApiError && (e2.status === 409 || isDuplicate(e2))) return;
+        if (e2 instanceof GraphApiError && (e2.status === 409 || isDuplicate(e2))) {
+          await reviveLink();
+          return;
+        }
         throw e2;
       }
       return;

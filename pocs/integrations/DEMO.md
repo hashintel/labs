@@ -1,57 +1,105 @@
 # Demo
 
-Streams Postgres CDC changes to the HASH entity graph in real-time.
+Two modes for syncing Postgres to the HASH entity graph.
 
 ## Prerequisites
 
-- HASH graph running on `localhost:4000` (with types created for your web)
-- Docker (for the demo Postgres on port 5433)
-
-## Run
+- HASH graph on `localhost:4000` with entity types created (see bottom)
+- Docker for demo Postgres on port 5433
 
 ```bash
 docker compose up -d postgres
-eval "$(npx tsx src/e2e/discover-graph.ts --web alice 2>&1 | grep '^export HASH_')"
+eval "$(npx tsx src/e2e/discover-graph.ts --web <your-shortname> 2>&1 | grep '^export HASH_')"
+```
+
+---
+
+## 1. Batch sync
+
+Full snapshot, diffs against previous run, writes only changes.
+
+```bash
+npx tsx src/main.ts integration-batch.json
+```
+
+Run it again -- nothing happens (all entities unchanged):
+```bash
+npx tsx src/main.ts integration-batch.json
+```
+
+Now change some data and re-sync:
+```bash
+# update a user
+docker exec integrations-postgres-1 psql -U postgres -d demo -c \
+  "UPDATE users SET city = 'Munich' WHERE email = 'alice@acme.example.com';"
+
+# add a user
+docker exec integrations-postgres-1 psql -U postgres -d demo -c \
+  "INSERT INTO users (email, first_name, last_name, city, organization_id) VALUES ('dave@acme.example.com', 'Dave', 'Brown', 'Berlin', 1);"
+
+# delete a user
+docker exec integrations-postgres-1 psql -U postgres -d demo -c \
+  "DELETE FROM users WHERE email = 'carol@widgets.example.com';"
+
+# re-sync -- only the 3 changes hit the graph
+npx tsx src/main.ts integration-batch.json
+```
+
+Re-insert the deleted user -- entity revives (un-archives):
+```bash
+docker exec integrations-postgres-1 psql -U postgres -d demo -c \
+  "INSERT INTO users (id, email, first_name, last_name, city, organization_id) VALUES (3, 'carol@widgets.example.com', 'Carol', 'White', 'London', 2);"
+
+npx tsx src/main.ts integration-batch.json
+```
+
+---
+
+## 2. CDC streaming
+
+Streams WAL changes in real-time. Restart Postgres to get a fresh replication slot:
+
+```bash
+docker compose down -v && docker compose up -d postgres && sleep 2
 npx tsx src/main.ts
 ```
 
-CDC mode is the default. For watermark polling instead:
+In another terminal:
 ```bash
-npx tsx src/main.ts integration-watermark.json
-```
-
-## Make changes (separate terminal)
-
-```bash
-# Insert
+# insert
 docker exec integrations-postgres-1 psql -U postgres -d demo -c \
   "INSERT INTO users (email, first_name, last_name, city, organization_id) VALUES ('eve@example.com', 'Eve', 'Green', 'Berlin', 2);"
 
-# Update
+# update
 docker exec integrations-postgres-1 psql -U postgres -d demo -c \
   "UPDATE users SET city = 'Munich', updated_at = now() WHERE email = 'eve@example.com';"
 
-# New org
+# change org (old link archived, new link created)
 docker exec integrations-postgres-1 psql -U postgres -d demo -c \
-  "INSERT INTO organizations (name) VALUES ('New Startup');"
+  "UPDATE users SET organization_id = 1, updated_at = now() WHERE email = 'eve@example.com';"
 
-# Delete
+# delete
 docker exec integrations-postgres-1 psql -U postgres -d demo -c \
   "DELETE FROM users WHERE email = 'eve@example.com';"
 ```
 
-## Inspect the graph
+---
+
+## Inspect
 
 ```bash
 eval "$(npx tsx src/e2e/discover-graph.ts --web <your-shortname> 2>&1 | grep '^export HASH_')"
 npx tsx src/e2e/view-graph.ts
 ```
 
+---
+
 ## Graph type setup
 
-The demo needs these entity types in your web:
-- **Organization** with `organization-name` (text)
-- **User** with `email` (text), `display-name` (text), `city` (text)
-- **Is Member Of** link type (on User, targeting Organization)
+Create these in the HASH UI under your web:
 
-Create them in the HASH UI, then `discover-graph.ts --web <shortname>` picks them up automatically.
+- **Organization** with property: `organization-name` (text)
+- **User** with properties: `email` (text), `display-name` (text), `city` (text)
+- **Is Member Of** link type on User, targeting Organization
+
+Then `discover-graph.ts --web <shortname>` picks them up.

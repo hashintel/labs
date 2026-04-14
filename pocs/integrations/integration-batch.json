@@ -1,0 +1,9 @@
+{
+  "id": "crm",
+  "mode": "batch",
+  "url": "postgres://postgres:postgres@localhost:5433/demo",
+  "tables": {
+    "users": { "primaryKey": "id" },
+    "organizations": { "primaryKey": "id" }
+  }
+}

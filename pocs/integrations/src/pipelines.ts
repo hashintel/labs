@@ -45,7 +45,7 @@ function postgresOrgPipeline(env: PipelineEnv): Pipeline {
       "crm/organizations",
       sqlStep({
         id: "org-normalize",
-        query: sql`SELECT _op, _key, COALESCE(id, _key->>'id') AS orgId, name AS orgName FROM input`,
+        query: sql`SELECT _op, _key, _before, COALESCE(id, _key->>'id') AS orgId, name AS orgName FROM input`,
       }),
     ),
     env,
@@ -58,7 +58,7 @@ function userSink(source: string | Pipeline, env: PipelineEnv): Pipeline {
     source,
     sqlStep({
       id: "enrich",
-      query: sql`SELECT _op, _key, userId, LOWER(TRIM(email)) AS email, TRIM(displayName) AS displayName, city, orgId FROM input`,
+      query: sql`SELECT _op, _key, _before, userId, LOWER(TRIM(email)) AS email, TRIM(displayName) AS displayName, city, orgId FROM input`,
     }),
     graphSinkStep({
       id: "write-users",
@@ -74,6 +74,7 @@ function userSink(source: string | Pipeline, env: PipelineEnv): Pipeline {
       links: [
         {
           column: "orgId",
+          sourceColumn: "organization_id",
           linkType: T.link("is-member-of/v/1"),
           targetEntityType: T.entity("organization/v/1"),
         },
@@ -93,7 +94,7 @@ function postgresUserPipeline(env: PipelineEnv): Pipeline {
       }),
       sqlStep({
         id: "normalize",
-        query: sql`SELECT _op, _key, COALESCE(id, _key->>'id') AS userId, email, full_name AS displayName, COALESCE(city, 'unknown') AS city, organization_id AS orgId FROM input`,
+        query: sql`SELECT _op, _key, _before, COALESCE(id, _key->>'id') AS userId, email, full_name AS displayName, COALESCE(city, 'unknown') AS city, organization_id AS orgId FROM input`,
         output: NormalizedUser,
       }),
     ),
@@ -111,7 +112,7 @@ function mongoUserPipeline(env: PipelineEnv): Pipeline {
       }),
       sqlStep({
         id: "normalize",
-        query: sql`SELECT _op, _key, _id AS userId, email, name AS displayName, city, organizationId AS orgId FROM input`,
+        query: sql`SELECT _op, _key, _before, _id AS userId, email, name AS displayName, city, organizationId AS orgId FROM input`,
         output: NormalizedUser,
       }),
     ),

@@ -46,10 +46,10 @@ type ConnectorBase = {
   close(): Promise<void>;
 };
 
-export type PollConnector = ConnectorBase & {
-  readonly mode: "poll";
-  readonly pollIntervalMs?: number;
-  pull(table: string, cursor: unknown): Promise<Batch>;
+export type BatchConnector = ConnectorBase & {
+  readonly mode: "batch";
+  readonly pageSize: number;
+  pull(table: string, onPage: (batch: Batch) => Promise<void>): Promise<void>;
 };
 
 export type StreamConnector = ConnectorBase & {
@@ -57,7 +57,7 @@ export type StreamConnector = ConnectorBase & {
   subscribe(table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription>;
 };
 
-export type Connector = PollConnector | StreamConnector;
+export type Connector = BatchConnector | StreamConnector;
 
 export function pkColumns(pk: string | string[]): string[] {
   return Array.isArray(pk) ? pk : [pk];
