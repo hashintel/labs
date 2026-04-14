@@ -1,6 +1,6 @@
 /**
  * Seeds the HASH graph with the minimum types needed for e2e testing.
- * DESTRUCTIVE — wipes all state before restoring.
+ * DESTRUCTIVE --wipes all state before restoring.
  *
  * Usage: npx tsx src/e2e/seed-graph.ts [--graph-url URL] [--admin-url URL]
  *
@@ -16,7 +16,7 @@ function arg(name: string, fallback: string): string {
 const GRAPH_URL = arg("--graph-url", process.env.GRAPH_URL ?? "http://localhost:14000");
 const ADMIN_URL = arg("--admin-url", process.env.ADMIN_URL ?? "http://localhost:14001");
 
-// Wipe — purge entities first (accounts DELETE fails on FK constraints otherwise)
+// Wipe --purge entities first (accounts DELETE fails on FK constraints otherwise)
 console.log("[seed] wiping...");
 
 const systemActor = await fetch(`${GRAPH_URL}/actors/machine/identifier/system/graph`)
@@ -150,7 +150,7 @@ const entries = [
   { type: "principal", principalType: "role", roleType: "web", id: ADMIN_ROLE_ID, webId: WEB_ID, name: "administrator" },
   { type: "principal", principalType: "role", roleType: "web", id: MEMBER_ROLE_ID, webId: WEB_ID, name: "member" },
 
-  // Data types — "value" is the root, text/number extend it
+  // Data types --"value" is the root, text/number extend it
   dataType("value", "Value", {
     anyOf: [
       { type: "null" }, { type: "boolean" }, { type: "number" },
@@ -165,7 +165,7 @@ const entries = [
   propertyType("city", "City", "text"),
   propertyType("organization-name", "Organization Name", "text"),
 
-  // Entity types — base link type must exist for link entity types
+  // Entity types --base link type must exist for link entity types
   {
     type: "entityType",
     schema: {

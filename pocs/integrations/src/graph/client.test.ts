@@ -76,7 +76,6 @@ describe("createGraphClient", () => {
     assert.ok(typeof body.entityUuid === "string" && body.entityUuid.includes("-"));
 
     const props = (body.properties as { value: Record<string, { value: unknown }> }).value;
-    // Property keys are base URLs (version stripped)
     assert.equal(props[T.property("email/")].value, "a@example.com");
 
     const provOut = body.provenance as { actorType: string; origin: { type: string }; sources: unknown[] };

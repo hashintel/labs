@@ -1,5 +1,12 @@
 import sql from "sql-template-tag";
-import { pipe, sqlStep, graphSinkStep, namespace, type Pipeline, type SchemaDecl } from "./transform/pipeline.js";
+import {
+  pipe,
+  sqlStep,
+  graphSinkStep,
+  namespace,
+  type Pipeline,
+  type SchemaDecl,
+} from "./transform/pipeline.js";
 import type { TablePipeline } from "./engine.js";
 
 export type PipelineEnv = {
@@ -17,7 +24,8 @@ export const NormalizedUser: SchemaDecl = {
 
 function orgSink(source: string | Pipeline, env: PipelineEnv): Pipeline {
   const T = namespace(env.typeBase);
-  return pipe(source,
+  return pipe(
+    source,
     graphSinkStep({
       id: "write-orgs",
       entityType: T.entity("organization/v/1"),
@@ -33,8 +41,12 @@ function orgSink(source: string | Pipeline, env: PipelineEnv): Pipeline {
 
 function postgresOrgPipeline(env: PipelineEnv): Pipeline {
   return orgSink(
-    pipe("crm/organizations",
-      sqlStep({ id: "org-normalize", query: sql`SELECT _op, _key, COALESCE(id, _key->>'id') AS orgId, name AS orgName FROM input` }),
+    pipe(
+      "crm/organizations",
+      sqlStep({
+        id: "org-normalize",
+        query: sql`SELECT _op, _key, COALESCE(id, _key->>'id') AS orgId, name AS orgName FROM input`,
+      }),
     ),
     env,
   );
@@ -42,26 +54,30 @@ function postgresOrgPipeline(env: PipelineEnv): Pipeline {
 
 function userSink(source: string | Pipeline, env: PipelineEnv): Pipeline {
   const T = namespace(env.typeBase);
-  return pipe(source,
+  return pipe(
+    source,
     sqlStep({
       id: "enrich",
       query: sql`SELECT _op, _key, userId, LOWER(TRIM(email)) AS email, TRIM(displayName) AS displayName, city, orgId FROM input`,
     }),
     graphSinkStep({
       id: "write-users",
-      entityType: T.entity("user/v/2"),
+      entityType: T.entity("user/v/1"),
       entityId: "userId",
       webId: env.webId,
       properties: {
         "https://hash.ai/@h/types/property-type/email/v/1": "email",
-        "https://blockprotocol.org/@blockprotocol/types/property-type/display-name/v/1": "displayName",
+        "https://blockprotocol.org/@blockprotocol/types/property-type/display-name/v/1":
+          "displayName",
         "https://hash.ai/@h/types/property-type/city/v/1": "city",
       },
-      links: [{
-        column: "orgId",
-        linkType: T.link("is-member-of/v/1"),
-        targetEntityType: T.entity("organization/v/1"),
-      }],
+      links: [
+        {
+          column: "orgId",
+          linkType: T.link("is-member-of/v/1"),
+          targetEntityType: T.entity("organization/v/1"),
+        },
+      ],
       provenance: { location: { name: "crm-connector" } },
     }),
   );
@@ -69,9 +85,17 @@ function userSink(source: string | Pipeline, env: PipelineEnv): Pipeline {
 
 function postgresUserPipeline(env: PipelineEnv): Pipeline {
   return userSink(
-    pipe("crm/users",
-      sqlStep({ id: "pg-clean", query: sql`SELECT *, trim(first_name || ' ' || last_name) AS full_name FROM input` }),
-      sqlStep({ id: "normalize", query: sql`SELECT _op, _key, COALESCE(id, _key->>'id') AS userId, email, full_name AS displayName, COALESCE(city, 'unknown') AS city, organization_id AS orgId FROM input`, output: NormalizedUser }),
+    pipe(
+      "crm/users",
+      sqlStep({
+        id: "pg-clean",
+        query: sql`SELECT *, trim(first_name || ' ' || last_name) AS full_name FROM input`,
+      }),
+      sqlStep({
+        id: "normalize",
+        query: sql`SELECT _op, _key, COALESCE(id, _key->>'id') AS userId, email, full_name AS displayName, COALESCE(city, 'unknown') AS city, organization_id AS orgId FROM input`,
+        output: NormalizedUser,
+      }),
     ),
     env,
   );
@@ -79,9 +103,17 @@ function postgresUserPipeline(env: PipelineEnv): Pipeline {
 
 function mongoUserPipeline(env: PipelineEnv): Pipeline {
   return userSink(
-    pipe("crm/users",
-      sqlStep({ id: "mongo-flatten", query: sql`SELECT *, address->>'city' AS city FROM input` }),
-      sqlStep({ id: "normalize", query: sql`SELECT _op, _key, _id AS userId, email, name AS displayName, city, organizationId AS orgId FROM input`, output: NormalizedUser }),
+    pipe(
+      "crm/users",
+      sqlStep({
+        id: "mongo-flatten",
+        query: sql`SELECT *, address->>'city' AS city FROM input`,
+      }),
+      sqlStep({
+        id: "normalize",
+        query: sql`SELECT _op, _key, _id AS userId, email, name AS displayName, city, organizationId AS orgId FROM input`,
+        output: NormalizedUser,
+      }),
     ),
     env,
   );
@@ -95,9 +127,5 @@ export function postgresPipelines(env: PipelineEnv): TablePipeline[] {
 }
 
 export function mongoPipelines(env: PipelineEnv): TablePipeline[] {
-  // Mongo demo has no separate organizations collection — orgs are created
-  // on-demand when user links reference them (ensureEntity fallback)
-  return [
-    { table: "users", pipeline: mongoUserPipeline(env) },
-  ];
+  return [{ table: "users", pipeline: mongoUserPipeline(env) }];
 }

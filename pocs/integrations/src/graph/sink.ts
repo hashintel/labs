@@ -1,5 +1,6 @@
 import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { QueryableStore } from "../staging/types.js";
+import type { ChangeEvent } from "../connector/types.js";
 import type { Accessor, GraphSinkConfig, Row, Envelope } from "../transform/pipeline.js";
 import type { GraphOp, ResolvedLink, SourceProvenance, GraphClient } from "./types.js";
 import type { Logger } from "../log.js";
@@ -67,5 +68,32 @@ export async function processGraphSink(
         await client.archiveEntity(op);
         break;
     }
+  }
+}
+
+function entityIdFromKey(key: Record<string, unknown>): unknown {
+  const vals = Object.values(key);
+  return vals.length === 1 ? vals[0] : vals.join("::");
+}
+
+export async function archiveDeletes(
+  deletes: ChangeEvent[],
+  config: GraphSinkConfig,
+  client: GraphClient,
+  log?: Logger,
+): Promise<void> {
+  if (deletes.length === 0) return;
+  const provenance = buildProvenance(config);
+
+  for (const del of deletes) {
+    const entityId = entityIdFromKey(del.key);
+    log?.info(`archive ${typeSlug(config.entityType)} id=${String(entityId)}`);
+    await client.archiveEntity({
+      kind: "archive",
+      entityType: config.entityType,
+      entityId,
+      provenance,
+      webId: config.webId,
+    });
   }
 }

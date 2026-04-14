@@ -44,7 +44,7 @@ describe("rowToGraphOp", () => {
     }
   });
 
-  it("produces archive for delete — recovers entityId from _key when data is null", () => {
+  it("produces archive for delete --recovers entityId from _key when data is null", () => {
     const row: Row & Envelope = { _op: "delete", _key: '{"userId":"1"}', userId: null, email: null, name: null, orgId: null };
     const op = rowToGraphOp(row, config, prov);
     assert.equal(op.kind, "archive");

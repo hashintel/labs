@@ -7,7 +7,7 @@ import { createDuckDbQueryStore } from "../staging/duckdb.js";
 import { createGraphClient, type GraphClientConfig } from "../graph/client.js";
 import { pipe, sqlStep, graphSinkStep, namespace, type SideEffectHandler } from "../transform/pipeline.js";
 import { validatePipeline, runPipeline } from "../transform/run.js";
-import { processGraphSink } from "../graph/sink.js";
+import { processGraphSink, archiveDeletes } from "../graph/sink.js";
 import type { ChangeEvent } from "../connector/types.js";
 import type { QueryableStore } from "../staging/types.js";
 
@@ -47,7 +47,6 @@ function userEvents(): ChangeEvent[] {
   ];
 }
 
-// Mirrors the real postgresPipeline but with test namespace
 const pipeline = pipe("test/users",
   sqlStep({
     id: "clean",
@@ -76,7 +75,7 @@ const pipeline = pipe("test/users",
   }),
 );
 
-describe("e2e: events → pipeline → graph", () => {
+describe("e2e: events to pipeline to graph", () => {
   let graphServer: Awaited<ReturnType<typeof startGraphServer>>;
   let queryStore: QueryableStore;
 
@@ -114,7 +113,6 @@ describe("e2e: events → pipeline → graph", () => {
     return graphServer.requests;
   }
 
-  // Helper: extract properties from request body (client sends base URLs as keys)
   function propsOf(req: RequestLog): Record<string, unknown> {
     const wrapped = (req.body.properties as { value: Record<string, { value: unknown }> }).value;
     return Object.fromEntries(Object.entries(wrapped).map(([k, v]) => [k, v.value]));
@@ -123,7 +121,6 @@ describe("e2e: events → pipeline → graph", () => {
   it("inserts flow through pipeline and produce graph upserts", async () => {
     const requests = await runE2E(userEvents());
 
-    // 2 users × (1 entity + 1 link) = 4
     assert.equal(requests.length, 4);
 
     const user1 = requests[0];
@@ -156,18 +153,17 @@ describe("e2e: events → pipeline → graph", () => {
     }
   });
 
-  it("deletes produce graph archives", async () => {
-    // Materialize inserts first so the table schema exists for the delete batch
-    const eventStore = createMemoryEventStore();
-    await eventStore.append("test", "users", userEvents());
-    const { events: stored } = await eventStore.read("test", "users");
-    await queryStore.materialize("test", "users", stored);
-
+  it("deletes bypass pipeline and produce graph archives", async () => {
     const deletes: ChangeEvent[] = [
       { table: "users", op: "delete", key: { id: 1 }, row: null },
     ];
-    await queryStore.materialize("test", "users", deletes);
-    await runPipeline(pipeline, queryStore, undefined, buildSideEffectHandler());
+    const sinkConfig = pipeline.steps.find((s) => s.kind === "graph-sink")!;
+    if (sinkConfig.kind !== "graph-sink") throw new Error("unreachable");
+
+    const config: GraphClientConfig = { baseUrl: `http://localhost:${graphServer.port}`, actorId: "test-actor" };
+    const client = createGraphClient(config);
+
+    await archiveDeletes(deletes, sinkConfig.config, client);
 
     const archiveReq = graphServer.requests.find((r) => r.method === "PATCH");
     assert.ok(archiveReq, "expected a PATCH request for archive");
@@ -199,7 +195,6 @@ describe("e2e: events → pipeline → graph", () => {
 
     const p = propsOf(requests[0]);
     assert.equal(p[T.property("email/")], "upper@example.com");
-    // TRIM strips outer whitespace; inner spaces from concat are preserved
     assert.equal(p[T.property("display-name/")], "Spaced  Name");
   });
 
@@ -215,7 +210,6 @@ describe("e2e: events → pipeline → graph", () => {
   });
 
   it("graph-sink mid-pipeline passes data through to downstream steps", async () => {
-    // Graph sink between two SQL steps — downstream step reads from the pre-sink table
     const midPipeline = pipe("test/users",
       sqlStep({ id: "add-col", query: sql`SELECT _op, _key, id, email, 'injected' AS marker FROM input` }),
       graphSinkStep({
@@ -237,10 +231,8 @@ describe("e2e: events → pipeline → graph", () => {
 
     const outputTable = await runPipeline(midPipeline, queryStore, undefined, buildSideEffectHandler());
 
-    // Graph sink executed (requests were made)
     assert.ok(graphServer.requests.length > 0, "graph sink should have fired");
 
-    // Downstream step ran and has both the original columns AND the new 'phase' column
     const { rows } = await queryStore.query(`SELECT * FROM "${outputTable}"`);
     assert.ok(rows.length > 0, "downstream step should produce rows");
     assert.equal(rows[0].marker, "injected", "columns from pre-sink step should be available");

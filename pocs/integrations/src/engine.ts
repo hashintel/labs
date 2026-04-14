@@ -5,7 +5,7 @@ import type { EventStore, QueryableStore } from "./staging/types.js";
 import type { Pipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
 import type { GraphClient } from "./graph/types.js";
-import { processGraphSink } from "./graph/sink.js";
+import { processGraphSink, archiveDeletes } from "./graph/sink.js";
 import { createLogger, type LogLevel } from "./log.js";
 
 export type TablePipeline = { table: string; pipeline: Pipeline };
@@ -80,9 +80,23 @@ export function integrate(spec: IntegrationSpec): Integration {
         const relevant = batch.events.filter((e) => e.table === table);
         if (relevant.length === 0) return seq;
 
-        log.debug(`batch: ${relevant.length} events for "${table}"`);
+        const deletes = relevant.filter((e) => e.op === "delete");
+        const data = relevant.filter((e) => e.op !== "delete");
 
-        await eventStore.append(connector.id, table, relevant);
+        if (deletes.length > 0 && spec.graphClient) {
+          log.debug(`${deletes.length} deletes for "${table}"`);
+          for (const step of pipeline.steps) {
+            if (step.kind === "graph-sink") {
+              await archiveDeletes(deletes, step.config, spec.graphClient, sinkLog);
+            }
+          }
+        }
+
+        if (data.length === 0) return seq;
+
+        log.debug(`batch: ${data.length} events for "${table}"`);
+
+        await eventStore.append(connector.id, table, data);
         const { events, nextSeq } = await eventStore.read(connector.id, table, seq);
         await queryStore.materialize(connector.id, table, events);
         eventStore.trim(connector.id, table, nextSeq);

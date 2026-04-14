@@ -44,8 +44,8 @@ type PatchEntityParams = {
   properties?: { op: "replace"; path: string[]; property: PropertyValueWithMetadata }[];
 };
 
-// RFC 4122 UUID v5: SHA-1 of (namespace UUID ∥ name), version/variant bits set.
-// Fixed namespace ensures our identity mapping is injective (no collisions with other UUID v5 users).
+// UUID v5: sha1(namespace || name) with RFC 4122 version/variant bits.
+// Fixed namespace prevents collisions with other UUID v5 users.
 const NAMESPACE = Buffer.from("d6e2c7a1f84b4e3a9c0d5b7f1e3a2d4c", "hex"); // 16 bytes
 
 function deterministicUuid(entityType: string, entityId: unknown): string {

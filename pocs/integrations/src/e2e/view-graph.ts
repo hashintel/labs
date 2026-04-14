@@ -26,7 +26,7 @@ for (const e of entities) {
   const id = e.metadata.recordId.entityId.split("~")[1]?.slice(0, 8) ?? e.metadata.recordId.entityId;
   const archived = e.metadata.archived ? " [ARCHIVED]" : "";
   const link = e.linkData
-    ? ` → ${e.linkData.rightEntityId.split("~")[1]?.slice(0, 8)}`
+    ? ` -> ${e.linkData.rightEntityId.split("~")[1]?.slice(0, 8)}`
     : "";
 
   const props = Object.entries(e.properties)
