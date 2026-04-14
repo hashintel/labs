@@ -23,7 +23,7 @@ function buildProvenance(config: GraphSinkConfig): SourceProvenance {
 }
 
 export function rowToGraphOp(row: Row & Envelope, config: GraphSinkConfig, provenance: SourceProvenance): GraphOp {
-  const { _op, _key, ...data } = row;
+  const { _op, _key, _before: rawBefore, ...data } = row;
 
   if (_op === "delete") {
     const key: Record<string, unknown> = typeof _key === "string" ? JSON.parse(_key) : {};
@@ -43,7 +43,21 @@ export function rowToGraphOp(row: Row & Envelope, config: GraphSinkConfig, prove
     .filter((l) => data[l.column] != null)
     .map((l) => ({ linkType: l.linkType, targetEntityType: l.targetEntityType, targetId: data[l.column] }));
 
-  return { kind: "upsert", entityType: config.entityType, entityId, properties, links, provenance, webId: config.webId };
+  const before: Record<string, unknown> | null =
+    typeof rawBefore === "string" ? JSON.parse(rawBefore) : rawBefore as Record<string, unknown> | null;
+
+  const staleLinks: ResolvedLink[] = [];
+  if (before && config.links) {
+    for (const l of config.links) {
+      const oldVal = before[l.column];
+      const newVal = data[l.column];
+      if (oldVal != null && oldVal !== newVal) {
+        staleLinks.push({ linkType: l.linkType, targetEntityType: l.targetEntityType, targetId: oldVal });
+      }
+    }
+  }
+
+  return { kind: "upsert", entityType: config.entityType, entityId, properties, links, staleLinks, provenance, webId: config.webId };
 }
 
 export async function processGraphSink(

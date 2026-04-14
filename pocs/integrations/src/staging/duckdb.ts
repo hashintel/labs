@@ -33,9 +33,10 @@ export async function createDuckDbQueryStore(): Promise<QueryableStore> {
   }
 
   async function ensureTable(key: string, dataColumns: string[], kinds: Map<string, FieldKind>): Promise<void> {
-    const allColumns = [META_COLUMNS.op, META_COLUMNS.key, ...dataColumns];
+    const allColumns = [META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before, ...dataColumns];
     const colDefs = allColumns.map((c) => {
       if (c === META_COLUMNS.op || c === META_COLUMNS.key) return `${qi(c)} VARCHAR`;
+      if (c === META_COLUMNS.before) return `${qi(c)} JSON`;
       return `${qi(c)} ${kinds.get(c) === "json" ? "JSON" : "VARCHAR"}`;
     }).join(", ");
     await conn.run(`CREATE TABLE IF NOT EXISTS ${qi(key)} (${colDefs})`);
@@ -61,18 +62,19 @@ export async function createDuckDbQueryStore(): Promise<QueryableStore> {
       }
 
       const { dataColumns, kinds } = schemas.get(key)!;
-      const allColumns = [META_COLUMNS.op, META_COLUMNS.key, ...dataColumns];
+      const allColumns = [META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before, ...dataColumns];
       const placeholders = allColumns.map((_, i) => `$${i + 1}`).join(", ");
       const insertSql = `INSERT INTO ${qi(key)} VALUES (${placeholders})`;
 
       for (const ev of events) {
         const keyJson = JSON.stringify(ev.key);
+        const beforeJson = ev.before ? JSON.stringify(ev.before) : null;
         if (ev.row) {
           const dataVals = dataColumns.map((c) => serializeValue(ev.row![c], kinds.get(c) ?? "scalar"));
-          await conn.run(insertSql, [ev.op, keyJson, ...dataVals]);
+          await conn.run(insertSql, [ev.op, keyJson, beforeJson, ...dataVals]);
         } else {
           const nulls = dataColumns.map(() => null);
-          await conn.run(insertSql, [ev.op, keyJson, ...nulls]);
+          await conn.run(insertSql, [ev.op, keyJson, beforeJson, ...nulls]);
         }
       }
     },

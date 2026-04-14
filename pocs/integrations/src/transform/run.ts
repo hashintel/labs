@@ -107,7 +107,7 @@ async function execSql(sql: string, inputTable: string, outputTable: string, db:
 }
 
 function stripMeta(columns: string[]): string[] {
-  return columns.filter((c) => c !== META_COLUMNS.op && c !== META_COLUMNS.key);
+  return columns.filter((c) => c !== META_COLUMNS.op && c !== META_COLUMNS.key && c !== META_COLUMNS.before);
 }
 
 function assertMeta(columns: string[], stepId: string): void {

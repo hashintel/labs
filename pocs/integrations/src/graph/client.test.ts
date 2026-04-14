@@ -58,7 +58,7 @@ describe("createGraphClient", () => {
       entityId: "u-1",
       webId: "web-1",
       properties: { [T.property("email/v/1")]: "a@example.com" },
-      links: [],
+      links: [], staleLinks: [],
       provenance: prov,
     });
     await mock.close();
@@ -93,7 +93,7 @@ describe("createGraphClient", () => {
       entityId: "u-1",
       webId: "web-1",
       properties: { [T.property("email/v/1")]: "b@example.com" },
-      links: [],
+      links: [], staleLinks: [],
       provenance: prov,
     });
     await mock.close();
@@ -104,6 +104,7 @@ describe("createGraphClient", () => {
 
     const patchBody = mock.requests[1].body as Record<string, unknown>;
     assert.ok(typeof patchBody.entityId === "string");
+    assert.equal(patchBody.archived, false);
     assert.ok(Array.isArray(patchBody.properties));
     const patches = patchBody.properties as { op: string; path: string[]; property: { value: unknown } }[];
     assert.equal(patches[0].op, "replace");
@@ -120,6 +121,7 @@ describe("createGraphClient", () => {
       webId: "web-1",
       properties: {},
       links: [{ linkType: T.link("is-member-of/v/1"), targetEntityType: T.entity("org/v/1"), targetId: "org-1" }],
+      staleLinks: [],
       provenance: prov,
     });
     await mock.close();
@@ -154,13 +156,27 @@ describe("createGraphClient", () => {
     assert.ok(typeof body.entityId === "string");
   });
 
+  it("archive swallows 404 for non-existent entities", async () => {
+    mock.nextStatus(404);
+    const client = createGraphClient(config);
+    await client.archiveEntity({
+      kind: "archive",
+      entityType: T.entity("user/v/1"),
+      entityId: "gone",
+      webId: "web-1",
+      provenance: prov,
+    });
+    await mock.close();
+    assert.equal(mock.requests.length, 1);
+  });
+
   it("throws GraphApiError on non-409 failure", async () => {
     mock.nextStatus(500);
     const client = createGraphClient(config);
     await assert.rejects(
       () => client.upsertEntity({
         kind: "upsert", entityType: T.entity("x/v/1"), entityId: "1",
-        webId: "w", properties: {}, links: [], provenance: prov,
+        webId: "w", properties: {}, links: [], staleLinks: [], provenance: prov,
       }),
       (err: unknown) => err instanceof GraphApiError && err.status === 500,
     );
@@ -171,11 +187,11 @@ describe("createGraphClient", () => {
     const client = createGraphClient(config);
     await client.upsertEntity({
       kind: "upsert", entityType: T.entity("user/v/1"), entityId: "u-1",
-      webId: "web-1", properties: {}, links: [], provenance: prov,
+      webId: "web-1", properties: {}, links: [], staleLinks: [], provenance: prov,
     });
     await client.upsertEntity({
       kind: "upsert", entityType: T.entity("user/v/1"), entityId: "u-1",
-      webId: "web-1", properties: {}, links: [], provenance: prov,
+      webId: "web-1", properties: {}, links: [], staleLinks: [], provenance: prov,
     });
     await mock.close();
 

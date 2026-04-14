@@ -175,6 +175,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
           await request("PATCH", config, "/entities", {
             entityId: fullEntityId,
             provenance,
+            archived: false,
             entityTypeIds: [op.entityType],
             properties: mapPropertiesAsPatch(op.properties),
           } satisfies PatchEntityParams);
@@ -185,6 +186,21 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
 
       for (const link of op.links) {
         await upsertLink(config, op, link, provenance, fullEntityId);
+      }
+
+      for (const stale of op.staleLinks) {
+        const staleLinkUuid = deterministicUuid(stale.linkType, `${op.entityId}::${stale.targetId}`);
+        const staleLinkId = compositeEntityId(op.webId, staleLinkUuid);
+        try {
+          await request("PATCH", config, "/entities", {
+            entityId: staleLinkId,
+            provenance,
+            archived: true,
+          } satisfies PatchEntityParams);
+        } catch (err) {
+          if (err instanceof GraphApiError && err.status === 404) continue;
+          throw err;
+        }
       }
     },
 

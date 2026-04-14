@@ -1,6 +1,6 @@
 import type { ChangeEvent, ColumnInfo } from "../connector/types.js";
 
-export const META_COLUMNS = { op: "_op", key: "_key" } as const;
+export const META_COLUMNS = { op: "_op", key: "_key", before: "_before" } as const;
 
 export type EventStore = {
   append(connectorId: string, table: string, events: ChangeEvent[]): Promise<void>;

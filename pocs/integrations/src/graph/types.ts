@@ -21,7 +21,7 @@ export type SourceProvenance = {
 };
 
 export type GraphOp =
-  | { kind: "upsert"; entityType: VersionedUrl; entityId: unknown; properties: Record<VersionedUrl, unknown>; links: ResolvedLink[]; provenance: SourceProvenance; webId: string }
+  | { kind: "upsert"; entityType: VersionedUrl; entityId: unknown; properties: Record<VersionedUrl, unknown>; links: ResolvedLink[]; staleLinks: ResolvedLink[]; provenance: SourceProvenance; webId: string }
   | { kind: "archive"; entityType: VersionedUrl; entityId: unknown; provenance: SourceProvenance; webId: string };
 
 export type GraphClient = {
