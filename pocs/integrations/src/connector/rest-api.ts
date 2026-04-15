@@ -7,6 +7,8 @@ export type RestApiEndpoint = {
   pagination?: { type: "next-link"; field: string } | { type: "offset" } | { type: "none" };
   resultsField?: string;
   params?: Record<string, string>;
+  /** Hard cap on pages the connector will follow, on top of any server-side limit. */
+  maxPages?: number;
 };
 
 export type RestApiBatchConfig = {
@@ -35,23 +37,46 @@ function compilePath(path: string): PathAccessor {
   };
 }
 
-function interpolateEnv(value: string): string {
-  return value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
+// ${NOW}, ${NOW+1h}, ${NOW-30m}, ${NOW+2d} -- resolved each pull.
+const NOW_TOKEN = /^NOW(?:([+-])(\d+)([mhd]))?$/;
+const UNIT_MS: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000 };
+
+function resolveToken(key: string): string | null {
+  const m = NOW_TOKEN.exec(key);
+  if (!m) return null;
+  const offset = m[1] ? Number(m[2]) * UNIT_MS[m[3]] * (m[1] === "+" ? 1 : -1) : 0;
+  // Minute precision -- some APIs (AeroAPI) reject fractional seconds, and
+  // windowing queries don't need finer than a minute.
+  const d = new Date(Date.now() + offset);
+  d.setSeconds(0, 0);
+  return d.toISOString().slice(0, 19) + "Z";
 }
 
-function buildInitialUrl(base: string, params?: Record<string, string>): string {
+export function interpolate(value: string): string {
+  return value.replace(/\$\{([^}]+)\}/g, (_, key) => {
+    const t = resolveToken(key);
+    if (t !== null) return t;
+    return process.env[key] ?? "";
+  });
+}
+
+function buildUrl(urlTemplate: string, params: Record<string, string> | undefined): string {
+  const base = interpolate(urlTemplate);
   if (!params) return base;
-  const qs = new URLSearchParams(params).toString();
-  if (!qs) return base;
-  return base + (base.includes("?") ? "&" : "?") + qs;
+  const resolved: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params)) resolved[k] = interpolate(v);
+  const qs = new URLSearchParams(resolved).toString();
+  return qs ? base + (base.includes("?") ? "&" : "?") + qs : base;
 }
 
 type CompiledEndpoint = {
-  url: string;
+  urlTemplate: string;
+  params: Record<string, string> | undefined;
   paginationType: "next-link" | "offset" | "none";
   getResults: PathAccessor;
   getNext: PathAccessor | null;
   keyFrom: KeyExtractor;
+  maxPages: number;
 };
 
 const identityAccessor: PathAccessor = (obj) => obj;
@@ -62,19 +87,21 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (config.auth?.type === "header") {
-    headers[config.auth.name] = interpolateEnv(config.auth.value);
+    headers[config.auth.name] = interpolate(config.auth.value);
   } else if (config.auth?.type === "bearer") {
-    headers["Authorization"] = `Bearer ${interpolateEnv(config.auth.token)}`;
+    headers["Authorization"] = `Bearer ${interpolate(config.auth.token)}`;
   }
 
   const endpoints = new Map<string, CompiledEndpoint>();
   for (const [name, ep] of Object.entries(config.endpoints)) {
     endpoints.set(name, {
-      url: buildInitialUrl(ep.url, ep.params),
+      urlTemplate: ep.url,
+      params: ep.params,
       paginationType: ep.pagination?.type ?? "none",
       getResults: ep.resultsField ? compilePath(ep.resultsField) : identityAccessor,
       getNext: ep.pagination?.type === "next-link" ? compilePath(ep.pagination.field) : null,
       keyFrom: compileKeyExtractor(ep.primaryKey),
+      maxPages: ep.maxPages ?? Infinity,
     });
   }
 
@@ -104,14 +131,13 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
       const ep = endpoints.get(table);
       if (!ep) throw new Error(`Endpoint "${table}" not configured on connector "${config.id}"`);
 
-      let url = ep.url;
-      let isFirstPage = true;
+      let url = buildUrl(ep.urlTemplate, ep.params);
+      let pagesSeen = 0;
 
       while (url) {
-        if (!isFirstPage && rateLimitMs > 0) {
+        if (pagesSeen > 0 && rateLimitMs > 0) {
           await new Promise((r) => setTimeout(r, rateLimitMs));
         }
-        isFirstPage = false;
 
         const body = await fetchPage(url);
         const results = ep.getResults(body);
@@ -123,6 +149,9 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
           events[i] = { table, op: "snapshot", key: ep.keyFrom(row), row };
         }
         await onPage({ events, cursor: undefined });
+        pagesSeen++;
+
+        if (pagesSeen >= ep.maxPages) break;
 
         if (ep.paginationType === "next-link") {
           const next = ep.getNext!(body);

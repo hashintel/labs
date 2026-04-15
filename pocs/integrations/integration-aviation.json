@@ -2,13 +2,20 @@
   "id": "flightaware",
   "mode": "rest-api",
   "auth": { "type": "header", "name": "x-apikey", "value": "${AERO_API_KEY}" },
-  "rateLimitMs": 1000,
+  "rateLimitMs": 0,
   "endpoints": {
     "arrivals": {
       "url": "https://aeroapi.flightaware.com/aeroapi/airports/EGLL/flights/scheduled_arrivals",
       "primaryKey": "fa_flight_id",
       "pagination": { "type": "next-link", "field": "links.next" },
-      "resultsField": "scheduled_arrivals"
+      "resultsField": "scheduled_arrivals",
+      "maxPages": 1,
+      "params": {
+        "start": "${NOW-30m}",
+        "end": "${NOW+2h}",
+        "max_pages": "1",
+        "type": "Airline"
+      }
     }
   }
 }

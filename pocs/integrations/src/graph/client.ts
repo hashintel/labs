@@ -41,7 +41,7 @@ type PatchEntityParams = {
   provenance: HASHProvenance;
   archived?: boolean;
   entityTypeIds?: string[];
-  properties?: { op: "replace"; path: string[]; property: PropertyValueWithMetadata }[];
+  properties?: { op: "add" | "replace"; path: string[]; property: PropertyValueWithMetadata }[];
 };
 
 // UUID v5: sha1(namespace || name) with RFC 4122 version/variant bits.
@@ -79,10 +79,13 @@ function mapProperties(props: Record<VersionedUrl, unknown>): PropertyObjectWith
 }
 
 function mapPropertiesAsPatch(props: Record<VersionedUrl, unknown>): PatchEntityParams["properties"] {
+  // `add` upserts the property (RFC 6902: creates if missing, overwrites if present).
+  // `replace` would require every property key to already exist on the record, which
+  // fails for properties that were null on the initial write and are set on a resync.
   return Object.entries(props)
     .filter(([, val]) => val != null)
     .map(([url, val]) => ({
-      op: "replace" as const,
+      op: "add" as const,
       path: [toBaseUrl(url)],
       property: { value: val, metadata: { dataTypeId: null } },
     }));

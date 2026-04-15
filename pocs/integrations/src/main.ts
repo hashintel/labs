@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { integrate, type TablePipeline } from "./engine.js";
@@ -10,6 +10,8 @@ import { postgresPipelines, mongoPipelines, type PipelineEnv } from "./pipelines
 import { aviationPipelines } from "./pipelines/aviation.js";
 import type { GraphClient } from "./graph/types.js";
 import type { LogLevel } from "./log.js";
+
+if (existsSync(".env")) process.loadEnvFile(".env");
 
 const root = dirname(fileURLToPath(import.meta.url));
 

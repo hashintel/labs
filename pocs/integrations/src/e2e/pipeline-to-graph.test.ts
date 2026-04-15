@@ -173,7 +173,7 @@ describe("e2e: events to pipeline to graph", () => {
     assert.equal(archiveReq.body.archived, true);
   });
 
-  it("updates produce graph upserts (idempotent)", async () => {
+  it("multiple events for one entity in a batch collapse to the latest", async () => {
     const events: ChangeEvent[] = [
       { table: "users", op: "insert", key: { id: 1 }, row: { id: "1", email: "alice@example.com", first_name: "Alice", last_name: "Smith", city: "NYC", org_id: "org-1" } },
       { table: "users", op: "update", key: { id: 1 }, row: { id: "1", email: "alice.new@example.com", first_name: "Alice", last_name: "Smith", city: "SF", org_id: "org-1" } },
@@ -181,11 +181,9 @@ describe("e2e: events to pipeline to graph", () => {
     const requests = await runE2E(events);
 
     const entityPosts = requests.filter((r) => !r.body.linkData);
-    assert.equal(entityPosts.length, 2);
-
-    const updated = entityPosts.find((r) => propsOf(r)[T.property("email/")] === "alice.new@example.com");
-    assert.ok(updated);
-    assert.equal(propsOf(updated)[T.property("city/")], "SF");
+    assert.equal(entityPosts.length, 1, "should collapse to one upsert per entity");
+    assert.equal(propsOf(entityPosts[0])[T.property("email/")], "alice.new@example.com");
+    assert.equal(propsOf(entityPosts[0])[T.property("city/")], "SF");
   });
 
   it("SQL transforms are applied (LOWER, TRIM, aliasing)", async () => {

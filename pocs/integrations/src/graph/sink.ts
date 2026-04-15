@@ -26,6 +26,10 @@ function typeSlug(url: string): string {
   return url.split("/entity-type/")[1] ?? url;
 }
 
+function errMsg(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
 export function buildProvenance(config: GraphSinkConfig): SourceProvenance {
   return {
     type: "integration",
@@ -94,37 +98,91 @@ export async function processGraphSink(
   db: QueryableStore,
   client: GraphClient,
   log?: Logger,
-): Promise<string[]> {
+): Promise<{ syncedIds: string[]; errors: SyncError[] }> {
   const provenance = buildProvenance(config);
   const { rows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
 
-  const ops = rows.map((row) => rowToGraphOp(row as Row & Envelope, config, provenance));
-  const syncedIds: string[] = [];
+  // Collapse multiple events for the same entity (e.g. insert+update in one
+  // commit) to the last one. Map.set keeps the position of the first occurrence.
+  const latest = new Map<string, Row & Envelope>();
+  for (const row of rows) {
+    const id = String(resolve(config.entityId, row as Row));
+    latest.set(id, row as Row & Envelope);
+  }
 
-  await parallel(ops, DEFAULT_CONCURRENCY, async (op) => {
-    switch (op.kind) {
-      case "upsert":
+  const syncedIds: string[] = [];
+  const errors: SyncError[] = [];
+  const items = [...latest.values()];
+
+  await parallel(items, DEFAULT_CONCURRENCY, async (row) => {
+    let op: GraphOp;
+    try {
+      op = rowToGraphOp(row, config, provenance);
+    } catch (err) {
+      const id = String(resolve(config.entityId, row as Row));
+      errors.push(syncError("row-build", config.entityType, id, err));
+      log?.error(`failed to build op for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
+      return;
+    }
+    try {
+      if (op.kind === "upsert") {
         log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}${op.staleLinks.length ? ` stale=${op.staleLinks.length}` : ""}`);
         await client.upsertEntity(op);
         syncedIds.push(String(op.entityId));
-        break;
-      case "archive":
+      } else {
         log?.info(`archive ${typeSlug(op.entityType)} id=${String(op.entityId)}`);
         await client.archiveEntity(op);
-        break;
+      }
+    } catch (err) {
+      errors.push(syncError(op.kind, op.entityType, op.entityId, err));
+      log?.error(`${op.kind} failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(err)}`);
     }
   });
 
-  return syncedIds;
+  if (errors.length > 0) log?.warn(`${errors.length} op(s) failed in sink "${inputTable}"; the remaining ${syncedIds.length} succeeded`);
+
+  return { syncedIds, errors };
 }
 
+/** An error from a single graph op or wider scope. Collected in `SyncResult.errors`. */
+export type SyncError = {
+  kind: "upsert" | "archive" | "stale-link" | "row-build" | "table";
+  entityType: string;
+  entityId: string;
+  message: string;
+};
+
+/**
+ * Outcome of a sink invocation. Counts and errors combine via `mergeSyncResults`;
+ * `emptySyncResult()` is the starting value for aggregation.
+ */
 export type SyncResult = {
   inserts: number;
   updates: number;
   deletes: number;
   unchanged: number;
+  errors: SyncError[];
   durationMs: number;
 };
+
+export const emptySyncResult = (): SyncResult => ({
+  inserts: 0, updates: 0, deletes: 0, unchanged: 0, errors: [], durationMs: 0,
+});
+
+export function mergeSyncResults(a: SyncResult, b: SyncResult): SyncResult {
+  return {
+    inserts: a.inserts + b.inserts,
+    updates: a.updates + b.updates,
+    deletes: a.deletes + b.deletes,
+    unchanged: a.unchanged + b.unchanged,
+    errors: a.errors.length === 0 ? b.errors : b.errors.length === 0 ? a.errors : [...a.errors, ...b.errors],
+    durationMs: a.durationMs + b.durationMs,
+  };
+}
+
+function syncError(kind: SyncError["kind"], entityType: string, entityId: unknown, err: unknown): SyncError {
+  return { kind, entityType, entityId: String(entityId), message: err instanceof Error ? err.message : String(err) };
+}
 
 export async function diffAndSync(
   sinkId: string,
@@ -151,6 +209,7 @@ export async function diffAndSync(
     await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
       SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, md5(data::VARCHAR) AS _content_hash${linkColsSelect}
       FROM (SELECT * EXCLUDE (${qi("_op")}, ${qi("_key")}, ${qi("_before")}) FROM ${qi(inputTable)}) data`);
+    await assertUniqueEntityIds(db, currentTable, sinkId, entityIdCol);
   } else {
     const linkColDefs = linkCols.map((c) => `${qi("_lk_" + c)} VARCHAR`).join(", ");
     await db.exec(`CREATE OR REPLACE TABLE ${currentTable} (_entity_id VARCHAR, _content_hash VARCHAR${linkColDefs ? ", " + linkColDefs : ""})`);
@@ -193,17 +252,34 @@ export async function diffAndSync(
     unchanged = Number(cnt);
   }
 
+  const failedIds = new Set<string>();
+  const errors: SyncError[] = [];
+
   const changedIds = [...inserts, ...updates];
   if (changedIds.length > 0 && inputTable) {
     const idList = changedIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
     const { rows } = await db.query(
       `SELECT * FROM ${qi(inputTable)} WHERE CAST(${qi(entityIdCol)} AS VARCHAR) IN (${idList})`,
     );
-    const ops = rows.map((row) => rowToGraphOp(row as Row & Envelope, config, provenance));
-    await parallel(ops, DEFAULT_CONCURRENCY, async (op) => {
-      if (op.kind === "upsert") {
+    await parallel(rows, DEFAULT_CONCURRENCY, async (row) => {
+      let op: GraphOp;
+      try {
+        op = rowToGraphOp(row as Row & Envelope, config, provenance);
+      } catch (err) {
+        const id = String((row as Row)[entityIdCol]);
+        failedIds.add(id);
+        errors.push(syncError("row-build", config.entityType, id, err));
+        log?.error(`row-build failed for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
+        return;
+      }
+      if (op.kind !== "upsert") return;
+      try {
         log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}`);
         await client.upsertEntity(op);
+      } catch (err) {
+        failedIds.add(String(op.entityId));
+        errors.push(syncError("upsert", op.entityType, op.entityId, err));
+        log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(err)} (will retry next sync)`);
       }
     });
   }
@@ -220,35 +296,55 @@ export async function diffAndSync(
       for (const row of changed) {
         log?.info(`archive stale link ${typeSlug(l.linkType)} ${row._entity_id} -> ${String(row.old_val)}`);
         const staleLinkId = `${row._entity_id}::${String(row.old_val)}`;
-        await client.archiveEntity({
-          kind: "archive",
-          entityType: l.linkType,
-          entityId: staleLinkId,
-          provenance,
-          webId: config.webId,
-        });
+        try {
+          await client.archiveEntity({
+            kind: "archive",
+            entityType: l.linkType,
+            entityId: staleLinkId,
+            provenance,
+            webId: config.webId,
+          });
+        } catch (err) {
+          errors.push(syncError("stale-link", l.linkType, staleLinkId, err));
+          log?.error(`stale-link archive failed for ${typeSlug(l.linkType)}/${staleLinkId}: ${errMsg(err)}`);
+        }
       }
     }
   }
 
   await parallel(deletes, DEFAULT_CONCURRENCY, async (entityId) => {
-    log?.info(`archive ${typeSlug(config.entityType)} id=${entityId} (removed)`);
-    await client.archiveEntity({
-      kind: "archive",
-      entityType: config.entityType,
-      entityId,
-      provenance,
-      webId: config.webId,
-    });
+    try {
+      log?.info(`archive ${typeSlug(config.entityType)} id=${entityId} (removed)`);
+      await client.archiveEntity({
+        kind: "archive",
+        entityType: config.entityType,
+        entityId,
+        provenance,
+        webId: config.webId,
+      });
+    } catch (err) {
+      failedIds.add(entityId);
+      errors.push(syncError("archive", config.entityType, entityId, err));
+      log?.error(`archive failed for ${typeSlug(config.entityType)}/${entityId}: ${errMsg(err)} (will retry next sync)`);
+    }
   });
 
+  // Keep old state for failed ids so the next sync detects them as changed and retries.
+  if (failedIds.size > 0) {
+    const failedIdsSql = [...failedIds].map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+    await db.exec(`DELETE FROM ${currentTable} WHERE _entity_id IN (${failedIdsSql})`);
+    if (hasPrevious) {
+      await db.exec(`INSERT INTO ${currentTable} SELECT * FROM ${stateTable} WHERE _entity_id IN (${failedIdsSql})`);
+    }
+  }
   await db.exec(`CREATE OR REPLACE TABLE ${stateTable} AS SELECT * FROM ${currentTable}`);
   await db.exec(`DROP TABLE IF EXISTS ${currentTable}`);
 
   const durationMs = Date.now() - start;
-  log?.info(`sync: ${inserts.length} inserts, ${updates.length} updates, ${deletes.length} deletes, ${unchanged} unchanged (${durationMs}ms)`);
+  const failureSummary = errors.length > 0 ? `, ${errors.length} FAILED` : "";
+  log?.info(`sync: ${inserts.length} inserts, ${updates.length} updates, ${deletes.length} deletes, ${unchanged} unchanged${failureSummary} (${durationMs}ms)`);
 
-  return { inserts: inserts.length, updates: updates.length, deletes: deletes.length, unchanged, durationMs };
+  return { inserts: inserts.length, updates: updates.length, deletes: deletes.length, unchanged, errors, durationMs };
 }
 
 function entityIdFromKey(key: Record<string, unknown>): unknown {
@@ -256,24 +352,50 @@ function entityIdFromKey(key: Record<string, unknown>): unknown {
   return vals.length === 1 ? vals[0] : vals.join("::");
 }
 
+async function assertUniqueEntityIds(
+  db: QueryableStore,
+  currentTable: string,
+  sinkId: string,
+  entityIdCol: string,
+): Promise<void> {
+  const { rows } = await db.query(
+    `SELECT _entity_id, COUNT(*) AS n FROM ${currentTable} GROUP BY _entity_id HAVING n > 1 LIMIT 5`,
+  );
+  if (rows.length === 0) return;
+  const detail = rows.map((r) => `"${r._entity_id}" (${r.n} rows)`).join(", ");
+  throw new Error(
+    `Graph sink "${sinkId}" received duplicate rows for entity id(s) ${detail}. ` +
+    `Each sink expects at most one row per entity id -- deduplicate the preceding SQL step, ` +
+    `e.g. SELECT DISTINCT ON (${entityIdCol}) ... FROM ...`,
+  );
+}
+
 export async function archiveDeletes(
   deletes: ChangeEvent[],
   config: GraphSinkConfig,
   client: GraphClient,
   log?: Logger,
-): Promise<void> {
-  if (deletes.length === 0) return;
+): Promise<{ errors: SyncError[] }> {
+  if (deletes.length === 0) return { errors: [] };
   const provenance = buildProvenance(config);
+  const errors: SyncError[] = [];
 
   await parallel(deletes, DEFAULT_CONCURRENCY, async (del) => {
     const entityId = entityIdFromKey(del.key);
-    log?.info(`archive ${typeSlug(config.entityType)} id=${String(entityId)}`);
-    await client.archiveEntity({
-      kind: "archive",
-      entityType: config.entityType,
-      entityId,
-      provenance,
-      webId: config.webId,
-    });
+    try {
+      log?.info(`archive ${typeSlug(config.entityType)} id=${String(entityId)}`);
+      await client.archiveEntity({
+        kind: "archive",
+        entityType: config.entityType,
+        entityId,
+        provenance,
+        webId: config.webId,
+      });
+    } catch (err) {
+      errors.push(syncError("archive", config.entityType, entityId, err));
+      log?.error(`archive failed for ${typeSlug(config.entityType)}/${String(entityId)}: ${errMsg(err)}`);
+    }
   });
+
+  return { errors };
 }

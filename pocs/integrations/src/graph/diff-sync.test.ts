@@ -1,7 +1,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createDuckDbQueryStore } from "../staging/duckdb.js";
-import { diffAndSync } from "./sink.js";
+import { diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./sink.js";
 import { namespace, type GraphSinkConfig } from "../transform/pipeline.js";
 import type { GraphOp, GraphClient } from "./types.js";
 import type { QueryableStore } from "../staging/types.js";
@@ -152,6 +152,86 @@ describe("diffAndSync", () => {
     const archives = mock2.ops.filter((o) => o.kind === "archive");
     assert.equal(archives.length, 1);
     assert.equal(archives[0].entityId, "1::org-1");
+  });
+
+  it("rejects duplicate entity ids in the sink input", async () => {
+    await seedTable(db, "output", [
+      row("1", "a@b.com", "NYC", "org-1"),
+      row("1", "a@b.com", "NYC", "org-2"),  // same userId -- developer bug
+    ]);
+    const { client } = mockClient();
+    await assert.rejects(
+      () => diffAndSync("write-users", sinkConfig, "output", "crm", db, client),
+      (err: Error) => err.message.includes("duplicate rows") && err.message.includes(`"1"`),
+    );
+  });
+
+  it("isolates failures: succeeded entities advance state; failed ones retry next sync", async () => {
+    await seedTable(db, "output", [
+      row("1", "a@b.com", "NYC", "org-1"),
+      row("2", "c@d.com", "LA", "org-2"),
+    ]);
+
+    // Client that fails on entityId "2" only.
+    const ops: Op[] = [];
+    const flakyClient: GraphClient = {
+      async upsertEntity(op) {
+        if (op.entityId === "2") throw new Error("simulated graph 500");
+        ops.push({ kind: "upsert", entityId: op.entityId });
+      },
+      async archiveEntity(op) { ops.push({ kind: "archive", entityId: op.entityId }); },
+    };
+
+    const result = await diffAndSync("write-users", sinkConfig, "output", "crm", db, flakyClient);
+    assert.equal(result.inserts, 2);
+    assert.equal(result.errors.length, 1);
+    assert.equal(result.errors[0].kind, "upsert");
+    assert.equal(result.errors[0].entityId, "2");
+    assert.match(result.errors[0].message, /simulated graph 500/);
+    assert.equal(ops.length, 1, "only the successful upsert should hit the client");
+    assert.equal(ops[0].entityId, "1");
+
+    // Retry: success for both. Entity "1" should be unchanged (already in state),
+    // entity "2" should re-appear as an insert (state rolled back for the failure).
+    await db.exec(`DROP TABLE "output"`);
+    await seedTable(db, "output", [
+      row("1", "a@b.com", "NYC", "org-1"),
+      row("2", "c@d.com", "LA", "org-2"),
+    ]);
+    const retry = mockClient();
+    const result2 = await diffAndSync("write-users", sinkConfig, "output", "crm", db, retry.client);
+    assert.equal(result2.inserts, 1, `"2" retries as insert because it was never persisted to state`);
+    assert.equal(result2.unchanged, 1);
+    assert.equal(result2.errors.length, 0);
+    assert.equal(retry.ops.length, 1);
+    assert.equal(retry.ops[0].entityId, "2");
+  });
+
+  describe("mergeSyncResults", () => {
+    const err = (id: string): SyncError => ({ kind: "upsert", entityType: "user/v/1", entityId: id, message: "boom" });
+    const a: SyncResult = { inserts: 1, updates: 2, deletes: 0, unchanged: 3, errors: [err("a")], durationMs: 10 };
+    const b: SyncResult = { inserts: 0, updates: 1, deletes: 1, unchanged: 0, errors: [err("b")], durationMs: 20 };
+    const c: SyncResult = { inserts: 2, updates: 0, deletes: 0, unchanged: 1, errors: [], durationMs: 5 };
+
+    it("empty result on the left is a no-op", () => {
+      assert.deepEqual(mergeSyncResults(emptySyncResult(), a), a);
+    });
+
+    it("empty result on the right is a no-op", () => {
+      assert.deepEqual(mergeSyncResults(a, emptySyncResult()), a);
+    });
+
+    it("is associative: fold order doesn't change the result", () => {
+      assert.deepEqual(
+        mergeSyncResults(mergeSyncResults(a, b), c),
+        mergeSyncResults(a, mergeSyncResults(b, c)),
+      );
+    });
+
+    it("concatenates errors in order", () => {
+      const merged = mergeSyncResults(a, b);
+      assert.deepEqual(merged.errors.map((e) => e.entityId), ["a", "b"]);
+    });
   });
 
   it("mixed: insert + update + delete + unchanged", async () => {

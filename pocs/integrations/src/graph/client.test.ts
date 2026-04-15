@@ -107,7 +107,7 @@ describe("createGraphClient", () => {
     assert.equal(patchBody.archived, false);
     assert.ok(Array.isArray(patchBody.properties));
     const patches = patchBody.properties as { op: string; path: string[]; property: { value: unknown } }[];
-    assert.equal(patches[0].op, "replace");
+    assert.equal(patches[0].op, "add");
     assert.deepEqual(patches[0].path, [T.property("email/")]);
     assert.equal(patches[0].property.value, "b@example.com");
   });

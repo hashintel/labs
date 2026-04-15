@@ -4,3 +4,4 @@ dist/
 result
 *.db
 *.db.wal
+.env

@@ -70,11 +70,14 @@ export function aviationPipelines(env: AviationEnv): TablePipeline[] {
             sqlStep({
               id: "norm-airlines",
               query: sql`
-                SELECT DISTINCT _op, _key, _before,
-                  operator_icao AS icaoCode,
-                  operator_iata AS iataCode,
-                  COALESCE(operator, operator_icao, operator_iata) AS name
-                FROM input WHERE operator_icao IS NOT NULL
+                SELECT DISTINCT ON (icaoCode) _op, _key, _before, icaoCode, iataCode, name
+                FROM (
+                  SELECT _op, _key, _before,
+                    operator_icao AS icaoCode,
+                    operator_iata AS iataCode,
+                    COALESCE(operator, operator_icao, operator_iata) AS name
+                  FROM input WHERE operator_icao IS NOT NULL
+                ) airlines
               `,
             }),
             graphSinkStep({

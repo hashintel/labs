@@ -6,7 +6,7 @@ import type { Pipeline, Step, TablePipeline, TransformFn, TransformResolver, Sid
 import { validatePipeline, runPipeline } from "./transform/run.js";
 import { sortPipelines } from "./transform/topology.js";
 import type { GraphClient } from "./graph/types.js";
-import { processGraphSink, archiveDeletes, diffAndSync, type SyncResult } from "./graph/sink.js";
+import { processGraphSink, archiveDeletes, diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./graph/sink.js";
 import { createLogger, type LogLevel } from "./log.js";
 
 export type { TablePipeline };
@@ -29,7 +29,7 @@ export type Integration = {
   sync(): Promise<SyncResult>;
 };
 
-export { type SyncResult };
+export { type SyncResult, type SyncError, emptySyncResult, mergeSyncResults };
 
 export function integrate(spec: IntegrationSpec): Integration {
   const { eventStore, queryStore } = spec;
@@ -65,10 +65,10 @@ export function integrate(spec: IntegrationSpec): Integration {
   let syncing = false;
 
   async function doSync(): Promise<SyncResult> {
-    if (syncing) return { inserts: 0, updates: 0, deletes: 0, unchanged: 0, durationMs: 0 };
+    if (syncing) return emptySyncResult();
     syncing = true;
     const start = Date.now();
-    const totals = { inserts: 0, updates: 0, deletes: 0, unchanged: 0 };
+    let totals = emptySyncResult();
 
     const connector = createConnector(spec.connector);
     if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
@@ -77,48 +77,55 @@ export function integrate(spec: IntegrationSpec): Integration {
 
     try {
       for (const { table, pipeline } of pipelines) {
-        let pageCount = 0;
-        await connector.pull(table, async (page) => {
-          await queryStore.materialize(connector.id, table, page.events);
-          pageCount++;
-        });
-
         const sourceTable = `${connector.id}/${table}`;
-
-        if (pageCount === 0) {
-          log.debug(`"${table}" is empty`);
-          for (const step of pipeline.steps) {
-            if (step.kind === "graph-sink" && spec.graphClient) {
-              const result = await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLog);
-              totals.inserts += result.inserts;
-              totals.updates += result.updates;
-              totals.deletes += result.deletes;
-              totals.unchanged += result.unchanged;
-            }
-          }
-          continue;
-        }
-
-        if (spec.validate !== false) {
-          await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
-        }
-
-        await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
-          if (step.kind === "graph-sink" && spec.graphClient) {
-            const result = await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLog);
-            totals.inserts += result.inserts;
-            totals.updates += result.updates;
-            totals.deletes += result.deletes;
-            totals.unchanged += result.unchanged;
-          }
-        });
-
+        // Drop any residue from a prior (possibly crashed) cycle so we start
+        // from a clean snapshot. Materialize appends, not replaces.
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
-        for (const id of allStepIds(pipeline.steps)) {
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
+
+        // Isolate per-table failures so one bad table doesn't skip the rest.
+        try {
+          let pageCount = 0;
+          await connector.pull(table, async (page) => {
+            await queryStore.materialize(connector.id, table, page.events);
+            pageCount++;
+          });
+
+          if (pageCount === 0) {
+            log.debug(`"${table}" is empty`);
+            for (const step of pipeline.steps) {
+              if (step.kind === "graph-sink" && spec.graphClient) {
+                const result = await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLog);
+                totals = mergeSyncResults(totals, result);
+              }
+            }
+            continue;
+          }
+
+          if (spec.validate !== false) {
+            await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
+          }
+
+          await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
+            if (step.kind === "graph-sink" && spec.graphClient) {
+              const result = await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLog);
+              totals = mergeSyncResults(totals, result);
+            }
+          });
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          totals = mergeSyncResults(totals, {
+            ...emptySyncResult(),
+            errors: [{ kind: "table", entityType: "", entityId: table, message: msg }],
+          });
+          log.error(`table "${table}" failed: ${msg} (continuing with remaining tables)`);
+        } finally {
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
+          for (const id of allStepIds(pipeline.steps)) {
+            await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
+            await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
+          }
+          await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
         }
-        await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
       }
     } finally {
       await connector.close();
@@ -126,7 +133,8 @@ export function integrate(spec: IntegrationSpec): Integration {
     }
 
     const durationMs = Date.now() - start;
-    log.info(`sync complete: ${totals.inserts} inserts, ${totals.updates} updates, ${totals.deletes} deletes, ${totals.unchanged} unchanged (${durationMs}ms)`);
+    const failureSummary = totals.errors.length > 0 ? `, ${totals.errors.length} FAILED` : "";
+    log.info(`sync complete: ${totals.inserts} inserts, ${totals.updates} updates, ${totals.deletes} deletes, ${totals.unchanged} unchanged${failureSummary} (${durationMs}ms)`);
     return { ...totals, durationMs };
   }
 
@@ -173,8 +181,13 @@ export function integrate(spec: IntegrationSpec): Integration {
           const sub = await c.subscribe(table, undefined, (batch) => {
             lock = lock.then(async () => {
               if (stopped) return;
-              const { nextSeq } = await processStreamBatch(table, pipeline, batch, s.seq, s.validated, c);
-              s.seq = nextSeq;
+              try {
+                const { nextSeq } = await processStreamBatch(table, pipeline, batch, s.seq, s.validated, c);
+                s.seq = nextSeq;
+              } catch (err) {
+                // Catch per-batch errors so one bad batch doesn't halt the subscription.
+                log.error(`stream batch for "${table}" failed: ${err instanceof Error ? err.message : String(err)} (continuing)`);
+              }
             });
             return lock;
           });
@@ -217,32 +230,38 @@ export function integrate(spec: IntegrationSpec): Integration {
 
         log.debug(`batch: ${data.length} events for "${table}"`);
 
-        await eventStore.append(connector.id, table, data);
-        const { events, nextSeq } = await eventStore.read(connector.id, table, seq);
-        await queryStore.materialize(connector.id, table, events);
-        eventStore.trim(connector.id, table, nextSeq);
+        const sourceTable = `${connector.id}/${table}`;
+        // Clean slate each batch -- materialize appends, not replaces.
+        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
 
-        if (!validated.done && spec.validate !== false) {
-          await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
-          validated.done = true;
-        }
+        try {
+          await eventStore.append(connector.id, table, data);
+          const { events, nextSeq } = await eventStore.read(connector.id, table, seq);
+          await queryStore.materialize(connector.id, table, events);
+          eventStore.trim(connector.id, table, nextSeq);
 
-        const onSideEffect: SideEffectHandler = async (step, currentTable) => {
-          if (step.kind === "graph-sink") {
-            await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLog);
+          if (!validated.done && spec.validate !== false) {
+            await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
+            validated.done = true;
           }
-        };
 
-        await runPipeline(pipeline, queryStore, resolveTransform, onSideEffect);
+          const onSideEffect: SideEffectHandler = async (step, currentTable) => {
+            if (step.kind === "graph-sink") {
+              await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLog);
+            }
+          };
 
-        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`${connector.id}/${table}`)}`);
-        for (const id of allStepIds(pipeline.steps)) {
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
+          await runPipeline(pipeline, queryStore, resolveTransform, onSideEffect);
+
+          return { nextSeq };
+        } finally {
+          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
+          for (const id of allStepIds(pipeline.steps)) {
+            await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
+            await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
+          }
+          await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
         }
-        await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
-
-        return { nextSeq };
       }
     },
 
