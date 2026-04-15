@@ -1,6 +1,6 @@
 import { MongoClient, type ChangeStream, type ChangeStreamDocument, type ChangeStreamInsertDocument, type ChangeStreamUpdateDocument, type ChangeStreamReplaceDocument, type ChangeStreamDeleteDocument, type Document, type ResumeToken } from "mongodb";
-import type { BatchHandler, ChangeEvent, ChangeOp, Connector, Subscription, TableConfig, ColumnInfo } from "./types.js";
-import { pkColumns } from "./types.js";
+import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig, ColumnInfo } from "./types.js";
+import { compileKeyExtractor } from "./types.js";
 
 export type MongoStreamConfig = {
   id: string;
@@ -39,7 +39,7 @@ function isDml(change: ChangeStreamDocument): change is DmlChange {
   return change.operationType in OP_MAP;
 }
 
-function toChangeEvent(change: DmlChange, pk: string[]): ChangeEvent {
+function toChangeEvent(change: DmlChange, keyFrom: KeyExtractor): ChangeEvent {
   const op = OP_MAP[change.operationType]!;
   const coll = change.ns.coll;
 
@@ -50,7 +50,7 @@ function toChangeEvent(change: DmlChange, pk: string[]): ChangeEvent {
   const fullDoc = change.fullDocument;
   if (!fullDoc) return { table: coll, op, key: {}, row: {} };
   const row = serializeDoc(fullDoc);
-  return { table: coll, op, key: Object.fromEntries(pk.map((k) => [k, row[k]])), row };
+  return { table: coll, op, key: keyFrom(row), row };
 }
 
 export function createMongoStreamConnector(config: MongoStreamConfig): Connector {
@@ -84,7 +84,7 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
       const tc = config.collections[collection];
       if (!tc) throw new Error(`Collection "${collection}" not configured on connector "${config.id}"`);
 
-      const pk = pkColumns(tc.primaryKey);
+      const keyFrom = compileKeyExtractor(tc.primaryKey);
       let resumeToken = cursor as ResumeToken | undefined;
 
       const stream: ChangeStream = db.watch([{ $match: { "ns.coll": collection } }], {
@@ -95,7 +95,7 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
       (async () => {
         for await (const change of stream) {
           resumeToken = change._id;
-          if (isDml(change)) await onBatch({ events: [toChangeEvent(change, pk)], cursor: resumeToken });
+          if (isDml(change)) await onBatch({ events: [toChangeEvent(change, keyFrom)], cursor: resumeToken });
         }
       })();
 

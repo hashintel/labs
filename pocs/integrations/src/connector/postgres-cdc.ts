@@ -3,8 +3,8 @@ import {
   Pgoutput,
   PgoutputPlugin,
 } from "pg-logical-replication";
-import type { BatchHandler, ChangeEvent, ChangeOp, Connector, Subscription, TableConfig } from "./types.js";
-import { extractKey } from "./types.js";
+import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig } from "./types.js";
+import { compileKeyExtractor } from "./types.js";
 import { introspectTables } from "./pg-introspect.js";
 
 export type PostgresCdcConfig = {
@@ -29,19 +29,23 @@ function parsePostgresUrl(url: string) {
   };
 }
 
-function toChangeEvent(msg: Pgoutput.Message, tables: Record<string, TableConfig>): ChangeEvent | null {
+function toChangeEvent(
+  msg: Pgoutput.Message,
+  keyExtractors: Map<string, KeyExtractor>,
+): ChangeEvent | null {
   const op = DML_OPS[msg.tag];
   if (!op) return null;
 
   const dml = msg as Pgoutput.MessageInsert | Pgoutput.MessageUpdate | Pgoutput.MessageDelete;
   const after = "new" in dml ? (dml.new as Record<string, unknown>) : null;
   const before = "old" in dml ? (dml.old as Record<string, unknown> | undefined) : undefined;
-  const tc = tables[dml.relation.name];
+  const tableName = dml.relation.name;
+  const keyFrom = keyExtractors.get(tableName);
 
   return {
-    table: dml.relation.name,
+    table: tableName,
     op,
-    key: extractKey(after ?? before, tc?.primaryKey ?? []),
+    key: keyFrom ? keyFrom(after ?? before) : {},
     row: after,
     before: before ?? undefined,
   };
@@ -49,6 +53,11 @@ function toChangeEvent(msg: Pgoutput.Message, tables: Record<string, TableConfig
 
 export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector {
   const connParams = parsePostgresUrl(config.url);
+  const keyExtractors = new Map<string, KeyExtractor>();
+  for (const [name, tc] of Object.entries(config.tables)) {
+    keyExtractors.set(name, compileKeyExtractor(tc.primaryKey));
+  }
+
   let service: LogicalReplicationService | null = null;
   const handlers = new Map<string, BatchHandler>();
 
@@ -70,7 +79,7 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
 
         service.on("data", async (msgLsn: string, msg: Pgoutput.Message) => {
           lsn = msgLsn;
-          const ev = toChangeEvent(msg, config.tables);
+          const ev = toChangeEvent(msg, keyExtractors);
           if (ev) events.push(ev);
 
           if (msg.tag === "commit") {
@@ -79,10 +88,14 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
             events = [];
 
             const byTable = new Map<string, ChangeEvent[]>();
-            for (const ev of batch) {
-              const list = byTable.get(ev.table) ?? [];
+            for (let i = 0; i < batch.length; i++) {
+              const ev = batch[i];
+              let list = byTable.get(ev.table);
+              if (!list) {
+                list = [];
+                byTable.set(ev.table, list);
+              }
               list.push(ev);
-              byTable.set(ev.table, list);
             }
             for (const [tbl, evts] of byTable) {
               const handler = handlers.get(tbl);

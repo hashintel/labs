@@ -1,5 +1,5 @@
 import type { BatchConnector, ChangeEvent, TableConfig } from "./types.js";
-import { extractKey } from "./types.js";
+import { compileKeyExtractor, type KeyExtractor } from "./types.js";
 
 export type RestApiEndpoint = {
   url: string;
@@ -17,34 +17,70 @@ export type RestApiBatchConfig = {
   pageSize?: number;
 };
 
+type PathAccessor = (obj: unknown) => unknown;
+
+function compilePath(path: string): PathAccessor {
+  const parts = path.split(".");
+  if (parts.length === 1) {
+    const key = parts[0];
+    return (obj) => (obj != null && typeof obj === "object") ? (obj as Record<string, unknown>)[key] : undefined;
+  }
+  return (obj) => {
+    let cur: unknown = obj;
+    for (let i = 0; i < parts.length; i++) {
+      if (cur == null || typeof cur !== "object") return undefined;
+      cur = (cur as Record<string, unknown>)[parts[i]];
+    }
+    return cur;
+  };
+}
+
 function interpolateEnv(value: string): string {
   return value.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? "");
 }
 
-function getNestedField(obj: unknown, path: string): unknown {
-  let current: unknown = obj;
-  for (const key of path.split(".")) {
-    if (current == null || typeof current !== "object") return undefined;
-    current = (current as Record<string, unknown>)[key];
-  }
-  return current;
+function buildInitialUrl(base: string, params?: Record<string, string>): string {
+  if (!params) return base;
+  const qs = new URLSearchParams(params).toString();
+  if (!qs) return base;
+  return base + (base.includes("?") ? "&" : "?") + qs;
 }
 
+type CompiledEndpoint = {
+  url: string;
+  pageSize: number;
+  paginationType: "next-link" | "offset" | "none";
+  getResults: PathAccessor;
+  getNext: PathAccessor | null;
+  keyFrom: KeyExtractor;
+};
+
+const identityAccessor: PathAccessor = (obj) => obj;
+
 export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchConnector {
-  const pageSize = config.pageSize ?? 100;
+  const defaultPageSize = config.pageSize ?? 100;
   const rateLimitMs = config.rateLimitMs ?? 0;
 
-  function buildHeaders(): Record<string, string> {
-    const headers: Record<string, string> = { "Content-Type": "application/json" };
-    if (config.auth?.type === "header") {
-      headers[config.auth.name] = interpolateEnv(config.auth.value);
-    } else if (config.auth?.type === "bearer") {
-      headers["Authorization"] = `Bearer ${interpolateEnv(config.auth.token)}`;
-    }
-    return headers;
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (config.auth?.type === "header") {
+    headers[config.auth.name] = interpolateEnv(config.auth.value);
+  } else if (config.auth?.type === "bearer") {
+    headers["Authorization"] = `Bearer ${interpolateEnv(config.auth.token)}`;
   }
 
-  async function fetchPage(url: string, headers: Record<string, string>): Promise<unknown> {
+  const endpoints = new Map<string, CompiledEndpoint>();
+  for (const [name, ep] of Object.entries(config.endpoints)) {
+    endpoints.set(name, {
+      url: buildInitialUrl(ep.url, ep.params),
+      pageSize: defaultPageSize,
+      paginationType: ep.pagination?.type ?? "none",
+      getResults: ep.resultsField ? compilePath(ep.resultsField) : identityAccessor,
+      getNext: ep.pagination?.type === "next-link" ? compilePath(ep.pagination.field) : null,
+      keyFrom: compileKeyExtractor(ep.primaryKey),
+    });
+  }
+
+  async function fetchPage(url: string): Promise<unknown> {
     const res = await fetch(url, { headers });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
@@ -53,14 +89,10 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
     return res.json();
   }
 
-  async function delay(ms: number): Promise<void> {
-    if (ms > 0) await new Promise((r) => setTimeout(r, ms));
-  }
-
   return {
     id: config.id,
     mode: "batch" as const,
-    pageSize,
+    pageSize: defaultPageSize,
 
     async introspect() {
       const result: Record<string, TableConfig> = {};
@@ -71,44 +103,35 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
     },
 
     async pull(table, onPage) {
-      const ep = config.endpoints[table];
+      const ep = endpoints.get(table);
       if (!ep) throw new Error(`Endpoint "${table}" not configured on connector "${config.id}"`);
 
-      const headers = buildHeaders();
-      const pagination = ep.pagination ?? { type: "none" };
       let url = ep.url;
-
-      if (ep.params) {
-        const qs = new URLSearchParams(ep.params).toString();
-        url += (url.includes("?") ? "&" : "?") + qs;
-      }
-
       let pageNum = 0;
 
       while (url) {
-        if (pageNum > 0) await delay(rateLimitMs);
+        if (pageNum > 0 && rateLimitMs > 0) {
+          await new Promise((r) => setTimeout(r, rateLimitMs));
+        }
 
-        const body = await fetchPage(url, headers);
-        const results = ep.resultsField ? getNestedField(body, ep.resultsField) : body;
-
+        const body = await fetchPage(url);
+        const results = ep.getResults(body);
         if (!Array.isArray(results) || results.length === 0) break;
 
-        const events: ChangeEvent[] = results.map((row: Record<string, unknown>) => ({
-          table,
-          op: "snapshot" as const,
-          key: extractKey(row, ep.primaryKey),
-          row,
-        }));
+        const events: ChangeEvent[] = new Array(results.length);
+        for (let i = 0; i < results.length; i++) {
+          const row = results[i] as Record<string, unknown>;
+          events[i] = { table, op: "snapshot", key: ep.keyFrom(row), row };
+        }
 
         await onPage({ events, cursor: undefined });
-
         pageNum++;
 
-        if (pagination.type === "next-link") {
-          const next = getNestedField(body, pagination.field);
+        if (ep.paginationType === "next-link") {
+          const next = ep.getNext!(body);
           url = typeof next === "string" ? next : "";
-        } else if (pagination.type === "offset") {
-          if (results.length < pageSize) break;
+        } else if (ep.paginationType === "offset") {
+          if (results.length < ep.pageSize) break;
           const u = new URL(url);
           const offset = Number(u.searchParams.get("offset") ?? "0") + results.length;
           u.searchParams.set("offset", String(offset));

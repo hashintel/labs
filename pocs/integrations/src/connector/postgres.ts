@@ -1,6 +1,6 @@
 import pg from "pg";
 import type { ChangeEvent, BatchConnector, TableConfig } from "./types.js";
-import { extractKey, pkColumns } from "./types.js";
+import { compileKeyExtractor, pkColumns } from "./types.js";
 import { introspectTables } from "./pg-introspect.js";
 
 const esc = pg.escapeIdentifier;
@@ -35,35 +35,32 @@ export function createPostgresBatchConnector(config: PostgresBatchConfig): Batch
 
       const pk = pkColumns(tc.primaryKey);
       const base = tc.query ?? `SELECT * FROM ${esc(table)}`;
-      const orderBy = pk.map(esc).join(", ");
+      const escPk = pk.map(esc);
+      const orderBy = escPk.join(", ");
+      const firstPageSql = `SELECT * FROM (${base}) _src ORDER BY ${orderBy} LIMIT ${pageSize}`;
+      const conditions = escPk.map((c, i) => `${c} > $${i + 1}`).join(" AND ");
+      const cursorPageSql = `SELECT * FROM (${base}) _src WHERE ${conditions} ORDER BY ${orderBy} LIMIT ${pageSize}`;
+      const keyFrom = compileKeyExtractor(pk);
 
-      let lastKey: unknown[] | null = null;
+      let sql = firstPageSql;
+      let params: unknown[] = [];
 
       while (true) {
-        let query: string;
-        const params: unknown[] = [];
-
-        if (lastKey) {
-          const conditions = pk.map((col, i) => { params.push(lastKey![i]); return `${esc(col)} > $${i + 1}`; });
-          query = `SELECT * FROM (${base}) _src WHERE ${conditions.join(" AND ")} ORDER BY ${orderBy} LIMIT ${pageSize}`;
-        } else {
-          query = `SELECT * FROM (${base}) _src ORDER BY ${orderBy} LIMIT ${pageSize}`;
-        }
-
-        const { rows } = await pool.query(query, params);
+        const { rows } = await pool.query(sql, params);
         if (rows.length === 0) break;
 
-        const events: ChangeEvent[] = rows.map((row) => ({
-          table,
-          op: "snapshot" as const,
-          key: extractKey(row, tc.primaryKey),
-          row,
-        }));
+        const events: ChangeEvent[] = new Array(rows.length);
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          events[i] = { table, op: "snapshot", key: keyFrom(row), row };
+        }
 
         await onPage({ events, cursor: undefined });
-
-        lastKey = pk.map((col) => rows[rows.length - 1][col]);
         if (rows.length < pageSize) break;
+
+        const lastRow = rows[rows.length - 1];
+        params = pk.map((col) => lastRow[col]);
+        sql = cursorPageSql;
       }
     },
 
