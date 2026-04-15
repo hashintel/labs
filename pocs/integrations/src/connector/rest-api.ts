@@ -48,7 +48,6 @@ function buildInitialUrl(base: string, params?: Record<string, string>): string 
 
 type CompiledEndpoint = {
   url: string;
-  pageSize: number;
   paginationType: "next-link" | "offset" | "none";
   getResults: PathAccessor;
   getNext: PathAccessor | null;
@@ -58,7 +57,7 @@ type CompiledEndpoint = {
 const identityAccessor: PathAccessor = (obj) => obj;
 
 export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchConnector {
-  const defaultPageSize = config.pageSize ?? 100;
+  const pageSize = config.pageSize ?? 100;
   const rateLimitMs = config.rateLimitMs ?? 0;
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
@@ -72,7 +71,6 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
   for (const [name, ep] of Object.entries(config.endpoints)) {
     endpoints.set(name, {
       url: buildInitialUrl(ep.url, ep.params),
-      pageSize: defaultPageSize,
       paginationType: ep.pagination?.type ?? "none",
       getResults: ep.resultsField ? compilePath(ep.resultsField) : identityAccessor,
       getNext: ep.pagination?.type === "next-link" ? compilePath(ep.pagination.field) : null,
@@ -92,7 +90,7 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
   return {
     id: config.id,
     mode: "batch" as const,
-    pageSize: defaultPageSize,
+    pageSize,
 
     async introspect() {
       const result: Record<string, TableConfig> = {};
@@ -107,12 +105,13 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
       if (!ep) throw new Error(`Endpoint "${table}" not configured on connector "${config.id}"`);
 
       let url = ep.url;
-      let pageNum = 0;
+      let isFirstPage = true;
 
       while (url) {
-        if (pageNum > 0 && rateLimitMs > 0) {
+        if (!isFirstPage && rateLimitMs > 0) {
           await new Promise((r) => setTimeout(r, rateLimitMs));
         }
+        isFirstPage = false;
 
         const body = await fetchPage(url);
         const results = ep.getResults(body);
@@ -123,15 +122,13 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
           const row = results[i] as Record<string, unknown>;
           events[i] = { table, op: "snapshot", key: ep.keyFrom(row), row };
         }
-
         await onPage({ events, cursor: undefined });
-        pageNum++;
 
         if (ep.paginationType === "next-link") {
           const next = ep.getNext!(body);
           url = typeof next === "string" ? next : "";
         } else if (ep.paginationType === "offset") {
-          if (results.length < ep.pageSize) break;
+          if (results.length < pageSize) break;
           const u = new URL(url);
           const offset = Number(u.searchParams.get("offset") ?? "0") + results.length;
           u.searchParams.set("offset", String(offset));

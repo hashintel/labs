@@ -13,7 +13,6 @@ export type PostgresCdcConfig = {
   publication: string;
   slot: string;
   tables: Record<string, TableConfig>;
-  pollTimeoutMs?: number;
 };
 
 const DML_OPS: Record<string, ChangeOp | undefined> = { insert: "insert", update: "update", delete: "delete" };
@@ -97,9 +96,13 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
               }
               list.push(ev);
             }
-            for (const [tbl, evts] of byTable) {
-              const handler = handlers.get(tbl);
-              if (handler) await handler({ events: evts, cursor: lsn });
+            // Dispatch in subscription order. The engine subscribes pipelines
+            // in topologically-sorted order, so this iterates deps-before-dependents.
+            for (const [tbl, handler] of handlers) {
+              const evts = byTable.get(tbl);
+              if (evts && evts.length > 0) {
+                await handler({ events: evts, cursor: lsn });
+              }
             }
           }
         });

@@ -11,7 +11,7 @@ export type TransformResolver = (name: string) => TransformFn;
 
 export type VersionedUrl = string;
 
-export type SqlStep = { kind: "sql"; id: string; sql: string; output?: SchemaDecl };
+export type SqlStep = { kind: "sql"; id: string; sql: string; output?: SchemaDecl; dependsOn?: string[] };
 
 export type FnStep = {
   kind: "fn";
@@ -19,6 +19,7 @@ export type FnStep = {
   transform: string | TransformFn;
   input?: SchemaDecl;
   output?: SchemaDecl;
+  dependsOn?: string[];
 };
 
 export type LinkMapping = {
@@ -49,29 +50,33 @@ export type GraphSinkStep = {
   kind: "graph-sink";
   id: string;
   config: GraphSinkConfig;
+  dependsOn?: string[];
 };
 
 export type BranchStep = {
   kind: "branch";
   id: string;
   branches: Step[][];
+  dependsOn?: string[];
 };
 
 export type Step = SqlStep | FnStep | GraphSinkStep | BranchStep;
 export type Pipeline = { source: string; steps: Step[] };
+export type TablePipeline = { table: string; pipeline: Pipeline; dependsOn?: string[] };
 export type SideEffectHandler = (step: Step, currentTable: string) => Promise<void>;
 
-export function sqlStep(opts: { id: string; query: string | { sql: string }; output?: SchemaDecl }): SqlStep {
+export function sqlStep(opts: { id: string; query: string | { sql: string }; output?: SchemaDecl; dependsOn?: string[] }): SqlStep {
   const query = typeof opts.query === "string" ? opts.query : opts.query.sql;
-  return { kind: "sql", id: opts.id, sql: query, output: opts.output };
+  return { kind: "sql", id: opts.id, sql: query, output: opts.output, dependsOn: opts.dependsOn };
 }
 
-export function fnStep(opts: { id: string; transform: string | TransformFn; input?: SchemaDecl; output?: SchemaDecl }): FnStep {
-  return { kind: "fn", id: opts.id, transform: opts.transform, input: opts.input, output: opts.output };
+export function fnStep(opts: { id: string; transform: string | TransformFn; input?: SchemaDecl; output?: SchemaDecl; dependsOn?: string[] }): FnStep {
+  return { kind: "fn", id: opts.id, transform: opts.transform, input: opts.input, output: opts.output, dependsOn: opts.dependsOn };
 }
 
-export function graphSinkStep(config: GraphSinkConfig & { id?: string }): GraphSinkStep {
-  return { kind: "graph-sink", id: config.id ?? "graph-sink", config };
+export function graphSinkStep(config: GraphSinkConfig & { id?: string; dependsOn?: string[] }): GraphSinkStep {
+  const { id, dependsOn, ...rest } = config;
+  return { kind: "graph-sink", id: id ?? "graph-sink", config: rest, dependsOn };
 }
 
 export function branch(id: string, ...branches: Step[][]): BranchStep {

@@ -6,8 +6,8 @@ import {
   namespace,
   type Pipeline,
   type SchemaDecl,
+  type TablePipeline,
 } from "./transform/pipeline.js";
-import type { TablePipeline } from "./engine.js";
 
 export type PipelineEnv = {
   typeBase: string;
@@ -123,7 +123,7 @@ function mongoUserPipeline(env: PipelineEnv): Pipeline {
 export function postgresPipelines(env: PipelineEnv): TablePipeline[] {
   return [
     { table: "organizations", pipeline: postgresOrgPipeline(env) },
-    { table: "users", pipeline: postgresUserPipeline(env) },
+    { table: "users", pipeline: postgresUserPipeline(env), dependsOn: ["organizations"] },
   ];
 }
 

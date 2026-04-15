@@ -7,8 +7,8 @@ import { createRestApiBatchConnector, type RestApiBatchConfig, type RestApiEndpo
 export type ConnectorDef = { id: string } & (
   | { mode: "batch"; url: string; tables: Record<string, PostgresTableConfig>; pageSize?: number }
   | { mode: "rest-api"; endpoints: Record<string, RestApiEndpoint>; auth?: RestApiBatchConfig["auth"]; rateLimitMs?: number; pageSize?: number }
-  | { mode: "cdc"; url: string; publication: string; slot: string; tables: Record<string, TableConfig>; pollTimeoutMs?: number }
-  | { mode: "mongo-stream"; url: string; database: string; collections: Record<string, TableConfig>; pollTimeoutMs?: number }
+  | { mode: "cdc"; url: string; publication: string; slot: string; tables: Record<string, TableConfig> }
+  | { mode: "mongo-stream"; url: string; database: string; collections: Record<string, TableConfig> }
 );
 
 export function createConnector(def: ConnectorDef): Connector {
@@ -24,7 +24,6 @@ export function createConnector(def: ConnectorDef): Connector {
         publication: def.publication,
         slot: def.slot,
         tables: def.tables,
-        pollTimeoutMs: def.pollTimeoutMs,
       });
     case "mongo-stream":
       return createMongoStreamConnector({
@@ -32,7 +31,6 @@ export function createConnector(def: ConnectorDef): Connector {
         url: def.url,
         database: def.database,
         collections: def.collections,
-        pollTimeoutMs: def.pollTimeoutMs,
       });
   }
 }

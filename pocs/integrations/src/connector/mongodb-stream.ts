@@ -7,7 +7,6 @@ export type MongoStreamConfig = {
   url: string;
   database: string;
   collections: Record<string, TableConfig>;
-  pollTimeoutMs?: number;
 };
 
 function serializeDoc(doc: Document): Record<string, unknown> {
@@ -56,7 +55,6 @@ function toChangeEvent(change: DmlChange, keyFrom: KeyExtractor): ChangeEvent {
 export function createMongoStreamConnector(config: MongoStreamConfig): Connector {
   const client = new MongoClient(config.url);
   const db = client.db(config.database);
-  const timeoutMs = config.pollTimeoutMs ?? 5000;
 
   return {
     id: config.id,

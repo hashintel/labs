@@ -66,30 +66,14 @@ export function pkColumns(pk: string | string[]): string[] {
 export type KeyExtractor = (row: Record<string, unknown> | null | undefined) => Record<string, unknown>;
 
 export function compileKeyExtractor(pk: string | string[]): KeyExtractor {
-  if (typeof pk === "string") {
-    const col = pk;
-    return (row) => (row ? { [col]: row[col] } : {});
-  }
-  if (pk.length === 1) {
-    const col = pk[0];
-    return (row) => (row ? { [col]: row[col] } : {});
-  }
-  const cols = pk;
+  const col = typeof pk === "string" ? pk : pk.length === 1 ? pk[0] : null;
+  if (col !== null) return (row) => (row ? { [col]: row[col] } : {});
+
+  const cols = pk as string[];
   return (row) => {
     if (!row) return {};
     const out: Record<string, unknown> = {};
     for (let i = 0; i < cols.length; i++) out[cols[i]] = row[cols[i]];
     return out;
   };
-}
-
-export function extractKey(
-  row: Record<string, unknown> | null | undefined,
-  pk: string | string[],
-): Record<string, unknown> {
-  if (!row) return {};
-  if (typeof pk === "string") return { [pk]: row[pk] };
-  const out: Record<string, unknown> = {};
-  for (let i = 0; i < pk.length; i++) out[pk[i]] = row[pk[i]];
-  return out;
 }

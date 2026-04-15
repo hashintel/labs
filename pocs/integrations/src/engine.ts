@@ -2,13 +2,14 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { Batch, StreamConnector } from "./connector/types.js";
 import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
-import type { Pipeline, Step, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
+import type { Pipeline, Step, TablePipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
+import { sortPipelines } from "./transform/topology.js";
 import type { GraphClient } from "./graph/types.js";
 import { processGraphSink, archiveDeletes, diffAndSync, type SyncResult } from "./graph/sink.js";
 import { createLogger, type LogLevel } from "./log.js";
 
-export type TablePipeline = { table: string; pipeline: Pipeline };
+export type { TablePipeline };
 
 export type IntegrationSpec = {
   connector: ConnectorDef;
@@ -31,9 +32,13 @@ export type Integration = {
 export { type SyncResult };
 
 export function integrate(spec: IntegrationSpec): Integration {
-  const { pipelines, eventStore, queryStore } = spec;
+  const { eventStore, queryStore } = spec;
   const log = createLogger("engine", spec.logLevel ?? "info");
   let stopped = false;
+
+  const topo = sortPipelines(spec.pipelines);
+  const pipelines = topo.order;
+  for (const hint of topo.hints) log.info(`topology: ${hint}`);
 
   const resolveTransform: TransformResolver | undefined = spec.transforms
     ? (name) => {
