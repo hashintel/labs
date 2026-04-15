@@ -44,36 +44,36 @@ function userPipeline() {
 describe("sortPipelines", () => {
   it("preserves declared order when no dependencies", () => {
     const pipelines: TablePipeline[] = [
-      { table: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })) },
-      { table: "b", pipeline: pipe("src/b", sqlStep({ id: "b1", query: "SELECT _op, _key FROM input" })) },
-      { table: "c", pipeline: pipe("src/c", sqlStep({ id: "c1", query: "SELECT _op, _key FROM input" })) },
+      { source: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })) },
+      { source: "b", pipeline: pipe("src/b", sqlStep({ id: "b1", query: "SELECT _op, _key FROM input" })) },
+      { source: "c", pipeline: pipe("src/c", sqlStep({ id: "c1", query: "SELECT _op, _key FROM input" })) },
     ];
     const { order } = sortPipelines(pipelines);
-    assert.deepEqual(order.map((p) => p.table), ["a", "b", "c"]);
+    assert.deepEqual(order.map((p) => p.source), ["a", "b", "c"]);
   });
 
   it("respects dependsOn when declared order is wrong", () => {
     const pipelines: TablePipeline[] = [
-      { table: "users", pipeline: userPipeline(), dependsOn: ["organizations"] },
-      { table: "organizations", pipeline: orgPipeline() },
+      { source: "users", pipeline: userPipeline(), dependsOn: ["organizations"] },
+      { source: "organizations", pipeline: orgPipeline() },
     ];
     const { order } = sortPipelines(pipelines);
-    assert.deepEqual(order.map((p) => p.table), ["organizations", "users"]);
+    assert.deepEqual(order.map((p) => p.source), ["organizations", "users"]);
   });
 
   it("keeps declared order when already topologically valid", () => {
     const pipelines: TablePipeline[] = [
-      { table: "organizations", pipeline: orgPipeline() },
-      { table: "users", pipeline: userPipeline(), dependsOn: ["organizations"] },
+      { source: "organizations", pipeline: orgPipeline() },
+      { source: "users", pipeline: userPipeline(), dependsOn: ["organizations"] },
     ];
     const { order } = sortPipelines(pipelines);
-    assert.deepEqual(order.map((p) => p.table), ["organizations", "users"]);
+    assert.deepEqual(order.map((p) => p.source), ["organizations", "users"]);
   });
 
   it("throws on cyclic pipeline dependencies", () => {
     const pipelines: TablePipeline[] = [
-      { table: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })), dependsOn: ["b"] },
-      { table: "b", pipeline: pipe("src/b", sqlStep({ id: "b1", query: "SELECT _op, _key FROM input" })), dependsOn: ["a"] },
+      { source: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })), dependsOn: ["b"] },
+      { source: "b", pipeline: pipe("src/b", sqlStep({ id: "b1", query: "SELECT _op, _key FROM input" })), dependsOn: ["a"] },
     ];
     assert.throws(() => sortPipelines(pipelines), (err: Error) =>
       err instanceof TopologyError && err.message.includes("Cyclic"),
@@ -82,7 +82,7 @@ describe("sortPipelines", () => {
 
   it("throws on dangling pipeline dependsOn", () => {
     const pipelines: TablePipeline[] = [
-      { table: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })), dependsOn: ["ghost"] },
+      { source: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })), dependsOn: ["ghost"] },
     ];
     assert.throws(() => sortPipelines(pipelines), (err: Error) =>
       err instanceof TopologyError && err.message.includes(`"ghost"`),
@@ -91,17 +91,17 @@ describe("sortPipelines", () => {
 
   it("throws on self-referential pipeline dependsOn", () => {
     const pipelines: TablePipeline[] = [
-      { table: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })), dependsOn: ["a"] },
+      { source: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })), dependsOn: ["a"] },
     ];
     assert.throws(() => sortPipelines(pipelines), (err: Error) =>
       err instanceof TopologyError && err.message.includes("itself"),
     );
   });
 
-  it("throws on duplicate pipeline table names", () => {
+  it("throws on duplicate pipeline source names", () => {
     const pipelines: TablePipeline[] = [
-      { table: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })) },
-      { table: "a", pipeline: pipe("src/a2", sqlStep({ id: "a2", query: "SELECT _op, _key FROM input" })) },
+      { source: "a", pipeline: pipe("src/a", sqlStep({ id: "a1", query: "SELECT _op, _key FROM input" })) },
+      { source: "a", pipeline: pipe("src/a2", sqlStep({ id: "a2", query: "SELECT _op, _key FROM input" })) },
     ];
     assert.throws(() => sortPipelines(pipelines), (err: Error) =>
       err instanceof TopologyError && err.message.includes("Duplicate pipeline"),
@@ -110,8 +110,8 @@ describe("sortPipelines", () => {
 
   it("throws on duplicate step ids across pipelines", () => {
     const pipelines: TablePipeline[] = [
-      { table: "a", pipeline: pipe("src/a", sqlStep({ id: "shared", query: "SELECT _op, _key FROM input" })) },
-      { table: "b", pipeline: pipe("src/b", sqlStep({ id: "shared", query: "SELECT _op, _key FROM input" })) },
+      { source: "a", pipeline: pipe("src/a", sqlStep({ id: "shared", query: "SELECT _op, _key FROM input" })) },
+      { source: "b", pipeline: pipe("src/b", sqlStep({ id: "shared", query: "SELECT _op, _key FROM input" })) },
     ];
     assert.throws(() => sortPipelines(pipelines), (err: Error) =>
       err instanceof TopologyError && err.message.includes("Duplicate step"),
@@ -121,7 +121,7 @@ describe("sortPipelines", () => {
   it("throws on duplicate step ids within one pipeline (including branches)", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "a",
+        source: "a",
         pipeline: pipe(
           "src/a",
           branch("b1",
@@ -139,7 +139,7 @@ describe("sortPipelines", () => {
   it("throws on dangling step dependsOn", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "a",
+        source: "a",
         pipeline: pipe(
           "src/a",
           sqlStep({ id: "s1", query: "SELECT _op, _key FROM input", dependsOn: ["ghost"] }),
@@ -154,7 +154,7 @@ describe("sortPipelines", () => {
   it("throws on self-referential step dependsOn", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "a",
+        source: "a",
         pipeline: pipe(
           "src/a",
           sqlStep({ id: "s1", query: "SELECT _op, _key FROM input", dependsOn: ["s1"] }),
@@ -169,7 +169,7 @@ describe("sortPipelines", () => {
   it("accepts step dependsOn earlier step in same pipeline", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "a",
+        source: "a",
         pipeline: pipe(
           "src/a",
           sqlStep({ id: "s1", query: "SELECT _op, _key FROM input" }),
@@ -184,7 +184,7 @@ describe("sortPipelines", () => {
   it("throws when step dependsOn a later step in same pipeline", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "a",
+        source: "a",
         pipeline: pipe(
           "src/a",
           sqlStep({ id: "s1", query: "SELECT _op, _key FROM input", dependsOn: ["s2"] }),
@@ -200,7 +200,7 @@ describe("sortPipelines", () => {
   it("infers pipeline dep from cross-pipeline step dependsOn", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "users",
+        source: "users",
         pipeline: pipe(
           "src/users",
           graphSinkStep({
@@ -213,23 +213,23 @@ describe("sortPipelines", () => {
           }),
         ),
       },
-      { table: "organizations", pipeline: orgPipeline() },
+      { source: "organizations", pipeline: orgPipeline() },
     ];
     const { order } = sortPipelines(pipelines);
-    assert.deepEqual(order.map((p) => p.table), ["organizations", "users"]);
+    assert.deepEqual(order.map((p) => p.source), ["organizations", "users"]);
   });
 
   it("detects cycles formed through step dependsOn", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "a",
+        source: "a",
         pipeline: pipe(
           "src/a",
           sqlStep({ id: "sa", query: "SELECT _op, _key FROM input", dependsOn: ["sb"] }),
         ),
       },
       {
-        table: "b",
+        source: "b",
         pipeline: pipe(
           "src/b",
           sqlStep({ id: "sb", query: "SELECT _op, _key FROM input", dependsOn: ["sa"] }),
@@ -243,8 +243,8 @@ describe("sortPipelines", () => {
 
   it("hints when a link target's producer is not in dependsOn", () => {
     const pipelines: TablePipeline[] = [
-      { table: "organizations", pipeline: orgPipeline() },
-      { table: "users", pipeline: userPipeline() },
+      { source: "organizations", pipeline: orgPipeline() },
+      { source: "users", pipeline: userPipeline() },
     ];
     const { hints } = sortPipelines(pipelines);
     assert.equal(hints.length, 1);
@@ -253,8 +253,8 @@ describe("sortPipelines", () => {
 
   it("no hint when link target producer is in transitive dependsOn", () => {
     const pipelines: TablePipeline[] = [
-      { table: "organizations", pipeline: orgPipeline() },
-      { table: "users", pipeline: userPipeline(), dependsOn: ["organizations"] },
+      { source: "organizations", pipeline: orgPipeline() },
+      { source: "users", pipeline: userPipeline(), dependsOn: ["organizations"] },
     ];
     const { hints } = sortPipelines(pipelines);
     assert.equal(hints.length, 0);
@@ -262,7 +262,7 @@ describe("sortPipelines", () => {
 
   it("hints when a link target has no producer", () => {
     const pipelines: TablePipeline[] = [
-      { table: "users", pipeline: userPipeline() },
+      { source: "users", pipeline: userPipeline() },
     ];
     const { hints } = sortPipelines(pipelines);
     assert.equal(hints.length, 1);
@@ -272,7 +272,7 @@ describe("sortPipelines", () => {
   it("no hint when link target is produced by the same pipeline (branch)", () => {
     const pipelines: TablePipeline[] = [
       {
-        table: "aviation",
+        source: "aviation",
         pipeline: pipe(
           "src/aviation",
           branch("fanout",

@@ -155,8 +155,8 @@ export async function queryEntities(config: GraphClientConfig): Promise<GraphEnt
     includePermissions: false,
     limit: 100,
   };
-  const result = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body);
-  return result.entities;
+  const { entities } = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body);
+  return entities;
 }
 
 export function createGraphClient(config: GraphClientConfig): GraphClient {

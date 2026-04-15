@@ -15,7 +15,7 @@ export type TopologyResult = {
 /**
  * Topologically sort pipelines by their declared `dependsOn`.
  *
- * Errors on duplicate table names or step ids, dangling references, self-loops,
+ * Errors on duplicate source names or step ids, dangling references, self-loops,
  * cycles, and step deps that can't be satisfied by the resulting order.
  *
  * Hints fire when a graph-sink's link target is produced by a pipeline not in
@@ -30,11 +30,11 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
 
   const steps = pipelines.map((tp) => linearize(tp.pipeline));
 
-  const tableToIdx = new Map<string, number>();
+  const sourceToIdx = new Map<string, number>();
   for (let i = 0; i < pipelines.length; i++) {
-    const { table } = pipelines[i];
-    if (tableToIdx.has(table)) throw new TopologyError(`Duplicate pipeline table "${table}".`);
-    tableToIdx.set(table, i);
+    const { source } = pipelines[i];
+    if (sourceToIdx.has(source)) throw new TopologyError(`Duplicate pipeline source "${source}".`);
+    sourceToIdx.set(source, i);
   }
 
   const stepIndex = new Map<string, { pipelineIdx: number; step: Step }>();
@@ -43,7 +43,7 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
       const prev = stepIndex.get(step.id);
       if (prev) {
         throw new TopologyError(
-          `Duplicate step id "${step.id}" in pipelines "${pipelines[prev.pipelineIdx].table}" and "${pipelines[i].table}".`,
+          `Duplicate step id "${step.id}" in pipelines "${pipelines[prev.pipelineIdx].source}" and "${pipelines[i].source}".`,
         );
       }
       stepIndex.set(step.id, { pipelineIdx: i, step });
@@ -54,13 +54,13 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
 
   for (let i = 0; i < pipelines.length; i++) {
     for (const name of pipelines[i].dependsOn ?? []) {
-      const j = tableToIdx.get(name);
+      const j = sourceToIdx.get(name);
       if (j === undefined) {
         throw new TopologyError(
-          `Pipeline "${pipelines[i].table}" dependsOn "${name}", but no such pipeline is declared.`,
+          `Pipeline "${pipelines[i].source}" dependsOn "${name}", but no such pipeline is declared.`,
         );
       }
-      if (j === i) throw new TopologyError(`Pipeline "${pipelines[i].table}" dependsOn itself.`);
+      if (j === i) throw new TopologyError(`Pipeline "${pipelines[i].source}" dependsOn itself.`);
       deps[i].add(j);
     }
     for (const step of steps[i]) {
@@ -69,7 +69,7 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
         const target = stepIndex.get(depId);
         if (!target) {
           throw new TopologyError(
-            `Step "${step.id}" in pipeline "${pipelines[i].table}" dependsOn "${depId}", but no such step exists.`,
+            `Step "${step.id}" in pipeline "${pipelines[i].source}" dependsOn "${depId}", but no such step exists.`,
           );
         }
         if (target.pipelineIdx !== i) deps[i].add(target.pipelineIdx);
@@ -100,7 +100,7 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
     const remaining = pipelines
       .map((_, i) => i)
       .filter((i) => !emitted.has(i))
-      .map((i) => pipelines[i].table);
+      .map((i) => pipelines[i].source);
     throw new TopologyError(`Cyclic pipeline dependencies involving: ${remaining.join(", ")}.`);
   }
 
@@ -149,11 +149,11 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
         const producerIdx = producer.get(target);
         if (producerIdx === undefined) {
           hints.push(
-            `Step "${step.id}" (pipeline "${pipelines[i].table}") links to "${target}", which no pipeline produces. Stubs will be auto-created.`,
+            `Step "${step.id}" (pipeline "${pipelines[i].source}") links to "${target}", which no pipeline produces. Stubs will be auto-created.`,
           );
         } else if (producerIdx !== i && !transitive[i].has(producerIdx)) {
           hints.push(
-            `Step "${step.id}" (pipeline "${pipelines[i].table}") links to "${target}" produced by pipeline "${pipelines[producerIdx].table}", but "${pipelines[producerIdx].table}" is not in "${pipelines[i].table}".dependsOn.`,
+            `Step "${step.id}" (pipeline "${pipelines[i].source}") links to "${target}" produced by pipeline "${pipelines[producerIdx].source}", but "${pipelines[producerIdx].source}" is not in "${pipelines[i].source}".dependsOn.`,
           );
         }
       }
@@ -169,7 +169,7 @@ function linearize(pipeline: Pipeline): Step[] {
   return out;
 }
 
-function walk(steps: Step[], out: Step[]): void {
+function walk(steps: readonly Step[], out: Step[]): void {
   for (const s of steps) {
     out.push(s);
     if (s.kind === "branch") for (const b of s.branches) walk(b, out);

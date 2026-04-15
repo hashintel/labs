@@ -2,7 +2,7 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createDuckDbQueryStore } from "../staging/duckdb.js";
 import { META_COLUMNS, type QueryableStore } from "../staging/types.js";
-import { pipe, sqlStep, fnStep, branch, graphSinkStep, namespace, type Row, type Envelope, type SchemaDecl, type SideEffectHandler } from "./pipeline.js";
+import { pipe, pipelines, sqlStep, fnStep, branch, graphSinkStep, namespace, type Row, type Envelope, type SchemaDecl, type SideEffectHandler } from "./pipeline.js";
 import { runPipeline, validatePipeline } from "./run.js";
 
 let db: QueryableStore;
@@ -400,5 +400,62 @@ describe("branch step", () => {
     assert.equal(rows[0].phase, "before");
     assert.equal(rows[0].phase2, "after");
     assert.ok(rows[0].email);
+  });
+});
+
+// Compile-time refinement tests. If the refinement regresses, the
+// `@ts-expect-error` directives become unused and `npx tsc` fails the build.
+describe("pipelines() type refinement", () => {
+  it("accepts a valid multi-pipeline declaration", () => {
+    const defs = pipelines([
+      { source: "organizations", pipeline: pipe("db/organizations", sqlStep({ id: "norm-orgs", query: "SELECT _op, _key FROM input" })) },
+      {
+        source: "users",
+        pipeline: pipe("db/users", sqlStep({ id: "norm-users", query: "SELECT _op, _key FROM input" })),
+        dependsOn: ["organizations"],
+      },
+    ] as const);
+    assert.equal(defs.length, 2);
+  });
+
+  it("rejects an unknown pipeline-level dependsOn at compile time", () => {
+    // @ts-expect-error -- "organizaitons" is a typo; only "organizations" and "users" are declared
+    pipelines([
+      { source: "organizations", pipeline: pipe("db/organizations", sqlStep({ id: "a", query: "SELECT _op, _key FROM input" })) },
+      {
+        source: "users",
+        pipeline: pipe("db/users", sqlStep({ id: "b", query: "SELECT _op, _key FROM input" })),
+        dependsOn: ["organizaitons"],
+      },
+    ] as const);
+  });
+
+  it("rejects an unknown top-level step dependsOn at compile time", () => {
+    // @ts-expect-error -- "cleanupp" is a typo; only "clean" and "normalize" exist as step ids
+    pipelines([
+      {
+        source: "users",
+        pipeline: pipe("db/users",
+          sqlStep({ id: "clean", query: "SELECT _op, _key FROM input" }),
+          sqlStep({ id: "normalize", query: "SELECT _op, _key FROM input", dependsOn: ["cleanupp"] }),
+        ),
+      },
+    ] as const);
+  });
+
+  it("rejects an unknown step dependsOn inside a branch at compile time", () => {
+    // @ts-expect-error -- "norm-airprots" is a typo; real id is "norm-airports"
+    pipelines([
+      {
+        source: "arrivals",
+        pipeline: pipe("api/arrivals",
+          sqlStep({ id: "cleanup", query: "SELECT _op, _key FROM input" }),
+          branch("extract",
+            [sqlStep({ id: "norm-airports", query: "SELECT _op, _key FROM input" })],
+            [sqlStep({ id: "norm-flights", query: "SELECT _op, _key FROM input", dependsOn: ["norm-airprots"] })],
+          ),
+        ),
+      },
+    ] as const);
   });
 });

@@ -9,6 +9,8 @@ export type RestApiEndpoint = {
   params?: Record<string, string>;
   /** Hard cap on pages the connector will follow, on top of any server-side limit. */
   maxPages?: number;
+  /** Mark a pull as a subset (windowed query, filter). Batch sync won't archive absent entities; their state is preserved. */
+  partial?: boolean;
 };
 
 export type RestApiBatchConfig = {
@@ -120,11 +122,11 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
     pageSize,
 
     async introspect() {
-      const result: Record<string, TableConfig> = {};
+      const configs: Record<string, TableConfig> = {};
       for (const [name, ep] of Object.entries(config.endpoints)) {
-        result[name] = { primaryKey: ep.primaryKey };
+        configs[name] = { primaryKey: ep.primaryKey };
       }
-      return result;
+      return configs;
     },
 
     async pull(table, onPage) {

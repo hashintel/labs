@@ -62,7 +62,7 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
 
     async introspect() {
       await client.connect();
-      const result: Record<string, TableConfig> = {};
+      const configs: Record<string, TableConfig> = {};
       for (const [name, tc] of Object.entries(config.collections)) {
         const sample = await db.collection(name).findOne();
         const columns: ColumnInfo[] = [];
@@ -72,9 +72,9 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
             columns.push({ name: k, type: isJson ? "json" : typeof v, nullable: true, kind: isJson ? "json" : "scalar" });
           }
         }
-        result[name] = { primaryKey: tc.primaryKey, foreignKeys: tc.foreignKeys, columns };
+        configs[name] = { primaryKey: tc.primaryKey, foreignKeys: tc.foreignKeys, columns };
       }
-      return result;
+      return configs;
     },
 
     async subscribe(collection: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription> {

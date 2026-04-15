@@ -9,10 +9,11 @@
       "primaryKey": "fa_flight_id",
       "pagination": { "type": "next-link", "field": "links.next" },
       "resultsField": "scheduled_arrivals",
+      "partial": true,
       "maxPages": 1,
       "params": {
-        "start": "${NOW-30m}",
-        "end": "${NOW+2h}",
+        "start": "${NOW-2h}",
+        "end": "${NOW+1h}",
         "max_pages": "1",
         "type": "Airline"
       }

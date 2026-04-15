@@ -1,6 +1,7 @@
 import sql from "sql-template-tag";
 import {
   pipe,
+  pipelines,
   sqlStep,
   graphSinkStep,
   branch,
@@ -16,9 +17,9 @@ export type AviationEnv = {
 };
 
 export function aviationPipelines(env: AviationEnv): TablePipeline[] {
-  return [
+  return pipelines([
     {
-      table: "arrivals",
+      source: "arrivals",
       pipeline: pipe(
         "flightaware/arrivals",
         sqlStep({
@@ -195,5 +196,5 @@ export function aviationPipelines(env: AviationEnv): TablePipeline[] {
         ),
       ),
     },
-  ];
+  ] as const);
 }

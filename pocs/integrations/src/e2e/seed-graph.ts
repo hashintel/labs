@@ -16,7 +16,7 @@ function arg(name: string, fallback: string): string {
 const GRAPH_URL = arg("--graph-url", process.env.GRAPH_URL ?? "http://localhost:14000");
 const ADMIN_URL = arg("--admin-url", process.env.ADMIN_URL ?? "http://localhost:14001");
 
-// Wipe --purge entities first (accounts DELETE fails on FK constraints otherwise)
+// `--purge` entities before account deletes (accounts/DELETE fails on FK constraints otherwise).
 console.log("[seed] wiping...");
 
 const systemActor = await fetch(`${GRAPH_URL}/actors/machine/identifier/system/graph`)
@@ -40,7 +40,6 @@ for (const resource of ["accounts", "entity-types", "property-types", "data-type
   await fetch(`${ADMIN_URL}/${resource}`, { method: "DELETE" });
 }
 
-// Build snapshot
 const ACTOR_ID = randomUUID();
 const WEB_ID = randomUUID();
 const ADMIN_ROLE_ID = randomUUID();
@@ -183,7 +182,6 @@ const entries = [
   entityType("user", "User", ["email", "display-name", "city"], { "is-member-of": "organization" }),
 ];
 
-// Restore
 const ndjson = entries.map((e) => JSON.stringify(e)).join("\n") + "\n";
 console.log(`[seed] restoring ${entries.length} snapshot entries...`);
 
@@ -206,7 +204,6 @@ await fetch(`${GRAPH_URL}/policies/seed`, {
 });
 console.log("[seed] policies seeded");
 
-// Verify
 const entityTypes = await fetch(`${GRAPH_URL}/entity-types/query`, {
   method: "POST",
   headers: { "Content-Type": "application/json", "X-Authenticated-User-Actor-Id": ACTOR_ID },

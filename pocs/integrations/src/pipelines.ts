@@ -1,6 +1,7 @@
 import sql from "sql-template-tag";
 import {
   pipe,
+  pipelines,
   sqlStep,
   graphSinkStep,
   namespace,
@@ -121,12 +122,12 @@ function mongoUserPipeline(env: PipelineEnv): Pipeline {
 }
 
 export function postgresPipelines(env: PipelineEnv): TablePipeline[] {
-  return [
-    { table: "organizations", pipeline: postgresOrgPipeline(env) },
-    { table: "users", pipeline: postgresUserPipeline(env), dependsOn: ["organizations"] },
-  ];
+  return pipelines([
+    { source: "organizations", pipeline: postgresOrgPipeline(env) },
+    { source: "users", pipeline: postgresUserPipeline(env), dependsOn: ["organizations"] },
+  ] as const);
 }
 
 export function mongoPipelines(env: PipelineEnv): TablePipeline[] {
-  return [{ table: "users", pipeline: mongoUserPipeline(env) }];
+  return pipelines([{ source: "users", pipeline: mongoUserPipeline(env) }] as const);
 }

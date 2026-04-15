@@ -7,19 +7,19 @@ export async function introspectTables(
 ): Promise<Record<string, TableConfig>> {
   const pool = new pg.Pool({ connectionString: url });
   try {
-    const result: Record<string, TableConfig> = {};
+    const configs: Record<string, TableConfig> = {};
     for (const [name, tc] of Object.entries(tables)) {
       const columns = await discoverColumns(pool, name);
       const discoveredFks = await discoverForeignKeys(pool, name);
       const foreignKeys = { ...discoveredFks, ...tc.foreignKeys };
 
-      result[name] = {
+      configs[name] = {
         primaryKey: tc.primaryKey,
         columns,
         foreignKeys: Object.keys(foreignKeys).length > 0 ? foreignKeys : undefined,
       };
     }
-    return result;
+    return configs;
   } finally {
     await pool.end();
   }

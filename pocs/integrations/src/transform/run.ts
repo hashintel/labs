@@ -187,8 +187,8 @@ function assertColumnsCompatible(
 
 function validateSchema(schema: SchemaDecl | undefined, rows: Record<string, unknown>[], stepId: string): void {
   if (!schema) return;
-  const data = rows.filter((r) => r._op !== "delete").map(({ _op, _key, ...rest }) => rest);
-  decodeRows(toEffectSchema(schema), data, stepId);
+  const payloads = rows.filter((r) => r._op !== "delete").map(({ _op, _key, ...rest }) => rest);
+  decodeRows(toEffectSchema(schema), payloads, stepId);
 }
 
 async function execTransform(

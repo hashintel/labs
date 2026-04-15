@@ -192,6 +192,7 @@ export async function diffAndSync(
   db: QueryableStore,
   client: GraphClient,
   log?: Logger,
+  partial: boolean = false,
 ): Promise<SyncResult> {
   const start = Date.now();
   const provenance = buildProvenance(config);
@@ -220,6 +221,14 @@ export async function diffAndSync(
     await db.schemaOf(`_state/sync/${connectorId}/${sinkId}`);
     hasPrevious = true;
   } catch {}
+
+  // Partial snapshot: fold prior state rows for absent ids into current so
+  // they resolve as unchanged instead of fabricated archives.
+  if (partial && hasPrevious) {
+    await db.exec(`INSERT INTO ${currentTable}
+      SELECT * FROM ${stateTable}
+      WHERE _entity_id NOT IN (SELECT _entity_id FROM ${currentTable})`);
+  }
 
   let inserts: string[];
   let updates: string[];

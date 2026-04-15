@@ -7,6 +7,8 @@ const esc = pg.escapeIdentifier;
 
 export type PostgresTableConfig = TableConfig & {
   query?: string;
+  /** Mark a pull as a subset (filtered `query`). Batch sync won't archive absent entities; their state is preserved. */
+  partial?: boolean;
 };
 
 export type PostgresBatchConfig = {

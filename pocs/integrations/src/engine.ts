@@ -40,6 +40,9 @@ export function integrate(spec: IntegrationSpec): Integration {
   const pipelines = topo.order;
   for (const hint of topo.hints) log.info(`topology: ${hint}`);
 
+  assertSourcesDeclared(spec.connector, pipelines);
+  assertPipelineSourcesMatch(spec.connector.id, pipelines);
+
   const resolveTransform: TransformResolver | undefined = spec.transforms
     ? (name) => {
         const fn = spec.transforms![name];
@@ -73,29 +76,32 @@ export function integrate(spec: IntegrationSpec): Integration {
     const connector = createConnector(spec.connector);
     if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
 
-    log.info(`sync: connector "${connector.id}" tables=[${pipelines.map((tp) => tp.table).join(", ")}]`);
+    log.info(`sync: connector "${connector.id}" sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
 
     try {
-      for (const { table, pipeline } of pipelines) {
-        const sourceTable = `${connector.id}/${table}`;
+      for (const { source, pipeline } of pipelines) {
+        const sourceTable = `${connector.id}/${source}`;
+        const partial = isPartialSource(spec.connector, source);
         // Drop any residue from a prior (possibly crashed) cycle so we start
         // from a clean snapshot. Materialize appends, not replaces.
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
 
-        // Isolate per-table failures so one bad table doesn't skip the rest.
+        // Isolate per-source failures so one bad source doesn't skip the rest.
         try {
           let pageCount = 0;
-          await connector.pull(table, async (page) => {
-            await queryStore.materialize(connector.id, table, page.events);
+          await connector.pull(source, async (page) => {
+            await queryStore.materialize(connector.id, source, page.events);
             pageCount++;
           });
 
           if (pageCount === 0) {
-            log.debug(`"${table}" is empty`);
+            log.debug(`"${source}" is empty`);
             for (const step of pipeline.steps) {
               if (step.kind === "graph-sink" && spec.graphClient) {
-                const result = await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLog);
-                totals = mergeSyncResults(totals, result);
+                totals = mergeSyncResults(
+                  totals,
+                  await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLog, partial),
+                );
               }
             }
             continue;
@@ -107,17 +113,19 @@ export function integrate(spec: IntegrationSpec): Integration {
 
           await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
             if (step.kind === "graph-sink" && spec.graphClient) {
-              const result = await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLog);
-              totals = mergeSyncResults(totals, result);
+              totals = mergeSyncResults(
+                totals,
+                await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLog, partial),
+              );
             }
           });
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
           totals = mergeSyncResults(totals, {
             ...emptySyncResult(),
-            errors: [{ kind: "table", entityType: "", entityId: table, message: msg }],
+            errors: [{ kind: "table", entityType: "", entityId: source, message: msg }],
           });
-          log.error(`table "${table}" failed: ${msg} (continuing with remaining tables)`);
+          log.error(`source "${source}" failed: ${msg} (continuing with remaining sources)`);
         } finally {
           await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
           for (const id of allStepIds(pipeline.steps)) {
@@ -144,7 +152,7 @@ export function integrate(spec: IntegrationSpec): Integration {
     async run() {
       const probe = createConnector(spec.connector);
       const mode = probe.mode;
-      log.info(`connector "${probe.id}" mode=${mode} tables=[${pipelines.map((tp) => tp.table).join(", ")}]`);
+      log.info(`connector "${probe.id}" mode=${mode} sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
 
       if (mode === "batch") {
         await probe.close();
@@ -175,18 +183,18 @@ export function integrate(spec: IntegrationSpec): Integration {
         let lock = Promise.resolve();
 
         for (let i = 0; i < pipelines.length; i++) {
-          const { table, pipeline } = pipelines[i];
+          const { source, pipeline } = pipelines[i];
           const s = state[i];
 
-          const sub = await c.subscribe(table, undefined, (batch) => {
+          const sub = await c.subscribe(source, undefined, (batch) => {
             lock = lock.then(async () => {
               if (stopped) return;
               try {
-                const { nextSeq } = await processStreamBatch(table, pipeline, batch, s.seq, s.validated, c);
+                const { nextSeq } = await processStreamBatch(source, pipeline, batch, s.seq, s.validated, c);
                 s.seq = nextSeq;
               } catch (err) {
                 // Catch per-batch errors so one bad batch doesn't halt the subscription.
-                log.error(`stream batch for "${table}" failed: ${err instanceof Error ? err.message : String(err)} (continuing)`);
+                log.error(`stream batch for "${source}" failed: ${err instanceof Error ? err.message : String(err)} (continuing)`);
               }
             });
             return lock;
@@ -215,7 +223,7 @@ export function integrate(spec: IntegrationSpec): Integration {
         if (relevant.length === 0) return { nextSeq: seq };
 
         const deletes = relevant.filter((e) => e.op === "delete");
-        const data = relevant.filter((e) => e.op !== "delete");
+        const writes = relevant.filter((e) => e.op !== "delete");
 
         if (deletes.length > 0 && spec.graphClient) {
           log.debug(`${deletes.length} deletes for "${table}"`);
@@ -226,16 +234,16 @@ export function integrate(spec: IntegrationSpec): Integration {
           }
         }
 
-        if (data.length === 0) return { nextSeq: seq };
+        if (writes.length === 0) return { nextSeq: seq };
 
-        log.debug(`batch: ${data.length} events for "${table}"`);
+        log.debug(`batch: ${writes.length} events for "${table}"`);
 
         const sourceTable = `${connector.id}/${table}`;
         // Clean slate each batch -- materialize appends, not replaces.
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
 
         try {
-          await eventStore.append(connector.id, table, data);
+          await eventStore.append(connector.id, table, writes);
           const { events, nextSeq } = await eventStore.read(connector.id, table, seq);
           await queryStore.materialize(connector.id, table, events);
           eventStore.trim(connector.id, table, nextSeq);
@@ -273,7 +281,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function allStepIds(steps: Step[]): string[] {
+function allStepIds(steps: readonly Step[]): string[] {
   const ids: string[] = [];
   for (const s of steps) {
     if (s.kind === "branch") {
@@ -283,4 +291,50 @@ function allStepIds(steps: Step[]): string[] {
     }
   }
   return ids;
+}
+
+function declaredSources(def: ConnectorDef): string[] {
+  switch (def.mode) {
+    case "batch":
+    case "cdc":
+      return Object.keys(def.tables);
+    case "rest-api":
+      return Object.keys(def.endpoints);
+    case "mongo-stream":
+      return Object.keys(def.collections);
+  }
+}
+
+function isPartialSource(def: ConnectorDef, source: string): boolean {
+  switch (def.mode) {
+    case "batch":    return def.tables[source]?.partial ?? false;
+    case "rest-api": return def.endpoints[source]?.partial ?? false;
+    case "cdc":
+    case "mongo-stream": return false;
+  }
+}
+
+function assertSourcesDeclared(def: ConnectorDef, pipelines: readonly TablePipeline[]): void {
+  const declared = new Set(declaredSources(def));
+  for (const tp of pipelines) {
+    if (!declared.has(tp.source)) {
+      throw new Error(
+        `Pipeline source "${tp.source}" is not declared on connector "${def.id}". ` +
+        `Declared sources: [${[...declared].join(", ")}]. ` +
+        `Check the connector config ('tables' / 'endpoints' / 'collections') matches the source name.`,
+      );
+    }
+  }
+}
+
+function assertPipelineSourcesMatch(connectorId: string, pipelines: readonly TablePipeline[]): void {
+  for (const tp of pipelines) {
+    const expected = `${connectorId}/${tp.source}`;
+    if (tp.pipeline.source !== expected) {
+      throw new Error(
+        `Pipeline for source "${tp.source}" reads from "${tp.pipeline.source}" but expected "${expected}". ` +
+        `The first argument to pipe(...) should be "${expected}".`,
+      );
+    }
+  }
 }

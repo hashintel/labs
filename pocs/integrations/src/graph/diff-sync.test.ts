@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createDuckDbQueryStore } from "../staging/duckdb.js";
 import { diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./sink.js";
 import { namespace, type GraphSinkConfig } from "../transform/pipeline.js";
-import type { GraphOp, GraphClient } from "./types.js";
+import type { GraphClient } from "./types.js";
 import type { QueryableStore } from "../staging/types.js";
 
 const T = namespace("https://hash.ai/@test/types");
@@ -122,6 +122,42 @@ describe("diffAndSync", () => {
     assert.equal(result.unchanged, 1);
     assert.equal(mock2.ops.filter((o) => o.kind === "archive").length, 1);
     assert.equal(mock2.ops.find((o) => o.kind === "archive")!.entityId, "2");
+  });
+
+  it("partial mode: absent entities are not archived and state is preserved", async () => {
+    await seedTable(db, "output", [
+      row("1", "a@b.com", "NYC", "org-1"),
+      row("2", "c@d.com", "LA", "org-2"),
+    ]);
+    await diffAndSync("write-users", sinkConfig, "output", "crm", db, mockClient().client);
+
+    // Second sync: only entity 1 is in the window. Partial mode preserves 2 instead of archiving.
+    await db.exec(`DROP TABLE "output"`);
+    await seedTable(db, "output", [row("1", "a@b.com", "NYC", "org-1")]);
+    const partialRun = mockClient();
+    const result = await diffAndSync(
+      "write-users", sinkConfig, "output", "crm", db, partialRun.client, undefined, true,
+    );
+
+    assert.equal(result.inserts, 0);
+    assert.equal(result.updates, 0);
+    assert.equal(result.deletes, 0, "partial mode must not archive absent entities");
+    assert.equal(result.unchanged, 2, "both entities are carried as unchanged");
+    assert.equal(partialRun.ops.length, 0, "no graph ops when nothing has changed");
+
+    // Third sync (still partial, full overlap): still unchanged, state intact.
+    await db.exec(`DROP TABLE "output"`);
+    await seedTable(db, "output", [
+      row("1", "a@b.com", "NYC", "org-1"),
+      row("2", "c@d.com", "LA", "org-2"),
+    ]);
+    const rerun = mockClient();
+    const result2 = await diffAndSync(
+      "write-users", sinkConfig, "output", "crm", db, rerun.client, undefined, true,
+    );
+    assert.equal(result2.inserts, 0);
+    assert.equal(result2.unchanged, 2);
+    assert.equal(rerun.ops.length, 0);
   });
 
   it("handles empty source (all deleted)", async () => {
