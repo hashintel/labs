@@ -12,7 +12,7 @@
       "partial": true,
       "maxPages": 1,
       "params": {
-        "start": "${NOW-2h}",
+        "start": "${NOW-12h}",
         "end": "${NOW+1h}",
         "max_pages": "1",
         "type": "Airline"

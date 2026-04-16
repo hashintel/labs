@@ -3,6 +3,7 @@ import { createPostgresBatchConnector, type PostgresTableConfig } from "./postgr
 import { createPostgresCdcConnector } from "./postgres-cdc.js";
 import { createMongoStreamConnector } from "./mongodb-stream.js";
 import { createRestApiBatchConnector, type RestApiBatchConfig, type RestApiEndpoint } from "./rest-api.js";
+import type { Logger } from "../log.js";
 
 export type ConnectorDef = { id: string } & (
   | { mode: "batch"; url: string; tables: Record<string, PostgresTableConfig>; pageSize?: number }
@@ -11,12 +12,15 @@ export type ConnectorDef = { id: string } & (
   | { mode: "mongo-stream"; url: string; database: string; collections: Record<string, TableConfig> }
 );
 
-export function createConnector(def: ConnectorDef): Connector {
+export function createConnector(def: ConnectorDef, log?: Logger): Connector {
   switch (def.mode) {
     case "batch":
       return createPostgresBatchConnector({ id: def.id, url: def.url, tables: def.tables, pageSize: def.pageSize });
     case "rest-api":
-      return createRestApiBatchConnector({ id: def.id, endpoints: def.endpoints, auth: def.auth, rateLimitMs: def.rateLimitMs, pageSize: def.pageSize });
+      return createRestApiBatchConnector(
+        { id: def.id, endpoints: def.endpoints, auth: def.auth, rateLimitMs: def.rateLimitMs, pageSize: def.pageSize },
+        log,
+      );
     case "cdc":
       return createPostgresCdcConnector({
         id: def.id,

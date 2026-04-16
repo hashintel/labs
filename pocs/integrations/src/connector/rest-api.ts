@@ -1,5 +1,6 @@
 import type { BatchConnector, ChangeEvent, TableConfig } from "./types.js";
 import { compileKeyExtractor, type KeyExtractor } from "./types.js";
+import type { Logger } from "../log.js";
 
 export type RestApiEndpoint = {
   url: string;
@@ -83,7 +84,7 @@ type CompiledEndpoint = {
 
 const identityAccessor: PathAccessor = (obj) => obj;
 
-export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchConnector {
+export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Logger): BatchConnector {
   const pageSize = config.pageSize ?? 100;
   const rateLimitMs = config.rateLimitMs ?? 0;
 
@@ -108,6 +109,7 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig): BatchCo
   }
 
   async function fetchPage(url: string): Promise<unknown> {
+    log?.debug(`GET ${url}`);
     const res = await fetch(url, { headers });
     if (!res.ok) {
       const body = await res.text().catch(() => "");

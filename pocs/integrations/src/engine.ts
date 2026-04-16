@@ -73,7 +73,7 @@ export function integrate(spec: IntegrationSpec): Integration {
     const start = Date.now();
     let totals = emptySyncResult();
 
-    const connector = createConnector(spec.connector);
+    const connector = createConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
     if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
 
     log.info(`sync: connector "${connector.id}" sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
@@ -82,6 +82,7 @@ export function integrate(spec: IntegrationSpec): Integration {
       for (const { source, pipeline } of pipelines) {
         const sourceTable = `${connector.id}/${source}`;
         const partial = isPartialSource(spec.connector, source);
+        const sinkLogForSource = sinkLog.child({ source });
         // Drop any residue from a prior (possibly crashed) cycle so we start
         // from a clean snapshot. Materialize appends, not replaces.
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
@@ -100,7 +101,7 @@ export function integrate(spec: IntegrationSpec): Integration {
               if (step.kind === "graph-sink" && spec.graphClient) {
                 totals = mergeSyncResults(
                   totals,
-                  await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLog, partial),
+                  await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLogForSource, partial),
                 );
               }
             }
@@ -115,7 +116,7 @@ export function integrate(spec: IntegrationSpec): Integration {
             if (step.kind === "graph-sink" && spec.graphClient) {
               totals = mergeSyncResults(
                 totals,
-                await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLog, partial),
+                await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLogForSource, partial),
               );
             }
           });
@@ -150,7 +151,7 @@ export function integrate(spec: IntegrationSpec): Integration {
     sync: doSync,
 
     async run() {
-      const probe = createConnector(spec.connector);
+      const probe = createConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
       const mode = probe.mode;
       log.info(`connector "${probe.id}" mode=${mode} sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
 
@@ -224,12 +225,13 @@ export function integrate(spec: IntegrationSpec): Integration {
 
         const deletes = relevant.filter((e) => e.op === "delete");
         const writes = relevant.filter((e) => e.op !== "delete");
+        const sinkLogForSource = sinkLog.child({ source: table });
 
         if (deletes.length > 0 && spec.graphClient) {
           log.debug(`${deletes.length} deletes for "${table}"`);
           for (const step of pipeline.steps) {
             if (step.kind === "graph-sink") {
-              await archiveDeletes(deletes, step.config, spec.graphClient, sinkLog);
+              await archiveDeletes(deletes, step.config, spec.graphClient, sinkLogForSource);
             }
           }
         }
@@ -255,7 +257,7 @@ export function integrate(spec: IntegrationSpec): Integration {
 
           const onSideEffect: SideEffectHandler = async (step, currentTable) => {
             if (step.kind === "graph-sink") {
-              await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLog);
+              await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLogForSource);
             }
           };
 
