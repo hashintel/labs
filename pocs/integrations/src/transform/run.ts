@@ -1,9 +1,8 @@
 import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { QueryableStore } from "../staging/types.js";
 import { META_COLUMNS } from "../staging/types.js";
-import type { Pipeline, TransformFn, TransformResolver, SchemaDecl, Row, Envelope, SideEffectHandler } from "./pipeline.js";
-import { toEffectSchema, assertSchemaDeclColumns } from "./pipeline.js";
-import { decodeRows } from "./schema.js";
+import type { Pipeline, TransformFn, TransformResolver, SchemaDecl, FieldType, Row, Envelope, SideEffectHandler } from "./pipeline.js";
+import { decodeRows, toEffectSchema, assertSchemaDeclColumns } from "./schema.js";
 import type { Logger } from "../log.js";
 
 export async function validatePipeline(
@@ -66,6 +65,12 @@ export async function validatePipeline(
         let branchCols = columns;
         for (const s of branchSteps) {
           const branchData = stripMeta(branchCols);
+          if (s.kind === "branch") {
+            throw new Error(
+              `Nested branch "${s.id}" inside "${step.id}" is not supported. ` +
+              `Flatten your pipeline, or lift the inner branches to sibling branches on the outer branch step.`,
+            );
+          }
           if (s.kind === "sql") {
             const tmpTable = `_validate/${s.id}`;
             await execSql(s.sql, branchTable, tmpTable, db, "LIMIT 0");
@@ -165,9 +170,12 @@ function stripMeta(columns: string[]): string[] {
 
 function assertMeta(columns: string[], stepId: string): void {
   const names = new Set(columns);
-  const absent = [META_COLUMNS.op, META_COLUMNS.key].filter((c) => !names.has(c));
+  const absent = [META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before].filter((c) => !names.has(c));
   if (absent.length > 0) {
-    throw new Error(`Step "${stepId}" output is missing ${absent.join(", ")}. Include _op and _key in your output.`);
+    throw new Error(
+      `Step "${stepId}" output is missing ${absent.join(", ")}. ` +
+      `SELECT _op, _key, _before (may be NULL) from input.`,
+    );
   }
 }
 
@@ -187,7 +195,7 @@ function assertColumnsCompatible(
 
 function validateSchema(schema: SchemaDecl | undefined, rows: Record<string, unknown>[], stepId: string): void {
   if (!schema) return;
-  const payloads = rows.filter((r) => r._op !== "delete").map(({ _op, _key, ...rest }) => rest);
+  const payloads = rows.filter((r) => r._op !== "delete").map(({ _op, _key, _before, ...rest }) => rest);
   decodeRows(toEffectSchema(schema), payloads, stepId);
 }
 
@@ -204,24 +212,61 @@ async function execTransform(
   const transformed = await transform(rows as (Row & Envelope)[]);
   validateSchema(step.output, transformed, step.id);
 
-  await writeRows(transformed, outputTable, db);
+  await writeRows(transformed, outputTable, db, step.output);
 }
 
-async function writeRows(rows: Row[], table: string, db: QueryableStore): Promise<void> {
+type ColEncoder = { ddl: string; serialize: (v: unknown) => string | null };
+
+const asVarchar = (v: unknown) => v == null ? null : String(v);
+const asJson = (v: unknown) => v == null ? null : typeof v === "string" ? v : JSON.stringify(v);
+
+function encoderFor(col: string, decl: FieldType | undefined, probe: unknown): ColEncoder {
+  if (col === "_op" || col === "_key") return { ddl: "VARCHAR", serialize: asVarchar };
+  if (col === "_before")                return { ddl: "JSON",    serialize: asJson };
+
+  const scalar = decl ? (decl.endsWith("?") ? decl.slice(0, -1) : decl) : undefined;
+  switch (scalar) {
+    case "number":  return { ddl: "DOUBLE",  serialize: asVarchar };
+    case "boolean": return { ddl: "BOOLEAN", serialize: (v) => v == null ? null : String(Boolean(v)) };
+    case "json":    return { ddl: "JSON",    serialize: asJson };
+    case "string":  return { ddl: "VARCHAR", serialize: asVarchar };
+    default:
+      // Undeclared objects go to JSON; otherwise String() yields "[object Object]".
+      if (probe != null && typeof probe === "object") return { ddl: "JSON", serialize: asJson };
+      return { ddl: "VARCHAR", serialize: asVarchar };
+  }
+}
+
+async function writeRows(rows: Row[], table: string, db: QueryableStore, output?: SchemaDecl): Promise<void> {
   if (rows.length === 0) {
     await db.exec(`CREATE OR REPLACE TABLE ${qi(table)} AS SELECT 1 WHERE false`);
     return;
   }
 
   const columns = Object.keys(rows[0]);
-  const colDefs = columns.map((c) => `${qi(c)} VARCHAR`).join(", ");
-  await db.exec(`CREATE OR REPLACE TABLE ${qi(table)} (${colDefs})`);
+  const width = columns.length;
+  const encoders: ColEncoder[] = columns.map((c) => encoderFor(c, output?.[c], rows[0][c]));
+  const colDefs = encoders.map((e, i) => `${qi(columns[i])} ${e.ddl}`).join(", ");
+  const qiTable = qi(table);
+  await db.exec(`CREATE OR REPLACE TABLE ${qiTable} (${colDefs})`);
 
-  const placeholders = columns.map((_, i) => `$${i + 1}`).join(", ");
-  const insertSql = `INSERT INTO ${qi(table)} VALUES (${placeholders})`;
+  const ROWS_PER_INSERT = 500;
+  for (let start = 0; start < rows.length; start += ROWS_PER_INSERT) {
+    const chunk = rows.slice(start, start + ROWS_PER_INSERT);
+    const params: (string | null)[] = new Array(chunk.length * width);
+    const rowPlaceholders: string[] = new Array(chunk.length);
 
-  for (const row of rows) {
-    const vals = columns.map((c) => row[c] == null ? null : String(row[c]));
-    await db.exec(insertSql, vals);
+    for (let i = 0; i < chunk.length; i++) {
+      const row = chunk[i];
+      const base = i * width;
+      const slots: string[] = new Array(width);
+      for (let c = 0; c < width; c++) {
+        slots[c] = `$${base + c + 1}`;
+        params[base + c] = encoders[c].serialize(row[columns[c]]);
+      }
+      rowPlaceholders[i] = `(${slots.join(", ")})`;
+    }
+
+    await db.exec(`INSERT INTO ${qiTable} VALUES ${rowPlaceholders.join(", ")}`, params);
   }
 }

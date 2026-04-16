@@ -54,7 +54,7 @@ const pipeline = pipe("test/users",
   }),
   sqlStep({
     id: "normalize",
-    query: sql`SELECT _op, _key, id AS userId, LOWER(TRIM(email)) AS email, full_name AS displayName, city, org_id AS orgId FROM input`,
+    query: sql`SELECT _op, _key, _before, id AS userId, LOWER(TRIM(email)) AS email, full_name AS displayName, city, org_id AS orgId FROM input`,
   }),
   graphSinkStep({
     id: "write-users",
@@ -210,7 +210,7 @@ describe("e2e: events to pipeline to graph", () => {
 
   it("graph-sink mid-pipeline passes data through to downstream steps", async () => {
     const midPipeline = pipe("test/users",
-      sqlStep({ id: "add-col", query: sql`SELECT _op, _key, id, email, 'injected' AS marker FROM input` }),
+      sqlStep({ id: "add-col", query: sql`SELECT _op, _key, _before, id, email, 'injected' AS marker FROM input` }),
       graphSinkStep({
         id: "mid-sink",
         entityType: T.entity("user/v/1"),
@@ -219,7 +219,7 @@ describe("e2e: events to pipeline to graph", () => {
         properties: { [T.property("email/v/1")]: "email" },
         provenance: { location: { name: "mid-test" } },
       }),
-      sqlStep({ id: "post-sink", query: sql`SELECT _op, _key, id, email, marker, 'after' AS phase FROM input` }),
+      sqlStep({ id: "post-sink", query: sql`SELECT _op, _key, _before, id, email, marker, 'after' AS phase FROM input` }),
     );
 
     const eventStore = createMemoryEventStore();
@@ -275,7 +275,7 @@ describe("e2e: events to pipeline to graph", () => {
 
   it("validation catches missing columns", async () => {
     const badPipeline = pipe("test/users",
-      sqlStep({ id: "drop-cols", query: sql`SELECT _op, _key, id FROM input` }),
+      sqlStep({ id: "drop-cols", query: sql`SELECT _op, _key, _before, id FROM input` }),
       graphSinkStep({
         id: "write",
         entityType: T.entity("user/v/1"),

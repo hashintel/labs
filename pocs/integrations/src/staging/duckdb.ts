@@ -62,20 +62,37 @@ export async function createDuckDbQueryStore(path?: string): Promise<QueryableSt
       }
 
       const { dataColumns, kinds } = schemas.get(key)!;
-      const allColumns = [META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before, ...dataColumns];
-      const placeholders = allColumns.map((_, i) => `$${i + 1}`).join(", ");
-      const insertSql = `INSERT INTO ${qi(key)} VALUES (${placeholders})`;
+      const width = 3 + dataColumns.length; // _op, _key, _before + data
+      const nullsForRow = dataColumns.map(() => null);
+      const qiKey = qi(key);
 
-      for (const ev of events) {
-        const keyJson = JSON.stringify(ev.key);
-        const beforeJson = ev.before ? JSON.stringify(ev.before) : null;
-        if (ev.row) {
-          const dataVals = dataColumns.map((c) => serializeValue(ev.row![c], kinds.get(c) ?? "scalar"));
-          await conn.run(insertSql, [ev.op, keyJson, beforeJson, ...dataVals]);
-        } else {
-          const nulls = dataColumns.map(() => null);
-          await conn.run(insertSql, [ev.op, keyJson, beforeJson, ...nulls]);
+      const ROWS_PER_INSERT = 500;
+      for (let start = 0; start < events.length; start += ROWS_PER_INSERT) {
+        const chunk = events.slice(start, start + ROWS_PER_INSERT);
+        const params: (string | null)[] = new Array(chunk.length * width);
+        const rowPlaceholders: string[] = new Array(chunk.length);
+
+        for (let i = 0; i < chunk.length; i++) {
+          const ev = chunk[i];
+          const base = i * width;
+          const slots: string[] = new Array(width);
+          for (let s = 0; s < width; s++) slots[s] = `$${base + s + 1}`;
+          rowPlaceholders[i] = `(${slots.join(", ")})`;
+
+          params[base] = ev.op;
+          params[base + 1] = JSON.stringify(ev.key);
+          params[base + 2] = ev.before ? JSON.stringify(ev.before) : null;
+          if (ev.row) {
+            for (let c = 0; c < dataColumns.length; c++) {
+              const col = dataColumns[c];
+              params[base + 3 + c] = serializeValue(ev.row[col], kinds.get(col) ?? "scalar");
+            }
+          } else {
+            for (let c = 0; c < dataColumns.length; c++) params[base + 3 + c] = nullsForRow[c];
+          }
         }
+
+        await conn.run(`INSERT INTO ${qiKey} VALUES ${rowPlaceholders.join(", ")}`, params);
       }
     },
 

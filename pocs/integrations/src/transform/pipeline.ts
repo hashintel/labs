@@ -1,11 +1,14 @@
-import { Schema } from "effect";
+import type { ChangeOp } from "../connector/types.js";
 
 export type ScalarType = "string" | "number" | "boolean" | "json";
 export type FieldType = ScalarType | `${ScalarType}?`;
 export type SchemaDecl = Record<string, FieldType>;
 
 export type Row = Record<string, unknown>;
-export type Envelope = { _op: string; _key: string };
+
+/** `_before` is JSON-encoded in streaming mode, null in batch mode. All three columns are required on every step's output. */
+export type Envelope = { _op: ChangeOp; _key: string; _before?: string | null };
+
 export type TransformFn = (rows: (Row & Envelope)[]) => (Row & Envelope)[] | Promise<(Row & Envelope)[]>;
 export type TransformResolver = (name: string) => TransformFn;
 
@@ -108,11 +111,12 @@ export type Pipeline<
 export type TablePipeline = { source: string; pipeline: Pipeline; dependsOn?: readonly string[] };
 export type SideEffectHandler = (step: Step, currentTable: string) => Promise<void>;
 
-// Overload pairs (with/without `dependsOn`) prevent `Deps` from widening to
-// the constraint upper bound `readonly string[]` when the caller omits deps.
-// With a single signature + default, TypeScript sometimes ignores the default
-// inside generic-heavy contexts (e.g. variadic `branch(...)` arguments).
+// Each factory has overload pairs (with/without `dependsOn`). This prevents
+// `Deps` from widening to the constraint upper bound `readonly string[]`
+// when the caller omits deps -- TypeScript sometimes ignores the generic
+// default inside variadic contexts (e.g. `branch(...)` arguments).
 
+/** `input` is a view of the previous step's output. Must SELECT `_op, _key, _before` (all three envelope columns are required; `_before` may be NULL). */
 export function sqlStep<const Id extends string>(opts: {
   id: Id; query: string | { sql: string }; output?: SchemaDecl;
 }): SqlStep<Id, readonly []>;
@@ -126,6 +130,7 @@ export function sqlStep(opts: {
   return { kind: "sql", id: opts.id, sql: query, output: opts.output, dependsOn: opts.dependsOn };
 }
 
+/** `transform` is either a `(rows) => rows` or a string name resolved via `spec.transforms`. */
 export function fnStep<const Id extends string>(opts: {
   id: Id; transform: string | TransformFn; input?: SchemaDecl; output?: SchemaDecl;
 }): FnStep<Id, readonly []>;
@@ -138,19 +143,21 @@ export function fnStep(opts: {
   return { kind: "fn", id: opts.id, transform: opts.transform, input: opts.input, output: opts.output, dependsOn: opts.dependsOn };
 }
 
-export function graphSinkStep<const Id extends string = "graph-sink">(
-  config: GraphSinkConfig & { id?: Id },
+/** `id` names the `_state/sync/{connectorId}/{id}` batch-sync state table; must be stable across runs. */
+export function graphSinkStep<const Id extends string>(
+  config: GraphSinkConfig & { id: Id },
 ): GraphSinkStep<Id, readonly []>;
 export function graphSinkStep<const Id extends string, const Deps extends readonly string[]>(
-  config: GraphSinkConfig & { id?: Id; dependsOn: Deps },
+  config: GraphSinkConfig & { id: Id; dependsOn: Deps },
 ): GraphSinkStep<Id, Deps>;
 export function graphSinkStep(
-  config: GraphSinkConfig & { id?: string; dependsOn?: readonly string[] },
+  config: GraphSinkConfig & { id: string; dependsOn?: readonly string[] },
 ): GraphSinkStep<string, readonly string[]> {
   const { id, dependsOn, ...rest } = config;
-  return { kind: "graph-sink", id: id ?? "graph-sink", config: rest, dependsOn };
+  return { kind: "graph-sink", id, config: rest, dependsOn };
 }
 
+/** Diagonal fan-out: each inner `Step[]` runs against the pre-branch table; the main flow continues unchanged past the branch. */
 export function branch<
   const Id extends string,
   const Bs extends readonly (readonly unknown[])[],
@@ -161,6 +168,7 @@ export function branch<
   return { kind: "branch", id, branches };
 }
 
+/** `namespace("http://.../@ns/types").entity("user/v/2")` → full versioned URL. */
 export function namespace(base: string) {
   return {
     entity:   (name: string): VersionedUrl => `${base}/entity-type/${name}`,
@@ -169,6 +177,7 @@ export function namespace(base: string) {
   };
 }
 
+/** First arg is the materialised DuckDB table (`"crm/users"`) or a Pipeline to extend. */
 export function pipe<
   const NewSteps extends readonly Step[],
   InnerIds extends string = never,
@@ -239,20 +248,3 @@ type RefineStep<S, Ids extends string> =
 type RefineBranches<Bs, Ids extends string> =
   { readonly [K in keyof Bs]: Bs[K] extends readonly Step[] ? RefineSteps<Bs[K], Ids> : Bs[K] };
 
-export function toEffectSchema(decl: SchemaDecl): Schema.Schema.All {
-  const fields: Record<string, Schema.Schema.All> = {};
-  for (const [name, ft] of Object.entries(decl)) {
-    const nullable = ft.endsWith("?");
-    const scalar = (nullable ? ft.slice(0, -1) : ft) as ScalarType;
-    const base = ({ string: Schema.String, number: Schema.Number, boolean: Schema.Boolean, json: Schema.Unknown } as Record<ScalarType, Schema.Schema.All>)[scalar];
-    fields[name] = nullable ? Schema.NullOr(base as Schema.Schema<string>) : base;
-  }
-  return Schema.Struct(fields as Record<string, Schema.Schema<unknown>>);
-}
-
-export function assertSchemaDeclColumns(decl: SchemaDecl, columnNames: Set<string>, stepId: string): void {
-  const missing = Object.keys(decl).filter((k) => !columnNames.has(k));
-  if (missing.length > 0) {
-    throw new Error(`Schema validation failed at step "${stepId}": output missing columns [${missing.join(", ")}]`);
-  }
-}

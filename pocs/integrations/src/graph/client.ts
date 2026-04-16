@@ -107,6 +107,7 @@ function mapProvenance(source: SourceProvenance): HASHProvenance {
   return prov;
 }
 
+/** Full response body is preserved on `.body` for branching (e.g. 409 / duplicate detection); only the first 200 chars appear in the error message. */
 export class GraphApiError extends Error {
   constructor(public status: number, public operation: string, public body: string) {
     super(`Graph API ${operation} failed (${status}): ${body.slice(0, 200)}`);
@@ -144,6 +145,7 @@ export type GraphEntity = {
   linkData?: { leftEntityId: string; rightEntityId: string };
 };
 
+/** Test/debug helper: up to 100 non-draft entities at current time. */
 export async function queryEntities(config: GraphClientConfig): Promise<GraphEntity[]> {
   const body = {
     filter: { all: [] },

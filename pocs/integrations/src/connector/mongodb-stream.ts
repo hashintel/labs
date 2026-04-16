@@ -1,5 +1,5 @@
 import { MongoClient, type ChangeStream, type ChangeStreamDocument, type ChangeStreamInsertDocument, type ChangeStreamUpdateDocument, type ChangeStreamReplaceDocument, type ChangeStreamDeleteDocument, type Document, type ResumeToken } from "mongodb";
-import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig, ColumnInfo } from "./types.js";
+import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig } from "./types.js";
 import { compileKeyExtractor } from "./types.js";
 
 export type MongoStreamConfig = {
@@ -60,23 +60,6 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
     id: config.id,
     mode: "stream",
 
-    async introspect() {
-      await client.connect();
-      const configs: Record<string, TableConfig> = {};
-      for (const [name, tc] of Object.entries(config.collections)) {
-        const sample = await db.collection(name).findOne();
-        const columns: ColumnInfo[] = [];
-        if (sample) {
-          for (const [k, v] of Object.entries(sample)) {
-            const isJson = typeof v === "object" && v !== null && !("_bsontype" in v);
-            columns.push({ name: k, type: isJson ? "json" : typeof v, nullable: true, kind: isJson ? "json" : "scalar" });
-          }
-        }
-        configs[name] = { primaryKey: tc.primaryKey, foreignKeys: tc.foreignKeys, columns };
-      }
-      return configs;
-    },
-
     async subscribe(collection: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription> {
       await client.connect();
       const tc = config.collections[collection];
@@ -91,9 +74,14 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
       });
 
       (async () => {
-        for await (const change of stream) {
-          resumeToken = change._id;
-          if (isDml(change)) await onBatch({ events: [toChangeEvent(change, keyFrom)], cursor: resumeToken });
+        try {
+          for await (const change of stream) {
+            resumeToken = change._id;
+            if (isDml(change)) await onBatch({ events: [toChangeEvent(change, keyFrom)], cursor: resumeToken });
+          }
+        } catch (err) {
+          // Without this catch the subscription dies silently on iterator/onBatch throw.
+          console.error(`[mongo-stream ${collection}] subscription ended with error:`, err);
         }
       })();
 

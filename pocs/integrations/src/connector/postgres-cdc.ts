@@ -5,7 +5,6 @@ import {
 } from "pg-logical-replication";
 import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig } from "./types.js";
 import { compileKeyExtractor } from "./types.js";
-import { introspectTables } from "./pg-introspect.js";
 
 export type PostgresCdcConfig = {
   id: string;
@@ -63,10 +62,6 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
   return {
     id: config.id,
     mode: "stream",
-
-    async introspect() {
-      return introspectTables(config.url, config.tables);
-    },
 
     async subscribe(table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription> {
       handlers.set(table, onBatch);

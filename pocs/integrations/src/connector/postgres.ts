@@ -1,14 +1,15 @@
 import pg from "pg";
 import type { ChangeEvent, BatchConnector, TableConfig } from "./types.js";
 import { compileKeyExtractor, pkColumns } from "./types.js";
-import { introspectTables } from "./pg-introspect.js";
 
 const esc = pg.escapeIdentifier;
 
 export type PostgresTableConfig = TableConfig & {
   query?: string;
-  /** Mark a pull as a subset (filtered `query`). Batch sync won't archive absent entities; their state is preserved. */
+  /** Pull returns a subset (filtered `query`); state for absent ids is preserved, not archived. */
   partial?: boolean;
+  /** Trust a zero-row pull as authoritative and archive all prior state. Default false (transient failures are more common than genuine empties). */
+  archiveOnEmpty?: boolean;
 };
 
 export type PostgresBatchConfig = {
@@ -26,10 +27,6 @@ export function createPostgresBatchConnector(config: PostgresBatchConfig): Batch
     id: config.id,
     mode: "batch" as const,
     pageSize,
-
-    async introspect() {
-      return introspectTables(config.url, config.tables);
-    },
 
     async pull(table, onPage) {
       const tc = config.tables[table];

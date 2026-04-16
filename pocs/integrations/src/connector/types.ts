@@ -8,14 +8,9 @@ export type ChangeEvent = {
   before?: Record<string, unknown>;
 };
 
-export type ForeignKey = {
-  columns: string | string[];
-  references: string;
-  on?: string | string[];
-};
-
 export type FieldKind = "scalar" | "json";
 
+/** Optional per-column hint for `QueryableStore.materialize` -- pass when a field is JSON-shaped. */
 export type ColumnInfo = {
   name: string;
   type: string;
@@ -25,8 +20,6 @@ export type ColumnInfo = {
 
 export type TableConfig = {
   primaryKey: string | string[];
-  foreignKeys?: Record<string, ForeignKey>;
-  columns?: ColumnInfo[];
 };
 
 export type Batch = {
@@ -42,16 +35,17 @@ export type Subscription = {
 
 type ConnectorBase = {
   readonly id: string;
-  introspect(): Promise<Record<string, TableConfig>>;
   close(): Promise<void>;
 };
 
+/** Pull-based snapshot source. `pull` invokes `onPage` once per page. */
 export type BatchConnector = ConnectorBase & {
   readonly mode: "batch";
   readonly pageSize: number;
   pull(table: string, onPage: (batch: Batch) => Promise<void>): Promise<void>;
 };
 
+/** Push-based stream source. `subscribe` resumes from `cursor` and fires `onBatch` per change group. */
 export type StreamConnector = ConnectorBase & {
   readonly mode: "stream";
   subscribe(table: string, cursor: unknown, onBatch: BatchHandler): Promise<Subscription>;

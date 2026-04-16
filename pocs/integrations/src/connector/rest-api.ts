@@ -1,4 +1,4 @@
-import type { BatchConnector, ChangeEvent, TableConfig } from "./types.js";
+import type { BatchConnector, ChangeEvent } from "./types.js";
 import { compileKeyExtractor, type KeyExtractor } from "./types.js";
 import type { Logger } from "../log.js";
 
@@ -10,8 +10,10 @@ export type RestApiEndpoint = {
   params?: Record<string, string>;
   /** Hard cap on pages the connector will follow, on top of any server-side limit. */
   maxPages?: number;
-  /** Mark a pull as a subset (windowed query, filter). Batch sync won't archive absent entities; their state is preserved. */
+  /** Pull returns a subset (windowed / filtered); state for absent ids is preserved, not archived. */
   partial?: boolean;
+  /** Trust an empty response as authoritative and archive all prior state. Default false (transient failures are more common than genuine empties). */
+  archiveOnEmpty?: boolean;
 };
 
 export type RestApiBatchConfig = {
@@ -42,6 +44,7 @@ function compilePath(path: string): PathAccessor {
 
 // ${NOW}, ${NOW+1h}, ${NOW-30m}, ${NOW+2d} -- resolved each pull.
 const NOW_TOKEN = /^NOW(?:([+-])(\d+)([mhd]))?$/;
+const INTERPOLATE_TOKEN = /\$\{([^}]+)\}/g;
 const UNIT_MS: Record<string, number> = { m: 60_000, h: 3_600_000, d: 86_400_000 };
 
 function resolveToken(key: string): string | null {
@@ -56,7 +59,7 @@ function resolveToken(key: string): string | null {
 }
 
 export function interpolate(value: string): string {
-  return value.replace(/\$\{([^}]+)\}/g, (_, key) => {
+  return value.replace(INTERPOLATE_TOKEN, (_, key) => {
     const t = resolveToken(key);
     if (t !== null) return t;
     return process.env[key] ?? "";
@@ -122,14 +125,6 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Lo
     id: config.id,
     mode: "batch" as const,
     pageSize,
-
-    async introspect() {
-      const configs: Record<string, TableConfig> = {};
-      for (const [name, ep] of Object.entries(config.endpoints)) {
-        configs[name] = { primaryKey: ep.primaryKey };
-      }
-      return configs;
-    },
 
     async pull(table, onPage) {
       const ep = endpoints.get(table);

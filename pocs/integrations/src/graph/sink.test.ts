@@ -1,8 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { rowToGraphOp } from "./sink.js";
+import { rowToGraphOp, archiveDeletes } from "./sink.js";
 import { graphSinkStep, namespace, type GraphSinkConfig, type Row, type Envelope } from "../transform/pipeline.js";
-import type { SourceProvenance } from "./types.js";
+import type { GraphClient, GraphOp, SourceProvenance } from "./types.js";
+import type { ChangeEvent } from "../connector/types.js";
 
 const T = namespace("https://hash.ai/@test/types");
 const prov: SourceProvenance = { type: "integration", loadedAt: "2026-01-01T00:00:00Z", location: { name: "test-connector" } };
@@ -38,24 +39,18 @@ describe("rowToGraphOp", () => {
   });
 
   it("produces upsert for update/upsert/snapshot", () => {
-    for (const _op of ["update", "upsert", "snapshot"]) {
+    for (const _op of ["update", "upsert", "snapshot"] as const) {
       const row: Row & Envelope = { _op, _key: "{}", userId: "1", email: "x@example.com", name: "X", orgId: "o" };
       assert.equal(rowToGraphOp(row, config, prov).kind, "upsert");
     }
   });
 
-  it("produces archive for delete --recovers entityId from _key when data is null", () => {
+  it("throws if called with _op=\"delete\" (deletes must bypass the pipeline)", () => {
     const row: Row & Envelope = { _op: "delete", _key: '{"userId":"1"}', userId: null, email: null, name: null, orgId: null };
-    const op = rowToGraphOp(row, config, prov);
-    assert.equal(op.kind, "archive");
-    assert.equal(op.entityId, "1");
-  });
-
-  it("archive prefers data over _key when both present (CDC with REPLICA IDENTITY FULL)", () => {
-    const row: Row & Envelope = { _op: "delete", _key: '{"userId":"old"}', userId: "current", email: null, name: null, orgId: null };
-    const op = rowToGraphOp(row, config, prov);
-    assert.equal(op.kind, "archive");
-    assert.equal(op.entityId, "current");
+    assert.throws(
+      () => rowToGraphOp(row, config, prov),
+      (err: Error) => err.message.includes("delete") && err.message.includes("bypass"),
+    );
   });
 
   it("skips links with null values", () => {
@@ -136,6 +131,42 @@ describe("rowToGraphOp", () => {
     const row: Row & Envelope = { _op: "update", _key: '{"id":1}', userId: "1", email: "a@example.com", name: "Alice", orgId: "org-1" };
     const op = rowToGraphOp(row, config, prov);
     if (op.kind === "upsert") assert.equal(op.staleLinks.length, 0);
+  });
+});
+
+describe("archiveDeletes composite-key determinism", () => {
+  function recording(): GraphClient & { ops: GraphOp[] } {
+    const ops: GraphOp[] = [];
+    return {
+      ops,
+      async upsertEntity(op) { ops.push(op); },
+      async archiveEntity(op) { ops.push(op); },
+    };
+  }
+
+  it("entity id is stable under object-key insertion-order variation (composite PK)", async () => {
+    const cfg: GraphSinkConfig = { entityType: T.entity("membership/v/1"), entityId: "id", webId: "w", properties: {} };
+
+    const ev1: ChangeEvent = { table: "memberships", op: "delete", key: { tenant: "t1", userId: "u1" }, row: null };
+    const ev2: ChangeEvent = { table: "memberships", op: "delete", key: { userId: "u1", tenant: "t1" }, row: null };
+
+    const c1 = recording();
+    const c2 = recording();
+    await archiveDeletes([ev1], cfg, c1);
+    await archiveDeletes([ev2], cfg, c2);
+
+    assert.equal(c1.ops.length, 1);
+    assert.equal(c2.ops.length, 1);
+    // Alphabetical: tenant < userId, so id is "t1::u1" in both orderings.
+    assert.equal(String(c1.ops[0].entityId), "t1::u1");
+    assert.equal(String(c2.ops[0].entityId), "t1::u1");
+  });
+
+  it("single-key case preserves the raw value type", async () => {
+    const cfg: GraphSinkConfig = { entityType: T.entity("user/v/1"), entityId: "id", webId: "w", properties: {} };
+    const client = recording();
+    await archiveDeletes([{ table: "users", op: "delete", key: { id: 42 }, row: null }], cfg, client);
+    assert.equal(client.ops[0].entityId, 42); // number, not "42"
   });
 });
 

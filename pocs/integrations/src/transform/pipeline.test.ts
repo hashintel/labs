@@ -39,7 +39,7 @@ describe("pipe + runPipeline", () => {
 
     const out = await runPipeline(pipe("test/users",
       sqlStep({ id: "fullname", query: `SELECT *, first_name || ' ' || last_name AS full_name FROM input` }),
-      sqlStep({ id: "pick", query: `SELECT _op, _key, id, email, full_name FROM input` }),
+      sqlStep({ id: "pick", query: `SELECT _op, _key, _before, id, email, full_name FROM input` }),
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${out}" WHERE _op != 'delete' ORDER BY id`);
@@ -60,12 +60,12 @@ describe("pipe + runPipeline", () => {
     assert.equal(rows.length, 2);
   });
 
-  it("SQL aggregation works when user provides _op/_key", async () => {
+  it("SQL aggregation works when user provides _op/_key/_before", async () => {
     db = await createDuckDbQueryStore();
     await seedUsers(db);
 
     const out = await runPipeline(pipe("test/users",
-      sqlStep({ id: "count", query: `SELECT 'aggregate' AS _op, '{}' AS _key, count(*) AS total FROM input WHERE _op != 'delete'` }),
+      sqlStep({ id: "count", query: `SELECT 'aggregate' AS _op, '{}' AS _key, NULL AS _before, count(*) AS total FROM input WHERE _op != 'delete'` }),
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${out}"`);
@@ -137,6 +137,45 @@ describe("pipe + runPipeline", () => {
     const { rows } = await db.query(`SELECT * FROM "${out}"`);
     assert.equal(rows.length, 2);
     assert.equal(rows[0].source, "crm");
+  });
+
+  it("fn step with output schema preserves native types in downstream SQL", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+
+    const out = await runPipeline(pipe("test/users",
+      fnStep({
+        id: "typed",
+        transform: (rows) => rows.map((r) => ({ ...r, flag: true, count: 42, meta: { tier: "gold" } })),
+        output: { id: "string?", email: "string?", first_name: "string?", last_name: "string?", flag: "boolean", count: "number", meta: "json" },
+      }),
+      sqlStep({
+        id: "use-types",
+        query: `SELECT _op, _key, _before, id, flag, count + 1 AS incremented, meta->>'tier' AS tier FROM input WHERE flag AND count > 10`,
+      }),
+    ), db);
+
+    const { rows } = await db.query(`SELECT * FROM "${out}" WHERE _op != 'delete' ORDER BY id`);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].flag, true);
+    assert.equal(Number(rows[0].incremented), 43);
+    assert.equal(rows[0].tier, "gold");
+  });
+
+  it("fn step without output schema still JSON-encodes object-valued columns", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+
+    const out = await runPipeline(pipe("test/users",
+      fnStep({
+        id: "obj-untyped",
+        transform: (rows) => rows.map((r) => ({ ...r, nested: { x: 1, y: "z" } })),
+      }),
+      sqlStep({ id: "read-json", query: `SELECT _op, _key, _before, id, nested->>'y' AS y FROM input` }),
+    ), db);
+
+    const { rows } = await db.query(`SELECT * FROM "${out}" WHERE _op != 'delete' LIMIT 1`);
+    assert.equal(rows[0].y, "z");
   });
 
   it("empty pipeline returns source table", async () => {
@@ -230,8 +269,8 @@ describe("fn step with string transform", () => {
 describe("serialization", () => {
   it("pipeline with string transforms round-trips through JSON", () => {
     const p = pipe("crm/users",
-      sqlStep({ id: "pick", query: "SELECT _op, _key, id, email FROM input" }),
-      sqlStep({ id: "rename", query: "SELECT _op, _key, id AS userId, email FROM input", output: { userId: "string", email: "string" } }),
+      sqlStep({ id: "pick", query: "SELECT _op, _key, _before, id, email FROM input" }),
+      sqlStep({ id: "rename", query: "SELECT _op, _key, _before, id AS userId, email FROM input", output: { userId: "string", email: "string" } }),
       fnStep({ id: "enrich", transform: "enrichUsers", input: { userId: "string", email: "string" } }),
     );
 
@@ -275,6 +314,39 @@ describe("validatePipeline", () => {
     );
   });
 
+  it("catches _before drop at validation time", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+    await assert.rejects(
+      () => validatePipeline(pipe("test/users", sqlStep({ id: "bad", query: `SELECT _op, _key, id FROM input` })), db),
+      (err: Error) => err.message.includes("_before"),
+    );
+  });
+
+  it("rejects nested branches at validation time", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+    const p = pipe("test/users",
+      branch("outer",
+        [
+          branch("inner", [sqlStep({ id: "inside", query: `SELECT _op, _key, _before FROM input` })]),
+        ],
+      ),
+    );
+    await assert.rejects(
+      () => validatePipeline(p, db),
+      (err: Error) => err.message.includes("Nested branch") && err.message.includes("inner") && err.message.includes("outer"),
+    );
+  });
+
+  it("graphSinkStep requires an explicit id at the type level", () => {
+    const T = namespace("https://hash.ai/@test/types");
+    // @ts-expect-error `id` is required
+    const _missing = graphSinkStep({ entityType: T.entity("x/v/1"), entityId: "id", webId: "w", properties: {} });
+    const ok = graphSinkStep({ id: "s", entityType: T.entity("x/v/1"), entityId: "id", webId: "w", properties: {} });
+    assert.equal(ok.id, "s");
+  });
+
   it("skips fn steps", async () => {
     db = await createDuckDbQueryStore();
     await seedUsers(db);
@@ -294,7 +366,7 @@ describe("SchemaDecl validation", () => {
     await seedUsers(db);
 
     const out = await runPipeline(pipe("test/users",
-      sqlStep({ id: "pick", query: `SELECT _op, _key, id, email FROM input`, output: UserOut }),
+      sqlStep({ id: "pick", query: `SELECT _op, _key, _before, id, email FROM input`, output: UserOut }),
     ), db);
 
     const { rows } = await db.query(`SELECT * FROM "${out}"`);
@@ -306,7 +378,7 @@ describe("SchemaDecl validation", () => {
     await seedUsers(db);
 
     await assert.rejects(
-      () => validatePipeline(pipe("test/users", sqlStep({ id: "pick", query: `SELECT _op, _key, id FROM input`, output: { nope: "string" } })), db),
+      () => validatePipeline(pipe("test/users", sqlStep({ id: "pick", query: `SELECT _op, _key, _before, id FROM input`, output: { nope: "string" } })), db),
       (err: Error) => err.message.includes("nope"),
     );
   });
@@ -316,7 +388,7 @@ describe("SchemaDecl validation", () => {
     await seedUsers(db);
 
     const out = await runPipeline(pipe("test/users",
-      sqlStep({ id: "pick", query: `SELECT _op, _key, id, email FROM input` }),
+      sqlStep({ id: "pick", query: `SELECT _op, _key, _before, id, email FROM input` }),
       fnStep({ id: "check", transform: (rows) => rows, input: { id: "string", email: "string" } }),
     ), db);
 
@@ -330,7 +402,7 @@ describe("SchemaDecl validation", () => {
 
     await assert.rejects(
       () => validatePipeline(pipe("test/users",
-        sqlStep({ id: "pick", query: `SELECT _op, _key, id, email FROM input` }),
+        sqlStep({ id: "pick", query: `SELECT _op, _key, _before, id, email FROM input` }),
         fnStep({ id: "needs-name", transform: (rows) => rows, input: { full_name: "string" } }),
       ), db),
       (err: Error) => err.message.includes("full_name") && err.message.includes("needs-name"),
@@ -342,7 +414,7 @@ describe("SchemaDecl validation", () => {
     await seedUsers(db);
 
     await validatePipeline(pipe("test/users",
-      sqlStep({ id: "pick", query: `SELECT _op, _key, id, email FROM input` }),
+      sqlStep({ id: "pick", query: `SELECT _op, _key, _before, id, email FROM input` }),
       fnStep({ id: "ok", transform: (rows) => rows, input: { id: "string", email: "string" } }),
     ), db);
   });
@@ -455,6 +527,30 @@ describe("pipelines() type refinement", () => {
             [sqlStep({ id: "norm-flights", query: "SELECT _op, _key FROM input", dependsOn: ["norm-airprots"] })],
           ),
         ),
+      },
+    ] as const);
+  });
+
+  it("propagates step ids through deeply nested pipe() composition", () => {
+    const stepA = sqlStep({ id: "a-clean", query: "SELECT _op, _key FROM input" });
+    const stepB = sqlStep({ id: "b-filter", query: "SELECT _op, _key FROM input WHERE _op != 'delete'" });
+    const stepC = sqlStep({ id: "c-enrich", query: "SELECT _op, _key FROM input", dependsOn: ["a-clean"] });
+
+    const deep = pipe(pipe(pipe("db/users", stepA), stepB), stepC);
+    const defs = pipelines([{ source: "users", pipeline: deep }] as const);
+    assert.equal(defs[0].pipeline.steps.length, 3);
+  });
+
+  it("rejects unknown dependsOn pointing at the innermost layer of a deep pipe()", () => {
+    const stepA = sqlStep({ id: "layer-a", query: "SELECT _op, _key FROM input" });
+    const stepB = sqlStep({ id: "layer-b", query: "SELECT _op, _key FROM input" });
+    const deep = pipe(pipe("db/users", stepA), stepB);
+
+    // @ts-expect-error -- "layre-a" is a typo; only "layer-a" and "layer-b" exist
+    pipelines([
+      {
+        source: "users",
+        pipeline: pipe(deep, sqlStep({ id: "layer-c", query: "SELECT _op, _key FROM input", dependsOn: ["layre-a"] })),
       },
     ] as const);
   });

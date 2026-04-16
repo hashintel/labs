@@ -1,5 +1,5 @@
 import { quotedIdentifier as qi } from "@duckdb/node-api";
-import type { Batch, StreamConnector } from "./connector/types.js";
+import type { Batch, ChangeEvent, Connector, StreamConnector } from "./connector/types.js";
 import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
 import type { Pipeline, Step, TablePipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
@@ -7,10 +7,16 @@ import { validatePipeline, runPipeline } from "./transform/run.js";
 import { sortPipelines } from "./transform/topology.js";
 import type { GraphClient } from "./graph/types.js";
 import { processGraphSink, archiveDeletes, diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./graph/sink.js";
-import { createLogger, type LogLevel } from "./log.js";
+import { createLogger, type LogLevel, type Logger } from "./log.js";
 
 export type { TablePipeline };
 
+/**
+ * `graphClient` required iff any pipeline has a `graph-sink`.
+ * `transforms` required iff any `fnStep.transform` is a string name.
+ * `syncIntervalMs` loops batch-mode `run()`; omit for one-shot.
+ * `connectorFactory` is a test seam -- source-declaration checks still run against `spec.connector`.
+ */
 export type IntegrationSpec = {
   connector: ConnectorDef;
   pipelines: TablePipeline[];
@@ -21,8 +27,10 @@ export type IntegrationSpec = {
   validate?: boolean;
   logLevel?: LogLevel;
   syncIntervalMs?: number;
+  connectorFactory?: (def: ConnectorDef, log?: Logger) => Connector;
 };
 
+/** `sync()` is batch-only (throws on streaming). `run()` subscribes (stream) or syncs once/loops (batch). */
 export type Integration = {
   run(): Promise<void>;
   stop(): Promise<void>;
@@ -31,9 +39,11 @@ export type Integration = {
 
 export { type SyncResult, type SyncError, emptySyncResult, mergeSyncResults };
 
+/** Validates topology, source/connector alignment, and `pipe()` paths up front. */
 export function integrate(spec: IntegrationSpec): Integration {
   const { eventStore, queryStore } = spec;
   const log = createLogger("engine", spec.logLevel ?? "info");
+  const buildConnector = spec.connectorFactory ?? createConnector;
   let stopped = false;
 
   const topo = sortPipelines(spec.pipelines);
@@ -73,7 +83,7 @@ export function integrate(spec: IntegrationSpec): Integration {
     const start = Date.now();
     let totals = emptySyncResult();
 
-    const connector = createConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
+    const connector = buildConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
     if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
 
     log.info(`sync: connector "${connector.id}" sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
@@ -96,14 +106,23 @@ export function integrate(spec: IntegrationSpec): Integration {
           });
 
           if (pageCount === 0) {
-            log.debug(`"${source}" is empty`);
+            const archiveOnEmpty = isArchiveOnEmpty(spec.connector, source);
+            log.debug(`"${source}" is empty (partial=${partial}, archiveOnEmpty=${archiveOnEmpty})`);
             for (const step of pipeline.steps) {
-              if (step.kind === "graph-sink" && spec.graphClient) {
-                totals = mergeSyncResults(
-                  totals,
-                  await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLogForSource, partial),
+              if (step.kind !== "graph-sink" || !spec.graphClient) continue;
+              // Zero-page pulls are usually transient source failures. Skip
+              // archival unless the user opted in via `archiveOnEmpty` or the
+              // source is partial (in which case diffAndSync preserves state).
+              if (!partial && !archiveOnEmpty && await stateExists(queryStore, connector.id, step.id)) {
+                sinkLogForSource.warn(
+                  `"${source}": zero pages but prior state exists for sink "${step.id}"; skipping archival. Set archiveOnEmpty: true on the source config to opt into drain-on-empty.`,
                 );
+                continue;
               }
+              totals = mergeSyncResults(
+                totals,
+                await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLogForSource, partial),
+              );
             }
             continue;
           }
@@ -151,7 +170,7 @@ export function integrate(spec: IntegrationSpec): Integration {
     sync: doSync,
 
     async run() {
-      const probe = createConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
+      const probe = buildConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
       const mode = probe.mode;
       log.info(`connector "${probe.id}" mode=${mode} sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
 
@@ -220,11 +239,13 @@ export function integrate(spec: IntegrationSpec): Integration {
         validated: { done: boolean },
         connector: StreamConnector,
       ): Promise<{ nextSeq: number }> {
-        const relevant = batch.events.filter((e) => e.table === table);
-        if (relevant.length === 0) return { nextSeq: seq };
-
-        const deletes = relevant.filter((e) => e.op === "delete");
-        const writes = relevant.filter((e) => e.op !== "delete");
+        const deletes: ChangeEvent[] = [];
+        const writes: ChangeEvent[] = [];
+        for (const e of batch.events) {
+          if (e.table !== table) continue;
+          (e.op === "delete" ? deletes : writes).push(e);
+        }
+        if (deletes.length === 0 && writes.length === 0) return { nextSeq: seq };
         const sinkLogForSource = sinkLog.child({ source: table });
 
         if (deletes.length > 0 && spec.graphClient) {
@@ -313,6 +334,24 @@ function isPartialSource(def: ConnectorDef, source: string): boolean {
     case "rest-api": return def.endpoints[source]?.partial ?? false;
     case "cdc":
     case "mongo-stream": return false;
+  }
+}
+
+function isArchiveOnEmpty(def: ConnectorDef, source: string): boolean {
+  switch (def.mode) {
+    case "batch":    return def.tables[source]?.archiveOnEmpty ?? false;
+    case "rest-api": return def.endpoints[source]?.archiveOnEmpty ?? false;
+    case "cdc":
+    case "mongo-stream": return false;
+  }
+}
+
+async function stateExists(db: QueryableStore, connectorId: string, sinkId: string): Promise<boolean> {
+  try {
+    await db.schemaOf(`_state/sync/${connectorId}/${sinkId}`);
+    return true;
+  } catch {
+    return false;
   }
 }
 

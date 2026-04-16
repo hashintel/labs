@@ -30,7 +30,7 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-export function buildProvenance(config: GraphSinkConfig): SourceProvenance {
+function buildProvenance(config: GraphSinkConfig): SourceProvenance {
   return {
     type: "integration",
     location: config.provenance?.location,
@@ -39,14 +39,17 @@ export function buildProvenance(config: GraphSinkConfig): SourceProvenance {
   };
 }
 
-export function rowToGraphOp(row: Row & Envelope, config: GraphSinkConfig, provenance: SourceProvenance): GraphOp {
+/** Upsert-only. Deletes are handled out-of-band (engine splits stream deletes to `archiveDeletes`; `diffAndSync` archives by id). */
+export function rowToGraphOp(
+  row: Row & Envelope,
+  config: GraphSinkConfig,
+  provenance: SourceProvenance,
+): Extract<GraphOp, { kind: "upsert" }> {
   const { _op, _key, _before: rawBefore, ...data } = row;
+  void _key;
 
   if (_op === "delete") {
-    const key: Record<string, unknown> = typeof _key === "string" ? JSON.parse(_key) : {};
-    const nonNull = Object.fromEntries(Object.entries(data).filter(([, v]) => v != null));
-    const entityId = resolve(config.entityId, { ...key, ...nonNull });
-    return { kind: "archive", entityType: config.entityType, entityId, provenance, webId: config.webId };
+    throw new Error(`rowToGraphOp: _op="delete" reached the pipeline (deletes must bypass it)`);
   }
 
   const entityId = resolve(config.entityId, data);
@@ -115,7 +118,7 @@ export async function processGraphSink(
   const items = [...latest.values()];
 
   await parallel(items, DEFAULT_CONCURRENCY, async (row) => {
-    let op: GraphOp;
+    let op: Extract<GraphOp, { kind: "upsert" }>;
     try {
       op = rowToGraphOp(row, config, provenance);
     } catch (err) {
@@ -125,17 +128,12 @@ export async function processGraphSink(
       return;
     }
     try {
-      if (op.kind === "upsert") {
-        log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}${op.staleLinks.length ? ` stale=${op.staleLinks.length}` : ""}`);
-        await client.upsertEntity(op);
-        syncedIds.push(String(op.entityId));
-      } else {
-        log?.info(`archive ${typeSlug(op.entityType)} id=${String(op.entityId)}`);
-        await client.archiveEntity(op);
-      }
+      log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}${op.staleLinks.length ? ` stale=${op.staleLinks.length}` : ""}`);
+      await client.upsertEntity(op);
+      syncedIds.push(String(op.entityId));
     } catch (err) {
-      errors.push(syncError(op.kind, op.entityType, op.entityId, err));
-      log?.error(`${op.kind} failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(err)}`);
+      errors.push(syncError("upsert", op.entityType, op.entityId, err));
+      log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(err)}`);
     }
   });
 
@@ -184,6 +182,20 @@ function syncError(kind: SyncError["kind"], entityType: string, entityId: unknow
   return { kind, entityType, entityId: String(entityId), message: err instanceof Error ? err.message : String(err) };
 }
 
+function escLiteral(s: string): string {
+  return `'${s.replace(/'/g, "''")}'`;
+}
+
+function inList(ids: readonly string[]): string {
+  return ids.map(escLiteral).join(",");
+}
+
+const LK_PREFIX = "_lk_";
+
+function lkCol(column: string): string {
+  return qi(LK_PREFIX + column);
+}
+
 export async function diffAndSync(
   sinkId: string,
   config: GraphSinkConfig,
@@ -203,7 +215,7 @@ export async function diffAndSync(
   if (!entityIdCol) throw new Error("diffAndSync requires a string entityId accessor");
 
   const linkCols = (config.links ?? []).map((l) => l.column);
-  const linkColsSql = linkCols.map((c) => `${qi(c)}::VARCHAR AS ${qi("_lk_" + c)}`).join(", ");
+  const linkColsSql = linkCols.map((c) => `${qi(c)}::VARCHAR AS ${lkCol(c)}`).join(", ");
   const linkColsSelect = linkCols.length > 0 ? `, ${linkColsSql}` : "";
 
   if (inputTable) {
@@ -212,7 +224,7 @@ export async function diffAndSync(
       FROM (SELECT * EXCLUDE (${qi("_op")}, ${qi("_key")}, ${qi("_before")}) FROM ${qi(inputTable)}) data`);
     await assertUniqueEntityIds(db, currentTable, sinkId, entityIdCol);
   } else {
-    const linkColDefs = linkCols.map((c) => `${qi("_lk_" + c)} VARCHAR`).join(", ");
+    const linkColDefs = linkCols.map((c) => `${lkCol(c)} VARCHAR`).join(", ");
     await db.exec(`CREATE OR REPLACE TABLE ${currentTable} (_entity_id VARCHAR, _content_hash VARCHAR${linkColDefs ? ", " + linkColDefs : ""})`);
   }
 
@@ -242,23 +254,31 @@ export async function diffAndSync(
     deletes = [];
     unchanged = 0;
   } else {
-    const { rows: ins } = await db.query(
-      `SELECT c._entity_id FROM ${currentTable} c LEFT JOIN ${stateTable} p ON c._entity_id = p._entity_id WHERE p._entity_id IS NULL`,
-    );
-    const { rows: upd } = await db.query(
-      `SELECT c._entity_id FROM ${currentTable} c JOIN ${stateTable} p ON c._entity_id = p._entity_id WHERE c._content_hash != p._content_hash`,
-    );
-    const { rows: del } = await db.query(
-      `SELECT p._entity_id FROM ${stateTable} p LEFT JOIN ${currentTable} c ON p._entity_id = c._entity_id WHERE c._entity_id IS NULL`,
-    );
-    const { rows: [{ cnt }] } = await db.query(
-      `SELECT COUNT(*) AS cnt FROM ${currentTable} c JOIN ${stateTable} p ON c._entity_id = p._entity_id WHERE c._content_hash = p._content_hash`,
+    const { rows } = await db.query(
+      `SELECT
+         COALESCE(c._entity_id, p._entity_id) AS _entity_id,
+         CASE
+           WHEN p._entity_id IS NULL THEN 'insert'
+           WHEN c._entity_id IS NULL THEN 'delete'
+           WHEN c._content_hash = p._content_hash THEN 'unchanged'
+           ELSE 'update'
+         END AS op
+       FROM ${currentTable} c
+       FULL OUTER JOIN ${stateTable} p ON c._entity_id = p._entity_id`,
     );
 
-    inserts = ins.map((r) => r._entity_id as string);
-    updates = upd.map((r) => r._entity_id as string);
-    deletes = del.map((r) => r._entity_id as string);
-    unchanged = Number(cnt);
+    inserts = [];
+    updates = [];
+    deletes = [];
+    unchanged = 0;
+    for (const r of rows) {
+      switch (r.op) {
+        case "insert":    inserts.push(r._entity_id as string); break;
+        case "update":    updates.push(r._entity_id as string); break;
+        case "delete":    deletes.push(r._entity_id as string); break;
+        case "unchanged": unchanged++; break;
+      }
+    }
   }
 
   const failedIds = new Set<string>();
@@ -266,12 +286,12 @@ export async function diffAndSync(
 
   const changedIds = [...inserts, ...updates];
   if (changedIds.length > 0 && inputTable) {
-    const idList = changedIds.map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+    const idList = inList(changedIds);
     const { rows } = await db.query(
       `SELECT * FROM ${qi(inputTable)} WHERE CAST(${qi(entityIdCol)} AS VARCHAR) IN (${idList})`,
     );
     await parallel(rows, DEFAULT_CONCURRENCY, async (row) => {
-      let op: GraphOp;
+      let op: Extract<GraphOp, { kind: "upsert" }>;
       try {
         op = rowToGraphOp(row as Row & Envelope, config, provenance);
       } catch (err) {
@@ -281,7 +301,6 @@ export async function diffAndSync(
         log?.error(`row-build failed for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
         return;
       }
-      if (op.kind !== "upsert") return;
       try {
         log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}`);
         await client.upsertEntity(op);
@@ -293,32 +312,34 @@ export async function diffAndSync(
     });
   }
 
-  if (updates.length > 0 && hasPrevious && linkCols.length > 0) {
-    const updList = updates.map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
-    for (const l of config.links ?? []) {
-      const lkCol = qi("_lk_" + l.column);
-      const { rows: changed } = await db.query(
-        `SELECT p._entity_id, p.${lkCol} AS old_val, c.${lkCol} AS new_val
-         FROM ${stateTable} p JOIN ${currentTable} c ON p._entity_id = c._entity_id
-         WHERE p._entity_id IN (${updList}) AND p.${lkCol} IS NOT NULL AND p.${lkCol} != c.${lkCol}`,
-      );
-      for (const row of changed) {
-        log?.info(`archive stale link ${typeSlug(l.linkType)} ${row._entity_id} -> ${String(row.old_val)}`);
-        const staleLinkId = `${row._entity_id}::${String(row.old_val)}`;
-        try {
-          await client.archiveEntity({
-            kind: "archive",
-            entityType: l.linkType,
-            entityId: staleLinkId,
-            provenance,
-            webId: config.webId,
-          });
-        } catch (err) {
-          errors.push(syncError("stale-link", l.linkType, staleLinkId, err));
-          log?.error(`stale-link archive failed for ${typeSlug(l.linkType)}/${staleLinkId}: ${errMsg(err)}`);
-        }
+  if (updates.length > 0 && hasPrevious && linkCols.length > 0 && config.links) {
+    const updList = inList(updates);
+    const stalePerLink = config.links.map((l) => {
+      const lk = lkCol(l.column);
+      return `SELECT p._entity_id, ${escLiteral(l.column)} AS col, p.${lk} AS old_val
+              FROM ${stateTable} p JOIN ${currentTable} c ON p._entity_id = c._entity_id
+              WHERE p._entity_id IN (${updList}) AND p.${lk} IS NOT NULL AND p.${lk} != c.${lk}`;
+    }).join(" UNION ALL ");
+    const { rows: stale } = await db.query(stalePerLink);
+
+    const linkByCol = new Map(config.links.map((l) => [l.column, l]));
+    await parallel(stale, DEFAULT_CONCURRENCY, async (row) => {
+      const l = linkByCol.get(row.col as string)!;
+      const staleLinkId = `${row._entity_id}::${String(row.old_val)}`;
+      log?.info(`archive stale link ${typeSlug(l.linkType)} ${row._entity_id} -> ${String(row.old_val)}`);
+      try {
+        await client.archiveEntity({
+          kind: "archive",
+          entityType: l.linkType,
+          entityId: staleLinkId,
+          provenance,
+          webId: config.webId,
+        });
+      } catch (err) {
+        errors.push(syncError("stale-link", l.linkType, staleLinkId, err));
+        log?.error(`stale-link archive failed for ${typeSlug(l.linkType)}/${staleLinkId}: ${errMsg(err)}`);
       }
-    }
+    });
   }
 
   await parallel(deletes, DEFAULT_CONCURRENCY, async (entityId) => {
@@ -340,7 +361,7 @@ export async function diffAndSync(
 
   // Keep old state for failed ids so the next sync detects them as changed and retries.
   if (failedIds.size > 0) {
-    const failedIdsSql = [...failedIds].map((id) => `'${id.replace(/'/g, "''")}'`).join(",");
+    const failedIdsSql = inList([...failedIds]);
     await db.exec(`DELETE FROM ${currentTable} WHERE _entity_id IN (${failedIdsSql})`);
     if (hasPrevious) {
       await db.exec(`INSERT INTO ${currentTable} SELECT * FROM ${stateTable} WHERE _entity_id IN (${failedIdsSql})`);
@@ -356,9 +377,12 @@ export async function diffAndSync(
   return { inserts: inserts.length, updates: updates.length, deletes: deletes.length, unchanged, errors, durationMs };
 }
 
+/** Composite keys join alphabetically-sorted values with `::`. Sinks on composite-PK sources must build their `entityId` accessor the same way. */
 function entityIdFromKey(key: Record<string, unknown>): unknown {
-  const vals = Object.values(key);
-  return vals.length === 1 ? vals[0] : vals.join("::");
+  const names = Object.keys(key);
+  if (names.length === 1) return key[names[0]];
+  names.sort();
+  return names.map((n) => String(key[n])).join("::");
 }
 
 async function assertUniqueEntityIds(
