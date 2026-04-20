@@ -1,3 +1,4 @@
+import pg from "pg";
 import {
   LogicalReplicationService,
   Pgoutput,
@@ -49,6 +50,19 @@ function toChangeEvent(
   };
 }
 
+async function releaseStaleSlotHolder(url: string, slot: string): Promise<void> {
+  const client = new pg.Client({ connectionString: url });
+  await client.connect();
+  try {
+    await client.query(
+      `SELECT pg_terminate_backend(active_pid) FROM pg_replication_slots WHERE slot_name = $1 AND active`,
+      [slot],
+    );
+  } finally {
+    await client.end();
+  }
+}
+
 export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector {
   const connParams = parsePostgresUrl(config.url);
   const keyExtractors = new Map<string, KeyExtractor>();
@@ -67,6 +81,7 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
       handlers.set(table, onBatch);
 
       if (!service) {
+        await releaseStaleSlotHolder(config.url, config.slot);
         service = new LogicalReplicationService(connParams, { acknowledge: { auto: false, timeoutSeconds: 0 } });
         let lsn = (cursor as string) ?? "0/0";
         let events: ChangeEvent[] = [];

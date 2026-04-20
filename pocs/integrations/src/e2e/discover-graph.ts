@@ -44,7 +44,7 @@ if (customTypes.length === 0) {
 const typeBaseUrls = [...new Set(
   customTypes.map((et) => et.schema.$id.match(/^(.+?)\/entity-type\//)?.[1]).filter((b): b is string => b != null),
 )];
-const typeBase = (webArg && typeBaseUrls.find((b) => b.includes(`@${webArg}/`))) ?? typeBaseUrls[0];
+const domain = typeBaseUrls[0]?.match(/^(https?:\/\/[^/]+)/)?.[1] ?? "https://hash.ai";
 
 type Entity = {
   metadata: {
@@ -100,6 +100,13 @@ if (webArg) {
 const selectedActorId = webOwner.get(webId) ?? actorId;
 
 const selectedNames = webShortnames.get(webId);
+const shortname = webArg ?? [...(selectedNames ?? [])][0];
+if (!shortname) {
+  console.error(`\n[discover] selected web has no shortname; pass --web <shortname>`);
+  process.exit(1);
+}
+const typeBase = `${domain}/@${shortname}/types`;
+
 console.error(`\n[discover] selected web: ${webId}${selectedNames ? ` (${[...selectedNames].join(", ")})` : ""}`);
 console.error(`[discover] actor for web: ${selectedActorId}`);
 console.error(`[discover] type base: ${typeBase}`);
