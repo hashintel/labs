@@ -4,6 +4,15 @@ import { META_COLUMNS, type QueryableStore } from "./types.js";
 
 type TableSchema = { dataColumns: string[]; kinds: Map<string, FieldKind> };
 
+const META_LIST = [META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before] as const;
+const META_SET: ReadonlySet<string> = new Set(META_LIST);
+
+function columnType(col: string, kinds: Map<string, FieldKind>): "VARCHAR" | "JSON" {
+  if (col === META_COLUMNS.op || col === META_COLUMNS.key) return "VARCHAR";
+  if (col === META_COLUMNS.before) return "JSON";
+  return kinds.get(col) === "json" ? "JSON" : "VARCHAR";
+}
+
 export async function createDuckDbQueryStore(path?: string): Promise<QueryableStore> {
   const instance = await DuckDBInstance.create(path ?? ":memory:");
   const conn = await instance.connect();
@@ -32,15 +41,42 @@ export async function createDuckDbQueryStore(path?: string): Promise<QueryableSt
     return `${connectorId}/${table}`;
   }
 
-  async function ensureTable(key: string, dataColumns: string[], kinds: Map<string, FieldKind>): Promise<void> {
-    const allColumns = [META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before, ...dataColumns];
-    const colDefs = allColumns.map((c) => {
-      if (c === META_COLUMNS.op || c === META_COLUMNS.key) return `${qi(c)} VARCHAR`;
-      if (c === META_COLUMNS.before) return `${qi(c)} JSON`;
-      return `${qi(c)} ${kinds.get(c) === "json" ? "JSON" : "VARCHAR"}`;
-    }).join(", ");
-    await conn.run(`CREATE TABLE IF NOT EXISTS ${qi(key)} (${colDefs})`);
-    schemas.set(key, { dataColumns, kinds });
+  async function readDataColumns(key: string): Promise<string[] | null> {
+    try {
+      const reader = await conn.runAndReadAll(`DESCRIBE ${qi(key)}`);
+      const rows = reader.getRowObjectsJson() as Array<{ column_name: string }>;
+      return rows.map((r) => r.column_name).filter((c) => !META_SET.has(c));
+    } catch {
+      return null;
+    }
+  }
+
+  // Pushout in Sch: table columns = existing ∪ incoming. ADD COLUMN fills prior rows with NULL;
+  // columns absent from `incoming` are never dropped (narrower batches write NULL for them).
+  async function ensureTable(key: string, incoming: string[], incomingKinds: Map<string, FieldKind>): Promise<void> {
+    const existing = await readDataColumns(key);
+
+    if (existing === null) {
+      const allCols = [...META_LIST, ...incoming];
+      const colDefs = allCols.map((c) => `${qi(c)} ${columnType(c, incomingKinds)}`).join(", ");
+      await conn.run(`CREATE TABLE ${qi(key)} (${colDefs})`);
+      schemas.set(key, { dataColumns: [...incoming], kinds: new Map(incomingKinds) });
+      return;
+    }
+
+    const existingKinds = schemas.get(key)?.kinds ?? new Map<string, FieldKind>();
+    const mergedKinds = new Map(existingKinds);
+    for (const [col, kind] of incomingKinds) {
+      if (!mergedKinds.has(col)) mergedKinds.set(col, kind);
+    }
+
+    const existingSet = new Set(existing);
+    const additions = incoming.filter((c) => !existingSet.has(c));
+    for (const col of additions) {
+      await conn.run(`ALTER TABLE ${qi(key)} ADD COLUMN ${qi(col)} ${columnType(col, mergedKinds)}`);
+    }
+
+    schemas.set(key, { dataColumns: [...existing, ...additions], kinds: mergedKinds });
   }
 
   return {
@@ -62,8 +98,9 @@ export async function createDuckDbQueryStore(path?: string): Promise<QueryableSt
       }
 
       const { dataColumns, kinds } = schemas.get(key)!;
-      const width = 3 + dataColumns.length; // _op, _key, _before + data
-      const nullsForRow = dataColumns.map(() => null);
+      const allCols = [...META_LIST, ...dataColumns];
+      const width = allCols.length;
+      const columnList = allCols.map(qi).join(", ");
       const qiKey = qi(key);
 
       const ROWS_PER_INSERT = 500;
@@ -82,17 +119,13 @@ export async function createDuckDbQueryStore(path?: string): Promise<QueryableSt
           params[base] = ev.op;
           params[base + 1] = JSON.stringify(ev.key);
           params[base + 2] = ev.before ? JSON.stringify(ev.before) : null;
-          if (ev.row) {
-            for (let c = 0; c < dataColumns.length; c++) {
-              const col = dataColumns[c];
-              params[base + 3 + c] = serializeValue(ev.row[col], kinds.get(col) ?? "scalar");
-            }
-          } else {
-            for (let c = 0; c < dataColumns.length; c++) params[base + 3 + c] = nullsForRow[c];
+          for (let c = 0; c < dataColumns.length; c++) {
+            const col = dataColumns[c];
+            params[base + 3 + c] = ev.row ? serializeValue(ev.row[col], kinds.get(col) ?? "scalar") : null;
           }
         }
 
-        await conn.run(`INSERT INTO ${qiKey} VALUES ${rowPlaceholders.join(", ")}`, params);
+        await conn.run(`INSERT INTO ${qiKey} (${columnList}) VALUES ${rowPlaceholders.join(", ")}`, params);
       }
     },
 

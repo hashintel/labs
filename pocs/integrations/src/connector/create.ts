@@ -16,7 +16,6 @@ export type ConnectorDef = { id: string } & (
   | { mode: "mongo-stream"; url: string; database: string; collections: Record<string, TableConfig> }
 );
 
-/** `log` is passed to connectors that emit request-level logs (currently: `rest-api`). */
 export function createConnector(def: ConnectorDef, log?: Logger): Connector {
   switch (def.mode) {
     case "batch":
@@ -27,19 +26,14 @@ export function createConnector(def: ConnectorDef, log?: Logger): Connector {
         log,
       );
     case "cdc":
-      return createPostgresCdcConnector({
-        id: def.id,
-        url: def.url,
-        publication: def.publication,
-        slot: def.slot,
-        tables: def.tables,
-      });
+      return createPostgresCdcConnector(
+        { id: def.id, url: def.url, publication: def.publication, slot: def.slot, tables: def.tables },
+        log,
+      );
     case "mongo-stream":
-      return createMongoStreamConnector({
-        id: def.id,
-        url: def.url,
-        database: def.database,
-        collections: def.collections,
-      });
+      return createMongoStreamConnector(
+        { id: def.id, url: def.url, database: def.database, collections: def.collections },
+        log,
+      );
   }
 }

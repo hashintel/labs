@@ -1,6 +1,7 @@
 import { MongoClient, type ChangeStream, type ChangeStreamDocument, type ChangeStreamInsertDocument, type ChangeStreamUpdateDocument, type ChangeStreamReplaceDocument, type ChangeStreamDeleteDocument, type Document, type ResumeToken } from "mongodb";
 import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig } from "./types.js";
 import { compileKeyExtractor } from "./types.js";
+import type { Logger } from "../log.js";
 
 export type MongoStreamConfig = {
   id: string;
@@ -52,7 +53,7 @@ function toChangeEvent(change: DmlChange, keyFrom: KeyExtractor): ChangeEvent {
   return { table: coll, op, key: keyFrom(row), row };
 }
 
-export function createMongoStreamConnector(config: MongoStreamConfig): Connector {
+export function createMongoStreamConnector(config: MongoStreamConfig, log?: Logger): Connector {
   const client = new MongoClient(config.url);
   const db = client.db(config.database);
 
@@ -81,7 +82,7 @@ export function createMongoStreamConnector(config: MongoStreamConfig): Connector
           }
         } catch (err) {
           // Without this catch the subscription dies silently on iterator/onBatch throw.
-          console.error(`[mongo-stream ${collection}] subscription ended with error:`, err);
+          log?.error(`mongo-stream "${collection}" subscription ended: ${err instanceof Error ? err.message : String(err)}`);
         }
       })();
 

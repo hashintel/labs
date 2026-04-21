@@ -46,7 +46,6 @@ export function rowToGraphOp(
   provenance: SourceProvenance,
 ): Extract<GraphOp, { kind: "upsert" }> {
   const { _op, _key, _before: rawBefore, ...data } = row;
-  void _key;
 
   if (_op === "delete") {
     throw new Error(`rowToGraphOp: _op="delete" reached the pipeline (deletes must bypass it)`);
@@ -173,7 +172,7 @@ export function mergeSyncResults(a: SyncResult, b: SyncResult): SyncResult {
     updates: a.updates + b.updates,
     deletes: a.deletes + b.deletes,
     unchanged: a.unchanged + b.unchanged,
-    errors: a.errors.length === 0 ? b.errors : b.errors.length === 0 ? a.errors : [...a.errors, ...b.errors],
+    errors: [...a.errors, ...b.errors],
     durationMs: a.durationMs + b.durationMs,
   };
 }

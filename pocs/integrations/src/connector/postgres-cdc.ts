@@ -6,6 +6,7 @@ import {
 } from "pg-logical-replication";
 import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig } from "./types.js";
 import { compileKeyExtractor } from "./types.js";
+import type { Logger } from "../log.js";
 
 export type PostgresCdcConfig = {
   id: string;
@@ -63,7 +64,7 @@ async function releaseStaleSlotHolder(url: string, slot: string): Promise<void> 
   }
 }
 
-export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector {
+export function createPostgresCdcConnector(config: PostgresCdcConfig, log?: Logger): Connector {
   const connParams = parsePostgresUrl(config.url);
   const keyExtractors = new Map<string, KeyExtractor>();
   for (const [name, tc] of Object.entries(config.tables)) {
@@ -122,7 +123,7 @@ export function createPostgresCdcConnector(config: PostgresCdcConfig): Connector
         });
 
         service.on("error", (err: Error) => {
-          console.error("CDC stream error:", err);
+          log?.error(`cdc stream error: ${err.message}`);
         });
 
         const plugin = new PgoutputPlugin({ protoVersion: 1, publicationNames: [config.publication] });

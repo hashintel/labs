@@ -92,6 +92,68 @@ describe("materialize", () => {
   });
 });
 
+describe("schema widening (pushout in Sch)", () => {
+  it("adds new columns on a later batch, preserving prior rows as NULL for new fields", async () => {
+    db = await createDuckDbQueryStore();
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 1 }, { id: "1", email: "a@b.com" }),
+    ]);
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 2 }, { id: "2", email: "c@d.com", phone: "555" }),
+    ]);
+
+    const { rows } = await db.query(`SELECT id, email, phone FROM "t/docs" ORDER BY id`);
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].phone, null);
+    assert.equal(rows[1].phone, "555");
+    assert.equal(rows[0].email, "a@b.com");
+    assert.equal(rows[1].email, "c@d.com");
+  });
+
+  it("accepts a later batch that drops a column (existing rows keep their value; new rows get NULL)", async () => {
+    db = await createDuckDbQueryStore();
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 1 }, { id: "1", email: "a@b.com", phone: "555" }),
+    ]);
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 2 }, { id: "2", email: "c@d.com" }),
+    ]);
+
+    const { rows } = await db.query(`SELECT id, phone FROM "t/docs" ORDER BY id`);
+    assert.equal(rows[0].phone, "555");
+    assert.equal(rows[1].phone, null);
+  });
+
+  it("is immune to Object.keys reorder between batches (no silent column swap)", async () => {
+    db = await createDuckDbQueryStore();
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 1 }, { a: "A1", b: "B1", c: "C1" }),
+    ]);
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 2 }, { c: "C2", a: "A2", b: "B2" }),
+    ]);
+
+    const { rows } = await db.query(`SELECT a, b, c FROM "t/docs" ORDER BY a`);
+    assert.deepEqual([rows[0].a, rows[0].b, rows[0].c], ["A1", "B1", "C1"]);
+    assert.deepEqual([rows[1].a, rows[1].b, rows[1].c], ["A2", "B2", "C2"]);
+  });
+
+  it("first row of a batch fixes the schema; a later batch's new key widens the table", async () => {
+    db = await createDuckDbQueryStore();
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 1 }, { id: "1", a: "A" }),
+      ev("docs", "insert", { id: 2 }, { id: "2", b: "B" }),
+    ]);
+    await db.materialize("t", "docs", [
+      ev("docs", "insert", { id: 3 }, { id: "3", b: "B3" }),
+    ]);
+    const { rows } = await db.query(`SELECT id, a, b FROM "t/docs" ORDER BY id`);
+    assert.equal(rows[0].a, "A");
+    assert.equal(rows[1].a, null);
+    assert.equal(rows[2].b, "B3");
+  });
+});
+
 describe("query", () => {
   it("returns column names alongside rows", async () => {
     db = await createDuckDbQueryStore();
