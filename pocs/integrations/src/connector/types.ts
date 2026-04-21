@@ -1,4 +1,5 @@
 import type { QueryableStore } from "../staging/types.js";
+import type { Storage } from "../storage/types.js";
 import type { Logger } from "../log.js";
 
 export type ChangeOp = "insert" | "update" | "delete" | "upsert" | "snapshot";
@@ -52,6 +53,7 @@ export type HydrateContext = {
   readonly source: string;
   readonly stagingTable: string;
   readonly store: QueryableStore;
+  readonly storage: Storage;
   readonly log: Logger;
 };
 

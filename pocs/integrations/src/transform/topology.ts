@@ -38,6 +38,7 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
   }
 
   const stepIndex = new Map<string, { pipelineIdx: number; step: Step }>();
+  const checkpointNames = new Map<string, { pipelineIdx: number; stepId: string }>();
   for (let i = 0; i < pipelines.length; i++) {
     for (const step of steps[i]) {
       const prev = stepIndex.get(step.id);
@@ -47,6 +48,15 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
         );
       }
       stepIndex.set(step.id, { pipelineIdx: i, step });
+      if (step.kind === "checkpoint") {
+        const existing = checkpointNames.get(step.name);
+        if (existing) {
+          throw new TopologyError(
+            `Duplicate checkpoint name "${step.name}" produced by steps "${existing.stepId}" (pipeline "${pipelines[existing.pipelineIdx].source}") and "${step.id}" (pipeline "${pipelines[i].source}").`,
+          );
+        }
+        checkpointNames.set(step.name, { pipelineIdx: i, stepId: step.id });
+      }
     }
   }
 

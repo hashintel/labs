@@ -112,6 +112,23 @@ describe("pipe + runPipeline", () => {
     assert.equal(rows.length, 2);
   });
 
+  it("fn step filtering to zero rows preserves meta columns for downstream SQL", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+
+    const out = await runPipeline(pipe("test/users",
+      fnStep({ id: "drop-all", transform: () => [] }),
+      sqlStep({ id: "downstream", query: `SELECT _op, _key, _before, email FROM input` }),
+    ), db);
+
+    const { rows } = await db.query(`SELECT * FROM "${out}"`);
+    assert.equal(rows.length, 0);
+    const cols = await db.schemaOf(out);
+    for (const c of [META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before, "email"]) {
+      assert.ok(cols.includes(c), `expected column "${c}" on empty downstream output`);
+    }
+  });
+
   it("fn step that drops _op/_key throws", async () => {
     db = await createDuckDbQueryStore();
     await seedUsers(db);

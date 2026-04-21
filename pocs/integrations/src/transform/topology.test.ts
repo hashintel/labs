@@ -6,6 +6,7 @@ import {
   sqlStep,
   graphSinkStep,
   branch,
+  checkpoint,
   namespace,
   type TablePipeline,
 } from "./pipeline.js";
@@ -115,6 +116,16 @@ describe("sortPipelines", () => {
     ];
     assert.throws(() => sortPipelines(pipelines), (err: Error) =>
       err instanceof TopologyError && err.message.includes("Duplicate step"),
+    );
+  });
+
+  it("throws on duplicate checkpoint names across pipelines", () => {
+    const pipelines: TablePipeline[] = [
+      { source: "a", pipeline: pipe("src/a", checkpoint({ id: "cp-a", name: "shared" })) },
+      { source: "b", pipeline: pipe("src/b", checkpoint({ id: "cp-b", name: "shared" })) },
+    ];
+    assert.throws(() => sortPipelines(pipelines), (err: Error) =>
+      err instanceof TopologyError && err.message.includes(`Duplicate checkpoint name "shared"`),
     );
   });
 

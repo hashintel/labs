@@ -2,6 +2,7 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { BatchConnector, HydrateContext, HydrateResult } from "./types.js";
 import { pkColumns } from "./types.js";
 import { META_COLUMNS } from "../staging/types.js";
+import { checkpointKey } from "../transform/checkpoint.js";
 
 const META_SET: ReadonlySet<string> = new Set([META_COLUMNS.op, META_COLUMNS.key, META_COLUMNS.before]);
 
@@ -67,13 +68,36 @@ export type DuckdbSqlSource = SourceCommon & {
   sql: string;
 };
 
+/** Caller-provided hydrator. Responsible for populating `ctx.stagingTable` with meta + data columns. */
+export type DuckdbFnSource = SourceCommon & {
+  kind: "fn";
+  hydrate: (ctx: HydrateContext) => Promise<HydrateResult>;
+};
+
+/** Reads a Parquet file produced by a `checkpoint` step in another pipeline. */
+export type DuckdbCheckpointSource = {
+  kind: "checkpoint";
+  name: string;
+  partial?: boolean;
+  archiveOnEmpty?: boolean;
+};
+
+/** Reads a plain Parquet written by any external tool and wraps it with snapshot meta columns. */
+export type DuckdbExternalSource = SourceCommon & {
+  kind: "external";
+  key: string;
+};
+
 export type DuckdbSource =
   | DuckdbCsvSource
   | DuckdbParquetSource
   | DuckdbJsonSource
   | DuckdbXlsxSource
   | DuckdbAttachSource
-  | DuckdbSqlSource;
+  | DuckdbSqlSource
+  | DuckdbFnSource
+  | DuckdbCheckpointSource
+  | DuckdbExternalSource;
 
 export type DuckdbBatchConfig = {
   id: string;
@@ -106,6 +130,10 @@ export function createDuckdbBatchConnector(config: DuckdbBatchConfig): BatchConn
       const spec = config.sources[ctx.source];
       if (!spec) throw new Error(`Unknown source "${ctx.source}" on connector "${config.id}"`);
 
+      if (spec.kind === "fn") return await spec.hydrate(ctx);
+      if (spec.kind === "checkpoint") return await readCheckpoint(ctx, spec.name);
+      if (spec.kind === "external") return await readExternal(ctx, spec);
+
       if (spec.kind === "xlsx") await ensureExtension(ctx, "excel");
       if (spec.kind === "attach") await ensureExtension(ctx, spec.type);
 
@@ -130,43 +158,71 @@ export function createDuckdbBatchConnector(config: DuckdbBatchConfig): BatchConn
 
     async close() {},
   };
+}
 
-  async function writeSnapshot(
-    ctx: HydrateContext,
-    qTable: string,
-    readExpr: string,
-    pk: string[],
-  ): Promise<HydrateResult> {
-    const cols = await describeColumns(ctx, readExpr);
-    const collisions = cols.filter((c) => META_SET.has(c));
-    if (collisions.length > 0) {
-      throw new Error(
-        `Source "${ctx.source}" has reserved column names [${collisions.join(", ")}]. ` +
-        `Rename them at the source, or via a "sql" source that aliases them.`,
-      );
-    }
-    const missingPk = pk.filter((c) => !cols.includes(c));
-    if (missingPk.length > 0) {
-      throw new Error(
-        `Source "${ctx.source}" primaryKey references missing columns [${missingPk.join(", ")}]. ` +
-        `Available: [${cols.join(", ")}]`,
-      );
-    }
-
-    const dataCols = cols.map(qi).join(", ");
-    const keyExpr = buildKeyExpr(pk);
-
-    await ctx.store.exec(
-      `CREATE OR REPLACE TABLE ${qTable} AS ` +
-      `SELECT 'snapshot' AS ${qi(META_COLUMNS.op)}, ` +
-      `${keyExpr} AS ${qi(META_COLUMNS.key)}, ` +
-      `CAST(NULL AS JSON) AS ${qi(META_COLUMNS.before)}, ` +
-      `${dataCols} FROM (${readExpr}) _src`,
-    );
-
-    const { rows } = await ctx.store.query(`SELECT COUNT(*) AS n FROM ${qTable}`);
-    return { rowCount: Number(rows[0].n) };
+async function readCheckpoint(ctx: HydrateContext, name: string): Promise<HydrateResult> {
+  const key = checkpointKey(name);
+  if (!(await ctx.storage.exists(key))) {
+    throw new Error(`Checkpoint "${name}" not found at "${ctx.storage.uriFor(key)}". Did the producing pipeline run?`);
   }
+  const uri = ctx.storage.uriFor(key);
+  const qTable = qi(ctx.stagingTable);
+  await ctx.store.exec(
+    `CREATE OR REPLACE TABLE ${qTable} AS SELECT * FROM read_parquet('${uri.replace(/'/g, "''")}')`,
+  );
+  const { rows } = await ctx.store.query(`SELECT COUNT(*) AS n FROM ${qTable}`);
+  return { rowCount: Number(rows[0].n) };
+}
+
+async function readExternal(ctx: HydrateContext, spec: DuckdbExternalSource): Promise<HydrateResult> {
+  if (!(await ctx.storage.exists(spec.key))) {
+    throw new Error(`External source "${spec.key}" not found at "${ctx.storage.uriFor(spec.key)}".`);
+  }
+  const uri = ctx.storage.uriFor(spec.key);
+  const readExpr = `SELECT * FROM read_parquet('${uri.replace(/'/g, "''")}')`;
+  return await writeSnapshot(ctx, qi(ctx.stagingTable), readExpr, pkColumns(spec.primaryKey));
+}
+
+/**
+ * Wrap a read expression with snapshot meta columns (`_op`, `_key`, `_before`)
+ * and materialise it into `ctx.stagingTable`. Usable from `fn` sources that
+ * produce a read expression via other helpers (e.g. `readMultiRowHeaders`).
+ */
+export async function writeSnapshot(
+  ctx: HydrateContext,
+  qTable: string,
+  readExpr: string,
+  pk: string[],
+): Promise<HydrateResult> {
+  const cols = await describeColumns(ctx, readExpr);
+  const collisions = cols.filter((c) => META_SET.has(c));
+  if (collisions.length > 0) {
+    throw new Error(
+      `Source "${ctx.source}" has reserved column names [${collisions.join(", ")}]. ` +
+      `Rename them at the source, or via a "sql" source that aliases them.`,
+    );
+  }
+  const missingPk = pk.filter((c) => !cols.includes(c));
+  if (missingPk.length > 0) {
+    throw new Error(
+      `Source "${ctx.source}" primaryKey references missing columns [${missingPk.join(", ")}]. ` +
+      `Available: [${cols.join(", ")}]`,
+    );
+  }
+
+  const dataCols = cols.map(qi).join(", ");
+  const keyExpr = buildKeyExpr(pk);
+
+  await ctx.store.exec(
+    `CREATE OR REPLACE TABLE ${qTable} AS ` +
+    `SELECT 'snapshot' AS ${qi(META_COLUMNS.op)}, ` +
+    `${keyExpr} AS ${qi(META_COLUMNS.key)}, ` +
+    `CAST(NULL AS JSON) AS ${qi(META_COLUMNS.before)}, ` +
+    `${dataCols} FROM (${readExpr}) _src`,
+  );
+
+  const { rows } = await ctx.store.query(`SELECT COUNT(*) AS n FROM ${qTable}`);
+  return { rowCount: Number(rows[0].n) };
 }
 
 async function describeColumns(ctx: HydrateContext, readExpr: string): Promise<string[]> {
@@ -196,7 +252,9 @@ function pathArray(p: PathLike): string {
   return `[${arr.map(quoteLit).join(", ")}]`;
 }
 
-function buildReadExpr(spec: Exclude<DuckdbSource, DuckdbAttachSource>): string {
+function buildReadExpr(
+  spec: Exclude<DuckdbSource, DuckdbAttachSource | DuckdbCheckpointSource | DuckdbExternalSource | DuckdbFnSource>,
+): string {
   switch (spec.kind) {
     case "csv":     return csvRead(spec);
     case "parquet": return parquetRead(spec);

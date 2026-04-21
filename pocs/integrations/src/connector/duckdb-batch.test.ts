@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createDuckdbBatchConnector } from "./duckdb-batch.js";
 import { createDuckDbQueryStore } from "../staging/duckdb.js";
 import { createLogger } from "../log.js";
+import { nullStorage } from "../storage/null.js";
 import type { QueryableStore } from "../staging/types.js";
 import type { HydrateContext } from "./types.js";
 
@@ -25,14 +26,12 @@ async function hydrate(connectorId: string, source: string): Promise<{ rowCount:
     sources: SOURCES,
   });
   const stagingTable = `${connectorId}/${source}`;
-  const ctx: HydrateContext = { connectorId, source, stagingTable, store, log: silentLog };
+  const ctx: HydrateContext = { connectorId, source, stagingTable, store, storage: nullStorage(), log: silentLog };
   const { rowCount } = await connector.hydrate(ctx);
   const { rows } = await store.query(`SELECT * FROM "${stagingTable}" ORDER BY _key`);
   return { rowCount, rows };
 }
 
-// Shared source config set for the hydrate helper. Individual tests fill this in
-// before calling hydrate().
 let SOURCES: Parameters<typeof createDuckdbBatchConnector>[0]["sources"];
 
 describe("duckdb-batch connector", () => {
@@ -84,10 +83,10 @@ describe("duckdb-batch connector", () => {
     assert.equal(byKey[2].currency, "USD");
   });
 
-  it("supports custom CSV delimiters and skip rows (SE16-style)", async () => {
+  it("supports custom delimiters, skip rows, and banner lines", async () => {
     store = await createDuckDbQueryStore();
     tmp = mkdtempSync(join(tmpdir(), "duckdb-conn-"));
-    const path = join(tmp, "se16.csv");
+    const path = join(tmp, "banner.csv");
     writeFileSync(path, "banner line 1\n|\nbanner line 3\nid|email\n|\n1|a@b.com\n2|c@d.com\n");
 
     SOURCES = { users: { kind: "csv", path, primaryKey: "id", delimiter: "|", skip: 3, allVarchar: true } };
@@ -162,5 +161,27 @@ describe("duckdb-batch connector", () => {
       () => hydrate("t", "missing"),
       (err: Error) => err.message.includes("missing") && err.message.includes("Unknown source"),
     );
+  });
+
+  it("fn source delegates hydration to caller code", async () => {
+    store = await createDuckDbQueryStore();
+    SOURCES = {
+      custom: {
+        kind: "fn",
+        primaryKey: "id",
+        hydrate: async (ctx) => {
+          await ctx.store.exec(
+            `CREATE OR REPLACE TABLE "${ctx.stagingTable}" AS ` +
+            `SELECT 'snapshot' AS _op, to_json({id: id})::VARCHAR AS _key, CAST(NULL AS JSON) AS _before, id, v ` +
+            `FROM (VALUES (1, 'a'), (2, 'b')) t(id, v)`,
+          );
+          return { rowCount: 2 };
+        },
+      },
+    };
+    const { rowCount, rows } = await hydrate("t", "custom");
+    assert.equal(rowCount, 2);
+    assert.equal(rows[0].v, "a");
+    assert.equal(rows[0]._op, "snapshot");
   });
 });

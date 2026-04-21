@@ -7,6 +7,9 @@ import { validatePipeline, runPipeline } from "./transform/run.js";
 import { sortPipelines } from "./transform/topology.js";
 import type { GraphClient } from "./graph/types.js";
 import { processGraphSink, archiveDeletes, diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./graph/sink.js";
+import { writeCheckpoint } from "./transform/checkpoint.js";
+import { nullStorage } from "./storage/null.js";
+import type { Storage } from "./storage/types.js";
 import { createLogger, type LogLevel, type Logger } from "./log.js";
 
 export type { TablePipeline };
@@ -22,6 +25,8 @@ export type IntegrationSpec = {
   pipelines: TablePipeline[];
   eventStore: EventStore;
   queryStore: QueryableStore;
+  /** Durable artefact storage. Required if any pipeline uses `checkpoint` or a `checkpoint` source. Defaults to a null storage that throws on use. */
+  storage?: Storage;
   transforms?: Record<string, TransformFn>;
   graphClient?: GraphClient;
   validate?: boolean;
@@ -42,6 +47,7 @@ export { type SyncResult, type SyncError, emptySyncResult, mergeSyncResults };
 /** Validates topology, source/connector alignment, and `pipe()` paths up front. */
 export function integrate(spec: IntegrationSpec): Integration {
   const { eventStore, queryStore } = spec;
+  const storage = spec.storage ?? nullStorage();
   const log = createLogger("engine", spec.logLevel ?? "info");
   const buildConnector = spec.connectorFactory ?? createConnector;
   let stopped = false;
@@ -83,6 +89,7 @@ export function integrate(spec: IntegrationSpec): Integration {
     const start = Date.now();
     let totals = emptySyncResult();
 
+    await storage.prepare(queryStore);
     const connector = buildConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
     if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
 
@@ -104,6 +111,7 @@ export function integrate(spec: IntegrationSpec): Integration {
             source,
             stagingTable: sourceTable,
             store: queryStore,
+            storage,
             log: log.child({ component: "hydrate", source }),
           });
 
@@ -139,6 +147,8 @@ export function integrate(spec: IntegrationSpec): Integration {
                 totals,
                 await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLogForSource, partial),
               );
+            } else if (step.kind === "checkpoint") {
+              await writeCheckpoint(step.name, currentTable, queryStore, storage);
             }
           });
         } catch (err) {
@@ -191,6 +201,8 @@ export function integrate(spec: IntegrationSpec): Integration {
         queryStore.close();
         return;
       }
+
+      await storage.prepare(queryStore);
 
       try {
         await runStream(probe as StreamConnector);
@@ -281,6 +293,8 @@ export function integrate(spec: IntegrationSpec): Integration {
           const onSideEffect: SideEffectHandler = async (step, currentTable) => {
             if (step.kind === "graph-sink") {
               await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLogForSource);
+            } else if (step.kind === "checkpoint") {
+              await writeCheckpoint(step.name, currentTable, queryStore, storage);
             }
           };
 

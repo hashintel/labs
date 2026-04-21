@@ -86,11 +86,23 @@ export interface BranchStep<
   dependsOn?: Deps;
 }
 
+/** Identity on data; writes the current state to `Storage` under `name` as Parquet. */
+export interface CheckpointStep<
+  Id extends string = string,
+  Deps extends readonly string[] = readonly [],
+> {
+  kind: "checkpoint";
+  id: Id;
+  name: string;
+  dependsOn?: Deps;
+}
+
 export type Step =
   | SqlStep<string, readonly string[]>
   | FnStep<string, readonly string[]>
   | GraphSinkStep<string, readonly string[]>
-  | BranchStep<string, readonly (readonly Step[])[], readonly string[]>;
+  | BranchStep<string, readonly (readonly Step[])[], readonly string[]>
+  | CheckpointStep<string, readonly string[]>;
 
 // Pipeline carries:
 //  - `Ids`: phantom union of all step ids in the pipeline, set by `pipe()` so
@@ -155,6 +167,18 @@ export function graphSinkStep(
 ): GraphSinkStep<string, readonly string[]> {
   const { id, dependsOn, ...rest } = config;
   return { kind: "graph-sink", id, config: rest, dependsOn };
+}
+
+export function checkpoint<const Id extends string>(opts: {
+  id: Id; name: string;
+}): CheckpointStep<Id, readonly []>;
+export function checkpoint<const Id extends string, const Deps extends readonly string[]>(opts: {
+  id: Id; name: string; dependsOn: Deps;
+}): CheckpointStep<Id, Deps>;
+export function checkpoint(opts: {
+  id: string; name: string; dependsOn?: readonly string[];
+}): CheckpointStep<string, readonly string[]> {
+  return { kind: "checkpoint", id: opts.id, name: opts.name, dependsOn: opts.dependsOn };
 }
 
 /** Diagonal fan-out: each inner `Step[]` runs against the pre-branch table; the main flow continues unchanged past the branch. */

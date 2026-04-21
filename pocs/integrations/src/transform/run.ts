@@ -34,6 +34,12 @@ export async function validatePipeline(
       continue;
     }
 
+    if (step.kind === "checkpoint") {
+      log(`checkpoint "${step.id}" -> "${step.name}": ${dataColumns.join(", ")}`);
+      previousStepId = step.id;
+      continue;
+    }
+
     if (step.kind === "sql") {
       const tmpTable = `_validate/${step.id}`;
       await execSql(step.sql, currentTable, tmpTable, db, "LIMIT 0");
@@ -138,7 +144,7 @@ export async function runPipeline(
             await execTransform(s, tf, branchTable, out, db);
             assertMeta(await db.schemaOf(out), s.id);
             branchTable = out;
-          } else if (s.kind === "graph-sink") {
+          } else if (s.kind === "graph-sink" || s.kind === "checkpoint") {
             await onSideEffect?.(s, branchTable);
           } else if (s.kind === "branch") {
             throw new Error("Nested branches are not supported");
@@ -212,6 +218,12 @@ async function execTransform(
   const transformed = await transform(rows as (Row & Envelope)[]);
   validateSchema(step.output, transformed, step.id);
 
+  if (transformed.length === 0) {
+    // Clone input shape so downstream still sees _op/_key/_before + declared data cols.
+    await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS SELECT * FROM ${qi(inputTable)} LIMIT 0`);
+    return;
+  }
+
   await writeRows(transformed, outputTable, db, step.output);
 }
 
@@ -238,11 +250,6 @@ function encoderFor(col: string, decl: FieldType | undefined, probe: unknown): C
 }
 
 async function writeRows(rows: Row[], table: string, db: QueryableStore, output?: SchemaDecl): Promise<void> {
-  if (rows.length === 0) {
-    await db.exec(`CREATE OR REPLACE TABLE ${qi(table)} AS SELECT 1 WHERE false`);
-    return;
-  }
-
   const columns = Object.keys(rows[0]);
   const width = columns.length;
   const encoders: ColEncoder[] = columns.map((c) => encoderFor(c, output?.[c], rows[0][c]));
