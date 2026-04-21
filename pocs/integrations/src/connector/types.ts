@@ -1,3 +1,6 @@
+import type { QueryableStore } from "../staging/types.js";
+import type { Logger } from "../log.js";
+
 export type ChangeOp = "insert" | "update" | "delete" | "upsert" | "snapshot";
 
 export type ChangeEvent = {
@@ -38,11 +41,29 @@ type ConnectorBase = {
   close(): Promise<void>;
 };
 
-/** Pull-based snapshot source. `pull` invokes `onPage` once per page. */
+/**
+ * Handed to `BatchConnector.hydrate`. The connector must populate
+ * `stagingTable` in `store` with rows + meta columns (_op, _key, _before).
+ * The engine drops the staging table before the call and after it returns,
+ * so the connector creates fresh (CREATE OR REPLACE / CREATE IF NOT EXISTS via materialize).
+ */
+export type HydrateContext = {
+  readonly connectorId: string;
+  readonly source: string;
+  readonly stagingTable: string;
+  readonly store: QueryableStore;
+  readonly log: Logger;
+};
+
+export type HydrateResult = {
+  rowCount: number;
+  cursor?: unknown;
+};
+
+/** Pull-based snapshot source. `hydrate` lands rows in `ctx.stagingTable` and returns the count. */
 export type BatchConnector = ConnectorBase & {
   readonly mode: "batch";
-  readonly pageSize: number;
-  pull(table: string, onPage: (batch: Batch) => Promise<void>): Promise<void>;
+  hydrate(ctx: HydrateContext): Promise<HydrateResult>;
 };
 
 /** Push-based stream source. `subscribe` resumes from `cursor` and fires `onBatch` per change group. */

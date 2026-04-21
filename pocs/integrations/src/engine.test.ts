@@ -18,8 +18,7 @@ function emptyBatchConnector(id: string): BatchConnector {
   return {
     id,
     mode: "batch",
-    pageSize: 100,
-    pull: async () => {},
+    hydrate: async () => ({ rowCount: 0 }),
     close: async () => {},
   };
 }
@@ -47,7 +46,7 @@ describe("integrate(): runtime validation", () => {
     try {
       assert.throws(
         () => integrate({
-          connector: { id: "test", mode: "batch", url: "postgres://x", tables: { users: { primaryKey: "id" } } },
+          connector: { id: "test", mode: "batch", sources: { users: { kind: "sql", sql: "SELECT 1 AS id", primaryKey: "id" } } },
           pipelines: [trivialPipeline("users"), trivialPipeline("widgets")],
           eventStore: createMemoryEventStore(),
           queryStore,
@@ -72,7 +71,7 @@ describe("integrate(): runtime validation", () => {
       };
       assert.throws(
         () => integrate({
-          connector: { id: "test", mode: "batch", url: "postgres://x", tables: { users: { primaryKey: "id" } } },
+          connector: { id: "test", mode: "batch", sources: { users: { kind: "sql", sql: "SELECT 1 AS id", primaryKey: "id" } } },
           pipelines: [bad],
           eventStore: createMemoryEventStore(),
           queryStore,
@@ -91,7 +90,7 @@ describe("integrate(): runtime validation", () => {
     try {
       assert.doesNotThrow(() =>
         integrate({
-          connector: { id: "test", mode: "batch", url: "postgres://x", tables: { users: { primaryKey: "id" } } },
+          connector: { id: "test", mode: "batch", sources: { users: { kind: "sql", sql: "SELECT 1 AS id", primaryKey: "id" } } },
           pipelines: [trivialPipeline("users")],
           eventStore: createMemoryEventStore(),
           queryStore,
@@ -111,7 +110,7 @@ describe("integrate(): runtime validation", () => {
 
       const client = recordingGraphClient();
       const connector: Connector = emptyBatchConnector("test");
-      const def: ConnectorDef = { id: "test", mode: "batch", url: "postgres://ignored", tables: { users: { primaryKey: "id" } } };
+      const def: ConnectorDef = { id: "test", mode: "batch", sources: { users: { kind: "sql", sql: "SELECT 1 AS id", primaryKey: "id" } } };
 
       const app = integrate({
         connector: def,
@@ -159,8 +158,8 @@ describe("integrate(): runtime validation", () => {
       const client = recordingGraphClient();
       const connector: Connector = emptyBatchConnector("test");
       const def: ConnectorDef = {
-        id: "test", mode: "batch", url: "postgres://ignored",
-        tables: { users: { primaryKey: "id", archiveOnEmpty: true } },
+        id: "test", mode: "batch",
+        sources: { users: { kind: "sql", sql: "SELECT 1 AS id", primaryKey: "id", archiveOnEmpty: true } },
       };
 
       const app = integrate({
@@ -205,8 +204,8 @@ describe("integrate(): runtime validation", () => {
       const client = recordingGraphClient();
       const connector: Connector = emptyBatchConnector("test");
       const def: ConnectorDef = {
-        id: "test", mode: "batch", url: "postgres://ignored",
-        tables: { users: { primaryKey: "id", partial: true } },
+        id: "test", mode: "batch",
+        sources: { users: { kind: "sql", sql: "SELECT 1 AS id", primaryKey: "id", partial: true } },
       };
 
       const app = integrate({
@@ -249,7 +248,7 @@ describe("integrate(): runtime validation", () => {
 
       const client = recordingGraphClient();
       const connector: Connector = emptyBatchConnector("test");
-      const def: ConnectorDef = { id: "test", mode: "batch", url: "postgres://ignored", tables: { users: { primaryKey: "id" } } };
+      const def: ConnectorDef = { id: "test", mode: "batch", sources: { users: { kind: "sql", sql: "SELECT 1 AS id", primaryKey: "id" } } };
 
       const app = integrate({
         connector: def,

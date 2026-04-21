@@ -99,23 +99,25 @@ export function integrate(spec: IntegrationSpec): Integration {
 
         // Isolate per-source failures so one bad source doesn't skip the rest.
         try {
-          let pageCount = 0;
-          await connector.pull(source, async (page) => {
-            await queryStore.materialize(connector.id, source, page.events);
-            pageCount++;
+          const hydrated = await connector.hydrate({
+            connectorId: connector.id,
+            source,
+            stagingTable: sourceTable,
+            store: queryStore,
+            log: log.child({ component: "hydrate", source }),
           });
 
-          if (pageCount === 0) {
+          if (hydrated.rowCount === 0) {
             const archiveOnEmpty = isArchiveOnEmpty(spec.connector, source);
             log.debug(`"${source}" is empty (partial=${partial}, archiveOnEmpty=${archiveOnEmpty})`);
             for (const step of pipeline.steps) {
               if (step.kind !== "graph-sink" || !spec.graphClient) continue;
-              // Zero-page pulls are usually transient source failures. Skip
+              // Zero-row hydrates are usually transient source failures. Skip
               // archival unless the user opted in via `archiveOnEmpty` or the
               // source is partial (in which case diffAndSync preserves state).
               if (!partial && !archiveOnEmpty && await stateExists(queryStore, connector.id, step.id)) {
                 sinkLogForSource.warn(
-                  `"${source}": zero pages but prior state exists for sink "${step.id}"; skipping archival. Set archiveOnEmpty: true on the source config to opt into drain-on-empty.`,
+                  `"${source}": zero rows but prior state exists for sink "${step.id}"; skipping archival. Set archiveOnEmpty: true on the source config to opt into drain-on-empty.`,
                 );
                 continue;
               }
@@ -318,19 +320,16 @@ function allStepIds(steps: readonly Step[]): string[] {
 
 function declaredSources(def: ConnectorDef): string[] {
   switch (def.mode) {
-    case "batch":
-    case "cdc":
-      return Object.keys(def.tables);
-    case "rest-api":
-      return Object.keys(def.endpoints);
-    case "mongo-stream":
-      return Object.keys(def.collections);
+    case "batch":        return Object.keys(def.sources);
+    case "cdc":          return Object.keys(def.tables);
+    case "rest-api":     return Object.keys(def.endpoints);
+    case "mongo-stream": return Object.keys(def.collections);
   }
 }
 
 function isPartialSource(def: ConnectorDef, source: string): boolean {
   switch (def.mode) {
-    case "batch":    return def.tables[source]?.partial ?? false;
+    case "batch":    return def.sources[source]?.partial ?? false;
     case "rest-api": return def.endpoints[source]?.partial ?? false;
     case "cdc":
     case "mongo-stream": return false;
@@ -339,7 +338,7 @@ function isPartialSource(def: ConnectorDef, source: string): boolean {
 
 function isArchiveOnEmpty(def: ConnectorDef, source: string): boolean {
   switch (def.mode) {
-    case "batch":    return def.tables[source]?.archiveOnEmpty ?? false;
+    case "batch":    return def.sources[source]?.archiveOnEmpty ?? false;
     case "rest-api": return def.endpoints[source]?.archiveOnEmpty ?? false;
     case "cdc":
     case "mongo-stream": return false;

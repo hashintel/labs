@@ -1,5 +1,6 @@
 import type { BatchConnector, ChangeEvent } from "./types.js";
 import { compileKeyExtractor, type KeyExtractor } from "./types.js";
+import { hydrateFromEvents } from "./hydrate.js";
 import type { Logger } from "../log.js";
 
 export type RestApiEndpoint = {
@@ -87,7 +88,12 @@ type CompiledEndpoint = {
 
 const identityAccessor: PathAccessor = (obj) => obj;
 
-export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Logger): BatchConnector {
+/** Returned object exposes `pullPages` for tests; callers via `createConnector` see only `BatchConnector`. */
+export type RestApiBatchConnector = BatchConnector & {
+  pullPages(table: string, emit: (events: ChangeEvent[]) => Promise<void>): Promise<void>;
+};
+
+export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Logger): RestApiBatchConnector {
   const pageSize = config.pageSize ?? 100;
   const rateLimitMs = config.rateLimitMs ?? 0;
 
@@ -121,52 +127,56 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Lo
     return res.json();
   }
 
+  async function pullPages(table: string, emit: (events: ChangeEvent[]) => Promise<void>): Promise<void> {
+    const ep = endpoints.get(table);
+    if (!ep) throw new Error(`Endpoint "${table}" not configured on connector "${config.id}"`);
+
+    let url = buildUrl(ep.urlTemplate, ep.params);
+    let pagesSeen = 0;
+
+    while (url) {
+      if (pagesSeen > 0 && rateLimitMs > 0) {
+        await new Promise((r) => setTimeout(r, rateLimitMs));
+      }
+
+      const body = await fetchPage(url);
+      const results = ep.getResults(body);
+      if (!Array.isArray(results) || results.length === 0) break;
+
+      const events: ChangeEvent[] = new Array(results.length);
+      for (let i = 0; i < results.length; i++) {
+        const row = results[i] as Record<string, unknown>;
+        events[i] = { table, op: "snapshot", key: ep.keyFrom(row), row };
+      }
+      await emit(events);
+      pagesSeen++;
+
+      if (pagesSeen >= ep.maxPages) break;
+
+      if (ep.paginationType === "next-link") {
+        const next = ep.getNext!(body);
+        url = typeof next === "string" ? next : "";
+      } else if (ep.paginationType === "offset") {
+        if (results.length < pageSize) break;
+        const u = new URL(url);
+        const offset = Number(u.searchParams.get("offset") ?? "0") + results.length;
+        u.searchParams.set("offset", String(offset));
+        url = u.toString();
+      } else {
+        break;
+      }
+    }
+  }
+
   return {
     id: config.id,
     mode: "batch" as const,
-    pageSize,
 
-    async pull(table, onPage) {
-      const ep = endpoints.get(table);
-      if (!ep) throw new Error(`Endpoint "${table}" not configured on connector "${config.id}"`);
-
-      let url = buildUrl(ep.urlTemplate, ep.params);
-      let pagesSeen = 0;
-
-      while (url) {
-        if (pagesSeen > 0 && rateLimitMs > 0) {
-          await new Promise((r) => setTimeout(r, rateLimitMs));
-        }
-
-        const body = await fetchPage(url);
-        const results = ep.getResults(body);
-        if (!Array.isArray(results) || results.length === 0) break;
-
-        const events: ChangeEvent[] = new Array(results.length);
-        for (let i = 0; i < results.length; i++) {
-          const row = results[i] as Record<string, unknown>;
-          events[i] = { table, op: "snapshot", key: ep.keyFrom(row), row };
-        }
-        await onPage({ events, cursor: undefined });
-        pagesSeen++;
-
-        if (pagesSeen >= ep.maxPages) break;
-
-        if (ep.paginationType === "next-link") {
-          const next = ep.getNext!(body);
-          url = typeof next === "string" ? next : "";
-        } else if (ep.paginationType === "offset") {
-          if (results.length < pageSize) break;
-          const u = new URL(url);
-          const offset = Number(u.searchParams.get("offset") ?? "0") + results.length;
-          u.searchParams.set("offset", String(offset));
-          url = u.toString();
-        } else {
-          break;
-        }
-      }
+    async hydrate(ctx) {
+      return hydrateFromEvents(ctx, (emit) => pullPages(ctx.source, emit));
     },
 
     async close() {},
+    pullPages,
   };
 }

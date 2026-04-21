@@ -2,7 +2,7 @@ import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createServer, type Server } from "node:http";
 import { createRestApiBatchConnector, interpolate } from "./rest-api.js";
-import type { Batch } from "./types.js";
+import type { ChangeEvent } from "./types.js";
 
 type Handler = (url: URL) => { status: number; body: unknown };
 
@@ -28,9 +28,11 @@ function startServer(handler: Handler): Promise<{ port: number; calls: URL[]; cl
   });
 }
 
-async function collect(connector: { pull: (t: string, onPage: (b: Batch) => Promise<void>) => Promise<void> }, table: string): Promise<unknown[]> {
+type WithPullPages = { pullPages: (table: string, emit: (events: ChangeEvent[]) => Promise<void>) => Promise<void> };
+
+async function collect(connector: WithPullPages, table: string): Promise<unknown[]> {
   const rows: unknown[] = [];
-  await connector.pull(table, async (page) => { for (const ev of page.events) rows.push(ev.row); });
+  await connector.pullPages(table, async (events) => { for (const ev of events) rows.push(ev.row); });
   return rows;
 }
 

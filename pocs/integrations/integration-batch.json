@@ -1,9 +1,20 @@
 {
   "id": "crm",
   "mode": "batch",
-  "url": "postgres://postgres:postgres@localhost:5433/demo",
-  "tables": {
-    "users": { "primaryKey": "id" },
-    "organizations": { "primaryKey": "id" }
+  "sources": {
+    "users": {
+      "kind": "attach",
+      "type": "postgres",
+      "url": "postgres://postgres:postgres@localhost:5433/demo",
+      "table": "users",
+      "primaryKey": "id"
+    },
+    "organizations": {
+      "kind": "attach",
+      "type": "postgres",
+      "url": "postgres://postgres:postgres@localhost:5433/demo",
+      "table": "organizations",
+      "primaryKey": "id"
+    }
   }
 }
