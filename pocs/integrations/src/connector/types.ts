@@ -42,12 +42,7 @@ type ConnectorBase = {
   close(): Promise<void>;
 };
 
-/**
- * Handed to `BatchConnector.hydrate`. The connector must populate
- * `stagingTable` in `store` with rows + meta columns (_op, _key, _before).
- * The engine drops the staging table before the call and after it returns,
- * so the connector creates fresh (CREATE OR REPLACE / CREATE IF NOT EXISTS via materialize).
- */
+/** Hydrators populate `stagingTable` with meta columns (`_op`/`_key`/`_before`) + data. Engine drops the table before and after. */
 export type HydrateContext = {
   readonly connectorId: string;
   readonly source: string;
@@ -55,6 +50,8 @@ export type HydrateContext = {
   readonly store: QueryableStore;
   readonly storage: Storage;
   readonly log: Logger;
+  /** Wrap a read expression with snapshot meta columns and land it in `stagingTable`. */
+  materialize(readExpr: string, opts: { primaryKey: string | string[] }): Promise<HydrateResult>;
 };
 
 export type HydrateResult = {

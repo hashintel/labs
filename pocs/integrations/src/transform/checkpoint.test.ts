@@ -36,7 +36,7 @@ describe("checkpoint", () => {
       connector: {
         id: "src",
         mode: "batch",
-        sources: { users: { kind: "csv", path: csvPath, primaryKey: "id" } },
+        sources: { users: { kind: "sql", sql: `SELECT * FROM read_csv('${csvPath}')`, primaryKey: "id" } },
       },
       pipelines: pipelines([{
         source: "users",
@@ -70,7 +70,7 @@ describe("checkpoint", () => {
       connector: {
         id: "src",
         mode: "batch",
-        sources: { users: { kind: "csv", path: csvPath, primaryKey: "id" } },
+        sources: { users: { kind: "sql", sql: `SELECT * FROM read_csv('${csvPath}')`, primaryKey: "id" } },
       },
       pipelines: pipelines([{
         source: "users",
@@ -201,7 +201,7 @@ describe("checkpoint", () => {
       connector: {
         id: "src",
         mode: "batch",
-        sources: { users: { kind: "csv", path: csvPath, primaryKey: "id" } },
+        sources: { users: { kind: "sql", sql: `SELECT * FROM read_csv('${csvPath}')`, primaryKey: "id" } },
       },
       pipelines: pipelines([{
         source: "users",

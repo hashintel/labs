@@ -2,24 +2,16 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { QueryableStore } from "../staging/types.js";
 
 export type MultiRowHeadersOpts = {
-  /** Row indices (0-based) that carry header data. */
   rows: number[];
-  /** Fill empty cells within a header row by propagating the most recent non-empty value from the left. Models Excel merged cells. */
+  /** Fill empty cells from the last non-empty value in the same header row (Excel merged cells). */
   forwardFill?: boolean;
-  /** Combine the per-row header cells for a single column into the final name. Default: non-empty parts joined by `_`, coerced to `[A-Za-z0-9_]`. */
+  /** Default: non-empty parts joined by `_`, coerced to `[A-Za-z0-9_]`. */
   combine?: (parts: string[]) => string;
-  /** Columns whose combined name is empty are dropped. Default: true. */
+  /** Default true. */
   dropUnnamed?: boolean;
 };
 
-/**
- * Build a read expression whose column names come from N header rows of the
- * underlying data. Composes with any `readExpr` that produces generic column
- * names -- `read_xlsx(path, header=false)`, `read_csv(path, header=false)`,
- * and so on. The returned SQL skips the header rows.
- *
- * CT: a natural transformation `Raw → Named` on read morphisms.
- */
+/** Derives column names from N header rows; returns a read expression that skips them. `Raw → Named`. */
 export async function readMultiRowHeaders(
   store: QueryableStore,
   readExpr: string,

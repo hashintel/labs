@@ -10,6 +10,8 @@ import { processGraphSink, archiveDeletes, diffAndSync, emptySyncResult, mergeSy
 import { writeCheckpoint } from "./transform/checkpoint.js";
 import { nullStorage } from "./storage/null.js";
 import type { Storage } from "./storage/types.js";
+import { materialize as materializeSnapshot } from "./connector/snapshot.js";
+import type { HydrateContext } from "./connector/types.js";
 import { createLogger, type LogLevel, type Logger } from "./log.js";
 
 export type { TablePipeline };
@@ -106,14 +108,16 @@ export function integrate(spec: IntegrationSpec): Integration {
 
         // Isolate per-source failures so one bad source doesn't skip the rest.
         try {
-          const hydrated = await connector.hydrate({
-            connectorId: connector.id,
-            source,
-            stagingTable: sourceTable,
-            store: queryStore,
-            storage,
-            log: log.child({ component: "hydrate", source }),
-          });
+          const hydrated = await connector.hydrate(
+            buildHydrateContext({
+              connectorId: connector.id,
+              source,
+              stagingTable: sourceTable,
+              store: queryStore,
+              storage,
+              log: log.child({ component: "hydrate", source }),
+            }),
+          );
 
           if (hydrated.rowCount === 0) {
             const archiveOnEmpty = isArchiveOnEmpty(spec.connector, source);
@@ -318,6 +322,13 @@ export function integrate(spec: IntegrationSpec): Integration {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function buildHydrateContext(args: Omit<HydrateContext, "materialize">): HydrateContext {
+  return {
+    ...args,
+    materialize: (readExpr, opts) => materializeSnapshot(args, readExpr, opts.primaryKey),
+  };
 }
 
 function allStepIds(steps: readonly Step[]): string[] {

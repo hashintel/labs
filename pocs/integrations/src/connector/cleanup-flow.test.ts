@@ -8,8 +8,6 @@ import { pipe, sqlStep, checkpoint, pipelines } from "../transform/pipeline.js";
 import { createDuckDbQueryStore } from "../staging/duckdb.js";
 import { createMemoryEventStore } from "../staging/memory.js";
 import { createLocalStorage } from "../storage/local.js";
-import { readMultiRowHeaders } from "./headers.js";
-import { writeSnapshot } from "./duckdb-batch.js";
 import type { QueryableStore } from "../staging/types.js";
 
 let db: QueryableStore;
@@ -20,14 +18,13 @@ afterEach(() => {
   if (root) rmSync(root, { recursive: true, force: true });
 });
 
-describe("zero-ingest + multi-row headers + cleanup compose via fn source", () => {
-  it("pipe-delimited file with leading-empty col, multi-row headers, European decimals, empty-to-null", async () => {
+describe("end-to-end cleanup flow", () => {
+  it("reads a pipe-delimited multi-row-header file, renames + casts in a pipeline step, checkpoints", async () => {
     root = mkdtempSync(join(tmpdir(), "flow-"));
     const storage = createLocalStorage({ root: join(root, "staging") });
     db = await createDuckDbQueryStore();
 
     const csvPath = join(root, "items.csv");
-    // Leading delimiter produces an empty col; Amount uses European "," decimal; blank qty cells exist.
     writeFileSync(
       csvPath,
       "|KEY|VALUES|VALUES\n" +
@@ -42,26 +39,26 @@ describe("zero-ingest + multi-row headers + cleanup compose via fn source", () =
         mode: "batch",
         sources: {
           items: {
-            kind: "fn",
-            primaryKey: "id",
-            hydrate: async (ctx) => {
-              const raw = `SELECT * FROM read_csv('${csvPath}', header=false, delim='|', all_varchar=true)`;
-              const named = await readMultiRowHeaders(ctx.store, raw, { rows: [0, 1], forwardFill: true });
-              const cleaned =
-                `SELECT ` +
-                  `KEY_Id AS id, ` +
-                  `REPLACE(VALUES_Amount, ',', '.')::DOUBLE AS amount, ` +
-                  `NULLIF(VALUES_Qty, '')::INTEGER AS qty ` +
-                `FROM (${named})`;
-              return await writeSnapshot(ctx, `"${ctx.stagingTable}"`, cleaned, ["id"]);
-            },
+            kind: "sql",
+            sql: `SELECT * FROM read_csv('${csvPath}', delim='|', header=false, all_varchar=true)`,
+            headerRows: [0, 1],
+            forwardFill: true,
+            primaryKey: "KEY_Id",
           },
         },
       },
       pipelines: pipelines([{
         source: "items",
         pipeline: pipe("src/items",
-          sqlStep({ id: "pass", query: "SELECT _op, _key, _before, id, amount, qty FROM input" }),
+          sqlStep({
+            id: "clean",
+            query:
+              `SELECT _op, _key, _before, ` +
+                `KEY_Id AS id, ` +
+                `REPLACE(VALUES_Amount, ',', '.')::DOUBLE AS amount, ` +
+                `NULLIF(VALUES_Qty, '')::INTEGER AS qty ` +
+              `FROM input`,
+          }),
           checkpoint({ id: "cp-out", name: "items-cleaned" }),
         ),
       }] as const),
