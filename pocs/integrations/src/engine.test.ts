@@ -28,6 +28,7 @@ function recordingGraphClient(): GraphClient & { ops: GraphOp[] } {
   return {
     ops,
     async upsertEntity(op) { ops.push(op); },
+    async bulkUpsertEntities(inOps) { for (const o of inOps) ops.push(o); return { ok: inOps.map((o) => String(o.entityId)), failed: [] }; },
     async archiveEntity(op) { ops.push(op); },
   };
 }

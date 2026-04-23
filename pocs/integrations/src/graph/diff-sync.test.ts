@@ -42,6 +42,10 @@ function mockClient(): { ops: Op[]; client: GraphClient } {
     ops,
     client: {
       async upsertEntity(op) { ops.push({ kind: "upsert", entityId: op.entityId }); },
+      async bulkUpsertEntities(inOps) {
+        for (const op of inOps) ops.push({ kind: "upsert", entityId: op.entityId });
+        return { ok: inOps.map((o) => String(o.entityId)), failed: [] };
+      },
       async archiveEntity(op) { ops.push({ kind: "archive", entityId: op.entityId }); },
     },
   };
@@ -225,6 +229,16 @@ describe("diffAndSync", () => {
       async upsertEntity(op) {
         if (op.entityId === "2") throw new Error("simulated graph 500");
         ops.push({ kind: "upsert", entityId: op.entityId });
+      },
+      async bulkUpsertEntities(inOps) {
+        const ok: string[] = [];
+        const failed: { op: typeof inOps[number]; error: Error }[] = [];
+        for (const op of inOps) {
+          if (op.entityId === "2") { failed.push({ op, error: new Error("simulated graph 500") }); continue; }
+          ops.push({ kind: "upsert", entityId: op.entityId });
+          ok.push(String(op.entityId));
+        }
+        return { ok, failed };
       },
       async archiveEntity(op) { ops.push({ kind: "archive", entityId: op.entityId }); },
     };

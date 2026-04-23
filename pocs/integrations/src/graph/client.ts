@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
-import type { GraphClient, GraphOp, PropertyProvenance, ResolvedLink, SourceProvenance } from "./types.js";
+import type { BulkUpsertFailure, BulkUpsertResult, GraphClient, GraphOp, PropertyProvenance, ResolvedLink, SourceProvenance } from "./types.js";
 import type { VersionedUrl } from "../transform/pipeline.js";
+
+const BULK_SIZE = Math.max(1, Number(process.env.HASH_GRAPH_BULK_SIZE ?? 128));
+const BULK_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
 
 export type GraphClientConfig = {
   baseUrl: string;
@@ -174,71 +177,135 @@ export async function queryEntities(config: GraphClientConfig): Promise<GraphEnt
 }
 
 export function createGraphClient(config: GraphClientConfig): GraphClient {
-  return {
-    async upsertEntity(op) {
-      const entityUuid = deterministicUuid(op.entityType, op.entityId);
-      const fullEntityId = compositeEntityId(op.webId, entityUuid);
-      const provenance = mapProvenance(op.provenance);
+  async function upsertMain(op: Extract<GraphOp, { kind: "upsert" }>): Promise<{ fullEntityId: string; provenance: HASHProvenance }> {
+    const entityUuid = deterministicUuid(op.entityType, op.entityId);
+    const fullEntityId = compositeEntityId(op.webId, entityUuid);
+    const provenance = mapProvenance(op.provenance);
 
-      try {
-        await request("POST", config, "/entities", {
-          webId: op.webId,
-          entityTypeIds: [op.entityType],
-          properties: mapProperties(op.properties, op.propertyProvenance),
-          draft: false,
-          provenance,
-          entityUuid,
-        } satisfies CreateEntityParams);
-      } catch (e) {
-        if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
-          await request("PATCH", config, "/entities", {
-            entityId: fullEntityId,
-            provenance,
-            archived: false,
-            entityTypeIds: [op.entityType],
-            properties: mapPropertiesAsPatch(op.properties, op.propertyProvenance),
-          } satisfies PatchEntityParams);
-        } else {
-          throw e;
-        }
-      }
-
-      for (const link of op.links) {
-        await upsertLink(config, op, link, provenance, fullEntityId);
-      }
-
-      for (const stale of op.staleLinks) {
-        const staleLinkUuid = deterministicUuid(stale.linkType, `${op.entityId}::${stale.targetId}`);
-        const staleLinkId = compositeEntityId(op.webId, staleLinkUuid);
-        try {
-          await request("PATCH", config, "/entities", {
-            entityId: staleLinkId,
-            provenance,
-            archived: true,
-          } satisfies PatchEntityParams);
-        } catch (err) {
-          if (err instanceof GraphApiError && err.status === 404) continue;
-          throw err;
-        }
-      }
-    },
-
-    async archiveEntity(op) {
-      const entityUuid = deterministicUuid(op.entityType, op.entityId);
-      const fullEntityId = compositeEntityId(op.webId, entityUuid);
-
-      try {
+    try {
+      await request("POST", config, "/entities", {
+        webId: op.webId,
+        entityTypeIds: [op.entityType],
+        properties: mapProperties(op.properties, op.propertyProvenance),
+        draft: false,
+        provenance,
+        entityUuid,
+      } satisfies CreateEntityParams);
+    } catch (e) {
+      if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
         await request("PATCH", config, "/entities", {
           entityId: fullEntityId,
-          provenance: mapProvenance(op.provenance),
+          provenance,
+          archived: false,
+          entityTypeIds: [op.entityType],
+          properties: mapPropertiesAsPatch(op.properties, op.propertyProvenance),
+        } satisfies PatchEntityParams);
+      } else {
+        throw e;
+      }
+    }
+    return { fullEntityId, provenance };
+  }
+
+  async function finaliseLinks(
+    op: Extract<GraphOp, { kind: "upsert" }>,
+    fullEntityId: string,
+    provenance: HASHProvenance,
+  ): Promise<void> {
+    for (const link of op.links) {
+      await upsertLink(config, op, link, provenance, fullEntityId);
+    }
+    for (const stale of op.staleLinks) {
+      const staleLinkUuid = deterministicUuid(stale.linkType, `${op.entityId}::${stale.targetId}`);
+      const staleLinkId = compositeEntityId(op.webId, staleLinkUuid);
+      try {
+        await request("PATCH", config, "/entities", {
+          entityId: staleLinkId,
+          provenance,
           archived: true,
         } satisfies PatchEntityParams);
       } catch (err) {
-        if (err instanceof GraphApiError && err.status === 404) return;
+        if (err instanceof GraphApiError && err.status === 404) continue;
         throw err;
       }
-    },
-  };
+    }
+  }
+
+  async function upsertEntity(op: Extract<GraphOp, { kind: "upsert" }>): Promise<void> {
+    const { fullEntityId, provenance } = await upsertMain(op);
+    await finaliseLinks(op, fullEntityId, provenance);
+  }
+
+  async function bulkUpsertEntities(ops: Extract<GraphOp, { kind: "upsert" }>[]): Promise<BulkUpsertResult> {
+    const ok: string[] = [];
+    const failed: BulkUpsertFailure[] = [];
+    const chunks: (typeof ops)[] = [];
+    for (let i = 0; i < ops.length; i += BULK_SIZE) chunks.push(ops.slice(i, i + BULK_SIZE));
+
+    await parallel(chunks, BULK_CONCURRENCY, async (chunk) => {
+      const payload = chunk.map((op) => ({
+        webId: op.webId,
+        entityTypeIds: [op.entityType],
+        properties: mapProperties(op.properties, op.propertyProvenance),
+        draft: false,
+        provenance: mapProvenance(op.provenance),
+        entityUuid: deterministicUuid(op.entityType, op.entityId),
+      } satisfies CreateEntityParams));
+
+      try {
+        await request("POST", config, "/entities/bulk", payload);
+        await parallel(chunk, BULK_CONCURRENCY, async (op) => {
+          try {
+            const fullEntityId = compositeEntityId(op.webId, deterministicUuid(op.entityType, op.entityId));
+            await finaliseLinks(op, fullEntityId, mapProvenance(op.provenance));
+            ok.push(String(op.entityId));
+          } catch (err) {
+            failed.push({ op, error: err as Error });
+          }
+        });
+      } catch {
+        // Batch rejected; retry individually so 409s become PATCHes.
+        for (const op of chunk) {
+          try {
+            await upsertEntity(op);
+            ok.push(String(op.entityId));
+          } catch (err) {
+            failed.push({ op, error: err as Error });
+          }
+        }
+      }
+    });
+
+    return { ok, failed };
+  }
+
+  async function archiveEntity(op: Extract<GraphOp, { kind: "archive" }>): Promise<void> {
+    const entityUuid = deterministicUuid(op.entityType, op.entityId);
+    const fullEntityId = compositeEntityId(op.webId, entityUuid);
+    try {
+      await request("PATCH", config, "/entities", {
+        entityId: fullEntityId,
+        provenance: mapProvenance(op.provenance),
+        archived: true,
+      } satisfies PatchEntityParams);
+    } catch (err) {
+      if (err instanceof GraphApiError && err.status === 404) return;
+      throw err;
+    }
+  }
+
+  return { upsertEntity, bulkUpsertEntities, archiveEntity };
+}
+
+async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      await fn(items[idx]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
 }
 
 async function ensureEntity(

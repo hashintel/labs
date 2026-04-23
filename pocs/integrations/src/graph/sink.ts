@@ -5,7 +5,7 @@ import type { Accessor, GraphSinkConfig, Row, Envelope } from "../transform/pipe
 import type { GraphOp, ResolvedLink, SourceProvenance, PropertyProvenance, GraphClient } from "./types.js";
 import type { Logger } from "../log.js";
 
-const DEFAULT_CONCURRENCY = 5;
+const DEFAULT_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
 
 async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
   let i = 0;
@@ -285,26 +285,26 @@ export async function diffAndSync(
     const { rows } = await db.query(
       `SELECT * FROM ${qi(inputTable)} WHERE CAST(${qi(entityIdCol)} AS VARCHAR) IN (${idList})`,
     );
-    await parallel(rows, DEFAULT_CONCURRENCY, async (row) => {
-      let op: Extract<GraphOp, { kind: "upsert" }>;
+    const ops: Extract<GraphOp, { kind: "upsert" }>[] = [];
+    for (const row of rows) {
       try {
-        op = rowToGraphOp(row as Row & Envelope, config, provenance);
+        ops.push(rowToGraphOp(row as Row & Envelope, config, provenance));
       } catch (err) {
         const id = String((row as Row)[entityIdCol]);
         failedIds.add(id);
         errors.push(syncError("row-build", config.entityType, id, err));
         log?.error(`row-build failed for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
-        return;
       }
-      try {
-        log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}`);
-        await client.upsertEntity(op);
-      } catch (err) {
+    }
+    if (ops.length > 0) {
+      log?.info(`bulk upserting ${ops.length} ${typeSlug(config.entityType)} ops`);
+      const { failed } = await client.bulkUpsertEntities(ops);
+      for (const { op, error } of failed) {
         failedIds.add(String(op.entityId));
-        errors.push(syncError("upsert", op.entityType, op.entityId, err));
-        log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(err)} (will retry next sync)`);
+        errors.push(syncError("upsert", op.entityType, op.entityId, error));
+        log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(error)} (will retry next sync)`);
       }
-    });
+    }
   }
 
   if (updates.length > 0 && hasPrevious && linkCols.length > 0 && config.links) {

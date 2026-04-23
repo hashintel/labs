@@ -22,14 +22,14 @@ export async function validatePipeline(
     const dataColumns = stripMeta(columns);
 
     if (step.kind === "graph-sink") {
-      const stringAccessors = [
-        ...(typeof step.config.entityId === "string" ? [step.config.entityId] : []),
-        ...Object.values(step.config.properties).filter((a): a is string => typeof a === "string"),
-        ...(step.config.links ?? []).map((l) => l.column),
-      ];
       const available = new Set(dataColumns);
-      const missing = stringAccessors.filter((c) => !available.has(c));
-      if (missing.length > 0) throw new Error(`GraphSinkStep "${step.id}" references columns [${missing.join(", ")}] not in pipeline output`);
+      if (typeof step.config.entityId === "string" && !available.has(step.config.entityId)) {
+        throw new Error(`GraphSinkStep "${step.id}" entityId column "${step.config.entityId}" not in pipeline output`);
+      }
+      const missingProps = Object.values(step.config.properties).filter((a): a is string => typeof a === "string").filter((c) => !available.has(c));
+      const missingLinks = (step.config.links ?? []).map((l) => l.column).filter((c) => !available.has(c));
+      const missing = [...missingProps, ...missingLinks];
+      if (missing.length > 0) log(`graph-sink "${step.id}": ${missing.length} column(s) missing, will skip: ${missing.join(", ")}`);
       log(`graph-sink "${step.id}": ${Object.keys(step.config.properties).length} properties, ${step.config.links?.length ?? 0} links`);
       continue;
     }
@@ -85,14 +85,14 @@ export async function validatePipeline(
             log(`  sql "${s.id}": ${stripMeta(branchCols).join(", ")}`);
             branchTable = tmpTable;
           } else if (s.kind === "graph-sink") {
-            const stringAccessors = [
-              ...(typeof s.config.entityId === "string" ? [s.config.entityId] : []),
-              ...Object.values(s.config.properties).filter((a): a is string => typeof a === "string"),
-              ...(s.config.links ?? []).map((l) => l.column),
-            ];
             const available = new Set(branchData);
-            const missing = stringAccessors.filter((c) => !available.has(c));
-            if (missing.length > 0) throw new Error(`GraphSinkStep "${s.id}" references columns [${missing.join(", ")}] not in branch output`);
+            if (typeof s.config.entityId === "string" && !available.has(s.config.entityId)) {
+              throw new Error(`GraphSinkStep "${s.id}" entityId column "${s.config.entityId}" not in branch output`);
+            }
+            const missingProps = Object.values(s.config.properties).filter((a): a is string => typeof a === "string").filter((c) => !available.has(c));
+            const missingLinks = (s.config.links ?? []).map((l) => l.column).filter((c) => !available.has(c));
+            const missing = [...missingProps, ...missingLinks];
+            if (missing.length > 0) log(`  graph-sink "${s.id}": ${missing.length} column(s) missing, will skip: ${missing.join(", ")}`);
             log(`  graph-sink "${s.id}": ${Object.keys(s.config.properties).length} properties, ${s.config.links?.length ?? 0} links`);
           }
         }
