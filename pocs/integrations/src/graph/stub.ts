@@ -17,9 +17,10 @@ export function createStubGraphClient(): GraphClient {
   return {
     upsertEntity,
     async bulkUpsertEntities(ops) {
+      const start = Date.now();
       const ok: string[] = [];
       for (const op of ops) { await upsertEntity(op); ok.push(String(op.entityId)); }
-      return { ok, failed: [] };
+      return { ok, failed: [], batches: 1, fellBackBatches: 0, durationMs: Date.now() - start };
     },
     async archiveEntity(op) {
       console.log(`[graph] ARCHIVE ${short(op.entityType)} id=${op.entityId}`);

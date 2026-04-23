@@ -40,11 +40,22 @@ export type GraphOp =
   | { kind: "archive"; entityType: VersionedUrl; entityId: unknown; provenance: SourceProvenance; webId: string };
 
 export type BulkUpsertFailure = { op: Extract<GraphOp, { kind: "upsert" }>; error: Error };
-export type BulkUpsertResult = { ok: string[]; failed: BulkUpsertFailure[] };
+export type BulkUpsertResult = {
+  ok: string[];
+  failed: BulkUpsertFailure[];
+  batches: number;
+  fellBackBatches: number;
+  durationMs: number;
+};
+
+export type BulkUpsertOptions = {
+  onProgress?: (done: number, total: number) => void;
+  onBatchOk?: (entityIds: string[]) => Promise<void>;
+};
 
 export type GraphClient = {
   upsertEntity(op: Extract<GraphOp, { kind: "upsert" }>): Promise<void>;
-  /** Chunks into `HASH_GRAPH_BULK_SIZE` batches (default 128); falls back to per-entity upsert on batch failure. */
-  bulkUpsertEntities(ops: Extract<GraphOp, { kind: "upsert" }>[]): Promise<BulkUpsertResult>;
+  /** Chunks into `HASH_GRAPH_BULK_SIZE` batches (default 128); failing batches drop to per-entity upsert. */
+  bulkUpsertEntities(ops: Extract<GraphOp, { kind: "upsert" }>[], options?: BulkUpsertOptions): Promise<BulkUpsertResult>;
   archiveEntity(op: Extract<GraphOp, { kind: "archive" }>): Promise<void>;
 };

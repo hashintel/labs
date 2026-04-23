@@ -137,7 +137,6 @@ export async function processGraphSink(
   return { syncedIds, errors };
 }
 
-/** An error from a single graph op or wider scope. Collected in `SyncResult.errors`. */
 export type SyncError = {
   kind: "upsert" | "archive" | "stale-link" | "row-build" | "table";
   entityType: string;
@@ -145,10 +144,6 @@ export type SyncError = {
   message: string;
 };
 
-/**
- * Outcome of a sink invocation. Counts and errors combine via `mergeSyncResults`;
- * `emptySyncResult()` is the starting value for aggregation.
- */
 export type SyncResult = {
   inserts: number;
   updates: number;
@@ -276,8 +271,18 @@ export async function diffAndSync(
     }
   }
 
-  const failedIds = new Set<string>();
   const errors: SyncError[] = [];
+  if (!hasPrevious) await db.exec(`CREATE TABLE ${stateTable} AS SELECT * FROM ${currentTable} WHERE 1=0`);
+
+  // Resolve stale links against untouched state, before commits start shifting it.
+  const staleLinks = await resolveStaleLinks(db, config, stateTable, currentTable, updates, hasPrevious);
+
+  const commitSlice = async (ids: string[]) => {
+    if (ids.length === 0) return;
+    const idList = inList(ids);
+    await db.exec(`DELETE FROM ${stateTable} WHERE _entity_id IN (${idList})`);
+    await db.exec(`INSERT INTO ${stateTable} SELECT * FROM ${currentTable} WHERE _entity_id IN (${idList})`);
+  };
 
   const changedIds = [...inserts, ...updates];
   if (changedIds.length > 0 && inputTable) {
@@ -291,45 +296,32 @@ export async function diffAndSync(
         ops.push(rowToGraphOp(row as Row & Envelope, config, provenance));
       } catch (err) {
         const id = String((row as Row)[entityIdCol]);
-        failedIds.add(id);
         errors.push(syncError("row-build", config.entityType, id, err));
         log?.error(`row-build failed for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
       }
     }
     if (ops.length > 0) {
-      log?.info(`bulk upserting ${ops.length} ${typeSlug(config.entityType)} ops`);
-      const { failed } = await client.bulkUpsertEntities(ops);
+      const slug = typeSlug(config.entityType);
+      log?.info(`bulk-upsert ${slug}: ${ops.length} ops starting`);
+      const onProgress = bulkProgressLogger(slug, log);
+      const { ok, failed, batches, fellBackBatches, durationMs } = await client.bulkUpsertEntities(ops, { onProgress, onBatchOk: commitSlice });
+      const perSec = durationMs > 0 ? Math.round((ok.length / durationMs) * 1000) : 0;
+      log?.info(`bulk-upsert ${slug}: ${ok.length}/${ops.length} ok, ${failed.length} failed, ${batches} batches (${fellBackBatches} fell back) in ${durationMs}ms (${perSec}/s)`);
       for (const { op, error } of failed) {
-        failedIds.add(String(op.entityId));
         errors.push(syncError("upsert", op.entityType, op.entityId, error));
         log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(error)} (will retry next sync)`);
       }
     }
   }
 
-  if (updates.length > 0 && hasPrevious && linkCols.length > 0 && config.links) {
-    const updList = inList(updates);
-    const stalePerLink = config.links.map((l) => {
-      const lk = lkCol(l.column);
-      return `SELECT p._entity_id, ${escLiteral(l.column)} AS col, p.${lk} AS old_val
-              FROM ${stateTable} p JOIN ${currentTable} c ON p._entity_id = c._entity_id
-              WHERE p._entity_id IN (${updList}) AND p.${lk} IS NOT NULL AND p.${lk} != c.${lk}`;
-    }).join(" UNION ALL ");
-    const { rows: stale } = await db.query(stalePerLink);
-
-    const linkByCol = new Map(config.links.map((l) => [l.column, l]));
-    await parallel(stale, DEFAULT_CONCURRENCY, async (row) => {
-      const l = linkByCol.get(row.col as string)!;
-      const staleLinkId = `${row._entity_id}::${String(row.old_val)}`;
-      log?.info(`archive stale link ${typeSlug(l.linkType)} ${row._entity_id} -> ${String(row.old_val)}`);
+  if (staleLinks.length > 0) {
+    const linkByCol = new Map((config.links ?? []).map((l) => [l.column, l]));
+    await parallel(staleLinks, DEFAULT_CONCURRENCY, async ({ entityId, col, oldVal }) => {
+      const l = linkByCol.get(col)!;
+      const staleLinkId = `${entityId}::${oldVal}`;
+      log?.info(`archive stale link ${typeSlug(l.linkType)} ${entityId} -> ${oldVal}`);
       try {
-        await client.archiveEntity({
-          kind: "archive",
-          entityType: l.linkType,
-          entityId: staleLinkId,
-          provenance,
-          webId: config.webId,
-        });
+        await client.archiveEntity({ kind: "archive", entityType: l.linkType, entityId: staleLinkId, provenance, webId: config.webId });
       } catch (err) {
         errors.push(syncError("stale-link", l.linkType, staleLinkId, err));
         log?.error(`stale-link archive failed for ${typeSlug(l.linkType)}/${staleLinkId}: ${errMsg(err)}`);
@@ -340,29 +332,14 @@ export async function diffAndSync(
   await parallel(deletes, DEFAULT_CONCURRENCY, async (entityId) => {
     try {
       log?.info(`archive ${typeSlug(config.entityType)} id=${entityId} (removed)`);
-      await client.archiveEntity({
-        kind: "archive",
-        entityType: config.entityType,
-        entityId,
-        provenance,
-        webId: config.webId,
-      });
+      await client.archiveEntity({ kind: "archive", entityType: config.entityType, entityId, provenance, webId: config.webId });
+      await db.exec(`DELETE FROM ${stateTable} WHERE _entity_id = ${escLiteral(entityId)}`);
     } catch (err) {
-      failedIds.add(entityId);
       errors.push(syncError("archive", config.entityType, entityId, err));
       log?.error(`archive failed for ${typeSlug(config.entityType)}/${entityId}: ${errMsg(err)} (will retry next sync)`);
     }
   });
 
-  // Keep old state for failed ids so the next sync detects them as changed and retries.
-  if (failedIds.size > 0) {
-    const failedIdsSql = inList([...failedIds]);
-    await db.exec(`DELETE FROM ${currentTable} WHERE _entity_id IN (${failedIdsSql})`);
-    if (hasPrevious) {
-      await db.exec(`INSERT INTO ${currentTable} SELECT * FROM ${stateTable} WHERE _entity_id IN (${failedIdsSql})`);
-    }
-  }
-  await db.exec(`CREATE OR REPLACE TABLE ${stateTable} AS SELECT * FROM ${currentTable}`);
   await db.exec(`DROP TABLE IF EXISTS ${currentTable}`);
 
   const durationMs = Date.now() - start;
@@ -370,6 +347,42 @@ export async function diffAndSync(
   log?.info(`sync: ${inserts.length} inserts, ${updates.length} updates, ${deletes.length} deletes, ${unchanged} unchanged${failureSummary} (${durationMs}ms)`);
 
   return { inserts: inserts.length, updates: updates.length, deletes: deletes.length, unchanged, errors, durationMs };
+}
+
+type StaleLink = { entityId: string; col: string; oldVal: string };
+
+async function resolveStaleLinks(
+  db: QueryableStore,
+  config: GraphSinkConfig,
+  stateTable: string,
+  currentTable: string,
+  updates: string[],
+  hasPrevious: boolean,
+): Promise<StaleLink[]> {
+  if (updates.length === 0 || !hasPrevious || !config.links?.length) return [];
+  const updList = inList(updates);
+  const sql = config.links.map((l) => {
+    const lk = lkCol(l.column);
+    return `SELECT p._entity_id, ${escLiteral(l.column)} AS col, p.${lk} AS old_val
+            FROM ${stateTable} p JOIN ${currentTable} c ON p._entity_id = c._entity_id
+            WHERE p._entity_id IN (${updList}) AND p.${lk} IS NOT NULL AND p.${lk} != c.${lk}`;
+  }).join(" UNION ALL ");
+  const { rows } = await db.query(sql);
+  return rows.map((r) => ({ entityId: r._entity_id as string, col: r.col as string, oldVal: String(r.old_val) }));
+}
+
+function bulkProgressLogger(slug: string, log: Logger | undefined): (done: number, total: number) => void {
+  const start = Date.now();
+  let lastLog = start;
+  return (done, total) => {
+    const now = Date.now();
+    if (now - lastLog < 10000 && done < total) return;
+    lastLog = now;
+    const elapsed = now - start;
+    const perSec = elapsed > 0 ? Math.round((done / elapsed) * 1000) : 0;
+    const eta = perSec > 0 ? Math.round((total - done) / perSec) : 0;
+    log?.info(`bulk-upsert ${slug}: ${done}/${total} (${((done / total) * 100).toFixed(1)}%) ${perSec}/s, eta ${eta}s`);
+  };
 }
 
 /** Composite keys join alphabetically-sorted values with `::`. Sinks on composite-PK sources must build their `entityId` accessor the same way. */

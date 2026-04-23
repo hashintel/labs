@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { BulkUpsertFailure, BulkUpsertResult, GraphClient, GraphOp, PropertyProvenance, ResolvedLink, SourceProvenance } from "./types.js";
+import type { BulkUpsertFailure, BulkUpsertOptions, BulkUpsertResult, GraphClient, GraphOp, PropertyProvenance, ResolvedLink, SourceProvenance } from "./types.js";
 import type { VersionedUrl } from "../transform/pipeline.js";
 
 const BULK_SIZE = Math.max(1, Number(process.env.HASH_GRAPH_BULK_SIZE ?? 128));
@@ -236,11 +236,16 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     await finaliseLinks(op, fullEntityId, provenance);
   }
 
-  async function bulkUpsertEntities(ops: Extract<GraphOp, { kind: "upsert" }>[]): Promise<BulkUpsertResult> {
+  async function bulkUpsertEntities(
+    ops: Extract<GraphOp, { kind: "upsert" }>[],
+    options?: BulkUpsertOptions,
+  ): Promise<BulkUpsertResult> {
+    const start = Date.now();
     const ok: string[] = [];
     const failed: BulkUpsertFailure[] = [];
     const chunks: (typeof ops)[] = [];
     for (let i = 0; i < ops.length; i += BULK_SIZE) chunks.push(ops.slice(i, i + BULK_SIZE));
+    let fellBackBatches = 0;
 
     await parallel(chunks, BULK_CONCURRENCY, async (chunk) => {
       const payload = chunk.map((op) => ({
@@ -252,31 +257,36 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
         entityUuid: deterministicUuid(op.entityType, op.entityId),
       } satisfies CreateEntityParams));
 
+      const chunkOk: string[] = [];
       try {
         await request("POST", config, "/entities/bulk", payload);
         await parallel(chunk, BULK_CONCURRENCY, async (op) => {
           try {
             const fullEntityId = compositeEntityId(op.webId, deterministicUuid(op.entityType, op.entityId));
             await finaliseLinks(op, fullEntityId, mapProvenance(op.provenance));
-            ok.push(String(op.entityId));
+            chunkOk.push(String(op.entityId));
           } catch (err) {
             failed.push({ op, error: err as Error });
           }
         });
       } catch {
         // Batch rejected; retry individually so 409s become PATCHes.
+        fellBackBatches++;
         for (const op of chunk) {
           try {
             await upsertEntity(op);
-            ok.push(String(op.entityId));
+            chunkOk.push(String(op.entityId));
           } catch (err) {
             failed.push({ op, error: err as Error });
           }
         }
       }
+      ok.push(...chunkOk);
+      if (chunkOk.length > 0 && options?.onBatchOk) await options.onBatchOk(chunkOk);
+      options?.onProgress?.(ok.length + failed.length, ops.length);
     });
 
-    return { ok, failed };
+    return { ok, failed, batches: chunks.length, fellBackBatches, durationMs: Date.now() - start };
   }
 
   async function archiveEntity(op: Extract<GraphOp, { kind: "archive" }>): Promise<void> {
