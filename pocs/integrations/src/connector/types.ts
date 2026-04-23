@@ -1,6 +1,7 @@
 import type { QueryableStore } from "../staging/types.js";
 import type { Storage } from "../storage/types.js";
 import type { Logger } from "../log.js";
+import type { ProvenanceConfig } from "../transform/pipeline.js";
 
 export type ChangeOp = "insert" | "update" | "delete" | "upsert" | "snapshot";
 
@@ -24,6 +25,7 @@ export type ColumnInfo = {
 
 export type TableConfig = {
   primaryKey: string | string[];
+  provenance?: ProvenanceConfig;
 };
 
 export type Batch = {

@@ -3,11 +3,13 @@ import type { BatchConnector, HydrateContext, HydrateResult } from "./types.js";
 import { materialize } from "./snapshot.js";
 import { readMultiRowHeaders } from "./headers.js";
 import { checkpointKey } from "../transform/checkpoint.js";
+import type { ProvenanceConfig } from "../transform/pipeline.js";
 
 type SourceCommon = {
   primaryKey: string | string[];
   partial?: boolean;
   archiveOnEmpty?: boolean;
+  provenance?: ProvenanceConfig;
 };
 
 export type DuckdbSqlSource = SourceCommon & {
@@ -39,6 +41,7 @@ export type DuckdbCheckpointSource = {
   name: string;
   partial?: boolean;
   archiveOnEmpty?: boolean;
+  provenance?: ProvenanceConfig;
 };
 
 /** Reads a plain Parquet from Storage and wraps it with snapshot meta columns. */
@@ -57,6 +60,7 @@ export type DuckdbSource =
 export type DuckdbBatchConfig = {
   id: string;
   sources: Record<string, DuckdbSource>;
+  provenance?: ProvenanceConfig;
 };
 
 export function createDuckdbBatchConnector(config: DuckdbBatchConfig): BatchConnector {

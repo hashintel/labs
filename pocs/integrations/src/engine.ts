@@ -2,12 +2,13 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { Batch, ChangeEvent, Connector, StreamConnector } from "./connector/types.js";
 import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
-import type { Pipeline, Step, TablePipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
+import type { Pipeline, ProvenanceConfig, Step, TablePipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
 import { sortPipelines } from "./transform/topology.js";
-import type { GraphClient } from "./graph/types.js";
+import type { GraphClient, SourceProvenance } from "./graph/types.js";
 import { processGraphSink, archiveDeletes, diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./graph/sink.js";
-import { writeCheckpoint } from "./transform/checkpoint.js";
+import { composeProvenance } from "./graph/provenance.js";
+import { writeCheckpoint, checkpointKey } from "./transform/checkpoint.js";
 import { nullStorage } from "./storage/null.js";
 import type { Storage } from "./storage/types.js";
 import { materialize as materializeSnapshot } from "./connector/snapshot.js";
@@ -95,6 +96,8 @@ export function integrate(spec: IntegrationSpec): Integration {
     const connector = buildConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
     if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
 
+    const loadedAt = new Date().toISOString();
+
     log.info(`sync: connector "${connector.id}" sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
 
     try {
@@ -102,6 +105,7 @@ export function integrate(spec: IntegrationSpec): Integration {
         const sourceTable = `${connector.id}/${source}`;
         const partial = isPartialSource(spec.connector, source);
         const sinkLogForSource = sinkLog.child({ source });
+        const sourceLevel = sourceLevelProvenance(spec.connector, source, storage);
         // Drop any residue from a prior (possibly crashed) cycle so we start
         // from a clean snapshot. Materialize appends, not replaces.
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
@@ -133,9 +137,17 @@ export function integrate(spec: IntegrationSpec): Integration {
                 );
                 continue;
               }
+              const provenance = composeProvenance({
+                connectorId: connector.id,
+                source,
+                connector: spec.connector.provenance,
+                sourceLevel,
+                sink: step.config.provenance,
+                loadedAt,
+              });
               totals = mergeSyncResults(
                 totals,
-                await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, sinkLogForSource, partial),
+                await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
               );
             }
             continue;
@@ -147,9 +159,17 @@ export function integrate(spec: IntegrationSpec): Integration {
 
           await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
             if (step.kind === "graph-sink" && spec.graphClient) {
+              const provenance = composeProvenance({
+                connectorId: connector.id,
+                source,
+                connector: spec.connector.provenance,
+                sourceLevel,
+                sink: step.config.provenance,
+                loadedAt,
+              });
               totals = mergeSyncResults(
                 totals,
-                await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, sinkLogForSource, partial),
+                await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
               );
             } else if (step.kind === "checkpoint") {
               await writeCheckpoint(step.name, currentTable, queryStore, storage);
@@ -266,11 +286,22 @@ export function integrate(spec: IntegrationSpec): Integration {
         if (deletes.length === 0 && writes.length === 0) return { nextSeq: seq };
         const sinkLogForSource = sinkLog.child({ source: table });
 
+        const sourceLevel = sourceLevelProvenance(spec.connector, table, storage);
+        const makeProvenance = (sink: ProvenanceConfig | undefined): SourceProvenance =>
+          composeProvenance({
+            connectorId: connector.id,
+            source: table,
+            connector: spec.connector.provenance,
+            sourceLevel,
+            sink,
+            loadedAt: new Date().toISOString(),
+          });
+
         if (deletes.length > 0 && spec.graphClient) {
           log.debug(`${deletes.length} deletes for "${table}"`);
           for (const step of pipeline.steps) {
             if (step.kind === "graph-sink") {
-              await archiveDeletes(deletes, step.config, spec.graphClient, sinkLogForSource);
+              await archiveDeletes(deletes, step.config, spec.graphClient, makeProvenance(step.config.provenance), sinkLogForSource);
             }
           }
         }
@@ -296,7 +327,7 @@ export function integrate(spec: IntegrationSpec): Integration {
 
           const onSideEffect: SideEffectHandler = async (step, currentTable) => {
             if (step.kind === "graph-sink") {
-              await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, sinkLogForSource);
+              await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, makeProvenance(step.config.provenance), sinkLogForSource);
             } else if (step.kind === "checkpoint") {
               await writeCheckpoint(step.name, currentTable, queryStore, storage);
             }
@@ -350,6 +381,40 @@ function declaredSources(def: ConnectorDef): string[] {
     case "rest-api":     return Object.keys(def.endpoints);
     case "mongo-stream": return Object.keys(def.collections);
   }
+}
+
+function sourceLevelProvenance(def: ConnectorDef, source: string, storage: Storage): ProvenanceConfig | undefined {
+  switch (def.mode) {
+    case "batch": {
+      const s = def.sources[source];
+      if (!s) return undefined;
+      if (s.kind === "checkpoint") {
+        return overlay(s.provenance, { location: { name: `checkpoint:${s.name}`, uri: storage.uriFor(checkpointKey(s.name)) } });
+      }
+      if (s.kind === "external") {
+        return overlay(s.provenance, { location: { uri: storage.uriFor(s.key) } });
+      }
+      return s.provenance;
+    }
+    case "rest-api":     return def.endpoints[source]?.provenance;
+    case "cdc":          return def.tables[source]?.provenance;
+    case "mongo-stream": return def.collections[source]?.provenance;
+  }
+}
+
+/** User-declared `user` wins over framework-derived `base` (e.g. checkpoint/external URIs). */
+function overlay(user: ProvenanceConfig | undefined, base: ProvenanceConfig): ProvenanceConfig {
+  if (!user) return base;
+  return {
+    authors: user.authors ?? base.authors,
+    location: {
+      name: user.location?.name ?? base.location?.name,
+      uri: user.location?.uri ?? base.location?.uri,
+      description: user.location?.description ?? base.location?.description,
+    },
+    firstPublished: user.firstPublished ?? base.firstPublished,
+    lastUpdated: user.lastUpdated ?? base.lastUpdated,
+  };
 }
 
 function isPartialSource(def: ConnectorDef, source: string): boolean {

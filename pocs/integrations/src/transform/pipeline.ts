@@ -51,9 +51,12 @@ export type LinkMapping = {
 
 export type Accessor = string | ((data: Row) => unknown);
 
+/** Declare at connector- or source-level (see each source spec). Sink-level works but is a last-resort fallback. */
 export type ProvenanceConfig = {
   location?: { name?: string; uri?: string; description?: string };
   authors?: string[];
+  firstPublished?: string;
+  lastUpdated?: string;
 };
 
 export type GraphSinkConfig = {

@@ -2,6 +2,7 @@ import type { BatchConnector, ChangeEvent } from "./types.js";
 import { compileKeyExtractor, type KeyExtractor } from "./types.js";
 import { hydrateFromEvents } from "./hydrate.js";
 import type { Logger } from "../log.js";
+import type { ProvenanceConfig } from "../transform/pipeline.js";
 
 export type RestApiEndpoint = {
   url: string;
@@ -15,6 +16,7 @@ export type RestApiEndpoint = {
   partial?: boolean;
   /** Trust an empty response as authoritative and archive all prior state. Default false (transient failures are more common than genuine empties). */
   archiveOnEmpty?: boolean;
+  provenance?: ProvenanceConfig;
 };
 
 export type RestApiBatchConfig = {
@@ -23,6 +25,7 @@ export type RestApiBatchConfig = {
   auth?: { type: "header"; name: string; value: string } | { type: "bearer"; token: string };
   rateLimitMs?: number;
   pageSize?: number;
+  provenance?: ProvenanceConfig;
 };
 
 type PathAccessor = (obj: unknown) => unknown;

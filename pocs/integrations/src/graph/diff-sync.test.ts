@@ -1,12 +1,23 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createDuckDbQueryStore } from "../staging/duckdb.js";
-import { diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./sink.js";
+import { diffAndSync as diffAndSyncRaw, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./sink.js";
 import { namespace, type GraphSinkConfig } from "../transform/pipeline.js";
-import type { GraphClient } from "./types.js";
+import type { GraphClient, SourceProvenance } from "./types.js";
 import type { QueryableStore } from "../staging/types.js";
 
 const T = namespace("https://hash.ai/@test/types");
+const prov: SourceProvenance = { type: "integration", loadedAt: "2026-01-01T00:00:00Z", location: { name: "test-connector" } };
+
+const diffAndSync = (
+  sinkId: string,
+  config: GraphSinkConfig,
+  inputTable: string | null,
+  connectorId: string,
+  db: QueryableStore,
+  client: GraphClient,
+  partial?: boolean,
+) => diffAndSyncRaw(sinkId, config, inputTable, connectorId, db, client, prov, undefined, partial);
 
 const sinkConfig: GraphSinkConfig = {
   entityType: T.entity("user/v/1"),
@@ -136,7 +147,7 @@ describe("diffAndSync", () => {
     await seedTable(db, "output", [row("1", "a@b.com", "NYC", "org-1")]);
     const partialRun = mockClient();
     const result = await diffAndSync(
-      "write-users", sinkConfig, "output", "crm", db, partialRun.client, undefined, true,
+      "write-users", sinkConfig, "output", "crm", db, partialRun.client, true,
     );
 
     assert.equal(result.inserts, 0);
@@ -153,7 +164,7 @@ describe("diffAndSync", () => {
     ]);
     const rerun = mockClient();
     const result2 = await diffAndSync(
-      "write-users", sinkConfig, "output", "crm", db, rerun.client, undefined, true,
+      "write-users", sinkConfig, "output", "crm", db, rerun.client, true,
     );
     assert.equal(result2.inserts, 0);
     assert.equal(result2.unchanged, 2);

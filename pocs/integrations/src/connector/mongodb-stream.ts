@@ -2,12 +2,14 @@ import { MongoClient, type ChangeStream, type ChangeStreamDocument, type ChangeS
 import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig } from "./types.js";
 import { compileKeyExtractor } from "./types.js";
 import type { Logger } from "../log.js";
+import type { ProvenanceConfig } from "../transform/pipeline.js";
 
 export type MongoStreamConfig = {
   id: string;
   url: string;
   database: string;
   collections: Record<string, TableConfig>;
+  provenance?: ProvenanceConfig;
 };
 
 function serializeDoc(doc: Document): Record<string, unknown> {

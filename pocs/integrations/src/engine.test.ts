@@ -281,6 +281,79 @@ describe("integrate(): runtime validation", () => {
     }
   });
 
+  it("composes provenance with source > connector > sink precedence per field", async () => {
+    const queryStore = await createDuckDbQueryStore();
+    try {
+      const T = namespace("https://hash.ai/@test/types");
+      const rows = [{ id: "1", email: "a@b.com" }];
+
+      const hydratingConnector: BatchConnector = {
+        id: "cn", mode: "batch",
+        async hydrate(ctx) {
+          await ctx.store.exec(`CREATE OR REPLACE TABLE "${ctx.stagingTable}" (_op VARCHAR, _key VARCHAR, _before VARCHAR, id VARCHAR, email VARCHAR)`);
+          for (const r of rows) await ctx.store.exec(`INSERT INTO "${ctx.stagingTable}" VALUES ('snapshot', '{}', NULL, $1, $2)`, [r.id, r.email]);
+          return { rowCount: rows.length };
+        },
+        async close() {},
+      };
+
+      const client = recordingGraphClient();
+      const def: ConnectorDef = {
+        id: "cn", mode: "batch",
+        provenance: { authors: ["connector-A"], location: { name: "connector-name" } },
+        sources: {
+          users: {
+            kind: "sql", sql: "SELECT 1", primaryKey: "id",
+            provenance: { authors: ["source-B"] },
+          },
+        },
+      };
+
+      await integrate({
+        connector: def,
+        pipelines: [{
+          source: "users",
+          pipeline: pipe("cn/users",
+            sqlStep({ id: "pass", query: "SELECT _op, _key, _before, id, email FROM input" }),
+            graphSinkStep({
+              id: "write",
+              entityType: T.entity("user/v/1"),
+              entityId: "id",
+              webId: "w",
+              properties: { [T.property("email/v/1")]: "email" },
+              provenance: { authors: ["sink-C"], location: { description: "sink-desc" } },
+            }),
+          ),
+        }],
+        eventStore: createMemoryEventStore(),
+        queryStore,
+        graphClient: client,
+        logLevel: "error",
+        connectorFactory: () => hydratingConnector,
+      }).sync();
+
+      assert.equal(client.ops.length, 1);
+      const op = client.ops[0];
+      if (op.kind !== "upsert") return assert.fail("expected upsert");
+
+      // authors: source wins
+      assert.deepEqual(op.provenance.authors, ["source-B"]);
+      // location.name: no source-level, connector wins
+      assert.equal(op.provenance.location?.name, "connector-name");
+      // location.description: only sink declares, sink fallback wins
+      assert.equal(op.provenance.location?.description, "sink-desc");
+      // entityId: never set
+      assert.equal(op.provenance.entityId, undefined);
+
+      // Per-property provenance is present and uses the same composed source.
+      const propProv = op.propertyProvenance?.[T.property("email/v/1")];
+      assert.ok(propProv);
+      assert.deepEqual(propProv!.sources[0].authors, ["source-B"]);
+    } finally {
+      queryStore.close();
+    }
+  });
+
   it("validates against endpoints (rest-api) and collections (mongo-stream)", async () => {
     const queryStore = await createDuckDbQueryStore();
     try {

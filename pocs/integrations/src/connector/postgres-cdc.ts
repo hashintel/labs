@@ -7,6 +7,7 @@ import {
 import type { BatchHandler, ChangeEvent, ChangeOp, Connector, KeyExtractor, Subscription, TableConfig } from "./types.js";
 import { compileKeyExtractor } from "./types.js";
 import type { Logger } from "../log.js";
+import type { ProvenanceConfig } from "../transform/pipeline.js";
 
 export type PostgresCdcConfig = {
   id: string;
@@ -14,6 +15,7 @@ export type PostgresCdcConfig = {
   publication: string;
   slot: string;
   tables: Record<string, TableConfig>;
+  provenance?: ProvenanceConfig;
 };
 
 const DML_OPS: Record<string, ChangeOp | undefined> = { insert: "insert", update: "update", delete: "delete" };

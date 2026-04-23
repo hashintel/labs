@@ -183,6 +183,77 @@ describe("createGraphClient", () => {
     await mock.close();
   });
 
+  it("embeds per-property provenance in POST body", async () => {
+    const client = createGraphClient(config);
+    await client.upsertEntity({
+      kind: "upsert",
+      entityType: T.entity("user/v/1"),
+      entityId: "u-1",
+      webId: "web-1",
+      properties: {
+        [T.property("email/v/1")]: "a@example.com",
+        [T.property("city/v/1")]: "NYC",
+      },
+      propertyProvenance: {
+        [T.property("email/v/1")]: { sources: [prov] },
+        [T.property("city/v/1")]: { sources: [prov] },
+      },
+      links: [], staleLinks: [],
+      provenance: prov,
+    });
+    await mock.close();
+
+    const body = mock.requests[0].body as Record<string, unknown>;
+    const props = (body.properties as { value: Record<string, { metadata: { provenance?: { sources: unknown[] } } }> }).value;
+    assert.ok(props[T.property("email/")].metadata.provenance);
+    assert.equal(props[T.property("email/")].metadata.provenance!.sources.length, 1);
+    assert.ok(props[T.property("city/")].metadata.provenance);
+    const editionProv = body.provenance as { sources: unknown[] };
+    assert.equal(editionProv.sources.length, 1);
+  });
+
+  it("embeds per-link-property provenance on link POST body", async () => {
+    const client = createGraphClient(config);
+    await client.upsertEntity({
+      kind: "upsert",
+      entityType: T.entity("user/v/1"),
+      entityId: "u-1",
+      webId: "web-1",
+      properties: {},
+      links: [{
+        linkType: T.link("is-member-of/v/1"),
+        targetEntityType: T.entity("org/v/1"),
+        targetId: "org-1",
+        properties: { [T.property("role/v/1")]: "admin" },
+        propertyProvenance: { [T.property("role/v/1")]: { sources: [prov] } },
+      }],
+      staleLinks: [],
+      provenance: prov,
+    });
+    await mock.close();
+
+    const linkBody = mock.requests[1].body as Record<string, unknown>;
+    const props = (linkBody.properties as { value: Record<string, { metadata: { provenance?: { sources: unknown[] } } }> }).value;
+    assert.ok(props[T.property("role/")].metadata.provenance);
+  });
+
+  it("omits metadata.provenance when propertyProvenance is absent", async () => {
+    const client = createGraphClient(config);
+    await client.upsertEntity({
+      kind: "upsert",
+      entityType: T.entity("user/v/1"),
+      entityId: "u-1",
+      webId: "web-1",
+      properties: { [T.property("email/v/1")]: "a@example.com" },
+      links: [], staleLinks: [],
+      provenance: prov,
+    });
+    await mock.close();
+
+    const props = ((mock.requests[0].body as { properties: { value: Record<string, { metadata: { provenance?: unknown } }> } }).properties).value;
+    assert.equal(props[T.property("email/")].metadata.provenance, undefined);
+  });
+
   it("deterministic UUIDs are stable across calls", async () => {
     const client = createGraphClient(config);
     await client.upsertEntity({

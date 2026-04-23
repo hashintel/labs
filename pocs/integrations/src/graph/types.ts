@@ -5,8 +5,10 @@ export type ResolvedLink = {
   targetEntityType: VersionedUrl;
   targetId: unknown;
   properties?: Record<VersionedUrl, unknown>;
+  propertyProvenance?: Record<VersionedUrl, PropertyProvenance>;
 };
 
+/** `entityId` reserved for File-entity opt-in; v1 never sets it. Runtime mtime / CDC-ts capture is deferred. */
 export type SourceProvenance = {
   type: "integration";
   entityId?: string;
@@ -21,8 +23,20 @@ export type SourceProvenance = {
   loadedAt?: string;
 };
 
+export type PropertyProvenance = { sources: SourceProvenance[] };
+
 export type GraphOp =
-  | { kind: "upsert"; entityType: VersionedUrl; entityId: unknown; properties: Record<VersionedUrl, unknown>; links: ResolvedLink[]; staleLinks: ResolvedLink[]; provenance: SourceProvenance; webId: string }
+  | {
+      kind: "upsert";
+      entityType: VersionedUrl;
+      entityId: unknown;
+      properties: Record<VersionedUrl, unknown>;
+      propertyProvenance?: Record<VersionedUrl, PropertyProvenance>;
+      links: ResolvedLink[];
+      staleLinks: ResolvedLink[];
+      provenance: SourceProvenance;
+      webId: string;
+    }
   | { kind: "archive"; entityType: VersionedUrl; entityId: unknown; provenance: SourceProvenance; webId: string };
 
 export type GraphClient = {

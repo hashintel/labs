@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { GraphClient, GraphOp, ResolvedLink, SourceProvenance } from "./types.js";
+import type { GraphClient, GraphOp, PropertyProvenance, ResolvedLink, SourceProvenance } from "./types.js";
 import type { VersionedUrl } from "../transform/pipeline.js";
 
 export type GraphClientConfig = {
@@ -7,7 +7,8 @@ export type GraphClientConfig = {
   actorId: string;
 };
 
-type PropertyValueWithMetadata = { value: unknown; metadata: { dataTypeId: null } };
+type ValueMetadata = { dataTypeId: null; provenance?: PropertyProvenance };
+type PropertyValueWithMetadata = { value: unknown; metadata: ValueMetadata };
 type PropertyObjectWithMetadata = { value: Record<string, PropertyValueWithMetadata> };
 
 type HASHSourceProvenance = {
@@ -70,15 +71,26 @@ function toBaseUrl(versionedUrl: string): string {
   return versionedUrl.replace(/v\/\d+$/, "");
 }
 
-function mapProperties(props: Record<VersionedUrl, unknown>): PropertyObjectWithMetadata {
+function metadataFor(url: VersionedUrl, prov: Record<VersionedUrl, PropertyProvenance> | undefined): ValueMetadata {
+  const p = prov?.[url];
+  return p ? { dataTypeId: null, provenance: p } : { dataTypeId: null };
+}
+
+function mapProperties(
+  props: Record<VersionedUrl, unknown>,
+  prov?: Record<VersionedUrl, PropertyProvenance>,
+): PropertyObjectWithMetadata {
   const value: Record<string, PropertyValueWithMetadata> = {};
   for (const [url, val] of Object.entries(props)) {
-    if (val != null) value[toBaseUrl(url)] = { value: val, metadata: { dataTypeId: null } };
+    if (val != null) value[toBaseUrl(url)] = { value: val, metadata: metadataFor(url, prov) };
   }
   return { value };
 }
 
-function mapPropertiesAsPatch(props: Record<VersionedUrl, unknown>): PatchEntityParams["properties"] {
+function mapPropertiesAsPatch(
+  props: Record<VersionedUrl, unknown>,
+  prov?: Record<VersionedUrl, PropertyProvenance>,
+): PatchEntityParams["properties"] {
   // `add` upserts the property (RFC 6902: creates if missing, overwrites if present).
   // `replace` would require every property key to already exist on the record, which
   // fails for properties that were null on the initial write and are set on a resync.
@@ -87,7 +99,7 @@ function mapPropertiesAsPatch(props: Record<VersionedUrl, unknown>): PatchEntity
     .map(([url, val]) => ({
       op: "add" as const,
       path: [toBaseUrl(url)],
-      property: { value: val, metadata: { dataTypeId: null } },
+      property: { value: val, metadata: metadataFor(url, prov) },
     }));
 }
 
@@ -172,7 +184,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
         await request("POST", config, "/entities", {
           webId: op.webId,
           entityTypeIds: [op.entityType],
-          properties: mapProperties(op.properties),
+          properties: mapProperties(op.properties, op.propertyProvenance),
           draft: false,
           provenance,
           entityUuid,
@@ -184,7 +196,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
             provenance,
             archived: false,
             entityTypeIds: [op.entityType],
-            properties: mapPropertiesAsPatch(op.properties),
+            properties: mapPropertiesAsPatch(op.properties, op.propertyProvenance),
           } satisfies PatchEntityParams);
         } else {
           throw e;
@@ -263,7 +275,9 @@ async function upsertLink(
   const rightEntityId = compositeEntityId(op.webId, targetUuid);
   const linkUuid = deterministicUuid(link.linkType, `${op.entityId}::${link.targetId}`);
 
-  const linkProps = link.properties ? mapProperties(link.properties as Record<VersionedUrl, unknown>) : { value: {} };
+  const linkProps = link.properties
+    ? mapProperties(link.properties as Record<VersionedUrl, unknown>, link.propertyProvenance)
+    : { value: {} };
 
   const createLink = () => request("POST", config, "/entities", {
     webId: op.webId,
@@ -279,7 +293,9 @@ async function upsertLink(
     entityId: compositeEntityId(op.webId, linkUuid),
     provenance,
     archived: false,
-    ...(link.properties ? { properties: mapPropertiesAsPatch(link.properties as Record<VersionedUrl, unknown>) } : {}),
+    ...(link.properties
+      ? { properties: mapPropertiesAsPatch(link.properties as Record<VersionedUrl, unknown>, link.propertyProvenance) }
+      : {}),
   } satisfies PatchEntityParams);
 
   try {

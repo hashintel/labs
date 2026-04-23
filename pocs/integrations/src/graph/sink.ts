@@ -2,7 +2,7 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { QueryableStore } from "../staging/types.js";
 import type { ChangeEvent } from "../connector/types.js";
 import type { Accessor, GraphSinkConfig, Row, Envelope } from "../transform/pipeline.js";
-import type { GraphOp, ResolvedLink, SourceProvenance, GraphClient } from "./types.js";
+import type { GraphOp, ResolvedLink, SourceProvenance, PropertyProvenance, GraphClient } from "./types.js";
 import type { Logger } from "../log.js";
 
 const DEFAULT_CONCURRENCY = 5;
@@ -30,15 +30,6 @@ function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-function buildProvenance(config: GraphSinkConfig): SourceProvenance {
-  return {
-    type: "integration",
-    location: config.provenance?.location,
-    authors: config.provenance?.authors,
-    loadedAt: new Date().toISOString(),
-  };
-}
-
 /** Upsert-only. Deletes are handled out-of-band (engine splits stream deletes to `archiveDeletes`; `diffAndSync` archives by id). */
 export function rowToGraphOp(
   row: Row & Envelope,
@@ -53,9 +44,12 @@ export function rowToGraphOp(
 
   const entityId = resolve(config.entityId, data);
 
+  const propSources: PropertyProvenance = { sources: [provenance] };
   const properties: Record<string, unknown> = {};
+  const propertyProvenance: Record<string, PropertyProvenance> = {};
   for (const [propUrl, accessor] of Object.entries(config.properties)) {
     properties[propUrl] = resolve(accessor, data);
+    propertyProvenance[propUrl] = propSources;
   }
 
   const links: ResolvedLink[] = (config.links ?? [])
@@ -64,8 +58,10 @@ export function rowToGraphOp(
       const resolved: ResolvedLink = { linkType: l.linkType, targetEntityType: l.targetEntityType, targetId: data[l.column] };
       if (l.properties) {
         resolved.properties = {};
+        resolved.propertyProvenance = {};
         for (const [url, accessor] of Object.entries(l.properties)) {
           resolved.properties[url] = resolve(accessor, data);
+          resolved.propertyProvenance[url] = propSources;
         }
       }
       return resolved;
@@ -91,7 +87,7 @@ export function rowToGraphOp(
     }
   }
 
-  return { kind: "upsert", entityType: config.entityType, entityId, properties, links, staleLinks, provenance, webId: config.webId };
+  return { kind: "upsert", entityType: config.entityType, entityId, properties, propertyProvenance, links, staleLinks, provenance, webId: config.webId };
 }
 
 export async function processGraphSink(
@@ -99,9 +95,9 @@ export async function processGraphSink(
   inputTable: string,
   db: QueryableStore,
   client: GraphClient,
+  provenance: SourceProvenance,
   log?: Logger,
 ): Promise<{ syncedIds: string[]; errors: SyncError[] }> {
-  const provenance = buildProvenance(config);
   const { rows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
 
   // Collapse multiple events for the same entity (e.g. insert+update in one
@@ -202,11 +198,11 @@ export async function diffAndSync(
   connectorId: string,
   db: QueryableStore,
   client: GraphClient,
+  provenance: SourceProvenance,
   log?: Logger,
   partial: boolean = false,
 ): Promise<SyncResult> {
   const start = Date.now();
-  const provenance = buildProvenance(config);
   const entityIdCol = typeof config.entityId === "string" ? config.entityId : null;
   const currentTable = qi(`_sync/current/${sinkId}`);
   const stateTable = qi(`_state/sync/${connectorId}/${sinkId}`);
@@ -406,10 +402,10 @@ export async function archiveDeletes(
   deletes: ChangeEvent[],
   config: GraphSinkConfig,
   client: GraphClient,
+  provenance: SourceProvenance,
   log?: Logger,
 ): Promise<{ errors: SyncError[] }> {
   if (deletes.length === 0) return { errors: [] };
-  const provenance = buildProvenance(config);
   const errors: SyncError[] = [];
 
   await parallel(deletes, DEFAULT_CONCURRENCY, async (del) => {

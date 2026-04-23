@@ -74,6 +74,38 @@ describe("rowToGraphOp", () => {
     assert.equal(op.provenance.loadedAt, "2026-01-01T00:00:00Z");
   });
 
+  it("stamps per-property provenance on each property", () => {
+    const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o" };
+    const op = rowToGraphOp(row, config, prov);
+    if (op.kind !== "upsert") return assert.fail("expected upsert");
+    assert.ok(op.propertyProvenance);
+    assert.deepEqual(op.propertyProvenance![T.property("email/v/1")], { sources: [prov] });
+    assert.deepEqual(op.propertyProvenance![T.property("display-name/v/1")], { sources: [prov] });
+  });
+
+  it("stamps per-link-property provenance on each link property", () => {
+    const withLinkProps: GraphSinkConfig = {
+      ...config,
+      links: [{
+        column: "orgId",
+        linkType: T.link("is-member-of/v/1"),
+        targetEntityType: T.entity("organization/v/1"),
+        properties: { [T.property("role/v/1")]: "role" },
+      }],
+    };
+    const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o", role: "admin" };
+    const op = rowToGraphOp(row, withLinkProps, prov);
+    if (op.kind !== "upsert") return assert.fail("expected upsert");
+    assert.equal(op.links[0].properties?.[T.property("role/v/1")], "admin");
+    assert.deepEqual(op.links[0].propertyProvenance?.[T.property("role/v/1")], { sources: [prov] });
+  });
+
+  it("SourceProvenance never carries entityId in v1", () => {
+    const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o" };
+    const op = rowToGraphOp(row, config, prov);
+    assert.equal(op.provenance.entityId, undefined);
+  });
+
   it("supports function accessors", () => {
     const fnConfig: GraphSinkConfig = {
       entityType: T.entity("user/v/1"),
@@ -152,8 +184,8 @@ describe("archiveDeletes composite-key determinism", () => {
 
     const c1 = recording();
     const c2 = recording();
-    await archiveDeletes([ev1], cfg, c1);
-    await archiveDeletes([ev2], cfg, c2);
+    await archiveDeletes([ev1], cfg, c1, prov);
+    await archiveDeletes([ev2], cfg, c2, prov);
 
     assert.equal(c1.ops.length, 1);
     assert.equal(c2.ops.length, 1);
@@ -165,7 +197,7 @@ describe("archiveDeletes composite-key determinism", () => {
   it("single-key case preserves the raw value type", async () => {
     const cfg: GraphSinkConfig = { entityType: T.entity("user/v/1"), entityId: "id", webId: "w", properties: {} };
     const client = recording();
-    await archiveDeletes([{ table: "users", op: "delete", key: { id: 42 }, row: null }], cfg, client);
+    await archiveDeletes([{ table: "users", op: "delete", key: { id: 42 }, row: null }], cfg, client, prov);
     assert.equal(client.ops[0].entityId, 42); // number, not "42"
   });
 });

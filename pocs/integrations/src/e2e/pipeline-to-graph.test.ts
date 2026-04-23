@@ -10,8 +10,10 @@ import { validatePipeline, runPipeline } from "../transform/run.js";
 import { processGraphSink, archiveDeletes } from "../graph/sink.js";
 import type { ChangeEvent } from "../connector/types.js";
 import type { QueryableStore } from "../staging/types.js";
+import type { SourceProvenance } from "../graph/types.js";
 
 const T = namespace("https://hash.ai/@test/types");
+const prov: SourceProvenance = { type: "integration", loadedAt: "2026-01-01T00:00:00Z", location: { name: "e2e-test" } };
 
 type RequestLog = { method: string; path: string; body: Record<string, unknown> };
 
@@ -94,7 +96,7 @@ describe("e2e: events to pipeline to graph", () => {
     const client = createGraphClient(config);
     return async (step, table) => {
       if (step.kind === "graph-sink") {
-        await processGraphSink(step.config, table, queryStore, client);
+        await processGraphSink(step.config, table, queryStore, client, prov);
       }
     };
   }
@@ -166,7 +168,7 @@ describe("e2e: events to pipeline to graph", () => {
     const config: GraphClientConfig = { baseUrl: `http://localhost:${graphServer.port}`, actorId: "test-actor" };
     const client = createGraphClient(config);
 
-    await archiveDeletes(deletes, sinkConfig.config, client);
+    await archiveDeletes(deletes, sinkConfig.config, client, prov);
 
     const archiveReq = graphServer.requests.find((r) => r.method === "PATCH");
     assert.ok(archiveReq, "expected a PATCH request for archive");
