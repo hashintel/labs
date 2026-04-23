@@ -373,7 +373,7 @@ async function resolveStaleLinks(
 
 function bulkProgressLogger(slug: string, log: Logger | undefined): (done: number, total: number) => void {
   const start = Date.now();
-  let lastLog = start;
+  let lastLog = 0;
   return (done, total) => {
     const now = Date.now();
     if (now - lastLog < 10000 && done < total) return;
