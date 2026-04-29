@@ -20,6 +20,10 @@ export type DuckdbSqlSource = SourceCommon & {
   /** Derive column names from N data rows; use with `header=false` readers. */
   headerRows?: readonly number[];
   forwardFill?: boolean;
+  /** Header rows excluded from `forwardFill`. */
+  unfilledHeaderRows?: readonly number[];
+  /** Case-insensitive tokens excluded from each combined column name. */
+  dropHeaderTokens?: readonly string[];
 };
 
 export type DuckdbAttachSource = SourceCommon & {
@@ -106,6 +110,8 @@ export function createDuckdbBatchConnector(config: DuckdbBatchConfig): BatchConn
         readExpr = await readMultiRowHeaders(ctx.store, readExpr, {
           rows: [...spec.headerRows],
           forwardFill: spec.forwardFill,
+          unfilledRows: spec.unfilledHeaderRows,
+          dropTokens: spec.dropHeaderTokens,
         });
       }
       return await materialize(ctx, readExpr, spec.primaryKey);
