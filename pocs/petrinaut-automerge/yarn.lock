@@ -615,6 +615,21 @@
     echarts "5.6.0"
     react-loading-skeleton "3.5.0"
 
+"@hashintel/petrinaut@0.0.5":
+  version "0.0.5"
+  resolved "https://registry.yarnpkg.com/@hashintel/petrinaut/-/petrinaut-0.0.5.tgz#28fb78da72e07fe9cd7985e04ebfad969e6957cb"
+  integrity sha512-MlnT1EHx2S1O3o9TKT3Qg8Xsc9op8EBHvMpbX02sYAJjY5MJyoJy1k+RzROFwdT8tQhQQu1ea/A+/ehOGlWZeQ==
+  dependencies:
+    "@emotion/react" "11.14.0"
+    "@fortawesome/free-solid-svg-icons" "6.7.2"
+    "@hashintel/block-design-system" "0.0.5"
+    "@hashintel/design-system" "0.0.9-canary.2"
+    "@mui/material" "5.18.0"
+    "@mui/system" "5.18.0"
+    elkjs "0.10.0"
+    reactflow "11.11.4"
+    uuid "11.1.0"
+
 "@humanwhocodes/config-array@^0.11.10":
   version "0.11.14"
   resolved "https://registry.yarnpkg.com/@humanwhocodes/config-array/-/config-array-0.11.14.tgz#d78e481a039f7566ecc9660b4ea7fe6b1fec442b"
