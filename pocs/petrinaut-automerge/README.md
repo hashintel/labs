@@ -1,4 +1,4 @@
-# Petrinaut x Automerge / Petrinaut x Patchwork
+# Petrinaut x Automerge
 
 This is a POC of [Petrinaut](https://github.com/hashintel/hash/tree/main/libs/%40hashintel/petrinaut) (a Petri net editor) with an [Automerge](https://automerge.org/) backend.
 
@@ -24,12 +24,3 @@ Run `yarn dev` and navigate to http://localhost:5173 to see the app running.
 1. Why known issue (2) happens
 2. What the best way is of subscribing to patches as they change (There's currently a hacky version in `petrinaut-wrapper.tsx` which logs out patches on every render if the head has changed)
 3. When/why will there be more than one `head`?
-
-## TODOs
-
-1. Put POC into Patchwork
-2. Discuss approach to visual diffing
-   - have Petrinaut be aware of change history
-   - ability to explore change history, with appropriate visual indicators for diffs (deletions, additions)
-3. Add more granular updates
-4. Allow deleting nodes / edges
