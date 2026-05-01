@@ -40,6 +40,7 @@
     "fmt-check:core": "yarn ws:core fmt-check",
     "preserve:core": "yarn build:engine-web",
     "serve:core": "yarn ws:core serve",
+    "preview:core": "yarn ws:core start",
     "start:core": "yarn ws:core start",
     "test:core": "yarn ws:core test",
     "g": "yarn ws:core g",

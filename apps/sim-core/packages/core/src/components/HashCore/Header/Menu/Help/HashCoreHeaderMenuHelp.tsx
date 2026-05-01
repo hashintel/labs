@@ -34,8 +34,17 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
         />
         <ul className="HashCoreHeaderMenu-submenu">
           <li className="HashCoreHeaderMenu-submenu-item">
-            <a href="https://docs.hash.ai/core/" target="_blank">
+            <a href="https://docs.hash.ai/core/" target="_blank" rel="noopener noreferrer">
               Docs
+            </a>
+          </li>
+          <li className="HashCoreHeaderMenu-submenu-item">
+            <a
+              href="https://github.com/hashintel/labs/issues/new/choose"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Report an issue
             </a>
           </li>
           {/* {canUseAccount ? (
