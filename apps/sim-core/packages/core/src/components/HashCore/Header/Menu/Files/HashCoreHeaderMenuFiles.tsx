@@ -9,7 +9,7 @@ import { ModalNewDataset } from "../../../../Modal/NewDataset/ModalNewDataset";
 import { PartialSimulationProject } from "../../../../../features/project/types";
 import { Scope } from "../../../../../features/scopes";
 import { descByUpdatedAt } from "../../../../../util/descByUpdatedAt";
-import { mainProjectPath, urlFromProject } from "../../../../../routes";
+import { mainProjectPath } from "../../../../../routes";
 
 import { useProject } from "../../../../../features/project/ProjectContext";
 import { useUser } from "../../../../../features/user/UserContext";

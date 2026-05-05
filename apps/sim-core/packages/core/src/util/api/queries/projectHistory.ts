@@ -2,6 +2,7 @@ import { APIExperimentRun } from "../../types";
 import {
   CommitGroup,
   ProjectHistoryItemType,
+  ProjectHistoryReturn,
 } from "../apiTypes";
 import {
   LinkableProject,

@@ -11,11 +11,9 @@ describe("toast feature", () => {
   });
 
   it.each([
-    [{ kind: ToastKind.ReleaseBehaviorSuccess, data: "123-abc" }],
-    [{ kind: ToastKind.ReleaseSuccess }],
     [{ kind: ToastKind.ProjectForked }],
     [{ kind: ToastKind.ProjectPreview }],
-    [{ kind: ToastKind.ReadOnlyRelease }],
+    [{ kind: ToastKind.ProjectEditable }],
     [{ kind: ToastKind.None }],
   ] as [{ kind: ToastKind; data?: string }][])(
     "reducer should demonstrate expected behavior",

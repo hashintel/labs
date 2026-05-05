@@ -121,7 +121,8 @@ export class WebExperimentRunner implements ExperimentRunner {
       // Assemble a promise that ends when no more work is available to give to the worker
 
       const act = async () => {
-        let init: QueueEntry = this.simulationRunQueue.values().next().value;
+        let init: QueueEntry | undefined =
+          this.simulationRunQueue.values().next().value;
 
         while (init !== undefined) {
           this.simulationRunQueue.delete(init);

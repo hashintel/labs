@@ -78,8 +78,8 @@ export async function simulationFromRequest(
  */
 export function parseAndThrowProper<T>(item: any, context: string): T {
   try {
-    return item !== "" ? JSON.parse(item) : {};
+    return (item !== "" ? JSON.parse(item) : {}) as T;
   } catch (e) {
-    throw new EvalError(e, context);
+    throw new Error(`${context}: ${String(e)}`);
   }
 }

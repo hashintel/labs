@@ -14,6 +14,7 @@ export {
 export {
   // user
   bootstrapQuery,
+  trackTourProgress,
   // simulations
   linkableProjectByLegacyId,
   getOnboardingProject,

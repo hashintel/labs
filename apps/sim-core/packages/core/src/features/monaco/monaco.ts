@@ -197,7 +197,7 @@ const createMonacoSubscriber = () => {
       dispatch: Dispatch<any>,
     ) {
       filesDispatch = dispatch;
-      fileEntities = Object.fromEntries(files.map((f) => [f.id, f]));
+      fileEntities = Object.fromEntries(files.map((file) => [file.id, file]));
 
       for (const model of modelsToDispose) {
         model.dispose();

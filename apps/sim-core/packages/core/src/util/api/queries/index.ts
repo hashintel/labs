@@ -1,4 +1,6 @@
 export { bootstrapQuery } from "./bootstrapQuery";
+export { trackTourProgress } from "./trackTourProgress";
+export { promoteToLive } from "./promoteToLive";
 export { fetchDependencies } from "./fetchDependencies";
 export { getOnboardingProject } from "./getOnboardingProject";
 export { getReleaseMeta } from "./getReleaseMeta";

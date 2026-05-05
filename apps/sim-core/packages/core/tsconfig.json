@@ -7,5 +7,5 @@
     "skipLibCheck": true
   },
   "include": ["site.d.ts", "scripts/**/*", "src/**/*"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "scripts/deploy.ts"]
 }

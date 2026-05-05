@@ -16,6 +16,7 @@ export { IconClose } from "./Close";
 export { IconCopy } from "./Copy";
 export { IconCubeUnfolded } from "./CubeUnfolded";
 export { IconDesktop } from "./Desktop";
+export { IconDiscord } from "./Discord";
 export { IconExperimentsCreate } from "./ExperimentsCreate";
 export { IconExperimentsRun } from "./ExperimentsRun";
 export { IconEye } from "./Eye";

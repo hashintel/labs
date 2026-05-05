@@ -15,7 +15,7 @@ export const useSimulatorStore = () => simulatorStore;
 function shallowEqualArrays(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   if (Array.isArray(a) && Array.isArray(b) && a.length === b.length) {
-    return a.every((x, i) => x === b[i]);
+    return a.every((x, idx) => x === b[idx]);
   }
   return false;
 }

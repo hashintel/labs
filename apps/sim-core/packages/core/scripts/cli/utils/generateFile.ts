@@ -3,7 +3,7 @@ import { extname, join, relative } from "path";
 import { format } from "prettier";
 
 type NameContentTuple = [string, string];
-type FileGenerator = (pair: NameContentTuple) => void;
+type FileGenerator = (pair: NameContentTuple) => Promise<void>;
 type FileGeneratorContext = {
   dryRun: boolean;
   verbose: boolean;
@@ -21,13 +21,13 @@ type FileGeneratorFactory = (ctx: FileGeneratorContext) => FileGenerator;
  */
 export const generateFile: FileGeneratorFactory =
   ({ dryRun = false, verbose = false, componentDir }) =>
-  ([fileName, content]) => {
+  async ([fileName, content]) => {
     const filePath = join(componentDir, fileName);
 
     const relPath = relative(process.cwd(), filePath);
     const ext = extname(filePath).substr(1);
 
-    const fileContent = format(content, {
+    const fileContent = await format(content, {
       parser: ext === "css" ? "css" : "babel",
     });
 

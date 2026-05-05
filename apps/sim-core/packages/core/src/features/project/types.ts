@@ -1,7 +1,16 @@
 import { FileAction, HcDependencyFile, HcFile } from "../files/types";
 import { HashCoreAccessGateKindWithProps } from "../../components/HashCore/AccessGate";
 import { License } from "../../util/api/types";
+import type { ProjectAccessCodeAccessType } from "../../shared/scopes";
 import { PartialSimulationProjectFieldsTuple } from "./utils";
+
+export type ProjectAccessParsed = {
+  code: string;
+  level: ProjectAccessCodeAccessType;
+};
+
+/** @deprecated Use ProjectAccessParsed; kept for legacy share modal imports */
+export type ProjectAccess = ProjectAccessParsed;
 export type ProjectFile = {
   name: string;
   path: string;

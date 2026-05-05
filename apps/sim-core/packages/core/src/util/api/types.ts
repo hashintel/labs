@@ -1,4 +1,7 @@
+import type { Commit } from "./apiTypes";
 import { CommitActionVerb } from "./apiTypes";
+
+export type { Commit };
 
 export type MyType<T> = { me: T };
 
@@ -62,3 +65,46 @@ export type ApiCommitAction = {
   previousPath?: string;
   content?: string;
 };
+
+export interface CommitActionsMutationVariables {
+  pathWithNamespace: string;
+  includeFullProject: boolean;
+  actions: ApiCommitAction[];
+  message: string;
+  accessCode?: string | null;
+}
+
+export interface CommitActionsMutation {
+  createCommit: {
+    project: unknown;
+    commit: Commit;
+  };
+}
+
+export interface CanUserEditProjectQueryVariables {
+  pathWithNamespace: string;
+  ref: string;
+}
+
+export interface CanUserEditProjectQuery {
+  project: {
+    canUserEdit: boolean;
+    dependencies: Array<{ pathWithNamespace: string; canUserEdit: boolean }>;
+  };
+}
+
+export interface PartialProjectByPathQueryVariables {
+  pathWithNamespace: string;
+  version: string;
+}
+
+export interface PartialProjectByPathQuery {
+  project: unknown;
+}
+
+export interface ForkAndReleaseBehaviorsMutation {
+  forkAndReleaseBehavior: {
+    sourceProject: { updatedAt: string; files: unknown };
+    behaviorProject: { pathWithNamespace: string; ref: string };
+  };
+}

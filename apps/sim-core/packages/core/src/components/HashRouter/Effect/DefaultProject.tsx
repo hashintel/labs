@@ -37,7 +37,7 @@ export const HashRouterEffectDefaultProject: FC = () => {
       try {
         const manifest = await fetchExampleManifest();
         const defaultEntry =
-          manifest.find((e) => e.default) ?? manifest[0];
+          manifest.find((entry) => entry.default) ?? manifest[0];
 
         if (!defaultEntry) {
           console.warn("No example projects available");

@@ -1,10 +1,9 @@
-import { curriedQuery } from "./../query";
-
-export const promoteToLive = curriedQuery<
-  { promoteToLive: boolean },
-  { stamp: string }
->(
-  `mutation promoteToLive($stamp: String!) {
-        promoteToLive(stamp: $stamp)
-     }`,
-);
+/**
+ * Legacy cloud “promote to live” hook. No-op in the local-first build.
+ */
+export const promoteToLive = async (
+  _args: { stamp: string },
+  _signal: AbortSignal,
+): Promise<void> => {
+  console.warn("promoteToLive is not available in the local-first build");
+};

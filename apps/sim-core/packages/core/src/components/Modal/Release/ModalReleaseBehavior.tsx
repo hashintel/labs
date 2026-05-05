@@ -107,28 +107,27 @@ export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
 
     try {
       await handleQueryCodeErrors(values, setError, async () => {
-        const { forkedBehaviors } = await dispatch(
-          //@ts-expect-error redux problems
-          forkAndReleaseBehaviors({
-            projectPath: project.pathWithNamespace,
-            name: values.name,
-            namespace:
-              selectedPublishAs.value === "user"
-                ? ""
-                : selectedPublishAs.subLabel!,
-            path: values.path,
-            behaviors: toPublish.map((file) => ({
-              path: file.repoPath,
-              filename: file.path.base,
-            })),
-            projectDescription: values.description,
-            keywords: selectedKeywords.map((keyword) => keyword.value),
-            // subjects: selectedSubjects.map((subject) => subject.label),
-            license: selectedLicense.value ?? "",
-            // @todo allow for private behavior releases
-            visibility: "public",
-          }),
-        ).then(unwrapResult);
+        const { forkedBehaviors } = unwrapResult(
+          await dispatch(
+            forkAndReleaseBehaviors({
+              projectPath: project.pathWithNamespace,
+              name: values.name,
+              namespace:
+                selectedPublishAs.value === "user"
+                  ? ""
+                  : selectedPublishAs.subLabel!,
+              path: values.path,
+              behaviors: toPublish.map((file) => ({
+                path: file.repoPath,
+                filename: file.path.base,
+              })),
+              projectDescription: values.description,
+              keywords: selectedKeywords.map((keyword) => keyword.value),
+              license: selectedLicense.value ?? "",
+              visibility: "public",
+            }),
+          ),
+        );
 
         dispatch(
           displayToast({
