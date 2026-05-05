@@ -7,9 +7,15 @@
 const { port1, port2 } = new MessageChannel();
 port2.start();
 
+function correlationToken(): number {
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0]!;
+}
+
 export const yieldToBrowser = () =>
   new Promise<void>((resolve) => {
-    const uid = Math.random();
+    const uid = correlationToken();
     port2.addEventListener(
       "message",
       function yieldToBrowserMessageHandler(ev) {

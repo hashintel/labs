@@ -31,6 +31,8 @@ const getLocalDrafts = (projectKey: string): LocalStorageDrafts =>
 const setLocalDrafts = (projectKey: string, drafts: LocalStorageDrafts) =>
   setItem(`process-charts-${projectKey}`, drafts);
 
+const PROCESS_CHART_PLUGIN_ORIGIN = "https://pm.hcore-plugins.hashsandbox.com";
+
 export const ProcessChart: FC = () => {
   const {
     activityVisible,
@@ -174,7 +176,7 @@ export const ProcessChart: FC = () => {
         existingProcess,
         value: projectRef.current,
       },
-      "*",
+      PROCESS_CHART_PLUGIN_ORIGIN,
     );
   };
   useEffect(setProjectRefAndSendChart, [
@@ -211,7 +213,7 @@ export const ProcessChart: FC = () => {
           className="ProcessChart__Plugin__Frame"
           ref={frameRef}
           onLoad={setProjectRefAndSendChart}
-          src="https://pm.hcore-plugins.hashsandbox.com"
+          src={PROCESS_CHART_PLUGIN_ORIGIN}
         />
       </div>
     </div>

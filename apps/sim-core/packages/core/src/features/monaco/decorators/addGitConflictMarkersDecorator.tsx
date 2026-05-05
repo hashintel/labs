@@ -282,7 +282,7 @@ const registerGitConflictCodeLensProviders = (
 // >>>>>>> 77976da35a11db4580b80ae27e8d65caf5208086:README.md
 // Try it on https://regex101.com/r/aw03un/1
 const GIT_CONFLICT_MARKERS_REGEX =
-  /(^<<<<<<< \w+:\w+.+\s)((?:.|\s)*?)\s(=======\s)(^(?:.|\s)*?)(^>>>>>>> \w+:\w+.+\s)/gm;
+  /(^<<<<<<< \w+:\w+.+\s)([\s\S]*?)\s(=======\s)(^[\s\S]*?)(^>>>>>>> \w+:\w+.+\s)/gm;
 
 const getOptions = (
   token: string,
