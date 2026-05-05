@@ -1,0 +1,32 @@
+[
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/property-type",
+    "kind": "propertyType",
+    "$id": "https://blockprotocol.org/@alice/property-type/contrived-property/v/1",
+    "title": "Contrived Property",
+    "oneOf": [
+      {
+        "$ref": "https://blockprotocol.org/@blockprotocol/types/data-type/number/v/1"
+      },
+      {
+        "type": "array",
+        "items": {
+          "oneOf": [
+            {
+              "$ref": "https://blockprotocol.org/@blockprotocol/types/data-type/number/v/1"
+            }
+          ]
+        },
+        "maxItems": 4
+      }
+    ]
+  },
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/data-type",
+    "kind": "dataType",
+    "$id": "https://blockprotocol.org/@blockprotocol/types/data-type/number/v/1",
+    "title": "Number",
+    "description": "An arithmetical value (in the Real number system)",
+    "type": "number"
+  }
+]

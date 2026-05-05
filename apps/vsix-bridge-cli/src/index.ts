@@ -1,0 +1,157 @@
+import * as p from '@clack/prompts';
+import { parseArgs } from 'node:util';
+import { createRequire } from 'node:module';
+import { renderBanner, renderInfo } from './lib/banner.js';
+import { checkForUpdates } from './lib/update.js';
+import { ensureInitialized, runOnboarding } from './lib/onboarding.js';
+import { runSync } from './commands/sync.js';
+import { runInstall } from './commands/install.js';
+import { runStatus } from './commands/status.js';
+import { runDetect } from './commands/detect.js';
+import { runLock, runUnlock } from './commands/lock.js';
+
+const require = createRequire(import.meta.url);
+const pkg = require('../package.json');
+
+const COMMANDS = ['sync', 'install', 'status', 'detect', 'lock', 'unlock', 'init'] as const;
+type Command = (typeof COMMANDS)[number];
+
+interface ParsedArgs {
+  command: Command | null;
+  to: string[];
+  dryRun: boolean;
+  syncOnly: boolean;
+  syncRemovals: boolean;
+  help: boolean;
+  quiet: boolean;
+  verbose: boolean;
+}
+
+export function parseCliArgs(argv: string[]): ParsedArgs {
+  const { values, positionals } = parseArgs({
+    args: argv,
+    options: {
+      to: { type: 'string', multiple: true, default: [] },
+      'dry-run': { type: 'boolean', default: false },
+      'sync-only': { type: 'boolean', default: false },
+      'sync-removals': { type: 'boolean', default: false },
+      help: { type: 'boolean', short: 'h', default: false },
+      quiet: { type: 'boolean', short: 'q', default: false },
+      verbose: { type: 'boolean', short: 'v', default: false },
+    },
+    allowPositionals: true,
+  });
+
+  const commandArg = positionals[0] as Command | undefined;
+  const command = commandArg && COMMANDS.includes(commandArg) ? commandArg : null;
+
+  return {
+    command,
+    to: values.to ?? [],
+    dryRun: values['dry-run'] ?? false,
+    syncOnly: values['sync-only'] ?? false,
+    syncRemovals: values['sync-removals'] ?? false,
+    help: values.help ?? false,
+    quiet: values.quiet ?? false,
+    verbose: values.verbose ?? false,
+  };
+}
+
+function showHelp(): void {
+  console.log(`
+vsix-bridge - Sync VS Code extensions to fork IDEs
+
+Usage:
+  vsix-bridge <command> [options]
+
+Commands:
+  sync      Sync and install VS Code extensions to fork IDEs
+  install   Install previously synced VSIX files into a target IDE
+  status    Show extension diff between VS Code and forks
+  detect    Auto-detect installed IDEs and their configuration
+  lock      Block marketplace access in fork IDEs
+  unlock    Restore marketplace access in fork IDEs
+  init      Initialize vsix-bridge configuration
+
+Options:
+  --to <ide>         Target IDE(s) (cursor, antigravity, windsurf)
+  --dry-run          Show what would be done without doing it
+  --sync-only        Only download VSIX files, skip installation
+  --sync-removals    Uninstall extensions in fork not in VS Code
+  -v, --verbose      Show per-extension details
+  -q, --quiet        Suppress banner output
+  -h, --help         Show this help message
+`);
+}
+
+async function main(): Promise<void> {
+  const args = parseCliArgs(process.argv.slice(2));
+
+  if (!args.quiet) {
+    renderBanner();
+    renderInfo(pkg);
+  }
+
+  checkForUpdates(pkg).catch(() => {});
+
+  if (args.help || !args.command) {
+    showHelp();
+    process.exit(args.help ? 0 : 1);
+  }
+
+  if (args.command === 'init') {
+    await runOnboarding({ isRerun: true });
+    return;
+  }
+
+  await ensureInitialized();
+
+  p.intro('vsix-bridge');
+
+  switch (args.command) {
+    case 'sync':
+      await runSync({
+        to: args.to,
+        verbose: args.verbose,
+        syncOnly: args.syncOnly,
+        syncRemovals: args.syncRemovals,
+        dryRun: args.dryRun,
+      });
+      break;
+    case 'install':
+      await runInstall({
+        to: args.to,
+        dryRun: args.dryRun,
+        syncRemovals: args.syncRemovals,
+        verbose: args.verbose,
+      });
+      break;
+    case 'status':
+      await runStatus({ to: args.to });
+      break;
+    case 'detect':
+      await runDetect();
+      break;
+    case 'lock':
+      await runLock({ to: args.to });
+      break;
+    case 'unlock':
+      await runUnlock({ to: args.to });
+      break;
+  }
+
+  p.outro('Done');
+}
+
+const isMainModule =
+  import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith('/vsix-bridge');
+
+if (isMainModule) {
+  main().then(
+    () => process.exit(0),
+    (err) => {
+      console.error(err);
+      process.exit(1);
+    }
+  );
+}

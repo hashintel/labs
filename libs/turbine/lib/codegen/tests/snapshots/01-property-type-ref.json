@@ -1,0 +1,21 @@
+[
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/property-type",
+    "kind": "propertyType",
+    "$id": "http://localhost:3000/@alice/types/property-type/countryCode/v/1",
+    "title": "Country Code (ISO 3166-1 alpha-2)",
+    "oneOf": [
+      {
+        "$ref": "https://blockprotocol.org/@blockprotocol/types/data-type/text/v/1"
+      }
+    ]
+  },
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/data-type",
+    "kind": "dataType",
+    "$id": "https://blockprotocol.org/@blockprotocol/types/data-type/text/v/1",
+    "title": "Text",
+    "description": "An ordered sequence of characters",
+    "type": "string"
+  }
+]

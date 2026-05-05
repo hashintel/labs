@@ -1,0 +1,26 @@
+.DiscordWidget {
+  position: fixed;
+  bottom: var(--discord-button-y-offset);
+  right: 20px;
+  height: var(--discord-button-size);
+  width: var(--discord-button-size);
+  z-index: 99998;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+  padding: 8px;
+  background: var(--theme-dark-grey);
+  box-sizing: border-box;
+}
+
+.DiscordWidget--higher {
+  bottom: 58px;
+}
+
+.DiscordWidget:hover {
+  background: #5865f2;
+  transition: background-color 0.3s;
+}

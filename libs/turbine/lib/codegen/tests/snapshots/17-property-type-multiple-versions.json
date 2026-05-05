@@ -1,0 +1,40 @@
+[
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/property-type",
+    "kind": "propertyType",
+    "$id": "https://blockprotocol.org/@alice/property-type/user-id/v/1",
+    "title": "User ID",
+    "oneOf": [
+      {
+        "$ref": "https://blockprotocol.org/@blockprotocol/types/data-type/text/v/1"
+      }
+    ]
+  },
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/property-type",
+    "kind": "propertyType",
+    "$id": "https://blockprotocol.org/@alice/property-type/user-id/v/2",
+    "title": "User ID",
+    "oneOf": [
+      {
+        "$ref": "https://blockprotocol.org/@blockprotocol/types/data-type/number/v/1"
+      }
+    ]
+  },
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/data-type",
+    "kind": "dataType",
+    "$id": "https://blockprotocol.org/@blockprotocol/types/data-type/text/v/1",
+    "title": "Text",
+    "description": "An ordered sequence of characters",
+    "type": "string"
+  },
+  {
+    "$schema": "https://blockprotocol.org/types/modules/graph/0.3/schema/data-type",
+    "kind": "dataType",
+    "$id": "https://blockprotocol.org/@blockprotocol/types/data-type/number/v/1",
+    "title": "Number",
+    "description": "An arithmetical value (in the Real number system)",
+    "type": "number"
+  }
+]

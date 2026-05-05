@@ -1,0 +1,7 @@
+.FileBannerSignIn {
+  text-decoration: none;
+}
+
+.FileBannerSignIn .IconInformationOutline {
+  fill: var(--theme-blue);
+}

@@ -1,0 +1,20 @@
+[workspace]
+resolver = "2"
+members = ["lib/*", "bin/*"]
+default-members = ["bin/cli"]
+
+[workspace.package]
+description = "The Blockprotocol Rust Type Generator"
+readme = "README.md"
+version = "0.0.0"
+edition = "2021"
+authors = ["Bilal Mahmoud"]
+publish = false
+
+[workspace.dependencies]
+error-stack = "0.4.1"
+
+[profile.production]
+inherits = "release"
+lto = "fat"
+strip = "symbols"

@@ -1,0 +1,17 @@
+[package]
+name = "turbine-transformer"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+petgraph = "0.6.3"
+error-stack = { version = "0.4.1", default-features = false }
+funty = "3.0.0-rc2"
+serde_json = "1.0.96"
+ordered-float = "3.7.0"
+paste = "1.0.12"
+hashbrown = "0.13.2"
+
+turbine = { path = "../turbine/lib/turbine" }
