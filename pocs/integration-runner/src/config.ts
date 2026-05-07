@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import type { IntegrationId } from "./identity.js";
 
 export type RunnerConfig = {
   dbosUrl: string | undefined;
@@ -7,6 +8,7 @@ export type RunnerConfig = {
   graphUrl: string | undefined;
   forceResync: boolean;
   runId: string;
+  baseDir: string;
 };
 
 export function loadConfig(): RunnerConfig {
@@ -21,9 +23,10 @@ export function loadConfig(): RunnerConfig {
     graphUrl: process.env.HASH_GRAPH_URL,
     forceResync,
     runId,
+    baseDir: process.env.RUNNER_BASE_DIR ?? ".",
   };
 }
 
-export function workflowId(connectorId: string, config: RunnerConfig): string {
-  return `${connectorId}:${config.webId}:${config.runId}`;
+export function workflowId(id: IntegrationId, runId: string): string {
+  return `${id.canonical}:${runId}`;
 }

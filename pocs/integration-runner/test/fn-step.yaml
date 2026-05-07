@@ -1,0 +1,23 @@
+connector:
+  id: fn-test
+  mode: batch
+
+sources:
+  items:
+    kind: sql
+    sql: |
+      SELECT * FROM (VALUES
+        ('A', 'hello'),
+        ('B', 'world')
+      ) AS t(id, name)
+    primaryKey: id
+
+pipelines:
+  - source: items
+    steps:
+      - id: upper
+        kind: fn
+        transform: uppercase
+      - id: cp
+        kind: checkpoint
+        name: fn-output

@@ -1,0 +1,37 @@
+connector:
+  id: fail-test
+  mode: batch
+
+sources:
+  good:
+    kind: sql
+    sql: "SELECT * FROM (VALUES ('A', 1)) AS t(id, val)"
+    primaryKey: id
+  bad:
+    kind: sql
+    sql: "SELECT * FROM nonexistent_table_xyz"
+    primaryKey: id
+  also_good:
+    kind: sql
+    sql: "SELECT * FROM (VALUES ('B', 2)) AS t(id, val)"
+    primaryKey: id
+
+pipelines:
+  - source: good
+    steps:
+      - id: cp1
+        kind: checkpoint
+        name: good-cp
+  - source: bad
+    steps:
+      - id: cp2
+        kind: checkpoint
+        name: bad-cp
+  - source: also_good
+    steps:
+      - id: cp3
+        kind: checkpoint
+        name: also-good-cp
+
+orchestration:
+  maxRetries: 0

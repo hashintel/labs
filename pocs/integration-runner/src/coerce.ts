@@ -25,7 +25,7 @@ function parseEuNumber(v: unknown): number | null {
   return Number.isNaN(n) ? null : n;
 }
 
-const registry: Record<string, CoercionFn> = {
+export const registry: Record<string, CoercionFn> = {
   date: (col) => (r: Row) => parseSapDate(r[col]),
   time: (col) => (r: Row) => parseSapTime(r[col]),
   boolean: (col) => (r: Row) => {
@@ -41,6 +41,12 @@ const registry: Record<string, CoercionFn> = {
     const s = String(r[col] ?? "").trim();
     if (!s) return null;
     const n = Number(s);
+    return Number.isNaN(n) ? null : n;
+  },
+  nullable_number: (col) => (r: Row) => {
+    const v = r[col];
+    if (v == null) return null;
+    const n = Number(v);
     return Number.isNaN(n) ? null : n;
   },
   trim: (col) => (r: Row) => {
