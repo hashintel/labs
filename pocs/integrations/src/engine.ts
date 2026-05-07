@@ -38,11 +38,12 @@ export type IntegrationSpec = {
   connectorFactory?: (def: ConnectorDef, log?: Logger) => Connector;
 };
 
-/** `sync()` is batch-only (throws on streaming). `run()` subscribes (stream) or syncs once/loops (batch). */
 export type Integration = {
   run(): Promise<void>;
   stop(): Promise<void>;
   sync(): Promise<SyncResult>;
+  syncSources(filter?: string[]): Promise<SyncResult>;
+  getSourceOrder(): string[];
 };
 
 export { type SyncResult, type SyncError, emptySyncResult, mergeSyncResults };
@@ -86,7 +87,103 @@ export function integrate(spec: IntegrationSpec): Integration {
 
   let syncing = false;
 
-  async function doSync(): Promise<SyncResult> {
+  type SourceCtx = {
+    source: string;
+    pipeline: Pipeline;
+    connectorId: string;
+    connectorDef: ConnectorDef;
+    hydrate: (ctx: HydrateContext) => Promise<{ rowCount: number }>;
+    loadedAt: string;
+  };
+
+  async function syncOneSource(ctx: SourceCtx): Promise<SyncResult> {
+    const { source, pipeline, connectorId, connectorDef, loadedAt } = ctx;
+    const sourceTable = `${connectorId}/${source}`;
+    const partial = isPartialSource(connectorDef, source);
+    const sinkLogForSource = sinkLog.child({ source });
+    const sourceLevel = sourceLevelProvenance(connectorDef, source, storage);
+
+    await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
+
+    let result = emptySyncResult();
+    try {
+      const hydrated = await ctx.hydrate(
+        buildHydrateContext({
+          connectorId,
+          source,
+          stagingTable: sourceTable,
+          store: queryStore,
+          storage,
+          log: log.child({ component: "hydrate", source }),
+        }),
+      );
+
+      if (hydrated.rowCount === 0) {
+        const archiveOnEmpty = isArchiveOnEmpty(connectorDef, source);
+        log.debug(`"${source}" is empty (partial=${partial}, archiveOnEmpty=${archiveOnEmpty})`);
+        for (const step of pipeline.steps) {
+          if (step.kind !== "graph-sink" || !spec.graphClient) continue;
+          if (!partial && !archiveOnEmpty && await stateExists(queryStore, connectorId, step.id)) {
+            sinkLogForSource.warn(
+              `"${source}": zero rows but prior state exists for sink "${step.id}"; skipping archival. Set archiveOnEmpty: true on the source config to opt into drain-on-empty.`,
+            );
+            continue;
+          }
+          const provenance = composeProvenance({
+            connectorId, source,
+            connector: connectorDef.provenance,
+            sourceLevel,
+            sink: step.config.provenance,
+            loadedAt,
+          });
+          result = mergeSyncResults(
+            result,
+            await diffAndSync(step.id, step.config, null, connectorId, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
+          );
+        }
+        return result;
+      }
+
+      if (spec.validate !== false) {
+        await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
+      }
+
+      await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
+        if (step.kind === "graph-sink" && spec.graphClient) {
+          const provenance = composeProvenance({
+            connectorId, source,
+            connector: connectorDef.provenance,
+            sourceLevel,
+            sink: step.config.provenance,
+            loadedAt,
+          });
+          result = mergeSyncResults(
+            result,
+            await diffAndSync(step.id, step.config, currentTable, connectorId, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
+          );
+        } else if (step.kind === "checkpoint") {
+          await writeCheckpoint(step.name, currentTable, queryStore, storage);
+        }
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      result = mergeSyncResults(result, {
+        ...emptySyncResult(),
+        errors: [{ kind: "table", entityType: "", entityId: source, message: msg }],
+      });
+      log.error(`source "${source}" failed: ${msg} (continuing with remaining sources)`);
+    } finally {
+      await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
+      for (const id of allStepIds(pipeline.steps)) {
+        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
+        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
+      }
+      await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
+    }
+    return result;
+  }
+
+  async function batchSync(filter?: string[]): Promise<SyncResult> {
     if (syncing) return emptySyncResult();
     syncing = true;
     const start = Date.now();
@@ -97,99 +194,21 @@ export function integrate(spec: IntegrationSpec): Integration {
     if (connector.mode !== "batch") throw new Error(`sync() requires a batch connector, got "${connector.mode}"`);
 
     const loadedAt = new Date().toISOString();
+    const targets = filter
+      ? pipelines.filter((tp) => filter.includes(tp.source))
+      : pipelines;
 
-    log.info(`sync: connector "${connector.id}" sources=[${pipelines.map((tp) => tp.source).join(", ")}]`);
+    log.info(`sync: connector "${connector.id}" sources=[${targets.map((tp) => tp.source).join(", ")}]`);
 
     try {
-      for (const { source, pipeline } of pipelines) {
-        const sourceTable = `${connector.id}/${source}`;
-        const partial = isPartialSource(spec.connector, source);
-        const sinkLogForSource = sinkLog.child({ source });
-        const sourceLevel = sourceLevelProvenance(spec.connector, source, storage);
-        // Drop any residue from a prior (possibly crashed) cycle so we start
-        // from a clean snapshot. Materialize appends, not replaces.
-        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
-
-        // Isolate per-source failures so one bad source doesn't skip the rest.
-        try {
-          const hydrated = await connector.hydrate(
-            buildHydrateContext({
-              connectorId: connector.id,
-              source,
-              stagingTable: sourceTable,
-              store: queryStore,
-              storage,
-              log: log.child({ component: "hydrate", source }),
-            }),
-          );
-
-          if (hydrated.rowCount === 0) {
-            const archiveOnEmpty = isArchiveOnEmpty(spec.connector, source);
-            log.debug(`"${source}" is empty (partial=${partial}, archiveOnEmpty=${archiveOnEmpty})`);
-            for (const step of pipeline.steps) {
-              if (step.kind !== "graph-sink" || !spec.graphClient) continue;
-              // Zero-row hydrates are usually transient source failures. Skip
-              // archival unless the user opted in via `archiveOnEmpty` or the
-              // source is partial (in which case diffAndSync preserves state).
-              if (!partial && !archiveOnEmpty && await stateExists(queryStore, connector.id, step.id)) {
-                sinkLogForSource.warn(
-                  `"${source}": zero rows but prior state exists for sink "${step.id}"; skipping archival. Set archiveOnEmpty: true on the source config to opt into drain-on-empty.`,
-                );
-                continue;
-              }
-              const provenance = composeProvenance({
-                connectorId: connector.id,
-                source,
-                connector: spec.connector.provenance,
-                sourceLevel,
-                sink: step.config.provenance,
-                loadedAt,
-              });
-              totals = mergeSyncResults(
-                totals,
-                await diffAndSync(step.id, step.config, null, connector.id, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
-              );
-            }
-            continue;
-          }
-
-          if (spec.validate !== false) {
-            await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
-          }
-
-          await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
-            if (step.kind === "graph-sink" && spec.graphClient) {
-              const provenance = composeProvenance({
-                connectorId: connector.id,
-                source,
-                connector: spec.connector.provenance,
-                sourceLevel,
-                sink: step.config.provenance,
-                loadedAt,
-              });
-              totals = mergeSyncResults(
-                totals,
-                await diffAndSync(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
-              );
-            } else if (step.kind === "checkpoint") {
-              await writeCheckpoint(step.name, currentTable, queryStore, storage);
-            }
-          });
-        } catch (err) {
-          const msg = err instanceof Error ? err.message : String(err);
-          totals = mergeSyncResults(totals, {
-            ...emptySyncResult(),
-            errors: [{ kind: "table", entityType: "", entityId: source, message: msg }],
-          });
-          log.error(`source "${source}" failed: ${msg} (continuing with remaining sources)`);
-        } finally {
-          await queryStore.exec(`DROP TABLE IF EXISTS ${qi(sourceTable)}`);
-          for (const id of allStepIds(pipeline.steps)) {
-            await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
-            await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
-          }
-          await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
-        }
+      for (const { source, pipeline } of targets) {
+        totals = mergeSyncResults(totals, await syncOneSource({
+          source, pipeline,
+          connectorId: connector.id,
+          connectorDef: spec.connector,
+          hydrate: (ctx) => connector.hydrate(ctx),
+          loadedAt,
+        }));
       }
     } finally {
       await connector.close();
@@ -203,7 +222,9 @@ export function integrate(spec: IntegrationSpec): Integration {
   }
 
   return {
-    sync: doSync,
+    sync: () => batchSync(),
+    syncSources: (filter) => batchSync(filter),
+    getSourceOrder: () => pipelines.map((tp) => tp.source),
 
     async run() {
       const probe = buildConnector(spec.connector, log.child({ component: "connector", connector: spec.connector.id }));
@@ -212,14 +233,14 @@ export function integrate(spec: IntegrationSpec): Integration {
 
       if (mode === "batch") {
         await probe.close();
-        await doSync();
+        await batchSync();
         const intervalMs = spec.syncIntervalMs;
         if (intervalMs && intervalMs > 0) {
           while (!stopped) {
             await sleep(intervalMs);
             if (stopped) break;
             if (syncing) { log.warn("sync still running, skipping"); continue; }
-            await doSync();
+            await batchSync();
           }
         }
         queryStore.close();

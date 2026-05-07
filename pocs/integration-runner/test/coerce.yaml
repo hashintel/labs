@@ -1,0 +1,38 @@
+connector:
+  id: coerce-test
+  mode: batch
+
+sources:
+  items:
+    kind: sql
+    sql: |
+      SELECT * FROM (VALUES
+        ('P001', 'Widget', '15.03.2024', '1.234,56', 'X', '2024'),
+        ('P002', 'Gadget', '20240520', '2.345,67', '', '2023'),
+        ('P003', 'Thing', '00.00.0000', '', 'X', '')
+      ) AS t(id, name, created, weight, active, year_col)
+    primaryKey: id
+
+pipelines:
+  - source: items
+    steps:
+      - id: sink
+        kind: graph-sink
+        config:
+          entityType: "https://example.com/types/entity-type/item/v/1"
+          entityId: id
+          webId: "test-web"
+          properties:
+            "https://example.com/types/property-type/name/v/1": name
+            "https://example.com/types/property-type/created/v/1":
+              column: created
+              coerce: date
+            "https://example.com/types/property-type/weight/v/1":
+              column: weight
+              coerce: number
+            "https://example.com/types/property-type/active/v/1":
+              column: active
+              coerce: boolean
+            "https://example.com/types/property-type/year/v/1":
+              column: year_col
+              coerce: year

@@ -1,0 +1,16 @@
+connector:
+  id: env-test
+  mode: batch
+
+sources:
+  data:
+    kind: sql
+    sql: "SELECT * FROM (VALUES ('A', 'hello')) AS t(id, val)"
+    primaryKey: id
+
+pipelines:
+  - source: data
+    steps:
+      - id: cp
+        kind: checkpoint
+        name: "${CHECKPOINT_NAME}"

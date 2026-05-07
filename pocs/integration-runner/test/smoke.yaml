@@ -1,0 +1,43 @@
+connector:
+  id: smoke-test
+  mode: batch
+
+sources:
+  parts:
+    kind: sql
+    sql: |
+      SELECT * FROM (VALUES
+        ('P001', 'Widget', '15.03.2024', '1.234,56'),
+        ('P002', 'Gadget', '20.05.2024', '2.345,67'),
+        ('P003', 'Doohickey', '00.00.0000', '0,00')
+      ) AS t(part_id, name, created, weight)
+    primaryKey: part_id
+
+  locations:
+    kind: sql
+    sql: |
+      SELECT * FROM (VALUES
+        ('L01', 'Berlin'),
+        ('L02', 'Munich')
+      ) AS t(loc_id, city)
+    primaryKey: loc_id
+
+pipelines:
+  - source: parts
+    steps:
+      - id: clean
+        kind: sql
+        sql: "SELECT *, TRIM(part_id) AS pid FROM input"
+
+      - id: cp-parts
+        kind: checkpoint
+        name: parts-cleaned
+
+  - source: locations
+    steps:
+      - id: cp-locs
+        kind: checkpoint
+        name: locations-cleaned
+
+orchestration:
+  maxRetries: 2

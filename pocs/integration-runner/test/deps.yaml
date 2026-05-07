@@ -1,0 +1,34 @@
+connector:
+  id: deps-test
+  mode: batch
+
+sources:
+  raw:
+    kind: sql
+    sql: |
+      SELECT * FROM (VALUES
+        ('A', 10),
+        ('B', 20)
+      ) AS t(id, val)
+    primaryKey: id
+
+  derived:
+    kind: checkpoint
+    name: raw-cp
+
+pipelines:
+  - source: raw
+    steps:
+      - id: cp
+        kind: checkpoint
+        name: raw-cp
+
+  - source: derived
+    dependsOn: [raw]
+    steps:
+      - id: double
+        kind: sql
+        sql: "SELECT *, val * 2 AS doubled FROM input"
+      - id: cp2
+        kind: checkpoint
+        name: derived-cp
