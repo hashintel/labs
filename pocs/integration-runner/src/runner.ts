@@ -4,9 +4,9 @@ import { parse as parseYaml } from "yaml";
 import { resolveEnvVars, type IntegrationYaml } from "./schema.js";
 import { validateYaml } from "./validate.js";
 import { buildConnectorDef, buildPipelines } from "./build.js";
-import { loadConfig, workflowId, type RunnerConfig } from "./config.js";
+import { loadConfig, type RunnerConfig } from "./config.js";
 import { integrationId, statePaths } from "./identity.js";
-import { bindIntegration, registerWorkflows, launchDbos, shutdownDbos, runDurableSync } from "./orchestrate.js";
+import { runWithDbos } from "./orchestrate.js";
 import { type WorkflowResult, type SourceResult, sourceResultFromSync, buildWorkflowResult } from "./result.js";
 import { integrate, type IntegrationSpec } from "@integrations/engine.js";
 import { createMemoryEventStore } from "@integrations/staging/memory.js";
@@ -74,17 +74,10 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
   const cleanup = () => { queryStore.close(); };
 
   if (config.dbosUrl) {
-    bindIntegration(app, id);
-    registerWorkflows(yaml.orchestration);
-    await launchDbos(config.dbosUrl);
-
-    const wfId = workflowId(id, config.runId);
-    console.log(`[runner] workflow=${wfId}`);
     try {
-      return await runDurableSync(wfId, app.getSourceOrder());
+      return await runWithDbos(app, id, config.runId, app.getSourceOrder(), config.dbosUrl, yaml.orchestration);
     } finally {
       cleanup();
-      await shutdownDbos();
     }
   }
 

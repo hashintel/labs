@@ -26,7 +26,7 @@ const config: GraphSinkConfig = {
 describe("rowToGraphOp", () => {
   it("produces upsert for insert", () => {
     const row: Row & Envelope = { _op: "insert", _key: '{"id":1}', userId: "1", email: "a@example.com", name: "Alice", orgId: "org-1" };
-    const op = rowToGraphOp(row, config, prov);
+    const op = rowToGraphOp(row, config, "test-connector", prov);
 
     assert.equal(op.kind, "upsert");
     assert.equal(op.entityId, "1");
@@ -41,34 +41,34 @@ describe("rowToGraphOp", () => {
   it("produces upsert for update/upsert/snapshot", () => {
     for (const _op of ["update", "upsert", "snapshot"] as const) {
       const row: Row & Envelope = { _op, _key: "{}", userId: "1", email: "x@example.com", name: "X", orgId: "o" };
-      assert.equal(rowToGraphOp(row, config, prov).kind, "upsert");
+      assert.equal(rowToGraphOp(row, config, "test-connector", prov).kind, "upsert");
     }
   });
 
   it("throws if called with _op=\"delete\" (deletes must bypass the pipeline)", () => {
     const row: Row & Envelope = { _op: "delete", _key: '{"userId":"1"}', userId: null, email: null, name: null, orgId: null };
     assert.throws(
-      () => rowToGraphOp(row, config, prov),
+      () => rowToGraphOp(row, config, "test-connector", prov),
       (err: Error) => err.message.includes("delete") && err.message.includes("bypass"),
     );
   });
 
   it("skips links with null values", () => {
     const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: null };
-    const op = rowToGraphOp(row, config, prov);
+    const op = rowToGraphOp(row, config, "test-connector", prov);
     if (op.kind === "upsert") assert.equal(op.links.length, 0);
   });
 
   it("handles config with no links", () => {
     const noLinks: GraphSinkConfig = { ...config, links: undefined };
     const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o" };
-    const op = rowToGraphOp(row, noLinks, prov);
+    const op = rowToGraphOp(row, noLinks, "test-connector", prov);
     if (op.kind === "upsert") assert.equal(op.links.length, 0);
   });
 
   it("carries provenance on every op", () => {
     const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o" };
-    const op = rowToGraphOp(row, config, prov);
+    const op = rowToGraphOp(row, config, "test-connector", prov);
     assert.equal(op.provenance.type, "integration");
     assert.equal(op.provenance.location?.name, "test-connector");
     assert.equal(op.provenance.loadedAt, "2026-01-01T00:00:00Z");
@@ -76,7 +76,7 @@ describe("rowToGraphOp", () => {
 
   it("stamps per-property provenance on each property", () => {
     const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o" };
-    const op = rowToGraphOp(row, config, prov);
+    const op = rowToGraphOp(row, config, "test-connector", prov);
     if (op.kind !== "upsert") return assert.fail("expected upsert");
     assert.ok(op.propertyProvenance);
     assert.deepEqual(op.propertyProvenance![T.property("email/v/1")], { sources: [prov] });
@@ -94,7 +94,7 @@ describe("rowToGraphOp", () => {
       }],
     };
     const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o", role: "admin" };
-    const op = rowToGraphOp(row, withLinkProps, prov);
+    const op = rowToGraphOp(row, withLinkProps, "test-connector", prov);
     if (op.kind !== "upsert") return assert.fail("expected upsert");
     assert.equal(op.links[0].properties?.[T.property("role/v/1")], "admin");
     assert.deepEqual(op.links[0].propertyProvenance?.[T.property("role/v/1")], { sources: [prov] });
@@ -102,7 +102,7 @@ describe("rowToGraphOp", () => {
 
   it("SourceProvenance never carries entityId in v1", () => {
     const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice", orgId: "o" };
-    const op = rowToGraphOp(row, config, prov);
+    const op = rowToGraphOp(row, config, "test-connector", prov);
     assert.equal(op.provenance.entityId, undefined);
   });
 
@@ -120,7 +120,7 @@ describe("rowToGraphOp", () => {
       },
     };
     const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "42", email: "a@example.com", address: '{"city":"NYC","zip":"10001"}' };
-    const op = rowToGraphOp(row, fnConfig, prov);
+    const op = rowToGraphOp(row, fnConfig, "test-connector", prov);
 
     assert.equal(op.entityId, "42");
     if (op.kind === "upsert") {
@@ -139,7 +139,7 @@ describe("rowToGraphOp", () => {
       _before: JSON.stringify({ id: 1, org_id: "old-org" }),
       userId: "1", email: "a@example.com", name: "Alice", orgId: "new-org",
     };
-    const op = rowToGraphOp(row, withSource, prov);
+    const op = rowToGraphOp(row, withSource, "test-connector", prov);
     assert.equal(op.kind, "upsert");
     if (op.kind === "upsert") {
       assert.equal(op.links.length, 1);
@@ -155,13 +155,13 @@ describe("rowToGraphOp", () => {
       _before: JSON.stringify({ id: 1, orgId: "org-1" }),
       userId: "1", email: "new@example.com", name: "Alice", orgId: "org-1",
     };
-    const op = rowToGraphOp(row, config, prov);
+    const op = rowToGraphOp(row, config, "test-connector", prov);
     if (op.kind === "upsert") assert.equal(op.staleLinks.length, 0);
   });
 
   it("no stale links when _before is absent", () => {
     const row: Row & Envelope = { _op: "update", _key: '{"id":1}', userId: "1", email: "a@example.com", name: "Alice", orgId: "org-1" };
-    const op = rowToGraphOp(row, config, prov);
+    const op = rowToGraphOp(row, config, "test-connector", prov);
     if (op.kind === "upsert") assert.equal(op.staleLinks.length, 0);
   });
 });
@@ -185,8 +185,8 @@ describe("archiveDeletes composite-key determinism", () => {
 
     const c1 = recording();
     const c2 = recording();
-    await archiveDeletes([ev1], cfg, c1, prov);
-    await archiveDeletes([ev2], cfg, c2, prov);
+    await archiveDeletes([ev1], cfg, "test-connector", c1, prov);
+    await archiveDeletes([ev2], cfg, "test-connector", c2, prov);
 
     assert.equal(c1.ops.length, 1);
     assert.equal(c2.ops.length, 1);
@@ -198,7 +198,7 @@ describe("archiveDeletes composite-key determinism", () => {
   it("single-key case preserves the raw value type", async () => {
     const cfg: GraphSinkConfig = { entityType: T.entity("user/v/1"), entityId: "id", webId: "w", properties: {} };
     const client = recording();
-    await archiveDeletes([{ table: "users", op: "delete", key: { id: 42 }, row: null }], cfg, client, prov);
+    await archiveDeletes([{ table: "users", op: "delete", key: { id: 42 }, row: null }], cfg, "test-connector", client, prov);
     assert.equal(client.ops[0].entityId, 42); // number, not "42"
   });
 });

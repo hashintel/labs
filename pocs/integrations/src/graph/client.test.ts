@@ -53,7 +53,7 @@ describe("createGraphClient", () => {
   it("upsert sends POST /entities with correct shape", async () => {
     const client = createGraphClient(config);
     await client.upsertEntity({
-      kind: "upsert",
+      kind: "upsert", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "u-1",
       webId: "web-1",
@@ -88,7 +88,7 @@ describe("createGraphClient", () => {
     mock.nextStatus(409);
     const client = createGraphClient(config);
     await client.upsertEntity({
-      kind: "upsert",
+      kind: "upsert", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "u-1",
       webId: "web-1",
@@ -115,7 +115,7 @@ describe("createGraphClient", () => {
   it("upsert creates link entities", async () => {
     const client = createGraphClient(config);
     await client.upsertEntity({
-      kind: "upsert",
+      kind: "upsert", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "u-1",
       webId: "web-1",
@@ -141,7 +141,7 @@ describe("createGraphClient", () => {
   it("archive sends PATCH with archived: true", async () => {
     const client = createGraphClient(config);
     await client.archiveEntity({
-      kind: "archive",
+      kind: "archive", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "u-1",
       webId: "web-1",
@@ -160,7 +160,7 @@ describe("createGraphClient", () => {
     mock.nextStatus(404);
     const client = createGraphClient(config);
     await client.archiveEntity({
-      kind: "archive",
+      kind: "archive", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "gone",
       webId: "web-1",
@@ -175,7 +175,7 @@ describe("createGraphClient", () => {
     const client = createGraphClient(config);
     await assert.rejects(
       () => client.upsertEntity({
-        kind: "upsert", entityType: T.entity("x/v/1"), entityId: "1",
+        kind: "upsert", namespace: "test-connector", entityType: T.entity("x/v/1"), entityId: "1",
         webId: "w", properties: {}, links: [], staleLinks: [], provenance: prov,
       }),
       (err: unknown) => err instanceof GraphApiError && err.status === 500,
@@ -186,7 +186,7 @@ describe("createGraphClient", () => {
   it("embeds per-property provenance in POST body", async () => {
     const client = createGraphClient(config);
     await client.upsertEntity({
-      kind: "upsert",
+      kind: "upsert", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "u-1",
       webId: "web-1",
@@ -215,7 +215,7 @@ describe("createGraphClient", () => {
   it("embeds per-link-property provenance on link POST body", async () => {
     const client = createGraphClient(config);
     await client.upsertEntity({
-      kind: "upsert",
+      kind: "upsert", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "u-1",
       webId: "web-1",
@@ -240,7 +240,7 @@ describe("createGraphClient", () => {
   it("omits metadata.provenance when propertyProvenance is absent", async () => {
     const client = createGraphClient(config);
     await client.upsertEntity({
-      kind: "upsert",
+      kind: "upsert", namespace: "test-connector",
       entityType: T.entity("user/v/1"),
       entityId: "u-1",
       webId: "web-1",
@@ -257,11 +257,11 @@ describe("createGraphClient", () => {
   it("deterministic UUIDs are stable across calls", async () => {
     const client = createGraphClient(config);
     await client.upsertEntity({
-      kind: "upsert", entityType: T.entity("user/v/1"), entityId: "u-1",
+      kind: "upsert", namespace: "test-connector", entityType: T.entity("user/v/1"), entityId: "u-1",
       webId: "web-1", properties: {}, links: [], staleLinks: [], provenance: prov,
     });
     await client.upsertEntity({
-      kind: "upsert", entityType: T.entity("user/v/1"), entityId: "u-1",
+      kind: "upsert", namespace: "test-connector", entityType: T.entity("user/v/1"), entityId: "u-1",
       webId: "web-1", properties: {}, links: [], staleLinks: [], provenance: prov,
     });
     await mock.close();

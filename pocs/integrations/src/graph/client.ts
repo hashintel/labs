@@ -52,10 +52,10 @@ type PatchEntityParams = {
 // Fixed namespace prevents collisions with other UUID v5 users.
 const NAMESPACE = Buffer.from("d6e2c7a1f84b4e3a9c0d5b7f1e3a2d4c", "hex"); // 16 bytes
 
-function deterministicUuid(entityType: string, entityId: unknown): string {
+function deterministicUuid(ns: string, entityType: string, entityId: unknown): string {
   const hash = createHash("sha1")
     .update(NAMESPACE)
-    .update(`${entityType}::${String(entityId)}`)
+    .update(`${ns}::${entityType}::${String(entityId)}`)
     .digest("hex");
   return [
     hash.slice(0, 8),
@@ -178,7 +178,7 @@ export async function queryEntities(config: GraphClientConfig): Promise<GraphEnt
 
 export function createGraphClient(config: GraphClientConfig): GraphClient {
   async function upsertMain(op: Extract<GraphOp, { kind: "upsert" }>): Promise<{ fullEntityId: string; provenance: HASHProvenance }> {
-    const entityUuid = deterministicUuid(op.entityType, op.entityId);
+    const entityUuid = deterministicUuid(op.namespace, op.entityType, op.entityId);
     const fullEntityId = compositeEntityId(op.webId, entityUuid);
     const provenance = mapProvenance(op.provenance);
 
@@ -212,7 +212,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     provenance: HASHProvenance,
   ): Promise<void> {
     for (const stale of op.staleLinks) {
-      const staleLinkId = compositeEntityId(op.webId, deterministicUuid(stale.linkType, `${op.entityId}::${stale.targetId}`));
+      const staleLinkId = compositeEntityId(op.webId, deterministicUuid(op.namespace, stale.linkType, `${op.entityId}::${stale.targetId}`));
       try {
         await request("PATCH", config, "/entities", { entityId: staleLinkId, provenance, archived: true } satisfies PatchEntityParams);
       } catch (err) {
@@ -234,8 +234,8 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     provenance: HASHProvenance,
     leftEntityId: string,
   ): CreateEntityParams {
-    const rightEntityId = compositeEntityId(op.webId, deterministicUuid(link.targetEntityType, link.targetId));
-    const linkUuid = deterministicUuid(link.linkType, `${op.entityId}::${link.targetId}`);
+    const rightEntityId = compositeEntityId(op.webId, deterministicUuid(op.namespace, link.targetEntityType, link.targetId));
+    const linkUuid = deterministicUuid(op.namespace, link.linkType, `${op.entityId}::${link.targetId}`);
     return {
       webId: op.webId,
       entityTypeIds: [link.linkType],
@@ -264,14 +264,15 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       const payload: CreateEntityParams[] = [];
       for (const op of chunk) {
         const provenance = mapProvenance(op.provenance);
-        const fullEntityId = compositeEntityId(op.webId, deterministicUuid(op.entityType, op.entityId));
+        const entityUuid = deterministicUuid(op.namespace, op.entityType, op.entityId);
+        const fullEntityId = compositeEntityId(op.webId, entityUuid);
         payload.push({
           webId: op.webId,
           entityTypeIds: [op.entityType],
           properties: mapProperties(op.properties, op.propertyProvenance),
           draft: false,
           provenance,
-          entityUuid: deterministicUuid(op.entityType, op.entityId),
+          entityUuid,
         });
         for (const link of op.links) payload.push(linkCreateParams(op, link, provenance, fullEntityId));
       }
@@ -308,7 +309,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
   }
 
   async function archiveEntity(op: Extract<GraphOp, { kind: "archive" }>): Promise<void> {
-    const entityUuid = deterministicUuid(op.entityType, op.entityId);
+    const entityUuid = deterministicUuid(op.namespace, op.entityType, op.entityId);
     const fullEntityId = compositeEntityId(op.webId, entityUuid);
     try {
       await request("PATCH", config, "/entities", {
@@ -338,12 +339,13 @@ async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Pro
 
 async function ensureEntity(
   config: GraphClientConfig,
+  ns: string,
   entityType: string,
   entityId: unknown,
   webId: string,
   provenance: HASHProvenance,
 ): Promise<void> {
-  const uuid = deterministicUuid(entityType, entityId);
+  const uuid = deterministicUuid(ns, entityType, entityId);
   try {
     await request("POST", config, "/entities", {
       webId,
@@ -366,9 +368,9 @@ async function upsertLink(
   provenance: HASHProvenance,
   leftEntityId: string,
 ): Promise<void> {
-  const targetUuid = deterministicUuid(link.targetEntityType, link.targetId);
+  const targetUuid = deterministicUuid(op.namespace, link.targetEntityType, link.targetId);
   const rightEntityId = compositeEntityId(op.webId, targetUuid);
-  const linkUuid = deterministicUuid(link.linkType, `${op.entityId}::${link.targetId}`);
+  const linkUuid = deterministicUuid(op.namespace, link.linkType, `${op.entityId}::${link.targetId}`);
 
   const linkProps = link.properties
     ? mapProperties(link.properties as Record<VersionedUrl, unknown>, link.propertyProvenance)
@@ -401,7 +403,7 @@ async function upsertLink(
       return;
     }
     if (e instanceof GraphApiError && isFkViolation(e)) {
-      await ensureEntity(config, link.targetEntityType, link.targetId, op.webId, provenance);
+      await ensureEntity(config, op.namespace, link.targetEntityType, link.targetId, op.webId, provenance);
       try { await createLink(); } catch (e2) {
         if (e2 instanceof GraphApiError && (e2.status === 409 || isDuplicate(e2))) {
           await reviveLink();

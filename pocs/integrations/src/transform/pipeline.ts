@@ -63,6 +63,7 @@ export type GraphSinkConfig = {
   entityType: VersionedUrl;
   entityId: Accessor;
   webId: string;
+  idNamespace?: string;
   properties: Record<VersionedUrl, Accessor>;
   links?: LinkMapping[];
   provenance?: ProvenanceConfig;

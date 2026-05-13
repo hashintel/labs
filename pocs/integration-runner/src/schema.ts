@@ -89,10 +89,11 @@ export type RestEndpointYaml = {
 };
 
 export type ConnectorYaml =
-  | { id: string; mode: "batch"; provenance?: ProvenanceYaml }
+  | { id: string; mode: "batch"; idNamespace?: string; provenance?: ProvenanceYaml }
   | {
       id: string;
       mode: "rest-api";
+      idNamespace?: string;
       auth?: { type: string; name: string; value: string };
       rateLimitMs?: number;
       pageSize?: number;

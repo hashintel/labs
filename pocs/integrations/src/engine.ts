@@ -322,7 +322,7 @@ export function integrate(spec: IntegrationSpec): Integration {
           log.debug(`${deletes.length} deletes for "${table}"`);
           for (const step of pipeline.steps) {
             if (step.kind === "graph-sink") {
-              await archiveDeletes(deletes, step.config, spec.graphClient, makeProvenance(step.config.provenance), sinkLogForSource);
+              await archiveDeletes(deletes, step.config, connector.id, spec.graphClient, makeProvenance(step.config.provenance), sinkLogForSource);
             }
           }
         }
@@ -348,7 +348,7 @@ export function integrate(spec: IntegrationSpec): Integration {
 
           const onSideEffect: SideEffectHandler = async (step, currentTable) => {
             if (step.kind === "graph-sink") {
-              await processGraphSink(step.config, currentTable, queryStore, spec.graphClient!, makeProvenance(step.config.provenance), sinkLogForSource);
+              await processGraphSink(step.config, currentTable, connector.id, queryStore, spec.graphClient!, makeProvenance(step.config.provenance), sinkLogForSource);
             } else if (step.kind === "checkpoint") {
               await writeCheckpoint(step.name, currentTable, queryStore, storage);
             }

@@ -28,6 +28,7 @@ export type PropertyProvenance = { sources: SourceProvenance[] };
 export type GraphOp =
   | {
       kind: "upsert";
+      namespace: string;
       entityType: VersionedUrl;
       entityId: unknown;
       properties: Record<VersionedUrl, unknown>;
@@ -37,7 +38,7 @@ export type GraphOp =
       provenance: SourceProvenance;
       webId: string;
     }
-  | { kind: "archive"; entityType: VersionedUrl; entityId: unknown; provenance: SourceProvenance; webId: string };
+  | { kind: "archive"; namespace: string; entityType: VersionedUrl; entityId: unknown; provenance: SourceProvenance; webId: string };
 
 export type BulkUpsertFailure = { op: Extract<GraphOp, { kind: "upsert" }>; error: Error };
 export type BulkUpsertResult = {

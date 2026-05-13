@@ -96,7 +96,7 @@ describe("e2e: events to pipeline to graph", () => {
     const client = createGraphClient(config);
     return async (step, table) => {
       if (step.kind === "graph-sink") {
-        await processGraphSink(step.config, table, queryStore, client, prov);
+        await processGraphSink(step.config, table, "test", queryStore, client, prov);
       }
     };
   }
@@ -168,7 +168,7 @@ describe("e2e: events to pipeline to graph", () => {
     const config: GraphClientConfig = { baseUrl: `http://localhost:${graphServer.port}`, actorId: "test-actor" };
     const client = createGraphClient(config);
 
-    await archiveDeletes(deletes, sinkConfig.config, client, prov);
+    await archiveDeletes(deletes, sinkConfig.config, "test", client, prov);
 
     const archiveReq = graphServer.requests.find((r) => r.method === "PATCH");
     assert.ok(archiveReq, "expected a PATCH request for archive");

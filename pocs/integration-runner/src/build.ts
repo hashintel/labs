@@ -39,18 +39,18 @@ function toLinks(yaml: LinkYaml[] | undefined): LinkMapping[] | undefined {
   }));
 }
 
-function toGraphSinkConfig(yaml: GraphSinkYaml): GraphSinkConfig {
+function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string): GraphSinkConfig {
   const entityId: Accessor = Array.isArray(yaml.entityId)
     ? ((cols) => (row: Record<string, unknown>) => cols.map((c) => String(row[c] ?? "")).join("|"))(yaml.entityId)
     : yaml.entityId;
 
   return {
-    entityType: yaml.entityType, entityId, webId: yaml.webId,
+    entityType: yaml.entityType, entityId, webId: yaml.webId, idNamespace,
     properties: toAccessors(yaml.properties), links: toLinks(yaml.links), provenance: toProvenance(yaml.provenance),
   };
 }
 
-function toStep(yaml: StepYaml): Step {
+function toStep(yaml: StepYaml, idNamespace: string): Step {
   const deps = yaml.dependsOn;
   switch (yaml.kind) {
     case "sql":
@@ -58,13 +58,13 @@ function toStep(yaml: StepYaml): Step {
     case "fn":
       return deps ? fnStep({ id: yaml.id, transform: yaml.transform, dependsOn: deps }) : fnStep({ id: yaml.id, transform: yaml.transform });
     case "graph-sink": {
-      const config = toGraphSinkConfig(yaml.config);
+      const config = toGraphSinkConfig(yaml.config, idNamespace);
       return deps ? graphSinkStep({ id: yaml.id, ...config, dependsOn: deps }) : graphSinkStep({ id: yaml.id, ...config });
     }
     case "checkpoint":
       return deps ? checkpoint({ id: yaml.id, name: yaml.name, dependsOn: deps }) : checkpoint({ id: yaml.id, name: yaml.name });
     case "branch":
-      return branch(yaml.id, ...yaml.branches.map((b) => b.map(toStep)));
+      return branch(yaml.id, ...yaml.branches.map((b) => b.map((s) => toStep(s, idNamespace))));
   }
 }
 
@@ -94,9 +94,10 @@ export function buildConnectorDef(yaml: IntegrationYaml): ConnectorDef {
 
 export function buildPipelines(yaml: IntegrationYaml): TablePipeline[] {
   const connectorId = yaml.connector.id;
+  const idNamespace = yaml.connector.idNamespace ?? connectorId;
   return yaml.pipelines.map((p) => ({
     source: p.source,
-    pipeline: { source: `${connectorId}/${p.source}`, steps: p.steps.map(toStep) } as Pipeline,
+    pipeline: { source: `${connectorId}/${p.source}`, steps: p.steps.map((s) => toStep(s, idNamespace)) } as Pipeline,
     dependsOn: p.dependsOn,
   }));
 }

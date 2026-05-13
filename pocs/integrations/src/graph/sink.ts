@@ -34,6 +34,7 @@ function errMsg(err: unknown): string {
 export function rowToGraphOp(
   row: Row & Envelope,
   config: GraphSinkConfig,
+  namespace: string,
   provenance: SourceProvenance,
 ): Extract<GraphOp, { kind: "upsert" }> {
   const { _op, _key, _before: rawBefore, ...data } = row;
@@ -87,12 +88,13 @@ export function rowToGraphOp(
     }
   }
 
-  return { kind: "upsert", entityType: config.entityType, entityId, properties, propertyProvenance, links, staleLinks, provenance, webId: config.webId };
+  return { kind: "upsert", namespace, entityType: config.entityType, entityId, properties, propertyProvenance, links, staleLinks, provenance, webId: config.webId };
 }
 
 export async function processGraphSink(
   config: GraphSinkConfig,
   inputTable: string,
+  connectorId: string,
   db: QueryableStore,
   client: GraphClient,
   provenance: SourceProvenance,
@@ -108,6 +110,7 @@ export async function processGraphSink(
     latest.set(id, row as Row & Envelope);
   }
 
+  const namespace = config.idNamespace ?? connectorId;
   const syncedIds: string[] = [];
   const errors: SyncError[] = [];
   const items = [...latest.values()];
@@ -115,7 +118,7 @@ export async function processGraphSink(
   await parallel(items, DEFAULT_CONCURRENCY, async (row) => {
     let op: Extract<GraphOp, { kind: "upsert" }>;
     try {
-      op = rowToGraphOp(row, config, provenance);
+      op = rowToGraphOp(row, config, namespace, provenance);
     } catch (err) {
       const id = String(resolve(config.entityId, row as Row));
       errors.push(syncError("row-build", config.entityType, id, err));
@@ -284,6 +287,7 @@ export async function diffAndSync(
     await db.exec(`INSERT INTO ${stateTable} SELECT * FROM ${currentTable} WHERE _entity_id IN (${idList})`);
   };
 
+  const namespace = config.idNamespace ?? connectorId;
   const changedIds = [...inserts, ...updates];
   if (changedIds.length > 0 && inputTable) {
     const idList = inList(changedIds);
@@ -293,7 +297,7 @@ export async function diffAndSync(
     const ops: Extract<GraphOp, { kind: "upsert" }>[] = [];
     for (const row of rows) {
       try {
-        ops.push(rowToGraphOp(row as Row & Envelope, config, provenance));
+        ops.push(rowToGraphOp(row as Row & Envelope, config, namespace, provenance));
       } catch (err) {
         const id = String((row as Row)[entityIdCol]);
         errors.push(syncError("row-build", config.entityType, id, err));
@@ -321,7 +325,7 @@ export async function diffAndSync(
       const staleLinkId = `${entityId}::${oldVal}`;
       log?.info(`archive stale link ${typeSlug(l.linkType)} ${entityId} -> ${oldVal}`);
       try {
-        await client.archiveEntity({ kind: "archive", entityType: l.linkType, entityId: staleLinkId, provenance, webId: config.webId });
+        await client.archiveEntity({ kind: "archive", namespace, entityType: l.linkType, entityId: staleLinkId, provenance, webId: config.webId });
       } catch (err) {
         errors.push(syncError("stale-link", l.linkType, staleLinkId, err));
         log?.error(`stale-link archive failed for ${typeSlug(l.linkType)}/${staleLinkId}: ${errMsg(err)}`);
@@ -332,7 +336,7 @@ export async function diffAndSync(
   await parallel(deletes, DEFAULT_CONCURRENCY, async (entityId) => {
     try {
       log?.info(`archive ${typeSlug(config.entityType)} id=${entityId} (removed)`);
-      await client.archiveEntity({ kind: "archive", entityType: config.entityType, entityId, provenance, webId: config.webId });
+      await client.archiveEntity({ kind: "archive", namespace, entityType: config.entityType, entityId, provenance, webId: config.webId });
       await db.exec(`DELETE FROM ${stateTable} WHERE _entity_id = ${escLiteral(entityId)}`);
     } catch (err) {
       errors.push(syncError("archive", config.entityType, entityId, err));
@@ -414,11 +418,13 @@ async function assertUniqueEntityIds(
 export async function archiveDeletes(
   deletes: ChangeEvent[],
   config: GraphSinkConfig,
+  connectorId: string,
   client: GraphClient,
   provenance: SourceProvenance,
   log?: Logger,
 ): Promise<{ errors: SyncError[] }> {
   if (deletes.length === 0) return { errors: [] };
+  const namespace = config.idNamespace ?? connectorId;
   const errors: SyncError[] = [];
 
   await parallel(deletes, DEFAULT_CONCURRENCY, async (del) => {
@@ -427,6 +433,7 @@ export async function archiveDeletes(
       log?.info(`archive ${typeSlug(config.entityType)} id=${String(entityId)}`);
       await client.archiveEntity({
         kind: "archive",
+        namespace,
         entityType: config.entityType,
         entityId,
         provenance,

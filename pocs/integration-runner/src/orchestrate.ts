@@ -2,29 +2,19 @@ import { DBOS } from "@dbos-inc/dbos-sdk";
 import type { Integration } from "@integrations/engine.js";
 import type { OrchestrationYaml } from "./schema.js";
 import type { IntegrationId } from "./identity.js";
+import { workflowId } from "./config.js";
 import { type SourceResult, type WorkflowResult, sourceResultFromSync, failedSourceResult, buildWorkflowResult } from "./result.js";
 
 let _app: Integration | undefined;
 let _id: IntegrationId | undefined;
 
-export function bindIntegration(app: Integration, id: IntegrationId) {
-  _app = app;
-  _id = id;
-}
-
-function bound() {
-  if (!_app || !_id) throw new Error("bindIntegration() not called");
-  return { app: _app, id: _id };
-}
-
-async function _processSource(source: string): Promise<SourceResult> {
+async function processSource(source: string): Promise<SourceResult> {
   const start = Date.now();
-  const sync = await bound().app.syncSources([source]);
+  const sync = await _app!.syncSources([source]);
   return sourceResultFromSync(source, sync, Date.now() - start);
 }
 
-async function _fullSync(sources: string[]): Promise<WorkflowResult> {
-  const { id } = bound();
+async function fullSync(sources: string[]): Promise<WorkflowResult> {
   const startedAt = new Date().toISOString();
   const results: SourceResult[] = [];
 
@@ -32,7 +22,7 @@ async function _fullSync(sources: string[]): Promise<WorkflowResult> {
     const source = sources[i];
     let sr: SourceResult;
     try {
-      sr = await processSource(source);
+      sr = await registeredProcessSource(source);
     } catch (err) {
       sr = failedSourceResult(source, `retries exhausted: ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -43,33 +33,46 @@ async function _fullSync(sources: string[]): Promise<WorkflowResult> {
     });
   }
 
-  return buildWorkflowResult(id.canonical, id.configHash, results, startedAt);
+  return buildWorkflowResult(_id!.canonical, _id!.configHash, results, startedAt);
 }
 
-let processSource = _processSource;
-let fullSync = _fullSync;
+let registeredProcessSource = processSource;
+let registeredFullSync = fullSync;
 
-export function registerWorkflows(orch?: OrchestrationYaml) {
-  processSource = DBOS.registerStep(_processSource, {
+export async function getSourceStatus(wfId: string, source: string) {
+  return DBOS.getEvent(wfId, `source:${source}`);
+}
+
+export async function runWithDbos(
+  app: Integration,
+  id: IntegrationId,
+  runId: string,
+  sources: string[],
+  dbosUrl: string,
+  orch?: OrchestrationYaml,
+): Promise<WorkflowResult> {
+  if (_app) throw new Error("DBOS already bound (one integration per process)");
+  _app = app;
+  _id = id;
+
+  registeredProcessSource = DBOS.registerStep(processSource, {
     name: "processSource",
     retriesAllowed: true,
     maxAttempts: (orch?.maxRetries ?? 2) + 1,
     intervalSeconds: orch?.retryIntervalSeconds ?? 30,
     backoffRate: orch?.backoffRate ?? 2,
   });
-  fullSync = DBOS.registerWorkflow(_fullSync, { name: "fullSync" });
-}
+  registeredFullSync = DBOS.registerWorkflow(fullSync, { name: "fullSync" });
 
-export async function launchDbos(dbosUrl: string) {
   DBOS.setConfig({ name: "integration-runner", systemDatabaseUrl: dbosUrl, runAdminServer: false });
   await DBOS.launch();
-}
 
-export async function shutdownDbos() {
-  await DBOS.shutdown();
-}
-
-export async function runDurableSync(wfId: string, sources: string[]): Promise<WorkflowResult> {
-  const handle = await DBOS.startWorkflow(fullSync, { workflowID: wfId })(sources);
-  return handle.getResult();
+  const wfId = workflowId(id, runId);
+  console.log(`[runner] workflow=${wfId}`);
+  try {
+    const handle = await DBOS.startWorkflow(registeredFullSync, { workflowID: wfId })(sources);
+    return handle.getResult();
+  } finally {
+    await DBOS.shutdown();
+  }
 }
