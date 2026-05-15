@@ -34,3 +34,7 @@ Cargo.lock
 
 # Patchwork
 .pushwork/
+libs/slug-from-embedding/.venv
+.dmypy.json
+libs/slug-from-embedding/data/
+__pycache__/

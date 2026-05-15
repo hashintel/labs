@@ -1,0 +1,14 @@
+[project]
+name = "slug-from-embedding"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "anthropic>=0.102.0",
+    "datasets>=4.8.5",
+    "datatrove[io,processing]>=0.9.0",
+    "duckdb>=1.5.2",
+    "spacy>=3.8.14",
+    "tokenizers>=0.23.1",
+]
