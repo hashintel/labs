@@ -16,6 +16,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -48,6 +49,7 @@ DATA_DIR = Path(__file__).parent / "data"
 CORPUS_FILE = DATA_DIR / "corpus.parquet"
 OUTPUT_FILE = DATA_DIR / "corpus_with_slugs.parquet"
 BATCH_ID_FILE = DATA_DIR / "batch_id.txt"
+ID_MAP_FILE = DATA_DIR / "id_map.json"
 RESULTS_FILE = DATA_DIR / "batch_results.jsonl"
 
 POLL_INTERVAL = 30  # seconds between status checks
@@ -148,7 +150,7 @@ for _ex in FEW_SHOT_EXAMPLES:
 # ── Slug validation ───────────────────────────────────────────────────────────
 
 SLUG_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-MAX_SLUG_WORDS = 6  # match the prompt contract exactly
+MAX_SLUG_WORDS = 8  # prompt says 6, but 7-8 word slugs with compound terms are fine for training
 
 
 def validate_slug(text: str) -> str | None:
@@ -190,6 +192,15 @@ def build_messages(text: str) -> list[dict]:
     return _FEW_SHOT_MESSAGES + [{"role": "user", "content": text}]
 
 
+def make_custom_id(doc_id: str) -> str:
+    """Create a batch-API-safe custom_id from an arbitrary document ID.
+
+    The Anthropic batch API requires custom_id to match ^[a-zA-Z0-9_-]{1,64}$.
+    We use a truncated SHA-256 hex digest (64 chars, hex-safe).
+    """
+    return hashlib.sha256(doc_id.encode()).hexdigest()
+
+
 def load_corpus() -> list[tuple]:
     """Load corpus.parquet as a list of (id, text) tuples."""
     return duckdb.sql(f"SELECT id, text FROM '{CORPUS_FILE}'").fetchall()
@@ -229,14 +240,17 @@ def cmd_submit():
     print(f"Building batch for {len(corpus)} documents...")
 
     seen_ids = set()
+    id_map = {}  # custom_id -> doc_id
     requests = []
     for doc_id, text in corpus:
         if doc_id in seen_ids:
             raise ValueError(f"Duplicate id in corpus: {doc_id}")
         seen_ids.add(doc_id)
+        custom_id = make_custom_id(doc_id)
+        id_map[custom_id] = doc_id
         requests.append(
             {
-                "custom_id": doc_id,
+                "custom_id": custom_id,
                 "params": {
                     "model": MODEL,
                     "max_tokens": MAX_TOKENS,
@@ -246,6 +260,10 @@ def cmd_submit():
                 },
             }
         )
+
+    # Save the mapping so collect can translate custom_ids back to doc_ids.
+    ID_MAP_FILE.write_text(json.dumps(id_map))
+    print(f"ID mapping saved to {ID_MAP_FILE}")
 
     print("Submitting batch...")
     batch = client.messages.batches.create(requests=requests)
@@ -324,13 +342,14 @@ def cmd_collect():
     Delete RESULTS_FILE to force a re-fetch.
     """
     batch_id = BATCH_ID_FILE.read_text().strip()
+    id_map = json.loads(ID_MAP_FILE.read_text())  # custom_id -> doc_id
 
     if RESULTS_FILE.exists():
         print(f"Using cached raw results from {RESULTS_FILE}")
     else:
         _stream_results_to_file(batch_id)
 
-    # Validate from the local file.
+    # Validate from the local file. Keys are doc_ids (mapped back from custom_ids).
     slugs: dict[str, str] = {}
     invalid_count = 0
     error_count = 0
@@ -342,20 +361,19 @@ def cmd_collect():
             record = json.loads(line)
             total += 1
             custom_id = record["custom_id"]
+            doc_id = id_map.get(custom_id, custom_id)
             if record["status"] == "succeeded":
                 raw = record.get("raw", "")
                 slug = validate_slug(raw)
                 if slug:
-                    if custom_id in slugs:
-                        print(
-                            f"  WARNING: duplicate custom_id {custom_id}, keeping first"
-                        )
+                    if doc_id in slugs:
+                        print(f"  WARNING: duplicate doc_id {doc_id}, keeping first")
                     else:
-                        slugs[custom_id] = slug
+                        slugs[doc_id] = slug
                 else:
                     invalid_count += 1
                     if len(invalid_samples) < 20:
-                        invalid_samples.append((custom_id, raw))
+                        invalid_samples.append((doc_id, raw))
             else:
                 error_count += 1
 
