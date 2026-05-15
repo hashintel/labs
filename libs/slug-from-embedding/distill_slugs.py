@@ -17,6 +17,7 @@ Usage:
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -24,6 +25,18 @@ from pathlib import Path
 
 import anthropic
 import duckdb
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent / ".env")
+
+
+def _client() -> anthropic.Anthropic:
+    key = os.environ.get("ANTHROPHIC_KEY") or os.environ.get("ANTHROPIC_API_KEY")
+    if not key:
+        print("Set ANTHROPHIC_KEY or ANTHROPIC_API_KEY in .env")
+        sys.exit(1)
+    return anthropic.Anthropic(api_key=key)
+
 
 # ── Configuration ──────────────────────────────────────────────────────────────
 
@@ -38,18 +51,53 @@ BATCH_ID_FILE = DATA_DIR / "batch_id.txt"
 RESULTS_FILE = DATA_DIR / "batch_results.jsonl"
 
 POLL_INTERVAL = 30  # seconds between status checks
+POLL_MAX_WAIT = 24 * 60 * 60  # give up polling after 24h
+SUCCESS_RATE_WARN = 0.95  # warn if fewer than this fraction validate
+
+# ── Stopwords ─────────────────────────────────────────────────────────────────
+
+STOPWORDS = {
+    "the",
+    "a",
+    "an",
+    "of",
+    "for",
+    "in",
+    "on",
+    "to",
+    "and",
+    "or",
+    "is",
+    "it",
+    "with",
+    "by",
+    "at",
+    "as",
+    "be",
+    "are",
+    "was",
+    "were",
+    "this",
+    "that",
+    "from",
+    "but",
+    "not",
+    "no",
+}
 
 # ── Prompt ─────────────────────────────────────────────────────────────────────
 
-SYSTEM_PROMPT = """\
+SYSTEM_PROMPT = f"""\
 You generate short kebab-case slugs that capture the core topic of a text.
 
 Rules:
 - Output ONLY the slug, nothing else.
 - Use lowercase kebab-case (words joined by hyphens).
 - Maximum 6 words.
-- No stopwords (the, a, an, of, for, in, on, to, and, or, is, it, etc.).
+- No stopwords ({", ".join(sorted(STOPWORDS))}).
 - Prefer concrete nouns over abstract ones.
+- Include proper nouns (project names, product names, specific identifiers) when central to the topic.
+- Split camelCase and snake_case identifiers into separate words (e.g. modalButton -> modal-button, token_count -> token-count).
 - The slug should distinguish this text from related texts on nearby topics."""
 
 FEW_SHOT_EXAMPLES = [
@@ -59,11 +107,15 @@ FEW_SHOT_EXAMPLES = [
     },
     {
         "text": "React 18 introduced concurrent features like startTransition and Suspense for data fetching, allowing apps to remain responsive during expensive renders.",
-        "slug": "react-concurrent-suspense-starttransition",
+        "slug": "react-concurrent-suspense-start-transition",
     },
     {
         "text": "The vulnerability allows remote code execution via a crafted HTTP request to the admin endpoint. Affects versions 2.3.0 through 2.3.4.",
         "slug": "remote-code-execution-admin-endpoint",
+    },
+    {
+        "text": "PostgreSQL 16 added logical replication support for sequences, allowing failover clusters to maintain consistent sequence values across nodes.",
+        "slug": "postgresql-16-logical-replication-sequences",
     },
     {
         "text": "We present measurements of the cosmic microwave background polarization anisotropy from the BICEP2 experiment at the South Pole.",
@@ -73,12 +125,30 @@ FEW_SHOT_EXAMPLES = [
         "text": "This pull request adds dark mode support to the settings page. Users can toggle between light, dark, and system themes.",
         "slug": "dark-mode-settings-toggle",
     },
+    {
+        "text": "The updateUserProfile endpoint silently drops fields that fail snake_case validation. This causes profileImage and dateOfBirth to be ignored.",
+        "slug": "update-user-profile-silent-field-drop",
+    },
+    {
+        "text": "The Battle of Hastings in 1066 was fought between the Norman-French army of William the Conqueror and the English army under King Harold II.",
+        "slug": "battle-hastings-1066-norman-conquest",
+    },
+    {
+        "text": "Sourdough relies on wild yeast and lactobacillus bacteria captured from the environment. The starter must be fed regularly to maintain activity.",
+        "slug": "sourdough-starter-wild-yeast-lactobacillus",
+    },
 ]
+
+# Precompute the few-shot message prefix once to avoid rebuilding per document.
+_FEW_SHOT_MESSAGES: list[dict] = []
+for _ex in FEW_SHOT_EXAMPLES:
+    _FEW_SHOT_MESSAGES.append({"role": "user", "content": _ex["text"]})
+    _FEW_SHOT_MESSAGES.append({"role": "assistant", "content": _ex["slug"]})
 
 # ── Slug validation ───────────────────────────────────────────────────────────
 
 SLUG_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
-MAX_SLUG_WORDS = 8  # slightly generous to avoid discarding edge cases
+MAX_SLUG_WORDS = 6  # match the prompt contract exactly
 
 
 def validate_slug(text: str) -> str | None:
@@ -91,7 +161,11 @@ def validate_slug(text: str) -> str | None:
     if not SLUG_PATTERN.match(slug):
         return None
 
-    if len(slug.split("-")) > MAX_SLUG_WORDS:
+    tokens = slug.split("-")
+    if len(tokens) > MAX_SLUG_WORDS:
+        return None
+
+    if any(t in STOPWORDS for t in tokens):
         return None
 
     if len(slug) < 3 or len(slug) > 80:
@@ -100,26 +174,25 @@ def validate_slug(text: str) -> str | None:
     return slug
 
 
+def extract_text(content_blocks) -> str | None:
+    """Find the first text block in a response, defensive against tool_use/thinking blocks."""
+    for block in content_blocks:
+        if getattr(block, "type", None) == "text":
+            return block.text
+    return None
+
+
 # ── Build requests ────────────────────────────────────────────────────────────
 
 
 def build_messages(text: str) -> list[dict]:
     """Build the few-shot message list for a single document."""
-    messages = []
-    for ex in FEW_SHOT_EXAMPLES:
-        messages.append({"role": "user", "content": ex["text"]})
-        messages.append({"role": "assistant", "content": ex["slug"]})
-    messages.append({"role": "user", "content": text})
-    return messages
+    return _FEW_SHOT_MESSAGES + [{"role": "user", "content": text}]
 
 
-def load_corpus() -> list[dict]:
-    """Load corpus.parquet as a list of dicts."""
-    rows = duckdb.sql(
-        f"SELECT id, text, source, url, token_count FROM '{CORPUS_FILE}'"
-    ).fetchall()
-    columns = ["id", "text", "source", "url", "token_count"]
-    return [dict(zip(columns, row)) for row in rows]
+def load_corpus() -> list[tuple]:
+    """Load corpus.parquet as a list of (id, text) tuples."""
+    return duckdb.sql(f"SELECT id, text FROM '{CORPUS_FILE}'").fetchall()
 
 
 # ── Commands ──────────────────────────────────────────────────────────────────
@@ -127,7 +200,7 @@ def load_corpus() -> list[dict]:
 
 def cmd_test():
     """Test the prompt on 5 random samples using the synchronous Messages API."""
-    client = anthropic.Anthropic()
+    client = _client()
     samples = duckdb.sql(
         f"SELECT id, text, source FROM '{CORPUS_FILE}' ORDER BY random() LIMIT 5"
     ).fetchall()
@@ -140,10 +213,10 @@ def cmd_test():
             system=SYSTEM_PROMPT,
             messages=build_messages(text),
         )
-        raw = response.content[0].text
+        raw = extract_text(response.content) or ""
         slug = validate_slug(raw)
         status = "✓" if slug else f"✗ invalid: {raw!r}"
-        print(f"[{source}] {doc_id}")
+        print(f"[{source}] {doc_id}  (text length: {len(text)} chars)")
         print(f"  text: {text[:100]}...")
         print(f"  slug: {slug or raw}  {status}")
         print()
@@ -151,22 +224,28 @@ def cmd_test():
 
 def cmd_submit():
     """Submit all corpus documents as a batch to Anthropic."""
-    client = anthropic.Anthropic()
+    client = _client()
     corpus = load_corpus()
     print(f"Building batch for {len(corpus)} documents...")
 
+    seen_ids = set()
     requests = []
-    for doc in corpus:
-        requests.append({
-            "custom_id": doc["id"],
-            "params": {
-                "model": MODEL,
-                "max_tokens": MAX_TOKENS,
-                "temperature": TEMPERATURE,
-                "system": SYSTEM_PROMPT,
-                "messages": build_messages(doc["text"]),
-            },
-        })
+    for doc_id, text in corpus:
+        if doc_id in seen_ids:
+            raise ValueError(f"Duplicate id in corpus: {doc_id}")
+        seen_ids.add(doc_id)
+        requests.append(
+            {
+                "custom_id": doc_id,
+                "params": {
+                    "model": MODEL,
+                    "max_tokens": MAX_TOKENS,
+                    "temperature": TEMPERATURE,
+                    "system": SYSTEM_PROMPT,
+                    "messages": build_messages(text),
+                },
+            }
+        )
 
     print("Submitting batch...")
     batch = client.messages.batches.create(requests=requests)
@@ -174,69 +253,141 @@ def cmd_submit():
     print(f"Batch submitted: {batch.id}")
     print(f"Status: {batch.processing_status}")
     print(f"Batch ID saved to {BATCH_ID_FILE}")
+    print(
+        f"Inspect at: https://console.anthropic.com/settings/workspaces/default/batches/{batch.id}"
+    )
 
 
 def cmd_poll():
     """Poll until the batch completes."""
-    client = anthropic.Anthropic()
+    client = _client()
     batch_id = BATCH_ID_FILE.read_text().strip()
     print(f"Polling batch {batch_id}...")
 
-    while True:
-        batch = client.messages.batches.retrieve(batch_id)
-        counts = batch.request_counts
-        print(
-            f"  status={batch.processing_status}  "
-            f"processing={counts.processing}  "
-            f"succeeded={counts.succeeded}  "
-            f"errored={counts.errored}"
-        )
-        if batch.processing_status == "ended":
-            print("Batch complete.")
-            return
+    deadline = time.time() + POLL_MAX_WAIT
+    consecutive_errors = 0
+
+    while time.time() < deadline:
+        try:
+            batch = client.messages.batches.retrieve(batch_id)
+            consecutive_errors = 0
+            counts = batch.request_counts
+            print(
+                f"  status={batch.processing_status}  "
+                f"processing={counts.processing}  "
+                f"succeeded={counts.succeeded}  "
+                f"errored={counts.errored}"
+            )
+            if batch.processing_status == "ended":
+                print("Batch complete.")
+                return
+        except Exception as e:
+            consecutive_errors += 1
+            print(f"  retrieve failed ({consecutive_errors}): {e}")
+            if consecutive_errors >= 5:
+                raise RuntimeError("Too many consecutive retrieve failures") from e
         time.sleep(POLL_INTERVAL)
+
+    raise TimeoutError(f"Batch did not complete within {POLL_MAX_WAIT}s")
+
+
+def _stream_results_to_file(batch_id: str) -> None:
+    """Stream batch results from the API to RESULTS_FILE, one JSON object per line.
+
+    Each line contains custom_id, status (succeeded/errored), and raw text or error info.
+    Validation happens later from this file, so re-running collect is free.
+    """
+    client = _client()
+    print(f"Streaming results from API to {RESULTS_FILE}...")
+    n = 0
+    with open(RESULTS_FILE, "w") as f:
+        for result in client.messages.batches.results(batch_id):
+            record: dict = {"custom_id": result.custom_id}
+            if result.result.type == "succeeded":
+                raw = extract_text(result.result.message.content) or ""
+                record["status"] = "succeeded"
+                record["raw"] = raw
+            else:
+                record["status"] = result.result.type
+                record["error"] = getattr(result.result, "error", None)
+                if record["error"] is not None:
+                    record["error"] = str(record["error"])
+            f.write(json.dumps(record) + "\n")
+            n += 1
+    print(f"Wrote {n} raw results to {RESULTS_FILE}")
 
 
 def cmd_collect():
-    """Collect batch results, validate slugs, and write output parquet."""
-    client = anthropic.Anthropic()
+    """Collect batch results, validate slugs, and write output parquet.
+
+    Idempotent: if RESULTS_FILE exists, validates from disk without hitting the API.
+    Delete RESULTS_FILE to force a re-fetch.
+    """
     batch_id = BATCH_ID_FILE.read_text().strip()
 
-    print(f"Collecting results for batch {batch_id}...")
+    if RESULTS_FILE.exists():
+        print(f"Using cached raw results from {RESULTS_FILE}")
+    else:
+        _stream_results_to_file(batch_id)
 
-    # Collect results into a dict keyed by custom_id
+    # Validate from the local file.
     slugs: dict[str, str] = {}
     invalid_count = 0
     error_count = 0
+    total = 0
+    invalid_samples: list[tuple[str, str]] = []
 
-    for result in client.messages.batches.results(batch_id):
-        custom_id = result.custom_id
-        if result.result.type == "succeeded":
-            raw = result.result.message.content[0].text
-            slug = validate_slug(raw)
-            if slug:
-                slugs[custom_id] = slug
+    with open(RESULTS_FILE) as f:
+        for line in f:
+            record = json.loads(line)
+            total += 1
+            custom_id = record["custom_id"]
+            if record["status"] == "succeeded":
+                raw = record.get("raw", "")
+                slug = validate_slug(raw)
+                if slug:
+                    if custom_id in slugs:
+                        print(
+                            f"  WARNING: duplicate custom_id {custom_id}, keeping first"
+                        )
+                    else:
+                        slugs[custom_id] = slug
+                else:
+                    invalid_count += 1
+                    if len(invalid_samples) < 20:
+                        invalid_samples.append((custom_id, raw))
             else:
-                invalid_count += 1
-                print(f"  invalid slug for {custom_id}: {raw!r}")
-        else:
-            error_count += 1
-            print(f"  error for {custom_id}: {result.result.type}")
+                error_count += 1
 
-    print(f"\nResults: {len(slugs)} valid, {invalid_count} invalid, {error_count} errors")
+    if invalid_samples:
+        print(f"\nSample invalid slugs (first {len(invalid_samples)}):")
+        for cid, raw in invalid_samples:
+            print(f"  {cid}: {raw!r}")
 
-    # Save raw results for debugging
-    with open(RESULTS_FILE, "w") as f:
-        for doc_id, slug in slugs.items():
-            f.write(json.dumps({"id": doc_id, "slug": slug}) + "\n")
+    print(
+        f"\nResults: {len(slugs)} valid, {invalid_count} invalid, "
+        f"{error_count} errored, {total} total"
+    )
 
-    # Join slugs back to corpus and write output
-    # Load slugs into DuckDB and join with corpus
-    slugs_list = [{"id": k, "slug": v} for k, v in slugs.items()]
+    if total == 0:
+        raise RuntimeError("No results found, aborting before writing parquet")
 
+    success_rate = len(slugs) / total
+    if success_rate < SUCCESS_RATE_WARN:
+        print(
+            f"\n⚠  WARNING: success rate {success_rate:.1%} below {SUCCESS_RATE_WARN:.0%}. "
+            "The prompt or validator may be broken."
+        )
+
+    if not slugs:
+        raise RuntimeError("Zero valid slugs, refusing to write empty parquet")
+
+    # Join slugs back to corpus and write output.
     conn = duckdb.connect()
     conn.execute("CREATE TABLE slugs (id VARCHAR, slug VARCHAR)")
-    conn.executemany("INSERT INTO slugs VALUES (?, ?)", [(s["id"], s["slug"]) for s in slugs_list])
+    conn.executemany(
+        "INSERT INTO slugs VALUES (?, ?)", [(cid, s) for cid, s in slugs.items()]
+    )
 
     conn.execute(f"""
         COPY (
@@ -252,7 +403,7 @@ def cmd_collect():
 
 
 def cmd_all():
-    """Submit, poll, and collect in sequence."""
+    """Submit, poll, and collect in sequence. Long-running; ctrl-C is safe (each phase persists state)."""
     cmd_submit()
     cmd_poll()
     cmd_collect()
