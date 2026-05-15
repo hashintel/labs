@@ -1,7 +1,7 @@
 [project]
 name = "slug-from-embedding"
 version = "0.1.0"
-description = "Add your description here"
+description = "Research: generating slugs from content embeddings"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -12,8 +12,16 @@ dependencies = [
     "openai>=2.36.0",
     "python-dotenv>=1.2.2",
     "scikit-learn>=1.8.0",
-    "spacy>=3.8.14",
     "tokenizers<=0.23.0",
     "torch>=2.12.0",
     "transformers>=4.57.6",
 ]
+
+[project.scripts]
+slug-prepare = "slug_from_embedding.prepare_corpus:main"
+slug-distill = "slug_from_embedding.distill_slugs:main"
+slug-embed = "slug_from_embedding.embed_corpus:main"
+slug-split = "slug_from_embedding.split_dataset:main"
+
+[tool.uv]
+package = true
