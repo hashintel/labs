@@ -13,6 +13,40 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
+
+# ── Encoders ───────────────────────────────────────────────────────────────────
+
+
+type Encoder = Literal["openai", "harrier"]
+type EncoderBackend = Literal["openrouter", "local"]
+
+
+@dataclass(frozen=True)
+class EncoderConfig:
+    name: str
+    model: str
+    dim: int
+    batch_size: int
+    backend: EncoderBackend
+
+
+ENCODERS: dict[Encoder, EncoderConfig] = {
+    "openai": EncoderConfig(
+        name="openai",
+        model="openai/text-embedding-3-small",
+        dim=1536,
+        batch_size=100,
+        backend="openrouter",
+    ),
+    "harrier": EncoderConfig(
+        name="harrier",
+        model="microsoft/harrier-oss-v1-0.6b",
+        dim=1024,
+        batch_size=32,
+        backend="local",
+    ),
+}
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 
 DATA_DIR = PROJECT_ROOT / "data"
@@ -27,11 +61,11 @@ ID_MAP_FILE = DATA_DIR / "id_map.json"
 BATCH_RESULTS_FILE = DATA_DIR / "batch_results.jsonl"
 
 
-def embeddings_file(encoder: str) -> Path:
+def embeddings_file(encoder: Encoder) -> Path:
     return DATA_DIR / f"embeddings_{encoder}.parquet"
 
 
-def splits_file(encoder: str) -> Path:
+def splits_file(encoder: Encoder) -> Path:
     return DATA_DIR / f"splits_{encoder}.parquet"
 
 
@@ -58,34 +92,6 @@ POLL_INTERVAL = 30
 POLL_MAX_WAIT = 24 * 60 * 60
 SUCCESS_RATE_WARN = 0.95
 
-# ── Encoders ───────────────────────────────────────────────────────────────────
-
-
-@dataclass(frozen=True)
-class EncoderConfig:
-    name: str
-    model: str
-    dim: int
-    batch_size: int
-    backend: Literal["openrouter", "local"]
-
-
-ENCODERS: dict[str, EncoderConfig] = {
-    "openai": EncoderConfig(
-        name="openai",
-        model="openai/text-embedding-3-small",
-        dim=1536,
-        batch_size=100,
-        backend="openrouter",
-    ),
-    "harrier": EncoderConfig(
-        name="harrier",
-        model="microsoft/harrier-oss-v1-0.6b",
-        dim=1024,
-        batch_size=32,
-        backend="local",
-    ),
-}
 
 # ── Dataset split ──────────────────────────────────────────────────────────────
 

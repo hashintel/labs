@@ -1,3 +1,9 @@
 [submodule "vendor/evaluate"]
 	path = vendor/evaluate
 	url = https://github.com/huggingface/evaluate
+[submodule "vendor/datatrove"]
+	path = vendor/datatrove
+	url = https://github.com/huggingface/datatrove
+[submodule "vendor/datasets"]
+	path = vendor/datasets
+	url = https://github.com/huggingface/datasets
