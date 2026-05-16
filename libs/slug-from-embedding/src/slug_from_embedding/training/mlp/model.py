@@ -5,9 +5,9 @@ Architecture:
         - token_head: sigmoid over vocab (which tokens are present)
         - length_head: 6-class softmax (slug lengths 3-8)
 
-Variant 1b adds a position head that predicts the position of each token
-in the output slug. Variant 1c adds a pairwise ordering head. Both share
-the same backbone and token/length heads.
+Optionally adds a position head (variant 1b) that predicts the ordinal
+position of each token in the output slug. Variant 1c (pairwise ordering)
+uses the same model; ordering is a post-hoc decode step, not a learned head.
 """
 
 from torch import Tensor, nn

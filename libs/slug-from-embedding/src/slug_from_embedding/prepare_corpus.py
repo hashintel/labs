@@ -10,7 +10,6 @@ Usage:
     uv run -m slug_from_embedding.prepare_corpus all
 """
 
-from __future__ import annotations
 
 import os
 import sys

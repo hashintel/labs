@@ -17,7 +17,6 @@ Usage:
     uv run slug-report --encoder openai
 """
 
-from __future__ import annotations
 
 import argparse
 import json
@@ -30,9 +29,9 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from .config import DATA_DIR, ENCODERS
+from .config import ENCODERS
+from .training.config import RESULTS_DIR
 
-RESULTS_DIR = DATA_DIR / "results"
 FIGURES_DIR = RESULTS_DIR / "figures"
 
 OVERVIEW_METRICS = [

@@ -22,6 +22,7 @@ def load_dataset(path: Path, *, encoder: Encoder) -> Dataset:
             ON prediction.id = corpus.id
         JOIN '{embeddings_file(encoder)}' as embeddings
             ON prediction.id = embeddings.id
+        ORDER BY prediction.id
         """
     ).to_arrow_table()
 

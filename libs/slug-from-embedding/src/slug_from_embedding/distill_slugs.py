@@ -8,7 +8,6 @@ Usage:
     uv run -m slug_from_embedding.distill_slugs all
 """
 
-from __future__ import annotations
 
 import hashlib
 import json

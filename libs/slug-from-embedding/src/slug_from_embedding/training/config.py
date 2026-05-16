@@ -13,6 +13,7 @@ type Split = Literal["train", "val", "test"]
 
 MODELS_DIR = DATA_DIR / "models"
 PREDICTIONS_DIR = DATA_DIR / "predictions"
+RESULTS_DIR = DATA_DIR / "results"
 
 SCHEMA_VERSION = 1
 

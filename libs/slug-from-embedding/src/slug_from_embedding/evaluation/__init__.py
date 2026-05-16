@@ -8,8 +8,6 @@ Usage:
     uv run slug-eval data/predictions/haiku_test.parquet --encoder openai --split test
 """
 
-from __future__ import annotations
-
 import argparse
 import json
 import sys
@@ -18,7 +16,8 @@ from pathlib import Path
 import duckdb
 import numpy as np
 
-from ..config import DATA_DIR, ENCODERS
+from ..config import ENCODERS
+from ..training.config import RESULTS_DIR
 
 from .bert_score import BertScore
 from .data import load_dataset, transform_dataset
@@ -32,7 +31,7 @@ from .transform import pipeline
 from .validity import Validity
 from .vocab_diversity import VocabDiversity
 
-RESULTS_DIR = DATA_DIR / "results"
+
 
 default_pipeline = pipeline(
     Validity(),

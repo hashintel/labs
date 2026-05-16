@@ -9,7 +9,6 @@ Usage:
     uv run -m slug_from_embedding.split_dataset all
 """
 
-from __future__ import annotations
 
 import sys
 

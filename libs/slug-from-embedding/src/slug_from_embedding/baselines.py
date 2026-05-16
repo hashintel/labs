@@ -40,32 +40,12 @@ from .distill_slugs import (
     make_custom_id,
     validate_slug,
 )
+from .training.config import PREDICTIONS_DIR, write_predictions
+from .training.data import load_texts, load_training_slugs
 
-PREDICTIONS_DIR = DATA_DIR / "predictions"
 BASELINE_BATCH_ID_FILE = DATA_DIR / "baseline_batch_id.txt"
 BASELINE_ID_MAP_FILE = DATA_DIR / "baseline_id_map.json"
 BASELINE_RESULTS_FILE = DATA_DIR / "baseline_batch_results.jsonl"
-
-
-def _test_ids_and_texts(encoder: str, split: str) -> list[tuple[str, str]]:
-    """Load (id, text) pairs for the given encoder/split."""
-    return duckdb.sql(f"""
-        SELECT c.id, c.text
-        FROM '{CORPUS_WITH_SLUGS_FILE}' c
-        JOIN '{splits_file(encoder)}' s ON c.id = s.id
-        WHERE s.split = '{split}'
-    """).fetchall()
-
-
-def _train_slugs(encoder: str) -> list[str]:
-    """Load all training-set slugs for the given encoder."""
-    rows = duckdb.sql(f"""
-        SELECT c.slug
-        FROM '{CORPUS_WITH_SLUGS_FILE}' c
-        JOIN '{splits_file(encoder)}' s ON c.id = s.id
-        WHERE s.split = 'train'
-    """).fetchall()
-    return [r[0] for r in rows]
 
 
 # ── Random baseline ──────────────────────────────────────────────────────────
@@ -73,18 +53,18 @@ def _train_slugs(encoder: str) -> list[str]:
 
 def cmd_random(encoder: str, split: str = "test", seed: int = 42):
     """For each test sample, pick a random slug from the training set."""
-    slugs = _train_slugs(encoder)
-    test_data = _test_ids_and_texts(encoder, split)
+    slugs = load_training_slugs(encoder)
+    test_data = load_texts(encoder, split)
 
     rng = np.random.RandomState(seed)
-    predictions = {}
-    for doc_id, _ in test_data:
-        predictions[doc_id] = slugs[rng.randint(len(slugs))]
+    ids = [doc_id for doc_id, _ in test_data]
+    predicted = [slugs[rng.randint(len(slugs))] for _ in ids]
 
-    print(
-        f"Random baseline: {len(predictions)} predictions from {len(slugs)} training slugs"
-    )
-    save_predictions(predictions, f"random_{encoder}_{split}")
+    print(f"Random baseline: {len(ids)} predictions from {len(slugs)} training slugs")
+
+    out_path = PREDICTIONS_DIR / f"random_{encoder}_{split}.parquet"
+    write_predictions(ids, predicted, out_path)
+    print(f"Wrote {len(ids)} predictions to {out_path}")
 
 
 # ── Haiku baseline (batch API) ───────────────────────────────────────────────
@@ -100,6 +80,7 @@ def _union_test_ids_and_texts(split: str = "test") -> list[tuple[str, str]]:
         SELECT DISTINCT c.id, c.text
         FROM '{CORPUS_WITH_SLUGS_FILE}' c
         WHERE c.id IN ({encoder_clauses})
+        ORDER BY c.id
     """).fetchall()
 
 
@@ -189,7 +170,8 @@ def cmd_haiku_collect(split: str = "test"):
         print(f"  {n} raw results")
 
     # Parse and validate
-    predictions = {}
+    ids = []
+    predicted = []
     invalid = 0
     with open(BASELINE_RESULTS_FILE) as f:
         for line in f:
@@ -199,23 +181,26 @@ def cmd_haiku_collect(split: str = "test"):
             if record["status"] == "succeeded":
                 slug = validate_slug(record.get("raw", ""))
                 if slug:
-                    predictions[doc_id] = slug
+                    ids.append(doc_id)
+                    predicted.append(slug)
                 else:
                     invalid += 1
             else:
                 invalid += 1
 
-    print(f"Haiku baseline: {len(predictions)} valid, {invalid} invalid")
-    save_predictions(predictions, f"haiku_{split}")
+    print(f"Haiku baseline: {len(ids)} valid, {invalid} invalid")
+
+    out_path = PREDICTIONS_DIR / f"haiku_{split}.parquet"
+    write_predictions(ids, predicted, out_path)
+    print(f"Wrote {len(ids)} predictions to {out_path}")
 
     # Split into per-encoder prediction files
-    union_file = PREDICTIONS_DIR / f"haiku_{split}.parquet"
     for encoder in ENCODERS:
         out = PREDICTIONS_DIR / f"haiku_{encoder}_{split}.parquet"
         duckdb.sql(f"""
             COPY (
                 SELECT p.id, p.predicted_slug
-                FROM '{union_file}' p
+                FROM '{out_path}' p
                 JOIN '{splits_file(encoder)}' s ON p.id = s.id
                 WHERE s.split = '{split}'
             ) TO '{out}' (FORMAT PARQUET, COMPRESSION ZSTD)
@@ -231,25 +216,6 @@ def cmd_haiku(split: str = "test"):
     cmd_haiku_collect(split)
 
 
-# ── Shared ────────────────────────────────────────────────────────────────────
-
-
-def save_predictions(predictions: dict[str, str], name: str):
-    """Write predictions to parquet as (id, predicted_slug)."""
-    PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
-    output = PREDICTIONS_DIR / f"{name}.parquet"
-
-    conn = duckdb.connect()
-    conn.execute("CREATE TABLE preds (id VARCHAR, predicted_slug VARCHAR)")
-    conn.executemany("INSERT INTO preds VALUES (?, ?)", list(predictions.items()))
-    conn.execute(f"""
-        COPY (SELECT * FROM preds)
-        TO '{output}' (FORMAT PARQUET, COMPRESSION ZSTD)
-    """)
-    conn.close()
-    print(f"Wrote {len(predictions)} predictions to {output}")
-
-
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 
@@ -263,18 +229,19 @@ def main():
     parser.add_argument("--split", default="test")
     args = parser.parse_args()
 
-    if args.command == "random":
-        if not args.encoder:
-            parser.error("--encoder is required for random baseline")
-        cmd_random(args.encoder, args.split)
-    elif args.command == "haiku":
-        cmd_haiku(args.split)
-    elif args.command == "haiku-submit":
-        cmd_haiku_submit(args.split)
-    elif args.command == "haiku-poll":
-        cmd_haiku_poll()
-    elif args.command == "haiku-collect":
-        cmd_haiku_collect(args.split)
+    match args.command:
+        case "random":
+            if not args.encoder:
+                parser.error("--encoder is required for random baseline")
+            cmd_random(args.encoder, args.split)
+        case "haiku":
+            cmd_haiku(args.split)
+        case "haiku-submit":
+            cmd_haiku_submit(args.split)
+        case "haiku-poll":
+            cmd_haiku_poll()
+        case "haiku-collect":
+            cmd_haiku_collect(args.split)
 
 
 if __name__ == "__main__":

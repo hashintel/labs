@@ -5,14 +5,15 @@ Usage:
     uv run -m slug_from_embedding.embed_corpus harrier
 """
 
-from __future__ import annotations
 
 import sys
 
 import numpy as np
 
 from .config import CORPUS_FILE, ENCODERS, EncoderConfig, openrouter_client, embeddings_file
-from .io import batched, load_corpus_texts, write_embeddings
+from itertools import batched
+
+from .io import load_corpus_texts, write_embeddings
 
 
 # ── Backends ───────────────────────────────────────────────────────────────────

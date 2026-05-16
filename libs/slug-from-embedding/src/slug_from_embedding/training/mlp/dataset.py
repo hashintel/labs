@@ -6,23 +6,55 @@ Wraps the shared data loader with MLP-specific target encoding:
 - length: number of tokens in the gold slug
 """
 
+import logging
+
 import torch
 from torch.utils.data import Dataset as TorchDataset
 
 from slug_from_embedding.config import Encoder
 
+from ..config import Split
 from ..data import load_split
-from ..vocab import SlugVocab
+from .vocab import SlugVocab
+
+log = logging.getLogger(__name__)
 
 
 class SlugDataset(TorchDataset):
     """MLP training dataset: embeddings → multi-hot token targets."""
 
-    def __init__(self, encoder: Encoder, split: str, vocab: SlugVocab):
+    def __init__(self, encoder: Encoder, split: Split, vocab: SlugVocab):
         self.vocab = vocab
         raw = load_split(encoder, split)
         self.embeddings = raw.embeddings
         self.slugs = raw.slugs
+
+        self._validate_oov(split)
+
+    def _validate_oov(self, split: Split):
+        """Check for out-of-vocabulary tokens.
+
+        Training split should have zero OOV (vocab was built from it).
+        Val/test may have OOV; log the rate but don't fail.
+        """
+        oov_count = 0
+        total_tokens = 0
+        for slug in self.slugs:
+            for token in slug.split("-"):
+                total_tokens += 1
+                if token not in self.vocab.token_to_idx:
+                    oov_count += 1
+
+        if oov_count == 0:
+            return
+
+        rate = oov_count / total_tokens
+        msg = f"{split}: {oov_count}/{total_tokens} tokens OOV ({rate:.1%})"
+
+        if split == "train":
+            raise ValueError(f"Training data has OOV tokens (vocab is inconsistent): {msg}")
+        else:
+            log.warning(msg)
 
     def __len__(self) -> int:
         return len(self.slugs)
