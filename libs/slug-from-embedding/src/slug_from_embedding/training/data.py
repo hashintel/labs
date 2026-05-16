@@ -89,7 +89,8 @@ def load_texts(encoder: Encoder, split: Split) -> list[tuple[str, str]]:
     return duckdb.sql(f"""
         SELECT corpus.id, corpus.text
         FROM '{CORPUS_WITH_SLUGS_FILE}' as corpus
-        JOIN '{splits_file(encoder)}' as splits ON corpus.id = splits.id
+        JOIN '{splits_file(encoder)}' as splits
+            ON corpus.id = splits.id
         WHERE splits.split = '{split}'
         ORDER BY corpus.id
     """).fetchall()

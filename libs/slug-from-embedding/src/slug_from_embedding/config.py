@@ -54,19 +54,33 @@ STAGING_DIR = DATA_DIR / "staging"
 LOGS_DIR = DATA_DIR / "logs"
 
 CORPUS_FILE = DATA_DIR / "corpus.parquet"
-CORPUS_WITH_SLUGS_FILE = DATA_DIR / "corpus_with_slugs.parquet"
+CORPUS_WITH_SLUGS_FILE = Path(
+    os.environ.get("SLUG_CORPUS", DATA_DIR / "corpus_with_slugs.parquet")
+)
 
 BATCH_ID_FILE = DATA_DIR / "batch_id.txt"
 ID_MAP_FILE = DATA_DIR / "id_map.json"
 BATCH_RESULTS_FILE = DATA_DIR / "batch_results.jsonl"
 
 
+def _corpus_tag() -> str:
+    """Derive a file prefix from the active corpus.
+
+    Default corpus (corpus_with_slugs) produces no prefix for backward
+    compatibility. Other corpora get their stem as prefix.
+    """
+    stem = CORPUS_WITH_SLUGS_FILE.stem
+    if stem == "corpus_with_slugs":
+        return ""
+    return f"{stem}_"
+
+
 def embeddings_file(encoder: Encoder) -> Path:
-    return DATA_DIR / f"embeddings_{encoder}.parquet"
+    return DATA_DIR / f"{_corpus_tag()}embeddings_{encoder}.parquet"
 
 
 def splits_file(encoder: Encoder) -> Path:
-    return DATA_DIR / f"splits_{encoder}.parquet"
+    return DATA_DIR / f"{_corpus_tag()}splits_{encoder}.parquet"
 
 
 # ── Corpus ─────────────────────────────────────────────────────────────────────

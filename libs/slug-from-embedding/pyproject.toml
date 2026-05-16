@@ -18,6 +18,7 @@ dependencies = [
     "rouge-score>=0.1.2",
     "scikit-learn>=1.8.0",
     "seaborn>=0.13.2",
+    "spacy>=3.8.14",
     "tokenizers<=0.23.0",
     "torch>=2.12.0",
     "transformers>=4.57.6",
@@ -31,6 +32,7 @@ slug-split = "slug_from_embedding.split_dataset:main"
 slug-baseline = "slug_from_embedding.baselines:main"
 slug-eval = "slug_from_embedding.evaluation:main"
 slug-report = "slug_from_embedding.report:main"
+slug-prepare-urls = "slug_from_embedding.prepare_url_corpus:main"
 slug-train-mlp = "slug_from_embedding.training.mlp.train:main"
 slug-predict = "slug_from_embedding.training.predict_cli:main"
 
