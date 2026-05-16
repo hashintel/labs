@@ -2,7 +2,12 @@
 
 For each sample, finds its top-k nearest neighbors by cosine similarity in
 embedding space, then measures how different the predicted slugs are using
-token-level Jaccard distance.
+similarity-weighted token-level Jaccard distance.
+
+Weighting by cosine similarity means close neighbors (near-duplicates)
+dominate the score while distant neighbors contribute little. This avoids
+inflating distinctiveness for isolated documents whose "neighbors" are
+not genuinely nearby.
 
 High distinctiveness means the model assigns different slugs to nearby
 embeddings: it can tell apart related-but-different documents. Low
@@ -26,7 +31,7 @@ def _jaccard_distance(a: set, b: set) -> float:
 
 
 class Distinctiveness(Transform):
-    """Token-level Jaccard distance to top-k cosine neighbors in embedding space."""
+    """Similarity-weighted Jaccard distance to top-k cosine neighbors in embedding space."""
 
     def __init__(self, k: int = 5):
         self.k = k
@@ -49,20 +54,29 @@ class Distinctiveness(Transform):
         # Tokenize all predicted slugs once
         token_sets = [set(slug.split("-")) for slug in dataset["prediction"]]
 
-        # For each sample, average Jaccard distance to its k nearest neighbors.
+        # For each sample, compute similarity-weighted Jaccard distance to
+        # its k nearest neighbors:
+        #   distinctiveness_i = Σ(sim_ij * jaccard_ij) / Σ(sim_ij)
+        # Close neighbors dominate; distant ones contribute little.
         # argpartition would be O(n) vs argsort's O(n log n) per row, but at
         # n~1000 the difference is negligible and argsort is clearer.
         n = len(dataset)
         per_sample = []
         for i in range(n):
             neighbor_indices = np.argsort(sim[i])[-self.k :]
-            d = np.mean(
+            weights = np.array([sim[i, j] for j in neighbor_indices])
+            distances = np.array(
                 [
                     _jaccard_distance(token_sets[i], token_sets[j])
                     for j in neighbor_indices
                 ]
             )
-            per_sample.append(float(d))
+            weight_sum = weights.sum()
+            if weight_sum > 0:
+                d = float((weights * distances).sum() / weight_sum)
+            else:
+                d = 0.0
+            per_sample.append(d)
 
         return dataset.add_column("distinctiveness", per_sample)
 

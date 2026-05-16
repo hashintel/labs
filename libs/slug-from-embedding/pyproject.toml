@@ -31,6 +31,8 @@ slug-split = "slug_from_embedding.split_dataset:main"
 slug-baseline = "slug_from_embedding.baselines:main"
 slug-eval = "slug_from_embedding.evaluation:main"
 slug-report = "slug_from_embedding.report:main"
+slug-train-mlp = "slug_from_embedding.training.mlp.train:main"
+slug-predict = "slug_from_embedding.training.predict_cli:main"
 
 [tool.uv]
 package = true
