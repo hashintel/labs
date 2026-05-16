@@ -1,0 +1,3 @@
+[submodule "vendor/evaluate"]
+	path = vendor/evaluate
+	url = https://github.com/huggingface/evaluate
