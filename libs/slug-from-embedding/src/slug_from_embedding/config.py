@@ -58,9 +58,28 @@ CORPUS_WITH_SLUGS_FILE = Path(
     os.environ.get("SLUG_CORPUS", DATA_DIR / "corpus_with_slugs.parquet")
 )
 
+# Legacy paths for the original distillation batch (pre-corpus-tag era).
+# New batch operations should use batch_dir() below.
 BATCH_ID_FILE = DATA_DIR / "batch_id.txt"
 ID_MAP_FILE = DATA_DIR / "id_map.json"
 BATCH_RESULTS_FILE = DATA_DIR / "batch_results.jsonl"
+
+
+def batch_dir(operation: str) -> Path:
+    """Get a batch directory for an operation, keyed to the active corpus.
+
+    Each batch operation (embedding, distillation, baseline) gets its own
+    subdirectory under data/batches/, namespaced by corpus tag to avoid
+    collisions when switching corpora.
+
+    Usage:
+        bd = batch_dir("embed_openai")  # data/batches/url_corpus_with_slugs_embed_openai/
+        bd = batch_dir("baseline")      # data/batches/default_baseline/
+    """
+    tag = _corpus_tag() or "default_"
+    d = DATA_DIR / "batches" / f"{tag}{operation}"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
 
 
 def _corpus_tag() -> str:
