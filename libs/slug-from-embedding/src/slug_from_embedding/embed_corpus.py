@@ -14,11 +14,11 @@ Usage:
 """
 
 import argparse
-import hashlib
 import json
-import time
+import sys
 from itertools import batched
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -32,42 +32,154 @@ from .config import (
     require_env,
 )
 from .io import load_corpus_texts, write_embeddings
+from .libs.batch import Batch, RequestInfo
 
-BATCH_SIZE_LIMIT = 50_000  # OpenAI batch API: max 50k embedding inputs per batch
-BATCH_FILE_SIZE_LIMIT = 200 * 1024 * 1024  # 200 MiB
-POLL_INTERVAL = 60
+CHECKPOINT_INTERVAL = 50  # write checkpoint every N batches
+CONCURRENT_REQUESTS = 8   # parallel API calls
 
 
-# ── Real-time backends ─────────────────────────────────────────────────────────
+def _load_completed_ids(out_path: Path) -> set[str]:
+    """Load IDs already embedded from an existing output file."""
+    if not out_path.exists():
+        return set()
+    import duckdb
+
+    rows = duckdb.sql(f"SELECT id FROM '{out_path}'").fetchall()
+    return {r[0] for r in rows}
 
 
 def _embed_openrouter(cfg: EncoderConfig):
-    """Embed via OpenRouter's OpenAI-compatible embeddings endpoint."""
+    """Embed via OpenRouter's OpenAI-compatible embeddings endpoint.
+
+    Writes checkpoints every CHECKPOINT_INTERVAL batches to a shards
+    directory. On restart, skips documents already embedded. Merges
+    shards into the final output at the end.
+    """
     client = openrouter_client()
+    out_path = embeddings_file(cfg.name)
+    shard_dir = out_path.parent / f".{out_path.stem}_shards"
+    shard_dir.mkdir(parents=True, exist_ok=True)
+
+    # Check for already-completed IDs from previous shards
+    completed_ids: set[str] = set()
+    for shard in sorted(shard_dir.glob("*.parquet")):
+        import duckdb
+
+        rows = duckdb.sql(f"SELECT id FROM '{shard}'").fetchall()
+        completed_ids.update(r[0] for r in rows)
+
     corpus = load_corpus_texts(CORPUS_WITH_SLUGS_FILE)
-    print(f"Embedding {len(corpus)} documents with {cfg.model}...")
+    remaining = [
+        (doc_id, text) for doc_id, text in corpus if doc_id not in completed_ids
+    ]
 
-    all_ids = []
-    all_embeddings = []
+    if completed_ids:
+        print(
+            f"Resuming: {len(completed_ids)} already embedded, {len(remaining)} remaining"
+        )
+    else:
+        print(f"Embedding {len(corpus)} documents with {cfg.model}...")
 
-    for i, batch in enumerate(batched(corpus, cfg.batch_size)):
-        ids = [doc_id for doc_id, _ in batch]
-        texts = [text for _, text in batch]
+    shard_ids: list[str] = []
+    shard_embeddings: list[list[float]] = []
+    shard_count = len(list(shard_dir.glob("*.parquet")))
 
-        response = client.embeddings.create(model=cfg.model, input=texts)
+    def flush_shard():
+        nonlocal shard_ids, shard_embeddings, shard_count
+        if not shard_ids:
+            return
+        shard_path = shard_dir / f"shard_{shard_count:04d}.parquet"
+        arr = np.array(shard_embeddings, dtype=np.float32)
+        write_embeddings(shard_ids, arr, shard_path)
+        shard_count += 1
+        shard_ids = []
+        shard_embeddings = []
 
-        batch_embeddings = [None] * len(texts)
-        for item in response.data:
-            batch_embeddings[item.index] = item.embedding
+    import time
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-        all_ids.extend(ids)
-        all_embeddings.extend(batch_embeddings)
+    total = len(corpus)
+    done_so_far = len(completed_ids)
+    t_start = time.time()
+    max_retries = 5
 
-        done = min((i + 1) * cfg.batch_size, len(corpus))
-        print(f"  {done}/{len(corpus)}")
+    def embed_batch(batch_data: list[tuple[str, str]]) -> tuple[list[str], list[list[float]]]:
+        ids = [doc_id for doc_id, _ in batch_data]
+        texts = [text for _, text in batch_data]
+        for attempt in range(max_retries):
+            try:
+                response = client.embeddings.create(model=cfg.model, input=texts)
+                if not response.data or len(response.data) != len(texts):
+                    raise ValueError(
+                        f"Expected {len(texts)} embeddings, got {len(response.data) if response.data else 0}"
+                    )
+                embeddings = [None] * len(texts)
+                for item in response.data:
+                    embeddings[item.index] = item.embedding
+                if any(e is None for e in embeddings):
+                    raise ValueError("Response had gaps in embedding indices")
+                return ids, embeddings
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait = 2 ** attempt * 5
+                    print(f"  Error: {e}. Retrying in {wait}s... ({attempt + 1}/{max_retries})")
+                    time.sleep(wait)
+                else:
+                    raise
 
-    embeddings_array = np.array(all_embeddings, dtype=np.float32)
-    write_embeddings(all_ids, embeddings_array, embeddings_file(cfg.name))
+    batches_since_checkpoint = 0
+    all_batches = list(batched(remaining, cfg.batch_size))
+
+    with ThreadPoolExecutor(max_workers=CONCURRENT_REQUESTS) as pool:
+        for chunk_start in range(0, len(all_batches), CONCURRENT_REQUESTS):
+            chunk = all_batches[chunk_start : chunk_start + CONCURRENT_REQUESTS]
+            futures = {
+                pool.submit(embed_batch, list(b)): idx
+                for idx, b in enumerate(chunk)
+            }
+
+            results = [None] * len(chunk)
+            for future in as_completed(futures):
+                idx = futures[future]
+                try:
+                    results[idx] = future.result()
+                except Exception:
+                    print("  Batch failed after retries, checkpointing and exiting.")
+                    flush_shard()
+                    raise
+
+            for ids, embeddings in results:
+                shard_ids.extend(ids)
+                shard_embeddings.extend(embeddings)
+                done_so_far += len(ids)
+
+            batches_since_checkpoint += len(chunk)
+            elapsed = time.time() - t_start
+            rate = (done_so_far - len(completed_ids)) / elapsed if elapsed > 0 else 0
+            eta = (total - done_so_far) / rate / 3600 if rate > 0 else 0
+            print(f"  {done_so_far:>9,}/{total:,}  ({rate:.0f} docs/s, ~{eta:.1f}h remaining)")
+
+            if batches_since_checkpoint >= CHECKPOINT_INTERVAL:
+                flush_shard()
+                batches_since_checkpoint = 0
+
+    flush_shard()
+
+    # Merge all shards into final output
+    print("Merging shards...")
+    import duckdb
+
+    shard_glob = shard_dir / "*.parquet"
+    merge_count = duckdb.sql(
+        f"SELECT count(*) FROM read_parquet('{shard_glob}')"
+    ).fetchone()[0]
+    duckdb.sql(f"""
+        COPY (
+            SELECT * FROM read_parquet('{shard_glob}')
+            ORDER BY id
+        ) TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)
+    """)
+    print(f"Wrote {merge_count} embeddings to {out_path}")
 
 
 def _embed_local(cfg: EncoderConfig):
@@ -140,84 +252,80 @@ BACKENDS = {
 
 # ── OpenAI Batch API ──────────────────────────────────────────────────────────
 
-
-def _make_custom_id(doc_id: str) -> str:
-    return hashlib.sha256(doc_id.encode()).hexdigest()[:16]
-
-
-def _write_batch_jsonl(
-    chunk: list[tuple[str, str]],
-    jsonl_path: Path,
-    model: str,
-) -> list[Path]:
-    """Write a JSONL batch file. If it exceeds 200MiB, split in half recursively."""
-    with open(jsonl_path, "w") as f:
-        for doc_id, text in chunk:
-            custom_id = _make_custom_id(doc_id)
-            request = {
-                "custom_id": custom_id,
-                "method": "POST",
-                "url": "/v1/embeddings",
-                "body": {
-                    "model": model,
-                    "input": text,
-                },
-            }
-            f.write(json.dumps(request) + "\n")
-
-    file_size = jsonl_path.stat().st_size
-    if file_size <= BATCH_FILE_SIZE_LIMIT:
-        return [jsonl_path]
-
-    # Too large: split in half
-    print(
-        f"    {jsonl_path.name} is {file_size / 1e6:.1f}MB (>{BATCH_FILE_SIZE_LIMIT / 1e6:.0f}MB), splitting..."
-    )
-    jsonl_path.unlink()
-    mid = len(chunk) // 2
-    stem = jsonl_path.stem
-    parent = jsonl_path.parent
-    left = _write_batch_jsonl(chunk[:mid], parent / f"{stem}a.jsonl", model)
-    right = _write_batch_jsonl(chunk[mid:], parent / f"{stem}b.jsonl", model)
-    return left + right
+BATCH_REQUEST_LIMIT = 50_000
+BATCH_FILE_SIZE_LIMIT = 200 * 1024 * 1024  # 200 MiB
+MAX_CONCURRENT_BATCHES = 3  # ~100M token enqueue limit / ~25M tokens per batch
 
 
-def _batch_submit(cfg: EncoderConfig):
-    """Split corpus into batch files, upload, and submit to OpenAI Batch API."""
-    from openai import OpenAI
+class EmbeddingRequest:
+    """A single embedding request: document ID + text."""
 
-    client = OpenAI(api_key=require_env("OPENAI_API_KEY"))
-    corpus = load_corpus_texts(CORPUS_WITH_SLUGS_FILE)
-    bd = batch_dir("embed_openai")
+    __slots__ = ("doc_id", "text")
 
-    print(f"Preparing {len(corpus)} documents for batch embedding...")
-    print(f"  Batch dir: {bd}")
-    print(f"  Corpus: {CORPUS_WITH_SLUGS_FILE.name}")
+    def __init__(self, doc_id: str, text: str):
+        self.doc_id = doc_id
+        self.text = text
 
-    # Build id mapping
-    id_map = {}
-    for doc_id, _ in corpus:
-        id_map[_make_custom_id(doc_id)] = doc_id
-    (bd / "id_map.json").write_text(json.dumps(id_map))
 
-    # Split into chunks, then write JSONL (may split further if over 200MiB)
-    model = cfg.model.removeprefix("openai/")
-    chunks = list(batched(corpus, BATCH_SIZE_LIMIT))
-    print(f"  {len(chunks)} chunks of up to {BATCH_SIZE_LIMIT} requests")
+class EmbeddingBatch(Batch[EmbeddingRequest, list[float]]):
+    """OpenAI Batch API for embeddings."""
 
-    jsonl_files: list[Path] = []
-    for chunk_idx, chunk in enumerate(chunks):
-        jsonl_path = bd / f"batch_{chunk_idx:03d}.jsonl"
-        jsonl_files.extend(_write_batch_jsonl(list(chunk), jsonl_path, model))
+    def __init__(self, model: str, api_key: str):
+        super().__init__(
+            batch_dir=batch_dir("embed_openai"),
+            max_concurrent_batches=MAX_CONCURRENT_BATCHES,
+        )
+        self.model = model
+        self.api_key = api_key
+        self._batch_counter = 0
 
-    print(f"  {len(jsonl_files)} batch files after size validation")
+    def _client(self):
+        from openai import OpenAI
 
-    # Upload and submit each file
-    batch_ids = []
-    for jsonl_path in jsonl_files:
+        return OpenAI(api_key=self.api_key)
+
+    def request_id(self, request: EmbeddingRequest) -> str:
+        return request.doc_id
+
+    def request_size(self, request: EmbeddingRequest) -> int:
+        # JSON overhead (~150 bytes) + text length
+        return 150 + len(request.text.encode("utf-8"))
+
+    def should_split(
+        self,
+        request: RequestInfo[EmbeddingRequest],
+        *,
+        current_size: int,
+        current_count: int,
+    ) -> bool:
+        return (
+            current_count >= BATCH_REQUEST_LIMIT
+            or current_size + request.size > BATCH_FILE_SIZE_LIMIT
+        )
+
+    def submit_batch(self, requests: list[RequestInfo[EmbeddingRequest]]) -> str:
+        client = self._client()
+
+        # Write JSONL
+        jsonl_path = self.batch_dir / f"batch_{self._batch_counter:03d}.jsonl"
+        self._batch_counter += 1
+        with open(jsonl_path, "w") as f:
+            for info in requests:
+                line = {
+                    "custom_id": info.safe_id,
+                    "method": "POST",
+                    "url": "/v1/embeddings",
+                    "body": {
+                        "model": self.model,
+                        "input": info.request.text,
+                    },
+                }
+                f.write(json.dumps(line) + "\n")
+
         size_mb = jsonl_path.stat().st_size / 1e6
-        n_lines = sum(1 for _ in open(jsonl_path))
-        print(f"  Uploading {jsonl_path.name} ({n_lines} requests, {size_mb:.1f}MB)...")
+        print(
+            f"  Uploading {jsonl_path.name} ({len(requests)} requests, {size_mb:.1f}MB)..."
+        )
 
         with open(jsonl_path, "rb") as f:
             uploaded = client.files.create(file=f, purpose="batch")
@@ -227,104 +335,86 @@ def _batch_submit(cfg: EncoderConfig):
             endpoint="/v1/embeddings",
             completion_window="24h",
         )
-        batch_ids.append(batch.id)
         print(f"    batch_id={batch.id}, status={batch.status}")
+        return batch.id
 
-    (bd / "batch_ids.json").write_text(json.dumps(batch_ids))
-    print(f"\nSubmitted {len(batch_ids)} batches. Run --batch-poll to check status.")
+    def poll_batch(self, batch_id: str) -> dict[str, Any]:
+        client = self._client()
+        batch = client.batches.retrieve(batch_id)
+        counts = batch.request_counts
+        done = batch.status in ("completed", "failed", "cancelled", "expired")
+        return {
+            "status": batch.status,
+            "completed": counts.completed,
+            "total": counts.total,
+            "failed": counts.failed,
+            "done": done,
+        }
 
+    def collect_batch(self, batch_id: str) -> dict[str, list[float]]:
+        client = self._client()
+        batch = client.batches.retrieve(batch_id)
 
-def _batch_poll(cfg: EncoderConfig):
-    """Poll all submitted batches until complete."""
-    from openai import OpenAI
-
-    client = OpenAI(api_key=require_env("OPENAI_API_KEY"))
-    bd = batch_dir("embed_openai")
-    batch_ids = json.loads((bd / "batch_ids.json").read_text())
-
-    print(f"Polling {len(batch_ids)} batches...")
-    while True:
-        all_done = True
-        for i, bid in enumerate(batch_ids):
-            batch = client.batches.retrieve(bid)
-            counts = batch.request_counts
-            print(
-                f"  [{i:>2d}] {bid}: {batch.status}  "
-                f"completed={counts.completed}/{counts.total}  "
-                f"failed={counts.failed}"
-            )
-            if batch.status not in ("completed", "failed", "cancelled", "expired"):
-                all_done = False
-
-        if all_done:
-            print("\nAll batches complete.")
-            return
-
-        print(f"  Waiting {POLL_INTERVAL}s...")
-        time.sleep(POLL_INTERVAL)
-
-
-def _batch_collect(cfg: EncoderConfig):
-    """Download results from all completed batches and write embeddings parquet."""
-    from openai import OpenAI
-
-    client = OpenAI(api_key=require_env("OPENAI_API_KEY"))
-    bd = batch_dir("embed_openai")
-    batch_ids = json.loads((bd / "batch_ids.json").read_text())
-    id_map = json.loads((bd / "id_map.json").read_text())
-
-    print(f"Collecting results from {len(batch_ids)} batches...")
-
-    all_results: dict[str, list[float]] = {}
-    failed = 0
-
-    for i, bid in enumerate(batch_ids):
-        batch = client.batches.retrieve(bid)
         if batch.status != "completed":
-            print(f"  [{i:>2d}] {bid}: {batch.status} (skipping)")
-            continue
+            print(f"  Batch {batch_id}: {batch.status} (skipping)")
+            return {}
 
-        output_file_id = batch.output_file_id
-        content = client.files.content(output_file_id).text
+        content = client.files.content(batch.output_file_id).text
+        results: dict[str, list[float]] = {}
 
         for line in content.strip().split("\n"):
             result = json.loads(line)
-            custom_id = result["custom_id"]
-            doc_id = id_map.get(custom_id)
-            if not doc_id:
-                failed += 1
-                continue
-
             if result.get("error"):
-                failed += 1
                 continue
-
+            safe_id = result["custom_id"]
             embedding = result["response"]["body"]["data"][0]["embedding"]
-            all_results[doc_id] = embedding
+            results[safe_id] = embedding
 
-        print(f"  [{i:>2d}] {bid}: {len(all_results)} embeddings collected so far")
+        return results
 
-    print(f"\nTotal: {len(all_results)} embeddings, {failed} failed")
 
-    # Write in corpus order
-    corpus = load_corpus_texts(CORPUS_WITH_SLUGS_FILE)
-    ids = []
-    embeddings = []
-    missing = 0
-    for doc_id, _ in corpus:
-        emb = all_results.get(doc_id)
-        if emb:
-            ids.append(doc_id)
-            embeddings.append(emb)
-        else:
-            missing += 1
+def _run_batch(cfg: EncoderConfig, action: str):
+    """Run a batch action (submit, poll, collect)."""
+    model = cfg.model.removeprefix("openai/")
+    api_key = require_env("OPENAI_API_KEY")
+    eb = EmbeddingBatch(model=model, api_key=api_key)
 
-    if missing:
-        print(f"  Warning: {missing} documents missing embeddings")
+    match action:
+        case "submit":
+            corpus = load_corpus_texts(CORPUS_WITH_SLUGS_FILE)
+            print(f"Preparing {len(corpus)} documents for batch embedding...")
+            print(f"  Corpus: {CORPUS_WITH_SLUGS_FILE.name}")
+            print(f"  Batch dir: {eb.batch_dir}")
 
-    embeddings_array = np.array(embeddings, dtype=np.float32)
-    out_path = embeddings_file(cfg.name)
-    write_embeddings(ids, embeddings_array, out_path)
+            requests = [EmbeddingRequest(doc_id, text) for doc_id, text in corpus]
+            eb.submit(requests)
+            print("\nRun --batch-poll to check status.")
+
+        case "poll":
+            eb.poll()
+
+        case "collect":
+            results = eb.collect()
+            print(f"\n{len(results)} embeddings collected")
+
+            # Write in corpus order
+            corpus = load_corpus_texts(CORPUS_WITH_SLUGS_FILE)
+            ids = []
+            embeddings = []
+            missing = 0
+            for doc_id, _ in corpus:
+                emb = results.get(doc_id)
+                if emb:
+                    ids.append(doc_id)
+                    embeddings.append(emb)
+                else:
+                    missing += 1
+
+            if missing:
+                print(f"  Warning: {missing} documents missing embeddings")
+
+            embeddings_array = np.array(embeddings, dtype=np.float32)
+            write_embeddings(ids, embeddings_array, embeddings_file(cfg.name))
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -347,17 +437,15 @@ def main():
     cfg = ENCODERS[args.encoder]
 
     if args.batch:
-        _batch_submit(cfg)
+        _run_batch(cfg, "submit")
     elif args.batch_poll:
-        _batch_poll(cfg)
+        _run_batch(cfg, "poll")
     elif args.batch_collect:
-        _batch_collect(cfg)
+        _run_batch(cfg, "collect")
     else:
         backend_fn = BACKENDS.get(cfg.backend)
         if not backend_fn:
             print(f"Unknown backend: {cfg.backend}")
-            import sys
-
             sys.exit(1)
         backend_fn(cfg)
 

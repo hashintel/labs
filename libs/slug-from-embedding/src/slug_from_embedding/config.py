@@ -35,7 +35,7 @@ ENCODERS: dict[Encoder, EncoderConfig] = {
         name="openai",
         model="openai/text-embedding-3-small",
         dim=1536,
-        batch_size=100,
+        batch_size=500,
         backend="openrouter",
     ),
     "harrier": EncoderConfig(
