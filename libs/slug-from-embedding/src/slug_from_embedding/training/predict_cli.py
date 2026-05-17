@@ -36,10 +36,10 @@ def main():
         model_dir = Path(args.model_dir)
     else:
         base = args.variant.split("-")[0]
-        tag = f"{base}_{args.encoder}"
+        variant_name = base
         if "position" in args.variant:
-            tag += "_pos"
-        model_dir = workspace.models_dir(args.encoder, tag)
+            variant_name += "_pos"
+        model_dir = workspace.models_dir(args.encoder, variant_name)
 
     loader = PREDICTOR_LOADERS[args.variant]
     predictor = loader(model_dir, args.encoder, device)

@@ -4,23 +4,37 @@ Slugs are kebab-case, so we split on "-" to give BERTScore individual words.
 Uses the bert_score library directly for per-sample scores.
 """
 
+import multiprocessing
 from typing import Any
 
 import datasets
 import numpy as np
 from bert_score import score as bert_score_fn
 
+from ..training.config import resolve_device
 from .transform import Transform
 
 
 class BertScore(Transform):
     """BERTScore F1 between predicted and reference slugs."""
 
+    def __init__(self, batch_size: int = 64, device: str | None = None):
+        self.batch_size = batch_size
+        self.device = device or resolve_device()
+
     def transform(self, dataset: datasets.Dataset) -> datasets.Dataset:
         preds = [p.replace("-", " ") for p in dataset["prediction"]]
         refs = [r.replace("-", " ") for r in dataset["reference"]]
 
-        P, R, F1 = bert_score_fn(preds, refs, lang="en", verbose=False)
+        P, R, F1 = bert_score_fn(
+            preds,
+            refs,
+            lang="en",
+            verbose=True,
+            nthreads=multiprocessing.cpu_count(),
+            batch_size=self.batch_size,
+            device=self.device,
+        )
 
         dataset = dataset.add_column("bertscore_precision", P.tolist())
         dataset = dataset.add_column("bertscore_recall", R.tolist())

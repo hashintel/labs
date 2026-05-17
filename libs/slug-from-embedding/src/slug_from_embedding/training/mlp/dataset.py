@@ -8,6 +8,7 @@ Wraps the workspace data loader with MLP-specific target encoding:
 
 import logging
 
+import numpy as np
 import torch
 from torch.utils.data import Dataset as TorchDataset
 
@@ -20,29 +21,50 @@ log = logging.getLogger(__name__)
 
 
 class SlugDataset(TorchDataset):
-    """MLP training dataset: embeddings -> multi-hot token targets."""
+    """MLP training dataset: embeddings -> multi-hot token targets.
+
+    When max_samples is set, a seeded random subsample is drawn. This is
+    useful for validation during training (5-10k is enough for a reliable
+    signal; the full 230k test set is overkill for per-eval-step checks).
+    """
 
     def __init__(
-        self, workspace: Workspace, encoder: Encoder, split: Split, vocab: SlugVocab
+        self,
+        workspace: Workspace,
+        encoder: Encoder,
+        split: Split,
+        vocab: SlugVocab,
+        max_samples: int | None = None,
+        seed: int = 42,
     ):
         self.vocab = vocab
         raw = workspace.load_split_data(encoder, split)
         self.embeddings = raw.embeddings
         self.slugs = raw.slugs
 
+        if max_samples is not None and max_samples < len(self.slugs):
+            rng = np.random.default_rng(seed)
+            indices = rng.choice(len(self.slugs), size=max_samples, replace=False)
+            indices.sort()
+            self.embeddings = self.embeddings[indices]
+            self.slugs = [self.slugs[i] for i in indices]
+
         self._validate_oov(split)
 
     def _validate_oov(self, split: Split):
         """Check for out-of-vocabulary tokens.
 
-        Training split should have zero OOV (vocab was built from it).
-        Val/test may have OOV; log the rate but don't fail.
+        With compressed vocab, OOV means a token wasn't in the compression
+        mapping. Training split should have zero OOV. Val/test may have
+        some; log the rate but don't fail.
         """
         oov_count = 0
         total_tokens = 0
         for slug in self.slugs:
             for token in slug.split("-"):
                 total_tokens += 1
+                if self.vocab.compression is not None:
+                    token = self.vocab.compression.get(token, token)
                 if token not in self.vocab.token_to_idx:
                     oov_count += 1
 

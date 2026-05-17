@@ -234,36 +234,87 @@ class Workspace:
         ).fetchall()
         return [Id(row[0]) for row in rows]
 
-    def load_split_data(self, encoder: Encoder, split: Split) -> SplitData:
-        """Load ids, embeddings, and gold slugs for a split.
+    def split_data_path(self, encoder: Encoder, split: Split) -> Path:
+        """Path to a materialized split parquet file."""
+        return self.encoder_dir(encoder) / f"split_{split}.parquet"
 
-        Three-way join of corpus, splits, and embeddings.
+    def materialize_split(self, encoder: Encoder, split: Split) -> Path:
+        """Precompute a split's data as a single parquet file.
+
+        DuckDB exports the three-way join directly to parquet, bypassing
+        the Python row-by-row roundtrip. Much faster for large splits.
         """
+        output = self.split_data_path(encoder, split)
+        if output.exists():
+            return output
+
         corpus_path = self.corpus_path()
         splits_path = self.splits_path(encoder)
         embeddings_path = self.embeddings_path(encoder)
 
-        rows = duckdb.sql(f"""
-            SELECT
-                corpus.id,
-                embeddings.embedding,
-                corpus.slug
-            FROM '{corpus_path}' as corpus
-            JOIN '{splits_path}' as splits
-                ON corpus.id = splits.id
-            JOIN '{embeddings_path}' as embeddings
-                ON corpus.id = embeddings.id
-            WHERE splits.split = '{split}'
-            ORDER BY corpus.id
-        """).fetchall()
+        print(f"Materializing {encoder}/{split} split...")
+        duckdb.sql(f"""
+            COPY (
+                SELECT
+                    corpus.id AS id,
+                    embeddings.embedding::FLOAT[] AS embedding,
+                    corpus.slug AS slug
+                FROM '{corpus_path}' as corpus
+                JOIN '{splits_path}' as splits
+                    ON corpus.id = splits.id
+                JOIN '{embeddings_path}' as embeddings
+                    ON corpus.id = embeddings.id
+                WHERE splits.split = '{split}'
+                ORDER BY corpus.id
+            ) TO '{output}' (FORMAT PARQUET, COMPRESSION ZSTD)
+        """)
+        print(f"  Wrote {output}")
+        return output
 
-        assert len(rows) > 0, f"Empty split: {encoder}/{split}"
+    def load_split_data(self, encoder: Encoder, split: Split) -> SplitData:
+        """Load ids, embeddings, and gold slugs for a split.
 
-        ids = [Id(row[0]) for row in rows]
-        embedding_matrix = np.array([row[1] for row in rows], dtype=np.float32)
-        slugs = [row[2] for row in rows]
+        Uses materialized parquet if available, otherwise falls back to
+        the three-way DuckDB join.
+        """
+        cached = self.split_data_path(encoder, split)
+        if cached.exists():
+            table = pq.read_table(cached)
+        else:
+            corpus_path = self.corpus_path()
+            splits_path = self.splits_path(encoder)
+            embeddings_path = self.embeddings_path(encoder)
 
-        return SplitData(ids=ids, embeddings=embedding_matrix, slugs=slugs)
+            table = duckdb.sql(f"""
+                SELECT
+                    corpus.id,
+                    embeddings.embedding,
+                    corpus.slug
+                FROM '{corpus_path}' as corpus
+                JOIN '{splits_path}' as splits
+                    ON corpus.id = splits.id
+                JOIN '{embeddings_path}' as embeddings
+                    ON corpus.id = embeddings.id
+                WHERE splits.split = '{split}'
+                ORDER BY corpus.id
+            """).to_arrow_table()
+
+        assert len(table) > 0, f"Empty split: {encoder}/{split}"
+
+        ids = [Id(value) for value in table.column("id").to_pylist()]
+        slugs = table.column("slug").to_pylist()
+
+        # Efficient Arrow-native embedding extraction (same as load_embeddings)
+        column = table.column("embedding")
+        chunk_arrays = []
+        for chunk in column.chunks:
+            offsets = chunk.offsets.to_numpy()
+            values = chunk.values.to_numpy()
+            dimension = offsets[1] - offsets[0]
+            chunk_arrays.append(values.reshape(-1, dimension))
+        embeddings = np.concatenate(chunk_arrays, axis=0).astype(np.float32)
+
+        return SplitData(ids=ids, embeddings=embeddings, slugs=slugs)
 
     def load_split_embeddings(
         self, encoder: Encoder, split: Split

@@ -31,8 +31,10 @@ class LengthBucket(Transform):
     """Breaks down key metrics by source text length bucket."""
 
     def transform(self, dataset: datasets.Dataset) -> datasets.Dataset:
-        buckets = [_assign_bucket(tc) for tc in dataset["token_count"]]
-        return dataset.add_column("length_bucket", buckets)
+        return dataset.map(
+            lambda token_count: {"length_bucket": _assign_bucket(token_count)},
+            input_columns=["token_count"],
+        )
 
     def evaluate(
         self, dataset: datasets.Dataset, stats: dict[str, Any]

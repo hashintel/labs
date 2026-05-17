@@ -50,6 +50,7 @@ class MLPPredictor(Predictor):
             input_dim=model_config["input_dim"],
             vocab_size=model_config["vocab_size"],
             hidden_dim=model_config["hidden_dim"],
+            num_layers=model_config.get("num_layers", 2),
             dropout=model_config["dropout"],
             position_head=model_config["position_head"],
         )

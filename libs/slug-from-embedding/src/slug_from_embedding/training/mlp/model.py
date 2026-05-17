@@ -10,12 +10,39 @@ position of each token in the output slug. Variant 1c (pairwise ordering)
 uses the same model; ordering is a post-hoc decode step, not a learned head.
 """
 
+import torch
 from torch import Tensor, nn
 
 # Slug lengths in training data range from 3 to 8.
 MIN_SLUG_LENGTH = 3
 MAX_SLUG_LENGTH = 8
 NUM_LENGTH_CLASSES = MAX_SLUG_LENGTH - MIN_SLUG_LENGTH + 1
+
+
+class BinaryFocalLoss(nn.Module):
+    """Focal loss for multi-label binary classification.
+
+    Down-weights easy negatives so the model focuses on hard positives.
+    With ~5 active tokens out of 5000 per sample, BCE gives equal weight
+    to all 4995 easy negatives. Focal loss with γ=2 reduces their
+    contribution, concentrating gradient on uncertain predictions.
+
+    focal_loss = -α_t * (1 - p_t)^γ * log(p_t)
+    where p_t = p if y=1, else 1-p.
+    """
+
+    def __init__(self, gamma: float = 2.0):
+        super().__init__()
+        self.gamma = gamma
+
+    def forward(self, logits: Tensor, targets: Tensor) -> Tensor:
+        probs = torch.sigmoid(logits)
+        p_t = probs * targets + (1 - probs) * (1 - targets)
+        focal_weight = (1 - p_t) ** self.gamma
+        bce = nn.functional.binary_cross_entropy_with_logits(
+            logits, targets, reduction="none"
+        )
+        return (focal_weight * bce).mean()
 
 
 class SlugMLP(nn.Module):
@@ -26,19 +53,22 @@ class SlugMLP(nn.Module):
         input_dim: int,
         vocab_size: int,
         hidden_dim: int = 768,
+        num_layers: int = 2,
         dropout: float = 0.2,
         position_head: bool = False,
     ):
         super().__init__()
 
-        self.backbone = nn.Sequential(
-            nn.Linear(input_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.ReLU(),
-            nn.Dropout(dropout),
-        )
+        layers: list[nn.Module] = []
+        in_dim = input_dim
+        for _ in range(num_layers):
+            layers.extend([
+                nn.Linear(in_dim, hidden_dim),
+                nn.ReLU(),
+                nn.Dropout(dropout),
+            ])
+            in_dim = hidden_dim
+        self.backbone = nn.Sequential(*layers)
 
         # Which tokens are present (multi-label)
         self.token_head = nn.Linear(hidden_dim, vocab_size)
