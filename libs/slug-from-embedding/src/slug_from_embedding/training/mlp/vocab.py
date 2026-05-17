@@ -2,34 +2,25 @@
 
 The vocabulary is the set of individual words (split on '-') that appear
 in gold slugs across the training split. No frequency cutoff: even hapax
-tokens are included. With only 10k samples this vocabulary is inherently
-sparse; absolute performance will be bounded by data scale, not architecture.
+tokens are included.
 """
 
 import json
 from pathlib import Path
 from typing import Self
 
-import duckdb
+from slug_from_embedding.config import Encoder
+from slug_from_embedding.libs.workspace import Workspace
 
-from slug_from_embedding.config import CORPUS_WITH_SLUGS_FILE, Encoder, splits_file
 
-
-def build_vocab(encoder: Encoder) -> list[str]:
+def build_vocab(workspace: Workspace, encoder: Encoder) -> list[str]:
     """Build a sorted vocabulary of slug tokens from the training split."""
-    tokens = duckdb.sql(f"""
-        WITH slug_tokens AS (
-            SELECT unnest(string_split(corpus.slug, '-')) as token
-            FROM '{CORPUS_WITH_SLUGS_FILE}' as corpus
-            JOIN '{splits_file(encoder)}' as splits
-                ON corpus.id = splits.id
-            WHERE splits.split = 'train'
-        )
-        SELECT DISTINCT token FROM slug_tokens
-        ORDER BY token
-    """).fetchall()
-
-    return [row[0] for row in tokens]
+    slugs = workspace.load_split_slugs(encoder, "train")
+    tokens = set()
+    for slug in slugs:
+        for token in slug.split("-"):
+            tokens.add(token)
+    return sorted(tokens)
 
 
 class SlugVocab:
@@ -37,7 +28,7 @@ class SlugVocab:
 
     def __init__(self, tokens: list[str]):
         self.tokens = tokens
-        self.token_to_idx = {t: i for i, t in enumerate(tokens)}
+        self.token_to_idx = {token: index for index, token in enumerate(tokens)}
 
     def __len__(self) -> int:
         return len(self.tokens)
@@ -46,14 +37,14 @@ class SlugVocab:
         """Convert a slug string to a list of token indices. Unknown tokens are skipped."""
         indices = []
         for token in slug.split("-"):
-            idx = self.token_to_idx.get(token)
-            if idx is not None:
-                indices.append(idx)
+            index = self.token_to_idx.get(token)
+            if index is not None:
+                indices.append(index)
         return indices
 
     def decode_indices(self, indices: list[int]) -> str:
         """Convert a list of token indices back to a slug string."""
-        return "-".join(self.tokens[i] for i in indices)
+        return "-".join(self.tokens[index] for index in indices)
 
     def save(self, path: Path):
         path.write_text(json.dumps(self.tokens))
@@ -64,5 +55,5 @@ class SlugVocab:
         return cls(tokens)
 
     @classmethod
-    def from_training(cls, encoder: Encoder) -> Self:
-        return cls(build_vocab(encoder))
+    def from_training(cls, workspace: Workspace, encoder: Encoder) -> Self:
+        return cls(build_vocab(workspace, encoder))

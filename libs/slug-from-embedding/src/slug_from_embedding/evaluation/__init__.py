@@ -4,23 +4,18 @@ Composes transforms into a pipeline: each enriches the Dataset with
 per-sample columns, then produces aggregate stats.
 
 Usage:
-    uv run slug-eval data/predictions/random_openai_test.parquet --encoder openai
-    uv run slug-eval data/predictions/haiku_test.parquet --encoder openai --split test
+    uv run slug-eval data/original/openai/predictions/haiku_test.parquet --encoder openai
+    uv run slug-eval data/original/openai/predictions/haiku_test.parquet --encoder openai --split test
 """
 
 import argparse
 import json
-import sys
 from pathlib import Path
 
-import duckdb
-import numpy as np
-
-from ..config import ENCODERS
-from ..training.config import RESULTS_DIR
-
+from ..config import ENCODERS, Encoder
+from ..libs.workspace import Split, Workspace
 from .bert_score import BertScore
-from .data import load_dataset, transform_dataset
+from .data import transform_dataset
 from .distinctiveness import Distinctiveness
 from .exact_match import ExactMatch
 from .length_bucket import LengthBucket
@@ -30,8 +25,6 @@ from .slug_token_f1 import SlugTokenF1
 from .transform import pipeline
 from .validity import Validity
 from .vocab_diversity import VocabDiversity
-
-
 
 default_pipeline = pipeline(
     Validity(),
@@ -62,88 +55,112 @@ def format_summary(stats: dict) -> str:
 
     if "per_source" in stats:
         lines.extend(["", "Per source:"])
-        for src, m in sorted(stats["per_source"].items()):
+        for source, metrics in sorted(stats["per_source"].items()):
             lines.append(
-                f"  {src:<16s} (n={m['n']:>4d})  "
-                f"exact={m['exact_match']:.1%}  "
-                f"tok_f1={m['mean_f1']:.3f}  "
-                f"rouge1={m['mean_rouge1']:.3f}  "
-                f"rouge_l={m['mean_rouge_l']:.3f}  "
-                f"bert_f1={m['mean_bertscore_f1']:.3f}"
+                f"  {source:<16s} (n={metrics['n']:>4d})  "
+                f"exact={metrics['exact_match']:.1%}  "
+                f"tok_f1={metrics['mean_f1']:.3f}  "
+                f"rouge1={metrics['mean_rouge1']:.3f}  "
+                f"rouge_l={metrics['mean_rouge_l']:.3f}  "
+                f"bert_f1={metrics['mean_bertscore_f1']:.3f}"
             )
 
     if "per_length_bucket" in stats:
         lines.extend(["", "Per length bucket:"])
-        for bucket, m in sorted(stats["per_length_bucket"].items()):
+        for bucket, metrics in sorted(stats["per_length_bucket"].items()):
             lines.append(
-                f"  {bucket:<10s} (n={m['n']:>4d}, avg={m['mean_token_count']:>5.0f} tok)  "
-                f"exact={m['exact_match']:.1%}  "
-                f"tok_f1={m['mean_f1']:.3f}  "
-                f"rouge_l={m['mean_rouge_l']:.3f}  "
-                f"distinct={m['mean_distinctiveness']:.3f}"
+                f"  {bucket:<10s} (n={metrics['n']:>4d}, avg={metrics['mean_token_count']:>5.0f} tok)  "
+                f"exact={metrics['exact_match']:.1%}  "
+                f"tok_f1={metrics['mean_f1']:.3f}  "
+                f"rouge_l={metrics['mean_rouge_l']:.3f}  "
+                f"distinct={metrics['mean_distinctiveness']:.3f}"
             )
 
     return "\n".join(lines)
 
 
-
-def save_results(name: str, encoder: str, split: str, stats: dict, ds):
+def save_results(
+    workspace: Workspace,
+    name: str,
+    encoder: Encoder,
+    split: Split,
+    stats: dict,
+    dataset,
+):
     """Save summary JSON and per-sample detail parquet."""
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    tag = f"{name}_{encoder}_{split}"
+    results_directory = workspace.results_dir(encoder)
+    results_directory.mkdir(parents=True, exist_ok=True)
 
-    # Summary JSON
-    summary_file = RESULTS_DIR / f"{tag}.json"
-    # Convert any numpy types for JSON serialization
-    clean_stats = json.loads(json.dumps(stats, default=lambda x: float(x) if hasattr(x, 'item') else x))
+    summary_file = workspace.result_path(encoder, name, split)
+    clean_stats = json.loads(
+        json.dumps(stats, default=lambda x: float(x) if hasattr(x, "item") else x)
+    )
     with open(summary_file, "w") as f:
         json.dump(clean_stats, f, indent=2)
     print(f"Summary: {summary_file}")
 
-    # Detail parquet: export the enriched dataset columns we care about
-    detail_file = RESULTS_DIR / f"{tag}_detail.parquet"
-    detail_cols = [
-        "id", "source", "token_count", "length_bucket",
-        "reference", "prediction",
-        "valid", "exact_match", "f1_precision", "f1_recall", "f1",
-        "rouge1", "rouge_l", "bertscore_f1", "distinctiveness",
+    detail_file = workspace.result_detail_path(encoder, name, split)
+    detail_columns = [
+        "id",
+        "source",
+        "token_count",
+        "length_bucket",
+        "reference",
+        "prediction",
+        "valid",
+        "exact_match",
+        "f1_precision",
+        "f1_recall",
+        "f1",
+        "rouge1",
+        "rouge_l",
+        "bertscore_f1",
+        "distinctiveness",
     ]
-    missing = [c for c in detail_cols if c not in ds.column_names]
+    missing = [
+        column for column in detail_columns if column not in dataset.column_names
+    ]
     if missing:
         raise ValueError(f"Expected columns missing from dataset: {missing}")
-    ds.select_columns(detail_cols).to_parquet(str(detail_file))
+    dataset.select_columns(detail_columns).to_parquet(str(detail_file))
     print(f"Detail:  {detail_file}")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate slug predictions")
-    parser.add_argument("predictions", type=Path, help="Predictions parquet (id, predicted_slug)")
+    parser.add_argument(
+        "predictions", type=Path, help="Predictions parquet (id, predicted_slug)"
+    )
     parser.add_argument("--encoder", required=True, choices=list(ENCODERS))
     parser.add_argument("--split", default="test")
-    parser.add_argument("--name", help="Name for results files (default: predictions filename stem)")
+    parser.add_argument(
+        "--name", help="Name for results files (default: predictions filename stem)"
+    )
+    parser.add_argument("--workspace", default="original")
     args = parser.parse_args()
 
+    workspace = Workspace(args.workspace)
     name = args.name or args.predictions.stem
 
     print(f"Loading dataset ({args.encoder}, {args.split})...")
-    ds = load_dataset(args.predictions, encoder=args.encoder)
-    print(f"  {len(ds)} samples")
+    dataset = workspace.load_evaluation_dataset(args.predictions, encoder=args.encoder)
+    print(f"  {len(dataset)} samples")
 
     print("Preparing...")
-    ds = transform_dataset(ds)
+    dataset = transform_dataset(dataset)
 
     print("Running pipeline...")
-    ds = default_pipeline.transform(ds)
+    dataset = default_pipeline.transform(dataset)
 
     print("Computing stats...")
-    stats = {"n_samples": len(ds)}
-    stats = default_pipeline.evaluate(ds, stats)
+    stats = {"n_samples": len(dataset)}
+    stats = default_pipeline.evaluate(dataset, stats)
 
     print()
     print(format_summary(stats))
     print()
 
-    save_results(name, args.encoder, args.split, stats, ds)
+    save_results(workspace, name, args.encoder, args.split, stats, dataset)
 
 
 if __name__ == "__main__":

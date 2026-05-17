@@ -4,41 +4,43 @@ Uses KMeans clustering to group similar documents, then assigns
 entire clusters to splits to prevent near-duplicate leakage.
 
 Usage:
-    uv run -m slug_from_embedding.split_dataset openai
-    uv run -m slug_from_embedding.split_dataset harrier
-    uv run -m slug_from_embedding.split_dataset all
+    uv run slug-split openai
+    uv run slug-split harrier
+    uv run slug-split all
 """
 
+import argparse
+import math
 
-import sys
-
+import duckdb
 import numpy as np
+import pyarrow as pa
+import pyarrow.parquet as pq
 from sklearn.cluster import KMeans
 
-from .config import (
-    CORPUS_WITH_SLUGS_FILE,
-    ENCODERS,
-    N_CLUSTERS,
-    SEED,
-    TEST_RATIO,
-    TRAIN_RATIO,
-    VAL_RATIO,
-    embeddings_file,
-    splits_file,
-)
-from .io import load_embeddings, write_id_column
+from .config import ENCODERS, SEED, TRAIN_RATIO, VAL_RATIO, Encoder
+from .libs.workspace import SPLIT_SCHEMA, Id, Workspace
 
 
-def cluster_split(ids: list[str], embeddings: np.ndarray) -> dict[str, str]:
-    """Assign each document to train/val/test based on KMeans clusters."""
-    print(f"Clustering {len(ids)} documents into {N_CLUSTERS} clusters...")
-    kmeans = KMeans(n_clusters=N_CLUSTERS, random_state=SEED, n_init=10)
+def cluster_split(
+    ids: list[Id], embeddings: np.ndarray, *, n_clusters: int | None = None
+) -> list[tuple[str, str, int]]:
+    """Assign each document to train/val/test based on KMeans clusters.
+
+    Returns list of (id, split, cluster) tuples.
+    If n_clusters is not given, uses sqrt(n) heuristic with a minimum of 200.
+    """
+    if n_clusters is None:
+        n_clusters = max(200, int(math.sqrt(len(ids))))
+
+    print(f"Clustering {len(ids)} documents into {n_clusters} clusters...")
+    kmeans = KMeans(n_clusters=n_clusters, random_state=SEED, n_init=10)
     labels = kmeans.fit_predict(embeddings)
 
     rng = np.random.RandomState(SEED)
-    cluster_order = rng.permutation(N_CLUSTERS)
+    cluster_order = rng.permutation(n_clusters)
 
-    cluster_sizes = np.bincount(labels, minlength=N_CLUSTERS)
+    cluster_sizes = np.bincount(labels, minlength=n_clusters)
     total = len(ids)
     train_target = int(total * TRAIN_RATIO)
     val_target = int(total * (TRAIN_RATIO + VAL_RATIO))
@@ -54,58 +56,66 @@ def cluster_split(ids: list[str], embeddings: np.ndarray) -> dict[str, str]:
             cluster_to_split[cluster_id] = "test"
         cumulative += cluster_sizes[cluster_id]
 
-    splits = {}
-    for doc_id, cluster_id in zip(ids, labels):
-        splits[doc_id] = cluster_to_split[cluster_id]
-
+    results = []
     counts = {"train": 0, "val": 0, "test": 0}
-    for s in splits.values():
-        counts[s] += 1
-    print(f"  train: {counts['train']} ({counts['train']/total:.1%})")
-    print(f"  val:   {counts['val']} ({counts['val']/total:.1%})")
-    print(f"  test:  {counts['test']} ({counts['test']/total:.1%})")
+    for document_id, cluster_id in zip(ids, labels):
+        split = cluster_to_split[cluster_id]
+        results.append((document_id, split, int(cluster_id)))
+        counts[split] += 1
 
-    return splits
+    print(f"  train: {counts['train']} ({counts['train'] / total:.1%})")
+    print(f"  val:   {counts['val']} ({counts['val'] / total:.1%})")
+    print(f"  test:  {counts['test']} ({counts['test'] / total:.1%})")
+
+    return results
 
 
-def split_for_encoder(encoder: str):
-    print(f"\n{'='*60}")
-    print(f"  Splitting by {encoder} embeddings")
-    print(f"{'='*60}\n")
+def split_for_encoder(workspace: Workspace, encoder: Encoder):
+    print(f"\nSplitting by {encoder} embeddings\n")
 
-    ids, embeddings = load_embeddings(embeddings_file(encoder))
-    splits = cluster_split(ids, embeddings)
-    output = splits_file(encoder)
-    write_id_column(splits, output, columns=("id", "split"))
+    ids, embeddings = workspace.load_embeddings(encoder)
+    rows = cluster_split(ids, embeddings)
 
-    # Show overlap with slugged corpus
-    import duckdb
-    matched = duckdb.sql(f"""
-        SELECT s.split, count(*) as n
-        FROM '{output}' s
-        JOIN '{CORPUS_WITH_SLUGS_FILE}' c ON s.id = c.id
-        GROUP BY s.split ORDER BY s.split
-    """).fetchall()
-    print(f"\nWith slugs (from {CORPUS_WITH_SLUGS_FILE.name}):")
-    for split, n in matched:
-        print(f"  {split}: {n}")
+    output = workspace.splits_path(encoder)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    table = pa.table(
+        {
+            "id": [row[0] for row in rows],
+            "split": [row[1] for row in rows],
+            "cluster": [row[2] for row in rows],
+        },
+        schema=SPLIT_SCHEMA,
+    )
+    pq.write_table(table, output, compression="zstd")
+    print(f"Wrote {len(rows)} split assignments to {output}")
+
+    corpus_path = workspace.corpus_path()
+    if corpus_path.exists():
+        matched = duckdb.sql(f"""
+            SELECT s.split, count(*) as n
+            FROM '{output}' s
+            JOIN '{corpus_path}' c ON s.id = c.id
+            GROUP BY s.split ORDER BY s.split
+        """).fetchall()
+        print(f"\nWith slugs (from {corpus_path.name}):")
+        for split, count in matched:
+            print(f"  {split}: {count}")
 
 
 def main():
-    if len(sys.argv) < 2:
-        names = ", ".join(ENCODERS)
-        print(f"Usage: uv run -m slug_from_embedding.split_dataset [{names}|all]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description="Split corpus into train/val/test")
+    parser.add_argument("encoder", choices=[*ENCODERS, "all"])
+    parser.add_argument("--workspace", default="original")
+    args = parser.parse_args()
 
-    command = sys.argv[1]
-    if command == "all":
+    workspace = Workspace(args.workspace)
+
+    if args.encoder == "all":
         for encoder in ENCODERS:
-            split_for_encoder(encoder)
-    elif command in ENCODERS:
-        split_for_encoder(command)
+            split_for_encoder(workspace, encoder)
     else:
-        print(f"Unknown encoder: {command}")
-        sys.exit(1)
+        split_for_encoder(workspace, args.encoder)
 
 
 if __name__ == "__main__":

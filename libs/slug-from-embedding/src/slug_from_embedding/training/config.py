@@ -1,19 +1,7 @@
-"""Shared training infrastructure: types, paths, runtime, artifact helpers."""
+"""Shared training infrastructure: runtime helpers and constants."""
 
-from pathlib import Path
-from typing import Literal
-
-import duckdb
 import numpy as np
 import torch
-
-from slug_from_embedding.config import DATA_DIR
-
-type Split = Literal["train", "val", "test"]
-
-MODELS_DIR = DATA_DIR / "models"
-PREDICTIONS_DIR = DATA_DIR / "predictions"
-RESULTS_DIR = DATA_DIR / "results"
 
 SCHEMA_VERSION = 1
 
@@ -35,14 +23,3 @@ def seed_all(seed: int):
     np.random.seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
-
-
-def write_predictions(ids: list[str], slugs: list[str], out_path: Path):
-    """Write (id, predicted_slug) parquet. Used by all prediction paths."""
-    assert len(ids) == len(slugs), f"ID/slug count mismatch: {len(ids)} vs {len(slugs)}"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = duckdb.connect()
-    conn.execute("CREATE TABLE preds (id VARCHAR, predicted_slug VARCHAR)")
-    conn.executemany("INSERT INTO preds VALUES (?, ?)", list(zip(ids, slugs)))
-    conn.execute(f"COPY preds TO '{out_path}' (FORMAT PARQUET, COMPRESSION ZSTD)")
-    conn.close()

@@ -17,7 +17,6 @@ Usage:
     uv run slug-report --encoder openai
 """
 
-
 import argparse
 import json
 import sys
@@ -30,9 +29,7 @@ import pandas as pd
 import seaborn as sns
 
 from .config import ENCODERS
-from .training.config import RESULTS_DIR
-
-FIGURES_DIR = RESULTS_DIR / "figures"
+from .libs.workspace import Workspace
 
 OVERVIEW_METRICS = [
     ("validity_rate", "Validity", True),
@@ -56,24 +53,24 @@ DETAIL_METRICS = [
 PALETTE = ["#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f", "#edc948"]
 
 
-def discover_results(results_dir: Path, encoder_filter: str | None = None) -> dict[str, dict[str, dict]]:
+def discover_results(
+    workspace: Workspace, encoder_filter: str | None = None
+) -> dict[str, dict[str, dict]]:
     """Find result JSONs + detail parquets, grouped by encoder."""
     grouped: dict[str, dict[str, dict]] = {}
 
-    for path in sorted(results_dir.glob("*.json")):
-        stem = path.stem
-        for encoder in ENCODERS:
-            if encoder_filter and encoder != encoder_filter:
-                continue
-            suffix = f"_{encoder}_"
-            idx = stem.find(suffix)
-            if idx == -1:
-                continue
-
-            name = stem[:idx]
+    for encoder in ENCODERS:
+        if encoder_filter and encoder != encoder_filter:
+            continue
+        results_directory = workspace.results_dir(encoder)
+        if not results_directory.exists():
+            continue
+        for path in sorted(results_directory.glob("*.json")):
+            stem = path.stem
+            name = stem
             summary = json.loads(path.read_text())
 
-            detail_path = results_dir / f"{stem}_detail.parquet"
+            detail_path = results_directory / f"{stem}_detail.parquet"
             detail_df = None
             if detail_path.exists():
                 detail_df = duckdb.sql(f"SELECT * FROM '{detail_path}'").df()
@@ -82,19 +79,20 @@ def discover_results(results_dir: Path, encoder_filter: str | None = None) -> di
                 "summary": summary,
                 "detail": detail_df,
             }
-            break
 
     return grouped
 
 
 def _setup_style():
     sns.set_theme(style="whitegrid", font_scale=0.95)
-    plt.rcParams.update({
-        "figure.dpi": 150,
-        "savefig.dpi": 150,
-        "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.15,
-    })
+    plt.rcParams.update(
+        {
+            "figure.dpi": 150,
+            "savefig.dpi": 150,
+            "savefig.bbox": "tight",
+            "savefig.pad_inches": 0.15,
+        }
+    )
 
 
 def _build_long_df(runs: dict[str, dict], run_names: list[str]) -> pd.DataFrame | None:
@@ -127,7 +125,9 @@ def print_comparison_table(encoder: str, runs: dict[str, dict]):
     print()
 
 
-def plot_violins(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path):
+def plot_violins(
+    encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path
+):
     """Violin plots for each metric across runs."""
     metrics = [(k, l) for k, l in DETAIL_METRICS if k in long_df.columns]
     if not metrics:
@@ -140,10 +140,16 @@ def plot_violins(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_
 
     for ax, (key, label) in zip(axes, metrics):
         sns.violinplot(
-            data=long_df, x="run", y=key, ax=ax,
-            hue="run", legend=False,
-            palette=PALETTE[:len(run_names)],
-            inner="box", cut=0, density_norm="width",
+            data=long_df,
+            x="run",
+            y=key,
+            ax=ax,
+            hue="run",
+            legend=False,
+            palette=PALETTE[: len(run_names)],
+            inner="box",
+            cut=0,
+            density_norm="width",
             order=run_names,
         )
         ax.set_title(label)
@@ -158,7 +164,9 @@ def plot_violins(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_
     print(f"  {encoder}_violins.png")
 
 
-def plot_per_source(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path):
+def plot_per_source(
+    encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path
+):
     """Per-source violin plots for each key metric."""
     metrics = [
         ("f1", "Token F1"),
@@ -178,10 +186,17 @@ def plot_per_source(encoder: str, long_df: pd.DataFrame, run_names: list[str], o
 
     for ax, (key, label) in zip(axes, metrics):
         sns.violinplot(
-            data=long_df, x="source", y=key, hue="run", ax=ax,
-            palette=PALETTE[:len(run_names)],
-            inner="box", cut=0, density_norm="width",
-            order=sources, hue_order=run_names,
+            data=long_df,
+            x="source",
+            y=key,
+            hue="run",
+            ax=ax,
+            palette=PALETTE[: len(run_names)],
+            inner="box",
+            cut=0,
+            density_norm="width",
+            order=sources,
+            hue_order=run_names,
         )
         ax.set_title(f"{label} by Source")
         ax.set_ylim(-0.05, 1.05)
@@ -196,7 +211,9 @@ def plot_per_source(encoder: str, long_df: pd.DataFrame, run_names: list[str], o
     print(f"  {encoder}_per_source.png")
 
 
-def plot_per_length_bucket(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path):
+def plot_per_length_bucket(
+    encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path
+):
     """Per-length-bucket violin plots for key metrics."""
     if "length_bucket" not in long_df.columns:
         return
@@ -220,10 +237,17 @@ def plot_per_length_bucket(encoder: str, long_df: pd.DataFrame, run_names: list[
 
     for ax, (key, label) in zip(axes, metrics):
         sns.violinplot(
-            data=long_df, x="length_bucket", y=key, hue="run", ax=ax,
-            palette=PALETTE[:len(run_names)],
-            inner="box", cut=0, density_norm="width",
-            order=buckets, hue_order=run_names,
+            data=long_df,
+            x="length_bucket",
+            y=key,
+            hue="run",
+            ax=ax,
+            palette=PALETTE[: len(run_names)],
+            inner="box",
+            cut=0,
+            density_norm="width",
+            order=buckets,
+            hue_order=run_names,
         )
         ax.set_title(f"{label} by Length")
         ax.set_ylim(-0.05, 1.05)
@@ -231,7 +255,9 @@ def plot_per_length_bucket(encoder: str, long_df: pd.DataFrame, run_names: list[
         ax.set_ylabel(label)
         ax.legend(title="Run", loc="lower left", framealpha=0.9, fontsize=8)
 
-    fig.suptitle(f"{encoder}: Per-Length-Bucket Distributions", fontweight="bold", y=1.02)
+    fig.suptitle(
+        f"{encoder}: Per-Length-Bucket Distributions", fontweight="bold", y=1.02
+    )
     fig.tight_layout()
     fig.savefig(out_dir / f"{encoder}_per_length.png")
     plt.close(fig)
@@ -263,7 +289,9 @@ def plot_source_length_heatmap(encoder: str, long_df: pd.DataFrame, out_dir: Pat
     print(f"  {encoder}_source_length_heatmap.png")
 
 
-def plot_scatter_f1_vs_distinct(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path):
+def plot_scatter_f1_vs_distinct(
+    encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path
+):
     """Scatter: Token F1 vs Distinctiveness, colored by run."""
     if "f1" not in long_df.columns or "distinctiveness" not in long_df.columns:
         return
@@ -272,8 +300,12 @@ def plot_scatter_f1_vs_distinct(encoder: str, long_df: pd.DataFrame, run_names: 
     for i, name in enumerate(run_names):
         sub = long_df[long_df["run"] == name]
         ax.scatter(
-            sub["f1"], sub["distinctiveness"],
-            s=10, alpha=0.4, color=PALETTE[i % len(PALETTE)], label=name,
+            sub["f1"],
+            sub["distinctiveness"],
+            s=10,
+            alpha=0.4,
+            color=PALETTE[i % len(PALETTE)],
+            label=name,
         )
 
     ax.set_xlabel("Token F1")
@@ -291,7 +323,11 @@ def plot_scatter_f1_vs_distinct(encoder: str, long_df: pd.DataFrame, run_names: 
 
 def plot_cdfs(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path):
     """CDF plots for key metrics."""
-    cdf_metrics = [("f1", "Token F1"), ("rouge_l", "ROUGE-L"), ("distinctiveness", "Distinctiveness")]
+    cdf_metrics = [
+        ("f1", "Token F1"),
+        ("rouge_l", "ROUGE-L"),
+        ("distinctiveness", "Distinctiveness"),
+    ]
     cdf_metrics = [(k, l) for k, l in cdf_metrics if k in long_df.columns]
     if not cdf_metrics:
         return
@@ -307,7 +343,9 @@ def plot_cdfs(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir
             if not len(values):
                 continue
             ys = np.arange(1, len(values) + 1) / len(values)
-            ax.plot(values, ys, label=name, color=PALETTE[i % len(PALETTE)], linewidth=2)
+            ax.plot(
+                values, ys, label=name, color=PALETTE[i % len(PALETTE)], linewidth=2
+            )
 
         ax.set_xlabel(label)
         ax.set_ylabel("Cumulative Fraction")
@@ -323,7 +361,9 @@ def plot_cdfs(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir
     print(f"  {encoder}_cdfs.png")
 
 
-def plot_token_count_vs_f1(encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path):
+def plot_token_count_vs_f1(
+    encoder: str, long_df: pd.DataFrame, run_names: list[str], out_dir: Path
+):
     """Scatter: source token count vs Token F1, showing length-quality correlation."""
     if "token_count" not in long_df.columns or "f1" not in long_df.columns:
         return
@@ -332,8 +372,12 @@ def plot_token_count_vs_f1(encoder: str, long_df: pd.DataFrame, run_names: list[
     for i, name in enumerate(run_names):
         sub = long_df[long_df["run"] == name]
         ax.scatter(
-            sub["token_count"], sub["f1"],
-            s=8, alpha=0.3, color=PALETTE[i % len(PALETTE)], label=name,
+            sub["token_count"],
+            sub["f1"],
+            s=8,
+            alpha=0.3,
+            color=PALETTE[i % len(PALETTE)],
+            label=name,
         )
 
     ax.set_xlabel("Source Token Count")
@@ -350,34 +394,39 @@ def plot_token_count_vs_f1(encoder: str, long_df: pd.DataFrame, run_names: list[
 
 def main():
     parser = argparse.ArgumentParser(description="Generate evaluation report figures")
-    parser.add_argument("--encoder", choices=list(ENCODERS), help="Only report on this encoder")
-    parser.add_argument("--output", type=Path, default=FIGURES_DIR)
+    parser.add_argument(
+        "--encoder", choices=list(ENCODERS), help="Only report on this encoder"
+    )
+    parser.add_argument("--workspace", default="original")
     args = parser.parse_args()
+
+    workspace = Workspace(args.workspace)
 
     _setup_style()
 
-    grouped = discover_results(RESULTS_DIR, encoder_filter=args.encoder)
+    grouped = discover_results(workspace, encoder_filter=args.encoder)
     if not grouped:
-        print(f"No result JSONs found in {RESULTS_DIR}")
+        print(f"No results found in workspace '{workspace.name}'")
         sys.exit(1)
 
-    args.output.mkdir(parents=True, exist_ok=True)
-
     for encoder, runs in sorted(grouped.items()):
+        figures_directory = workspace.figures_dir(encoder)
+        figures_directory.mkdir(parents=True, exist_ok=True)
+
         run_names = sorted(runs.keys())
         print_comparison_table(encoder, runs)
 
         long_df = _build_long_df(runs, run_names)
         if long_df is not None:
-            plot_violins(encoder, long_df, run_names, args.output)
-            plot_per_source(encoder, long_df, run_names, args.output)
-            plot_per_length_bucket(encoder, long_df, run_names, args.output)
-            plot_source_length_heatmap(encoder, long_df, args.output)
-            plot_scatter_f1_vs_distinct(encoder, long_df, run_names, args.output)
-            plot_cdfs(encoder, long_df, run_names, args.output)
-            plot_token_count_vs_f1(encoder, long_df, run_names, args.output)
+            plot_violins(encoder, long_df, run_names, figures_directory)
+            plot_per_source(encoder, long_df, run_names, figures_directory)
+            plot_per_length_bucket(encoder, long_df, run_names, figures_directory)
+            plot_source_length_heatmap(encoder, long_df, figures_directory)
+            plot_scatter_f1_vs_distinct(encoder, long_df, run_names, figures_directory)
+            plot_cdfs(encoder, long_df, run_names, figures_directory)
+            plot_token_count_vs_f1(encoder, long_df, run_names, figures_directory)
 
-    print(f"\nFigures saved to {args.output}/")
+    print(f"\nFigures saved to workspace '{workspace.name}'")
 
 
 if __name__ == "__main__":

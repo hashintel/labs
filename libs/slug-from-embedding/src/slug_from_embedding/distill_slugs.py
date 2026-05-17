@@ -8,37 +8,58 @@ Usage:
     uv run -m slug_from_embedding.distill_slugs all
 """
 
-
 import hashlib
 import json
 import re
 import sys
 import time
+from pathlib import Path
 
 import duckdb
+from anthropic.types import MessageParam
 
 from .config import (
-    BATCH_ID_FILE,
-    BATCH_RESULTS_FILE,
-    CORPUS_FILE,
-    CORPUS_WITH_SLUGS_FILE,
     DISTILL_MAX_TOKENS,
     DISTILL_MODEL,
     DISTILL_TEMPERATURE,
-    ID_MAP_FILE,
     POLL_INTERVAL,
     POLL_MAX_WAIT,
     SUCCESS_RATE_WARN,
     anthropic_client,
 )
-from .io import load_corpus_texts
+from .libs.workspace import Workspace
+
+WORKSPACE = Workspace("original")
 
 # ── Stopwords ─────────────────────────────────────────────────────────────────
 
 STOPWORDS = {
-    "the", "a", "an", "of", "for", "in", "on", "to", "and", "or", "is", "it",
-    "with", "by", "at", "as", "be", "are", "was", "were", "this", "that",
-    "from", "but", "not", "no",
+    "the",
+    "a",
+    "an",
+    "of",
+    "for",
+    "in",
+    "on",
+    "to",
+    "and",
+    "or",
+    "is",
+    "it",
+    "with",
+    "by",
+    "at",
+    "as",
+    "be",
+    "are",
+    "was",
+    "were",
+    "this",
+    "that",
+    "from",
+    "but",
+    "not",
+    "no",
 }
 
 # ── Prompt ─────────────────────────────────────────────────────────────────────
@@ -95,7 +116,7 @@ FEW_SHOT_EXAMPLES = [
     },
 ]
 
-_FEW_SHOT_MESSAGES: list[dict] = []
+_FEW_SHOT_MESSAGES: list[MessageParam] = []
 for _ex in FEW_SHOT_EXAMPLES:
     _FEW_SHOT_MESSAGES.append({"role": "user", "content": _ex["text"]})
     _FEW_SHOT_MESSAGES.append({"role": "assistant", "content": _ex["slug"]})
@@ -130,7 +151,7 @@ def extract_text(content_blocks) -> str | None:
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
 
-def build_messages(text: str) -> list[dict]:
+def build_messages(text: str) -> list[MessageParam]:
     return _FEW_SHOT_MESSAGES + [{"role": "user", "content": text}]
 
 
@@ -143,8 +164,9 @@ def make_custom_id(doc_id: str) -> str:
 
 def cmd_test():
     client = anthropic_client()
+    corpus_partial = WORKSPACE.corpus_partial_path()
     samples = duckdb.sql(
-        f"SELECT id, text, source FROM '{CORPUS_FILE}' ORDER BY random() LIMIT 5"
+        f"SELECT id, text, source FROM '{corpus_partial}' ORDER BY random() LIMIT 5"
     ).fetchall()
 
     for doc_id, text, source in samples:
@@ -166,44 +188,55 @@ def cmd_test():
 
 def cmd_submit():
     client = anthropic_client()
-    corpus = load_corpus_texts(CORPUS_FILE)
-    print(f"Building batch for {len(corpus)} documents...")
+    corpus_partial = WORKSPACE.corpus_partial_path()
+    corpus_texts = duckdb.sql(
+        f"SELECT id, text FROM '{corpus_partial}' ORDER BY id"
+    ).fetchall()
+    print(f"Building batch for {len(corpus_texts)} documents...")
+
+    batch_directory = WORKSPACE.batch_dir("distill")
+    id_map_file = batch_directory / "id_map.json"
+    batch_id_file = batch_directory / "batch_id.txt"
 
     seen_ids = set()
     id_map = {}
     requests = []
-    for doc_id, text in corpus:
-        if doc_id in seen_ids:
-            raise ValueError(f"Duplicate id in corpus: {doc_id}")
-        seen_ids.add(doc_id)
-        custom_id = make_custom_id(doc_id)
-        id_map[custom_id] = doc_id
-        requests.append({
-            "custom_id": custom_id,
-            "params": {
-                "model": DISTILL_MODEL,
-                "max_tokens": DISTILL_MAX_TOKENS,
-                "temperature": DISTILL_TEMPERATURE,
-                "system": SYSTEM_PROMPT,
-                "messages": build_messages(text),
-            },
-        })
+    for document_id, text in corpus_texts:
+        if document_id in seen_ids:
+            raise ValueError(f"Duplicate id in corpus: {document_id}")
+        seen_ids.add(document_id)
+        custom_id = make_custom_id(document_id)
+        id_map[custom_id] = document_id
+        requests.append(
+            {
+                "custom_id": custom_id,
+                "params": {
+                    "model": DISTILL_MODEL,
+                    "max_tokens": DISTILL_MAX_TOKENS,
+                    "temperature": DISTILL_TEMPERATURE,
+                    "system": SYSTEM_PROMPT,
+                    "messages": build_messages(text),
+                },
+            }
+        )
 
-    ID_MAP_FILE.write_text(json.dumps(id_map))
-    print(f"ID mapping saved to {ID_MAP_FILE}")
+    id_map_file.write_text(json.dumps(id_map))
+    print(f"ID mapping saved to {id_map_file}")
 
     print("Submitting batch...")
     batch = client.messages.batches.create(requests=requests)
-    BATCH_ID_FILE.write_text(batch.id)
+    batch_id_file.write_text(batch.id)
     print(f"Batch submitted: {batch.id}")
     print(f"Status: {batch.processing_status}")
-    print(f"Batch ID saved to {BATCH_ID_FILE}")
-    print(f"Inspect at: https://console.anthropic.com/settings/workspaces/default/batches/{batch.id}")
+    print(
+        f"Inspect at: https://console.anthropic.com/settings/workspaces/default/batches/{batch.id}"
+    )
 
 
 def cmd_poll():
     client = anthropic_client()
-    batch_id = BATCH_ID_FILE.read_text().strip()
+    batch_directory = WORKSPACE.batch_dir("distill")
+    batch_id = (batch_directory / "batch_id.txt").read_text().strip()
     print(f"Polling batch {batch_id}...")
 
     deadline = time.time() + POLL_MAX_WAIT
@@ -233,11 +266,11 @@ def cmd_poll():
     raise TimeoutError(f"Batch did not complete within {POLL_MAX_WAIT}s")
 
 
-def _stream_results_to_file(batch_id: str) -> None:
+def _stream_results_to_file(batch_id: str, results_file: Path) -> None:
     client = anthropic_client()
-    print(f"Streaming results from API to {BATCH_RESULTS_FILE}...")
-    n = 0
-    with open(BATCH_RESULTS_FILE, "w") as f:
+    print(f"Streaming results from API to {results_file}...")
+    count = 0
+    with open(results_file, "w") as f:
         for result in client.messages.batches.results(batch_id):
             record: dict = {"custom_id": result.custom_id}
             if result.result.type == "succeeded":
@@ -250,18 +283,20 @@ def _stream_results_to_file(batch_id: str) -> None:
                 if record["error"] is not None:
                     record["error"] = str(record["error"])
             f.write(json.dumps(record) + "\n")
-            n += 1
-    print(f"Wrote {n} raw results to {BATCH_RESULTS_FILE}")
+            count += 1
+    print(f"Wrote {count} raw results to {results_file}")
 
 
 def cmd_collect():
-    batch_id = BATCH_ID_FILE.read_text().strip()
-    id_map = json.loads(ID_MAP_FILE.read_text())
+    batch_directory = WORKSPACE.batch_dir("distill")
+    batch_id = (batch_directory / "batch_id.txt").read_text().strip()
+    id_map = json.loads((batch_directory / "id_map.json").read_text())
+    results_file = batch_directory / "results.jsonl"
 
-    if BATCH_RESULTS_FILE.exists():
-        print(f"Using cached raw results from {BATCH_RESULTS_FILE}")
+    if results_file.exists():
+        print(f"Using cached raw results from {results_file}")
     else:
-        _stream_results_to_file(batch_id)
+        _stream_results_to_file(batch_id, results_file)
 
     slugs: dict[str, str] = {}
     invalid_count = 0
@@ -269,7 +304,7 @@ def cmd_collect():
     total = 0
     invalid_samples: list[tuple[str, str]] = []
 
-    with open(BATCH_RESULTS_FILE) as f:
+    with open(results_file) as f:
         for line in f:
             record = json.loads(line)
             total += 1
@@ -295,15 +330,22 @@ def cmd_collect():
         for cid, raw in invalid_samples:
             print(f"  {cid}: {raw!r}")
 
-    print(f"\nResults: {len(slugs)} valid, {invalid_count} invalid, {error_count} errored, {total} total")
+    print(
+        f"\nResults: {len(slugs)} valid, {invalid_count} invalid, {error_count} errored, {total} total"
+    )
 
     if total == 0:
         raise RuntimeError("No results found")
     success_rate = len(slugs) / total
     if success_rate < SUCCESS_RATE_WARN:
-        print(f"\n⚠  WARNING: success rate {success_rate:.1%} below {SUCCESS_RATE_WARN:.0%}")
+        print(
+            f"\n⚠  WARNING: success rate {success_rate:.1%} below {SUCCESS_RATE_WARN:.0%}"
+        )
     if not slugs:
         raise RuntimeError("Zero valid slugs")
+
+    corpus_partial = WORKSPACE.corpus_partial_path()
+    corpus_output = WORKSPACE.corpus_path()
 
     conn = duckdb.connect()
     conn.execute("CREATE TABLE slugs (id VARCHAR, slug VARCHAR)")
@@ -311,12 +353,12 @@ def cmd_collect():
     conn.execute(f"""
         COPY (
             SELECT c.text, c.id, c.url, c.token_count, c.source, s.slug
-            FROM '{CORPUS_FILE}' c
+            FROM '{corpus_partial}' c
             JOIN slugs s ON c.id = s.id
-        ) TO '{CORPUS_WITH_SLUGS_FILE}' (FORMAT PARQUET, COMPRESSION ZSTD)
+        ) TO '{corpus_output}' (FORMAT PARQUET, COMPRESSION ZSTD)
     """)
-    final_count = conn.execute(f"SELECT count(*) FROM '{CORPUS_WITH_SLUGS_FILE}'").fetchone()[0]
-    print(f"Wrote {CORPUS_WITH_SLUGS_FILE} ({final_count} samples with slugs)")
+    final_count = conn.execute(f"SELECT count(*) FROM '{corpus_output}'").fetchone()[0]
+    print(f"Wrote {corpus_output} ({final_count} samples with slugs)")
     conn.close()
 
 
@@ -328,10 +370,18 @@ def cmd_all():
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: uv run -m slug_from_embedding.distill_slugs [test|submit|poll|collect|all]")
+        print(
+            "Usage: uv run -m slug_from_embedding.distill_slugs [test|submit|poll|collect|all]"
+        )
         sys.exit(1)
 
-    commands = {"test": cmd_test, "submit": cmd_submit, "poll": cmd_poll, "collect": cmd_collect, "all": cmd_all}
+    commands = {
+        "test": cmd_test,
+        "submit": cmd_submit,
+        "poll": cmd_poll,
+        "collect": cmd_collect,
+        "all": cmd_all,
+    }
     command = sys.argv[1]
     if command not in commands:
         print(f"Unknown command: {command}. Use one of: {', '.join(commands)}")

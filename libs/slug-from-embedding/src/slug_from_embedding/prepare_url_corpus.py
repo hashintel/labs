@@ -31,12 +31,10 @@ from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.tokens.counter import TokensCounter
 from datatrove.pipeline.writers import ParquetWriter
 
-from .config import DATA_DIR, LOGS_DIR, MAX_TOKENS, MIN_TOKENS, TOKENIZER
+from .config import MAX_TOKENS, MIN_TOKENS, TOKENIZER
+from .libs.workspace import Workspace
 
-# ── Paths ──────────────────────────────────────────────────────────────────────
-
-URL_STAGING_DIR = DATA_DIR / "staging" / "url-corpus"
-URL_CORPUS_FILE = DATA_DIR / "url_corpus_with_slugs.parquet"
+WORKSPACE = Workspace("url")
 
 # ── Stopwords for slug quality filtering ───────────────────────────────────────
 
@@ -237,7 +235,7 @@ def make_pipeline(target: int | None = None) -> list:
 
     steps.append(
         ParquetWriter(
-            output_folder=str(URL_STAGING_DIR),
+            output_folder=str(WORKSPACE.staging_dir()),
             compression="zstd",
             expand_metadata=True,
         )
@@ -257,7 +255,7 @@ def fetch(target: int | None = None, tasks: int = 1):
 
     executor = LocalPipelineExecutor(
         pipeline=pipeline,
-        logging_dir=str(LOGS_DIR / "url-corpus"),
+        logging_dir=str(WORKSPACE.logs_dir()),
         tasks=tasks,
     )
     executor.run()
@@ -297,7 +295,7 @@ def _post_filter_sql(source_table: str) -> str:
 
 def merge():
     """Merge staging parquet files, apply post-filters, write final corpus."""
-    staging_path = URL_STAGING_DIR / "*.parquet"
+    staging_path = WORKSPACE.staging_dir() / "*.parquet"
     raw_count = duckdb.sql(
         f"SELECT count(*) FROM read_parquet('{staging_path}')"
     ).fetchone()[0]
@@ -309,11 +307,15 @@ def merge():
     print(f"Raw samples from staging: {raw_count:,}")
 
     query = _post_filter_sql(f"read_parquet('{staging_path}')")
-    duckdb.sql(f"COPY ({query}) TO '{URL_CORPUS_FILE}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+    duckdb.sql(
+        f"COPY ({query}) TO '{WORKSPACE.corpus_path()}' (FORMAT PARQUET, COMPRESSION ZSTD)"
+    )
 
-    count = duckdb.sql(f"SELECT count(*) FROM '{URL_CORPUS_FILE}'").fetchone()[0]
-    print(f"After post-filtering: {count:,} ({count/raw_count:.1%} retained)")
-    print(f"Wrote {URL_CORPUS_FILE}")
+    count = duckdb.sql(f"SELECT count(*) FROM '{WORKSPACE.corpus_path()}'").fetchone()[
+        0
+    ]
+    print(f"After post-filtering: {count:,} ({count / raw_count:.1%} retained)")
+    print(f"Wrote {WORKSPACE.corpus_path()}")
 
     # ── Distribution stats ─────────────────────────────────────────────
     stats = duckdb.sql(f"""
@@ -321,7 +323,7 @@ def merge():
             count(*) as n,
             avg(token_count) as avg_tokens,
             count(distinct slug) as unique_slugs
-        FROM '{URL_CORPUS_FILE}'
+        FROM '{WORKSPACE.corpus_path()}'
     """).fetchone()
     print(f"  avg tokens: {stats[1]:.0f}")
     print(f"  unique slugs: {stats[2]}")
@@ -330,7 +332,7 @@ def merge():
     vocab = duckdb.sql(f"""
         WITH tokens AS (
             SELECT unnest(string_split(slug, '-')) as token
-            FROM '{URL_CORPUS_FILE}'
+            FROM '{WORKSPACE.corpus_path()}'
         )
         SELECT count(distinct token) FROM tokens
     """).fetchone()
@@ -342,7 +344,7 @@ def merge():
         SELECT
             len(string_split(slug, '-')) as slug_len,
             count(*) as cnt
-        FROM '{URL_CORPUS_FILE}'
+        FROM '{WORKSPACE.corpus_path()}'
         GROUP BY slug_len
         ORDER BY slug_len
     """).fetchall()
@@ -358,7 +360,7 @@ def merge():
                 slug,
                 string_split(slug, '-') as tokens,
                 len(string_split(slug, '-')) as n_tokens
-            FROM '{URL_CORPUS_FILE}'
+            FROM '{WORKSPACE.corpus_path()}'
         )
         SELECT
             avg(stopword_frac) as avg_stopword_frac,

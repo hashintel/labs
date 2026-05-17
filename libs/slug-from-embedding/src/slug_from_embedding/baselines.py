@@ -22,16 +22,14 @@ import duckdb
 import numpy as np
 
 from .config import (
-    CORPUS_WITH_SLUGS_FILE,
-    DATA_DIR,
     DISTILL_MAX_TOKENS,
     DISTILL_MODEL,
     DISTILL_TEMPERATURE,
     ENCODERS,
     POLL_INTERVAL,
     POLL_MAX_WAIT,
+    Encoder,
     anthropic_client,
-    splits_file,
 )
 from .distill_slugs import (
     SYSTEM_PROMPT,
@@ -40,63 +38,60 @@ from .distill_slugs import (
     make_custom_id,
     validate_slug,
 )
-from .training.config import PREDICTIONS_DIR, write_predictions
-from .training.data import load_texts, load_training_slugs
-
-BASELINE_BATCH_ID_FILE = DATA_DIR / "baseline_batch_id.txt"
-BASELINE_ID_MAP_FILE = DATA_DIR / "baseline_id_map.json"
-BASELINE_RESULTS_FILE = DATA_DIR / "baseline_batch_results.jsonl"
+from .libs.workspace import Split, Workspace
 
 
-# ── Random baseline ──────────────────────────────────────────────────────────
-
-
-def cmd_random(encoder: str, split: str = "test", seed: int = 42):
+def cmd_random(
+    workspace: Workspace, encoder: Encoder, split: Split = "test", seed: int = 42
+):
     """For each test sample, pick a random slug from the training set."""
-    slugs = load_training_slugs(encoder)
-    test_data = load_texts(encoder, split)
+    slugs = workspace.load_split_slugs(encoder, "train")
+    test_texts = workspace.load_split_texts(encoder, split)
 
     rng = np.random.RandomState(seed)
-    ids = [doc_id for doc_id, _ in test_data]
+    ids = [text.id for text in test_texts]
     predicted = [slugs[rng.randint(len(slugs))] for _ in ids]
 
     print(f"Random baseline: {len(ids)} predictions from {len(slugs)} training slugs")
 
-    out_path = PREDICTIONS_DIR / f"random_{encoder}_{split}.parquet"
-    write_predictions(ids, predicted, out_path)
-    print(f"Wrote {len(ids)} predictions to {out_path}")
+    workspace.write_predictions(encoder, "random", ids, predicted, split)
+    print(f"Wrote {len(ids)} predictions")
 
 
-# ── Haiku baseline (batch API) ───────────────────────────────────────────────
-
-
-def _union_test_ids_and_texts(split: str = "test") -> list[tuple[str, str]]:
+def _union_test_ids_and_texts(
+    workspace: Workspace, split: Split = "test"
+) -> list[tuple[str, str]]:
     """Load (id, text) pairs for the union of all encoder test sets."""
+    corpus_path = workspace.corpus_path()
     encoder_clauses = " UNION ".join(
-        f"SELECT id FROM '{splits_file(enc)}' WHERE split = '{split}'"
-        for enc in ENCODERS
+        f"SELECT id FROM '{workspace.splits_path(encoder)}' WHERE split = '{split}'"
+        for encoder in ENCODERS
     )
     return duckdb.sql(f"""
         SELECT DISTINCT c.id, c.text
-        FROM '{CORPUS_WITH_SLUGS_FILE}' c
+        FROM '{corpus_path}' c
         WHERE c.id IN ({encoder_clauses})
         ORDER BY c.id
     """).fetchall()
 
 
-def cmd_haiku_submit(split: str = "test"):
+def cmd_haiku_submit(workspace: Workspace, split: Split = "test"):
     """Submit a batch for the union of all encoder test sets."""
     client = anthropic_client()
-    test_data = _union_test_ids_and_texts(split)
+    test_data = _union_test_ids_and_texts(workspace, split)
     print(
         f"Building batch for {len(test_data)} test samples (union of all encoders)..."
     )
 
+    batch_directory = workspace.batch_dir("baseline")
+    id_map_file = batch_directory / "id_map.json"
+    batch_id_file = batch_directory / "batch_id.txt"
+
     id_map = {}
     requests = []
-    for doc_id, text in test_data:
-        custom_id = make_custom_id(doc_id)
-        id_map[custom_id] = doc_id
+    for document_id, text in test_data:
+        custom_id = make_custom_id(document_id)
+        id_map[custom_id] = document_id
         requests.append(
             {
                 "custom_id": custom_id,
@@ -110,19 +105,20 @@ def cmd_haiku_submit(split: str = "test"):
             }
         )
 
-    BASELINE_ID_MAP_FILE.write_text(json.dumps(id_map))
+    id_map_file.write_text(json.dumps(id_map))
 
     print("Submitting batch...")
     batch = client.messages.batches.create(requests=requests)
-    BASELINE_BATCH_ID_FILE.write_text(batch.id)
+    batch_id_file.write_text(batch.id)
     print(f"Batch submitted: {batch.id}")
     print(f"Status: {batch.processing_status}")
 
 
-def cmd_haiku_poll():
+def cmd_haiku_poll(workspace: Workspace):
     """Poll until the baseline batch completes."""
     client = anthropic_client()
-    batch_id = BASELINE_BATCH_ID_FILE.read_text().strip()
+    batch_directory = workspace.batch_dir("baseline")
+    batch_id = (batch_directory / "batch_id.txt").read_text().strip()
     print(f"Polling batch {batch_id}...")
 
     deadline = time.time() + POLL_MAX_WAIT
@@ -139,24 +135,25 @@ def cmd_haiku_poll():
             if batch.processing_status == "ended":
                 print("Batch complete.")
                 return
-        except Exception as e:
-            print(f"  retrieve failed: {e}")
+        except Exception as error:
+            print(f"  retrieve failed: {error}")
         time.sleep(POLL_INTERVAL)
 
     raise TimeoutError(f"Batch did not complete within {POLL_MAX_WAIT}s")
 
 
-def cmd_haiku_collect(split: str = "test"):
+def cmd_haiku_collect(workspace: Workspace, split: Split = "test"):
     """Collect results from the baseline batch and save as predictions."""
     client = anthropic_client()
-    batch_id = BASELINE_BATCH_ID_FILE.read_text().strip()
-    id_map = json.loads(BASELINE_ID_MAP_FILE.read_text())
+    batch_directory = workspace.batch_dir("baseline")
+    batch_id = (batch_directory / "batch_id.txt").read_text().strip()
+    id_map = json.loads((batch_directory / "id_map.json").read_text())
+    results_file = batch_directory / "results.jsonl"
 
-    # Stream results to file if not cached
-    if not BASELINE_RESULTS_FILE.exists():
-        print(f"Streaming results to {BASELINE_RESULTS_FILE}...")
-        n = 0
-        with open(BASELINE_RESULTS_FILE, "w") as f:
+    if not results_file.exists():
+        print(f"Streaming results to {results_file}...")
+        count = 0
+        with open(results_file, "w") as f:
             for result in client.messages.batches.results(batch_id):
                 record = {"custom_id": result.custom_id}
                 if result.result.type == "succeeded":
@@ -166,22 +163,21 @@ def cmd_haiku_collect(split: str = "test"):
                 else:
                     record["status"] = result.result.type
                 f.write(json.dumps(record) + "\n")
-                n += 1
-        print(f"  {n} raw results")
+                count += 1
+        print(f"  {count} raw results")
 
-    # Parse and validate
     ids = []
     predicted = []
     invalid = 0
-    with open(BASELINE_RESULTS_FILE) as f:
+    with open(results_file) as f:
         for line in f:
             record = json.loads(line)
             custom_id = record["custom_id"]
-            doc_id = id_map.get(custom_id, custom_id)
+            document_id = id_map.get(custom_id, custom_id)
             if record["status"] == "succeeded":
                 slug = validate_slug(record.get("raw", ""))
                 if slug:
-                    ids.append(doc_id)
+                    ids.append(document_id)
                     predicted.append(slug)
                 else:
                     invalid += 1
@@ -190,33 +186,27 @@ def cmd_haiku_collect(split: str = "test"):
 
     print(f"Haiku baseline: {len(ids)} valid, {invalid} invalid")
 
-    out_path = PREDICTIONS_DIR / f"haiku_{split}.parquet"
-    write_predictions(ids, predicted, out_path)
-    print(f"Wrote {len(ids)} predictions to {out_path}")
+    # Write the union predictions file
+    workspace.write_predictions("openai", "haiku_union", ids, predicted, split)
 
     # Split into per-encoder prediction files
     for encoder in ENCODERS:
-        out = PREDICTIONS_DIR / f"haiku_{encoder}_{split}.parquet"
-        duckdb.sql(f"""
-            COPY (
-                SELECT p.id, p.predicted_slug
-                FROM '{out_path}' p
-                JOIN '{splits_file(encoder)}' s ON p.id = s.id
-                WHERE s.split = '{split}'
-            ) TO '{out}' (FORMAT PARQUET, COMPRESSION ZSTD)
-        """)
-        count = duckdb.sql(f"SELECT count(*) FROM '{out}'").fetchone()[0]
-        print(f"  {encoder}: {count} predictions -> {out.name}")
+        splits_path = workspace.splits_path(encoder)
+        prediction_ids = []
+        prediction_slugs = []
+        for document_id, slug in zip(ids, predicted):
+            row = duckdb.sql(f"""
+                SELECT id FROM '{splits_path}'
+                WHERE id = '{document_id}' AND split = '{split}'
+            """).fetchone()
+            if row:
+                prediction_ids.append(document_id)
+                prediction_slugs.append(slug)
 
-
-def cmd_haiku(split: str = "test"):
-    """Submit, poll, and collect in one step."""
-    cmd_haiku_submit(split)
-    cmd_haiku_poll()
-    cmd_haiku_collect(split)
-
-
-# ── CLI ───────────────────────────────────────────────────────────────────────
+        workspace.write_predictions(
+            encoder, "haiku", prediction_ids, prediction_slugs, split
+        )
+        print(f"  {encoder}: {len(prediction_ids)} predictions")
 
 
 def main():
@@ -227,21 +217,26 @@ def main():
     )
     parser.add_argument("--encoder", choices=list(ENCODERS))
     parser.add_argument("--split", default="test")
+    parser.add_argument("--workspace", default="original")
     args = parser.parse_args()
+
+    workspace = Workspace(args.workspace)
 
     match args.command:
         case "random":
             if not args.encoder:
                 parser.error("--encoder is required for random baseline")
-            cmd_random(args.encoder, args.split)
+            cmd_random(workspace, args.encoder, args.split)
         case "haiku":
-            cmd_haiku(args.split)
+            cmd_haiku_submit(workspace, args.split)
+            cmd_haiku_poll(workspace)
+            cmd_haiku_collect(workspace, args.split)
         case "haiku-submit":
-            cmd_haiku_submit(args.split)
+            cmd_haiku_submit(workspace, args.split)
         case "haiku-poll":
-            cmd_haiku_poll()
+            cmd_haiku_poll(workspace)
         case "haiku-collect":
-            cmd_haiku_collect(args.split)
+            cmd_haiku_collect(workspace, args.split)
 
 
 if __name__ == "__main__":

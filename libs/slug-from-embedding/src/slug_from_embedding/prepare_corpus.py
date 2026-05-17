@@ -27,17 +27,16 @@ from datatrove.pipeline.tokens.counter import TokensCounter
 from datatrove.pipeline.writers import ParquetWriter
 
 from .config import (
-    CORPUS_FILE,
-    DATA_DIR,
-    LOGS_DIR,
     MAX_TOKENS,
     MIN_TOKENS,
     READER_LIMIT_MULTIPLIER,
     SOURCE_SPLIT,
-    STAGING_DIR,
     TOKENIZER,
     TOTAL_SAMPLES,
 )
+from .libs.workspace import Workspace
+
+WORKSPACE = Workspace("original")
 
 
 # ── Adapters ───────────────────────────────────────────────────────────────────
@@ -150,7 +149,7 @@ def Filter(limit: int, *, fine_web: bool = True) -> tuple[PipelineStep, ...]:
 
 def Writer(name: str) -> ParquetWriter:
     return ParquetWriter(
-        output_folder=str(STAGING_DIR / name),
+        output_folder=str(WORKSPACE.staging_dir(name)),
         compression="zstd",
         expand_metadata=True,
     )
@@ -209,18 +208,19 @@ def fetch():
         print(f"{'=' * 60}\n")
         executor = LocalPipelineExecutor(
             pipeline=pipeline,
-            logging_dir=str(LOGS_DIR / name),
+            logging_dir=str(WORKSPACE.logs_dir(name)),
             tasks=1,
         )
         executor.run()
 
 
 def merge():
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    WORKSPACE.ensure()
+    corpus_partial = WORKSPACE.corpus_partial_path()
 
     parts = []
     for name, frac in SOURCE_SPLIT.items():
-        staging_path = STAGING_DIR / name / "*.parquet"
+        staging_path = WORKSPACE.staging_dir(name) / "*.parquet"
         target_count = int(TOTAL_SAMPLES * frac)
         parts.append(
             f"""
@@ -231,13 +231,13 @@ def merge():
         )
 
     query = " UNION ALL ".join(parts)
-    duckdb.sql(f"COPY ({query}) TO '{CORPUS_FILE}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+    duckdb.sql(f"COPY ({query}) TO '{corpus_partial}' (FORMAT PARQUET, COMPRESSION ZSTD)")
 
     result = duckdb.sql(
-        f"SELECT source, count(*) as n FROM '{CORPUS_FILE}' GROUP BY source ORDER BY source"
+        f"SELECT source, count(*) as n FROM '{corpus_partial}' GROUP BY source ORDER BY source"
     ).fetchall()
     total = sum(row[1] for row in result)
-    print(f"\nWrote {CORPUS_FILE} ({total} samples)")
+    print(f"\nWrote {corpus_partial} ({total} samples)")
     for source, count in result:
         print(f"  {source}: {count}")
 

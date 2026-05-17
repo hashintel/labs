@@ -1,6 +1,6 @@
 """PyTorch dataset for MLP slug prediction.
 
-Wraps the shared data loader with MLP-specific target encoding:
+Wraps the workspace data loader with MLP-specific target encoding:
 - token_targets: multi-hot float tensor [vocab_size]
 - token_positions: per-token position in the gold slug (-1 if absent)
 - length: number of tokens in the gold slug
@@ -12,20 +12,21 @@ import torch
 from torch.utils.data import Dataset as TorchDataset
 
 from slug_from_embedding.config import Encoder
+from slug_from_embedding.libs.workspace import Split, Workspace
 
-from ..config import Split
-from ..data import load_split
 from .vocab import SlugVocab
 
 log = logging.getLogger(__name__)
 
 
 class SlugDataset(TorchDataset):
-    """MLP training dataset: embeddings → multi-hot token targets."""
+    """MLP training dataset: embeddings -> multi-hot token targets."""
 
-    def __init__(self, encoder: Encoder, split: Split, vocab: SlugVocab):
+    def __init__(
+        self, workspace: Workspace, encoder: Encoder, split: Split, vocab: SlugVocab
+    ):
         self.vocab = vocab
-        raw = load_split(encoder, split)
+        raw = workspace.load_split_data(encoder, split)
         self.embeddings = raw.embeddings
         self.slugs = raw.slugs
 
@@ -49,12 +50,14 @@ class SlugDataset(TorchDataset):
             return
 
         rate = oov_count / total_tokens
-        msg = f"{split}: {oov_count}/{total_tokens} tokens OOV ({rate:.1%})"
+        message = f"{split}: {oov_count}/{total_tokens} tokens OOV ({rate:.1%})"
 
         if split == "train":
-            raise ValueError(f"Training data has OOV tokens (vocab is inconsistent): {msg}")
+            raise ValueError(
+                f"Training data has OOV tokens (vocab is inconsistent): {message}"
+            )
         else:
-            log.warning(msg)
+            log.warning(message)
 
     def __len__(self) -> int:
         return len(self.slugs)
@@ -64,16 +67,13 @@ class SlugDataset(TorchDataset):
         indices = self.vocab.encode_slug(slug)
         length = len(slug.split("-"))
 
-        # Multi-hot target for token prediction
         token_targets = torch.zeros(len(self.vocab), dtype=torch.float32)
-        for i in indices:
-            token_targets[i] = 1.0
+        for index in indices:
+            token_targets[index] = 1.0
 
-        # Position target: position of each token in the slug, -1 if absent.
-        # Used by the position head (variant 1b).
         token_positions = torch.full((len(self.vocab),), -1, dtype=torch.long)
-        for pos, i in enumerate(indices):
-            token_positions[i] = pos
+        for position, index in enumerate(indices):
+            token_positions[index] = position
 
         return {
             "embedding": torch.from_numpy(self.embeddings[idx]),
