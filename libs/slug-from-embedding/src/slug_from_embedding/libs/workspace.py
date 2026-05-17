@@ -20,6 +20,7 @@ Layout:
                 figures/
 """
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, NewType
@@ -174,6 +175,17 @@ class Workspace:
         rows = duckdb.sql(f"SELECT id, text FROM '{path}' ORDER BY id").fetchall()
         return [CorpusText(id=Id(row[0]), text=row[1]) for row in rows]
 
+    def iter_corpus_texts(self, *, fetch_size: int = 10_000) -> Iterator[CorpusText]:
+        """Stream (id, text) pairs from the corpus without loading all into memory."""
+        path = self.corpus_path()
+        result = duckdb.sql(f"SELECT id, text FROM '{path}' ORDER BY id")
+        while True:
+            chunk = result.fetchmany(fetch_size)
+            if not chunk:
+                break
+            for row in chunk:
+                yield CorpusText(id=Id(row[0]), text=row[1])
+
     def load_embeddings(self, encoder: Encoder) -> tuple[list[Id], np.ndarray]:
         """Load all embeddings as (ids, matrix) with efficient Arrow-native path."""
         path = self.embeddings_path(encoder)
@@ -181,11 +193,16 @@ class Workspace:
 
         ids = [Id(value) for value in table.column("id").to_pylist()]
 
-        column = table.column("embedding").combine_chunks()
-        offsets = column.offsets.to_numpy()
-        values = column.values.to_numpy()
-        dimension = offsets[1] - offsets[0]
-        embeddings = values.reshape(-1, dimension)
+        column = table.column("embedding")
+        # For large datasets, combine_chunks() can overflow 32-bit list offsets.
+        # Process per-chunk and concatenate as numpy instead.
+        chunk_arrays = []
+        for chunk in column.chunks:
+            offsets = chunk.offsets.to_numpy()
+            values = chunk.values.to_numpy()
+            dimension = offsets[1] - offsets[0]
+            chunk_arrays.append(values.reshape(-1, dimension))
+        embeddings = np.concatenate(chunk_arrays, axis=0)
 
         return ids, embeddings
 

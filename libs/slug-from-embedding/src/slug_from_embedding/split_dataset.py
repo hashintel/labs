@@ -16,7 +16,7 @@ import duckdb
 import numpy as np
 import pyarrow as pa
 import pyarrow.parquet as pq
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 
 from .config import ENCODERS, SEED, TRAIN_RATIO, VAL_RATIO, Encoder
 from .libs.workspace import SPLIT_SCHEMA, Id, Workspace
@@ -34,7 +34,13 @@ def cluster_split(
         n_clusters = max(200, int(math.sqrt(len(ids))))
 
     print(f"Clustering {len(ids)} documents into {n_clusters} clusters...")
-    kmeans = KMeans(n_clusters=n_clusters, random_state=SEED, n_init=10)
+    kmeans = MiniBatchKMeans(
+        n_clusters=n_clusters,
+        random_state=SEED,
+        n_init="auto",
+        batch_size=min(15_000, len(ids)),
+        verbose=1,
+    )
     labels = kmeans.fit_predict(embeddings)
 
     rng = np.random.RandomState(SEED)

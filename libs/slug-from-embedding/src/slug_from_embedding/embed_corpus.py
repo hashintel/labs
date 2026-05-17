@@ -16,231 +16,42 @@ Usage:
 import argparse
 import json
 import sys
-from itertools import batched
-from typing import Any, cast
+from typing import Any
 
-import duckdb
 import numpy as np
 
 from .config import (
     ENCODERS,
     EncoderConfig,
-    openrouter_client,
     require_env,
 )
 from .libs.batch import Batch, RequestInfo
-from .libs.workspace import Id, Workspace
-
-CHECKPOINT_INTERVAL = 50  # write checkpoint every N batches
-CONCURRENT_REQUESTS = 8  # parallel API calls
-MAX_RETRIES = 5
+from .libs.embed import CheckpointedRunner, LocalTransformersEmbedder, openrouter_embedder
+from .libs.workspace import Workspace
 
 
 def _embed_openrouter(workspace: Workspace, encoder_config: EncoderConfig):
-    """Embed via OpenRouter's OpenAI-compatible embeddings endpoint.
+    """Embed via OpenRouter using the checkpointed runner."""
+    import duckdb
 
-    Writes checkpoints every CHECKPOINT_INTERVAL batches to a shards
-    directory. On restart, skips documents already embedded. Merges
-    shards into the final output at the end.
-    """
-    client = openrouter_client()
-    output_path = workspace.embeddings_path(encoder_config.name)
-    shard_directory = output_path.parent / ".embeddings_shards"
-    shard_directory.mkdir(parents=True, exist_ok=True)
-
-    completed_ids: set[str] = set()
-    for shard in sorted(shard_directory.glob("*.parquet")):
-        rows = duckdb.sql(f"SELECT id FROM '{shard}'").fetchall()
-        completed_ids.update(row[0] for row in rows)
-
-    corpus = workspace.load_corpus_texts()
-    remaining = [
-        (text.id, text.text) for text in corpus if text.id not in completed_ids
-    ]
-
-    if completed_ids:
-        print(
-            f"Resuming: {len(completed_ids)} already embedded, {len(remaining)} remaining"
-        )
-    else:
-        print(f"Embedding {len(corpus)} documents with {encoder_config.model}...")
-
-    shard_ids: list[Id] = []
-    shard_embeddings: list[list[float]] = []
-    shard_count = len(list(shard_directory.glob("*.parquet")))
-
-    def flush_shard():
-        nonlocal shard_ids, shard_embeddings, shard_count
-        if not shard_ids:
-            return
-        shard_path = shard_directory / f"shard_{shard_count:04d}.parquet"
-        array = np.array(shard_embeddings, dtype=np.float32)
-        workspace.write_embeddings(shard_ids, array, shard_path)
-        shard_count += 1
-        shard_ids = []
-        shard_embeddings = []
-
-    import time
-    from concurrent.futures import ThreadPoolExecutor, as_completed
-
-    total = len(corpus)
-    done_so_far = len(completed_ids)
-    start_time = time.time()
-
-    def embed_batch(
-        batch_data: list[tuple[Id, str]],
-    ) -> tuple[list[Id], list[list[float]]]:
-        ids = [document_id for document_id, _ in batch_data]
-        texts = [text for _, text in batch_data]
-
-        for attempt in range(MAX_RETRIES):
-            try:
-                response = client.embeddings.create(
-                    model=encoder_config.model, input=texts
-                )
-                if not response.data or len(response.data) != len(texts):
-                    raise ValueError(
-                        f"Expected {len(texts)} embeddings, got {len(response.data) if response.data else 0}"
-                    )
-                embeddings = cast(list[list[float]], [None] * len(texts))
-                for item in response.data:
-                    embeddings[item.index] = item.embedding
-                if any(embedding is None for embedding in embeddings):
-                    raise ValueError("Response had gaps in embedding indices")
-
-                return ids, embeddings
-            except Exception as error:
-                if attempt < MAX_RETRIES - 1:
-                    wait = 2**attempt * 5
-                    print(
-                        f"  Error: {error}. Retrying in {wait}s... ({attempt + 1}/{MAX_RETRIES})"
-                    )
-                    time.sleep(wait)
-                else:
-                    raise
-
-    batches_since_checkpoint = 0
-    all_batches = list(batched(remaining, encoder_config.batch_size))
-
-    with ThreadPoolExecutor(max_workers=CONCURRENT_REQUESTS) as pool:
-        for chunk_start in range(0, len(all_batches), CONCURRENT_REQUESTS):
-            chunk = all_batches[chunk_start : chunk_start + CONCURRENT_REQUESTS]
-            futures = {
-                pool.submit(embed_batch, list(batch)): index
-                for index, batch in enumerate(chunk)
-            }
-
-            results = cast(
-                list[tuple[list[Id], list[list[float]]]], [None] * len(chunk)
-            )
-            for future in as_completed(futures):
-                index = futures[future]
-                try:
-                    results[index] = future.result()
-                except Exception:
-                    print("  Batch failed after retries, checkpointing and exiting.")
-                    flush_shard()
-                    raise
-
-            for ids, embeddings in results:
-                shard_ids.extend(ids)
-                shard_embeddings.extend(embeddings)
-                done_so_far += len(ids)
-
-            batches_since_checkpoint += len(chunk)
-            elapsed = time.time() - start_time
-            rate = (done_so_far - len(completed_ids)) / elapsed if elapsed > 0 else 0
-            eta = (total - done_so_far) / rate / 3600 if rate > 0 else 0
-            print(
-                f"  {done_so_far:>9,}/{total:,}  ({rate:.0f} docs/s, ~{eta:.1f}h remaining)"
-            )
-
-            if batches_since_checkpoint >= CHECKPOINT_INTERVAL:
-                flush_shard()
-                batches_since_checkpoint = 0
-
-    flush_shard()
-
-    print("Merging shards...")
-    shard_glob = shard_directory / "*.parquet"
-    merge_count = duckdb.sql(
-        f"""
-            SELECT count(*)
-            FROM read_parquet('{shard_glob}')
-        """
-    ).fetchone()[0]
-
-    duckdb.sql(f"""
-        COPY (
-            SELECT * FROM read_parquet('{shard_glob}')
-            ORDER BY id
-        ) TO '{output_path}' (FORMAT PARQUET, COMPRESSION ZSTD)
-    """)
-    print(f"Wrote {merge_count} embeddings to {output_path}")
+    embedder = openrouter_embedder(model=encoder_config.model)
+    runner = CheckpointedRunner.from_workspace(workspace, encoder_config.name, embedder)
+    total = duckdb.sql(f"SELECT count(*) FROM '{workspace.corpus_path()}'").fetchone()[0]
+    runner.run(workspace.iter_corpus_texts(), total=total)
 
 
 def _embed_local(workspace: Workspace, encoder_config: EncoderConfig):
-    """Embed locally using transformers + torch."""
-    import torch
-    import torch.nn.functional as F
-    from transformers import AutoModel, AutoTokenizer
+    """Embed locally using the checkpointed runner."""
+    import duckdb
 
-    corpus = workspace.load_corpus_texts()
-    ids = [text.id for text in corpus]
-    texts = [text.text for text in corpus]
-
-    print(f"Loading {encoder_config.model}...")
-    tokenizer = AutoTokenizer.from_pretrained(encoder_config.model)
-    model = AutoModel.from_pretrained(encoder_config.model, dtype="auto")
-    model.eval()
-
-    if torch.backends.mps.is_available():
-        device = torch.device("mps")
-    elif torch.cuda.is_available():
-        device = torch.device("cuda")
-    else:
-        device = torch.device("cpu")
-    model.to(device)
-    print(f"Using device: {device}")
-
-    def last_token_pool(last_hidden_states, attention_mask):
-        left_padding = attention_mask[:, -1].sum() == attention_mask.shape[0]
-        if left_padding:
-            return last_hidden_states[:, -1]
-        sequence_lengths = attention_mask.sum(dim=1) - 1
-        batch_size = last_hidden_states.shape[0]
-        return last_hidden_states[
-            torch.arange(batch_size, device=last_hidden_states.device),
-            sequence_lengths,
-        ]
-
-    all_embeddings = []
-    print(f"Embedding {len(texts)} documents...")
-
-    for index, batch_texts in enumerate(batched(texts, encoder_config.batch_size)):
-        batch_dict = tokenizer(
-            batch_texts,
-            max_length=8192,
-            padding=True,
-            truncation=True,
-            return_tensors="pt",
-        )
-        batch_dict = {key: value.to(device) for key, value in batch_dict.items()}
-
-        with torch.inference_mode():
-            outputs = model(**batch_dict)
-
-        embedding = last_token_pool(
-            outputs.last_hidden_state, batch_dict["attention_mask"]
-        )
-        embedding = F.normalize(embedding, p=2, dim=1)
-        all_embeddings.append(embedding.cpu().float().numpy())
-
-        done = min((index + 1) * encoder_config.batch_size, len(texts))
-        print(f"  {done}/{len(texts)}")
-
-    embeddings_array = np.concatenate(all_embeddings, axis=0).astype(np.float32)
-    workspace.write_encoder_embeddings(encoder_config.name, ids, embeddings_array)
+    embedder = LocalTransformersEmbedder(
+        model_name=encoder_config.model, batch_size=encoder_config.batch_size
+    )
+    runner = CheckpointedRunner.from_workspace(
+        workspace, encoder_config.name, embedder, concurrent_requests=1
+    )
+    total = duckdb.sql(f"SELECT count(*) FROM '{workspace.corpus_path()}'").fetchone()[0]
+    runner.run(workspace.iter_corpus_texts(), total=total)
 
 
 BACKENDS = {
@@ -279,7 +90,6 @@ class EmbeddingBatch(Batch[EmbeddingRequest, list[float]]):
 
     def _client(self):
         from openai import OpenAI
-
         return OpenAI(api_key=self.api_key)
 
     def request_id(self, request: EmbeddingRequest) -> str:
@@ -319,9 +129,7 @@ class EmbeddingBatch(Batch[EmbeddingRequest, list[float]]):
                 f.write(json.dumps(line) + "\n")
 
         size_mb = jsonl_path.stat().st_size / 1e6
-        print(
-            f"  Uploading {jsonl_path.name} ({len(requests)} requests, {size_mb:.1f}MB)..."
-        )
+        print(f"  Uploading {jsonl_path.name} ({len(requests)} requests, {size_mb:.1f}MB)...")
 
         with open(jsonl_path, "rb") as f:
             uploaded = client.files.create(file=f, purpose="batch")
@@ -408,9 +216,7 @@ def _run_batch(workspace: Workspace, encoder_config: EncoderConfig, action: str)
                 print(f"  Warning: {missing} documents missing embeddings")
 
             embeddings_array = np.array(embeddings, dtype=np.float32)
-            workspace.write_encoder_embeddings(
-                encoder_config.name, ids, embeddings_array
-            )
+            workspace.write_encoder_embeddings(encoder_config.name, ids, embeddings_array)
 
 
 def main():
@@ -418,13 +224,9 @@ def main():
         description="Embed corpus with a registered encoder"
     )
     parser.add_argument("encoder", choices=list(ENCODERS))
-    parser.add_argument(
-        "--batch", action="store_true", help="Submit to OpenAI Batch API"
-    )
+    parser.add_argument("--batch", action="store_true", help="Submit to OpenAI Batch API")
     parser.add_argument("--batch-poll", action="store_true", help="Poll batch status")
-    parser.add_argument(
-        "--batch-collect", action="store_true", help="Collect batch results"
-    )
+    parser.add_argument("--batch-collect", action="store_true", help="Collect batch results")
     parser.add_argument("--workspace", default="original")
     args = parser.parse_args()
 
