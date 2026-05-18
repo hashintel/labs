@@ -94,13 +94,39 @@ the bottleneck.
 - **Conclusion**: Loss function is not the bottleneck. The model reaches
   the same ceiling regardless of how gradients are weighted.
 
-### Experiment 1c: Bigger Projector
+### Experiment 1c: Bigger Projector (4 layers, 1024 hidden)
 
 Tests whether model capacity is the bottleneck. If train and val both
 improve, capacity was limiting. If the same plateau appears, the information
 ceiling is in the embeddings.
 
-- **Result**: *(pending)*
+- **Parameters**: 9,852,813 (1.8x baseline)
+- **Training**: Same setup. Val plateaued at 1.6571, identical to baseline.
+- **Conclusion**: Capacity is not the bottleneck. Three experiments (BCE,
+  focal loss, bigger model) all hit the same val loss ceiling (~1.657).
+  The bottleneck is either the embedding representation or the bag-of-tokens
+  architecture itself.
+
+### Variant 1 Summary
+
+The MLP multi-label classifier cannot recover slug tokens from embeddings.
+Three experiments ruled out gradient signal and model capacity as causes.
+The model collapses to predicting high-frequency function words regardless
+of input. Two hypotheses remain:
+
+1. **Architecture limitation**: A bag-of-tokens classifier predicts each
+   token independently. It cannot model co-occurrence ("if I predict
+   'machine', I should also predict 'learning'") or sequence structure.
+   A seq2seq decoder could extract more from the same embeddings.
+
+2. **Information ceiling**: The embeddings genuinely don't encode enough
+   information to reconstruct specific slug tokens. They encode broad
+   semantic similarity (BERTScore ~0.82) but not the lexical specificity
+   needed for slug generation.
+
+These are not mutually exclusive. A seq2seq model (Variant 3) will
+distinguish between them: if it succeeds, (1) was dominant. If it also
+fails, (2) is the fundamental limit.
 
 ## Key Observations
 

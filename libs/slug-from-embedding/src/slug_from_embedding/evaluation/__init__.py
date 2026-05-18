@@ -15,6 +15,7 @@ from pathlib import Path
 from ..config import ENCODERS, Encoder
 from ..libs.workspace import Split, Workspace
 from .bert_score import BertScore
+from .compressed_token_f1 import CompressedTokenF1
 from .data import transform_dataset
 from .distinctiveness import Distinctiveness
 from .exact_match import ExactMatch
@@ -22,7 +23,7 @@ from .length_bucket import LengthBucket
 from .per_source import PerSource
 from .rouge import Rouge
 from .slug_token_f1 import SlugTokenF1
-from .transform import pipeline
+from .transform import Pipeline, pipeline
 from .validity import Validity
 from .vocab_diversity import VocabDiversity
 
@@ -39,6 +40,26 @@ default_pipeline = pipeline(
 )
 
 
+def build_pipeline(compression_path: Path | None = None) -> Pipeline:
+    """Build eval pipeline, optionally with compressed token F1."""
+    transforms = [
+        Validity(),
+        ExactMatch(),
+        SlugTokenF1(),
+    ]
+    if compression_path is not None:
+        transforms.append(CompressedTokenF1(compression_path))
+    transforms.extend([
+        Rouge(),
+        BertScore(),
+        Distinctiveness(),
+        VocabDiversity(),
+        PerSource(),
+        LengthBucket(),
+    ])
+    return pipeline(*transforms)
+
+
 def format_summary(stats: dict) -> str:
     lines = [
         f"Samples: {stats.get('n_samples', '?')}",
@@ -47,6 +68,14 @@ def format_summary(stats: dict) -> str:
         f"  Validity:         {stats['validity_rate']:.1%}",
         f"  Exact match:      {stats['exact_match']:.1%}",
         f"  Token P/R/F1:     {stats['mean_f1_precision']:.3f} / {stats['mean_f1_recall']:.3f} / {stats['mean_f1']:.3f}",
+    ]
+
+    if "compressed_mean_f1" in stats:
+        lines.append(
+            f"  Compressed P/R/F1: {stats['compressed_mean_f1_precision']:.3f} / {stats['compressed_mean_f1_recall']:.3f} / {stats['compressed_mean_f1']:.3f}"
+        )
+
+    lines += [
         f"  ROUGE-1/L:        {stats['mean_rouge1']:.3f} / {stats['mean_rouge_l']:.3f}",
         f"  BERTScore P/R/F1: {stats['mean_bertscore_precision']:.3f} / {stats['mean_bertscore_recall']:.3f} / {stats['mean_bertscore_f1']:.3f}",
         f"  Distinctiveness:  {stats['mean_distinctiveness']:.3f}",
@@ -117,6 +146,11 @@ def save_results(
         "bertscore_f1",
         "distinctiveness",
     ]
+    # Add optional compressed columns if present
+    for col in ["compressed_f1_precision", "compressed_f1_recall", "compressed_f1"]:
+        if col in dataset.column_names:
+            detail_columns.append(col)
+
     missing = [
         column for column in detail_columns if column not in dataset.column_names
     ]
@@ -137,10 +171,28 @@ def main():
         "--name", help="Name for results files (default: predictions filename stem)"
     )
     parser.add_argument("--workspace", default="original")
+    parser.add_argument(
+        "--compression",
+        type=str,
+        default=None,
+        help="Compression mapping name (e.g. kmeans-5000) for compressed token F1",
+    )
     args = parser.parse_args()
 
     workspace = Workspace(args.workspace)
     name = args.name or args.predictions.stem
+
+    compression_path = None
+    if args.compression:
+        compression_path = (
+            workspace.encoder_dir(args.encoder)
+            / "vocab_compression"
+            / f"{args.compression}.json"
+        )
+        if not compression_path.exists():
+            parser.error(f"Compression mapping not found: {compression_path}")
+
+    eval_pipeline = build_pipeline(compression_path)
 
     print(f"Loading dataset ({args.encoder}, {args.split})...")
     dataset = workspace.load_evaluation_dataset(args.predictions, encoder=args.encoder)
@@ -150,11 +202,11 @@ def main():
     dataset = transform_dataset(dataset)
 
     print("Running pipeline...")
-    dataset = default_pipeline.transform(dataset)
+    dataset = eval_pipeline.transform(dataset)
 
     print("Computing stats...")
     stats = {"n_samples": len(dataset)}
-    stats = default_pipeline.evaluate(dataset, stats)
+    stats = eval_pipeline.evaluate(dataset, stats)
 
     print()
     print(format_summary(stats))
