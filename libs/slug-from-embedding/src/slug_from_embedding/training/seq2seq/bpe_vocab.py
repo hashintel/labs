@@ -42,6 +42,7 @@ class BpeVocab:
         self.pad_idx = tokenizer.token_to_id(PAD)
         self.bos_idx = tokenizer.token_to_id(BOS)
         self.eos_idx = tokenizer.token_to_id(EOS)
+        self.unk_idx = tokenizer.token_to_id(UNK)
         self.hyphen_idx = tokenizer.token_to_id(HYPHEN)
 
     def __len__(self) -> int:

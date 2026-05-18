@@ -32,10 +32,14 @@ Two encoders were evaluated:
   for 2.3M embeddings
 - **Harrier** (1024d): local on MPS, original corpus only
 
-## Vocab Compression
+## Vocab Strategies
 
-The URL corpus has 315,929 unique slug tokens, 62% hapax. Three grouping
-strategies were tested on token embeddings:
+The URL corpus has 315,929 unique slug tokens, 62% hapax. Two vocab
+strategies were developed:
+
+### KMeans Compression (5000 clusters)
+
+Three grouping strategies were tested on token embeddings:
 
 | Strategy | Clusters | Noise | Compression | Notes |
 |----------|----------|-------|-------------|-------|
@@ -47,6 +51,25 @@ strategies were tested on token embeddings:
 a near-fully-connected graph (251M edges for 316k nodes, ~800 neighbors per
 token). Embedding models trained on full sentences don't separate individual
 words well in vector space. KMeans was the only practical compression strategy.
+
+**Critical limitation discovered late**: 47.2% of reference slug tokens map
+to a *different* representative after compression. A perfect model can only
+reach 50.2% raw Token F1. This means raw Token F1 conflates model quality
+with compression loss. Compressed Token F1 (mapping references through the
+same compression before comparing) is the fair metric for compressed-vocab
+models.
+
+### BPE Tokenizer (5000 subwords)
+
+Byte-pair encoding trained on the slug corpus with `-` as a special token.
+The pre-tokenizer splits on hyphens (`Split(pattern="-", behavior="isolated")`)
+so BPE learns subword units within slug tokens, never merging across word
+boundaries. Average encoded length: 11.7 subwords per slug.
+
+**Key advantage**: Lossless reconstruction. Any slug can be perfectly
+roundtripped through encode/decode. No compression ceiling. Same vocab size
+(5000) as KMeans, but the model can express any token via subword composition
+instead of being limited to 5000 representatives.
 
 ## Variant 1: MLP Multi-label Classifier
 
@@ -62,99 +85,128 @@ Architecture: embedding (1536d) → 2-layer MLP (768 hidden) → three heads:
 - **Result**: Val loss plateaued at epoch 2 (1.6572), train kept dropping
   (1.6421 by epoch 5). Mild overfitting, early plateau.
 - **Evaluation** (229,496 test samples):
-  - Validity: 0.4%, Exact match: 0.0%
+  - Validity: 100% (structural check only), Exact match: 0.0%
   - Token F1: 0.085, ROUGE-1: 0.085, ROUGE-L: 0.077
   - BERTScore F1: 0.818 (high baseline for short strings)
   - Vocab diversity: 22.6% (51,791 unique predictions)
 
 **Failure mode**: The model collapsed to predicting the highest-frequency
-tokens regardless of input. The top 3 predictions are "of-the-a" (16,916),
-"of-the-in" (16,145), and "of-the-how" (6,393). These are all function
-words that appear in nearly every training slug. BCE loss rewards this
-strategy: predicting common tokens is always a safe bet when 4,995 of
-5,000 outputs should be zero.
-
-Critically, the validity check rejects these predictions because "of",
-"the", and "a" are stopwords in the distillation rules. The model learned
-the frequency distribution of the training data, not the content-to-slug
-mapping.
-
-This motivates focal loss: by down-weighting the easy high-frequency
-tokens, the model is forced to learn which *discriminative* tokens to
-predict for each input.
+tokens regardless of input. Top predictions: "of-the-a" (16,916×),
+"of-the-in" (16,145×), "of-the-how" (6,393×). BCE loss rewards predicting
+common tokens when 4,995 of 5,000 outputs should be zero.
 
 ### Experiment 1b: Focal Loss (γ=2)
 
-Focal loss down-weights the 4995 easy negatives per sample, focusing gradient
-on the ~5 hard positives. Diagnoses whether the BCE gradient dilution is
-the bottleneck.
-
 - **Training**: Same setup. Val plateaued at 1.6543 (step 6000) vs BCE's
   1.6572 (step 4000). Within noise.
-- **Conclusion**: Loss function is not the bottleneck. The model reaches
-  the same ceiling regardless of how gradients are weighted.
+- **Evaluation**: Token F1: 0.083, identical to baseline.
+- **Conclusion**: Loss function is not the bottleneck.
 
 ### Experiment 1c: Bigger Projector (4 layers, 1024 hidden)
 
-Tests whether model capacity is the bottleneck. If train and val both
-improve, capacity was limiting. If the same plateau appears, the information
-ceiling is in the embeddings.
-
 - **Parameters**: 9,852,813 (1.8x baseline)
-- **Training**: Same setup. Val plateaued at 1.6571, identical to baseline.
-- **Conclusion**: Capacity is not the bottleneck. Three experiments (BCE,
-  focal loss, bigger model) all hit the same val loss ceiling (~1.657).
-  The bottleneck is either the embedding representation or the bag-of-tokens
-  architecture itself.
+- **Training**: Val plateaued at 1.6571, identical to baseline.
+- **Conclusion**: Capacity is not the bottleneck.
 
 ### Variant 1 Summary
 
-The MLP multi-label classifier cannot recover slug tokens from embeddings.
-Three experiments ruled out gradient signal and model capacity as causes.
-The model collapses to predicting high-frequency function words regardless
-of input. Two hypotheses remain:
+Three experiments hit the same ceiling (~1.657 val loss, ~0.085 tok F1).
+The MLP bag-of-tokens architecture cannot recover slug tokens from embeddings.
+It predicts tokens independently and cannot model co-occurrence or sequence.
 
-1. **Architecture limitation**: A bag-of-tokens classifier predicts each
-   token independently. It cannot model co-occurrence ("if I predict
-   'machine', I should also predict 'learning'") or sequence structure.
-   A seq2seq decoder could extract more from the same embeddings.
+## Variant 3: Seq2seq Transformer Decoder
 
-2. **Information ceiling**: The embeddings genuinely don't encode enough
-   information to reconstruct specific slug tokens. They encode broad
-   semantic similarity (BERTScore ~0.82) but not the lexical specificity
-   needed for slug generation.
+Architecture: embedding (1536d) → linear projection → prefix token at
+position 0 → 4-layer causal transformer decoder → autoregressive token
+generation.
 
-These are not mutually exclusive. A seq2seq model (Variant 3) will
-distinguish between them: if it succeeds, (1) was dominant. If it also
-fails, (2) is the fundamental limit.
+The source embedding is projected into the decoder's hidden space and
+prepended as a "prefix" token. Standard causal self-attention lets every
+generated token attend to the prefix (the embedding) and all previous
+tokens. This gives the model the ability to generate coherent sequences
+rather than predicting tokens independently.
 
-## Key Observations
+### Experiment 3a: KMeans vocab, embed_dim=256
 
-1. **Data scale solved the cold-start problem.** The original 10k corpus
-   produced only 57 unique predictions. The 2.3M URL corpus gives the model
-   enough signal to learn meaningful patterns.
+- **Parameters**: 6,121,866
+- **Training**: 15 epochs, batch_size=1024, lr=3e-4, eval every 2000 steps
+- **Result**: Val loss still dropping at epoch 15 (3.517). tok_f1 reached
+  0.326 and was still climbing.
+- **Qualitative**: Generates topically relevant slugs. Some repetition
+  ("turtle-of-turtle") due to decoder degeneration.
 
-2. **Embeddings don't separate isolated tokens well.** This is the vocab
-   compression finding: embedding models encode contextual meaning from
-   full sentences. Single words lack that context, so they cluster into
-   a near-uniform ball in vector space.
+### Experiment 3b: KMeans vocab, embed_dim=384
 
-3. **The MLP architecture has fundamental limitations for this task.**
-   It predicts tokens independently (bag-of-tokens) and can't model
-   co-occurrence: "if I picked token A, I should also pick token B."
-   A seq2seq decoder that autoregressively generates tokens is the
-   natural next step.
+- **Parameters**: 11,539,594
+- **Training**: 15 epochs, same setup.
+- **Result**: tok_f1 reached 0.345, consistently ~0.02 ahead of 256d.
+  Val loss 3.403. Train/val gap widened to 8.6% by end.
+- **Conclusion**: Capacity matters. Larger decoder extracts more signal.
+- **Qualitative** (with no-repeat-1gram constraint):
+  - "buddhist-in-burma" vs ref "buddhism-in-burma" (one token off)
+  - "introduction-to-medical-terminology" vs ref "medical-terminology-course"
+  - "digital-media-lab" = exact match
+  - "drinking-water-benefits" vs ref "enjoy-the-numerous-benefits-of-drinking-water-2"
 
-4. **Val plateau after 2 epochs is informative, not discouraging.**
-   It means the model extracted what it could from the embeddings quickly.
-   The question is whether a different decoder (seq2seq) or loss (focal)
-   can extract more from the same embeddings.
+### The Compression Ceiling
+
+Analysis of the KMeans-5000 mapping revealed that 47.2% of reference slug
+tokens map to a different representative. A perfect model can only reach
+50.2% raw Token F1 with this vocab. The model's 0.345 is 69% of that
+theoretical ceiling.
+
+Example: the model predicted "anne-essex-fly" for an Amelia Earhart article.
+Investigation showed: amelia → anne (female-names-starting-with-A cluster),
+earhart → harry (surname cluster), and "fly" is the representative for the
+aviation cluster. The model captured "female aviator" but the compression
+couldn't express it.
+
+This motivated switching to BPE tokenization: same vocab size (5000),
+lossless reconstruction, no compression ceiling.
+
+### Experiment 3c: BPE vocab, embed_dim=384 *(running)*
+
+- **Parameters**: ~11.5M
+- **Hypothesis**: If compression was the primary bottleneck, tok_f1 should
+  jump well past 0.345. If it lands in the same range, the embedding
+  information ceiling is real.
+
+## Key Findings
+
+1. **Bag-of-tokens classifiers fail for this task.** The MLP predicts tokens
+   independently and collapses to high-frequency function words. Three
+   ablations (loss function, capacity, position head) all hit the same
+   ceiling. The architecture is fundamentally wrong.
+
+2. **Seq2seq decoders extract real signal.** Autoregressive generation
+   reached tok_f1 0.345 (4x the MLP's 0.085) and produces topically
+   relevant, human-readable slugs. The ability to model token co-occurrence
+   and sequence structure is essential.
+
+3. **Vocab compression has a hard ceiling.** KMeans-5000 maps 47% of tokens
+   to different representatives, capping raw Token F1 at 50.2%. BPE
+   tokenization eliminates this ceiling while keeping the same vocab size.
+
+4. **Embeddings encode topic but not lexical specifics.** The model
+   consistently captures the right topic ("buddhist" for Buddhism,
+   "hurricane" for storm preparation) but misses specific names and
+   terminology. This may be a fundamental property of sentence-level
+   embeddings: they encode meaning, not the words used to express it.
+
+5. **Decoder capacity matters.** 384d consistently outperformed 256d
+   (~0.02 tok_f1), and was still improving at 15 epochs. The embedding
+   contains more signal than the smaller decoder can extract.
+
+6. **Isolated tokens cluster poorly in embedding space.** At cosine ≥ 0.85,
+   316k single-word tokens form a near-fully-connected graph (251M edges).
+   Sentence-trained embedding models don't separate individual words well.
 
 ## Next Steps
 
-- [ ] Evaluate MLP baseline predictions (Token F1, ROUGE, BERTScore)
-- [ ] Focal loss experiment
-- [ ] Bigger projector experiment (3 layers, 1024 hidden)
-- [ ] Variant 2: Frozen LM with trained projector
-- [ ] Variant 3: From-scratch seq2seq (4-layer transformer decoder)
+- [ ] Complete BPE experiment (running)
+- [ ] If BPE improves: extend to 30 epochs, try embed_dim=512
+- [ ] If BPE doesn't improve: the embedding ceiling is confirmed
+- [ ] Evaluate all models with compressed Token F1 for fair comparison
+- [ ] Variant 2: Frozen LM with trained projector (different approach entirely)
 - [ ] Cross-variant disagreement analysis
+- [ ] Failure exemplar analysis (where does the model fail and why?)

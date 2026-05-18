@@ -1,4 +1,11 @@
-"""Seq2seq inference: greedy autoregressive decoding."""
+"""Seq2seq inference: beam search decoding.
+
+Beam search maintains k candidate sequences in parallel, selecting by
+total length-normalized log-probability. This avoids the repetition
+pathology of greedy decoding without post-hoc patchwork: repetitive
+sequences naturally score worse because the model's predictions become
+poorly calibrated on histories it never saw during training.
+"""
 
 import json
 from pathlib import Path
@@ -13,14 +20,27 @@ from .bpe_vocab import BpeVocab
 from .model import SlugDecoder
 from .vocab import SeqVocab
 
-
 MIN_DECODE_TOKENS = 3
+MIN_SLUG_WORDS = 3
+
+TRAILING_STOPWORDS = frozenset({
+    "the", "a", "an", "of", "for", "in", "on", "to", "and", "or",
+    "is", "it", "with", "by", "at", "as", "from", "but", "not",
+})
+STOPWORD_PENALTY = 0.15  # soft log-prob penalty for ending on a stopword
 
 
 class Seq2SeqPredictor(Predictor):
-    """Greedy decoding from the prefix-conditioned transformer decoder."""
+    """Beam search decoding from the prefix-conditioned transformer decoder."""
 
-    def __init__(self, model_dir: Path, encoder: Encoder, device: str = "cpu"):
+    def __init__(
+        self,
+        model_dir: Path,
+        encoder: Encoder,
+        device: str = "cpu",
+        beam_width: int = 4,
+        length_penalty: float = 1.2,
+    ):
         self.manifest = json.loads((model_dir / "manifest.json").read_text())
         self._validate(self.manifest, encoder)
 
@@ -36,6 +56,8 @@ class Seq2SeqPredictor(Predictor):
 
         self.device = device
         self.max_length = model_config["max_slug_tokens"]
+        self.beam_width = beam_width
+        self.length_penalty = length_penalty
 
         self.model = SlugDecoder(
             vocab_size=model_config["vocab_size"],
@@ -64,58 +86,114 @@ class Seq2SeqPredictor(Predictor):
             )
 
     def predict(self, embeddings: np.ndarray) -> list[str]:
-        batch_size = len(embeddings)
-        embedding_tensor = torch.from_numpy(embeddings).to(self.device)
+        slugs = []
+        with torch.no_grad():
+            for i in range(len(embeddings)):
+                embedding = torch.from_numpy(embeddings[i : i + 1]).to(self.device)
+                slug = self._beam_search_single(embedding)
+                slugs.append(slug)
+        return slugs
 
+    def _beam_search_single(self, embedding: torch.Tensor) -> str:
+        """Beam search for a single embedding."""
         bos = self.vocab.bos_idx
         eos = self.vocab.eos_idx
         pad = self.vocab.pad_idx
+        unk_idx = self.vocab.unk_idx if hasattr(self.vocab, "unk_idx") else None
+        k = self.beam_width
 
-        # Start with BOS
-        generated = torch.full(
-            (batch_size, 1), bos, dtype=torch.long, device=self.device
-        )
-        finished = torch.zeros(batch_size, dtype=torch.bool, device=self.device)
+        # Each beam: (log_prob, token_ids)
+        active: list[tuple[float, list[int]]] = [(0.0, [bos])]
+        completed: list[tuple[float, list[int]]] = []
 
-        # For BPE, no-repeat should only suppress at the slug-token level,
-        # not subword level. Disable no-repeat for BPE.
-        use_no_repeat = isinstance(self.vocab, SeqVocab)
+        # Expand embedding to beam width
+        # (recomputed each step since active beam count can change)
 
-        with torch.no_grad():
-            for _ in range(self.max_length):
-                logits = self.model(embedding_tensor, generated)
-                # Take the last position's logits
-                next_logits = logits[:, -1, :]
-                # Suppress EOS until minimum length reached
-                tokens_generated = generated.size(1) - 1  # exclude BOS
-                if tokens_generated < MIN_DECODE_TOKENS:
-                    next_logits[:, eos] = -float("inf")
-                    next_logits[:, pad] = -float("inf")
-                # No-repeat for compressed vocab (not BPE)
-                if use_no_repeat:
-                    for i in range(batch_size):
-                        for token_id in generated[i].tolist():
-                            if token_id not in (bos, eos, pad):
-                                next_logits[i, token_id] = -float("inf")
-                # Greedy: pick the most likely token
-                next_token = next_logits.argmax(dim=-1)  # [batch]
-                # Mask finished sequences to PAD
-                next_token = next_token.masked_fill(finished, pad)
-                # Mark sequences that just generated EOS
-                finished = finished | (next_token == eos)
-                # Append
-                generated = torch.cat(
-                    [generated, next_token.unsqueeze(1)], dim=1
-                )
-                # Stop if all finished
-                if finished.all():
-                    break
+        for step in range(self.max_length):
+            if not active:
+                break
 
-        # Decode each sequence
-        slugs = []
-        for i in range(batch_size):
-            indices = generated[i, 1:].cpu().tolist()  # skip BOS
-            slug = self.vocab.decode_indices(indices)
-            slugs.append(slug if slug else "")
+            candidates: list[tuple[float, list[int]]] = []
 
-        return slugs
+            # Batch all active beams into a single forward pass
+            max_len = max(len(tokens) for _, tokens in active)
+            padded = [
+                tokens + [pad] * (max_len - len(tokens))
+                for _, tokens in active
+            ]
+            input_ids = torch.tensor(padded, dtype=torch.long, device=self.device)
+            embedding_batch = embedding.expand(len(active), -1)
+            all_logits = self.model(embedding_batch, input_ids)
+
+            for beam_idx, (log_prob, tokens) in enumerate(active):
+                # Get logits at the actual last position (not padded)
+                next_logits = all_logits[beam_idx, len(tokens) - 1, :]
+
+                # Suppress PAD always
+                next_logits[pad] = -float("inf")
+
+                # Suppress EOS until minimum subword count
+                content_length = len(tokens) - 1  # exclude BOS
+                if content_length < MIN_DECODE_TOKENS:
+                    next_logits[eos] = -float("inf")
+
+                # Suppress EOS until minimum slug word count
+                slug_so_far = self.vocab.decode_indices(tokens[1:])
+                word_count = len(slug_so_far.strip("-").split("-")) if slug_so_far.strip("-") else 0
+                if word_count < MIN_SLUG_WORDS:
+                    next_logits[eos] = -float("inf")
+
+                # Suppress UNK
+                if unk_idx is not None:
+                    next_logits[unk_idx] = -float("inf")
+
+                # Log probabilities
+                log_probs = torch.log_softmax(next_logits, dim=0)
+
+                # Take top-k expansions
+                top_log_probs, top_indices = log_probs.topk(k)
+
+                for j in range(k):
+                    token_id = top_indices[j].item()
+                    new_log_prob = log_prob + top_log_probs[j].item()
+                    new_tokens = tokens + [token_id]
+
+                    if token_id == eos:
+                        completed.append((new_log_prob, new_tokens))
+                    else:
+                        candidates.append((new_log_prob, new_tokens))
+
+            # Keep top-k active beams
+            candidates.sort(key=lambda x: x[0], reverse=True)
+            active = candidates[:k]
+
+            # Stop if we have enough completed beams
+            if len(completed) >= k:
+                break
+
+        # Include active beams that hit max_length (no forced EOS cost)
+        for log_prob, tokens in active:
+            completed.append((log_prob, tokens))
+
+        # Select best by length-normalized log probability
+        # score = log_prob / ((5 + length) / 6) ^ alpha
+        # Soft penalty for ending on a stopword (tiebreaker)
+        best_score = -float("inf")
+        best_tokens: list[int] = [bos, eos]
+        for log_prob, tokens in completed:
+            length = len(tokens) - 2  # exclude BOS and EOS
+            penalty = ((5.0 + length) / 6.0) ** self.length_penalty
+            score = log_prob / penalty
+
+            slug = self.vocab.decode_indices(tokens).strip("-")
+            last_word = slug.split("-")[-1] if slug else ""
+            if last_word in TRAILING_STOPWORDS:
+                score -= STOPWORD_PENALTY
+
+            if score > best_score:
+                best_score = score
+                best_tokens = tokens
+
+        slug = self.vocab.decode_indices(best_tokens)
+        slug = slug.strip("-")
+        return slug if slug else ""
