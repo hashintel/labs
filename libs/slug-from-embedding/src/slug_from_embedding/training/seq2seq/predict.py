@@ -13,7 +13,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from slug_from_embedding.config import Encoder
+from slug_from_embedding.config import STOPWORDS, Encoder
 
 from ..predictor import Predictor
 from .bpe_vocab import BpeVocab
@@ -22,12 +22,6 @@ from .vocab import SeqVocab
 
 MIN_DECODE_TOKENS = 3
 MIN_SLUG_WORDS = 3
-
-TRAILING_STOPWORDS = frozenset({
-    "the", "a", "an", "of", "for", "in", "on", "to", "and", "or",
-    "is", "it", "with", "by", "at", "as", "from", "but", "not",
-})
-STOPWORD_PENALTY = 0.15  # soft log-prob penalty for ending on a stopword
 
 
 class Seq2SeqPredictor(Predictor):
@@ -139,8 +133,13 @@ class Seq2SeqPredictor(Predictor):
 
                 # Suppress EOS until minimum slug word count
                 slug_so_far = self.vocab.decode_indices(tokens[1:])
-                word_count = len(slug_so_far.strip("-").split("-")) if slug_so_far.strip("-") else 0
-                if word_count < MIN_SLUG_WORDS:
+                slug_stripped = slug_so_far.strip("-")
+                words = slug_stripped.split("-") if slug_stripped else []
+                if len(words) < MIN_SLUG_WORDS:
+                    next_logits[eos] = -float("inf")
+
+                # Hard-suppress EOS after stopwords
+                if words and words[-1] in STOPWORDS:
                     next_logits[eos] = -float("inf")
 
                 # Suppress UNK
@@ -177,7 +176,6 @@ class Seq2SeqPredictor(Predictor):
 
         # Select best by length-normalized log probability
         # score = log_prob / ((5 + length) / 6) ^ alpha
-        # Soft penalty for ending on a stopword (tiebreaker)
         best_score = -float("inf")
         best_tokens: list[int] = [bos, eos]
         for log_prob, tokens in completed:
@@ -185,10 +183,11 @@ class Seq2SeqPredictor(Predictor):
             penalty = ((5.0 + length) / 6.0) ** self.length_penalty
             score = log_prob / penalty
 
+            # Deprioritize sequences ending on a stopword
             slug = self.vocab.decode_indices(tokens).strip("-")
             last_word = slug.split("-")[-1] if slug else ""
-            if last_word in TRAILING_STOPWORDS:
-                score -= STOPWORD_PENALTY
+            if last_word in STOPWORDS:
+                score -= 1.0  # strong penalty, not just tiebreaker
 
             if score > best_score:
                 best_score = score

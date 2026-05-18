@@ -31,52 +31,10 @@ from datatrove.pipeline.readers import HuggingFaceDatasetReader
 from datatrove.pipeline.tokens.counter import TokensCounter
 from datatrove.pipeline.writers import ParquetWriter
 
-from .config import MAX_TOKENS, MIN_TOKENS, TOKENIZER
+from .config import MAX_TOKENS, MIN_TOKENS, STOPWORDS, TOKENIZER
 from .libs.workspace import Workspace
 
 WORKSPACE = Workspace("url")
-
-# ── Stopwords for slug quality filtering ───────────────────────────────────────
-
-STOPWORDS = frozenset(
-    {
-        "the",
-        "a",
-        "an",
-        "of",
-        "for",
-        "in",
-        "on",
-        "to",
-        "and",
-        "or",
-        "is",
-        "it",
-        "with",
-        "by",
-        "at",
-        "as",
-        "be",
-        "are",
-        "was",
-        "were",
-        "this",
-        "that",
-        "from",
-        "but",
-        "not",
-        "no",
-        "how",
-        "what",
-        "why",
-        "when",
-        "where",
-        "your",
-        "you",
-        "my",
-        "our",
-    }
-)
 
 MAX_STOPWORD_RATIO = 0.4
 

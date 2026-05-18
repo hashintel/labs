@@ -62,6 +62,31 @@ POLL_INTERVAL = 30
 POLL_MAX_WAIT = 24 * 60 * 60
 SUCCESS_RATE_WARN = 0.95
 
+# Function words used for corpus filtering (stopword ratio in URL slugs)
+# and decoding constraints (EOS suppression after trailing stopword).
+# Shared between prepare_url_corpus and predict so the training distribution
+# and inference constraints agree on what counts as a stopword.
+STOPWORDS = frozenset({
+    # articles
+    "a", "an", "the",
+    # conjunctions / prepositions
+    "and", "or", "but", "of", "for", "in", "on", "to", "at", "by",
+    "with", "as", "from", "into", "about", "between", "through", "during",
+    "if", "nor",
+    # copulas / auxiliaries
+    "is", "are", "was", "were", "be", "been", "being",
+    "has", "have", "had",
+    # pronouns / possessives
+    "it", "its", "you", "your", "my", "our", "their", "them",
+    "he", "him", "his", "she", "her", "we", "they",
+    # question words
+    "how", "what", "why", "when", "where", "which", "who",
+    # demonstratives / determiners
+    "this", "that", "these", "those",
+    # negation / misc function words
+    "not", "no", "so", "than", "very",
+})
+
 TRAIN_RATIO = 0.80
 VAL_RATIO = 0.10
 TEST_RATIO = 0.10

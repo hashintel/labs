@@ -29,40 +29,18 @@ from .config import (
 )
 from .libs.workspace import Workspace
 
+# Stricter than config.STOPWORDS: any occurrence rejects the entire slug.
+# Kept small because words like "who", "how", "where" are valid in
+# distilled slugs ("who-discovered-penicillin").
+DISTILL_STOPWORDS = frozenset({
+    "the", "a", "an", "of", "for", "in", "on", "to", "and", "or",
+    "is", "it", "with", "by", "at", "as", "be", "are", "was", "were",
+    "this", "that", "from", "but", "not", "no",
+})
+
 WORKSPACE = Workspace("original")
 
-# ── Stopwords ─────────────────────────────────────────────────────────────────
 
-STOPWORDS = {
-    "the",
-    "a",
-    "an",
-    "of",
-    "for",
-    "in",
-    "on",
-    "to",
-    "and",
-    "or",
-    "is",
-    "it",
-    "with",
-    "by",
-    "at",
-    "as",
-    "be",
-    "are",
-    "was",
-    "were",
-    "this",
-    "that",
-    "from",
-    "but",
-    "not",
-    "no",
-}
-
-# ── Prompt ─────────────────────────────────────────────────────────────────────
 
 SYSTEM_PROMPT = f"""\
 You generate short kebab-case slugs that capture the core topic of a text.
@@ -71,7 +49,7 @@ Rules:
 - Output ONLY the slug, nothing else.
 - Use lowercase kebab-case (words joined by hyphens).
 - Maximum 6 words.
-- No stopwords ({", ".join(sorted(STOPWORDS))}).
+- No stopwords ({", ".join(sorted(DISTILL_STOPWORDS))}).
 - Prefer concrete nouns over abstract ones.
 - Include proper nouns (project names, product names, specific identifiers) when central to the topic.
 - Split camelCase and snake_case identifiers into separate words (e.g. modalButton -> modal-button, token_count -> token-count).
@@ -134,7 +112,7 @@ def validate_slug(text: str) -> str | None:
     tokens = slug.split("-")
     if len(tokens) > MAX_SLUG_WORDS:
         return None
-    if any(t in STOPWORDS for t in tokens):
+    if any(t in DISTILL_STOPWORDS for t in tokens):
         return None
     if len(slug) < 3 or len(slug) > 80:
         return None
