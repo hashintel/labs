@@ -40,8 +40,28 @@ class SeqDataset(TorchDataset):
         self.max_length = max_length
 
         raw = workspace.load_split_data(encoder, split)
-        self.embeddings = raw.embeddings
-        self.slugs = raw.slugs
+
+        # Filter out slugs that exceed max_length when encoded.
+        # Truncating would produce targets without EOS, corrupting the
+        # termination signal. Filtering drops ~0.6% at max_length=24.
+        keep = []
+        for i, slug in enumerate(raw.slugs):
+            encoded = vocab.encode_slug(slug)
+            # encoded includes BOS and EOS; input/target are max_length each
+            if len(encoded) - 1 <= max_length:  # input_ids = encoded[:-1]
+                keep.append(i)
+
+        n_filtered = len(raw.slugs) - len(keep)
+        if n_filtered > 0:
+            print(
+                f"  {split}: filtered {n_filtered}/{len(raw.slugs)} "
+                f"({n_filtered/len(raw.slugs):.1%}) slugs exceeding "
+                f"{max_length} tokens"
+            )
+
+        keep_arr = np.array(keep)
+        self.embeddings = raw.embeddings[keep_arr]
+        self.slugs = [raw.slugs[i] for i in keep]
 
         if max_samples is not None and max_samples < len(self.slugs):
             rng = np.random.default_rng(seed)
@@ -89,9 +109,11 @@ class SeqDataset(TorchDataset):
         input_ids = encoded[:-1]  # [BOS, tok1, ..., tokN]
         target_ids = encoded[1:]  # [tok1, ..., tokN, EOS]
 
-        # Truncate to max_length
-        input_ids = input_ids[: self.max_length]
-        target_ids = target_ids[: self.max_length]
+        # Sequences guaranteed to fit by __init__ filtering.
+        assert len(input_ids) <= self.max_length, (
+            f"input_ids length {len(input_ids)} exceeds max_length "
+            f"{self.max_length} for slug {slug!r}"
+        )
 
         # Pad to max_length
         pad_idx = self.vocab.pad_idx

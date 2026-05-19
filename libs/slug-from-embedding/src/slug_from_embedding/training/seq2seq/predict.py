@@ -34,6 +34,7 @@ class Seq2SeqPredictor(Predictor):
         device: str = "cpu",
         beam_width: int = 4,
         length_penalty: float = 1.2,
+        filter_repetition: bool = True,
     ):
         self.manifest = json.loads((model_dir / "manifest.json").read_text())
         self._validate(self.manifest, encoder)
@@ -52,6 +53,7 @@ class Seq2SeqPredictor(Predictor):
         self.max_length = model_config["max_slug_tokens"]
         self.beam_width = beam_width
         self.length_penalty = length_penalty
+        self.filter_repetition = filter_repetition
 
         self.model = SlugDecoder(
             vocab_size=model_config["vocab_size"],
@@ -103,7 +105,11 @@ class Seq2SeqPredictor(Predictor):
         # Expand embedding to beam width
         # (recomputed each step since active beam count can change)
 
-        for step in range(self.max_length):
+        # max_length - 1: tokens start as [BOS] (len 1) and the model
+        # prepends a prefix, so total positions = 1 + len(tokens). The
+        # position embedding has max_length + 1 slots (0..max_length),
+        # so len(tokens) must stay <= max_length.
+        for step in range(self.max_length - 1):
             if not active:
                 break
 
@@ -174,24 +180,30 @@ class Seq2SeqPredictor(Predictor):
         for log_prob, tokens in active:
             completed.append((log_prob, tokens))
 
-        # Select best by length-normalized log probability
-        # score = log_prob / ((5 + length) / 6) ^ alpha
-        best_score = -float("inf")
-        best_tokens: list[int] = [bos, eos]
+        # Score and rank completed beams
+        scored: list[tuple[float, bool, list[int]]] = []
         for log_prob, tokens in completed:
             length = len(tokens) - 2  # exclude BOS and EOS
             penalty = ((5.0 + length) / 6.0) ** self.length_penalty
             score = log_prob / penalty
 
-            # Deprioritize sequences ending on a stopword
             slug = self.vocab.decode_indices(tokens).strip("-")
+            words = [w for w in slug.split("-") if w and w not in STOPWORDS]
+
+            # Trailing stopword penalty
             last_word = slug.split("-")[-1] if slug else ""
             if last_word in STOPWORDS:
-                score -= 1.0  # strong penalty, not just tiebreaker
+                score -= 1.0
 
-            if score > best_score:
-                best_score = score
-                best_tokens = tokens
+            has_repeat = len(words) != len(set(words))
+            scored.append((score, has_repeat, tokens))
+
+        # Prefer non-repeating; within each group, take highest score
+        if self.filter_repetition:
+            scored.sort(key=lambda x: (x[1], -x[0]))
+        else:
+            scored.sort(key=lambda x: -x[0])
+        best_tokens = scored[0][2] if scored else [bos, eos]
 
         slug = self.vocab.decode_indices(best_tokens)
         slug = slug.strip("-")

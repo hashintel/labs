@@ -4,6 +4,14 @@ Prefix-conditioned transformer decoder trained with teacher forcing.
 Cross-entropy loss per token position, ignoring PAD. Validates every
 N steps with sub-epoch checkpointing.
 
+Persistence per run:
+  - best.pt           : weights at the lowest val loss seen so far
+  - step_NNNNNN.pt    : rolling periodic snapshots (last N kept)
+  - vocab.json or
+    tokenizer.json    : the vocabulary used by this model
+  - manifest.json     : config and final results
+  - history.json      : metrics per eval, for plotting and writeup
+
 Usage:
     uv run slug-train-seq2seq --workspace url --encoder openai --compression kmeans-5000
 """
@@ -23,13 +31,12 @@ from slug_from_embedding.libs.workspace import Workspace
 
 from ..config import SCHEMA_VERSION, resolve_device, seed_all
 from ..trainer import Trainer as BaseTrainer
+from .bpe_vocab import BpeVocab
 from .config import Seq2SeqConfig
 from .dataset import SeqDataset
-from .bpe_vocab import BpeVocab
 from .model import SlugDecoder
 from .vocab import SeqVocab
 
-# Union type for both vocab kinds
 type Vocab = SeqVocab | BpeVocab
 
 
@@ -42,6 +49,9 @@ class TrainHyperparams:
     patience: int = 10
     eval_every: int = 2000
     val_max_samples: int = 5000
+    checkpoint_every: int = 5000  # 0 disables periodic snapshots
+    keep_last_checkpoints: int = 5
+    f1_n_samples: int = 2000
     seed: int = SEED
 
 
@@ -85,20 +95,29 @@ class Trainer(BaseTrainer):
             )
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
+        self.history_path = self.output_dir / "history.jsonl"
+
     def run(self) -> Path:
         seed_all(self.hyperparams.seed)
 
         vocab = self._build_vocab()
-        train_loader, val_loader, train_size, val_size = self._build_loaders(vocab)
+        train_loader, val_loader, _, val_size = self._build_loaders(vocab)
         model, parameter_count = self._build_model(vocab)
         optimizer, scheduler = self._build_optimizer(model)
-        self._vocab = vocab
         loss_fn = nn.CrossEntropyLoss(ignore_index=vocab.pad_idx)
+
+        # Write manifest early so interrupted runs still have metadata
+        self._save_manifest(
+            vocab, parameter_count,
+            best_val_loss=float("inf"), best_step=0, total_steps=0,
+        )
 
         print(f"\nTraining {self.tag} on {self.device}...")
         print(
             f"  eval every {self.hyperparams.eval_every} steps, "
-            f"patience {self.hyperparams.patience} evals"
+            f"patience {self.hyperparams.patience} evals, "
+            f"checkpoint every {self.hyperparams.checkpoint_every} steps "
+            f"(keep last {self.hyperparams.keep_last_checkpoints})"
         )
 
         best_val_loss = float("inf")
@@ -120,7 +139,6 @@ class Trainer(BaseTrainer):
                 target_ids = batch["target_ids"].to(self.device)
 
                 logits = model(embedding, input_ids)
-                # logits: [B, T, V], target_ids: [B, T]
                 loss = loss_fn(
                     logits.reshape(-1, logits.size(-1)),
                     target_ids.reshape(-1),
@@ -137,19 +155,24 @@ class Trainer(BaseTrainer):
 
                 if global_step % self.hyperparams.eval_every == 0:
                     train_avg = running_loss / running_count
-                    val_loss = self._val_step(
-                        model, val_loader, loss_fn, val_size
-                    )
-                    tok_f1 = self._greedy_token_f1(
-                        model, val_loader, vocab
-                    )
+                    val_loss = self._val_step(model, val_loader, loss_fn, val_size)
+                    tok_f1 = self._greedy_token_f1(model, val_loader, vocab)
                     scheduler.step(val_loss)
-
                     current_lr = optimizer.param_groups[0]["lr"]
+
                     print(
                         f"  step {global_step:6d}  "
+                        f"epoch {epoch:3d}  "
                         f"train={train_avg:.4f}  val={val_loss:.4f}  "
                         f"tok_f1={tok_f1:.3f}  lr={current_lr:.1e}"
+                    )
+                    self._record_history(
+                        step=global_step,
+                        epoch=epoch,
+                        train_loss=train_avg,
+                        val_loss=val_loss,
+                        tok_f1=tok_f1,
+                        lr=current_lr,
                     )
 
                     running_loss = 0.0
@@ -159,9 +182,7 @@ class Trainer(BaseTrainer):
                         best_val_loss = val_loss
                         best_step = global_step
                         stale = 0
-                        torch.save(
-                            model.state_dict(), self.output_dir / "best.pt"
-                        )
+                        torch.save(model.state_dict(), self.output_dir / "best.pt")
                     else:
                         stale += 1
                         if stale >= self.hyperparams.patience:
@@ -170,9 +191,17 @@ class Trainer(BaseTrainer):
                                 f"(patience={self.hyperparams.patience} evals)"
                             )
                             stopped_early = True
+                            model.train()
                             break
 
                     model.train()
+
+                # Periodic checkpointing is orthogonal to eval cadence.
+                if (
+                    self.hyperparams.checkpoint_every > 0
+                    and global_step % self.hyperparams.checkpoint_every == 0
+                ):
+                    self._save_periodic_checkpoint(model, global_step)
 
             elapsed = time.time() - epoch_start
             print(f"  epoch {epoch} done ({elapsed:.0f}s, step {global_step})")
@@ -180,10 +209,21 @@ class Trainer(BaseTrainer):
             if stopped_early:
                 break
 
-        # Final eval if we haven't just done one
+        # Final eval if there's accumulated train signal we haven't yet measured.
         if running_count > 0:
             val_loss = self._val_step(model, val_loader, loss_fn, val_size)
-            print(f"  final  step {global_step:6d}  val={val_loss:.4f}")
+            tok_f1 = self._greedy_token_f1(model, val_loader, vocab)
+            print(
+                f"  final  step {global_step:6d}  val={val_loss:.4f}  tok_f1={tok_f1:.3f}"
+            )
+            self._record_history(
+                step=global_step,
+                epoch=epoch,
+                train_loss=running_loss / running_count,
+                val_loss=val_loss,
+                tok_f1=tok_f1,
+                lr=optimizer.param_groups[0]["lr"],
+            )
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_step = global_step
@@ -198,15 +238,14 @@ class Trainer(BaseTrainer):
 
     def _build_vocab(self) -> Vocab:
         if self.tokenizer == "bpe":
-            vocab_path = self.output_dir / "tokenizer.json"
             print(f"Training BPE tokenizer ({self.encoder})...")
             vocab = BpeVocab.train(self.workspace, self.encoder)
+            vocab_path = self.output_dir / "tokenizer.json"
             vocab.save(vocab_path)
             print(f"  Saved to {vocab_path}")
         elif self.compression:
             print(
-                f"Building compressed vocab from {self.compression} "
-                f"({self.encoder})..."
+                f"Building compressed vocab from {self.compression} ({self.encoder})..."
             )
             vocab = SeqVocab.from_compressed(
                 self.workspace, self.encoder, self.compression
@@ -220,9 +259,7 @@ class Trainer(BaseTrainer):
         print(f"  {len(vocab)} tokens")
         return vocab
 
-    def _build_loaders(
-        self, vocab: SeqVocab
-    ) -> tuple[DataLoader, DataLoader, int, int]:
+    def _build_loaders(self, vocab: Vocab) -> tuple[DataLoader, DataLoader, int, int]:
         print("Materializing splits...")
         self.workspace.materialize_split(self.encoder, "train")
         self.workspace.materialize_split(self.encoder, "val")
@@ -262,7 +299,7 @@ class Trainer(BaseTrainer):
         )
         return train_loader, val_loader, len(train_dataset), len(val_dataset)
 
-    def _build_model(self, vocab: SeqVocab) -> tuple[SlugDecoder, int]:
+    def _build_model(self, vocab: Vocab) -> tuple[SlugDecoder, int]:
         model = SlugDecoder(
             vocab_size=len(vocab),
             embed_dim=self.model_config.embed_dim,
@@ -309,7 +346,7 @@ class Trainer(BaseTrainer):
 
         return total_loss / dataset_size
 
-    def _greedy_token_f1(self, model, loader, vocab: Vocab, n_samples: int = 2000) -> float:
+    def _greedy_token_f1(self, model, loader, vocab: Vocab) -> float:
         """Quick greedy decode on a subsample to track actual quality.
 
         Decodes to strings via vocab.decode_indices, then compares slug
@@ -320,30 +357,30 @@ class Trainer(BaseTrainer):
         total_pred = 0
         total_ref = 0
         seen = 0
-
-        bos = vocab.bos_idx
+        target = self.hyperparams.f1_n_samples
 
         with torch.no_grad():
             for batch in loader:
-                if seen >= n_samples:
+                if seen >= target:
                     break
                 embedding = batch["embedding"].to(self.device)
                 target_ids = batch["target_ids"].cpu()
                 batch_size = len(embedding)
 
-                # Greedy decode
+                # Greedy decode.
                 generated = torch.full(
-                    (batch_size, 1), bos, dtype=torch.long, device=self.device
+                    (batch_size, 1),
+                    vocab.bos_idx,
+                    dtype=torch.long,
+                    device=self.device,
                 )
                 for _ in range(self.model_config.max_slug_tokens):
                     logits = model(embedding, generated)
                     next_token = logits[:, -1, :].argmax(dim=-1)
-                    generated = torch.cat(
-                        [generated, next_token.unsqueeze(1)], dim=1
-                    )
+                    generated = torch.cat([generated, next_token.unsqueeze(1)], dim=1)
 
-                # Decode to strings, compare slug token sets
-                for i in range(min(batch_size, n_samples - seen)):
+                # Decode to strings, compare slug token sets.
+                for i in range(min(batch_size, target - seen)):
                     pred_slug = vocab.decode_indices(generated[i, 1:].cpu().tolist())
                     ref_slug = vocab.decode_indices(target_ids[i].tolist())
 
@@ -362,14 +399,49 @@ class Trainer(BaseTrainer):
             return 0.0
         return 2 * precision * recall / (precision + recall)
 
+    def _record_history(
+        self,
+        *,
+        step: int,
+        epoch: int,
+        train_loss: float,
+        val_loss: float,
+        tok_f1: float,
+        lr: float,
+    ):
+        entry = {
+            "step": step,
+            "epoch": epoch,
+            "train_loss": train_loss,
+            "val_loss": val_loss,
+            "tok_f1": tok_f1,
+            "lr": lr,
+            "wall_time": time.time(),
+        }
+
+        with open(self.history_path, "a") as file:
+            file.write(json.dumps(entry) + "\n")
+
+    def _save_periodic_checkpoint(self, model: SlugDecoder, step: int):
+        ckpt_path = self.output_dir / f"step_{step:06d}.pt"
+        torch.save(model.state_dict(), ckpt_path)
+        keep = self.hyperparams.keep_last_checkpoints
+        if keep > 0:
+            existing = sorted(self.output_dir.glob("step_*.pt"))
+            for old in existing[:-keep]:
+                old.unlink()
+
     def _save_manifest(
         self,
-        vocab: SeqVocab,
+        vocab: Vocab,
         parameter_count: int,
         best_val_loss: float,
         best_step: int,
         total_steps: int,
     ):
+        periodic_artifacts = sorted(p.name for p in self.output_dir.glob("step_*.pt"))
+        vocab_artifact = "tokenizer.json" if self.tokenizer == "bpe" else "vocab.json"
+
         manifest = {
             "schema_version": SCHEMA_VERSION,
             "variant": "seq2seq",
@@ -394,6 +466,9 @@ class Trainer(BaseTrainer):
                 "epochs": self.hyperparams.epochs,
                 "eval_every": self.hyperparams.eval_every,
                 "val_max_samples": self.hyperparams.val_max_samples,
+                "checkpoint_every": self.hyperparams.checkpoint_every,
+                "keep_last_checkpoints": self.hyperparams.keep_last_checkpoints,
+                "f1_n_samples": self.hyperparams.f1_n_samples,
             },
             "results": {
                 "best_val_loss": best_val_loss,
@@ -401,8 +476,14 @@ class Trainer(BaseTrainer):
                 "total_steps": total_steps,
                 "n_params": parameter_count,
             },
-            "artifacts": ["best.pt", "vocab.json"],
+            "artifacts": [
+                "best.pt",
+                vocab_artifact,
+                "history.json",
+                *periodic_artifacts,
+            ],
         }
+
         (self.output_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
 
@@ -428,13 +509,31 @@ def main():
     parser.add_argument("--num-heads", type=int, default=8)
     parser.add_argument("--num-layers", type=int, default=4)
     parser.add_argument("--dropout", type=float, default=0.1)
-    parser.add_argument("--max-slug-tokens", type=int, default=10)
+    parser.add_argument("--max-slug-tokens", type=int, default=24)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--epochs", type=int, default=15)
     parser.add_argument("--batch-size", type=int, default=1024)
     parser.add_argument("--patience", type=int, default=10)
     parser.add_argument("--eval-every", type=int, default=2000)
     parser.add_argument("--val-max-samples", type=int, default=5000)
+    parser.add_argument(
+        "--checkpoint-every",
+        type=int,
+        default=5000,
+        help="Save a periodic snapshot every N steps. 0 disables.",
+    )
+    parser.add_argument(
+        "--keep-last-checkpoints",
+        type=int,
+        default=5,
+        help="Number of periodic snapshots to retain.",
+    )
+    parser.add_argument(
+        "--f1-n-samples",
+        type=int,
+        default=2000,
+        help="Number of val samples for the in-loop tok_f1 estimate.",
+    )
     parser.add_argument("--seed", type=int, default=SEED)
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument(
@@ -469,6 +568,9 @@ def main():
             patience=args.patience,
             eval_every=args.eval_every,
             val_max_samples=args.val_max_samples,
+            checkpoint_every=args.checkpoint_every,
+            keep_last_checkpoints=args.keep_last_checkpoints,
+            f1_n_samples=args.f1_n_samples,
             seed=args.seed,
         ),
         device=resolve_device(args.device),

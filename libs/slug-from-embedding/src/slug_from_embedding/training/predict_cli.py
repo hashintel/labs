@@ -27,6 +27,11 @@ def main():
     parser.add_argument("--device", type=str, default=None)
     parser.add_argument("--batch-size", type=int, default=512)
     parser.add_argument("--workspace", default="original")
+    parser.add_argument(
+        "--no-repetition-filter",
+        action="store_true",
+        help="Disable repetition filtering in beam search (seq2seq only)",
+    )
     args = parser.parse_args()
 
     workspace = Workspace(args.workspace)
@@ -43,6 +48,9 @@ def main():
 
     loader = PREDICTOR_LOADERS[args.variant]
     predictor = loader(model_dir, args.encoder, device)
+
+    if args.no_repetition_filter and hasattr(predictor, "filter_repetition"):
+        predictor.filter_repetition = False
 
     ids, embeddings = workspace.load_split_embeddings(args.encoder, args.split)
     print(f"Predicting {len(ids)} samples...")
