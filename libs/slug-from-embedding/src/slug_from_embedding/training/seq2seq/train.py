@@ -10,7 +10,7 @@ Persistence per run:
   - vocab.json or
     tokenizer.json    : the vocabulary used by this model
   - manifest.json     : config and final results
-  - history.json      : metrics per eval, for plotting and writeup
+  - history.jsonl     : metrics per eval, for plotting and writeup
 
 Usage:
     uv run slug-train-seq2seq --workspace url --encoder openai --compression kmeans-5000
@@ -22,8 +22,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import numpy as np
 import torch
-from torch import nn
+import torch.nn.functional as F
 from torch.utils.data import DataLoader
 
 from slug_from_embedding.config import ENCODERS, SEED, Encoder
@@ -96,6 +97,8 @@ class Trainer(BaseTrainer):
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         self.history_path = self.output_dir / "history.jsonl"
+        if overwrite and self.history_path.exists():
+            self.history_path.unlink()
 
     def run(self) -> Path:
         seed_all(self.hyperparams.seed)
@@ -104,7 +107,7 @@ class Trainer(BaseTrainer):
         train_loader, val_loader, _, val_size = self._build_loaders(vocab)
         model, parameter_count = self._build_model(vocab)
         optimizer, scheduler = self._build_optimizer(model)
-        loss_fn = nn.CrossEntropyLoss(ignore_index=vocab.pad_idx)
+        eos_position_weights = self._compute_eos_position_weights(vocab)
 
         # Write manifest early so interrupted runs still have metadata
         self._save_manifest(
@@ -139,9 +142,8 @@ class Trainer(BaseTrainer):
                 target_ids = batch["target_ids"].to(self.device)
 
                 logits = model(embedding, input_ids)
-                loss = loss_fn(
-                    logits.reshape(-1, logits.size(-1)),
-                    target_ids.reshape(-1),
+                loss = self._position_aware_loss(
+                    logits, target_ids, vocab, eos_position_weights,
                 )
 
                 optimizer.zero_grad()
@@ -155,8 +157,12 @@ class Trainer(BaseTrainer):
 
                 if global_step % self.hyperparams.eval_every == 0:
                     train_avg = running_loss / running_count
-                    val_loss = self._val_step(model, val_loader, loss_fn, val_size)
-                    tok_f1 = self._greedy_token_f1(model, val_loader, vocab)
+                    val_loss = self._val_step(
+                        model, val_loader, vocab, eos_position_weights, val_size,
+                    )
+                    tok_f1, mean_words = self._greedy_token_f1(
+                        model, val_loader, vocab,
+                    )
                     scheduler.step(val_loss)
                     current_lr = optimizer.param_groups[0]["lr"]
 
@@ -164,7 +170,9 @@ class Trainer(BaseTrainer):
                         f"  step {global_step:6d}  "
                         f"epoch {epoch:3d}  "
                         f"train={train_avg:.4f}  val={val_loss:.4f}  "
-                        f"tok_f1={tok_f1:.3f}  lr={current_lr:.1e}"
+                        f"tok_f1={tok_f1:.3f}  "
+                        f"words={mean_words:.1f}  "
+                        f"lr={current_lr:.1e}"
                     )
                     self._record_history(
                         step=global_step,
@@ -172,6 +180,7 @@ class Trainer(BaseTrainer):
                         train_loss=train_avg,
                         val_loss=val_loss,
                         tok_f1=tok_f1,
+                        mean_words=mean_words,
                         lr=current_lr,
                     )
 
@@ -183,6 +192,10 @@ class Trainer(BaseTrainer):
                         best_step = global_step
                         stale = 0
                         torch.save(model.state_dict(), self.output_dir / "best.pt")
+                        self._save_manifest(
+                            vocab, parameter_count,
+                            best_val_loss, best_step, global_step,
+                        )
                     else:
                         stale += 1
                         if stale >= self.hyperparams.patience:
@@ -211,10 +224,15 @@ class Trainer(BaseTrainer):
 
         # Final eval if there's accumulated train signal we haven't yet measured.
         if running_count > 0:
-            val_loss = self._val_step(model, val_loader, loss_fn, val_size)
-            tok_f1 = self._greedy_token_f1(model, val_loader, vocab)
+            val_loss = self._val_step(
+                model, val_loader, vocab, eos_position_weights, val_size,
+            )
+            tok_f1, mean_words = self._greedy_token_f1(
+                model, val_loader, vocab,
+            )
             print(
-                f"  final  step {global_step:6d}  val={val_loss:.4f}  tok_f1={tok_f1:.3f}"
+                f"  final  step {global_step:6d}  val={val_loss:.4f}  "
+                f"tok_f1={tok_f1:.3f}  words={mean_words:.1f}"
             )
             self._record_history(
                 step=global_step,
@@ -222,6 +240,7 @@ class Trainer(BaseTrainer):
                 train_loss=running_loss / running_count,
                 val_loss=val_loss,
                 tok_f1=tok_f1,
+                mean_words=mean_words,
                 lr=optimizer.param_groups[0]["lr"],
             )
             if val_loss < best_val_loss:
@@ -328,7 +347,78 @@ class Trainer(BaseTrainer):
         )
         return optimizer, scheduler
 
-    def _val_step(self, model, loader, loss_fn, dataset_size) -> float:
+    def _compute_eos_position_weights(self, vocab: Vocab) -> torch.Tensor:
+        """Compute per-position EOS loss weights from training distribution.
+
+        Positions where EOS is common (short slugs) get downweighted;
+        positions where EOS is rare (long slugs) get upweighted.
+        Uses sqrt(inverse frequency) to compress the weight range.
+        Normalized so mean weight over active positions is 1.0.
+        """
+        max_length = self.model_config.max_slug_tokens
+        split_data = self.workspace.load_split_data(self.encoder, "train")
+
+        eos_counts = np.zeros(max_length)
+        total = 0
+        for slug in split_data.slugs:
+            encoded = vocab.encode_slug(slug)
+            # target_ids = encoded[1:], EOS position in target
+            eos_pos = len(encoded) - 2
+            if eos_pos < max_length:
+                eos_counts[eos_pos] += 1
+                total += 1
+
+        rates = eos_counts / max(total, 1)
+        active = rates > 0
+
+        # Dampen positions above median frequency, leave rest at 1.0.
+        # This discourages early EOS without amplifying noisy long slugs.
+        weights = np.ones(max_length, dtype=np.float32)
+        if active.any():
+            median_rate = np.median(rates[active])
+            for i in range(max_length):
+                if rates[i] > median_rate:
+                    weights[i] = median_rate / rates[i]
+
+        w_min, w_max = weights[active].min(), weights[active].max()
+        print(f"  EOS position weights: range [{w_min:.2f}, {w_max:.2f}]")
+        # Show a few sample positions for sanity checking
+        sample_positions = [5, 10, 15, 20]
+        sample_str = ", ".join(
+            f"pos {p}={weights[p]:.2f}"
+            for p in sample_positions if p < max_length
+        )
+        print(f"    {sample_str}")
+
+        return torch.from_numpy(weights).to(self.device)
+
+    def _position_aware_loss(
+        self,
+        logits: torch.Tensor,
+        targets: torch.Tensor,
+        vocab: Vocab,
+        eos_position_weights: torch.Tensor,
+        label_smoothing: float = 0.1,
+    ) -> torch.Tensor:
+        """Cross-entropy with position-dependent EOS weighting and label smoothing."""
+        per_token = F.cross_entropy(
+            logits.reshape(-1, logits.size(-1)),
+            targets.reshape(-1),
+            reduction="none",
+            label_smoothing=label_smoothing,
+        ).reshape(targets.shape)  # [B, T]
+
+        is_eos = (targets == vocab.eos_idx).float()
+        position_weights = eos_position_weights[: targets.size(1)].unsqueeze(0)
+        weight = is_eos * position_weights + (1.0 - is_eos)
+
+        mask = (targets != vocab.pad_idx).float()
+        return (per_token * weight * mask).sum() / mask.sum()
+
+    def _val_step(
+        self, model, loader, vocab: Vocab, eos_position_weights: torch.Tensor,
+        dataset_size: int,
+    ) -> float:
         model.eval()
         total_loss = 0.0
         with torch.no_grad():
@@ -338,24 +428,23 @@ class Trainer(BaseTrainer):
                 target_ids = batch["target_ids"].to(self.device)
 
                 logits = model(embedding, input_ids)
-                loss = loss_fn(
-                    logits.reshape(-1, logits.size(-1)),
-                    target_ids.reshape(-1),
+                loss = self._position_aware_loss(
+                    logits, target_ids, vocab, eos_position_weights,
                 )
                 total_loss += loss.item() * len(embedding)
 
         return total_loss / dataset_size
 
-    def _greedy_token_f1(self, model, loader, vocab: Vocab) -> float:
-        """Quick greedy decode on a subsample to track actual quality.
+    def _greedy_token_f1(self, model, loader, vocab: Vocab) -> tuple[float, float]:
+        """Quick greedy decode on a subsample to track quality and length.
 
-        Decodes to strings via vocab.decode_indices, then compares slug
-        token sets. Works with both SeqVocab and BpeVocab.
+        Returns (tok_f1, mean_word_count).
         """
         model.eval()
         matches = 0
         total_pred = 0
         total_ref = 0
+        word_counts: list[int] = []
         seen = 0
         target = self.hyperparams.f1_n_samples
 
@@ -384,20 +473,26 @@ class Trainer(BaseTrainer):
                     pred_slug = vocab.decode_indices(generated[i, 1:].cpu().tolist())
                     ref_slug = vocab.decode_indices(target_ids[i].tolist())
 
-                    pred_set = set(pred_slug.split("-")) if pred_slug else set()
+                    pred_words = [w for w in pred_slug.split("-") if w]
                     ref_set = set(ref_slug.split("-")) if ref_slug else set()
+                    pred_set = set(pred_words)
 
                     matches += len(pred_set & ref_set)
                     total_pred += len(pred_set)
                     total_ref += len(ref_set)
+                    word_counts.append(len(pred_words))
 
                 seen += batch_size
 
         precision = matches / max(total_pred, 1)
         recall = matches / max(total_ref, 1)
         if precision + recall == 0:
-            return 0.0
-        return 2 * precision * recall / (precision + recall)
+            tok_f1 = 0.0
+        else:
+            tok_f1 = 2 * precision * recall / (precision + recall)
+
+        mean_words = sum(word_counts) / max(len(word_counts), 1)
+        return tok_f1, mean_words
 
     def _record_history(
         self,
@@ -407,6 +502,7 @@ class Trainer(BaseTrainer):
         train_loss: float,
         val_loss: float,
         tok_f1: float,
+        mean_words: float,
         lr: float,
     ):
         entry = {
@@ -415,6 +511,7 @@ class Trainer(BaseTrainer):
             "train_loss": train_loss,
             "val_loss": val_loss,
             "tok_f1": tok_f1,
+            "mean_words": mean_words,
             "lr": lr,
             "wall_time": time.time(),
         }
@@ -479,7 +576,7 @@ class Trainer(BaseTrainer):
             "artifacts": [
                 "best.pt",
                 vocab_artifact,
-                "history.json",
+                "history.jsonl",
                 *periodic_artifacts,
             ],
         }
