@@ -3,9 +3,16 @@ from typing import Any
 from datasets import Dataset
 
 
+def _split_slug(slug: str) -> tuple[str, ...]:
+    """Split a slug into tokens, handling empty strings correctly."""
+    if not slug:
+        return ()
+    return tuple(slug.split("-"))
+
+
 def add_tokens(item: dict[str, Any]):
-    pred_tokens = tuple(item["prediction"].split("-"))
-    ref_tokens = tuple(item["reference"].split("-"))
+    pred_tokens = _split_slug(item["prediction"])
+    ref_tokens = _split_slug(item["reference"])
     item["prediction_tokens"] = pred_tokens
     item["reference_tokens"] = ref_tokens
     item["prediction_length"] = len(pred_tokens)

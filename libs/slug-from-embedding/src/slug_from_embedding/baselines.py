@@ -192,14 +192,18 @@ def cmd_haiku_collect(workspace: Workspace, split: Split = "test"):
     # Split into per-encoder prediction files
     for encoder in ENCODERS:
         splits_path = workspace.splits_path(encoder)
+        # Load the full set of IDs in this encoder's split once,
+        # then filter in Python. Avoids per-document SQL queries.
+        split_ids = set(
+            row[0]
+            for row in duckdb.sql(
+                f"SELECT id FROM '{splits_path}' WHERE split = '{split}'"
+            ).fetchall()
+        )
         prediction_ids = []
         prediction_slugs = []
         for document_id, slug in zip(ids, predicted):
-            row = duckdb.sql(f"""
-                SELECT id FROM '{splits_path}'
-                WHERE id = '{document_id}' AND split = '{split}'
-            """).fetchone()
-            if row:
+            if document_id in split_ids:
                 prediction_ids.append(document_id)
                 prediction_slugs.append(slug)
 

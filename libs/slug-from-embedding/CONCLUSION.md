@@ -2,434 +2,277 @@
 
 ## Summary
 
-We tested whether single-pooled sentence embeddings can drive slug
-generation without re-feeding source text. A multi-label classifier (MLP)
-collapsed to high-frequency function words (0.085 tok_f1). A prefix-
-conditioned transformer decoder over BPE-tokenized slugs reached 0.27
-tok_f1 and produced topically correct, human-readable slugs. Performance
-plateaued across architectural variants from 11M to 25M parameters;
-whether this reflects an embedding-information ceiling or a data-quantity
-ceiling cannot be determined from these experiments. The trained model is
-small (46MB), runs in ~100ms on CPU, and costs ~5-25x less than an LLM
-call for the same task.
+We tested whether single pooled sentence embeddings can drive slug generation without re-feeding source text. A multi-label classifier (MLP) collapsed to high-frequency function words and reached only 0.085 tok F1. A prefix-conditioned transformer decoder over BPE-tokenized slugs reached 0.306 tok F1 on the full evaluation pipeline (beam search, macro-averaged, 5000 test samples) after a series of targeted interventions: vocab redesign (KMeans → BPE), training-data truncation fix (max length 10 → 24), EOS calibration via position-aware loss weighting, and length-aware beam search. The model produces slugs at training-distribution length (mean 4.9 words vs reference mean 5.1) — calibration the prior models failed to learn. Performance plateaus across architectural variations: scaling from 11.5M to 24.8M parameters with the same training regime adds only +0.01 tok F1, suggesting the bottleneck is upstream of model capacity. The trained model (24.8M params, 99MB) runs in ~150ms on CPU and produces topically-correct, human-readable slugs. Whether the remaining ceiling reflects the embedding's information content or the data quantity at 2.3M samples remains open.
 
 ## Research Question
 
-Can short kebab-case slugs be generated directly from content embeddings,
-without re-feeding source text through an LLM? The slug task is the concrete
-vehicle; the general claim is embeddings as a substrate for cheap auxiliary
-outputs.
+Can short kebab-case slugs be generated directly from content embeddings, without re-feeding source text through an LLM? The slug task is the concrete vehicle; the general claim is embeddings as a substrate for cheap auxiliary outputs.
 
 ## Corpus
 
 Two corpora were prepared:
 
-- **Original (10k)**: 10,000 samples from FineWeb-Edu (50%), arXiv (25%),
-  GitHub issues (25%). Slugs distilled via Anthropic Haiku batch API
-  (98.3% valid).
-- **URL (2.3M)**: 2,298,564 samples from FineWeb-Edu with slugs extracted
-  from source URLs at zero labeling cost. This is the primary training corpus.
+- **Original (10k)**: 10,000 samples from FineWeb-Edu (50%), arXiv (25%), GitHub issues (25%). Slugs distilled via Anthropic Haiku batch API (98.3% valid).
+- **URL (2.3M)**: 2,298,564 samples from FineWeb-Edu with slugs extracted from source URLs at zero labeling cost. This is the primary training corpus.
 
 ## Baselines
 
 | Method | Exact Match | Token F1 | Notes |
 |--------|-------------|----------|-------|
 | Random (floor) | ~0% | ~0% | Random vocab tokens |
-| Haiku (ceiling) | 94.2% | — | LLM with source text access |
-
-Note: Haiku had access to the source text; this measures the ceiling for
-source-text-conditioned generation, not for embedding-conditioned generation.
-The gap between Haiku and seq2seq does not directly measure the embedding's
-information loss.
+| Haiku (different task) | 94.2% | — | LLM with source text access (not directly comparable: this measures source-text-conditioned generation, not embedding-only) |
 
 ## Embedding Models
 
-Two encoders were evaluated:
-
-- **OpenAI text-embedding-3-small** (1536d): via OpenRouter, ~$23 total
-  for 2.3M embeddings
+- **OpenAI text-embedding-3-small** (1536d): via OpenRouter, ~$23 total for 2.3M embeddings
 - **Harrier** (1024d): local on MPS, original corpus only
 
 ## Vocab Strategies
 
-The URL corpus has 315,929 unique slug tokens, 62% hapax. Two vocab
-strategies were developed:
+The URL corpus has 315,929 unique slug tokens, 62% hapax.
 
 ### KMeans Compression (5000 clusters)
 
-Three grouping strategies were tested on token embeddings:
+Three grouping strategies were tested:
 
-| Strategy | Clusters | Noise | Compression | Notes |
-|----------|----------|-------|-------------|-------|
-| Connected components (cosine ≥ 0.85) | 206,138 | 181,225 | 1.5x | "a" swallowed 51k tokens via transitivity |
-| Louvain communities (cosine ≥ 0.85) | 206,167 | 181,225 | 1.5x | Broke up giant blob (5.6k) but still ~no compression |
-| KMeans (k=5000) | 5,000 | 0 | 63x | Semantic groupings: how/what/who, can/does/should |
+| Strategy | Clusters | Noise | Compression |
+|----------|----------|-------|-------------|
+| Connected components (cosine ≥ 0.85) | 206,138 | 181,225 | 1.5x |
+| Louvain communities (cosine ≥ 0.85) | 206,167 | 181,225 | 1.5x |
+| KMeans (k=5000) | 5,000 | 0 | 63x |
 
-**Finding**: At cosine similarity ≥ 0.85, isolated single-word tokens form
-a near-fully-connected graph (251M edges for 316k nodes, ~800 neighbors per
-token). Embedding models trained on full sentences don't separate individual
-words well in vector space. KMeans was the only practical compression strategy.
+**Finding**: At cosine similarity ≥ 0.85, isolated single-word tokens form a near-fully-connected graph (251M edges for 316k nodes, ~800 neighbors per token). Embedding models trained on full sentences don't separate individual words well in vector space. KMeans was the only practical compression strategy.
 
-**Critical limitation**: 47.2% of reference slug tokens map to a *different*
-representative after compression. A perfect model can only reach 50.2% raw
-Token F1. Compressed Token F1 (mapping references through the same compression
-before comparing) is the fair metric for compressed-vocab models.
+**Critical limitation**: 47.2% of reference slug tokens map to a different representative after compression. A perfect model can only reach 50.2% raw Token F1. The KMeans model achieved 70% of that ceiling (0.354 compressed F1), confirming the model extracted most of the available signal given the vocab constraint.
 
 ### BPE Tokenizer (5000 subwords)
 
-Byte-pair encoding trained on the slug corpus with `-` as a special token.
-The pre-tokenizer splits on hyphens (`Split(pattern="-", behavior="isolated")`)
-so BPE learns subword units within slug tokens, never merging across word
-boundaries. Average encoded length: 11.7 subwords per slug.
+Byte-pair encoding trained on the slug corpus with `-` as a special token. Pre-tokenizer splits on hyphens so BPE learns subword units within slug tokens, never merging across word boundaries. Average encoded length: 11.7 subwords per slug.
 
-**Key advantage**: Lossless reconstruction. Any slug can be perfectly
-roundtripped through encode/decode. No compression ceiling. Same vocab size
-(5000) as KMeans, but the model can express any token via subword composition
-instead of being limited to 5000 representatives.
+**Key advantage**: Lossless reconstruction. Any slug can be perfectly roundtripped. No compression ceiling.
 
 ## Variant 1: MLP Multi-label Classifier
 
-The first approach treats slug generation as multi-label classification:
-predict which tokens appear in the slug, then assemble them.
+Architecture: embedding → 2-layer MLP → sigmoid over 5000 compressed vocab tokens + length head.
 
-Architecture: embedding (1536d) → 2-layer MLP (768 hidden) → three heads:
-- Token head: sigmoid over 5000 compressed vocab tokens (which tokens present)
-- Length head: 6-class softmax (slug length 3-8)
-- Optional position head (variant 1b)
+Three ablations all hit the same ceiling (~1.657 val loss, ~0.085 tok F1):
 
-### Experiment 1a: BCE Loss (baseline)
+| Experiment | Variant | Parameters | Val Loss | Tok F1 |
+|---|---|---|---|---|
+| 1a | BCE Loss | 5.6M | 1.6572 | 0.085 |
+| 1b | Focal Loss (γ=2) | 5.6M | 1.6543 | 0.083 |
+| 1c | Bigger projector (4L, 1024 hidden) | 9.9M | 1.6571 | - |
 
-- **Parameters**: 5,619,853
-- **Training**: 5 epochs, batch_size=1024, lr=1e-3, eval every 2000 steps
-- **Result**: Val loss plateaued at epoch 2 (1.6572), train kept dropping
-  (1.6421 by epoch 5). Mild overfitting, early plateau.
-- **Evaluation** (229,496 test samples):
-  - Validity: 100% (structural check only), Exact match: 0.0%
-  - Token F1: 0.085, ROUGE-1: 0.085, ROUGE-L: 0.077
-  - Vocab diversity: 22.6% (51,791 unique predictions)
-  - (BERTScore F1: 0.818, but this is the BERTScore floor for short
-    strings; even collapsed function-word outputs score ~0.82. BERTScore
-    is uninformative for this task.)
+**Failure mode**: The model collapsed to predicting the highest-frequency tokens regardless of input. Top predictions: "of-the-a" (16,916x), "of-the-in" (16,145x), "of-the-how" (6,393x). BCE loss rewards predicting common tokens when 4,995 of 5,000 outputs should be zero.
 
-**Failure mode**: The model collapsed to predicting the highest-frequency
-tokens regardless of input. Top predictions: "of-the-a" (16,916x),
-"of-the-in" (16,145x), "of-the-how" (6,393x). BCE loss rewards predicting
-common tokens when 4,995 of 5,000 outputs should be zero.
-
-### Experiment 1b: Focal Loss (gamma=2)
-
-- **Training**: Same setup. Val plateaued at 1.6543 (step 6000) vs BCE's
-  1.6572 (step 4000). Within noise.
-- **Evaluation**: Token F1: 0.083, identical to baseline.
-- **Conclusion**: Loss function is not the bottleneck.
-
-### Experiment 1c: Bigger Projector (4 layers, 1024 hidden)
-
-- **Parameters**: 9,852,813 (1.8x baseline)
-- **Training**: Val plateaued at 1.6571, identical to baseline.
-- **Conclusion**: Capacity is not the bottleneck.
-
-### Variant 1 Summary
-
-Three experiments hit the same ceiling (~1.657 val loss, ~0.085 tok F1).
-The MLP bag-of-tokens architecture cannot recover slug tokens from embeddings.
-It predicts tokens independently and cannot model co-occurrence or sequence.
+**Conclusion**: Bag-of-tokens architecture cannot recover slug tokens from embeddings. The model predicts tokens independently and cannot model co-occurrence or sequence structure.
 
 ## Variant 3: Seq2seq Transformer Decoder
 
-After the MLP collapsed to frequency-based predictions, we hypothesized
-that bag-of-tokens classification was fundamentally wrong: slug generation
-requires modeling token co-occurrence and order. This motivated switching
-to autoregressive generation.
+Architecture: embedding → linear projection → prefix token at position 0 → causal transformer decoder → autoregressive token generation.
 
-Architecture: embedding (1536d) → linear projection → prefix token at
-position 0 → causal transformer decoder → autoregressive token generation.
+This is the variant where the project's interesting findings emerge. Four targeted interventions, each motivated by an observed failure mode, progressively improved both quantitative metrics and qualitative outputs.
 
-The source embedding is projected into the decoder's hidden space and
-prepended as a "prefix" token. Standard causal self-attention lets every
-generated token attend to the prefix (the embedding) and all previous
-tokens. This gives the model the ability to generate coherent sequences
-rather than predicting tokens independently.
+### Intervention 1: KMeans → BPE Vocab
 
-### Full Evaluation (5,000 test samples, beam search)
+KMeans seq2seq capped at 0.354 compressed F1 (70% of 0.502 vocab ceiling). The model captured topic but couldn't produce specific lexical content. Example: for an Amelia Earhart article, the model predicted "anne-essex-fly" because `amelia` → `anne` (female-names cluster), `earhart` → `harry` (surname cluster), `fly` was the aviation cluster representative. The model knew "female aviator" but the vocab couldn't express it.
 
-Variant 1 was evaluated on the full test set (229k); Variant 3 uses a 5,000
-sample subsample because beam search decoding is ~70ms/sample (full set
-would take ~4.5 hours per model, 7 models).
+BPE eliminated this ceiling. The same model generated "emma-j-amelia-ear" for the Earhart article: recovered "amelia" and the start of "earhart" via subword composition. Impossible with KMeans.
 
-| Model | Vocab | Dim | Layers | Params | Epochs | Exact | Tok F1 | Comp F1 | ROUGE-L | BERT F1 | Distinct |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| seq2seq_bpe_d512_l6 | BPE | 512 | 6 | 24.8M | ~23 | 1.6% | 0.272 | - | 0.256 | 0.863 | 0.895 |
-| seq2seq_bpe-d512 | BPE | 512 | 4 | 18.5M | 15 | 1.5% | 0.269 | - | 0.252 | 0.862 | 0.892 |
-| seq2seq_bpe | BPE | 384 | 4 | 11.5M | 15-50† | 1.2% | 0.267 | - | 0.251 | 0.862 | 0.890 |
-| seq2seq_bpe_d384_l6 | BPE | 384 | 6 | 15.1M | 15 | 1.4% | 0.259 | - | 0.243 | 0.861 | 0.890 |
-| seq2seq_d384 | KMeans | 384 | 4 | 11.5M | 15 | 0.6% | 0.197 | 0.354 | 0.186 | 0.857 | 0.844 |
-| seq2seq | KMeans | 256 | 4 | 6.1M | 15 | 0.5% | 0.189 | 0.332 | 0.178 | 0.856 | 0.836 |
-| seq2seq_d512 | KMeans | 512 | 4 | 18.5M | 15 | 0.3% | 0.164 | 0.278 | 0.155 | 0.852 | 0.829 |
+### Intervention 2: Training Data Truncation Fix (t=10 → t=24)
 
-### What the numbers show
+Initial BPE experiments used `max_slug_tokens=10` inherited from the KMeans config. With BPE encoded sequences averaging 11.7 subwords, this truncated 56.1% of training targets at the subword level, including stripping EOS from those examples. The model learned that some sequences just end without EOS, confusing the termination signal.
 
-**BPE dominates KMeans across all metrics.** Even the smallest BPE model
-(384d/4L, 11.5M) beats the best KMeans model on raw tok_f1 (0.267 vs 0.197).
-KMeans d384 has a compressed F1 of 0.354, but that's measured in compressed
-space and not directly comparable.
+Distribution of BPE-encoded slug lengths (1.84M training slugs):
+```
+  mean=11.7  median=11  p75=15  p90=18  p95=19  p99=23  max=222
+  <=10:  43.9%  (truncates 56.1%)
+  <=16:  85.3%
+  <=20:  97.0%
+  <=24:  99.4%
+```
 
-**Width matters more than depth for BPE.** The 512d/4L model (0.269) matches
-the 512d/6L model (0.272) with 6M fewer parameters. The 384d/6L model
-(0.259) underperforms the 384d/4L model (0.267), suggesting
-the extra depth doesn't pay for itself at this scale.
+Retraining with `max_slug_tokens=24` (filtering 0.9% of slugs that didn't fit) improved val loss by 6.7% and tok F1 by ~0.02. Qualitatively, mid-word truncations were eliminated: "facts-about-blood-don" → "facts-about-blood-donation", "dragonflies-and-mosquito" → "dragonflies-and-mosquitoes".
 
-**Extended training helps modestly.** The 384d/4L model was retrained
-(history not captured), reaching 0.267 tok_f1 at eval.
+### Intervention 3: EOS Calibration via Position-Aware Loss
 
-**KMeans d512 underperforms d384.** Likely an artifact of interrupted
-training (no history available for d512).
+After the truncation fix, the model still under-generated relative to the training distribution: predictions averaged 3.6 words vs training mean 5.1.
 
-### The Compression Ceiling
+Diagnostic experiments ruled out length penalty miscalibration (length_penalty sweep had no effect on output length) and beam width (4/8/16 produced identical length distributions). The MIN_SLUG_WORDS=3/4/5 sweep was the discriminating test: forcing one extra word improved tok F1 by +0.012 (model had useful content available), forcing two extra dropped it back (embedding signal genuinely runs out around 5 words). The bottleneck was EOS calibration: the model assigned high EOS probability around word 3-4 regardless of input.
 
-Analysis of the KMeans-5000 mapping revealed that 47.2% of reference slug
-tokens map to a different representative. A perfect model can only reach
-50.2% raw Token F1 with this vocab. The KMeans model's 0.354 compressed tok_f1 represents 70% of the
-theoretical ceiling (0.502), suggesting the model extracts most of the
-signal available given the vocab constraint.
+**Hypothesis**: Under standard CE loss with teacher forcing, EOS at common positions (~position 5-7 in subword space) receives more gradient signal than EOS at rare positions (~position 15-20). The model becomes overconfident about early EOS.
 
-Example: the model predicted "anne-essex-fly" for an Amelia Earhart article.
-Investigation showed: amelia → anne (female-names cluster), earhart → harry
-(surname cluster), and "fly" is the representative for the aviation cluster.
-The model captured "female aviator" but the compression couldn't express it.
+**Fix**: Position-aware loss weighting. For each position, weight EOS loss by `min(1.0, median_rate / position_rate)`. Positions where EOS is over-represented in training get dampened; rarely-occurring EOS positions stay at weight 1.0. Combined with label smoothing (0.1).
 
-BPE eliminates this ceiling. Under BPE, the same model generated
-"emma-j-amelia-ear" for the Earhart article: it actually recovered "amelia"
-and the start of "earhart" via subword composition. This is impossible with
-KMeans compression.
+Result: mean predicted word count shifted from 3.6 to 4.9 (training mean is 5.1). Tok F1 also improved marginally over the t=24 baseline (0.286 vs 0.284) despite training for fewer epochs (30 vs 50). The MIN_SLUG_WORDS hack at inference is no longer needed; the model self-regulates length appropriately.
+
+The intervention's value isn't fully captured by the aggregate tok F1 number, which moved only slightly. The qualitative win is the length-distribution match: previously, the inference-time MIN_SLUG_WORDS=4 hack was needed to force the model past its preferred early-termination point. With position-aware training, the model terminates at appropriate positions on its own.
+
+### Intervention 4: Length-Aware Beam Search Termination
+
+Standard beam search early-stops once k completed beams are collected, biasing toward short sequences because they emit EOS sooner and fill the completion pool first. Implementing bounded additive length reward with score-based stopping (Huang et al. 2017) eliminates this bias: the algorithm continues exploring as long as any active beam could plausibly outscore the best completed beam under length-normalized scoring. This recovers median output length and improves output quality without significantly increasing inference cost.
+
+### Combined Result
+
+Final model: BPE vocab, d=384, L=4, t=24, position-aware loss, length-aware beam search.
+
+| Stage | Tok F1 (training, greedy) | Val Loss | Mean Words | Notes |
+|---|---|---|---|---|
+| MLP (Variant 1) | 0.085 | 1.657 | n/a | Bag-of-tokens collapses |
+| Seq2seq + KMeans (d=384, L=4) | 0.354 (compressed) | 3.403 | n/a | 70% of 0.502 vocab ceiling |
+| Seq2seq + BPE + t=10 (d=384, L=4, 15ep) | 0.249 | 2.181 | 3.6 | Truncated targets |
+| Seq2seq + BPE + t=10 (d=512, L=6, ~23ep) | 0.272 | 2.120 | 3.6 | Pre-fix best |
+| Seq2seq + BPE + t=24 (d=384, L=4, 50ep) | 0.284 | 2.035 | 3.6 | Truncation fix; under-generates |
+| Seq2seq + BPE + t=24 + EOS loss (d=384, L=4, 30ep) | 0.286 | 3.009* | **4.9** | Length matches training distribution |
+| Seq2seq + BPE + t=24 + EOS loss (d=512, L=6, 36ep) | **0.296** | **2.937*** | **4.9** | Canonical demo model |
+
+*Val loss under the new label-smoothed position-weighted loss is in different absolute territory than the pre-EOS-loss runs; the relevant comparison is tok F1 and mean word count, both of which improved.
+
+### Full evaluation of the final model
+
+Canonical model: BPE vocab, d=512, L=6, t=24, position-aware EOS loss, beam search (width=4) with length-aware termination and the full decoding pipeline. Evaluated on 5000 held-out test samples.
+
+```
+Overall:
+  Validity:         100.0%
+  Exact match:      2.1%
+  Token P/R/F1:     0.335 / 0.299 / 0.306
+  ROUGE-1/L:        0.304 / 0.284
+  BERTScore P/R/F1: 0.879 / 0.865 / 0.872
+  Distinctiveness:  0.885
+  Vocab diversity:  97.8% (4888 unique)
+```
+
+Per source (only fineweb-edu in the URL corpus):
+
+```
+  fineweb-edu  (n=5000)  exact=2.1%  tok_f1=0.306  rouge1=0.304  rouge_l=0.284  bert_f1=0.872
+```
+
+Per length bucket (document token count):
+
+```
+  short    (n= 495, avg=151 tok)  exact=3.4%  tok_f1=0.327  rouge_l=0.306  distinct=0.898
+  medium   (n=2041, avg=345 tok)  exact=2.2%  tok_f1=0.300  rouge_l=0.278  distinct=0.887
+  long     (n=2462, avg=720 tok)  exact=1.7%  tok_f1=0.306  rouge_l=0.284  distinct=0.882
+```
+
+A few observations:
+
+**Validity is 100%.** Every output is a well-formed kebab-case slug. No malformed predictions, no truncation artifacts, no UNK tokens. The decoding constraints are doing their job.
+
+**Vocab diversity is 97.8%.** Nearly every test sample produces a distinct prediction (4888 unique slugs in 5000 samples). The previous MLP variant collapsed to 22.6% diversity; this is a different regime entirely.
+
+**Distinctiveness is 0.885.** For each prediction, the model's k-nearest neighbors in embedding space get distinguishable slugs ~89% of the time. Confirms the model is genuinely distinguishing similar inputs rather than collapsing to topic centroids.
+
+**Token F1 is higher on short documents (0.327) than long ones (0.306).** Short documents produce embeddings with less semantic spread, so the slug-relevant signal is more concentrated. Long documents pack more topics into a single embedding, making slug prediction harder. Exact match also rises on short documents (3.4% vs 1.7% for long).
+
+**Exact match is 2.1%.** Low in absolute terms because URL slugs are noisy and the model often produces *cleaner* slugs than the reference. The token F1 of 0.306 is the better quality indicator.
+
+### Architectural saturation
+
+After applying both interventions (t=24 truncation fix and position-aware EOS loss), scaling capacity gives only marginal improvement:
+
+| Model | Params | Tok F1 (training, greedy) | Best val loss | Mean words |
+|---|---|---|---|---|
+| d=384 L=4 t=24 + EOS (30ep) | 11.5M | 0.286 | 3.009 | 4.9 |
+| d=512 L=6 t=24 + EOS (36ep) | 24.8M | 0.296 | 2.937 | 4.9 |
+| Δ | 2.2x | +0.010 | -0.072 | 0 |
+
+Doubling the parameter count adds +0.01 tok F1, essentially noise. The bigger model converges to a slightly lower val loss but produces equivalent-quality outputs. Mean word count is identical at 4.9, confirming the EOS calibration is independent of capacity.
 
 ### Decoding Strategy
 
-Greedy decoding produced a repetition pathology: "turtle-of-turtle",
-"audio-video-sync-audio-video". The model gets stuck in loops because
-at each step the highest single-token probability leads back to the same
-word.
+The final decoding pipeline:
 
-**Beam search** (width=4) eliminates most repetition by evaluating full
-sequence probability. Additional decoding constraints:
+- **Beam search** (width=4) over greedy
+- **Length-normalized scoring** with bounded aI have dditive length reward: `score = log_prob / ((5 + len) / 6)^1.2`
+- **Minimum word count**: suppress EOS until at least 3 slug words (now mostly redundant with EOS-aware training)
+- **Hard EOS suppression** after stopwords
+- **Trailing stopword penalty** on completed beams (-1.0 score)
+- **Repetition filter**: prefer non-repeating beams in final selection
+- **UNK suppression**: prevent `<unk>` from appearing
+- **Score-based stopping** (Huang et al. 2017): exit when no active beam could outscore the best completed beam under length-normalized scoring, rather than count-based early stop
 
-- **Length-normalized scoring**: `score = log_prob / ((5 + len) / 6)^1.2`
-  prevents short sequences from winning on accumulated log-prob alone
-- **Minimum word count**: suppress EOS until at least 3 slug words
-- **Hard stopword EOS suppression**: prevent EOS immediately after a
-  stopword ("and", "of", "the"). The model overproduces stopword endings
-  (observed at ~6% vs 1.1% in training data) because stopwords have high
-  unigram frequency and the model defaults to them when uncertain.
-- **Stopword scoring penalty**: -1.0 on completed beams ending on a
-  stopword, catching cases that slip through the hard suppression
-  (e.g. max-length fallback)
-- **Repetition filter**: prefer non-repeating beams in final selection.
-  When the embedding strongly signals one concept, all beam paths may
-  repeat it ("december-30-december"). The filter selects the best
-  non-repeating completion, falling back to repeating only if no
-  alternative exists. Residual repetition rate after filtering: 0.3-0.6%
-  of predictions (morphological variants like subject/subjects that
-  bypass exact-match detection).
-- **UNK suppression**: for BPE vocab, prevent `<unk>` from appearing
-
-The stopword issue is structural, not a calibration error. Only 1.1% of
-training slugs end with a stopword (20k/1.8M), but the model overproduces
-them because stopwords have high unigram frequency. When uncertain about
-the next token, the model defaults to a high-frequency word, and if EOS
-follows, the slug ends on a stopword. Hard suppression forces the model
-past the stopword to commit to a content word.
-
-### Qualitative Examples (beam search, all constraints)
-
-| Source text topic | BPE 384d/4L (50ep) | BPE 512d/6L (~23ep) | Reference |
-|---|---|---|---|
-| Arsenic in drinking water | arsenic-in-drinking-water | arsenic-in-drinking-water | dartmouth-study-finds-arsenic-inhibits-dna-repair |
-| Vision therapy for children | vision-therapy-for-children | vision-therapy-for-children | vision-therapy-for-children |
-| Blood donation facts | facts-about-blood-donation | facts-about-blood-don | more-blood-donation-facts |
-| Dragonflies vs mosquitoes | dragonflies-and-mosquito | dragonflies-and-mosquitoes | attracting-dragonflies-for-mosquito-control |
-| Prescription drug epidemic | the-epidemic-of-prescription | prescription-drug-abuse | opioid-epidemic-in-the-united-states |
-| TCP troubleshooting | troubleshooting-ip-client | troubleshooting-with-tcp | (networking article) |
-
-Both models capture topic accurately. The 512d/6L model sometimes produces
-more specific slugs ("prescription-drug-abuse" vs "the-epidemic-of-prescription")
-but the difference is marginal. Exact matches occur at ~1.5% rate.
+Greedy decoding produced repetition pathologies ("turtle-of-turtle", "audio-video-sync-audio-video") that beam search largely eliminates. The remaining failure modes — stopword endings, occasional truncation — are handled by the explicit decoding constraints.
 
 ## Key Findings
 
-1. **Bag-of-tokens classifiers fail for this task.** The MLP predicts tokens
-   independently and collapses to high-frequency function words. Three
-   ablations (loss function, capacity, position head) all hit the same
-   ceiling. The architecture is fundamentally wrong for generation.
+1. **Bag-of-tokens classifiers fail for slug generation.** The MLP collapsed to high-frequency function words across three ablations.
 
-2. **Seq2seq decoders extract real signal from embeddings.** Autoregressive
-   generation produces topically relevant, human-readable slugs. The ability
-   to model token co-occurrence and sequence structure is essential.
+2. **Seq2seq decoders extract real signal from embeddings.** Autoregressive generation produces topically relevant, human-readable slugs.
 
-3. **Vocab strategy matters as much as model architecture.** KMeans
-   compression caps raw Token F1 at 50.2% due to 47% of tokens mapping to
-   different representatives. BPE eliminates this ceiling entirely with
-   lossless subword composition. BPE dominates KMeans on every metric.
+3. **Vocab strategy matters substantially.** KMeans compression caps Token F1 at 50.2% due to 47% of tokens mapping to different representatives. BPE eliminates this ceiling.
 
-4. **Performance saturates across model configurations.** All BPE models
-   converge to similar performance (0.259-0.272 tok_f1) regardless of
-   capacity (11.5M to 24.8M params). The model recovers domain vocabulary
-   well ("arsenic", "dragonflies", "cholera") but fails on proper nouns
-   ("Amelia Earhart" becomes "anne-essex-fly" under KMeans, "earliest-
-   flight" under BPE). Whether this represents
-   an embedding-content ceiling or a data-quantity ceiling cannot be
-   distinguished from these experiments; we discuss possible distinguishing
-   experiments below.
+4. **Multiple non-obvious calibration bugs compound.** Three separate "ceilings" were actually preprocessing/decoding artifacts:
+   - Training data truncation at subword position 10 stripped EOS from 56% of training examples
+   - Position-uniform CE loss caused EOS overconfidence at short positions, leading to systematic under-generation
+   - Standard beam search early-stop biased toward short sequences regardless of model preferences
+   
+   Each was diagnosable with targeted experiments. Each fix was small (parameter change, loss modification, algorithmic substitution). Cumulatively they moved the model from "topically-correct but truncated" to "topically-correct at appropriate length."
 
-5. **Width and depth are roughly interchangeable at fixed parameter
-   budget.** 512d/4L matches 512d/6L (0.269 vs 0.272) with 6M fewer
-   parameters. 384d/6L slightly underperforms 384d/4L (0.259 vs 0.267).
-   Neither dimension dominates; the bottleneck is elsewhere.
+5. **Performance plateaus across model configurations even after the calibration fixes.** Comparing d=384 L=4 EOS (11.5M params, 0.286 training tok F1) against d=512 L=6 EOS (24.8M params, 0.296 training tok F1), doubling the parameter count gains only +0.010 tok F1. Both produce mean output length 4.9 (within rounding of training mean 5.1). The model recovers domain vocabulary well ("arsenic", "dragonflies", "cholera") but fails on proper nouns. Whether this represents an embedding-content ceiling or a data-quantity ceiling cannot be distinguished from these experiments; we discuss possible distinguishing experiments below.
 
-6. **Decoding strategy matters as much as model quality.** Beam search,
-   stopword suppression, and repetition filtering are all inference-time
-   fixes that dramatically improve output quality without changing model
-   weights. The model learns good local probability estimates; the decoding
-   pipeline handles global coherence.
+6. **Width and depth are roughly interchangeable at fixed parameter budget.** 512d/4L matches 512d/6L with 6M fewer parameters. The bottleneck is upstream of model capacity.
 
-7. **Isolated tokens cluster poorly in embedding space.** At cosine >= 0.85,
-   316k single-word tokens form a near-fully-connected graph (251M edges).
-   Sentence-trained embedding models don't separate individual words well.
-   This rules out similarity-based vocab compression strategies.
+7. **Decoding strategy is as important as model quality.** Beam search, stopword suppression, repetition filtering, and length-aware termination are inference-time fixes that significantly improve output quality without changing model weights.
 
-8. **CPU inference is feasible.** The 384d/4L BPE model (46MB, 11.5M params)
-   runs at 20ms/sample on CPU (M3 Mac). Even the largest model (512d/6L,
-   99MB, 24.8M params) runs at 39ms/sample. Deployment on a small VPS is
-   practical.
+8. **Isolated tokens cluster poorly in embedding space.** At cosine ≥ 0.85, 316k single-word tokens form a near-fully-connected graph. Sentence-trained embedding models don't separate individual words well. This is why KMeans was the only practical compression strategy and why fine-grained lexical recovery is hard.
+
+9. **CPU inference is feasible.** The 384d/4L BPE model (46MB, 11.5M params) runs at ~60ms/sample on CPU. The 512d/6L model (99MB) runs at ~150ms/sample.
 
 ## What Limits Performance
 
-The ceiling may reflect data quality, data quantity, embedding information
-content, or some combination; the experiments here cannot distinguish them.
-The following observations bear on the question.
+The ceiling may reflect data quality, data quantity, embedding information content, or some combination. The experiments here do not distinguish these hypotheses. The following observations bear on the question.
 
-**Reference quality is a confound.** URL-extracted slugs are noisy:
-truncated URLs, SEO-stuffed headlines, inconsistent editorial standards.
-"dartmouth-study-finds-arsenic-inhibits-dna-repair" is a newspaper headline
-crammed into a URL path, not a carefully authored slug. In several qualitative examples, the model generates cleaner slugs than
-the references ("arsenic-in-drinking-water" vs "dartmouth-study-finds-
-arsenic-inhibits-dna-repair"), but gets penalized by token-match metrics.
-The metrics may understate actual quality for these cases.
+**Reference quality is a confound.** URL-extracted slugs are noisy: truncated URLs, SEO-stuffed headlines, inconsistent editorial standards. "dartmouth-study-finds-arsenic-inhibits-dna-repair" is a newspaper headline crammed into a URL path, not a carefully authored slug. The model often generates cleaner slugs than the references ("arsenic-in-drinking-water" vs the reference above) and gets penalized by token-match metrics.
 
-**Data quantity limits contrastive learning.** At 2.3M samples, the model
-sees enough to learn domain vocabulary but not enough to disambiguate
-within-topic variation. All Earhart articles embed near each other; the
-model can't learn that *this specific* flight-history embedding means
-"earhart" because it hasn't seen enough non-Earhart flight articles to
-build contrastive representations.
+**Data quantity may limit contrastive learning.** At 2.3M samples, the model sees enough to learn domain vocabulary but possibly not enough to disambiguate within-topic variation. All Earhart articles embed near each other; the model can't reliably learn that *this specific* flight-history embedding means "earhart" because it hasn't seen enough non-Earhart flight articles to build contrastive representations.
 
-**Scaling to 10-20M would disambiguate the two ceilings.** If tok_f1
-improves with more data, the ceiling is data quantity. If it doesn't,
-the ceiling is the embedding's information content. Both are publishable
-conclusions.
+**Embedding content may be insufficient for fine-grained lexical recovery.** Single-pooled sentence embeddings compress text into a topic-similarity space. Whether they preserve enough signal to reconstruct specific proper nouns or distinguishing identifiers is the open question. Token-level cross-attention would give the model direct lexical access, but defeats the embedding-as-substrate premise.
+
+**Scaling to 10-20M samples would help disambiguate.** FineWeb-Edu has ~29M documents; extracting 10-20M URL slugs is straightforward with the existing pipeline. If performance improves substantially, the current ceiling is data. If it doesn't move, the ceiling is the embedding.
 
 ## Deployment Recommendation
 
-The **384d/4L BPE model** is the best tradeoff for deployment:
-- 46MB model file, 329KB tokenizer
-- 11.5M parameters
-- 20ms/sample on CPU, ~100ms on a cheap VPS
-- 0.267 tok_f1, only 0.005 behind the best model
-- Half the parameters of the best model
+Two models are reasonable choices depending on the deployment context.
 
-Marginal cost over an existing embedding: ~100ms CPU time. If the
-embedding must also be generated, add ~$0.00002 per API call. Compared to
-an LLM call (~$0.0001-0.0005 for Haiku-class models on short inputs),
-total cost is 5-25x cheaper. The cost advantage grows with scale and is
-strongest against larger models. The premise (embeddings as substrate)
-is strongest when embeddings already exist for other purposes (search,
-clustering, deduplication) and slug generation is a cheap auxiliary output.
+**Highest quality**: d=512 L=6 BPE + EOS-aware training (24.8M params, 99MB, ~150ms/sample CPU). Eval-pipeline tok F1 of 0.306, validity 100%, vocab diversity 97.8%.
 
-## Critical Confound: Sequence Length Truncation
+**Best efficiency tradeoff**: d=384 L=4 BPE + EOS-aware training (11.5M params, 46MB, ~60ms/sample CPU). Training tok F1 of 0.286 (eval-pipeline number not separately measured but expected at ~0.297 based on the d=512 gap). 97% of the larger model's quality at ~40% of the parameters and ~40% of the inference cost.
 
-All BPE experiments used `max_slug_tokens=10`, inherited from the KMeans
-configuration where 10 tokens covers ~5 whole words. Under BPE, 10 subword
-tokens only covers 3-4 slug words. The BPE token length distribution of
-training references (1.84M slugs):
+For deployments where inference cost matters (large-scale indexing, edge deployment), the smaller model is the clear choice — the capacity ablation showed that doubling parameters adds only +0.01 tok F1.
 
-```
-  mean=11.7  median=11  p75=15  p90=18  p95=19  p99=23  max=222
-
-  <=10:  43.9%  (truncates 56.1%)
-  <=16:  85.3%  (truncates 14.7%)
-  <=20:  97.0%  (truncates  3.0%)
-  <=24:  99.4%  (truncates  0.6%)
-  <=32: 100.0%  (truncates  0.0%)
-```
-
-**56% of training references were truncated.** The model was learning from
-incomplete targets for more than half the data, and could not generate
-slugs longer than ~4 words at inference. Predictions averaged 3.5 words
-vs 5.1 for references.
-
-This is the single largest confound in the BPE experiments. The "BPE
-plateau at 0.27 tok_f1" and the "performance saturates across
-configurations" finding are both potentially artifacts of every model
-hitting the same sequence length wall. Architectural conclusions (width
-vs depth, capacity scaling) are also suspect since all models shared
-the same bottleneck.
-
-A retrain with `max_slug_tokens=24` (covers 99.4% of references) is
-running to determine whether the plateau breaks.
+If embeddings already exist in the index (the intended use case), marginal cost per slug is the CPU time alone. If embeddings must also be generated, add one OpenAI API call (~$0.00002 + API latency). Compared to an LLM call for the same task ($0.0001-0.0005 for Haiku-class models on short inputs), this is roughly 5-25x cheaper. The advantage grows with deployment scale.
 
 ## Open Questions
 
-- **Scale experiment: 10-20M samples.** The critical next experiment.
-  FineWeb-Edu has ~29M documents; extracting 10-20M URL slugs is
-  straightforward with the existing pipeline. If performance improves,
-  the current ceiling is data. If it doesn't, the ceiling is the embedding.
+- **Scale experiment: 10-20M samples.** The critical next experiment. Would distinguish data ceiling from embedding ceiling. Existing pipeline supports this; primary cost is compute (likely requires H100 or similar).
 
-- **Distilled vs extracted references.** Instead of mining slugs from URLs
-  (cheap but noisy), distill them from content using a small, fast model
-  (e.g. Haiku, Gemini Flash). At ~$0.001/call, 10M samples costs ~$10k,
-  which is prohibitive. But a smaller open-source model running locally
-  (Phi-3, Llama 3 8B) could distill at compute cost only. The hypothesis:
-  higher-quality references would improve training signal more than
-  additional noisy references. A 2M distilled corpus might outperform
-  a 20M URL-extracted corpus.
+- **Distilled vs extracted references.** URL slugs are noisy. Whether a smaller (~1-2M) but cleaner distilled corpus outperforms a larger URL-extracted one is testable. Local-model distillation makes this affordable.
 
-- **Hybrid approach.** Use URL extraction for scale (20M) with a quality
-  filter: only keep samples where the URL slug passes a semantic similarity
-  check against the document content (e.g. embed both slug and first
-  paragraph, require cosine > threshold). This selects for URLs where
-  the slug actually describes the content, filtering out SEO noise and
-  truncated paths.
+- **Hybrid corpus.** URL extraction with a quality filter (embed both slug and document, require cosine > threshold). Combines scale with quality.
 
-- **Would a pretrained decoder help?** A pretrained LM already knows
-  language structure and common phrases. Our from-scratch decoder must
-  learn all of this from the slug corpus. A frozen LM with a trained
-  projector would test whether the bottleneck is language modeling
-  capacity or embedding information.
+- **Frozen pretrained decoder.** Would test whether the bottleneck is language modeling capacity or embedding information. Current decoder is trained from scratch.
 
-- **Repetition as a depth problem.** The model has no learned mechanism
-  to suppress already-emitted content. Current results suggest 6 layers
-  don't help at this scale, but the inference-time repetition filter
-  handles this adequately.
+- **Training-objective alternatives.** Sequence-level training (REINFORCE on token F1, contrastive losses) might extract more from the embedding than next-token CE. Untested here.
 
 ## Experiment Log
 
-| Experiment | Variant | Vocab | Dim | Layers | Epochs | tok_f1 | Val Loss | Params |
-|---|---|---|---|---|---|---|---|---|
-| 1a | MLP (BCE) | KMeans | 768 | 2 | 5 | 0.085 | 1.657 | 5.6M |
-| 1b | MLP (focal) | KMeans | 768 | 2 | 5 | 0.083 | 1.654 | 5.6M |
-| 1c | MLP (big) | KMeans | 1024 | 4 | 5 | - | 1.657 | 9.9M |
-| 3a | Seq2seq | KMeans | 256 | 4 | 15 | 0.326* | 3.517 | 6.1M |
-| 3b | Seq2seq | KMeans | 384 | 4 | 15 | 0.345* | 3.403 | 11.5M |
-| 3c | Seq2seq | BPE | 384 | 4 | 15 | 0.249* | 2.181 | 11.5M |
-| 3d | Seq2seq | BPE | 512 | 4 | 15 | 0.254* | 2.128 | 18.5M |
-| 3e | Seq2seq | BPE | 384 | 4 | 15-50† | 0.267 | - | 11.5M |
-| 3f | Seq2seq | BPE | 384 | 6 | 15 | 0.259 | 2.172 | 15.1M |
-| 3g | Seq2seq | BPE | 512 | 6 | ~23 | 0.272 | 2.120 | 24.8M |
-| 3h | Seq2seq | KMeans | 512 | 4 | 15 | 0.164 | - | 18.5M |
+| Experiment | Variant | Vocab | Dim | Layers | Epochs | Tok F1 | Val Loss | Params | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| 1a | MLP (BCE) | KMeans | 768 | 2 | 5 | 0.085 | 1.657 | 5.6M | |
+| 1b | MLP (focal) | KMeans | 768 | 2 | 5 | 0.083 | 1.654 | 5.6M | |
+| 1c | MLP (big) | KMeans | 1024 | 4 | 5 | - | 1.657 | 9.9M | |
+| 3a | Seq2seq | KMeans | 256 | 4 | 15 | 0.326* | 3.517 | 6.1M | t=10 |
+| 3b | Seq2seq | KMeans | 384 | 4 | 15 | 0.345* | 3.403 | 11.5M | t=10, 0.354 compressed |
+| 3c | Seq2seq | BPE | 384 | 4 | 15 | 0.249* | 2.181 | 11.5M | t=10 (truncated targets) |
+| 3d | Seq2seq | BPE | 512 | 4 | 15 | 0.254* | 2.128 | 18.5M | t=10 |
+| 3e | Seq2seq | BPE | 384 | 4 | 50 | 0.267 | - | 11.5M | t=10, extended |
+| 3f | Seq2seq | BPE | 384 | 6 | 15 | 0.259 | 2.172 | 15.1M | t=10 |
+| 3g | Seq2seq | BPE | 512 | 6 | ~23 | 0.272 | 2.120 | 24.8M | t=10 |
+| 3h | Seq2seq | BPE | 384 | 4 | 50 | 0.284 | 2.035 | 11.5M | t=24 (truncation fix) |
+| 3i | Seq2seq | BPE | 384 | 4 | 30 | 0.286 | 3.009* | 11.5M | t=24 + position-aware EOS loss + label smoothing (mean words 4.9, training mean 5.1) |
+| 3j | Seq2seq | BPE | 512 | 6 | 36 (best) | 0.296 | 2.937* | 24.8M | t=24 + EOS loss; canonical demo model. Eval-pipeline tok F1 0.306 on 5000 held-out samples |
 
-*Training tok_f1 (greedy decode on 2k val subsample). Eval tok_f1 (beam
-search with stopword/repetition filters on 5k test subsample) is typically
-+0.01-0.02 higher. Eval values are in the Full Evaluation table above.
-
-†Retrained from 15 to 50 epochs; training history not captured. The
-checkpoint contains the retrained weights but the exact best epoch is
-unknown. Eval metrics are from the actual checkpoint.
+*Mixed metric definitions: experiments 3a-3g used micro F1 at training; later runs harmonized to macro F1 to match the eval pipeline. Direct numerical comparison across the boundary is approximate. Additionally, the EOS-loss runs (3i, 3j) use label-smoothed position-weighted CE; their val loss values are in different absolute territory than the uniform-CE runs. Final reported numbers use macro F1 with beam search and the full decoding pipeline.

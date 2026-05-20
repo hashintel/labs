@@ -1,10 +1,8 @@
-"""Seq2seq inference: beam search decoding.
+"""Seq2seq inference: beam search with optimal stopping.
 
-Beam search maintains k candidate sequences in parallel, selecting by
-total length-normalized log-probability. This avoids the repetition
-pathology of greedy decoding without post-hoc patchwork: repetitive
-sequences naturally score worse because the model's predictions become
-poorly calibrated on histories it never saw during training.
+Uses bounded additive length reward with score-based stopping
+(Huang et al. 2017) instead of the standard count-based early
+stopping that biases toward short outputs.
 """
 
 import json
@@ -24,6 +22,13 @@ MIN_DECODE_TOKENS = 3
 MIN_SLUG_WORDS = 3
 
 
+# Bounded length reward defaults. The reward cap B is set to the
+# reference P75 word count: length bonus stops accumulating past
+# typical slug length so the admissible upper bound stays tight.
+DEFAULT_LENGTH_REWARD = 1.5
+DEFAULT_REWARD_CAP = 6  # words (reference P75)
+
+
 class Seq2SeqPredictor(Predictor):
     """Beam search decoding from the prefix-conditioned transformer decoder."""
 
@@ -33,7 +38,8 @@ class Seq2SeqPredictor(Predictor):
         encoder: Encoder,
         device: str = "cpu",
         beam_width: int = 4,
-        length_penalty: float = 1.2,
+        length_reward: float = DEFAULT_LENGTH_REWARD,
+        reward_cap: int = DEFAULT_REWARD_CAP,
         filter_repetition: bool = True,
     ):
         self.manifest = json.loads((model_dir / "manifest.json").read_text())
@@ -52,7 +58,8 @@ class Seq2SeqPredictor(Predictor):
         self.device = device
         self.max_length = model_config["max_slug_tokens"]
         self.beam_width = beam_width
-        self.length_penalty = length_penalty
+        self.length_reward = length_reward
+        self.reward_cap = reward_cap
         self.filter_repetition = filter_repetition
 
         self.model = SlugDecoder(
@@ -90,25 +97,61 @@ class Seq2SeqPredictor(Predictor):
                 slugs.append(slug)
         return slugs
 
+    def _score(self, log_prob: float, tokens: list[int]) -> float:
+        """Score a completed beam using bounded additive length reward.
+
+        score = log_prob + r * min(word_count, B) + penalties
+
+        The reward cap B means length bonus stops accumulating past
+        typical slug length. Short outputs can still win if the model
+        is confident enough.
+        """
+        slug = self.vocab.decode_indices(tokens).strip("-")
+        words = slug.split("-") if slug else []
+        word_count = len([w for w in words if w])
+
+        score = log_prob + self.length_reward * min(word_count, self.reward_cap)
+
+        # Trailing stopword penalty
+        if words and words[-1] in STOPWORDS:
+            score -= 1.0
+
+        # Repetition as additive penalty (not lexicographic) so the
+        # stopping bound stays sound.
+        if self.filter_repetition:
+            content = [w for w in words if w and w not in STOPWORDS]
+            if len(content) != len(set(content)):
+                score -= 2.0
+
+        return score
+
     def _beam_search_single(self, embedding: torch.Tensor) -> str:
-        """Beam search for a single embedding."""
+        """Beam search with score-based optimal stopping.
+
+        Instead of stopping when K beams have completed (which favors
+        short outputs), stops when the best completed beam provably
+        dominates every active beam's upper bound:
+
+            UB(h) = log_prob(h) + r * B
+
+        because future log-prob increments are <= 0 and total reward
+        can never exceed r * B.
+
+        See: Huang et al. (2017), "When to Finish? Optimal Beam Search
+        for Neural Text Generation (modulo beam size)".
+        """
         bos = self.vocab.bos_idx
         eos = self.vocab.eos_idx
         pad = self.vocab.pad_idx
         unk_idx = self.vocab.unk_idx if hasattr(self.vocab, "unk_idx") else None
         k = self.beam_width
+        r = self.length_reward
+        B = self.reward_cap
 
-        # Each beam: (log_prob, token_ids)
         active: list[tuple[float, list[int]]] = [(0.0, [bos])]
+        best_finished_score = -float("inf")
         completed: list[tuple[float, list[int]]] = []
 
-        # Expand embedding to beam width
-        # (recomputed each step since active beam count can change)
-
-        # max_length - 1: tokens start as [BOS] (len 1) and the model
-        # prepends a prefix, so total positions = 1 + len(tokens). The
-        # position embedding has max_length + 1 slots (0..max_length),
-        # so len(tokens) must stay <= max_length.
         for step in range(self.max_length - 1):
             if not active:
                 break
@@ -117,16 +160,12 @@ class Seq2SeqPredictor(Predictor):
 
             # Batch all active beams into a single forward pass
             max_len = max(len(tokens) for _, tokens in active)
-            padded = [
-                tokens + [pad] * (max_len - len(tokens))
-                for _, tokens in active
-            ]
+            padded = [tokens + [pad] * (max_len - len(tokens)) for _, tokens in active]
             input_ids = torch.tensor(padded, dtype=torch.long, device=self.device)
             embedding_batch = embedding.expand(len(active), -1)
             all_logits = self.model(embedding_batch, input_ids)
 
             for beam_idx, (log_prob, tokens) in enumerate(active):
-                # Get logits at the actual last position (not padded)
                 next_logits = all_logits[beam_idx, len(tokens) - 1, :]
 
                 # Suppress PAD always
@@ -152,10 +191,7 @@ class Seq2SeqPredictor(Predictor):
                 if unk_idx is not None:
                     next_logits[unk_idx] = -float("inf")
 
-                # Log probabilities
                 log_probs = torch.log_softmax(next_logits, dim=0)
-
-                # Take top-k expansions
                 top_log_probs, top_indices = log_probs.topk(k)
 
                 for j in range(k):
@@ -164,46 +200,36 @@ class Seq2SeqPredictor(Predictor):
                     new_tokens = tokens + [token_id]
 
                     if token_id == eos:
+                        score = self._score(new_log_prob, new_tokens)
                         completed.append((new_log_prob, new_tokens))
+                        if score > best_finished_score:
+                            best_finished_score = score
                     else:
                         candidates.append((new_log_prob, new_tokens))
 
-            # Keep top-k active beams
+            # Keep top-k active beams by raw log-prob
             candidates.sort(key=lambda x: x[0], reverse=True)
             active = candidates[:k]
 
-            # Stop if we have enough completed beams
-            if len(completed) >= k:
-                break
+            # Score-based optimal stopping: stop when the best finished
+            # beam dominates every active beam's upper bound.
+            if active and best_finished_score > -float("inf"):
+                best_active_log_prob = active[0][0]
+                upper_bound = best_active_log_prob + r * B
+                if best_finished_score >= upper_bound:
+                    break
 
-        # Include active beams that hit max_length (no forced EOS cost)
+        # Include active beams that hit max_length
         for log_prob, tokens in active:
             completed.append((log_prob, tokens))
 
-        # Score and rank completed beams
-        scored: list[tuple[float, bool, list[int]]] = []
-        for log_prob, tokens in completed:
-            length = len(tokens) - 2  # exclude BOS and EOS
-            penalty = ((5.0 + length) / 6.0) ** self.length_penalty
-            score = log_prob / penalty
-
-            slug = self.vocab.decode_indices(tokens).strip("-")
-            words = [w for w in slug.split("-") if w and w not in STOPWORDS]
-
-            # Trailing stopword penalty
-            last_word = slug.split("-")[-1] if slug else ""
-            if last_word in STOPWORDS:
-                score -= 1.0
-
-            has_repeat = len(words) != len(set(words))
-            scored.append((score, has_repeat, tokens))
-
-        # Prefer non-repeating; within each group, take highest score
-        if self.filter_repetition:
-            scored.sort(key=lambda x: (x[1], -x[0]))
-        else:
-            scored.sort(key=lambda x: -x[0])
-        best_tokens = scored[0][2] if scored else [bos, eos]
+        # Final ranking by the same score used for stopping
+        scored = [
+            (self._score(log_prob, tokens), tokens)
+            for log_prob, tokens in completed
+        ]
+        scored.sort(key=lambda x: -x[0])
+        best_tokens = scored[0][1] if scored else [bos, eos]
 
         slug = self.vocab.decode_indices(best_tokens)
         slug = slug.strip("-")

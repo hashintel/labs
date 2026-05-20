@@ -32,7 +32,7 @@ class SeqDataset(TorchDataset):
         encoder: Encoder,
         split: Split,
         vocab,  # SeqVocab or BpeVocab
-        max_length: int = 10,
+        max_length: int,
         max_samples: int | None = None,
         seed: int = 42,
     ):

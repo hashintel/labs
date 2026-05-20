@@ -438,12 +438,13 @@ class Trainer(BaseTrainer):
     def _greedy_token_f1(self, model, loader, vocab: Vocab) -> tuple[float, float]:
         """Quick greedy decode on a subsample to track quality and length.
 
+        Computes macro-averaged token F1 (per-sample F1, then mean) to
+        match the evaluation pipeline's SlugTokenF1 metric.
+
         Returns (tok_f1, mean_word_count).
         """
         model.eval()
-        matches = 0
-        total_pred = 0
-        total_ref = 0
+        f1_scores: list[float] = []
         word_counts: list[int] = []
         seen = 0
         target = self.hyperparams.f1_n_samples
@@ -473,24 +474,24 @@ class Trainer(BaseTrainer):
                     pred_slug = vocab.decode_indices(generated[i, 1:].cpu().tolist())
                     ref_slug = vocab.decode_indices(target_ids[i].tolist())
 
-                    pred_words = [w for w in pred_slug.split("-") if w]
+                    pred_set = set(w for w in pred_slug.split("-") if w)
                     ref_set = set(ref_slug.split("-")) if ref_slug else set()
-                    pred_set = set(pred_words)
 
-                    matches += len(pred_set & ref_set)
-                    total_pred += len(pred_set)
-                    total_ref += len(ref_set)
-                    word_counts.append(len(pred_words))
+                    if not pred_set and not ref_set:
+                        f1_scores.append(1.0)
+                    elif not pred_set or not ref_set:
+                        f1_scores.append(0.0)
+                    else:
+                        common = len(pred_set & ref_set)
+                        p = common / len(pred_set)
+                        r = common / len(ref_set)
+                        f1_scores.append(2 * p * r / (p + r) if (p + r) > 0 else 0.0)
+
+                    word_counts.append(len(pred_set))
 
                 seen += batch_size
 
-        precision = matches / max(total_pred, 1)
-        recall = matches / max(total_ref, 1)
-        if precision + recall == 0:
-            tok_f1 = 0.0
-        else:
-            tok_f1 = 2 * precision * recall / (precision + recall)
-
+        tok_f1 = sum(f1_scores) / max(len(f1_scores), 1)
         mean_words = sum(word_counts) / max(len(word_counts), 1)
         return tok_f1, mean_words
 

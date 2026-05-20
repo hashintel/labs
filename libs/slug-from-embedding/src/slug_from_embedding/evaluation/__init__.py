@@ -27,18 +27,6 @@ from .transform import Pipeline, pipeline
 from .validity import Validity
 from .vocab_diversity import VocabDiversity
 
-default_pipeline = pipeline(
-    Validity(),
-    ExactMatch(),
-    SlugTokenF1(),
-    Rouge(),
-    BertScore(),
-    Distinctiveness(),
-    VocabDiversity(),
-    PerSource(),
-    LengthBucket(),
-)
-
 
 def build_pipeline(compression_path: Path | None = None) -> Pipeline:
     """Build eval pipeline, optionally with compressed token F1."""

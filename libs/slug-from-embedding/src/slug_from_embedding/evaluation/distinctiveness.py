@@ -50,10 +50,17 @@ class Distinctiveness(Transform):
     def transform(self, dataset: datasets.Dataset) -> datasets.Dataset:
         n = len(dataset)
 
-        # Arrow list<float> -> numpy via the flat values buffer
-        arrow_col = dataset.data.column("text_embedding").combine_chunks()
-        dim = arrow_col.offsets[1].as_py() - arrow_col.offsets[0].as_py()
-        embeddings = arrow_col.values.to_numpy().reshape(-1, dim).astype(np.float32)
+        # Arrow list<float> -> numpy via per-chunk flat values buffers.
+        # Avoids combine_chunks() which can overflow 32-bit list offsets
+        # on large datasets.
+        column = dataset.data.column("text_embedding")
+        chunk_arrays = []
+        for chunk in column.chunks:
+            offsets = chunk.offsets.to_numpy()
+            values = chunk.values.to_numpy()
+            dim = offsets[1] - offsets[0]
+            chunk_arrays.append(values.reshape(-1, dim))
+        embeddings = np.concatenate(chunk_arrays, axis=0).astype(np.float32)
 
         # Normalize and upload to device once
         normed = torch.from_numpy(embeddings)

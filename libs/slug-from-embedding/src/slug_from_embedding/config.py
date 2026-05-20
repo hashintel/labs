@@ -110,7 +110,7 @@ def anthropic_client():
     """Create an Anthropic client from env."""
     import anthropic
 
-    key = require_env("ANTHROPHIC_KEY", "ANTHROPIC_API_KEY")
+    key = require_env("ANTHROPIC_API_KEY", "ANTHROPHIC_KEY")
     return anthropic.Anthropic(api_key=key)
 
 
