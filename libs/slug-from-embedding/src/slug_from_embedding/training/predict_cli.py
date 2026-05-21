@@ -44,6 +44,12 @@ def main():
         action="store_true",
         help="Disable repetition filtering in beam search (seq2seq only)",
     )
+    parser.add_argument(
+        "--tag",
+        type=str,
+        default=None,
+        help="Tag to append to model name",
+    )
     args = parser.parse_args()
 
     workspace = Workspace(args.workspace)
@@ -89,6 +95,8 @@ def main():
             pbar.update(len(batch_slugs))
 
     prediction_name = f"{model_dir.name}_{args.variant}"
+    if args.tag:
+        prediction_name = f"{prediction_name}_{args.tag}"
     workspace.write_predictions(
         args.encoder, prediction_name, ids, all_slugs, args.split
     )

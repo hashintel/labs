@@ -14,3 +14,4 @@ class MLPConfig:
     position_head: bool = False
     token_loss: Literal["bce", "focal"] = "bce"
     focal_gamma: float = 2.0
+    tag: str | None = None

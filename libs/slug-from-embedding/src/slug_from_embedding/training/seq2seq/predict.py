@@ -93,9 +93,22 @@ class Seq2SeqPredictor(Predictor):
         with torch.no_grad():
             for i in range(len(embeddings)):
                 embedding = torch.from_numpy(embeddings[i : i + 1]).to(self.device)
-                slug = self._beam_search_single(embedding)
+                candidates = self._beam_search(embedding)
+                slug = candidates[0][0] if candidates else ""
                 slugs.append(slug)
         return slugs
+
+    def predict_topk(
+        self, embeddings: np.ndarray, k: int = 5
+    ) -> list[list[tuple[str, float]]]:
+        """Return top-k slug candidates with scores for each embedding."""
+        results = []
+        with torch.no_grad():
+            for i in range(len(embeddings)):
+                embedding = torch.from_numpy(embeddings[i : i + 1]).to(self.device)
+                candidates = self._beam_search(embedding)
+                results.append(candidates[:k])
+        return results
 
     def _score(self, log_prob: float, tokens: list[int]) -> float:
         """Score a completed beam using bounded additive length reward.
@@ -125,8 +138,11 @@ class Seq2SeqPredictor(Predictor):
 
         return score
 
-    def _beam_search_single(self, embedding: torch.Tensor) -> str:
+    def _beam_search(self, embedding: torch.Tensor) -> list[tuple[str, float]]:
         """Beam search with score-based optimal stopping.
+
+        Returns all completed candidates as (slug, score) pairs,
+        deduplicated and sorted by score descending.
 
         Instead of stopping when K beams have completed (which favors
         short outputs), stops when the best completed beam provably
@@ -229,8 +245,14 @@ class Seq2SeqPredictor(Predictor):
             for log_prob, tokens in completed
         ]
         scored.sort(key=lambda x: -x[0])
-        best_tokens = scored[0][1] if scored else [bos, eos]
+        # Deduplicate and sort by score
+        seen: set[str] = set()
+        results: list[tuple[str, float]] = []
+        for score, tokens in scored:
+            slug = self.vocab.decode_indices(tokens).strip("-")
+            if not slug or slug in seen:
+                continue
+            seen.add(slug)
+            results.append((slug, score))
 
-        slug = self.vocab.decode_indices(best_tokens)
-        slug = slug.strip("-")
-        return slug if slug else ""
+        return results

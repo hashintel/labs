@@ -69,12 +69,15 @@ class Trainer(BaseTrainer):
         self.compression = compression
 
         tag = f"mlp_{encoder}"
+        if model_config.tag:
+            tag += f"_{model_config.tag}"
         if model_config.position_head:
             tag += "_pos"
         self.tag = tag
 
-        variant_name = "mlp_pos" if model_config.position_head else "mlp"
-        self.output_dir = workspace.models_dir(encoder, variant_name)
+        self.output_dir = workspace.models_dir(
+            encoder, self.tag.replace(f"_{encoder}", "")
+        )
 
         if (
             self.output_dir.exists()
@@ -410,6 +413,12 @@ def main():
         action="store_true",
         help="Overwrite existing checkpoint",
     )
+    parser.add_argument(
+        "--tag",
+        type=str,
+        default=None,
+        help="Tag to append to model name",
+    )
     args = parser.parse_args()
 
     workspace = Workspace(args.workspace)
@@ -424,6 +433,7 @@ def main():
             position_head=args.position_head,
             token_loss=args.token_loss,
             focal_gamma=args.focal_gamma,
+            tag=args.tag,
         ),
         hyperparams=TrainHyperparams(
             lr=args.lr,

@@ -39,6 +39,7 @@ slug-train-seq2seq = "slug_from_embedding.training.seq2seq.train:main"
 slug-predict = "slug_from_embedding.training.predict_cli:main"
 slug-compress-vocab = "slug_from_embedding.compress_vocab:main"
 slug-visualize-vocab = "slug_from_embedding.visualize_vocab:main"
+slug-analyze-attention = "slug_from_embedding.analyze_attention:main"
 
 [tool.uv]
 package = true
