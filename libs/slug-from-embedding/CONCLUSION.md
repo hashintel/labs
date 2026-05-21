@@ -186,7 +186,7 @@ Doubling the parameter count adds +0.01 tok F1, essentially noise. The bigger mo
 The final decoding pipeline:
 
 - **Beam search** (width=4) over greedy
-- **Length-normalized scoring** with bounded aI have dditive length reward: `score = log_prob / ((5 + len) / 6)^1.2`
+- **Length-normalized scoring** with bounded additive length reward: `score = log_prob / ((5 + len) / 6)^1.2`
 - **Minimum word count**: suppress EOS until at least 3 slug words (now mostly redundant with EOS-aware training)
 - **Hard EOS suppression** after stopwords
 - **Trailing stopword penalty** on completed beams (-1.0 score)
@@ -195,6 +195,70 @@ The final decoding pipeline:
 - **Score-based stopping** (Huang et al. 2017): exit when no active beam could outscore the best completed beam under length-normalized scoring, rather than count-based early stop
 
 Greedy decoding produced repetition pathologies ("turtle-of-turtle", "audio-video-sync-audio-video") that beam search largely eliminates. The remaining failure modes — stopword endings, occasional truncation — are handled by the explicit decoding constraints.
+
+### Attention Pattern: Hyphens as Embedding-Routing Nodes
+
+Inspection of attention weights over 500 test samples (1742 hyphen positions, 2925 subword positions) reveals that the model learned a structured pattern for consulting the prefix embedding. The decoder treats hyphens and the BOS token as dedicated "embedding-readers"; subword tokens almost never consult the prefix directly.
+
+Mean attention TO prefix, by source token kind, across the 6 decoder layers:
+
+| Source | L0 | L1 | L2 | L3 | L4 | L5 |
+|---|---|---|---|---|---|---|
+| BOS | 0.624 | 0.289 | 0.398 | 0.373 | 0.529 | 0.604 |
+| **Hyphen** | **0.530** | 0.136 | 0.187 | 0.176 | 0.339 | 0.352 |
+| Subword | 0.093 | 0.120 | 0.097 | 0.122 | 0.079 | 0.067 |
+| EOS | 0.050 | 0.030 | 0.018 | 0.038 | 0.074 | 0.041 |
+
+At layer 0, hyphens allocate 53% of their attention to the prefix embedding, vs subwords at 9.3% — a ~5.7x ratio. The pattern is highly consistent (Q25/Q75 for hyphens at layer 0: 0.518/0.542, n=1742).
+
+Three regimes are visible across layers:
+
+1. **Layer 0 spreads the embedding.** BOS (0.62) and hyphens (0.53) both read the prefix heavily. Subwords don't read it directly; they get the embedding's information indirectly through BOS and hyphens.
+2. **Layers 1-3 do local processing.** All positions reduce their prefix attention. The model composes subwords into words and contextualizes predictions within the local sequence.
+3. **Layers 4-5 re-consult.** BOS climbs back to 0.60, hyphens to 0.35. Before final output, the routing nodes re-check the embedding to refine decisions.
+
+Subword-to-prefix attention is uniformly low (0.07-0.12) across all layers despite having 6 layers of capacity. The model genuinely prefers the routing pattern over distributing prefix attention more evenly.
+
+### Layer 0 Head Specialization
+
+Per-head analysis reveals that the layer 0 routing is *not* distributed across all 8 attention heads. The heads divide into two disjoint groups:
+
+| Head | Hyphen→Prefix at L0 |
+|---|---|
+| H0 | 0.982 |
+| H1 | 0.015 |
+| H2 | 0.011 |
+| H3 | 0.993 |
+| H4 | 0.958 |
+| H5 | 0.007 |
+| H6 | 0.988 |
+| H7 | 0.286 |
+
+Four heads (H0, H3, H4, H6) allocate ~98% of their attention to the prefix when reading from hyphens. Three heads (H1, H2, H5) allocate under 2%. H7 is intermediate. The max-min spread is 0.987 — essentially binary specialization.
+
+This is sharper than the layer-averaged number suggests: it's not that all heads gently look at the prefix; it's that half the heads are dedicated "prefix readers" and the rest do something else entirely. The specialization is also dynamic across depth: H2 takes over as dominant router at L1-L3, H6 dominates at L2-L3, and L4-L5 distribute across multiple heads. The model learned a pipeline where embedding-reading responsibility migrates through specific heads at specific depths.
+
+For subword sources, no comparable specialization exists: subword→prefix attention is uniformly low across all heads (max-min spread of only 0.10-0.20 at every layer). The routing structure is specifically a hyphen-token phenomenon.
+
+### Hyphen Position Has Minimal Effect
+
+We classified hyphens by their position within the slug (first / middle / last) to test whether earlier hyphens — committing to the first content word — attend more heavily to the prefix than later ones. They don't:
+
+| Position | L0 | L4 | L5 |
+|---|---|---|---|
+| hyphen_first | 0.535 | 0.368 | 0.379 |
+| hyphen_middle | 0.530 | 0.336 | 0.361 |
+| hyphen_last | 0.525 | 0.315 | 0.312 |
+
+At layer 0 the three positions are within 0.01 of each other. Only at the late re-consultation layers (L4-L5) does a modest gradient emerge, with first hyphens re-consulting slightly more than last hyphens. The routing is essentially position-agnostic: every hyphen does roughly the same embedding-reading work, regardless of where it falls in the slug.
+
+This is a cleaner story than "early commitment, later elaboration" — the routing is a structural property of the hyphen token itself, not specific to certain positions.
+
+### What This Tells Us
+
+The model learned a computational structure not designed into it: dedicated "embedding-reader" attention heads at structural boundary tokens (hyphens), with responsibility migrating across layers. It's analogous to how BERT learns to use CLS tokens for aggregation, but here the routing emerged from the BPE vocabulary choice — making `-` a discrete token gave the model stable positions to coordinate prefix-attention around. SentencePiece-style implicit hyphens would have foreclosed this organization.
+
+This also rationalizes the project's earlier vocabulary debate: hyphen-as-token wasn't just a vocab efficiency choice, it turned out to be structurally load-bearing for the learning dynamics.
 
 ## Key Findings
 
@@ -213,13 +277,15 @@ Greedy decoding produced repetition pathologies ("turtle-of-turtle", "audio-vide
 
 5. **Performance plateaus across model configurations even after the calibration fixes.** Comparing d=384 L=4 EOS (11.5M params, 0.286 training tok F1) against d=512 L=6 EOS (24.8M params, 0.296 training tok F1), doubling the parameter count gains only +0.010 tok F1. Both produce mean output length 4.9 (within rounding of training mean 5.1). The model recovers domain vocabulary well ("arsenic", "dragonflies", "cholera") but fails on proper nouns. Whether this represents an embedding-content ceiling or a data-quantity ceiling cannot be distinguished from these experiments; we discuss possible distinguishing experiments below.
 
-6. **Width and depth are roughly interchangeable at fixed parameter budget.** 512d/4L matches 512d/6L with 6M fewer parameters. The bottleneck is upstream of model capacity.
+6. **The model learned to use hyphens as embedding-routing nodes, with specific attention heads specializing for the job.** At layer 0, hyphen tokens allocate 53% of their attention to the prefix embedding (vs 9.3% for subwords, a 5.7x ratio across 1742 hyphen positions in 500 test samples). The routing is concentrated in specific heads: 4 of 8 heads at layer 0 allocate ~98% to the prefix when reading from hyphens, while 3 others allocate under 2%. Responsibility migrates to different heads across layers (H2 at L1, H6 at L2-L3, distributed at L4-L5), suggesting a learned multi-layer pipeline for embedding-reading. The pattern is position-agnostic: first, middle, and last hyphens in a slug all do roughly the same routing work. This computational structure emerged from the BPE vocabulary choice (hyphen-as-token) and is analogous to how BERT learns to use CLS tokens for aggregation, except here it was discovered by the model rather than designed in.
 
-7. **Decoding strategy is as important as model quality.** Beam search, stopword suppression, repetition filtering, and length-aware termination are inference-time fixes that significantly improve output quality without changing model weights.
+7. **Width and depth are roughly interchangeable at fixed parameter budget.** 512d/4L matches 512d/6L with 6M fewer parameters. The bottleneck is upstream of model capacity.
 
-8. **Isolated tokens cluster poorly in embedding space.** At cosine ≥ 0.85, 316k single-word tokens form a near-fully-connected graph. Sentence-trained embedding models don't separate individual words well. This is why KMeans was the only practical compression strategy and why fine-grained lexical recovery is hard.
+8. **Decoding strategy is as important as model quality.** Beam search, stopword suppression, repetition filtering, and length-aware termination are inference-time fixes that significantly improve output quality without changing model weights.
 
-9. **CPU inference is feasible.** The 384d/4L BPE model (46MB, 11.5M params) runs at ~60ms/sample on CPU. The 512d/6L model (99MB) runs at ~150ms/sample.
+9. **Isolated tokens cluster poorly in embedding space.** At cosine ≥ 0.85, 316k single-word tokens form a near-fully-connected graph. Sentence-trained embedding models don't separate individual words well. This is why KMeans was the only practical compression strategy and why fine-grained lexical recovery is hard.
+
+10. **CPU inference is feasible.** The 384d/4L BPE model (46MB, 11.5M params) runs at ~60ms/sample on CPU. The 512d/6L model (99MB) runs at ~150ms/sample.
 
 ## What Limits Performance
 
