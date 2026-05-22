@@ -313,15 +313,27 @@ If embeddings already exist in the index (the intended use case), marginal cost 
 
 ## Open Questions
 
-- **Scale experiment: 10-20M samples.** The critical next experiment. Would distinguish data ceiling from embedding ceiling. Existing pipeline supports this; primary cost is compute (likely requires H100 or similar).
+- **Scale experiment: 10-20M samples.** The critical next experiment. Would distinguish data ceiling from embedding ceiling. Existing pipeline supports this; FineWeb-Edu has ~29M documents. Primary cost is compute (24-hour H100 rental sufficient for retrain at 10M scale).
 
 - **Distilled vs extracted references.** URL slugs are noisy. Whether a smaller (~1-2M) but cleaner distilled corpus outperforms a larger URL-extracted one is testable. Local-model distillation makes this affordable.
 
 - **Hybrid corpus.** URL extraction with a quality filter (embed both slug and document, require cosine > threshold). Combines scale with quality.
 
-- **Frozen pretrained decoder.** Would test whether the bottleneck is language modeling capacity or embedding information. Current decoder is trained from scratch.
+- **Bi-encoder architecture.** Encoder consumes the embedding, decoder generates conditioned on encoder output (standard seq2seq). More expressive than prefix-conditioning, where the embedding competes for attention through a single position. Would test whether the prefix-only formulation is leaving information on the table. The head specialization finding (4/8 heads dedicated to prefix-reading at layer 0) suggests the model is already working hard to extract from a single position; giving it richer access might unlock more.
 
-- **Training-objective alternatives.** Sequence-level training (REINFORCE on token F1, contrastive losses) might extract more from the embedding than next-token CE. Untested here.
+- **Input projection ablation.** The 1536→512 projection compresses information by 3x before the attention heads see it. Running the decoder at d=1536 (no projection) would test whether the specialized heads can extract finer-grained signal from the full embedding. Expensive (parameter count scales quadratically with d) but clean.
+
+- **Cross-embedding transfer.** Train the same architecture on a different embedding model (e.g. Nomic). If hyphen-routing emerges identically, the routing structure is a property of the task (BPE vocabulary + slug generation objective). If it doesn't, the pattern depends on properties of the specific embedding. Either result is informative.
+
+- **Frozen pretrained decoder.** Use a small pretrained LM (DistilGPT2, TinyLLaMA) and train only an adapter from embedding to its hidden states. The pretrained LM already knows language structure; the adapter learns the embedding-to-text mapping. Tests whether the bottleneck is decoder capacity or the from-scratch training. Most informative architectural test but significant engineering work. Also interesting to check whether a pretrained model rediscovers hyphen-routing or solves the task through different mechanisms.
+
+- **Training-objective alternatives.** Sequence-level training might extract more from the embedding than next-token CE. Two concrete directions:
+  - **InfoNCE on slug-document pairs.** Train the decoder to produce slugs whose embedding is closer to the source embedding than to negative samples. Adds a signal that "the slug should mean the same thing as the document," not just "match these tokens." Could help with cases where the model generates a topically-correct slug that shares few words with the reference.
+  - **Token-level reinforcement on F1.** REINFORCE-style fine-tuning where the reward signal is Token F1 against the reference rather than per-token cross-entropy. Adapts the model to the evaluation metric directly. Standard NMT technique; small gains usually but worth checking.
+
+- **Confidence-aware generation.** The model currently produces one slug with no confidence signal. For deployment, a calibrated confidence score per prediction would be valuable. Cheap to derive: use the length-normalized log probability of the chosen beam. Worth checking if this correlates with Token F1 across the test set. If yes, provides a deployment signal for "this prediction is suspect, flag for review."
+
+- **Empirical random baseline.** Current floor is conceptual ("random"). Worth computing the Token F1 of a random slug sampled from the training vocabulary weighted by frequency, to establish the empirical floor for the metric on this data. Probably around 0.05-0.10 but should be measured.
 
 ## Experiment Log
 
