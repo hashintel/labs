@@ -1,0 +1,47 @@
+[project]
+name = "vec2slug"
+version = "0.1.0"
+description = "Research: generating slugs from content embeddings"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "absl-py>=2.4.0",
+    "anthropic>=0.102.0",
+    "bert-score>=0.3.13",
+    "datasets>=4.8.5",
+    "datatrove[io,processing]>=0.9.0",
+    "duckdb>=1.5.2",
+    "evaluate>=0.4.6",
+    "nltk>=3.9.4",
+    "onnxruntime>=1.26.0",
+    "onnxscript>=0.7.0",
+    "openai>=2.36.0",
+    "python-dotenv>=1.2.2",
+    "rouge-score>=0.1.2",
+    "scikit-learn>=1.8.0",
+    "seaborn>=0.13.2",
+    "spacy>=3.8.14",
+    "tokenizers<=0.23.0",
+    "torch>=2.12.0",
+    "transformers>=4.57.6",
+    "umap-learn>=0.5.12",
+]
+
+[project.scripts]
+slug-prepare = "vec2slug.prepare_corpus:main"
+slug-distill = "vec2slug.distill_slugs:main"
+slug-embed = "vec2slug.embed_corpus:main"
+slug-split = "vec2slug.split_dataset:main"
+slug-baseline = "vec2slug.baselines:main"
+slug-eval = "vec2slug.evaluation:main"
+slug-report = "vec2slug.report:main"
+slug-prepare-urls = "vec2slug.prepare_url_corpus:main"
+slug-train-mlp = "vec2slug.training.mlp.train:main"
+slug-train-seq2seq = "vec2slug.training.seq2seq.train:main"
+slug-predict = "vec2slug.training.predict_cli:main"
+slug-compress-vocab = "vec2slug.compress_vocab:main"
+slug-visualize-vocab = "vec2slug.visualize_vocab:main"
+slug-analyze-attention = "vec2slug.analyze_attention:main"
+
+[tool.uv]
+package = true

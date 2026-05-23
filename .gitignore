@@ -34,8 +34,8 @@ Cargo.lock
 
 # Patchwork
 .pushwork/
-libs/slug-from-embedding/.venv
+libs/vec2slug/.venv
 .dmypy.json
-libs/slug-from-embedding/data/
+libs/vec2slug/data/
 __pycache__/
 *.egg-info
