@@ -19,10 +19,13 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 from vec2slug.config import STOPWORDS, Encoder
 
@@ -44,9 +47,36 @@ TRAILING_STOPWORD_PENALTY = 1.0
 REPETITION_PENALTY = 2.0
 NO_EOS_FALLBACK_PENALTY = 5.0
 
+# Cache decoded prefixes because the beam scorer and constraints repeatedly
+# inspect the same short token sequences. Keep this bounded for long batch jobs.
+DECODE_CACHE_SIZE = 262_144
+
 
 type Beam = tuple[float, list[int]]  # (raw cumulative log-prob, token ids)
 type ScoredSlug = tuple[str, float]
+type LayerCache = tuple[torch.Tensor, torch.Tensor]  # (K, V), [heads, seq, head_dim]
+type KVCache = tuple[LayerCache, ...]
+
+
+@dataclass(slots=True)
+class CachedBeam:
+    """Active beam state for cached incremental decoding."""
+
+    log_prob: float
+    tokens: list[int]
+    cache: KVCache
+    next_logits: torch.Tensor
+
+
+@dataclass(slots=True)
+class PendingBeam:
+    """Candidate selected for one cached decoder advance."""
+
+    log_prob: float
+    tokens: list[int]
+    parent_cache: KVCache
+    token_id: int
+    position: int
 
 
 class Seq2SeqPredictor(Predictor):
@@ -75,6 +105,7 @@ class Seq2SeqPredictor(Predictor):
         length_reward: float = DEFAULT_LENGTH_REWARD,
         reward_cap: int = DEFAULT_REWARD_CAP,
         filter_repetition: bool = True,
+        use_cache: bool = True,
     ):
         if beam_width <= 0:
             raise ValueError(f"beam_width must be positive, got {beam_width}")
@@ -105,6 +136,7 @@ class Seq2SeqPredictor(Predictor):
         self.length_reward = float(length_reward)
         self.reward_cap = int(reward_cap)
         self.filter_repetition = filter_repetition
+        self.use_cache = bool(use_cache)
 
         self.decode_config = {
             "score": "bounded_additive_length_reward",
@@ -121,6 +153,8 @@ class Seq2SeqPredictor(Predictor):
             "max_input_tokens": self.max_length,
             "max_content_tokens": self.max_content_tokens,
             "force_eos_at_max_content_tokens": True,
+            "kv_cache": self.use_cache,
+            "decode_cache_size": DECODE_CACHE_SIZE,
         }
 
         self.model = SlugDecoder(
@@ -138,6 +172,14 @@ class Seq2SeqPredictor(Predictor):
         self.model.to(device)
         self.model.eval()
 
+        if self.use_cache and not self._supports_kv_cache():
+            # The cache path intentionally reuses the model's existing MHA
+            # weights. If the model architecture changes in a way the manual
+            # incremental step cannot mirror exactly, fall back to the regular
+            # full-prefix forward path rather than risking divergent logits.
+            self.use_cache = False
+        self.decode_config["kv_cache"] = self.use_cache
+
     def _validate(self, manifest: dict, encoder: Encoder):
         if manifest.get("variant") != "seq2seq":
             raise ValueError(
@@ -151,12 +193,17 @@ class Seq2SeqPredictor(Predictor):
 
     def predict(self, embeddings: np.ndarray) -> list[str]:
         slugs: list[str] = []
-        with torch.no_grad():
-            for i in range(len(embeddings)):
-                embedding = torch.as_tensor(
-                    embeddings[i : i + 1], dtype=torch.float32, device=self.device
-                )
-                candidates = self._beam_search(embedding)
+        if len(embeddings) == 0:
+            return slugs
+
+        # The CLI already chunks inputs. Move each chunk to the target device
+        # once instead of creating a new tensor for every row.
+        embedding_batch = torch.as_tensor(
+            embeddings, dtype=torch.float32, device=self.device
+        )
+        with torch.inference_mode():
+            for i in range(len(embedding_batch)):
+                candidates = self._beam_search(embedding_batch[i : i + 1])
                 slug = candidates[0][0] if candidates else ""
                 slugs.append(slug)
         return slugs
@@ -166,21 +213,32 @@ class Seq2SeqPredictor(Predictor):
     ) -> list[list[ScoredSlug]]:
         """Return top-k slug candidates with final decode scores."""
         results: list[list[ScoredSlug]] = []
-        with torch.no_grad():
-            for i in range(len(embeddings)):
-                embedding = torch.as_tensor(
-                    embeddings[i : i + 1], dtype=torch.float32, device=self.device
-                )
-                candidates = self._beam_search(embedding)
+        if len(embeddings) == 0:
+            return results
+
+        embedding_batch = torch.as_tensor(
+            embeddings, dtype=torch.float32, device=self.device
+        )
+        with torch.inference_mode():
+            for i in range(len(embedding_batch)):
+                candidates = self._beam_search(embedding_batch[i : i + 1])
                 results.append(candidates[:k])
         return results
 
+    @lru_cache(maxsize=DECODE_CACHE_SIZE)
+    def _decode_slug_tuple(self, tokens: tuple[int, ...]) -> str:
+        return self.vocab.decode_indices(list(tokens)).strip("-")
+
+    @lru_cache(maxsize=DECODE_CACHE_SIZE)
+    def _words_tuple(self, tokens: tuple[int, ...]) -> tuple[str, ...]:
+        slug = self._decode_slug_tuple(tokens)
+        return tuple(w for w in slug.split("-") if w)
+
     def _decode_slug(self, tokens: list[int]) -> str:
-        return self.vocab.decode_indices(tokens).strip("-")
+        return self._decode_slug_tuple(tuple(tokens))
 
     def _words(self, tokens: list[int]) -> list[str]:
-        slug = self._decode_slug(tokens)
-        return [w for w in slug.split("-") if w]
+        return list(self._words_tuple(tuple(tokens)))
 
     def _score(self, log_prob: float, tokens: list[int]) -> float:
         """Score a completed beam using bounded additive length reward.
@@ -249,6 +307,317 @@ class Seq2SeqPredictor(Predictor):
 
         return masked
 
+    def _supports_kv_cache(self) -> bool:
+        """Return whether the model layout is supported by manual KV caching.
+
+        The cache path mirrors ``DecoderBlock.forward`` exactly for the current
+        architecture: pre-norm self-attention with one ``nn.MultiheadAttention``
+        module where query/key/value share the same embedding dimension. If a
+        future model changes those assumptions, use the uncached path until the
+        cache implementation is updated too.
+        """
+        for block in self.model.blocks:
+            attn = block.attn
+            if getattr(attn, "in_proj_weight", None) is None:
+                return False
+            if getattr(attn, "bias_k", None) is not None:
+                return False
+            if getattr(attn, "bias_v", None) is not None:
+                return False
+            if getattr(attn, "add_zero_attn", False):
+                return False
+            if attn.embed_dim % attn.num_heads != 0:
+                return False
+        return True
+
+    def _cached_self_attention(
+        self,
+        attn: torch.nn.MultiheadAttention,
+        x: torch.Tensor,
+        past_k: torch.Tensor | None,
+        past_v: torch.Tensor | None,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """One-token self-attention step using cached keys and values.
+
+        Args:
+            attn: The block's existing ``nn.MultiheadAttention`` module.
+            x: Current normalized hidden state, shape ``[B, D]``.
+            past_k/past_v: Optional caches, shape ``[B, H, S, Dh]``.
+
+        Returns:
+            ``(attn_output, new_k, new_v)`` where caches include the current
+            token. Because the query is always the newest token and the cache
+            contains only prefix/past/current positions, no causal mask is
+            needed for this single-step attention call.
+        """
+        batch_size, embed_dim = x.shape
+        num_heads = attn.num_heads
+        head_dim = embed_dim // num_heads
+
+        qkv = F.linear(x, attn.in_proj_weight, attn.in_proj_bias)
+        q, k, v = qkv.chunk(3, dim=-1)
+
+        q = q.view(batch_size, num_heads, 1, head_dim)
+        k = k.view(batch_size, num_heads, 1, head_dim)
+        v = v.view(batch_size, num_heads, 1, head_dim)
+
+        if past_k is not None:
+            k_all = torch.cat([past_k, k], dim=2)
+            v_all = torch.cat([past_v, v], dim=2)
+        else:
+            k_all = k
+            v_all = v
+
+        scores = torch.matmul(q, k_all.transpose(-2, -1)) / math.sqrt(head_dim)
+        weights = torch.softmax(scores, dim=-1)
+        attn_output = torch.matmul(weights, v_all)
+        attn_output = (
+            attn_output.transpose(1, 2).contiguous().view(batch_size, embed_dim)
+        )
+        attn_output = attn.out_proj(attn_output)
+        return attn_output, k_all, v_all
+
+    def _init_prefix_cache(self, embedding: torch.Tensor) -> KVCache:
+        """Run the source prefix token once and cache it for every layer."""
+        batch_size = embedding.size(0)
+        if batch_size != 1:
+            raise ValueError("_init_prefix_cache expects a single embedding")
+
+        positions = torch.zeros(batch_size, dtype=torch.long, device=self.device)
+        x = self.model.embedding_projection(embedding)
+        x = x + self.model.position_embedding(positions)
+        x = self.model.dropout(x)
+
+        cache: list[LayerCache] = []
+        for block in self.model.blocks:
+            normed = block.ln1(x)
+            attn_out, k, v = self._cached_self_attention(block.attn, normed, None, None)
+            x = x + attn_out
+            x = x + block.ffn(block.ln2(x))
+            cache.append((k[0].contiguous(), v[0].contiguous()))
+
+        return tuple(cache)
+
+    def _append_cached_tokens(
+        self,
+        parent_caches: list[KVCache],
+        token_ids: list[int],
+        positions: list[int],
+    ) -> tuple[list[KVCache], torch.Tensor]:
+        """Append one token to each cached beam and return next-token logits.
+
+        ``positions`` are model sequence positions including the prefix at 0:
+        BOS is position 1, the first content token is position 2, and so on.
+        """
+        if not token_ids:
+            return [], torch.empty(0, len(self.vocab), device=self.device)
+
+        batch_size = len(token_ids)
+        token_tensor = torch.tensor(token_ids, dtype=torch.long, device=self.device)
+        position_tensor = torch.tensor(positions, dtype=torch.long, device=self.device)
+
+        x = self.model.token_embedding(token_tensor)
+        x = x + self.model.position_embedding(position_tensor)
+        x = self.model.dropout(x)
+
+        new_batched_cache: list[tuple[torch.Tensor, torch.Tensor]] = []
+        for layer_idx, block in enumerate(self.model.blocks):
+            past_k = torch.stack(
+                [cache[layer_idx][0] for cache in parent_caches], dim=0
+            )
+            past_v = torch.stack(
+                [cache[layer_idx][1] for cache in parent_caches], dim=0
+            )
+
+            normed = block.ln1(x)
+            attn_out, k, v = self._cached_self_attention(
+                block.attn, normed, past_k, past_v
+            )
+            x = x + attn_out
+            x = x + block.ffn(block.ln2(x))
+            new_batched_cache.append((k, v))
+
+        logits = self.model.output_projection(self.model.ln_final(x))
+
+        # Split the batched cache back into per-beam states. ``contiguous`` avoids
+        # keeping the whole temporary batch tensor alive through a narrow view.
+        caches: list[KVCache] = []
+        for beam_idx in range(batch_size):
+            layers: list[LayerCache] = []
+            for k, v in new_batched_cache:
+                layers.append((k[beam_idx].contiguous(), v[beam_idx].contiguous()))
+            caches.append(tuple(layers))
+
+        return caches, logits
+
+    def _initial_cached_beam(self, embedding: torch.Tensor) -> CachedBeam:
+        """Create the initial active beam after consuming prefix + BOS."""
+        bos = self.vocab.bos_idx
+        prefix_cache = self._init_prefix_cache(embedding)
+        caches, logits = self._append_cached_tokens([prefix_cache], [bos], [1])
+        return CachedBeam(
+            log_prob=0.0,
+            tokens=[bos],
+            cache=caches[0],
+            next_logits=logits[0],
+        )
+
+    def _force_finish_cached_active(self, active: list[CachedBeam]) -> list[Beam]:
+        """Close cached active beams by charging current EOS probability."""
+        eos = self.vocab.eos_idx
+        finished: list[Beam] = []
+        for beam in active:
+            log_probs = torch.log_softmax(
+                self._mask_never_tokens(beam.next_logits), dim=0
+            )
+            eos_log_prob = float(log_probs[eos].item())
+            if math.isfinite(eos_log_prob):
+                finished.append((beam.log_prob + eos_log_prob, beam.tokens + [eos]))
+            else:
+                finished.append((
+                    beam.log_prob - NO_EOS_FALLBACK_PENALTY,
+                    beam.tokens + [eos],
+                ))
+        return finished
+
+    def _beam_search(self, embedding: torch.Tensor) -> list[ScoredSlug]:
+        if self.use_cache:
+            return self._beam_search_cached(embedding)
+        return self._beam_search_uncached(embedding)
+
+    def _beam_search_cached(self, embedding: torch.Tensor) -> list[ScoredSlug]:
+        """Beam search using per-layer KV caches.
+
+        The cached version keeps the same scoring, constraints, forced-EOS
+        behavior, and Huang-style stopping rule as the uncached implementation.
+        The only intended difference is compute: every retained active beam is
+        advanced by one token instead of recomputing the whole prefix on every
+        beam step.
+        """
+        eos = self.vocab.eos_idx
+        k = self.beam_width
+
+        active: list[CachedBeam] = [self._initial_cached_beam(embedding)]
+        completed: list[Beam] = []
+        best_finished_score = -float("inf")
+        stopped_by_bound = False
+
+        for _ in range(self.max_length):
+            if not active:
+                break
+
+            pending: list[PendingBeam] = []
+
+            for beam in active:
+                content_length = len(beam.tokens) - 1  # exclude BOS
+                force_eos = content_length >= self.max_content_tokens
+                raw_next_logits = beam.next_logits
+
+                if force_eos:
+                    # Same as the uncached path: EOS is the only valid next
+                    # token, but its probability is still paid under the raw
+                    # model distribution.
+                    log_probs = torch.log_softmax(
+                        self._mask_never_tokens(raw_next_logits), dim=0
+                    )
+                    top_log_probs = log_probs[eos].reshape(1)
+                    top_indices = torch.tensor(
+                        [eos], dtype=torch.long, device=self.device
+                    )
+                else:
+                    next_logits = self._apply_token_constraints(
+                        raw_next_logits, beam.tokens
+                    )
+                    if not torch.isfinite(next_logits).any():
+                        log_probs = torch.log_softmax(
+                            self._mask_never_tokens(raw_next_logits), dim=0
+                        )
+                        top_log_probs = log_probs[eos].reshape(1)
+                        top_indices = torch.tensor(
+                            [eos], dtype=torch.long, device=self.device
+                        )
+                    else:
+                        log_probs = torch.log_softmax(next_logits, dim=0)
+                        top_count = min(k, log_probs.numel())
+                        top_log_probs, top_indices = log_probs.topk(top_count)
+
+                for token_log_prob, token_idx in zip(top_log_probs, top_indices):
+                    token_log_prob_float = float(token_log_prob.item())
+                    if not math.isfinite(token_log_prob_float):
+                        continue
+
+                    token_id = int(token_idx.item())
+                    new_log_prob = beam.log_prob + token_log_prob_float
+                    new_tokens = beam.tokens + [token_id]
+
+                    if token_id == eos:
+                        completed.append((new_log_prob, new_tokens))
+                        score = self._score(new_log_prob, new_tokens)
+                        best_finished_score = max(best_finished_score, score)
+                    else:
+                        # Position of the newly appended token in the model
+                        # sequence. Prefix is 0, BOS is 1, content starts at 2.
+                        pending.append(
+                            PendingBeam(
+                                log_prob=new_log_prob,
+                                tokens=new_tokens,
+                                parent_cache=beam.cache,
+                                token_id=token_id,
+                                position=len(new_tokens),
+                            )
+                        )
+
+            pending.sort(
+                key=lambda beam: self._partial_score(beam.log_prob, beam.tokens),
+                reverse=True,
+            )
+            selected = pending[:k]
+
+            if selected:
+                caches, next_logits = self._append_cached_tokens(
+                    [beam.parent_cache for beam in selected],
+                    [beam.token_id for beam in selected],
+                    [beam.position for beam in selected],
+                )
+                active = [
+                    CachedBeam(
+                        log_prob=beam.log_prob,
+                        tokens=beam.tokens,
+                        cache=caches[i],
+                        next_logits=next_logits[i],
+                    )
+                    for i, beam in enumerate(selected)
+                ]
+            else:
+                active = []
+
+            if active and best_finished_score > -float("inf"):
+                max_active_bound = max(
+                    self._upper_bound(beam.log_prob) for beam in active
+                )
+                if best_finished_score >= max_active_bound:
+                    stopped_by_bound = True
+                    break
+
+        if active and not stopped_by_bound:
+            completed.extend(self._force_finish_cached_active(active))
+
+        scored = [
+            (self._score(log_prob, tokens), tokens) for log_prob, tokens in completed
+        ]
+        scored.sort(key=lambda item: item[0], reverse=True)
+
+        seen: set[str] = set()
+        results: list[ScoredSlug] = []
+        for score, tokens in scored:
+            slug = self._decode_slug(tokens)
+            if not slug or slug in seen:
+                continue
+            seen.add(slug)
+            results.append((slug, score))
+
+        return results
+
     def _force_finish_active(
         self,
         embedding: torch.Tensor,
@@ -302,7 +671,7 @@ class Seq2SeqPredictor(Predictor):
 
         return finished
 
-    def _beam_search(self, embedding: torch.Tensor) -> list[ScoredSlug]:
+    def _beam_search_uncached(self, embedding: torch.Tensor) -> list[ScoredSlug]:
         """Beam search with Huang-style score-based optimal stopping.
 
         Returns completed candidates as ``(slug, score)`` pairs, deduplicated and
