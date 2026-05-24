@@ -30,10 +30,12 @@ def _load_mlp_pairwise(model_dir: Path, encoder: Encoder, device: str) -> Predic
     return PairwisePredictor(model_dir, encoder, device)
 
 
-def _load_seq2seq(model_dir: Path, encoder: Encoder, device: str) -> Predictor:
+def _load_seq2seq(
+    model_dir: Path, encoder: Encoder, device: str, **kwargs
+) -> Predictor:
     from .seq2seq.predict import Seq2SeqPredictor
 
-    return Seq2SeqPredictor(model_dir, encoder, device)
+    return Seq2SeqPredictor(model_dir, encoder, device, **kwargs)
 
 
 def _load_mlp_trainer() -> type[Trainer]:

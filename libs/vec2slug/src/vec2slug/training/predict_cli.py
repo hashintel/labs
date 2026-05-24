@@ -45,6 +45,11 @@ def main():
         help="Disable repetition filtering in beam search (seq2seq only)",
     )
     parser.add_argument(
+        "--no-cache",
+        action="store_true",
+        help="Disable KV cache for incremental decoding (seq2seq only)",
+    )
+    parser.add_argument(
         "--tag",
         type=str,
         default=None,
@@ -67,7 +72,10 @@ def main():
         model_dir = workspace.models_dir(args.encoder, variant_name)
 
     loader = PREDICTOR_LOADERS[args.variant]
-    predictor = loader(model_dir, args.encoder, device)
+    predictor_kwargs = {}
+    if args.no_cache:
+        predictor_kwargs["use_cache"] = False
+    predictor = loader(model_dir, args.encoder, device, **predictor_kwargs)
 
     if args.no_repetition_filter and hasattr(predictor, "filter_repetition"):
         predictor.filter_repetition = False
