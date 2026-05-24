@@ -19,26 +19,30 @@ from vec2slug.training.seq2seq.predict import Seq2SeqPredictor
 PROJECT = Path(__file__).parent.parent
 DATA = PROJECT / "data/url/openai"
 MODEL_DIR = DATA / "models/seq2seq_bpe_d384_l4_t24_eos"
+
+
 def _site_root() -> Path:
     """Resolve SLUG_SITE_ROOT or fall back to HASHDOTDEV_ROOT."""
     from os import environ
+
     for key in ("SLUG_SITE_ROOT", "HASHDOTDEV_ROOT"):
         val = environ.get(key)
         if val:
             return Path(val)
-    raise EnvironmentError(
+    raise OSError(
         "Set SLUG_SITE_ROOT to the hashdotdev app root, e.g. "
         "SLUG_SITE_ROOT=/path/to/internal-sites/apps/hashdotdev"
     )
 
-OUTPUT = _site_root() / "src/components/mdx/blog/slug-from-embedding/demo-data.json"
+
+OUTPUT = _site_root() / "src/components/mdx/blog/vec2slug/demo-data.json"
 
 # Hand-picked example slugs from the test set, chosen for topic diversity
 # and a mix of prediction quality (exact, close, overgeneralized).
 PICKS = [
     # Exact matches
     "can-we-live-on-mars",
-    "villains-in-shakespeare-essay",
+    "celebrating-martin-luther-king-jr-day",
     # Close predictions
     "inuit-knowledge-sheds-light-on-climate-change",
     "debunking-myths-about-fertility-and-pregnancy",
@@ -55,7 +59,9 @@ PICKS = [
 def main():
     con = duckdb.connect()
 
-    pred_file = str(DATA / "predictions/seq2seq_bpe_d384_l4_t24_eos_seq2seq_test.parquet")
+    pred_file = str(
+        DATA / "predictions/seq2seq_bpe_d384_l4_t24_eos_seq2seq_test.parquet"
+    )
     corpus_file = str(DATA.parent / "corpus.parquet")
     emb_file = str(DATA / "embeddings.parquet")
 
@@ -94,6 +100,7 @@ def main():
         # Short label from URL host + topic
         try:
             from urllib.parse import urlparse
+
             host = urlparse(url).hostname or ""
             host = host.replace("www.", "")
         except Exception:

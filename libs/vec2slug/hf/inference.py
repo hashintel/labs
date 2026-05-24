@@ -102,6 +102,7 @@ class SlugPredictor(ABC):
         self.min_decode_tokens: int = beam["min_decode_tokens"]
         self.min_slug_words: int = beam["min_slug_words"]
         self.max_length: int = sidecar["model"]["max_slug_tokens"]
+        self.max_content_tokens: int = max(self.max_length - 1, 0)
 
         self.stopwords: frozenset[str] = frozenset(sidecar["stopwords"])
 
@@ -181,6 +182,12 @@ class SlugPredictor(ABC):
 
         return score
 
+    def _partial_score(self, log_prob: float, tokens: list[int]) -> float:
+        """Optimistic partial score for active beam ranking."""
+        slug = self._decode_tokens(tokens).strip("-")
+        words = [w for w in slug.split("-") if w] if slug else []
+        return log_prob + self.length_reward * min(len(words), self.reward_cap)
+
     def _beam_search(self, embedding: np.ndarray) -> list[tuple[str, float]]:
         """Beam search with score-based optimal stopping.
 
@@ -199,8 +206,9 @@ class SlugPredictor(ABC):
         active: list[tuple[float, list[int]]] = [(0.0, [bos])]
         best_finished_score = -float("inf")
         completed: list[tuple[float, list[int]]] = []
+        stopped_by_bound = False
 
-        for _step in range(self.max_length - 1):
+        for _step in range(self.max_length):
             if not active:
                 break
 
@@ -216,36 +224,41 @@ class SlugPredictor(ABC):
 
             for beam_idx, (log_prob, tokens) in enumerate(active):
                 next_logits = all_logits[beam_idx, len(tokens) - 1, :].copy()
+                content_length = len(tokens) - 1  # exclude BOS
+                force_eos = content_length >= self.max_content_tokens
 
-                # Suppress PAD and UNK
+                # Suppress PAD and UNK always
                 next_logits[pad] = -np.inf
                 if unk is not None:
                     next_logits[unk] = -np.inf
 
-                # Suppress EOS until minimum subword count
-                content_length = len(tokens) - 1  # exclude BOS
-                if content_length < self.min_decode_tokens:
-                    next_logits[eos] = -np.inf
+                if force_eos:
+                    # Force EOS, but charge its model probability
+                    log_probs = _log_softmax(next_logits)
+                    top_indices = np.array([eos])
+                else:
+                    if content_length < self.min_decode_tokens:
+                        next_logits[eos] = -np.inf
 
-                # Suppress EOS until minimum word count
-                slug_so_far = self._decode_tokens(tokens[1:]).strip("-")
-                words = slug_so_far.split("-") if slug_so_far else []
-                if len(words) < self.min_slug_words:
-                    next_logits[eos] = -np.inf
+                    slug_so_far = self._decode_tokens(tokens[1:]).strip("-")
+                    words = slug_so_far.split("-") if slug_so_far else []
+                    if len(words) < self.min_slug_words:
+                        next_logits[eos] = -np.inf
 
-                # Suppress EOS after trailing stopword
-                if words and words[-1] in self.stopwords:
-                    next_logits[eos] = -np.inf
+                    if words and words[-1] in self.stopwords:
+                        next_logits[eos] = -np.inf
 
-                log_probs = _log_softmax(next_logits)
+                    log_probs = _log_softmax(next_logits)
+                    top_count = min(k, len(log_probs))
+                    top_indices = np.argpartition(log_probs, -top_count)[-top_count:]
+                    top_indices = top_indices[np.argsort(log_probs[top_indices])[::-1]]
 
-                # Top-k via argpartition
-                top_indices = np.argpartition(log_probs, -k)[-k:]
-                top_indices = top_indices[np.argsort(log_probs[top_indices])[::-1]]
-
-                for j in range(k):
+                for j in range(len(top_indices)):
                     token_id = int(top_indices[j])
-                    new_log_prob = log_prob + float(log_probs[token_id])
+                    token_lp = float(log_probs[token_id])
+                    if not np.isfinite(token_lp):
+                        continue
+                    new_log_prob = log_prob + token_lp
                     new_tokens = tokens + [token_id]
 
                     if token_id == eos:
@@ -256,19 +269,39 @@ class SlugPredictor(ABC):
                     else:
                         candidates.append((new_log_prob, new_tokens))
 
-            # Keep top-k by raw log-prob
-            candidates.sort(key=lambda x: x[0], reverse=True)
+            # Rank by partial objective for consistent pruning
+            candidates.sort(
+                key=lambda x: self._partial_score(x[0], x[1]), reverse=True
+            )
             active = candidates[:k]
 
-            # Score-based stopping: best completed dominates all active upper bounds
+            # Optimal stopping: best completed dominates all active upper bounds
             if active and best_finished_score > -float("inf"):
-                upper_bound = active[0][0] + r * B
+                max_active_lp = max(lp for lp, _ in active)
+                upper_bound = max_active_lp + r * B
                 if best_finished_score >= upper_bound:
+                    stopped_by_bound = True
                     break
 
-        # Include active beams that hit max_length
-        for log_prob, tokens in active:
-            completed.append((log_prob, tokens))
+        # Force-finish active beams by charging EOS probability
+        if active and not stopped_by_bound:
+            max_len = max(len(t) for _, t in active)
+            padded = [t + [pad] * (max_len - len(t)) for _, t in active]
+            input_ids = np.array(padded, dtype=np.int64)
+            embedding_batch = np.tile(embedding, (len(active), 1))
+            finish_logits = self._forward(embedding_batch, input_ids)
+
+            for bi, (log_prob, tokens) in enumerate(active):
+                nl = finish_logits[bi, len(tokens) - 1, :].copy()
+                nl[pad] = -np.inf
+                if unk is not None:
+                    nl[unk] = -np.inf
+                lp = _log_softmax(nl)
+                eos_lp = float(lp[eos])
+                if np.isfinite(eos_lp):
+                    completed.append((log_prob + eos_lp, tokens + [eos]))
+                else:
+                    completed.append((log_prob - 5.0, tokens + [eos]))
 
         # Deduplicate and rank
         scored = [
