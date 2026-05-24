@@ -45,3 +45,9 @@ slug-analyze-attention = "vec2slug.analyze_attention:main"
 
 [tool.uv]
 package = true
+
+[tool.ruff.lint]
+preview = true
+
+[tool.ruff.format]
+preview = true

@@ -1,0 +1,130 @@
+---
+license: mit
+language:
+  - en
+tags:
+  - slug-generation
+  - onnx
+  - embedding-to-text
+  - url-slug
+  - beam-search
+library_name: onnxruntime
+pipeline_tag: text2text-generation
+---
+
+# {repo_name}
+
+Generate URL slugs directly from text embeddings, without re-feeding
+source text through a language model.
+
+| | |
+|---|---|
+| **Parameters** | {n_params} |
+| **Architecture** | Transformer decoder, {num_layers}L, d={embed_dim} |
+| **Input** | OpenAI `text-embedding-3-small` (1536d) |
+| **Vocab** | BPE, {vocab_size} subwords |
+| **Token F1** | {tok_f1} |
+| **ONNX size** | {onnx_size} |
+| **Inference (CPU)** | {inference_speed} |
+
+{variant_note}
+
+## Quickstart
+
+```bash
+# install dependencies
+pip install onnxruntime numpy
+
+# or run directly with uv
+uv run inference.py . --input embeddings.npy
+```
+
+```python
+from inference import OnnxPredictor
+import numpy as np
+
+predictor = OnnxPredictor.from_dir(".")
+
+# embeddings: [N, 1536] float32 from OpenAI text-embedding-3-small
+slugs = predictor.predict(embeddings)
+# ["how-neural-networks-learn", "climate-change-solutions", ...]
+```
+
+PyTorch inference (requires `torch`):
+
+```python
+from inference import PyTorchPredictor
+
+predictor = PyTorchPredictor.from_dir(".")
+slugs = predictor.predict(embeddings)
+```
+
+## How it works
+
+The model is a prefix-conditioned transformer decoder. A precomputed text
+embedding is linearly projected into the decoder's hidden space and placed
+at position 0 as a prefix token. The decoder then autoregressively generates
+BPE subword tokens that form a kebab-case URL slug.
+
+Beam search uses bounded additive length reward with score-based optimal
+stopping ([Huang et al. 2017](https://arxiv.org/abs/1702.02429)). All
+decoding parameters are stored in `model.json`.
+
+## Files
+
+| File | Description |
+|---|---|
+| `model.onnx` | ONNX model (forward pass only) |
+| `model.json` | Sidecar: vocabulary, beam search config, stopwords |
+| `model.pt` | PyTorch weights (`state_dict`) |
+| `tokenizer.json` | BPE tokenizer (HuggingFace `tokenizers` format) |
+| `inference.py` | Standalone inference script (`uv run` compatible) |
+| `manifest.train.json` | Training configuration and results |
+| `manifest.onnx.json` | Export verification (tolerance, argmax agreement) |
+| `history.train.jsonl` | Training loss/metric curves |
+
+## Training
+
+Trained on {corpus_size} documents from FineWeb-Edu with slugs extracted
+from source URLs. The extraction pipeline filters on language, slug format,
+Gopher repetition, and token count.
+
+{training_details}
+
+## Evaluation
+
+Evaluated on {eval_samples} held-out test samples using the full beam search
+decoding pipeline.
+
+| Metric | Value |
+|---|---|
+| Token F1 (macro) | {tok_f1} |
+| Exact match | {exact_match} |
+| Validity | {validity} |
+| Vocab diversity | {vocab_diversity} |
+
+## Limitations
+
+- Requires precomputed embeddings from OpenAI `text-embedding-3-small`.
+  Other embedding models will produce poor results.
+- Trained on English web content. Non-English or domain-specific text
+  may produce generic or inaccurate slugs.
+- Slugs reflect patterns in the training URLs, which include SEO-influenced
+  and editorially inconsistent sources.
+
+## Links
+
+- [Blog post]({blog_url})
+- [Training code]({repo_url})
+- [{other_variant_name}]({other_variant_url})
+
+## Citation
+
+```bibtex
+@misc{{vec2slug2025,
+  title={{vec2slug: URL Slug Generation from Text Embeddings}},
+  author={{Mahmoud, Bilal}},
+  year={{2025}},
+  url={{{repo_url}}}
+}}
+```
