@@ -3,8 +3,8 @@
 To add a new variant, import its classes and add entries to each dict.
 """
 
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable
 
 from vec2slug.config import Encoder
 

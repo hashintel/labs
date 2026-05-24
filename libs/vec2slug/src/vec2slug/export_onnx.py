@@ -15,7 +15,7 @@ Usage:
 
 import argparse
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import torch
@@ -185,7 +185,7 @@ def main():
 
     # Write ONNX export manifest for provenance
     onnx_manifest = {
-        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "exported_at": datetime.now(UTC).isoformat(),
         "torch_version": torch.__version__,
         "artifacts": [output_path.name],
         "sidecar": sidecar_path.name,

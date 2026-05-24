@@ -18,7 +18,9 @@ class VocabDiversity(Transform):
         # No per-sample column to add; all work is in evaluate
         return dataset
 
-    def evaluate(self, dataset: datasets.Dataset, stats: dict[str, Any]) -> dict[str, Any]:
+    def evaluate(
+        self, dataset: datasets.Dataset, stats: dict[str, Any]
+    ) -> dict[str, Any]:
         predictions = dataset["prediction"]
         total = len(predictions)
         unique = len(set(predictions))

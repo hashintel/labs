@@ -79,9 +79,7 @@ class OpenAICompatibleEmbedder(Embedder):
         if current_count >= self.MAX_INPUTS_PER_REQUEST:
             return True
         next_tokens = self.estimate_tokens(next_text)
-        if current_tokens + next_tokens > self.MAX_TOKENS_PER_REQUEST:
-            return True
-        return False
+        return current_tokens + next_tokens > self.MAX_TOKENS_PER_REQUEST
 
     def embed(self, texts: list[str]) -> np.ndarray:
         """Send a single embedding request with retry and validation."""

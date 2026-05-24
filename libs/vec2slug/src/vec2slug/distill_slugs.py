@@ -33,13 +33,35 @@ from .libs.workspace import Workspace
 # Kept small because words like "who", "how", "where" are valid in
 # distilled slugs ("who-discovered-penicillin").
 DISTILL_STOPWORDS = frozenset({
-    "the", "a", "an", "of", "for", "in", "on", "to", "and", "or",
-    "is", "it", "with", "by", "at", "as", "be", "are", "was", "were",
-    "this", "that", "from", "but", "not", "no",
+    "the",
+    "a",
+    "an",
+    "of",
+    "for",
+    "in",
+    "on",
+    "to",
+    "and",
+    "or",
+    "is",
+    "it",
+    "with",
+    "by",
+    "at",
+    "as",
+    "be",
+    "are",
+    "was",
+    "were",
+    "this",
+    "that",
+    "from",
+    "but",
+    "not",
+    "no",
 })
 
 WORKSPACE = Workspace("original")
-
 
 
 SYSTEM_PROMPT = f"""\
@@ -185,18 +207,16 @@ def cmd_submit():
         seen_ids.add(document_id)
         custom_id = make_custom_id(document_id)
         id_map[custom_id] = document_id
-        requests.append(
-            {
-                "custom_id": custom_id,
-                "params": {
-                    "model": DISTILL_MODEL,
-                    "max_tokens": DISTILL_MAX_TOKENS,
-                    "temperature": DISTILL_TEMPERATURE,
-                    "system": SYSTEM_PROMPT,
-                    "messages": build_messages(text),
-                },
-            }
-        )
+        requests.append({
+            "custom_id": custom_id,
+            "params": {
+                "model": DISTILL_MODEL,
+                "max_tokens": DISTILL_MAX_TOKENS,
+                "temperature": DISTILL_TEMPERATURE,
+                "system": SYSTEM_PROMPT,
+                "messages": build_messages(text),
+            },
+        })
 
     id_map_file.write_text(json.dumps(id_map))
     print(f"ID mapping saved to {id_map_file}")
@@ -348,9 +368,7 @@ def cmd_all():
 
 def main():
     if len(sys.argv) < 2:
-        print(
-            "Usage: uv run -m vec2slug.distill_slugs [test|submit|poll|collect|all]"
-        )
+        print("Usage: uv run -m vec2slug.distill_slugs [test|submit|poll|collect|all]")
         sys.exit(1)
 
     commands = {

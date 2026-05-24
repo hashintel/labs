@@ -53,46 +53,36 @@ class SplitData:
     slugs: list[str]
 
 
-CORPUS_SCHEMA = pa.schema(
-    [
-        pa.field("id", pa.utf8()),
-        pa.field("text", pa.utf8()),
-        pa.field("source", pa.utf8()),
-        pa.field("token_count", pa.int64()),
-        pa.field("slug", pa.utf8()),
-    ]
-)
+CORPUS_SCHEMA = pa.schema([
+    pa.field("id", pa.utf8()),
+    pa.field("text", pa.utf8()),
+    pa.field("source", pa.utf8()),
+    pa.field("token_count", pa.int64()),
+    pa.field("slug", pa.utf8()),
+])
 
-CORPUS_PARTIAL_SCHEMA = pa.schema(
-    [
-        pa.field("id", pa.utf8()),
-        pa.field("text", pa.utf8()),
-        pa.field("source", pa.utf8()),
-        pa.field("token_count", pa.int64()),
-    ]
-)
+CORPUS_PARTIAL_SCHEMA = pa.schema([
+    pa.field("id", pa.utf8()),
+    pa.field("text", pa.utf8()),
+    pa.field("source", pa.utf8()),
+    pa.field("token_count", pa.int64()),
+])
 
-EMBEDDING_SCHEMA = pa.schema(
-    [
-        pa.field("id", pa.utf8()),
-        pa.field("embedding", pa.list_(pa.float32())),
-    ]
-)
+EMBEDDING_SCHEMA = pa.schema([
+    pa.field("id", pa.utf8()),
+    pa.field("embedding", pa.list_(pa.float32())),
+])
 
-SPLIT_SCHEMA = pa.schema(
-    [
-        pa.field("id", pa.utf8()),
-        pa.field("split", pa.utf8()),
-        pa.field("cluster", pa.int32()),
-    ]
-)
+SPLIT_SCHEMA = pa.schema([
+    pa.field("id", pa.utf8()),
+    pa.field("split", pa.utf8()),
+    pa.field("cluster", pa.int32()),
+])
 
-PREDICTION_SCHEMA = pa.schema(
-    [
-        pa.field("id", pa.utf8()),
-        pa.field("predicted_slug", pa.utf8()),
-    ]
-)
+PREDICTION_SCHEMA = pa.schema([
+    pa.field("id", pa.utf8()),
+    pa.field("predicted_slug", pa.utf8()),
+])
 
 
 class Workspace:

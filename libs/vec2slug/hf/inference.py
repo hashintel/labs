@@ -264,15 +264,12 @@ class SlugPredictor(ABC):
                     if token_id == eos:
                         score = self._score(new_log_prob, new_tokens)
                         completed.append((new_log_prob, new_tokens))
-                        if score > best_finished_score:
-                            best_finished_score = score
+                        best_finished_score = max(best_finished_score, score)
                     else:
                         candidates.append((new_log_prob, new_tokens))
 
             # Rank by partial objective for consistent pruning
-            candidates.sort(
-                key=lambda x: self._partial_score(x[0], x[1]), reverse=True
-            )
+            candidates.sort(key=lambda x: self._partial_score(x[0], x[1]), reverse=True)
             active = candidates[:k]
 
             # Optimal stopping: best completed dominates all active upper bounds
@@ -305,8 +302,7 @@ class SlugPredictor(ABC):
 
         # Deduplicate and rank
         scored = [
-            (self._score(log_prob, tokens), tokens)
-            for log_prob, tokens in completed
+            (self._score(log_prob, tokens), tokens) for log_prob, tokens in completed
         ]
         scored.sort(key=lambda x: -x[0])
 
@@ -401,9 +397,9 @@ def _load_pytorch_model(model_dir: Path, model_config: ModelConfig):
             self.token_embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
             self.position_embedding = nn.Embedding(max_length + 1, embed_dim)
             self.dropout = nn.Dropout(dropout)
-            self.blocks = nn.ModuleList(
-                [DecoderBlock(embed_dim, num_heads, dropout) for _ in range(num_layers)]
-            )
+            self.blocks = nn.ModuleList([
+                DecoderBlock(embed_dim, num_heads, dropout) for _ in range(num_layers)
+            ])
             self.ln_final = nn.LayerNorm(embed_dim)
             self.output_projection = nn.Linear(embed_dim, vocab_size)
 

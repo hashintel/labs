@@ -19,20 +19,23 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from vec2slug.config import anthropic_client
-
+from vec2slug.config import (
+    DISTILL_MAX_TOKENS,
+    DISTILL_MODEL,
+    DISTILL_TEMPERATURE,
+    anthropic_client,
+)
 from vec2slug.distill_slugs import (
     SYSTEM_PROMPT,
     build_messages,
 )
-from vec2slug.config import DISTILL_MAX_TOKENS, DISTILL_MODEL, DISTILL_TEMPERATURE
 
 BENCHMARK_DATA = Path("data/url/openai/benchmark_test_100.json")
 CORPUS = Path("data/url/corpus.parquet")
 
 # Haiku 3.5 pricing (as of 2025)
 # https://docs.anthropic.com/en/docs/about-claude/models
-HAIKU_INPUT_PRICE = 0.80 / 1_000_000   # $/token
+HAIKU_INPUT_PRICE = 0.80 / 1_000_000  # $/token
 HAIKU_OUTPUT_PRICE = 4.00 / 1_000_000  # $/token
 
 
@@ -92,8 +95,10 @@ def main():
         generated = response.content[0].text if response.content else ""
         print(f"  ref: {ref_slug}")
         print(f"  gen: {generated}")
-        print(f"  doc tokens: {token_count}, input: {input_tokens}, output: {output_tokens}")
-        print(f"  cost: ${cost:.6f}, latency: {elapsed*1000:.0f}ms")
+        print(
+            f"  doc tokens: {token_count}, input: {input_tokens}, output: {output_tokens}"
+        )
+        print(f"  cost: ${cost:.6f}, latency: {elapsed * 1000:.0f}ms")
         print()
 
     avg_input = total_input_tokens / len(samples)
@@ -102,11 +107,11 @@ def main():
     avg_time = sum(times) / len(samples)
 
     print("=" * 60)
-    print(f"Average per call:")
+    print("Average per call:")
     print(f"  Input tokens:  {avg_input:.0f}")
     print(f"  Output tokens: {avg_output:.0f}")
     print(f"  Cost:          ${avg_cost:.6f}")
-    print(f"  Latency:       {avg_time*1000:.0f}ms")
+    print(f"  Latency:       {avg_time * 1000:.0f}ms")
     print()
     print(f"Total ({len(samples)} calls):")
     print(f"  Input tokens:  {total_input_tokens}")

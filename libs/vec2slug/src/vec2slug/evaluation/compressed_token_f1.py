@@ -38,8 +38,12 @@ class CompressedTokenF1(Transform):
             reference_tokens=compressed_refs,
         )
 
-        dataset = dataset.add_column("compressed_f1_precision", result["f1_precision"].tolist())
-        dataset = dataset.add_column("compressed_f1_recall", result["f1_recall"].tolist())
+        dataset = dataset.add_column(
+            "compressed_f1_precision", result["f1_precision"].tolist()
+        )
+        dataset = dataset.add_column(
+            "compressed_f1_recall", result["f1_recall"].tolist()
+        )
         dataset = dataset.add_column("compressed_f1", result["f1"].tolist())
         return dataset
 
@@ -47,7 +51,11 @@ class CompressedTokenF1(Transform):
         self, dataset: datasets.Dataset, stats: dict[str, Any]
     ) -> dict[str, Any]:
         return {
-            "compressed_mean_f1_precision": float(np.mean(dataset["compressed_f1_precision"])),
-            "compressed_mean_f1_recall": float(np.mean(dataset["compressed_f1_recall"])),
+            "compressed_mean_f1_precision": float(
+                np.mean(dataset["compressed_f1_precision"])
+            ),
+            "compressed_mean_f1_recall": float(
+                np.mean(dataset["compressed_f1_recall"])
+            ),
             "compressed_mean_f1": float(np.mean(dataset["compressed_f1"])),
         }

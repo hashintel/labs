@@ -65,9 +65,7 @@ def main():
     parser.add_argument(
         "--samples", type=int, default=100, help="Number of test samples"
     )
-    parser.add_argument(
-        "--seed", type=int, default=42, help="Random seed for sampling"
-    )
+    parser.add_argument("--seed", type=int, default=42, help="Random seed for sampling")
     args = parser.parse_args()
 
     model_dir = args.model
@@ -82,10 +80,10 @@ def main():
     ids, embeddings = load_test_embeddings(args.samples, args.seed)
     print(f"  Loaded {len(ids)} embeddings")
 
-    print(f"\nLoading main predictor (cached Huang)...")
+    print("\nLoading main predictor (cached Huang)...")
     main_pred = Seq2SeqPredictor(model_dir, encoder="openai", device="cpu")
 
-    print(f"Loading HF ONNX predictor...")
+    print("Loading HF ONNX predictor...")
     hf_module = load_hf_module()
     hf_pred = hf_module.OnnxPredictor.from_dir(model_dir)
 

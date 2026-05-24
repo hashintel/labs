@@ -247,7 +247,7 @@ def accumulate_entropy(
     log(n), so we also record the *normalized* entropy: actual / max.
     """
     eps = 1e-12
-    n_layers, n_pos, _ = attention.shape
+    n_layers, _n_pos, _ = attention.shape
 
     for layer_idx in range(n_layers):
         layer_attn = attention[layer_idx]
@@ -348,14 +348,12 @@ def compute_head_stats(
 
 def _setup_style() -> None:
     sns.set_theme(style="whitegrid", font_scale=0.95)
-    plt.rcParams.update(
-        {
-            "figure.dpi": 150,
-            "savefig.dpi": 150,
-            "savefig.bbox": "tight",
-            "savefig.pad_inches": 0.15,
-        }
-    )
+    plt.rcParams.update({
+        "figure.dpi": 150,
+        "savefig.dpi": 150,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.15,
+    })
 
 
 def plot_entropy_by_layer(stats: list[dict], n_layers: int, output_path: Path) -> None:

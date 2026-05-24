@@ -1,5 +1,5 @@
 {
-  "vec2slug-v1-small": {
+  "vec2slug-v1-openai-small": {
     "n_params": 11543432,
     "embed_dim": 384,
     "num_layers": 4,
@@ -12,7 +12,7 @@
     "rouge_l": 0.277,
     "bertscore_f1": 0.869
   },
-  "vec2slug-v1-large": {
+  "vec2slug-v1-openai-large": {
     "n_params": 24840072,
     "embed_dim": 512,
     "num_layers": 6,

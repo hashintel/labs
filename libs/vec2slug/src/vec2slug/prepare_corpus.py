@@ -10,7 +10,6 @@ Usage:
     uv run -m vec2slug.prepare_corpus all
 """
 
-
 import os
 import sys
 
@@ -116,22 +115,24 @@ class Take(PipelineStep):
         super().__init__()
         self.n = n
 
-    def run(self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
+    def run(
+        self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+    ) -> DocumentsPipeline:
         if not data:
             return
-        count = 0
-        for doc in data:
+        for count, doc in enumerate(data):
             if count >= self.n:
                 return
             yield doc
-            count += 1
 
 
 class Nop(PipelineStep):
     name = "🔄 Nop"
     type = "🔻 - FILTER"
 
-    def run(self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1) -> DocumentsPipeline:
+    def run(
+        self, data: DocumentsPipeline, rank: int = 0, world_size: int = 1
+    ) -> DocumentsPipeline:
         if data:
             yield from data
 
@@ -231,7 +232,9 @@ def merge():
         )
 
     query = " UNION ALL ".join(parts)
-    duckdb.sql(f"COPY ({query}) TO '{corpus_partial}' (FORMAT PARQUET, COMPRESSION ZSTD)")
+    duckdb.sql(
+        f"COPY ({query}) TO '{corpus_partial}' (FORMAT PARQUET, COMPRESSION ZSTD)"
+    )
 
     result = duckdb.sql(
         f"SELECT source, count(*) as n FROM '{corpus_partial}' GROUP BY source ORDER BY source"

@@ -56,14 +56,16 @@ class Trainer(BaseTrainer):
         device: str,
         overwrite: bool = False,
         *,
-        model_config: MLPConfig = MLPConfig(),
-        hyperparams: TrainHyperparams = TrainHyperparams(),
+        model_config: MLPConfig | None = None,
+        hyperparams: TrainHyperparams | None = None,
         compression: str | None = None,
     ):
         self.workspace = workspace
         self.encoder = encoder
-        self.model_config = model_config
-        self.hyperparams = hyperparams
+        self.model_config = model_config if model_config is not None else MLPConfig()
+        self.hyperparams = (
+            hyperparams if hyperparams is not None else TrainHyperparams()
+        )
         self.device = device
         self.encoder_config = ENCODERS[encoder]
         self.compression = compression
@@ -94,7 +96,7 @@ class Trainer(BaseTrainer):
         seed_all(self.hyperparams.seed)
 
         vocab = self._build_vocab()
-        train_loader, val_loader, train_size, val_size = self._build_loaders(vocab)
+        train_loader, val_loader, _train_size, val_size = self._build_loaders(vocab)
         model, parameter_count = self._build_model(vocab)
         optimizer, scheduler = self._build_optimizer(model)
         loss_functions = self._build_loss_functions()

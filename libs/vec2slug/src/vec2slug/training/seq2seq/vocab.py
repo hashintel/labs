@@ -39,8 +39,7 @@ class SeqVocab:
         self.tokens = tokens
         self.compression = compression
         self.token_to_idx = {
-            token: index + SPECIAL_OFFSET
-            for index, token in enumerate(tokens)
+            token: index + SPECIAL_OFFSET for index, token in enumerate(tokens)
         }
 
     def __len__(self) -> int:

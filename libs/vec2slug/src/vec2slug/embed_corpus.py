@@ -26,7 +26,11 @@ from .config import (
     require_env,
 )
 from .libs.batch import Batch, RequestInfo
-from .libs.embed import CheckpointedRunner, LocalTransformersEmbedder, openrouter_embedder
+from .libs.embed import (
+    CheckpointedRunner,
+    LocalTransformersEmbedder,
+    openrouter_embedder,
+)
 from .libs.workspace import Workspace
 
 
@@ -36,7 +40,9 @@ def _embed_openrouter(workspace: Workspace, encoder_config: EncoderConfig):
 
     embedder = openrouter_embedder(model=encoder_config.model)
     runner = CheckpointedRunner.from_workspace(workspace, encoder_config.name, embedder)
-    total = duckdb.sql(f"SELECT count(*) FROM '{workspace.corpus_path()}'").fetchone()[0]
+    total = duckdb.sql(f"SELECT count(*) FROM '{workspace.corpus_path()}'").fetchone()[
+        0
+    ]
     runner.run(workspace.iter_corpus_texts(), total=total)
 
 
@@ -50,7 +56,9 @@ def _embed_local(workspace: Workspace, encoder_config: EncoderConfig):
     runner = CheckpointedRunner.from_workspace(
         workspace, encoder_config.name, embedder, concurrent_requests=1
     )
-    total = duckdb.sql(f"SELECT count(*) FROM '{workspace.corpus_path()}'").fetchone()[0]
+    total = duckdb.sql(f"SELECT count(*) FROM '{workspace.corpus_path()}'").fetchone()[
+        0
+    ]
     runner.run(workspace.iter_corpus_texts(), total=total)
 
 
@@ -90,6 +98,7 @@ class EmbeddingBatch(Batch[EmbeddingRequest, list[float]]):
 
     def _client(self):
         from openai import OpenAI
+
         return OpenAI(api_key=self.api_key)
 
     def request_id(self, request: EmbeddingRequest) -> str:
@@ -129,7 +138,9 @@ class EmbeddingBatch(Batch[EmbeddingRequest, list[float]]):
                 f.write(json.dumps(line) + "\n")
 
         size_mb = jsonl_path.stat().st_size / 1e6
-        print(f"  Uploading {jsonl_path.name} ({len(requests)} requests, {size_mb:.1f}MB)...")
+        print(
+            f"  Uploading {jsonl_path.name} ({len(requests)} requests, {size_mb:.1f}MB)..."
+        )
 
         with open(jsonl_path, "rb") as f:
             uploaded = client.files.create(file=f, purpose="batch")
@@ -216,7 +227,9 @@ def _run_batch(workspace: Workspace, encoder_config: EncoderConfig, action: str)
                 print(f"  Warning: {missing} documents missing embeddings")
 
             embeddings_array = np.array(embeddings, dtype=np.float32)
-            workspace.write_encoder_embeddings(encoder_config.name, ids, embeddings_array)
+            workspace.write_encoder_embeddings(
+                encoder_config.name, ids, embeddings_array
+            )
 
 
 def main():
@@ -224,9 +237,13 @@ def main():
         description="Embed corpus with a registered encoder"
     )
     parser.add_argument("encoder", choices=list(ENCODERS))
-    parser.add_argument("--batch", action="store_true", help="Submit to OpenAI Batch API")
+    parser.add_argument(
+        "--batch", action="store_true", help="Submit to OpenAI Batch API"
+    )
     parser.add_argument("--batch-poll", action="store_true", help="Poll batch status")
-    parser.add_argument("--batch-collect", action="store_true", help="Collect batch results")
+    parser.add_argument(
+        "--batch-collect", action="store_true", help="Collect batch results"
+    )
     parser.add_argument("--workspace", default="original")
     args = parser.parse_args()
 

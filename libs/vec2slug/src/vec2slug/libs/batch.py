@@ -243,12 +243,10 @@ class Batch[Req, Res](ABC):
 
     def _save_state(self, state: BatchState):
         self._state_file.write_text(
-            json.dumps(
-                {
-                    "id_map": state.id_map,
-                    "batch_ids": state.batch_ids,
-                }
-            )
+            json.dumps({
+                "id_map": state.id_map,
+                "batch_ids": state.batch_ids,
+            })
         )
 
     def _load_state(self) -> BatchState:

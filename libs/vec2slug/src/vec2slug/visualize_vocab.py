@@ -21,7 +21,9 @@ from .config import ENCODERS
 from .libs.workspace import EMBEDDING_SCHEMA, Workspace
 
 
-def load_vocab_embeddings(workspace: Workspace, encoder: str) -> tuple[list[str], np.ndarray]:
+def load_vocab_embeddings(
+    workspace: Workspace, encoder: str
+) -> tuple[list[str], np.ndarray]:
     """Load vocab embeddings from the workspace."""
     import pyarrow.parquet as pq
 
@@ -377,7 +379,9 @@ def plot_cluster_sizes(
         ax.hist(sizes, bins=100, color="#4e79a7", edgecolor="none", alpha=0.8)
         ax.set_xlabel("Cluster size")
         ax.set_ylabel("Count")
-        ax.set_title(f"{strategy_name}\nmedian={int(np.median(sizes))}, max={sizes.max()}")
+        ax.set_title(
+            f"{strategy_name}\nmedian={int(np.median(sizes))}, max={sizes.max()}"
+        )
         ax.set_yscale("log")
 
     fig.suptitle("Cluster Size Distributions", fontsize=14)
@@ -392,8 +396,10 @@ def main():
     parser.add_argument("--workspace", required=True)
     parser.add_argument("--encoder", required=True, choices=list(ENCODERS))
     parser.add_argument(
-        "--sample", type=int, default=20_000,
-        help="Number of tokens to sample for UMAP projection (0 for all)"
+        "--sample",
+        type=int,
+        default=20_000,
+        help="Number of tokens to sample for UMAP projection (0 for all)",
     )
     args = parser.parse_args()
 
@@ -442,7 +448,8 @@ def main():
         if sample_indices is not None:
             sampled_labels = all_labels[sample_indices]
             sampled_label_to_rep = {
-                label: rep for label, rep in label_to_representative.items()
+                label: rep
+                for label, rep in label_to_representative.items()
                 if label in sampled_labels
             }
         else:
@@ -450,8 +457,12 @@ def main():
             sampled_label_to_rep = label_to_representative
 
         generate_interactive_html(
-            projection, working_tokens, sampled_labels, sampled_label_to_rep,
-            token_counts, name,
+            projection,
+            working_tokens,
+            sampled_labels,
+            sampled_label_to_rep,
+            token_counts,
+            name,
             output_directory / f"{name}.html",
         )
 

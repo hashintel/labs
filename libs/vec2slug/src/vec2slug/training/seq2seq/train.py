@@ -66,16 +66,20 @@ class Trainer(BaseTrainer):
         device: str,
         overwrite: bool = False,
         *,
-        model_config: Seq2SeqConfig = Seq2SeqConfig(),
-        hyperparams: TrainHyperparams = TrainHyperparams(),
+        model_config: Seq2SeqConfig | None = None,
+        hyperparams: TrainHyperparams | None = None,
         compression: str | None = None,
         tokenizer: str | None = None,
         tag: str | None = None,
     ):
         self.workspace = workspace
         self.encoder = encoder
-        self.model_config = model_config
-        self.hyperparams = hyperparams
+        self.model_config = (
+            model_config if model_config is not None else Seq2SeqConfig()
+        )
+        self.hyperparams = (
+            hyperparams if hyperparams is not None else TrainHyperparams()
+        )
         self.device = device
         self.encoder_config = ENCODERS[encoder]
         self.compression = compression
@@ -111,8 +115,11 @@ class Trainer(BaseTrainer):
 
         # Write manifest early so interrupted runs still have metadata
         self._save_manifest(
-            vocab, parameter_count,
-            best_val_loss=float("inf"), best_step=0, total_steps=0,
+            vocab,
+            parameter_count,
+            best_val_loss=float("inf"),
+            best_step=0,
+            total_steps=0,
         )
 
         print(f"\nTraining {self.tag} on {self.device}...")
@@ -143,7 +150,10 @@ class Trainer(BaseTrainer):
 
                 logits = model(embedding, input_ids)
                 loss = self._position_aware_loss(
-                    logits, target_ids, vocab, eos_position_weights,
+                    logits,
+                    target_ids,
+                    vocab,
+                    eos_position_weights,
                 )
 
                 optimizer.zero_grad()
@@ -158,10 +168,16 @@ class Trainer(BaseTrainer):
                 if global_step % self.hyperparams.eval_every == 0:
                     train_avg = running_loss / running_count
                     val_loss = self._val_step(
-                        model, val_loader, vocab, eos_position_weights, val_size,
+                        model,
+                        val_loader,
+                        vocab,
+                        eos_position_weights,
+                        val_size,
                     )
                     tok_f1, mean_words = self._greedy_token_f1(
-                        model, val_loader, vocab,
+                        model,
+                        val_loader,
+                        vocab,
                     )
                     scheduler.step(val_loss)
                     current_lr = optimizer.param_groups[0]["lr"]
@@ -193,8 +209,11 @@ class Trainer(BaseTrainer):
                         stale = 0
                         torch.save(model.state_dict(), self.output_dir / "best.pt")
                         self._save_manifest(
-                            vocab, parameter_count,
-                            best_val_loss, best_step, global_step,
+                            vocab,
+                            parameter_count,
+                            best_val_loss,
+                            best_step,
+                            global_step,
                         )
                     else:
                         stale += 1
@@ -225,10 +244,16 @@ class Trainer(BaseTrainer):
         # Final eval if there's accumulated train signal we haven't yet measured.
         if running_count > 0:
             val_loss = self._val_step(
-                model, val_loader, vocab, eos_position_weights, val_size,
+                model,
+                val_loader,
+                vocab,
+                eos_position_weights,
+                val_size,
             )
             tok_f1, mean_words = self._greedy_token_f1(
-                model, val_loader, vocab,
+                model,
+                val_loader,
+                vocab,
             )
             print(
                 f"  final  step {global_step:6d}  val={val_loss:.4f}  "
@@ -385,8 +410,7 @@ class Trainer(BaseTrainer):
         # Show a few sample positions for sanity checking
         sample_positions = [5, 10, 15, 20]
         sample_str = ", ".join(
-            f"pos {p}={weights[p]:.2f}"
-            for p in sample_positions if p < max_length
+            f"pos {p}={weights[p]:.2f}" for p in sample_positions if p < max_length
         )
         print(f"    {sample_str}")
 
@@ -416,7 +440,11 @@ class Trainer(BaseTrainer):
         return (per_token * weight * mask).sum() / mask.sum()
 
     def _val_step(
-        self, model, loader, vocab: Vocab, eos_position_weights: torch.Tensor,
+        self,
+        model,
+        loader,
+        vocab: Vocab,
+        eos_position_weights: torch.Tensor,
         dataset_size: int,
     ) -> float:
         model.eval()
@@ -429,7 +457,10 @@ class Trainer(BaseTrainer):
 
                 logits = model(embedding, input_ids)
                 loss = self._position_aware_loss(
-                    logits, target_ids, vocab, eos_position_weights,
+                    logits,
+                    target_ids,
+                    vocab,
+                    eos_position_weights,
                 )
                 total_loss += loss.item() * len(embedding)
 
@@ -474,7 +505,7 @@ class Trainer(BaseTrainer):
                     pred_slug = vocab.decode_indices(generated[i, 1:].cpu().tolist())
                     ref_slug = vocab.decode_indices(target_ids[i].tolist())
 
-                    pred_set = set(w for w in pred_slug.split("-") if w)
+                    pred_set = {w for w in pred_slug.split("-") if w}
                     ref_set = set(ref_slug.split("-")) if ref_slug else set()
 
                     if not pred_set and not ref_set:

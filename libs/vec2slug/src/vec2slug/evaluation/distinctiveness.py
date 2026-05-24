@@ -91,17 +91,13 @@ class Distinctiveness(Transform):
                 global_i = start + i
                 neighbors = top_indices[i]
                 weights = batch_sim_cpu[i, neighbors]
-                distances = np.array(
-                    [
-                        _jaccard_distance(token_sets[global_i], token_sets[j])
-                        for j in neighbors
-                    ]
-                )
+                distances = np.array([
+                    _jaccard_distance(token_sets[global_i], token_sets[j])
+                    for j in neighbors
+                ])
                 weight_sum = weights.sum()
                 if weight_sum > 0:
-                    per_sample[global_i] = (
-                        (weights * distances).sum() / weight_sum
-                    )
+                    per_sample[global_i] = (weights * distances).sum() / weight_sum
 
         return dataset.add_column("distinctiveness", per_sample.tolist())
 

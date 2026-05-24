@@ -48,10 +48,8 @@ def main():
 
     # Load model
     print(f"Loading model from {args.model}...")
-    predictor = Seq2SeqPredictor(
-        model_dir=args.model, encoder="openai", device="cpu"
-    )
-    print(f"Model loaded.")
+    predictor = Seq2SeqPredictor(model_dir=args.model, encoder="openai", device="cpu")
+    print("Model loaded.")
 
     # Warmup
     print(f"Warming up ({args.warmup} iterations)...")

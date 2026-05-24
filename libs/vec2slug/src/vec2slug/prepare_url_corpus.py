@@ -43,7 +43,7 @@ MAX_STOPWORD_RATIO = 0.4
 INFRA_SEGMENTS = re.compile(
     r"^(index|page|post|article|default|category|tag|archive|feed|rss|print|embed)"
     r"\.(html?|php|aspx?|xml|json)$",
-    re.I,
+    re.IGNORECASE,
 )
 
 
@@ -65,9 +65,7 @@ def extract_slug_from_url(url: str) -> str | None:
 
         # Take the last meaningful path segment
         segments = [
-            part  #
-            for part in path.split("/")
-            if part and not INFRA_SEGMENTS.match(part)
+            part for part in path.split("/") if part and not INFRA_SEGMENTS.match(part)
         ]
         if not segments:
             return None
@@ -75,10 +73,12 @@ def extract_slug_from_url(url: str) -> str | None:
         last = segments[-1]
 
         # Strip file extensions
-        last = re.sub(r"\.(html?|php|aspx?|htm|shtml|xml)$", "", last, flags=re.I)
+        last = re.sub(
+            r"\.(html?|php|aspx?|htm|shtml|xml)$", "", last, flags=re.IGNORECASE
+        )
 
         # Must look like a slug: alphanumeric segments separated by hyphens/underscores
-        if not re.match(r"^[a-z0-9]+(?:[-_][a-z0-9]+)+$", last, re.I):
+        if not re.match(r"^[a-z0-9]+(?:[-_][a-z0-9]+)+$", last, re.IGNORECASE):
             return None
 
         # Normalize
@@ -108,7 +108,7 @@ def extract_slug_from_url(url: str) -> str | None:
             return None
 
         return slug
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -157,12 +157,10 @@ class Take(PipelineStep):
     ) -> DocumentsPipeline:
         if not data:
             return
-        count = 0
-        for doc in data:
+        for count, doc in enumerate(data):
             if count >= self.n:
                 return
             yield doc
-            count += 1
 
 
 # ── Pipeline construction ─────────────────────────────────────────────────────

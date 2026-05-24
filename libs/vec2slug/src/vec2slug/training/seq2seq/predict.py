@@ -225,11 +225,11 @@ class Seq2SeqPredictor(Predictor):
                 results.append(candidates[:k])
         return results
 
-    @lru_cache(maxsize=DECODE_CACHE_SIZE)
+    @lru_cache(maxsize=DECODE_CACHE_SIZE)  # noqa: B019
     def _decode_slug_tuple(self, tokens: tuple[int, ...]) -> str:
         return self.vocab.decode_indices(list(tokens)).strip("-")
 
-    @lru_cache(maxsize=DECODE_CACHE_SIZE)
+    @lru_cache(maxsize=DECODE_CACHE_SIZE)  # noqa: B019
     def _words_tuple(self, tokens: tuple[int, ...]) -> tuple[str, ...]:
         slug = self._decode_slug_tuple(tokens)
         return tuple(w for w in slug.split("-") if w)

@@ -7,7 +7,6 @@ Usage:
 """
 
 import argparse
-import sys
 from pathlib import Path
 
 import numpy as np
@@ -63,7 +62,8 @@ def main():
         help="Strip MDX/YAML frontmatter before embedding",
     )
     parser.add_argument(
-        "-k", "--top-k",
+        "-k",
+        "--top-k",
         type=int,
         default=5,
         help="Number of candidate slugs to return (default: 5)",
@@ -84,9 +84,7 @@ def main():
     print(f"Embedding shape: {embedding.shape}")
 
     print(f"Loading model from {MODEL_DIR}...")
-    predictor = Seq2SeqPredictor(
-        model_dir=MODEL_DIR, encoder="openai", device="cpu"
-    )
+    predictor = Seq2SeqPredictor(model_dir=MODEL_DIR, encoder="openai", device="cpu")
 
     candidates = predictor.predict_topk(embedding, k=args.top_k)[0]
     print(f"\nTop {len(candidates)} candidates:")
@@ -94,7 +92,6 @@ def main():
         marker = " ←" if i == 1 else ""
         print(f"  {i}. {slug}  (score: {score:.3f}){marker}")
     print(f"\nText preview: {text[:200]}...")
-
 
 
 if __name__ == "__main__":

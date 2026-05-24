@@ -89,7 +89,7 @@ def main():
 
     examples = []
     for row in rows:
-        doc_id, ref_slug, pred_slug, url, source_text, embedding_list = row
+        _doc_id, ref_slug, pred_slug, url, source_text, embedding_list = row
         embedding = np.array(embedding_list, dtype=np.float32).reshape(1, -1)
 
         # Run top-k prediction
@@ -103,7 +103,7 @@ def main():
 
             host = urlparse(url).hostname or ""
             host = host.replace("www.", "")
-        except Exception:
+        except (ValueError, TypeError):
             host = url
 
         examples.append({

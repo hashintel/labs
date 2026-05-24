@@ -69,6 +69,7 @@ def _run_export(model_dir: Path, workspace: str):
         ],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode != 0:
         print(f"  Export failed:\n{result.stderr}", file=sys.stderr)
@@ -83,12 +84,15 @@ def _upload_repo(repo_name: str, commit_message: str):
     print(f"\nUploading {repo_id}...")
     result = subprocess.run(
         [
-            "huggingface-cli", "upload",
+            "hf",
+            "upload",
             repo_id,
             str(contents_dir),
             ".",
-            "--commit-message", commit_message,
+            "--commit-message",
+            commit_message,
         ],
+        check=False,
     )
     if result.returncode != 0:
         print(f"Upload failed for {repo_id}", file=sys.stderr)
@@ -252,8 +256,7 @@ def main():
         print(f"\n✓ Output in {OUTPUT_ROOT}/")
         for repo_name in built_repos:
             print(
-                f"  huggingface-cli upload {HF_ORG}/{repo_name}"
-                f" {OUTPUT_ROOT}/{repo_name}/contents ."
+                f"  hf upload {HF_ORG}/{repo_name} {OUTPUT_ROOT}/{repo_name}/contents ."
             )
 
 

@@ -6,7 +6,7 @@ This project investigates whether single pooled sentence embeddings can drive sl
 
 A multi-label classifier (MLP) over KMeans-compressed vocabulary collapsed to high-frequency function words across three ablations, reaching 0.07 to 0.08 Token F1. The architecture predicts tokens independently and cannot model co-occurrence or sequence structure; the failure is fundamental, not a training deficiency.
 
-A prefix-conditioned transformer decoder over BPE-tokenized slugs reached 0.306 Token F1 on 5,000 held-out test samples after four targeted interventions: vocabulary redesign (KMeans to BPE), training-data truncation correction (max length 10 to 24), EOS calibration via position-aware loss weighting, and length-aware beam search termination. Each intervention addressed a specific diagnosed failure mode. The model produces slugs at training-distribution length (mean 4.9 words against a reference mean of 5.1) and runs in 115ms on a budget VPS. Scaling from 11.5M to 24.8M parameters adds only +0.008 Token F1, a difference that does not exceed the ±0.008 95% confidence interval.
+A prefix-conditioned transformer decoder over BPE-tokenized slugs reached 0.306 Token F1 on 5,000 held-out test samples after four targeted interventions: vocabulary redesign (KMeans to BPE), training-data truncation correction (max length 10 to 24), EOS calibration via position-aware loss weighting, and length-aware beam search termination. Each intervention addressed a specific diagnosed failure mode. The model produces slugs at training-distribution length (mean 4.9 words against a reference mean of 5.1) and runs in ~89ms on a budget VPS. Scaling from 11.5M to 24.8M parameters adds only +0.008 Token F1, a difference that does not exceed the ±0.008 95% confidence interval.
 
 ## Corpus
 
@@ -236,10 +236,10 @@ Two models are available.
 | Parameters | 11.5M | 24.8M |
 | Size | 46 MiB | 99 MiB |
 | Tok F1 | 0.298 | 0.306 |
-| CPU inference (VPS) | ~115ms | ~258ms |
-| CPU inference (M-series) | ~27ms | ~66ms |
+| CPU inference (VPS) | ~89ms | ~160ms |
+| CPU inference (M-series) | ~21ms | ~41ms |
 
-The smaller model is recommended for most deployments. The capacity ablation confirms that doubling parameters adds negligible quality (+0.008 Token F1) at 2.2x the inference cost.
+The smaller model is recommended for most deployments. The capacity ablation confirms that doubling parameters adds negligible quality (+0.008 Token F1) at 2× the inference cost.
 
 If embeddings already exist in the system (the intended use case), marginal cost per slug is CPU time alone. If embeddings must be generated, add one API call (~$0.000011 for OpenAI text-embedding-3-small on a 566-token document). Compared to a Haiku-class LLM call for the same task ($0.00103 average), the model is approximately 85x cheaper and 14x faster. The advantage scales with deployment volume.
 

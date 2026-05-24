@@ -51,8 +51,16 @@ DETAIL_METRICS = [
 ]
 
 PALETTE = [
-    "#4e79a7", "#f28e2b", "#e15759", "#76b7b2", "#59a14f",
-    "#edc948", "#b07aa1", "#ff9da7", "#9c755f", "#bab0ac",
+    "#4e79a7",
+    "#f28e2b",
+    "#e15759",
+    "#76b7b2",
+    "#59a14f",
+    "#edc948",
+    "#b07aa1",
+    "#ff9da7",
+    "#9c755f",
+    "#bab0ac",
 ]
 
 
@@ -88,14 +96,12 @@ def discover_results(
 
 def _setup_style():
     sns.set_theme(style="whitegrid", font_scale=0.95)
-    plt.rcParams.update(
-        {
-            "figure.dpi": 150,
-            "savefig.dpi": 150,
-            "savefig.bbox": "tight",
-            "savefig.pad_inches": 0.15,
-        }
-    )
+    plt.rcParams.update({
+        "figure.dpi": 150,
+        "savefig.dpi": 150,
+        "savefig.bbox": "tight",
+        "savefig.pad_inches": 0.15,
+    })
 
 
 def _build_long_df(runs: dict[str, dict], run_names: list[str]) -> pd.DataFrame | None:

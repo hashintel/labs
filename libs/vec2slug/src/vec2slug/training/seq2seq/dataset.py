@@ -55,7 +55,7 @@ class SeqDataset(TorchDataset):
         if n_filtered > 0:
             print(
                 f"  {split}: filtered {n_filtered}/{len(raw.slugs)} "
-                f"({n_filtered/len(raw.slugs):.1%}) slugs exceeding "
+                f"({n_filtered / len(raw.slugs):.1%}) slugs exceeding "
                 f"{max_length} tokens"
             )
 

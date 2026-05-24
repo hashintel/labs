@@ -92,18 +92,16 @@ def cmd_haiku_submit(workspace: Workspace, split: Split = "test"):
     for document_id, text in test_data:
         custom_id = make_custom_id(document_id)
         id_map[custom_id] = document_id
-        requests.append(
-            {
-                "custom_id": custom_id,
-                "params": {
-                    "model": DISTILL_MODEL,
-                    "max_tokens": DISTILL_MAX_TOKENS,
-                    "temperature": DISTILL_TEMPERATURE,
-                    "system": SYSTEM_PROMPT,
-                    "messages": build_messages(text),
-                },
-            }
-        )
+        requests.append({
+            "custom_id": custom_id,
+            "params": {
+                "model": DISTILL_MODEL,
+                "max_tokens": DISTILL_MAX_TOKENS,
+                "temperature": DISTILL_TEMPERATURE,
+                "system": SYSTEM_PROMPT,
+                "messages": build_messages(text),
+            },
+        })
 
     id_map_file.write_text(json.dumps(id_map))
 
@@ -135,7 +133,7 @@ def cmd_haiku_poll(workspace: Workspace):
             if batch.processing_status == "ended":
                 print("Batch complete.")
                 return
-        except Exception as error:
+        except Exception as error:  # noqa: BLE001
             print(f"  retrieve failed: {error}")
         time.sleep(POLL_INTERVAL)
 
@@ -194,12 +192,12 @@ def cmd_haiku_collect(workspace: Workspace, split: Split = "test"):
         splits_path = workspace.splits_path(encoder)
         # Load the full set of IDs in this encoder's split once,
         # then filter in Python. Avoids per-document SQL queries.
-        split_ids = set(
+        split_ids = {
             row[0]
             for row in duckdb.sql(
                 f"SELECT id FROM '{splits_path}' WHERE split = '{split}'"
             ).fetchall()
-        )
+        }
         prediction_ids = []
         prediction_slugs = []
         for document_id, slug in zip(ids, predicted):

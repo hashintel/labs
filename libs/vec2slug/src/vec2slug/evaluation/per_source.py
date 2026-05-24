@@ -23,7 +23,7 @@ class PerSource(Transform):
     ) -> dict[str, Any]:
         breakdown = {}
         for source in sorted(set(dataset["source"])):
-            subset = dataset.filter(lambda row: row["source"] == source)
+            subset = dataset.filter(lambda row, s=source: row["source"] == s)
             breakdown[source] = {
                 "n": len(subset),
                 "exact_match": np.mean(subset["exact_match"]),

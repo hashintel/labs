@@ -41,7 +41,7 @@ class LengthBucket(Transform):
     ) -> dict[str, Any]:
         breakdown = {}
         for bucket in sorted(set(dataset["length_bucket"])):
-            subset = dataset.filter(lambda row: row["length_bucket"] == bucket)
+            subset = dataset.filter(lambda row, b=bucket: row["length_bucket"] == b)
             breakdown[bucket] = {
                 "n": len(subset),
                 "mean_token_count": np.mean(subset["token_count"]),

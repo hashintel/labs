@@ -33,9 +33,10 @@ class DecoderBlock(nn.Module):
 
     def forward(self, x: Tensor, attn_mask: Tensor) -> Tensor:
         normed = self.ln1(x)
-        x = x + self.attn(
-            normed, normed, normed, attn_mask=attn_mask, is_causal=True
-        )[0]
+        x = (
+            x
+            + self.attn(normed, normed, normed, attn_mask=attn_mask, is_causal=True)[0]
+        )
         x = x + self.ffn(self.ln2(x))
         return x
 
@@ -73,17 +74,15 @@ class SlugDecoder(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
         # Transformer blocks
-        self.blocks = nn.ModuleList(
-            [DecoderBlock(embed_dim, num_heads, dropout) for _ in range(num_layers)]
-        )
+        self.blocks = nn.ModuleList([
+            DecoderBlock(embed_dim, num_heads, dropout) for _ in range(num_layers)
+        ])
         self.ln_final = nn.LayerNorm(embed_dim)
 
         # Output projection to vocab
         self.output_projection = nn.Linear(embed_dim, vocab_size)
 
-    def forward(
-        self, embeddings: Tensor, target_ids: Tensor
-    ) -> Tensor:
+    def forward(self, embeddings: Tensor, target_ids: Tensor) -> Tensor:
         """Forward pass with teacher forcing.
 
         Args:

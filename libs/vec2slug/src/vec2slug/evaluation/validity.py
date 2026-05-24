@@ -28,9 +28,7 @@ def is_valid_slug(slug: str) -> bool:
     if len(slug) < MIN_LENGTH or len(slug) > MAX_LENGTH:
         return False
     token_count = len(slug.split("-"))
-    if token_count < MIN_TOKENS or token_count > MAX_TOKENS:
-        return False
-    return True
+    return MIN_TOKENS <= token_count <= MAX_TOKENS
 
 
 class Validity(Transform):
@@ -40,7 +38,9 @@ class Validity(Transform):
         valid = pa.array([is_valid_slug(p) for p in dataset["prediction"]])
         return dataset.add_column("valid", valid)
 
-    def evaluate(self, dataset: datasets.Dataset, stats: dict[str, Any]) -> dict[str, Any]:
+    def evaluate(
+        self, dataset: datasets.Dataset, stats: dict[str, Any]
+    ) -> dict[str, Any]:
         return {
             "validity_rate": float(np.mean(dataset["valid"])),
         }

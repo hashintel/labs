@@ -80,11 +80,12 @@ class GroupingStrategy(ABC):
             frequency = token_counts.get(token, 0)
             distance = float(np.linalg.norm(embedding - centroids[label]))
             current = cluster_best.get(label)
-            if current is None:
-                cluster_best[label] = (token, frequency, distance)
-            elif frequency > current[1]:
-                cluster_best[label] = (token, frequency, distance)
-            elif frequency == current[1] and distance < current[2]:
+            if (
+                current is None
+                or frequency > current[1]
+                or frequency == current[1]
+                and distance < current[2]
+            ):
                 cluster_best[label] = (token, frequency, distance)
 
         representatives = {label: best[0] for label, best in cluster_best.items()}
@@ -244,9 +245,7 @@ class LouvainGrouping(GroupingStrategy):
         working = normalize(working)
 
         euclidean_radius = np.sqrt(2.0 - 2.0 * self.threshold)
-        print(
-            f"  Building neighbor graph (cosine >= {self.threshold})..."
-        )
+        print(f"  Building neighbor graph (cosine >= {self.threshold})...")
 
         nn = NearestNeighbors(
             radius=euclidean_radius,
