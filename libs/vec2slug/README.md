@@ -85,10 +85,11 @@ uv run slug-train-mlp --encoder openai --workspace url
 ### 5. Predict
 
 ```bash
-uv run slug-predict --variant seq2seq --encoder openai --workspace url
+uv run slug-predict --variant seq2seq --encoder openai --workspace url \
+  --tag bpe_d384_l4_t24_eos
 ```
 
-The CLI dispatches to the right predictor via the variant registry. Each variant validates that the model was trained on the same encoder.
+The `--tag` selects the model directory matching the tag used during training. The CLI dispatches to the right predictor via the variant registry and validates encoder compatibility.
 
 ### 6. Evaluate
 
@@ -190,6 +191,14 @@ uv run slug-train-seq2seq --workspace url --encoder openai \
 uv run slug-train-seq2seq --workspace url --encoder openai \
   --tokenizer bpe --tag bpe_d512_l6_t24_eos \
   --embed-dim 512 --num-layers 6 --max-slug-tokens 24 --epochs 50
+
+# 6. Predict with the smaller canonical model
+uv run slug-predict --variant seq2seq --encoder openai --workspace url \
+  --tag bpe_d384_l4_t24_eos
+
+# 7. Evaluate
+uv run slug-eval data/url/openai/predictions/seq2seq_bpe_d384_l4_t24_eos_seq2seq_test.parquet \
+  --encoder openai --workspace url --name seq2seq_bpe_d384_l4_t24_eos_seq2seq
 ```
 
 All artifacts (embeddings, splits, model checkpoints, predictions, evaluation results) are written under `data/` and gitignored. The workspace abstraction in `libs/workspace.py` manages the directory layout.

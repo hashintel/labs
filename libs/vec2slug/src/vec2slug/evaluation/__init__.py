@@ -22,6 +22,7 @@ from .exact_match import ExactMatch
 from .length_bucket import LengthBucket
 from .per_source import PerSource
 from .rouge import Rouge
+from .slug_length import SlugLength
 from .slug_token_f1 import SlugTokenF1
 from .transform import Pipeline, pipeline
 from .validity import Validity
@@ -33,6 +34,7 @@ def build_pipeline(compression_path: Path | None = None) -> Pipeline:
     transforms = [
         Validity(),
         ExactMatch(),
+        SlugLength(),
         SlugTokenF1(),
     ]
     if compression_path is not None:
@@ -55,6 +57,7 @@ def format_summary(stats: dict) -> str:
         "Overall:",
         f"  Validity:         {stats['validity_rate']:.1%}",
         f"  Exact match:      {stats['exact_match']:.1%}",
+        f"  Mean words:       {stats['pred_mean_words']:.1f} pred / {stats['ref_mean_words']:.1f} ref",
         f"  Token P/R/F1:     {stats['mean_f1_precision']:.3f} / {stats['mean_f1_recall']:.3f} / {stats['mean_f1']:.3f}",
     ]
 
@@ -185,6 +188,19 @@ def main():
     print(f"Loading dataset ({args.encoder}, {args.split})...")
     dataset = workspace.load_evaluation_dataset(args.predictions, encoder=args.encoder)
     print(f"  {len(dataset)} samples")
+
+    # Validate that prediction IDs belong to the requested split
+    splits_path = workspace.splits_path(args.encoder)
+    if splits_path.exists():
+        split_ids = set(workspace.load_split_ids(args.encoder, args.split))
+        pred_ids = set(dataset["id"])
+        invalid = pred_ids - split_ids
+        if invalid:
+            parser.error(
+                f"{len(invalid)}/{len(pred_ids)} prediction IDs are not in the "
+                f"'{args.split}' split. Check that the prediction file matches "
+                f"the requested split."
+            )
 
     print("Preparing...")
     dataset = transform_dataset(dataset)

@@ -62,6 +62,8 @@ def main():
         variant_name = base
         if "position" in args.variant:
             variant_name += "_pos"
+        if args.tag:
+            variant_name = f"{variant_name}_{args.tag}"
         model_dir = workspace.models_dir(args.encoder, variant_name)
 
     loader = PREDICTOR_LOADERS[args.variant]

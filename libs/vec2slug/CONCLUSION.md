@@ -6,7 +6,7 @@ This project investigates whether single pooled sentence embeddings can drive sl
 
 A multi-label classifier (MLP) over KMeans-compressed vocabulary collapsed to high-frequency function words across three ablations, reaching 0.07 to 0.08 Token F1. The architecture predicts tokens independently and cannot model co-occurrence or sequence structure; the failure is fundamental, not a training deficiency.
 
-A prefix-conditioned transformer decoder over BPE-tokenized slugs reached 0.306 Token F1 on 5,000 held-out test samples after four targeted interventions: vocabulary redesign (KMeans to BPE), training-data truncation correction (max length 10 to 24), EOS calibration via position-aware loss weighting, and length-aware beam search termination. Each intervention addressed a specific diagnosed failure mode. The model produces slugs at training-distribution length (mean 4.9 words against a reference mean of 5.1) and runs in 115ms on a budget VPS. Performance plateaus across architectural variations: scaling from 11.5M to 24.8M parameters adds only +0.008 Token F1, placing the bottleneck upstream of model capacity.
+A prefix-conditioned transformer decoder over BPE-tokenized slugs reached 0.306 Token F1 on 5,000 held-out test samples after four targeted interventions: vocabulary redesign (KMeans to BPE), training-data truncation correction (max length 10 to 24), EOS calibration via position-aware loss weighting, and length-aware beam search termination. Each intervention addressed a specific diagnosed failure mode. The model produces slugs at training-distribution length (mean 4.9 words against a reference mean of 5.1) and runs in 115ms on a budget VPS. Scaling from 11.5M to 24.8M parameters adds only +0.008 Token F1, a difference that does not exceed the ±0.008 95% confidence interval.
 
 ## Corpus
 
@@ -132,13 +132,13 @@ Token F1 is higher on short documents (0.327 vs 0.306 for long). Short documents
 | d=384 L=4 t=24 + EOS | 11.5M | 0.298 |
 | d=512 L=6 t=24 + EOS | 24.8M | 0.306 |
 
-Doubling the parameter count adds +0.008 Token F1. Both models converge to mean output length 4.9. By comparison, the truncation correction alone (a data fix, not a model change) gained +0.018, and the KMeans-to-BPE vocabulary switch gained +0.072. Every meaningful vertical jump in the metric corresponds to a regime change; parameter scaling within a regime does not account for any of them.
+Doubling the parameter count adds +0.008 Token F1, which falls within the ±0.008 95% confidence interval on 5,000 test samples. Both models converge to mean output length 4.9. By comparison, the truncation correction alone (a data fix, not a model change) gained +0.018, and the KMeans-to-BPE vocabulary switch gained +0.072. Within this experiment, parameter scaling did not produce a statistically convincing gain; data quality, data scale, and embedding information content remain more likely next levers than model capacity.
 
 ### Decoding pipeline
 
 The final decoding configuration:
 
-- Beam search (width=4) with length-normalized scoring: `score = log_prob / ((5 + len) / 6)^1.2`
+- Beam search (width=4) with bounded additive length reward: `score = log_prob + r × min(word_count, B)` where `r = 1.5`, `B = 6` (reference P75 word count)
 - Score-based stopping (Huang et al. 2017) rather than count-based early stop
 - Hard EOS suppression after stopwords
 - Trailing stopword penalty on completed beams (-1.0)
@@ -195,7 +195,7 @@ The routing structure emerged from training without architectural instruction. T
 
 4. **Three separate calibration artifacts compounded.** Training-data truncation at subword position 10 stripped EOS from 56% of examples. Position-uniform cross-entropy caused EOS overconfidence at short positions. Standard beam search early-stop biased toward short sequences. Each was diagnosable with targeted experiments. Each fix was small (a parameter change, a loss modification, an algorithmic substitution). Cumulatively they moved the model from "topically correct but truncated" to "topically correct at appropriate length."
 
-5. **Performance plateaus across model configurations.** Within each regime, parameter scaling accounts for at most +0.013 Token F1 (2.2x parameter increase). Every meaningful improvement corresponds to a regime change, not a capacity increase. The bottleneck is upstream of model capacity.
+5. **Parameter scaling did not produce statistically convincing gains.** Within each regime, parameter scaling accounts for at most +0.013 Token F1 (2.2x parameter increase), which does not exceed the ±0.008 confidence interval. Every clearly significant improvement corresponds to a regime change, not a capacity increase. Data quality, data scale, and embedding information content are more likely bottlenecks, though the current experiments do not conclusively rule out model capacity.
 
 6. **Hyphens serve as learned embedding-routing nodes.** Four of eight attention heads at layer 1 allocate 96 to 99% of their attention from hyphens to the prefix embedding. The specialization migrates across layers. The routing is position-independent and emerged from the BPE vocabulary choice of preserving `-` as a discrete token.
 
