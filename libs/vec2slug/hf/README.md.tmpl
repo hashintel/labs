@@ -15,7 +15,8 @@ pipeline_tag: summarization
 # {repo_name}
 
 Generate URL slugs directly from text embeddings, without re-feeding
-source text through a language model.
+source text through a language model. Designed to piggyback on embeddings
+a system already has for search or deduplication.
 
 | | |
 |---|---|
@@ -26,6 +27,11 @@ source text through a language model.
 | **Token F1** | {tok_f1} |
 | **ONNX size** | {onnx_size} |
 | **Inference (CPU)** | {inference_speed} |
+
+14 to 19× faster and approximately 85× cheaper than a Haiku-class LLM
+call for the same task, including the cost of computing a fresh embedding.
+With existing embeddings (the intended use case), approximately 2,000×
+cheaper.
 
 {variant_note}
 
@@ -58,6 +64,21 @@ from inference import PyTorchPredictor
 predictor = PyTorchPredictor.from_dir(".")
 slugs = predictor.predict(embeddings)
 ```
+
+## Examples
+
+Predictions on held-out test samples (beam search, width 4). The model
+sees only the 1536-dim embedding, never the source text.
+
+| Source text | Reference slug | Predicted slug |
+|---|---|---|
+| Children's book about astronomy and living on Mars | `can-we-live-on-mars` | `can-we-live-on-mars` |
+| Teaching resources for Martin Luther King Jr. Day | `celebrating-martin-luther-king-jr-day` | `celebrating-martin-luther-king-jr-day` |
+| Article about Waldorf education practices | `12-things-may-not-know-waldorf-education` | `10-things-you-didnt-know-about-waldorf-education` |
+
+The third example illustrates the typical case: the model captures the
+topic correctly but diverges in specific wording. The common failure mode
+is overgeneralization rather than incoherence.
 
 ## How it works
 
@@ -100,8 +121,16 @@ decoding pipeline.
 |---|---|
 | Token F1 (macro) | {tok_f1} |
 | Exact match | {exact_match} |
+| ROUGE-L | {rouge_l} |
+| BERTScore F1 | {bertscore} |
 | Validity | {validity} |
 | Vocab diversity | {vocab_diversity} |
+
+Token F1 splits both slugs on hyphens and computes set-overlap F1 (order
+ignored). ROUGE-L measures the longest common subsequence and penalizes
+misordered words. BERTScore computes contextual embedding similarity via
+roberta-large; the floor is high (~0.82) because short English slugs are
+not widely separated in that embedding space.
 
 ## Limitations
 
@@ -111,6 +140,9 @@ decoding pipeline.
   may produce generic or inaccurate slugs.
 - Slugs reflect patterns in the training URLs, which include SEO-influenced
   and editorially inconsistent sources.
+- The primary failure mode is overgeneralization: the model captures the
+  topic but may miss specific angles or proper nouns (`asm` instead of
+  `wasm` for a WebAssembly article).
 
 ## Links
 
@@ -121,10 +153,10 @@ decoding pipeline.
 ## Citation
 
 ```bibtex
-@misc{{vec2slug2025,
+@misc{{vec2slug2026,
   title={{vec2slug: URL Slug Generation from Text Embeddings}},
-  author={{Mahmoud, Bilal}},
-  year={{2025}},
+  author={{Mahmoud, Bilal and {{HASH}}}},
+  year={{2026}},
   url={{{repo_url}}}
 }}
 ```

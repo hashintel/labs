@@ -186,6 +186,8 @@ def build_repo(
         "exact_match": f"{evaluation['exact_match']:.1%}",
         "validity": f"{evaluation['validity']:.0%}",
         "vocab_diversity": f"{evaluation['vocab_diversity']:.1%}",
+        "rouge_l": evaluation["rouge_l"],
+        "bertscore": evaluation["bertscore_f1"],
         "inference_speed": config.get("inference_speed", ""),
         "training_details": config.get("training_details", ""),
         "variant_note": variant_note,

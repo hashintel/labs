@@ -83,8 +83,7 @@ class GroupingStrategy(ABC):
             if (
                 current is None
                 or frequency > current[1]
-                or frequency == current[1]
-                and distance < current[2]
+                or (frequency == current[1] and distance < current[2])
             ):
                 cluster_best[label] = (token, frequency, distance)
 
