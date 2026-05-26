@@ -6,8 +6,9 @@ import { validateYaml } from "./validate.js";
 import { buildConnectorDef, buildPipelines } from "./build.js";
 import { loadConfig, type RunnerConfig } from "./config.js";
 import { integrationId, statePaths } from "./identity.js";
-import { runWithDbos } from "./orchestrate.js";
-import { type WorkflowResult, type SourceResult, sourceResultFromSync, buildWorkflowResult } from "./result.js";
+import { workflowId } from "./config.js";
+import { createBackend, retryPolicyFrom, type WorkflowFn } from "./orchestrator.js";
+import { type WorkflowResult, type SourceResult, sourceResultFromSync, failedSourceResult, buildWorkflowResult } from "./result.js";
 import { integrate, type IntegrationSpec } from "@integrations/engine.js";
 import { createMemoryEventStore } from "@integrations/staging/memory.js";
 import { createDuckDbQueryStore } from "@integrations/staging/duckdb.js";
@@ -69,28 +70,45 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
 
   const app = integrate(spec);
 
-  console.log(`[runner] ${id.canonical} (${id.configHash}): ${tablePipelines.length} pipelines, db=${paths.duckdb}, dbos=${config.dbosUrl ? "on" : "off"}`);
+  const backendKind = config.dbosUrl ? "dbos" : "direct";
+  console.log(`[runner] ${id.canonical} (${id.configHash}): ${tablePipelines.length} pipelines, db=${paths.duckdb}, backend=${backendKind}`);
 
   const cleanup = () => { queryStore.close(); };
 
-  if (config.dbosUrl) {
-    try {
-      return await runWithDbos(app, id, config.runId, app.getSourceOrder(), config.dbosUrl, yaml.orchestration);
-    } finally {
-      cleanup();
-    }
-  }
-
-  const startedAt = new Date().toISOString();
-  const sources = app.getSourceOrder();
-  const results: SourceResult[] = [];
-  for (const source of sources) {
+  const syncSource = async (source: string): Promise<SourceResult> => {
     const start = Date.now();
     const sync = await app.syncSources([source]);
-    results.push(sourceResultFromSync(source, sync, Date.now() - start));
+    return sourceResultFromSync(source, sync, Date.now() - start);
+  };
+
+  const sources = app.getSourceOrder();
+  const syncWorkflow: WorkflowFn<SourceResult[]> = async (ctx) => {
+    const results: SourceResult[] = [];
+    for (const source of sources) {
+      try {
+        results.push(await ctx.run(`sync:${source}`, () => syncSource(source)));
+      } catch (err) {
+        results.push(failedSourceResult(source, `retries exhausted: ${err instanceof Error ? err.message : String(err)}`));
+      }
+    }
+    return results;
+  };
+
+  const retry = retryPolicyFrom(yaml.orchestration);
+  const backend = await createBackend(
+    config.dbosUrl
+      ? { kind: "dbos", databaseUrl: config.dbosUrl, retry }
+      : { kind: "direct", retry },
+  );
+
+  const startedAt = new Date().toISOString();
+  try {
+    const results = await backend.invoke(workflowId(id, config.runId), syncWorkflow);
+    return buildWorkflowResult(id.canonical, id.configHash, results, startedAt);
+  } finally {
+    await backend.shutdown();
+    cleanup();
   }
-  cleanup();
-  return buildWorkflowResult(id.canonical, id.configHash, results, startedAt);
 }
 
 async function loadTransforms(path: string): Promise<Record<string, TransformFn>> {
