@@ -70,6 +70,7 @@ def main():
         predictions.append(slug)
 
     times_ms = [t * 1000 for t in times]
+    times_ms_unsorted = times_ms.copy()
     times_ms.sort()
 
     # Report
@@ -92,7 +93,7 @@ def main():
         ref = samples[i].get("reference", "?")
         pred = predictions[i]
         print(f"  ref: {ref}")
-        print(f"  pred: {pred}  ({times_ms[i]:.1f} ms)")
+        print(f"  pred: {pred}  ({times_ms_unsorted[i]:.1f} ms)")
         print()
 
 
