@@ -1,0 +1,28 @@
+{
+  "vec2slug-v1-openai-small": {
+    "n_params": 11543432,
+    "embed_dim": 384,
+    "num_layers": 4,
+    "vocab_size": 5000,
+    "n_samples": 5000,
+    "tok_f1": 0.298,
+    "exact_match": 0.019,
+    "validity": 1.0,
+    "vocab_diversity": 0.973,
+    "rouge_l": 0.277,
+    "bertscore_f1": 0.869
+  },
+  "vec2slug-v1-openai-large": {
+    "n_params": 24840072,
+    "embed_dim": 512,
+    "num_layers": 6,
+    "vocab_size": 5000,
+    "n_samples": 5000,
+    "tok_f1": 0.306,
+    "exact_match": 0.021,
+    "validity": 1.0,
+    "vocab_diversity": 0.978,
+    "rouge_l": 0.284,
+    "bertscore_f1": 0.872
+  }
+}
