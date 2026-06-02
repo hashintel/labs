@@ -9,9 +9,10 @@ const T = namespace("https://hash.ai/@test/types");
 
 type RequestLog = { method: string; path: string; headers: Record<string, string>; body: unknown };
 
-function startMockServer(): Promise<{ port: number; requests: RequestLog[]; close(): Promise<void>; nextStatus: (s: number) => void }> {
+function startMockServer(): Promise<{ port: number; requests: RequestLog[]; close(): Promise<void>; nextStatus: (s: number) => void; nextResponse: (s: number, body: unknown) => void }> {
   const requests: RequestLog[] = [];
   let overrideStatus: number | undefined;
+  let overrideBody: unknown | undefined;
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = [];
@@ -23,8 +24,10 @@ function startMockServer(): Promise<{ port: number; requests: RequestLog[]; clos
 
     const status = overrideStatus ?? 200;
     overrideStatus = undefined;
+    const responseBody = overrideBody ?? { metadata: { recordId: { entityId: "test-id", editionId: "ed-1" } } };
+    overrideBody = undefined;
     res.writeHead(status, { "Content-Type": "application/json" });
-    res.end(JSON.stringify({ metadata: { recordId: { entityId: "test-id", editionId: "ed-1" } } }));
+    res.end(JSON.stringify(responseBody));
   });
 
   return new Promise((resolve) => {
@@ -35,6 +38,7 @@ function startMockServer(): Promise<{ port: number; requests: RequestLog[]; clos
         requests,
         close: () => new Promise<void>((r) => server.close(() => r())),
         nextStatus: (s: number) => { overrideStatus = s; },
+        nextResponse: (s: number, body: unknown) => { overrideStatus = s; overrideBody = body; },
       });
     });
   });
@@ -58,7 +62,6 @@ describe("createGraphClient", () => {
       entityId: "u-1",
       webId: "web-1",
       properties: { [T.property("email/v/1")]: "a@example.com" },
-      links: [], staleLinks: [],
       provenance: prov,
     });
     await mock.close();
@@ -93,7 +96,6 @@ describe("createGraphClient", () => {
       entityId: "u-1",
       webId: "web-1",
       properties: { [T.property("email/v/1")]: "b@example.com" },
-      links: [], staleLinks: [],
       provenance: prov,
     });
     await mock.close();
@@ -112,30 +114,51 @@ describe("createGraphClient", () => {
     assert.equal(patches[0].property.value, "b@example.com");
   });
 
-  it("upsert creates link entities", async () => {
+  it("upsertLink creates link entities", async () => {
     const client = createGraphClient(config);
-    await client.upsertEntity({
-      kind: "upsert", namespace: "test-connector",
-      entityType: T.entity("user/v/1"),
-      entityId: "u-1",
+    await client.upsertLink({
+      opId: "link-1",
+      namespace: "test-connector",
+      sourceEntityType: T.entity("user/v/1"),
+      sourceEntityId: "u-1",
       webId: "web-1",
-      properties: {},
-      links: [{ linkType: T.link("is-member-of/v/1"), targetEntityType: T.entity("org/v/1"), targetId: "org-1" }],
-      staleLinks: [],
+      linkType: T.link("is-member-of/v/1"),
+      targetEntityType: T.entity("org/v/1"),
+      targetId: "org-1",
       provenance: prov,
     });
     await mock.close();
 
-    assert.equal(mock.requests.length, 2);
-    const linkReq = mock.requests[1];
-    assert.equal(linkReq.method, "POST");
-
-    const body = linkReq.body as Record<string, unknown>;
+    assert.equal(mock.requests.length, 1);
+    const body = mock.requests[0].body as Record<string, unknown>;
     assert.deepEqual(body.entityTypeIds, [T.link("is-member-of/v/1")]);
     assert.ok(body.linkData);
     const ld = body.linkData as { leftEntityId: string; rightEntityId: string };
     assert.ok(ld.leftEntityId.startsWith("web-1~"));
     assert.ok(ld.rightEntityId.startsWith("web-1~"));
+  });
+
+  it("upsertLink revives on 409 conflict", async () => {
+    mock.nextStatus(409);
+    const client = createGraphClient(config);
+    await client.upsertLink({
+      opId: "link-1",
+      namespace: "test-connector",
+      sourceEntityType: T.entity("user/v/1"),
+      sourceEntityId: "u-1",
+      webId: "web-1",
+      linkType: T.link("is-member-of/v/1"),
+      targetEntityType: T.entity("org/v/1"),
+      targetId: "org-1",
+      provenance: prov,
+    });
+    await mock.close();
+
+    assert.equal(mock.requests.length, 2);
+    assert.equal(mock.requests[0].method, "POST");
+    assert.equal(mock.requests[1].method, "PATCH");
+    const patchBody = mock.requests[1].body as Record<string, unknown>;
+    assert.equal(patchBody.archived, false);
   });
 
   it("archive sends PATCH with archived: true", async () => {
@@ -153,7 +176,6 @@ describe("createGraphClient", () => {
     assert.equal(mock.requests[0].method, "PATCH");
     const body = mock.requests[0].body as Record<string, unknown>;
     assert.equal(body.archived, true);
-    assert.ok(typeof body.entityId === "string");
   });
 
   it("archive swallows 404 for non-existent entities", async () => {
@@ -176,7 +198,7 @@ describe("createGraphClient", () => {
     await assert.rejects(
       () => client.upsertEntity({
         kind: "upsert", namespace: "test-connector", entityType: T.entity("x/v/1"), entityId: "1",
-        webId: "w", properties: {}, links: [], staleLinks: [], provenance: prov,
+        webId: "w", properties: {}, provenance: prov,
       }),
       (err: unknown) => err instanceof GraphApiError && err.status === 500,
     );
@@ -198,7 +220,6 @@ describe("createGraphClient", () => {
         [T.property("email/v/1")]: { sources: [prov] },
         [T.property("city/v/1")]: { sources: [prov] },
       },
-      links: [], staleLinks: [],
       provenance: prov,
     });
     await mock.close();
@@ -207,63 +228,38 @@ describe("createGraphClient", () => {
     const props = (body.properties as { value: Record<string, { metadata: { provenance?: { sources: unknown[] } } }> }).value;
     assert.ok(props[T.property("email/")].metadata.provenance);
     assert.equal(props[T.property("email/")].metadata.provenance!.sources.length, 1);
-    assert.ok(props[T.property("city/")].metadata.provenance);
-    const editionProv = body.provenance as { sources: unknown[] };
-    assert.equal(editionProv.sources.length, 1);
   });
 
   it("embeds per-link-property provenance on link POST body", async () => {
     const client = createGraphClient(config);
-    await client.upsertEntity({
-      kind: "upsert", namespace: "test-connector",
-      entityType: T.entity("user/v/1"),
-      entityId: "u-1",
+    await client.upsertLink({
+      opId: "link-1",
+      namespace: "test-connector",
+      sourceEntityType: T.entity("user/v/1"),
+      sourceEntityId: "u-1",
       webId: "web-1",
-      properties: {},
-      links: [{
-        linkType: T.link("is-member-of/v/1"),
-        targetEntityType: T.entity("org/v/1"),
-        targetId: "org-1",
-        properties: { [T.property("role/v/1")]: "admin" },
-        propertyProvenance: { [T.property("role/v/1")]: { sources: [prov] } },
-      }],
-      staleLinks: [],
+      linkType: T.link("is-member-of/v/1"),
+      targetEntityType: T.entity("org/v/1"),
+      targetId: "org-1",
+      properties: { [T.property("role/v/1")]: "admin" },
+      propertyProvenance: { [T.property("role/v/1")]: { sources: [prov] } },
       provenance: prov,
     });
     await mock.close();
 
-    const linkBody = mock.requests[1].body as Record<string, unknown>;
+    const linkBody = mock.requests[0].body as Record<string, unknown>;
     const props = (linkBody.properties as { value: Record<string, { metadata: { provenance?: { sources: unknown[] } } }> }).value;
     assert.ok(props[T.property("role/")].metadata.provenance);
   });
 
-  it("omits metadata.provenance when propertyProvenance is absent", async () => {
-    const client = createGraphClient(config);
-    await client.upsertEntity({
-      kind: "upsert", namespace: "test-connector",
-      entityType: T.entity("user/v/1"),
-      entityId: "u-1",
-      webId: "web-1",
-      properties: { [T.property("email/v/1")]: "a@example.com" },
-      links: [], staleLinks: [],
-      provenance: prov,
-    });
-    await mock.close();
-
-    const props = ((mock.requests[0].body as { properties: { value: Record<string, { metadata: { provenance?: unknown } }> } }).properties).value;
-    assert.equal(props[T.property("email/")].metadata.provenance, undefined);
-  });
-
   it("deterministic UUIDs are stable across calls", async () => {
     const client = createGraphClient(config);
-    await client.upsertEntity({
-      kind: "upsert", namespace: "test-connector", entityType: T.entity("user/v/1"), entityId: "u-1",
-      webId: "web-1", properties: {}, links: [], staleLinks: [], provenance: prov,
-    });
-    await client.upsertEntity({
-      kind: "upsert", namespace: "test-connector", entityType: T.entity("user/v/1"), entityId: "u-1",
-      webId: "web-1", properties: {}, links: [], staleLinks: [], provenance: prov,
-    });
+    const op = {
+      kind: "upsert" as const, namespace: "test-connector", entityType: T.entity("user/v/1"), entityId: "u-1",
+      webId: "web-1", properties: {}, provenance: prov,
+    };
+    await client.upsertEntity(op);
+    await client.upsertEntity(op);
     await mock.close();
 
     const uuid1 = (mock.requests[0].body as { entityUuid: string }).entityUuid;

@@ -17,18 +17,19 @@ sources:
     name: raw-cp
 
 pipelines:
-  - source: raw
-    steps:
-      - id: cp
-        kind: checkpoint
-        name: raw-cp
+  entities:
+    - source: raw
+      steps:
+        - id: cp
+          kind: checkpoint
+          name: raw-cp
 
-  - source: derived
-    dependsOn: [raw]
-    steps:
-      - id: double
-        kind: sql
-        sql: "SELECT *, val * 2 AS doubled FROM input"
-      - id: cp2
-        kind: checkpoint
-        name: derived-cp
+    - source: derived
+      dependsOn: [raw]
+      steps:
+        - id: double
+          kind: sql
+          sql: "SELECT *, val * 2 AS doubled FROM input"
+        - id: cp2
+          kind: checkpoint
+          name: derived-cp

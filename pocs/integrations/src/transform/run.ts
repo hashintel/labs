@@ -5,6 +5,8 @@ import type { Pipeline, TransformFn, TransformResolver, SchemaDecl, FieldType, R
 import { decodeRows, toEffectSchema, assertSchemaDeclColumns } from "./schema.js";
 import type { Logger } from "../log.js";
 
+export type SqlInputView = { alias: string; table: string };
+
 export async function validatePipeline(
   pipeline: Pipeline,
   db: QueryableStore,
@@ -27,10 +29,8 @@ export async function validatePipeline(
         throw new Error(`GraphSinkStep "${step.id}" entityId column "${step.config.entityId}" not in pipeline output`);
       }
       const missingProps = Object.values(step.config.properties).filter((a): a is string => typeof a === "string").filter((c) => !available.has(c));
-      const missingLinks = (step.config.links ?? []).map((l) => l.column).filter((c) => !available.has(c));
-      const missing = [...missingProps, ...missingLinks];
-      if (missing.length > 0) log(`graph-sink "${step.id}": ${missing.length} column(s) missing, will skip: ${missing.join(", ")}`);
-      log(`graph-sink "${step.id}": ${Object.keys(step.config.properties).length} properties, ${step.config.links?.length ?? 0} links`);
+      if (missingProps.length > 0) log(`graph-sink "${step.id}": ${missingProps.length} column(s) missing, will skip: ${missingProps.join(", ")}`);
+      log(`graph-sink "${step.id}": ${Object.keys(step.config.properties).length} properties`);
       continue;
     }
 
@@ -42,7 +42,7 @@ export async function validatePipeline(
 
     if (step.kind === "sql") {
       const tmpTable = `_validate/${step.id}`;
-      await execSql(step.sql, currentTable, tmpTable, db, "LIMIT 0");
+      await executeSqlStep(step.sql, currentTable, tmpTable, db, { suffix: "LIMIT 0" });
 
       columns = await db.schemaOf(tmpTable);
       assertMeta(columns, step.id);
@@ -79,7 +79,7 @@ export async function validatePipeline(
           }
           if (s.kind === "sql") {
             const tmpTable = `_validate/${s.id}`;
-            await execSql(s.sql, branchTable, tmpTable, db, "LIMIT 0");
+            await executeSqlStep(s.sql, branchTable, tmpTable, db, { suffix: "LIMIT 0" });
             branchCols = await db.schemaOf(tmpTable);
             assertMeta(branchCols, s.id);
             log(`  sql "${s.id}": ${stripMeta(branchCols).join(", ")}`);
@@ -90,10 +90,8 @@ export async function validatePipeline(
               throw new Error(`GraphSinkStep "${s.id}" entityId column "${s.config.entityId}" not in branch output`);
             }
             const missingProps = Object.values(s.config.properties).filter((a): a is string => typeof a === "string").filter((c) => !available.has(c));
-            const missingLinks = (s.config.links ?? []).map((l) => l.column).filter((c) => !available.has(c));
-            const missing = [...missingProps, ...missingLinks];
-            if (missing.length > 0) log(`  graph-sink "${s.id}": ${missing.length} column(s) missing, will skip: ${missing.join(", ")}`);
-            log(`  graph-sink "${s.id}": ${Object.keys(s.config.properties).length} properties, ${s.config.links?.length ?? 0} links`);
+            if (missingProps.length > 0) log(`  graph-sink "${s.id}": ${missingProps.length} column(s) missing, will skip: ${missingProps.join(", ")}`);
+            log(`  graph-sink "${s.id}": ${Object.keys(s.config.properties).length} properties`);
           }
         }
       }
@@ -116,7 +114,7 @@ export async function runPipeline(
   for (const step of pipeline.steps) {
     if (step.kind === "sql") {
       const outputTable = `_step/${step.id}`;
-      await execSql(step.sql, currentTable, outputTable, db);
+      await executeSqlStep(step.sql, currentTable, outputTable, db);
       assertMeta(await db.schemaOf(outputTable), step.id);
       currentTable = outputTable;
     } else if (step.kind === "fn") {
@@ -133,7 +131,7 @@ export async function runPipeline(
         for (const s of branchSteps) {
           if (s.kind === "sql") {
             const out = `_step/${s.id}`;
-            await execSql(s.sql, branchTable, out, db);
+            await executeSqlStep(s.sql, branchTable, out, db);
             assertMeta(await db.schemaOf(out), s.id);
             branchTable = out;
           } else if (s.kind === "fn") {
@@ -164,10 +162,23 @@ function resolveOrThrow(stepId: string, name: string, resolver?: TransformResolv
   return resolver(name);
 }
 
-async function execSql(sql: string, inputTable: string, outputTable: string, db: QueryableStore, suffix = ""): Promise<void> {
-  await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(inputTable)} ${suffix}`);
+export async function executeSqlStep(
+  sql: string,
+  inputTable: string | null,
+  outputTable: string,
+  db: QueryableStore,
+  opts: { suffix?: string; namedInputs?: readonly SqlInputView[]; keepViews?: boolean } = {},
+): Promise<void> {
+  const suffix = opts.suffix ?? "";
+  if (inputTable) await db.exec(`CREATE OR REPLACE VIEW "input" AS SELECT * FROM ${qi(inputTable)} ${suffix}`);
+  for (const input of opts.namedInputs ?? []) {
+    await db.exec(`CREATE OR REPLACE VIEW ${qi(input.alias)} AS SELECT * FROM ${qi(input.table)}`);
+  }
   await db.exec(`CREATE OR REPLACE TABLE ${qi(outputTable)} AS ${sql} ${suffix}`);
-  await db.exec(`DROP VIEW IF EXISTS "input"`);
+  if (!opts.keepViews) {
+    await db.exec(`DROP VIEW IF EXISTS "input"`);
+    for (const input of opts.namedInputs ?? []) await db.exec(`DROP VIEW IF EXISTS ${qi(input.alias)}`);
+  }
 }
 
 function stripMeta(columns: string[]): string[] {

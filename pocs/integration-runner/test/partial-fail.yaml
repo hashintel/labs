@@ -17,21 +17,22 @@ sources:
     primaryKey: id
 
 pipelines:
-  - source: good
-    steps:
-      - id: cp1
-        kind: checkpoint
-        name: good-cp
-  - source: bad
-    steps:
-      - id: cp2
-        kind: checkpoint
-        name: bad-cp
-  - source: also_good
-    steps:
-      - id: cp3
-        kind: checkpoint
-        name: also-good-cp
+  entities:
+    - source: good
+      steps:
+        - id: cp1
+          kind: checkpoint
+          name: good-cp
+    - source: bad
+      steps:
+        - id: cp2
+          kind: checkpoint
+          name: bad-cp
+    - source: also_good
+      steps:
+        - id: cp3
+          kind: checkpoint
+          name: also-good-cp
 
 orchestration:
   maxRetries: 0

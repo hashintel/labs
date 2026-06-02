@@ -133,44 +133,7 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
     }
   }
 
-  const producer = new Map<string, number>();
-  for (let i = 0; i < pipelines.length; i++) {
-    for (const step of steps[i]) {
-      if (step.kind === "graph-sink" && !producer.has(step.config.entityType)) {
-        producer.set(step.config.entityType, i);
-      }
-    }
-  }
-
-  const transitive: Set<number>[] = pipelines.map(() => new Set<number>());
-  for (const i of sortedIdx) {
-    for (const d of deps[i]) {
-      transitive[i].add(d);
-      for (const t of transitive[d]) transitive[i].add(t);
-    }
-  }
-
-  const hints: string[] = [];
-  for (let i = 0; i < pipelines.length; i++) {
-    for (const step of steps[i]) {
-      if (step.kind !== "graph-sink") continue;
-      for (const link of step.config.links ?? []) {
-        const target = link.targetEntityType;
-        const producerIdx = producer.get(target);
-        if (producerIdx === undefined) {
-          hints.push(
-            `Step "${step.id}" (pipeline "${pipelines[i].source}") links to "${target}", which no pipeline produces. Stubs will be auto-created.`,
-          );
-        } else if (producerIdx !== i && !transitive[i].has(producerIdx)) {
-          hints.push(
-            `Step "${step.id}" (pipeline "${pipelines[i].source}") links to "${target}" produced by pipeline "${pipelines[producerIdx].source}", but "${pipelines[producerIdx].source}" is not in "${pipelines[i].source}".dependsOn.`,
-          );
-        }
-      }
-    }
-  }
-
-  return { order: sortedIdx.map((i) => pipelines[i]), hints };
+  return { order: sortedIdx.map((i) => pipelines[i]), hints: [] };
 }
 
 function linearize(pipeline: Pipeline): Step[] {

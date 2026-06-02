@@ -72,14 +72,6 @@ function userSink(source: string | Pipeline, env: PipelineEnv): Pipeline {
           "displayName",
         "https://hash.ai/@h/types/property-type/city/v/1": "city",
       },
-      links: [
-        {
-          column: "orgId",
-          sourceColumn: "organization_id",
-          linkType: T.link("is-member-of/v/1"),
-          targetEntityType: T.entity("organization/v/1"),
-        },
-      ],
       provenance: { location: { name: "crm-connector" } },
     }),
   );

@@ -2,51 +2,96 @@ import type { Accessor, Row } from "@integrations/transform/pipeline.js";
 
 export type CoercionFn = (column: string) => Accessor;
 
-function parseSapDate(v: unknown): string | null {
-  const s = String(v ?? "").trim();
-  if (!s || s === "00000000" || s === "00.00.0000") return null;
-  if (/^\d{8}$/.test(s)) return `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
-  const m = s.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
-  if (m) return `${m[3]}-${m[2]}-${m[1]}`;
-  return s;
-}
+const RE_ISO_DATE = /^\d{4}-\d{2}-\d{2}/;
+const RE_DMY = /^(\d{2})[./](\d{2})[./](\d{4})$/;
+const RE_MDY = /^(\d{2})\/(\d{2})\/(\d{4})$/;
+const RE_PACKED8 = /^\d{8}$/;
+const RE_YYYY_MM_DD = /^\d{4}-\d{2}-\d{2}$/;
+const RE_PACKED6 = /^\d{6}$/;
+const RE_HMS = /^\d{2}:\d{2}:\d{2}$/;
+const RE_HMS_FRAC = /^\d{2}:\d{2}:\d{2}\.\d+$/;
+const RE_TZ_SUFFIX = /[Zz+\-]/;
+const RE_EU_NUMBER = /,/;
+const RE_DOT_G = /\./g;
 
-function parseSapTime(v: unknown): string | null {
-  const s = String(v ?? "").trim();
-  if (!s || s === "000000") return null;
-  if (/^\d{6}$/.test(s)) return `${s.slice(0, 2)}:${s.slice(2, 4)}:${s.slice(4, 6)}`;
-  return s;
-}
-
-function parseEuNumber(v: unknown): number | null {
+function coerceDate(v: unknown): string | null {
   const s = String(v ?? "").trim();
   if (!s) return null;
-  const n = Number(s.replace(/\./g, "").replace(",", "."));
+
+  let result: string | null = null;
+
+  if (RE_ISO_DATE.test(s)) result = s.slice(0, 10);
+
+  if (!result) {
+    const dmy = RE_DMY.exec(s);
+    if (dmy) {
+      if (dmy[1] === "00" || dmy[2] === "00" || dmy[3] === "0000") return null;
+      result = `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+    }
+  }
+
+  if (!result) {
+    const mdy = RE_MDY.exec(s);
+    if (mdy) {
+      if (mdy[1] === "00" || mdy[2] === "00" || mdy[3] === "0000") return null;
+      result = `${mdy[3]}-${mdy[1]}-${mdy[2]}`;
+    }
+  }
+
+  if (!result && RE_PACKED8.test(s)) {
+    if (s === "00000000") return null;
+    result = `${s.slice(0, 4)}-${s.slice(4, 6)}-${s.slice(6, 8)}`;
+  }
+
+  if (!result || !RE_YYYY_MM_DD.test(result)) return null;
+  return result;
+}
+
+function coerceTime(v: unknown): string | null {
+  const s = String(v ?? "").trim();
+  if (!s || s === "000000") return null;
+
+  let t = s;
+  if (RE_PACKED6.test(t)) t = `${t.slice(0, 2)}:${t.slice(2, 4)}:${t.slice(4, 6)}`;
+  if (RE_HMS.test(t)) t += "+00:00";
+  else if (RE_HMS_FRAC.test(t) && !RE_TZ_SUFFIX.test(t.slice(-6))) t += "+00:00";
+
+  return t;
+}
+
+function coerceNumber(v: unknown): number | null {
+  if (typeof v === "number") return v;
+  const s = String(v ?? "").trim();
+  if (!s) return null;
+
+  if (RE_EU_NUMBER.test(s) && s.indexOf(",") > s.lastIndexOf(".")) {
+    const n = Number(s.replace(RE_DOT_G, "").replace(",", "."));
+    return Number.isNaN(n) ? null : n;
+  }
+
+  const n = Number(s);
   return Number.isNaN(n) ? null : n;
 }
 
+function coerceBoolean(v: unknown): boolean {
+  if (typeof v === "boolean") return v;
+  const s = String(v ?? "").trim().toUpperCase();
+  return s === "X" || s === "TRUE" || s === "1" || s === "YES" || s === "Y";
+}
+
 export const registry: Record<string, CoercionFn> = {
-  date: (col) => (r: Row) => parseSapDate(r[col]),
-  time: (col) => (r: Row) => parseSapTime(r[col]),
-  boolean: (col) => (r: Row) => {
-    const s = String(r[col] ?? "").trim().toUpperCase();
-    return s === "X" || s === "TRUE" || s === "1";
-  },
-  number: (col) => (r: Row) => parseEuNumber(r[col]),
+  date: (col) => (r: Row) => coerceDate(r[col]),
+  time: (col) => (r: Row) => coerceTime(r[col]),
+  boolean: (col) => (r: Row) => coerceBoolean(r[col]),
+  number: (col) => (r: Row) => coerceNumber(r[col]),
   integer: (col) => (r: Row) => {
-    const n = parseEuNumber(r[col]);
+    const n = coerceNumber(r[col]);
     return n === null ? null : Math.trunc(n);
   },
   year: (col) => (r: Row) => {
     const s = String(r[col] ?? "").trim();
     if (!s) return null;
     const n = Number(s);
-    return Number.isNaN(n) ? null : n;
-  },
-  nullable_number: (col) => (r: Row) => {
-    const v = r[col];
-    if (v == null) return null;
-    const n = Number(v);
     return Number.isNaN(n) ? null : n;
   },
   trim: (col) => (r: Row) => {

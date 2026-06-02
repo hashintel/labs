@@ -6,7 +6,7 @@ import { createMemoryEventStore } from "./staging/memory.js";
 import { createDuckDbQueryStore } from "./staging/duckdb.js";
 import type { Connector, BatchConnector } from "./connector/types.js";
 import type { ConnectorDef } from "./connector/create.js";
-import type { GraphClient, GraphOp } from "./graph/types.js";
+import type { GraphClient, GraphLinkOp, GraphOp } from "./graph/types.js";
 import type { QueryableStore } from "./staging/types.js";
 
 const trivialPipeline = (source: string): TablePipeline => ({
@@ -23,12 +23,21 @@ function emptyBatchConnector(id: string): BatchConnector {
   };
 }
 
-function recordingGraphClient(): GraphClient & { ops: GraphOp[] } {
-  const ops: GraphOp[] = [];
+type RecordedOp = GraphOp | { kind: "link"; op: GraphLinkOp };
+
+function recordingGraphClient(): GraphClient & { ops: RecordedOp[] } {
+  const ops: RecordedOp[] = [];
   return {
     ops,
     async upsertEntity(op) { ops.push(op); },
     async bulkUpsertEntities(inOps, opts) { for (const o of inOps) ops.push(o); const okIds = inOps.map((o) => String(o.entityId)); if (opts?.onBatchOk) await opts.onBatchOk(okIds); return { ok: okIds, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 }; },
+    async upsertLink(op) { ops.push({ kind: "link", op }); return "ok"; },
+    async bulkUpsertLinks(inOps, opts) {
+      for (const op of inOps) ops.push({ kind: "link", op });
+      const okIds = inOps.map((o) => o.opId);
+      if (opts?.onBatchOk) await opts.onBatchOk(okIds);
+      return { ok: okIds, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
+    },
     async archiveEntity(op) { ops.push(op); },
   };
 }

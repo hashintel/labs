@@ -37,7 +37,6 @@ function userPipeline() {
       entityId: "userId",
       webId: "w",
       properties: {},
-      links: [{ column: "orgId", linkType: T.link("is-member-of/v/1"), targetEntityType: T.entity("organization/v/1") }],
     }),
   );
 }
@@ -252,61 +251,4 @@ describe("sortPipelines", () => {
     );
   });
 
-  it("hints when a link target's producer is not in dependsOn", () => {
-    const pipelines: TablePipeline[] = [
-      { source: "organizations", pipeline: orgPipeline() },
-      { source: "users", pipeline: userPipeline() },
-    ];
-    const { hints } = sortPipelines(pipelines);
-    assert.equal(hints.length, 1);
-    assert.match(hints[0], /users.*organization\/v\/1.*dependsOn/);
-  });
-
-  it("no hint when link target producer is in transitive dependsOn", () => {
-    const pipelines: TablePipeline[] = [
-      { source: "organizations", pipeline: orgPipeline() },
-      { source: "users", pipeline: userPipeline(), dependsOn: ["organizations"] },
-    ];
-    const { hints } = sortPipelines(pipelines);
-    assert.equal(hints.length, 0);
-  });
-
-  it("hints when a link target has no producer", () => {
-    const pipelines: TablePipeline[] = [
-      { source: "users", pipeline: userPipeline() },
-    ];
-    const { hints } = sortPipelines(pipelines);
-    assert.equal(hints.length, 1);
-    assert.match(hints[0], /no pipeline produces/);
-  });
-
-  it("no hint when link target is produced by the same pipeline (branch)", () => {
-    const pipelines: TablePipeline[] = [
-      {
-        source: "aviation",
-        pipeline: pipe(
-          "src/aviation",
-          branch("fanout",
-            [graphSinkStep({
-              id: "write-airports",
-              entityType: T.entity("airport/v/1"),
-              entityId: "icao",
-              webId: "w",
-              properties: {},
-            })],
-            [graphSinkStep({
-              id: "write-flights",
-              entityType: T.entity("flight/v/1"),
-              entityId: "id",
-              webId: "w",
-              properties: {},
-              links: [{ column: "origin", linkType: T.link("departs-from/v/1"), targetEntityType: T.entity("airport/v/1") }],
-            })],
-          ),
-        ),
-      },
-    ];
-    const { hints } = sortPipelines(pipelines);
-    assert.equal(hints.length, 0);
-  });
 });

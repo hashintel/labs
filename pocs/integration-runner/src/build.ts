@@ -1,9 +1,9 @@
-import type { IntegrationYaml, StepYaml, GraphSinkYaml, LinkYaml, ProvenanceYaml } from "./schema.js";
+import type { IntegrationYaml, StepYaml, GraphSinkYaml, ProvenanceYaml } from "./schema.js";
 import { resolveAccessor } from "./coerce.js";
 import type { DuckdbSource } from "@integrations/connector/duckdb-batch.js";
 import type { RestApiEndpoint, RestApiBatchConfig } from "@integrations/connector/rest-api.js";
 import type { ConnectorDef } from "@integrations/connector/create.js";
-import type { TablePipeline, Step, Pipeline, GraphSinkConfig, LinkMapping, Accessor, ProvenanceConfig } from "@integrations/transform/pipeline.js";
+import type { TablePipeline, LinkPipeline, Step, Pipeline, GraphSinkConfig, Accessor, ProvenanceConfig } from "@integrations/transform/pipeline.js";
 import { sqlStep, fnStep, graphSinkStep, checkpoint, branch } from "@integrations/transform/pipeline.js";
 
 function toProvenance(yaml: ProvenanceYaml | undefined): ProvenanceConfig | undefined {
@@ -31,14 +31,6 @@ function toAccessors(props: Record<string, string | { column: string; coerce: st
   return Object.fromEntries(Object.entries(props).map(([url, val]) => [url, resolveAccessor(val)]));
 }
 
-function toLinks(yaml: LinkYaml[] | undefined): LinkMapping[] | undefined {
-  if (!yaml) return undefined;
-  return yaml.map((l) => ({
-    column: l.column, sourceColumn: l.sourceColumn, linkType: l.linkType,
-    targetEntityType: l.targetEntityType, properties: l.properties ? toAccessors(l.properties) : undefined,
-  }));
-}
-
 function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string): GraphSinkConfig {
   const entityId: Accessor = Array.isArray(yaml.entityId)
     ? ((cols) => (row: Record<string, unknown>) => cols.map((c) => String(row[c] ?? "")).join("|"))(yaml.entityId)
@@ -46,7 +38,7 @@ function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string): GraphSinkC
 
   return {
     entityType: yaml.entityType, entityId, webId: yaml.webId, idNamespace,
-    properties: toAccessors(yaml.properties), links: toLinks(yaml.links), provenance: toProvenance(yaml.provenance),
+    properties: toAccessors(yaml.properties), provenance: toProvenance(yaml.provenance),
   };
 }
 
@@ -95,9 +87,27 @@ export function buildConnectorDef(yaml: IntegrationYaml): ConnectorDef {
 export function buildPipelines(yaml: IntegrationYaml): TablePipeline[] {
   const connectorId = yaml.connector.id;
   const idNamespace = yaml.connector.idNamespace ?? connectorId;
-  return yaml.pipelines.map((p) => ({
+  return yaml.pipelines.entities.map((p) => ({
     source: p.source,
     pipeline: { source: `${connectorId}/${p.source}`, steps: p.steps.map((s) => toStep(s, idNamespace)) } as Pipeline,
     dependsOn: p.dependsOn,
+  }));
+}
+
+export function buildLinkPipelines(yaml: IntegrationYaml, webId: string): LinkPipeline[] {
+  const connectorId = yaml.connector.id;
+  const idNamespace = yaml.connector.idNamespace ?? connectorId;
+  return (yaml.pipelines.links ?? []).map((l) => ({
+    id: l.id,
+    source: l.source,
+    inputs: l.inputs,
+    steps: l.steps?.map((s) => ({ kind: "sql" as const, id: s.id, sql: s.sql, dependsOn: s.dependsOn })),
+    from: { entityType: l.from.entityType, column: l.from.column },
+    to: { entityType: l.to.entityType, column: l.to.column },
+    linkType: l.linkType,
+    webId,
+    idNamespace,
+    properties: l.properties,
+    provenance: toProvenance(l.provenance),
   }));
 }

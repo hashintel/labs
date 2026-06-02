@@ -9,8 +9,9 @@ sources:
     primaryKey: id
 
 pipelines:
-  - source: data
-    steps:
-      - id: cp
-        kind: checkpoint
-        name: "${CHECKPOINT_NAME}"
+  entities:
+    - source: data
+      steps:
+        - id: cp
+          kind: checkpoint
+          name: "${CHECKPOINT_NAME}"

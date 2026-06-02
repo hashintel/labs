@@ -41,14 +41,6 @@ export interface FnStep<
   dependsOn?: Deps;
 }
 
-export type LinkMapping = {
-  column: string;
-  sourceColumn?: string;
-  linkType: VersionedUrl;
-  targetEntityType: VersionedUrl;
-  properties?: Record<VersionedUrl, Accessor>;
-};
-
 export type Accessor = string | ((data: Row) => unknown);
 
 /** Declare at connector- or source-level (see each source spec). Sink-level works but is a last-resort fallback. */
@@ -65,7 +57,20 @@ export type GraphSinkConfig = {
   webId: string;
   idNamespace?: string;
   properties: Record<VersionedUrl, Accessor>;
-  links?: LinkMapping[];
+  provenance?: ProvenanceConfig;
+};
+
+export type LinkPipeline = {
+  id: string;
+  source?: string;
+  inputs?: Record<string, string>;
+  steps?: SqlStep<string, readonly string[]>[];
+  from: { entityType: VersionedUrl; column: string };
+  to: { entityType: VersionedUrl; column: string };
+  linkType: VersionedUrl;
+  webId: string;
+  idNamespace?: string;
+  properties?: Record<VersionedUrl, string>;
   provenance?: ProvenanceConfig;
 };
 
@@ -275,4 +280,3 @@ type RefineStep<S, Ids extends string> =
 
 type RefineBranches<Bs, Ids extends string> =
   { readonly [K in keyof Bs]: Bs[K] extends readonly Step[] ? RefineSteps<Bs[K], Ids> : Bs[K] };
-

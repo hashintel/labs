@@ -19,7 +19,7 @@ function dumpSteps(steps: readonly Step[], indent = "") {
     }
     if (s.kind === "graph-sink") {
       console.log(`${indent}  entityType=${s.config.entityType.split("/").slice(-2).join("/")}`);
-      console.log(`${indent}  props=${Object.keys(s.config.properties).length} links=${s.config.links?.length ?? 0}`);
+      console.log(`${indent}  props=${Object.keys(s.config.properties).length}`);
     }
   }
 }

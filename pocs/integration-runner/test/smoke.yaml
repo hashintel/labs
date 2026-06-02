@@ -23,21 +23,22 @@ sources:
     primaryKey: loc_id
 
 pipelines:
-  - source: parts
-    steps:
-      - id: clean
-        kind: sql
-        sql: "SELECT *, TRIM(part_id) AS pid FROM input"
+  entities:
+    - source: parts
+      steps:
+        - id: clean
+          kind: sql
+          sql: "SELECT *, TRIM(part_id) AS pid FROM input"
 
-      - id: cp-parts
-        kind: checkpoint
-        name: parts-cleaned
+        - id: cp-parts
+          kind: checkpoint
+          name: parts-cleaned
 
-  - source: locations
-    steps:
-      - id: cp-locs
-        kind: checkpoint
-        name: locations-cleaned
+    - source: locations
+      steps:
+        - id: cp-locs
+          kind: checkpoint
+          name: locations-cleaned
 
 orchestration:
   maxRetries: 2

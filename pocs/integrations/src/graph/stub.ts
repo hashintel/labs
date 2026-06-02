@@ -3,15 +3,16 @@ import type { GraphClient } from "./types.js";
 export function createStubGraphClient(): GraphClient {
   async function upsertEntity(op: Parameters<GraphClient["upsertEntity"]>[0]): Promise<void> {
     const propCount = Object.keys(op.properties).length;
-    const linkCount = op.links.length;
-    console.log(`[graph] UPSERT ${short(op.entityType)} id=${op.entityId} (${propCount} props, ${linkCount} links)`);
+    console.log(`[graph] UPSERT ${short(op.entityType)} id=${op.entityId} (${propCount} props)`);
     for (const [url, val] of Object.entries(op.properties)) {
       console.log(`  ${short(url)} = ${JSON.stringify(val)}`);
     }
-    for (const link of op.links) {
-      console.log(`  -> ${short(link.linkType)} -> ${short(link.targetEntityType)} id=${link.targetId}`);
-    }
     if (op.provenance.location?.name) console.log(`  source: ${op.provenance.location.name}`);
+  }
+
+  async function upsertLink(op: Parameters<GraphClient["upsertLink"]>[0]): Promise<"ok"> {
+    console.log(`[graph] LINK ${short(op.linkType)} ${op.sourceEntityId} -> ${short(op.targetEntityType)} id=${op.targetId}`);
+    return "ok";
   }
 
   return {
@@ -20,6 +21,17 @@ export function createStubGraphClient(): GraphClient {
       const start = Date.now();
       const ok: string[] = [];
       for (const op of ops) { await upsertEntity(op); ok.push(String(op.entityId)); }
+      return { ok, failed: [], batches: 1, fellBackBatches: 0, durationMs: Date.now() - start };
+    },
+    upsertLink,
+    async bulkUpsertLinks(ops, opts) {
+      const start = Date.now();
+      const ok: string[] = [];
+      for (const op of ops) {
+        await upsertLink(op);
+        ok.push(op.opId);
+      }
+      if (opts?.onBatchOk) await opts.onBatchOk(ok);
       return { ok, failed: [], batches: 1, fellBackBatches: 0, durationMs: Date.now() - start };
     },
     async archiveEntity(op) {

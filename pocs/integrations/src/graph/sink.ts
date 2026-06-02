@@ -2,12 +2,12 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { QueryableStore } from "../staging/types.js";
 import type { ChangeEvent } from "../connector/types.js";
 import type { Accessor, GraphSinkConfig, Row, Envelope } from "../transform/pipeline.js";
-import type { GraphOp, ResolvedLink, SourceProvenance, PropertyProvenance, GraphClient } from "./types.js";
+import type { GraphLinkOp, GraphOp, SourceProvenance, PropertyProvenance, GraphClient } from "./types.js";
 import type { Logger } from "../log.js";
 
 const DEFAULT_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
 
-async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
+export async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
   let i = 0;
   async function worker() {
     while (i < items.length) {
@@ -22,22 +22,21 @@ function resolve(accessor: Accessor, data: Row): unknown {
   return typeof accessor === "string" ? data[accessor] : accessor(data);
 }
 
-function typeSlug(url: string): string {
+export function typeSlug(url: string): string {
   return url.split("/entity-type/")[1] ?? url;
 }
 
-function errMsg(err: unknown): string {
+export function errMsg(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-/** Upsert-only. Deletes are handled out-of-band (engine splits stream deletes to `archiveDeletes`; `diffAndSync` archives by id). */
 export function rowToGraphOp(
   row: Row & Envelope,
   config: GraphSinkConfig,
   namespace: string,
   provenance: SourceProvenance,
 ): Extract<GraphOp, { kind: "upsert" }> {
-  const { _op, _key, _before: rawBefore, ...data } = row;
+  const { _op, _key, _before: _rawBefore, ...data } = row;
 
   if (_op === "delete") {
     throw new Error(`rowToGraphOp: _op="delete" reached the pipeline (deletes must bypass it)`);
@@ -53,45 +52,11 @@ export function rowToGraphOp(
     propertyProvenance[propUrl] = propSources;
   }
 
-  const links: ResolvedLink[] = (config.links ?? [])
-    .filter((l) => data[l.column] != null)
-    .map((l) => {
-      const resolved: ResolvedLink = { linkType: l.linkType, targetEntityType: l.targetEntityType, targetId: data[l.column] };
-      if (l.properties) {
-        resolved.properties = {};
-        resolved.propertyProvenance = {};
-        for (const [url, accessor] of Object.entries(l.properties)) {
-          resolved.properties[url] = resolve(accessor, data);
-          resolved.propertyProvenance[url] = propSources;
-        }
-      }
-      return resolved;
-    });
-
-  let before: Record<string, unknown> | null = null;
-  if (rawBefore != null) {
-    if (typeof rawBefore === "string") {
-      try { before = JSON.parse(rawBefore); } catch {}
-    } else if (typeof rawBefore === "object") {
-      before = rawBefore as Record<string, unknown>;
-    }
-  }
-
-  const staleLinks: ResolvedLink[] = [];
-  if (before && config.links) {
-    for (const l of config.links) {
-      const oldVal = before[l.sourceColumn ?? l.column];
-      const newVal = data[l.column];
-      if (oldVal != null && String(oldVal) !== String(newVal)) {
-        staleLinks.push({ linkType: l.linkType, targetEntityType: l.targetEntityType, targetId: oldVal });
-      }
-    }
-  }
-
-  return { kind: "upsert", namespace, entityType: config.entityType, entityId, properties, propertyProvenance, links, staleLinks, provenance, webId: config.webId };
+  return { kind: "upsert", namespace, entityType: config.entityType, entityId, properties, propertyProvenance, provenance, webId: config.webId };
 }
 
 export async function processGraphSink(
+  _sinkId: string,
   config: GraphSinkConfig,
   inputTable: string,
   connectorId: string,
@@ -102,8 +67,6 @@ export async function processGraphSink(
 ): Promise<{ syncedIds: string[]; errors: SyncError[] }> {
   const { rows } = await db.query(`SELECT * FROM ${qi(inputTable)}`);
 
-  // Collapse multiple events for the same entity (e.g. insert+update in one
-  // commit) to the last one. Map.set keeps the position of the first occurrence.
   const latest = new Map<string, Row & Envelope>();
   for (const row of rows) {
     const id = String(resolve(config.entityId, row as Row));
@@ -126,7 +89,7 @@ export async function processGraphSink(
       return;
     }
     try {
-      log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)} links=${op.links.length}${op.staleLinks.length ? ` stale=${op.staleLinks.length}` : ""}`);
+      log?.info(`upsert ${typeSlug(op.entityType)} id=${String(op.entityId)}`);
       await client.upsertEntity(op);
       syncedIds.push(String(op.entityId));
     } catch (err) {
@@ -141,7 +104,7 @@ export async function processGraphSink(
 }
 
 export type SyncError = {
-  kind: "upsert" | "archive" | "stale-link" | "row-build" | "table";
+  kind: "upsert" | "archive" | "link-upsert" | "stale-link" | "row-build" | "table";
   entityType: string;
   entityId: string;
   message: string;
@@ -171,22 +134,131 @@ export function mergeSyncResults(a: SyncResult, b: SyncResult): SyncResult {
   };
 }
 
-function syncError(kind: SyncError["kind"], entityType: string, entityId: unknown, err: unknown): SyncError {
+export function syncError(kind: SyncError["kind"], entityType: string, entityId: unknown, err: unknown): SyncError {
   return { kind, entityType, entityId: String(entityId), message: err instanceof Error ? err.message : String(err) };
 }
 
-function escLiteral(s: string): string {
+export function escLiteral(s: string): string {
   return `'${s.replace(/'/g, "''")}'`;
 }
 
-function inList(ids: readonly string[]): string {
+export function inList(ids: readonly string[]): string {
   return ids.map(escLiteral).join(",");
 }
 
-const LK_PREFIX = "_lk_";
+const PENDING_LINK_PREFIX = "_state/pending-links";
+export const STAGE_CHUNK = 500;
 
-function lkCol(column: string): string {
-  return qi(LK_PREFIX + column);
+function pendingLinksTable(connectorId: string): string {
+  return `${PENDING_LINK_PREFIX}/${connectorId}`;
+}
+
+export async function ensurePendingLinksTable(db: QueryableStore, connectorId: string): Promise<string> {
+  const table = pendingLinksTable(connectorId);
+  await db.exec(`CREATE TABLE IF NOT EXISTS ${qi(table)} (op_id VARCHAR, sink_id VARCHAR, operation VARCHAR, payload VARCHAR)`);
+  return table;
+}
+
+export async function deletePendingLinks(db: QueryableStore, connectorId: string, ids: readonly string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const table = await ensurePendingLinksTable(db, connectorId);
+  for (let start = 0; start < ids.length; start += STAGE_CHUNK) {
+    const chunk = ids.slice(start, start + STAGE_CHUNK);
+    await db.exec(`DELETE FROM ${qi(table)} WHERE op_id IN (${inList(chunk)})`);
+  }
+}
+
+export async function stageGraphLinks(
+  db: QueryableStore,
+  connectorId: string,
+  sinkId: string,
+  linkOps: GraphLinkOp[],
+  archiveOps: Extract<GraphOp, { kind: "archive" }>[],
+  log?: Logger,
+): Promise<void> {
+  if (linkOps.length === 0 && archiveOps.length === 0) return;
+  const table = await ensurePendingLinksTable(db, connectorId);
+
+  function archiveOpId(op: Extract<GraphOp, { kind: "archive" }>): string {
+    return ["archive", op.namespace, op.webId, op.entityType, String(op.entityId)].join("::");
+  }
+
+  const rows = [
+    ...linkOps.map((op) => ({ id: op.opId, operation: "upsert", payload: JSON.stringify(op) })),
+    ...archiveOps.map((op) => ({ id: archiveOpId(op), operation: "archive", payload: JSON.stringify(op) })),
+  ];
+
+  for (let start = 0; start < rows.length; start += STAGE_CHUNK) {
+    const chunk = rows.slice(start, start + STAGE_CHUNK);
+    await db.exec(`DELETE FROM ${qi(table)} WHERE op_id IN (${inList(chunk.map((r) => r.id))})`);
+
+    const width = 4;
+    const params: (string | null)[] = new Array(chunk.length * width);
+    const placeholders: string[] = [];
+    for (let i = 0; i < chunk.length; i++) {
+      const base = i * width;
+      placeholders.push(`($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4})`);
+      params[base] = chunk[i].id;
+      params[base + 1] = sinkId;
+      params[base + 2] = chunk[i].operation;
+      params[base + 3] = chunk[i].payload;
+    }
+    await db.exec(`INSERT INTO ${qi(table)} (op_id, sink_id, operation, payload) VALUES ${placeholders.join(", ")}`, params);
+  }
+  log?.debug(`staged ${rows.length} link op(s) for sink "${sinkId}"`);
+}
+
+export async function flushGraphLinks(
+  connectorId: string,
+  db: QueryableStore,
+  client: GraphClient,
+  log?: Logger,
+): Promise<SyncResult> {
+  const start = Date.now();
+  const table = await ensurePendingLinksTable(db, connectorId);
+  const { rows } = await db.query(`SELECT op_id, operation, payload FROM ${qi(table)} ORDER BY operation, op_id`);
+  if (rows.length > 0) log?.info(`flush: ${rows.length} pending link op(s) to process`);
+  const errors: SyncError[] = [];
+  const archiveOps: Array<{ opId: string; op: Extract<GraphOp, { kind: "archive" }> }> = [];
+  const linkOps: GraphLinkOp[] = [];
+
+  for (const row of rows) {
+    const operation = String(row.operation);
+    const payload = JSON.parse(String(row.payload)) as GraphLinkOp | Extract<GraphOp, { kind: "archive" }>;
+    if (operation === "archive") archiveOps.push({ opId: String(row.op_id), op: payload as Extract<GraphOp, { kind: "archive" }> });
+    else linkOps.push(payload as GraphLinkOp);
+  }
+
+  await parallel(archiveOps, DEFAULT_CONCURRENCY, async ({ opId, op }) => {
+    try {
+      await client.archiveEntity(op);
+      await deletePendingLinks(db, connectorId, [opId]);
+    } catch (err) {
+      errors.push(syncError("stale-link", op.entityType, op.entityId, err));
+      log?.error(`stale-link archive failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(err)}`);
+    }
+  });
+
+  if (linkOps.length > 0) {
+    const onProgress = bulkProgressLogger("links", log);
+    const { ok, failed, batches, fellBackBatches, durationMs } = await client.bulkUpsertLinks(linkOps, {
+      onProgress,
+      onBatchOk: (opIds) => deletePendingLinks(db, connectorId, opIds),
+    });
+    const perSec = durationMs > 0 ? Math.round((ok.length / durationMs) * 1000) : 0;
+    log?.info(`bulk-upsert links: ${ok.length}/${linkOps.length} ok, ${failed.length} failed, ${batches} batches (${fellBackBatches} fell back) in ${durationMs}ms (${perSec}/s)`);
+    for (const { op, error } of failed) {
+      errors.push(syncError("link-upsert", op.linkType, `${String(op.sourceEntityId)}::${String(op.targetId)}`, error));
+      log?.error(`link-upsert failed for ${typeSlug(op.linkType)}/${String(op.sourceEntityId)}::${String(op.targetId)}: ${errMsg(error)} (will retry next sync)`);
+    }
+  }
+
+  const durationMs = Date.now() - start;
+  if (rows.length > 0) {
+    const failureSummary = errors.length > 0 ? `, ${errors.length} FAILED` : "";
+    log?.info(`link sync: ${rows.length - errors.length} done${failureSummary} (${durationMs}ms)`);
+  }
+  return { ...emptySyncResult(), errors, durationMs };
 }
 
 export async function diffAndSync(
@@ -207,18 +279,13 @@ export async function diffAndSync(
 
   if (!entityIdCol) throw new Error("diffAndSync requires a string entityId accessor");
 
-  const linkCols = (config.links ?? []).map((l) => l.column);
-  const linkColsSql = linkCols.map((c) => `${qi(c)}::VARCHAR AS ${lkCol(c)}`).join(", ");
-  const linkColsSelect = linkCols.length > 0 ? `, ${linkColsSql}` : "";
-
   if (inputTable) {
     await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
-      SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, md5(data::VARCHAR) AS _content_hash${linkColsSelect}
+      SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, md5(data::VARCHAR) AS _content_hash
       FROM (SELECT * EXCLUDE (${qi("_op")}, ${qi("_key")}, ${qi("_before")}) FROM ${qi(inputTable)}) data`);
     await assertUniqueEntityIds(db, currentTable, sinkId, entityIdCol);
   } else {
-    const linkColDefs = linkCols.map((c) => `${lkCol(c)} VARCHAR`).join(", ");
-    await db.exec(`CREATE OR REPLACE TABLE ${currentTable} (_entity_id VARCHAR, _content_hash VARCHAR${linkColDefs ? ", " + linkColDefs : ""})`);
+    await db.exec(`CREATE OR REPLACE TABLE ${currentTable} (_entity_id VARCHAR, _content_hash VARCHAR)`);
   }
 
   let hasPrevious = false;
@@ -227,8 +294,6 @@ export async function diffAndSync(
     hasPrevious = true;
   } catch {}
 
-  // Partial snapshot: fold prior state rows for absent ids into current so
-  // they resolve as unchanged instead of fabricated archives.
   if (partial && hasPrevious) {
     await db.exec(`INSERT INTO ${currentTable}
       SELECT * FROM ${stateTable}
@@ -277,8 +342,7 @@ export async function diffAndSync(
   const errors: SyncError[] = [];
   if (!hasPrevious) await db.exec(`CREATE TABLE ${stateTable} AS SELECT * FROM ${currentTable} WHERE 1=0`);
 
-  // Resolve stale links against untouched state, before commits start shifting it.
-  const staleLinks = await resolveStaleLinks(db, config, stateTable, currentTable, updates, hasPrevious);
+  const namespace = config.idNamespace ?? connectorId;
 
   const commitSlice = async (ids: string[]) => {
     if (ids.length === 0) return;
@@ -287,7 +351,6 @@ export async function diffAndSync(
     await db.exec(`INSERT INTO ${stateTable} SELECT * FROM ${currentTable} WHERE _entity_id IN (${idList})`);
   };
 
-  const namespace = config.idNamespace ?? connectorId;
   const changedIds = [...inserts, ...updates];
   if (changedIds.length > 0 && inputTable) {
     const idList = inList(changedIds);
@@ -308,29 +371,15 @@ export async function diffAndSync(
       const slug = typeSlug(config.entityType);
       log?.info(`bulk-upsert ${slug}: ${ops.length} ops starting`);
       const onProgress = bulkProgressLogger(slug, log);
-      const { ok, failed, batches, fellBackBatches, durationMs } = await client.bulkUpsertEntities(ops, { onProgress, onBatchOk: commitSlice });
+      const { ok, failed, batches, fellBackBatches, durationMs } = await client.bulkUpsertEntities(ops, { onProgress });
       const perSec = durationMs > 0 ? Math.round((ok.length / durationMs) * 1000) : 0;
       log?.info(`bulk-upsert ${slug}: ${ok.length}/${ops.length} ok, ${failed.length} failed, ${batches} batches (${fellBackBatches} fell back) in ${durationMs}ms (${perSec}/s)`);
+      await commitSlice(ok);
       for (const { op, error } of failed) {
         errors.push(syncError("upsert", op.entityType, op.entityId, error));
         log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(error)} (will retry next sync)`);
       }
     }
-  }
-
-  if (staleLinks.length > 0) {
-    const linkByCol = new Map((config.links ?? []).map((l) => [l.column, l]));
-    await parallel(staleLinks, DEFAULT_CONCURRENCY, async ({ entityId, col, oldVal }) => {
-      const l = linkByCol.get(col)!;
-      const staleLinkId = `${entityId}::${oldVal}`;
-      log?.info(`archive stale link ${typeSlug(l.linkType)} ${entityId} -> ${oldVal}`);
-      try {
-        await client.archiveEntity({ kind: "archive", namespace, entityType: l.linkType, entityId: staleLinkId, provenance, webId: config.webId });
-      } catch (err) {
-        errors.push(syncError("stale-link", l.linkType, staleLinkId, err));
-        log?.error(`stale-link archive failed for ${typeSlug(l.linkType)}/${staleLinkId}: ${errMsg(err)}`);
-      }
-    });
   }
 
   await parallel(deletes, DEFAULT_CONCURRENCY, async (entityId) => {
@@ -353,29 +402,7 @@ export async function diffAndSync(
   return { inserts: inserts.length, updates: updates.length, deletes: deletes.length, unchanged, errors, durationMs };
 }
 
-type StaleLink = { entityId: string; col: string; oldVal: string };
-
-async function resolveStaleLinks(
-  db: QueryableStore,
-  config: GraphSinkConfig,
-  stateTable: string,
-  currentTable: string,
-  updates: string[],
-  hasPrevious: boolean,
-): Promise<StaleLink[]> {
-  if (updates.length === 0 || !hasPrevious || !config.links?.length) return [];
-  const updList = inList(updates);
-  const sql = config.links.map((l) => {
-    const lk = lkCol(l.column);
-    return `SELECT p._entity_id, ${escLiteral(l.column)} AS col, p.${lk} AS old_val
-            FROM ${stateTable} p JOIN ${currentTable} c ON p._entity_id = c._entity_id
-            WHERE p._entity_id IN (${updList}) AND p.${lk} IS NOT NULL AND p.${lk} != c.${lk}`;
-  }).join(" UNION ALL ");
-  const { rows } = await db.query(sql);
-  return rows.map((r) => ({ entityId: r._entity_id as string, col: r.col as string, oldVal: String(r.old_val) }));
-}
-
-function bulkProgressLogger(slug: string, log: Logger | undefined): (done: number, total: number) => void {
+export function bulkProgressLogger(slug: string, log: Logger | undefined): (done: number, total: number) => void {
   const start = Date.now();
   let lastLog = 0;
   return (done, total) => {
@@ -389,7 +416,6 @@ function bulkProgressLogger(slug: string, log: Logger | undefined): (done: numbe
   };
 }
 
-/** Composite keys join alphabetically-sorted values with `::`. Sinks on composite-PK sources must build their `entityId` accessor the same way. */
 function entityIdFromKey(key: Record<string, unknown>): unknown {
   const names = Object.keys(key);
   if (names.length === 1) return key[names[0]];

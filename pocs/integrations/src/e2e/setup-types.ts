@@ -3,15 +3,13 @@ import { resolve } from "node:path";
 import { postgresPipelines, mongoPipelines, type PipelineEnv } from "../pipelines.js";
 import { aviationPipelines } from "../pipelines/aviation.js";
 import type { TablePipeline } from "../engine.js";
-import type { Step, LinkMapping } from "../transform/pipeline.js";
+import type { Step } from "../transform/pipeline.js";
 
-const BP_LINK = "https://blockprotocol.org/@blockprotocol/types/entity-type/link/v/1";
 const BP_TEXT = "https://blockprotocol.org/@blockprotocol/types/data-type/text/v/1";
 
 type Sink = {
   entityType: string;
   properties: string[];
-  links: LinkMapping[];
 };
 
 export async function setupTypes(
@@ -29,15 +27,6 @@ export async function setupTypes(
   const propertyUrls = new Set<string>();
   for (const sink of sinks) {
     for (const p of sink.properties) propertyUrls.add(p);
-    for (const l of sink.links) for (const p of Object.keys(l.properties ?? {})) propertyUrls.add(p);
-  }
-
-  const linkTypeProps = new Map<string, Set<string>>();
-  for (const sink of sinks) {
-    for (const l of sink.links) {
-      if (!linkTypeProps.has(l.linkType)) linkTypeProps.set(l.linkType, new Set());
-      for (const p of Object.keys(l.properties ?? {})) linkTypeProps.get(l.linkType)!.add(p);
-    }
   }
 
   let created = 0, skipped = 0;
@@ -47,14 +36,6 @@ export async function setupTypes(
     if (existing.has(url)) { skipped++; continue; }
     await createPropertyType(env.graphUrl, headers, url);
     existing.add(url);
-    created++;
-  }
-
-  for (const [linkType, props] of linkTypeProps) {
-    if (!isOurs(linkType)) { if (!existing.has(linkType)) warnMissing("link-type", linkType); skipped++; continue; }
-    if (existing.has(linkType)) { skipped++; continue; }
-    await createLinkType(env.graphUrl, headers, linkType, [...props]);
-    existing.add(linkType);
     created++;
   }
 
@@ -78,7 +59,6 @@ function collectSinks(steps: readonly Step[], out: Sink[]): void {
       out.push({
         entityType: s.config.entityType,
         properties: Object.keys(s.config.properties),
-        links: s.config.links ?? [],
       });
     } else if (s.kind === "branch") {
       for (const branch of s.branches) collectSinks(branch, out);
@@ -134,37 +114,12 @@ async function createPropertyType(graphUrl: string, headers: Record<string, stri
   await postType(graphUrl, headers, "property-types", schema, `property-type/${slug}`);
 }
 
-async function createLinkType(graphUrl: string, headers: Record<string, string>, url: string, propertyUrls: string[]): Promise<void> {
-  const slug = slugOf(url, "entity-type");
-  const title = titleFrom(slug);
-  const properties: Record<string, { $ref: string }> = {};
-  for (const p of propertyUrls) properties[versionedToBase(p)] = { $ref: p };
-  const schema = {
-    $schema: "https://blockprotocol.org/types/modules/graph/0.3/schema/entity-type",
-    kind: "entityType",
-    $id: url,
-    type: "object",
-    title,
-    description: title,
-    properties,
-    allOf: [{ $ref: BP_LINK }],
-  };
-  await postType(graphUrl, headers, "entity-types", schema, `link-type/${slug}`);
-}
 
 async function createEntityType(graphUrl: string, headers: Record<string, string>, sink: Sink): Promise<void> {
   const slug = slugOf(sink.entityType, "entity-type");
   const title = titleFrom(slug);
   const properties: Record<string, { $ref: string }> = {};
   for (const p of sink.properties) properties[versionedToBase(p)] = { $ref: p };
-
-  const links: Record<string, { type: "array"; items: { oneOf: { $ref: string }[] } }> = {};
-  for (const link of sink.links) {
-    links[link.linkType] = {
-      type: "array",
-      items: { oneOf: [{ $ref: link.targetEntityType }] },
-    };
-  }
 
   const schema: Record<string, unknown> = {
     $schema: "https://blockprotocol.org/types/modules/graph/0.3/schema/entity-type",
@@ -175,7 +130,6 @@ async function createEntityType(graphUrl: string, headers: Record<string, string
     description: title,
     properties,
   };
-  if (Object.keys(links).length > 0) schema.links = links;
 
   await postType(graphUrl, headers, "entity-types", schema, `entity-type/${slug}`);
 }

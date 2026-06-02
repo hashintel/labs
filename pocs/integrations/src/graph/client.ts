@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { BulkUpsertFailure, BulkUpsertOptions, BulkUpsertResult, GraphClient, GraphOp, PropertyProvenance, ResolvedLink, SourceProvenance } from "./types.js";
+import type { BulkLinkFailure, BulkLinkOptions, BulkLinkResult, BulkUpsertFailure, BulkUpsertOptions, BulkUpsertResult, GraphClient, GraphLinkOp, GraphOp, PropertyProvenance, SourceProvenance } from "./types.js";
 import type { VersionedUrl } from "../transform/pipeline.js";
 
 const BULK_SIZE = Math.max(1, Number(process.env.HASH_GRAPH_BULK_SIZE ?? 128));
@@ -207,40 +207,27 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     return { fullEntityId, provenance };
   }
 
-  async function archiveStaleLinks(
-    op: Extract<GraphOp, { kind: "upsert" }>,
-    provenance: HASHProvenance,
-  ): Promise<void> {
-    for (const stale of op.staleLinks) {
-      const staleLinkId = compositeEntityId(op.webId, deterministicUuid(op.namespace, stale.linkType, `${op.entityId}::${stale.targetId}`));
-      try {
-        await request("PATCH", config, "/entities", { entityId: staleLinkId, provenance, archived: true } satisfies PatchEntityParams);
-      } catch (err) {
-        if (err instanceof GraphApiError && err.status === 404) continue;
-        throw err;
-      }
-    }
+  async function upsertEntity(op: Extract<GraphOp, { kind: "upsert" }>): Promise<void> {
+    await upsertMain(op);
   }
 
-  async function upsertEntity(op: Extract<GraphOp, { kind: "upsert" }>): Promise<void> {
-    const { fullEntityId, provenance } = await upsertMain(op);
-    for (const link of op.links) await upsertLink(config, op, link, provenance, fullEntityId);
-    await archiveStaleLinks(op, provenance);
+  function linkEntityIds(op: GraphLinkOp): { leftEntityId: string; rightEntityId: string; linkUuid: string; fullLinkId: string } {
+    const leftEntityId = compositeEntityId(op.webId, deterministicUuid(op.namespace, op.sourceEntityType, op.sourceEntityId));
+    const rightEntityId = compositeEntityId(op.webId, deterministicUuid(op.namespace, op.targetEntityType, op.targetId));
+    const linkUuid = deterministicUuid(op.namespace, op.linkType, `${op.sourceEntityId}::${op.targetId}`);
+    return { leftEntityId, rightEntityId, linkUuid, fullLinkId: compositeEntityId(op.webId, linkUuid) };
   }
 
   function linkCreateParams(
-    op: Extract<GraphOp, { kind: "upsert" }>,
-    link: ResolvedLink,
+    op: GraphLinkOp,
     provenance: HASHProvenance,
-    leftEntityId: string,
   ): CreateEntityParams {
-    const rightEntityId = compositeEntityId(op.webId, deterministicUuid(op.namespace, link.targetEntityType, link.targetId));
-    const linkUuid = deterministicUuid(op.namespace, link.linkType, `${op.entityId}::${link.targetId}`);
+    const { leftEntityId, rightEntityId, linkUuid } = linkEntityIds(op);
     return {
       webId: op.webId,
-      entityTypeIds: [link.linkType],
-      properties: link.properties
-        ? mapProperties(link.properties as Record<VersionedUrl, unknown>, link.propertyProvenance)
+      entityTypeIds: [op.linkType],
+      properties: op.properties
+        ? mapProperties(op.properties as Record<VersionedUrl, unknown>, op.propertyProvenance)
         : { value: {} },
       draft: false,
       provenance,
@@ -265,7 +252,6 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       for (const op of chunk) {
         const provenance = mapProvenance(op.provenance);
         const entityUuid = deterministicUuid(op.namespace, op.entityType, op.entityId);
-        const fullEntityId = compositeEntityId(op.webId, entityUuid);
         payload.push({
           webId: op.webId,
           entityTypeIds: [op.entityType],
@@ -274,20 +260,12 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
           provenance,
           entityUuid,
         });
-        for (const link of op.links) payload.push(linkCreateParams(op, link, provenance, fullEntityId));
       }
 
       const chunkOk: string[] = [];
       try {
         await request("POST", config, "/entities/bulk", payload);
-        await parallel(chunk, BULK_CONCURRENCY, async (op) => {
-          try {
-            await archiveStaleLinks(op, mapProvenance(op.provenance));
-            chunkOk.push(String(op.entityId));
-          } catch (err) {
-            failed.push({ op, error: err as Error });
-          }
-        });
+        for (const op of chunk) chunkOk.push(String(op.entityId));
       } catch {
         // Batch rejected; retry individually so 409s become PATCHes.
         fellBackBatches++;
@@ -295,6 +273,62 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
           try {
             await upsertEntity(op);
             chunkOk.push(String(op.entityId));
+          } catch (err) {
+            failed.push({ op, error: err as Error });
+          }
+        }
+      }
+      ok.push(...chunkOk);
+      if (chunkOk.length > 0 && options?.onBatchOk) await options.onBatchOk(chunkOk);
+      options?.onProgress?.(ok.length + failed.length, ops.length);
+    });
+
+    return { ok, failed, batches: chunks.length, fellBackBatches, durationMs: Date.now() - start };
+  }
+
+  async function upsertLink(op: GraphLinkOp): Promise<"ok"> {
+    const provenance = mapProvenance(op.provenance);
+    const { fullLinkId } = linkEntityIds(op);
+
+    try {
+      await request("POST", config, "/entities", linkCreateParams(op, provenance));
+      return "ok";
+    } catch (e) {
+      if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
+        await request("PATCH", config, "/entities", {
+          entityId: fullLinkId,
+          provenance,
+          archived: false,
+          ...(op.properties
+            ? { properties: mapPropertiesAsPatch(op.properties as Record<VersionedUrl, unknown>, op.propertyProvenance) }
+            : {}),
+        } satisfies PatchEntityParams);
+        return "ok";
+      }
+      throw e;
+    }
+  }
+
+  async function bulkUpsertLinks(ops: GraphLinkOp[], options?: BulkLinkOptions): Promise<BulkLinkResult> {
+    const start = Date.now();
+    const ok: string[] = [];
+    const failed: BulkLinkFailure[] = [];
+    const chunks: GraphLinkOp[][] = [];
+    for (let i = 0; i < ops.length; i += BULK_SIZE) chunks.push(ops.slice(i, i + BULK_SIZE));
+    let fellBackBatches = 0;
+
+    await parallel(chunks, BULK_CONCURRENCY, async (chunk) => {
+      const payload = chunk.map((op) => linkCreateParams(op, mapProvenance(op.provenance)));
+      const chunkOk: string[] = [];
+      try {
+        await request("POST", config, "/entities/bulk", payload);
+        for (const op of chunk) chunkOk.push(op.opId);
+      } catch {
+        fellBackBatches++;
+        for (const op of chunk) {
+          try {
+            await upsertLink(op);
+            chunkOk.push(op.opId);
           } catch (err) {
             failed.push({ op, error: err as Error });
           }
@@ -323,7 +357,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     }
   }
 
-  return { upsertEntity, bulkUpsertEntities, archiveEntity };
+  return { upsertEntity, bulkUpsertEntities, upsertLink, bulkUpsertLinks, archiveEntity };
 }
 
 async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
@@ -337,86 +371,3 @@ async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Pro
   await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
 }
 
-async function ensureEntity(
-  config: GraphClientConfig,
-  ns: string,
-  entityType: string,
-  entityId: unknown,
-  webId: string,
-  provenance: HASHProvenance,
-): Promise<void> {
-  const uuid = deterministicUuid(ns, entityType, entityId);
-  try {
-    await request("POST", config, "/entities", {
-      webId,
-      entityTypeIds: [entityType],
-      properties: { value: {} },
-      draft: false,
-      provenance,
-      entityUuid: uuid,
-    } satisfies CreateEntityParams);
-  } catch (e) {
-    if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) return;
-    throw e;
-  }
-}
-
-async function upsertLink(
-  config: GraphClientConfig,
-  op: Extract<GraphOp, { kind: "upsert" }>,
-  link: ResolvedLink,
-  provenance: HASHProvenance,
-  leftEntityId: string,
-): Promise<void> {
-  const targetUuid = deterministicUuid(op.namespace, link.targetEntityType, link.targetId);
-  const rightEntityId = compositeEntityId(op.webId, targetUuid);
-  const linkUuid = deterministicUuid(op.namespace, link.linkType, `${op.entityId}::${link.targetId}`);
-
-  const linkProps = link.properties
-    ? mapProperties(link.properties as Record<VersionedUrl, unknown>, link.propertyProvenance)
-    : { value: {} };
-
-  const createLink = () => request("POST", config, "/entities", {
-    webId: op.webId,
-    entityTypeIds: [link.linkType],
-    properties: linkProps,
-    draft: false,
-    provenance,
-    entityUuid: linkUuid,
-    linkData: { leftEntityId, rightEntityId },
-  } satisfies CreateEntityParams);
-
-  const reviveLink = () => request("PATCH", config, "/entities", {
-    entityId: compositeEntityId(op.webId, linkUuid),
-    provenance,
-    archived: false,
-    ...(link.properties
-      ? { properties: mapPropertiesAsPatch(link.properties as Record<VersionedUrl, unknown>, link.propertyProvenance) }
-      : {}),
-  } satisfies PatchEntityParams);
-
-  try {
-    await createLink();
-  } catch (e) {
-    if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
-      await reviveLink();
-      return;
-    }
-    if (e instanceof GraphApiError && isFkViolation(e)) {
-      await ensureEntity(config, op.namespace, link.targetEntityType, link.targetId, op.webId, provenance);
-      try { await createLink(); } catch (e2) {
-        if (e2 instanceof GraphApiError && (e2.status === 409 || isDuplicate(e2))) {
-          await reviveLink();
-          return;
-        }
-        throw e2;
-      }
-      return;
-    }
-    throw e;
-  }
-}
-
-function isFkViolation(e: GraphApiError): boolean {
-  return e.body.includes("foreign key constraint") || e.body.includes("entity_edge");
-}

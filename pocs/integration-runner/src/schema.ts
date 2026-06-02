@@ -7,20 +7,11 @@ export type ProvenanceYaml = {
   lastUpdated?: string;
 };
 
-export type LinkYaml = {
-  column: string;
-  sourceColumn?: string;
-  linkType: string;
-  targetEntityType: string;
-  properties?: Record<string, AccessorYaml>;
-};
-
 export type GraphSinkYaml = {
   entityType: string;
   entityId: string | string[];
   webId: string;
   properties: Record<string, AccessorYaml>;
-  links?: LinkYaml[];
   provenance?: ProvenanceYaml;
 };
 
@@ -31,8 +22,10 @@ export type BranchYaml = {
   dependsOn?: string[];
 };
 
+export type SqlStepYaml = { kind: "sql"; id: string; sql: string; dependsOn?: string[] };
+
 export type StepYaml =
-  | { kind: "sql"; id: string; sql: string; dependsOn?: string[] }
+  | SqlStepYaml
   | { kind: "fn"; id: string; transform: string; dependsOn?: string[] }
   | { kind: "graph-sink"; id: string; config: GraphSinkYaml; dependsOn?: string[] }
   | { kind: "checkpoint"; id: string; name: string; dependsOn?: string[] }
@@ -71,6 +64,18 @@ export type PipelineYaml = {
   steps: StepYaml[];
 };
 
+export type LinkPipelineYaml = {
+  id: string;
+  source?: string;
+  inputs?: Record<string, string>;
+  steps?: SqlStepYaml[];
+  from: { entityType: string; column: string };
+  to: { entityType: string; column: string };
+  linkType: string;
+  properties?: Record<string, string>;
+  provenance?: ProvenanceYaml;
+};
+
 export type OrchestrationYaml = {
   maxRetries?: number;
   retryIntervalSeconds?: number;
@@ -104,7 +109,10 @@ export type ConnectorYaml =
 export type IntegrationYaml = {
   connector: ConnectorYaml;
   sources?: Record<string, SourceYaml>;
-  pipelines: PipelineYaml[];
+  pipelines: {
+    entities: PipelineYaml[];
+    links?: LinkPipelineYaml[];
+  };
   orchestration?: OrchestrationYaml;
 };
 

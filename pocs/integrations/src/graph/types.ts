@@ -1,13 +1,5 @@
 import type { VersionedUrl } from "../transform/pipeline.js";
 
-export type ResolvedLink = {
-  linkType: VersionedUrl;
-  targetEntityType: VersionedUrl;
-  targetId: unknown;
-  properties?: Record<VersionedUrl, unknown>;
-  propertyProvenance?: Record<VersionedUrl, PropertyProvenance>;
-};
-
 /** `entityId` reserved for File-entity opt-in; v1 never sets it. Runtime mtime / CDC-ts capture is deferred. */
 export type SourceProvenance = {
   type: "integration";
@@ -33,12 +25,24 @@ export type GraphOp =
       entityId: unknown;
       properties: Record<VersionedUrl, unknown>;
       propertyProvenance?: Record<VersionedUrl, PropertyProvenance>;
-      links: ResolvedLink[];
-      staleLinks: ResolvedLink[];
       provenance: SourceProvenance;
       webId: string;
     }
   | { kind: "archive"; namespace: string; entityType: VersionedUrl; entityId: unknown; provenance: SourceProvenance; webId: string };
+
+export type GraphLinkOp = {
+  opId: string;
+  namespace: string;
+  webId: string;
+  sourceEntityType: VersionedUrl;
+  sourceEntityId: unknown;
+  linkType: VersionedUrl;
+  targetEntityType: VersionedUrl;
+  targetId: unknown;
+  properties?: Record<VersionedUrl, unknown>;
+  propertyProvenance?: Record<VersionedUrl, PropertyProvenance>;
+  provenance: SourceProvenance;
+};
 
 export type BulkUpsertFailure = { op: Extract<GraphOp, { kind: "upsert" }>; error: Error };
 export type BulkUpsertResult = {
@@ -49,14 +53,29 @@ export type BulkUpsertResult = {
   durationMs: number;
 };
 
+export type BulkLinkFailure = { op: GraphLinkOp; error: Error };
+export type BulkLinkResult = {
+  ok: string[];
+  failed: BulkLinkFailure[];
+  batches: number;
+  fellBackBatches: number;
+  durationMs: number;
+};
+
 export type BulkUpsertOptions = {
   onProgress?: (done: number, total: number) => void;
   onBatchOk?: (entityIds: string[]) => Promise<void>;
 };
 
+export type BulkLinkOptions = {
+  onProgress?: (done: number, total: number) => void;
+  onBatchOk?: (opIds: string[]) => Promise<void>;
+};
+
 export type GraphClient = {
   upsertEntity(op: Extract<GraphOp, { kind: "upsert" }>): Promise<void>;
-  /** Chunks into `HASH_GRAPH_BULK_SIZE` batches (default 128); failing batches drop to per-entity upsert. */
   bulkUpsertEntities(ops: Extract<GraphOp, { kind: "upsert" }>[], options?: BulkUpsertOptions): Promise<BulkUpsertResult>;
+  upsertLink(op: GraphLinkOp): Promise<"ok">;
+  bulkUpsertLinks(ops: GraphLinkOp[], options?: BulkLinkOptions): Promise<BulkLinkResult>;
   archiveEntity(op: Extract<GraphOp, { kind: "archive" }>): Promise<void>;
 };

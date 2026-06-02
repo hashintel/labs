@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { resolveEnvVars, type IntegrationYaml } from "./schema.js";
 import { validateYaml } from "./validate.js";
-import { buildConnectorDef, buildPipelines } from "./build.js";
+import { buildConnectorDef, buildPipelines, buildLinkPipelines } from "./build.js";
 import { loadConfig, type RunnerConfig } from "./config.js";
 import { integrationId, statePaths } from "./identity.js";
 import { workflowId } from "./config.js";
@@ -43,7 +43,8 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
 
   const connectorDef = buildConnectorDef(yaml);
   const tablePipelines = buildPipelines(yaml);
-  const needsGraph = tablePipelines.some((tp) => hasGraphSinkDeep(tp.pipeline.steps));
+  const linkPipelines = buildLinkPipelines(yaml, config.webId);
+  const needsGraph = tablePipelines.some((tp) => hasGraphSinkDeep(tp.pipeline.steps)) || linkPipelines.length > 0;
 
   let graphClient: GraphClient | undefined;
   if (needsGraph) {
@@ -60,6 +61,7 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
   const spec: IntegrationSpec = {
     connector: connectorDef,
     pipelines: tablePipelines,
+    linkPipelines,
     eventStore: createMemoryEventStore(),
     queryStore,
     storage: createLocalStorage({ root: paths.staging }),
@@ -77,8 +79,14 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
 
   const syncSource = async (source: string): Promise<SourceResult> => {
     const start = Date.now();
-    const sync = await app.syncSources([source]);
+    const sync = await app.syncSources([source], { deferGraphLinks: true });
     return sourceResultFromSync(source, sync, Date.now() - start);
+  };
+
+  const flushLinks = async (): Promise<SourceResult> => {
+    const start = Date.now();
+    const sync = await app.flushGraphLinks();
+    return sourceResultFromSync("flush-links", sync, Date.now() - start);
   };
 
   const sources = app.getSourceOrder();
@@ -89,6 +97,13 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
         results.push(await ctx.run(`sync:${source}`, () => syncSource(source)));
       } catch (err) {
         results.push(failedSourceResult(source, `retries exhausted: ${err instanceof Error ? err.message : String(err)}`));
+      }
+    }
+    if (needsGraph) {
+      try {
+        results.push(await ctx.run("flush-links", flushLinks));
+      } catch (err) {
+        results.push(failedSourceResult("flush-links", `retries exhausted: ${err instanceof Error ? err.message : String(err)}`));
       }
     }
     return results;

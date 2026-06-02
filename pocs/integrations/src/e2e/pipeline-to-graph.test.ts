@@ -68,11 +68,6 @@ const pipeline = pipe("test/users",
       [T.property("display-name/v/1")]: "displayName",
       [T.property("city/v/1")]: "city",
     },
-    links: [{
-      column: "orgId",
-      linkType: T.link("is-member-of/v/1"),
-      targetEntityType: T.entity("organization/v/1"),
-    }],
     provenance: { location: { name: "e2e-test" } },
   }),
 );
@@ -91,18 +86,22 @@ describe("e2e: events to pipeline to graph", () => {
     await graphServer.close();
   });
 
-  function buildSideEffectHandler(): SideEffectHandler {
+  function buildGraphClient(): ReturnType<typeof createGraphClient> {
     const config: GraphClientConfig = { baseUrl: `http://localhost:${graphServer.port}`, actorId: "test-actor" };
-    const client = createGraphClient(config);
+    return createGraphClient(config);
+  }
+
+  function buildSideEffectHandler(client: ReturnType<typeof createGraphClient>): SideEffectHandler {
     return async (step, table) => {
       if (step.kind === "graph-sink") {
-        await processGraphSink(step.config, table, "test", queryStore, client, prov);
+        await processGraphSink(step.id, step.config, table, "test", queryStore, client, prov);
       }
     };
   }
 
   async function runE2E(events: ChangeEvent[]): Promise<RequestLog[]> {
     const eventStore = createMemoryEventStore();
+    const client = buildGraphClient();
 
     await eventStore.append("test", "users", events);
     const { events: stored, nextSeq } = await eventStore.read("test", "users");
@@ -110,7 +109,7 @@ describe("e2e: events to pipeline to graph", () => {
     eventStore.trim("test", "users", nextSeq);
 
     await validatePipeline(pipeline, queryStore);
-    await runPipeline(pipeline, queryStore, undefined, buildSideEffectHandler());
+    await runPipeline(pipeline, queryStore, undefined, buildSideEffectHandler(client));
 
     return graphServer.requests;
   }
@@ -123,14 +122,9 @@ describe("e2e: events to pipeline to graph", () => {
   it("inserts flow through pipeline and produce graph upserts", async () => {
     const requests = await runE2E(userEvents());
 
-    assert.equal(requests.length, 4);
+    assert.equal(requests.length, 2, "2 entity POSTs (no inline links)");
 
-    const entities = requests.filter((r) => !r.body.linkData);
-    const links = requests.filter((r) => r.body.linkData);
-    assert.equal(entities.length, 2);
-    assert.equal(links.length, 2);
-
-    const alice = entities.find((r) => {
+    const alice = requests.find((r) => {
       const p = propsOf(r);
       return p[T.property("email/")] === "alice@example.com";
     });
@@ -140,14 +134,9 @@ describe("e2e: events to pipeline to graph", () => {
     assert.equal(alice.body.webId, "web-test");
     assert.equal(propsOf(alice)[T.property("display-name/")], "Alice Smith");
 
-    const bob = entities.find((r) => propsOf(r)[T.property("email/")] === "bob@example.com");
+    const bob = requests.find((r) => propsOf(r)[T.property("email/")] === "bob@example.com");
     assert.ok(bob);
     assert.equal(propsOf(bob)[T.property("display-name/")], "Bob Jones");
-
-    for (const link of links) {
-      assert.equal(link.method, "POST");
-      assert.deepEqual((link.body.entityTypeIds as string[]), [T.link("is-member-of/v/1")]);
-    }
 
     for (const req of requests) {
       const prov = req.body.provenance as { actorType: string; origin: { type: string }; sources: { type: string; location: { name: string } }[] };
@@ -182,7 +171,7 @@ describe("e2e: events to pipeline to graph", () => {
     ];
     const requests = await runE2E(events);
 
-    const entityPosts = requests.filter((r) => !r.body.linkData);
+    const entityPosts = requests.filter((r) => r.path === "/entities" && !r.body.linkData && !Array.isArray(r.body));
     assert.equal(entityPosts.length, 1, "should collapse to one upsert per entity");
     assert.equal(propsOf(entityPosts[0])[T.property("email/")], "alice.new@example.com");
     assert.equal(propsOf(entityPosts[0])[T.property("city/")], "SF");
@@ -197,17 +186,6 @@ describe("e2e: events to pipeline to graph", () => {
     const p = propsOf(requests[0]);
     assert.equal(p[T.property("email/")], "upper@example.com");
     assert.equal(p[T.property("display-name/")], "Spaced  Name");
-  });
-
-  it("null link columns are skipped", async () => {
-    const events: ChangeEvent[] = [
-      { table: "users", op: "insert", key: { id: 1 }, row: { id: "1", email: "a@b.com", first_name: "A", last_name: "B", city: "X", org_id: null } },
-    ];
-    const requests = await runE2E(events);
-
-    assert.equal(requests.length, 1);
-    assert.equal(requests[0].method, "POST");
-    assert.ok(!requests[0].body.linkData);
   });
 
   it("graph-sink mid-pipeline passes data through to downstream steps", async () => {
@@ -230,7 +208,7 @@ describe("e2e: events to pipeline to graph", () => {
     await queryStore.materialize("test", "users", stored);
     eventStore.trim("test", "users", nextSeq);
 
-    const outputTable = await runPipeline(midPipeline, queryStore, undefined, buildSideEffectHandler());
+    const outputTable = await runPipeline(midPipeline, queryStore, undefined, buildSideEffectHandler(buildGraphClient()));
 
     assert.ok(graphServer.requests.length > 0, "graph sink should have fired");
 
@@ -238,41 +216,6 @@ describe("e2e: events to pipeline to graph", () => {
     assert.ok(rows.length > 0, "downstream step should produce rows");
     assert.equal(rows[0].marker, "injected", "columns from pre-sink step should be available");
     assert.equal(rows[0].phase, "after", "post-sink step should have added its column");
-  });
-
-  it("FK change produces stale link archive + new link", async () => {
-    const linkPipeline = pipe("test/users",
-      sqlStep({ id: "pass", query: sql`SELECT _op, _key, _before, id AS userId, email, org_id AS orgId FROM input` }),
-      graphSinkStep({
-        id: "write",
-        entityType: T.entity("user/v/1"),
-        entityId: "userId",
-        webId: "web-test",
-        properties: { [T.property("email/v/1")]: "email" },
-        links: [{ column: "orgId", sourceColumn: "org_id", linkType: T.link("is-member-of/v/1"), targetEntityType: T.entity("organization/v/1") }],
-        provenance: { location: { name: "e2e-test" } },
-      }),
-    );
-
-    const events: ChangeEvent[] = [
-      { table: "users", op: "update", key: { id: 1 }, row: { id: "1", email: "a@b.com", org_id: "org-2" }, before: { id: "1", email: "a@b.com", org_id: "org-1" } },
-    ];
-    const eventStore = createMemoryEventStore();
-    await eventStore.append("test", "users", events);
-    const { events: stored, nextSeq } = await eventStore.read("test", "users");
-    await queryStore.materialize("test", "users", stored);
-    eventStore.trim("test", "users", nextSeq);
-
-    await runPipeline(linkPipeline, queryStore, undefined, buildSideEffectHandler());
-
-    const entityPost = graphServer.requests.find((r) => !r.body.linkData && (r.body.entityTypeIds as string[])?.[0]?.includes("user"));
-    assert.ok(entityPost);
-
-    const linkPost = graphServer.requests.find((r) => r.body.linkData && r.method === "POST");
-    assert.ok(linkPost, "new link should be created");
-
-    const stalePatch = graphServer.requests.find((r) => r.method === "PATCH" && r.body.archived === true);
-    assert.ok(stalePatch, "stale link should be archived");
   });
 
   it("validation catches missing columns", async () => {

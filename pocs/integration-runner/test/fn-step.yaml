@@ -13,11 +13,12 @@ sources:
     primaryKey: id
 
 pipelines:
-  - source: items
-    steps:
-      - id: upper
-        kind: fn
-        transform: uppercase
-      - id: cp
-        kind: checkpoint
-        name: fn-output
+  entities:
+    - source: items
+      steps:
+        - id: upper
+          kind: fn
+          transform: uppercase
+        - id: cp
+          kind: checkpoint
+          name: fn-output

@@ -27,11 +27,6 @@ const sinkConfig: GraphSinkConfig = {
     [T.property("email/v/1")]: "email",
     [T.property("city/v/1")]: "city",
   },
-  links: [{
-    column: "orgId",
-    linkType: T.link("is-member-of/v/1"),
-    targetEntityType: T.entity("organization/v/1"),
-  }],
 };
 
 type Op = { kind: string; entityId?: unknown; archived?: boolean };
@@ -45,6 +40,13 @@ function mockClient(): { ops: Op[]; client: GraphClient } {
       async bulkUpsertEntities(inOps, opts) {
         for (const op of inOps) ops.push({ kind: "upsert", entityId: op.entityId });
         const okIds = inOps.map((o) => String(o.entityId));
+        if (opts?.onBatchOk) await opts.onBatchOk(okIds);
+        return { ok: okIds, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
+      },
+      async upsertLink(op) { ops.push({ kind: "link", entityId: `${op.sourceEntityId}::${op.targetId}` }); return "ok"; },
+      async bulkUpsertLinks(inOps, opts) {
+        for (const op of inOps) ops.push({ kind: "link", entityId: `${op.sourceEntityId}::${op.targetId}` });
+        const okIds = inOps.map((o) => o.opId);
         if (opts?.onBatchOk) await opts.onBatchOk(okIds);
         return { ok: okIds, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
       },
@@ -191,22 +193,6 @@ describe("diffAndSync", () => {
     assert.equal(mock2.ops[0].kind, "archive");
   });
 
-  it("detects stale links on FK change in batch mode", async () => {
-    await seedTable(db, "output", [row("1", "a@b.com", "NYC", "org-1")]);
-    const mock1 = mockClient();
-    await diffAndSync("write-users", sinkConfig, "output", "crm", db, mock1.client);
-
-    await db.exec(`DROP TABLE "output"`);
-    await seedTable(db, "output", [row("1", "a@b.com", "NYC", "org-2")]);
-    const mock2 = mockClient();
-    const result = await diffAndSync("write-users", sinkConfig, "output", "crm", db, mock2.client);
-
-    assert.equal(result.updates, 1);
-    const archives = mock2.ops.filter((o) => o.kind === "archive");
-    assert.equal(archives.length, 1);
-    assert.equal(archives[0].entityId, "1::org-1");
-  });
-
   it("rejects duplicate entity ids in the sink input", async () => {
     await seedTable(db, "output", [
       row("1", "a@b.com", "NYC", "org-1"),
@@ -242,6 +228,12 @@ describe("diffAndSync", () => {
         }
         if (opts?.onBatchOk) await opts.onBatchOk(ok);
         return { ok, failed, batches: 1, fellBackBatches: 0, durationMs: 0 };
+      },
+      async upsertLink() { return "ok" as const; },
+      async bulkUpsertLinks(inOps, opts) {
+        const ok = inOps.map((op) => op.opId);
+        if (opts?.onBatchOk) await opts.onBatchOk(ok);
+        return { ok, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
       },
       async archiveEntity(op) { ops.push({ kind: "archive", entityId: op.entityId }); },
     };

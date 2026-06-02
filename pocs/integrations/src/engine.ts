@@ -2,11 +2,12 @@ import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { Batch, ChangeEvent, Connector, StreamConnector } from "./connector/types.js";
 import { createConnector, type ConnectorDef } from "./connector/create.js";
 import type { EventStore, QueryableStore } from "./staging/types.js";
-import type { Pipeline, ProvenanceConfig, Step, TablePipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
+import type { Pipeline, ProvenanceConfig, Step, TablePipeline, LinkPipeline, TransformFn, TransformResolver, SideEffectHandler } from "./transform/pipeline.js";
 import { validatePipeline, runPipeline } from "./transform/run.js";
 import { sortPipelines } from "./transform/topology.js";
 import type { GraphClient, SourceProvenance } from "./graph/types.js";
-import { processGraphSink, archiveDeletes, diffAndSync, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./graph/sink.js";
+import { processGraphSink, archiveDeletes, diffAndSync, flushGraphLinks as flushPendingGraphLinks, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./graph/sink.js";
+import { processLinkPipeline } from "./graph/link-pipeline.js";
 import { composeProvenance } from "./graph/provenance.js";
 import { writeCheckpoint, checkpointKey } from "./transform/checkpoint.js";
 import { nullStorage } from "./storage/null.js";
@@ -26,9 +27,9 @@ export type { TablePipeline };
 export type IntegrationSpec = {
   connector: ConnectorDef;
   pipelines: TablePipeline[];
+  linkPipelines?: LinkPipeline[];
   eventStore: EventStore;
   queryStore: QueryableStore;
-  /** Durable artefact storage. Required if any pipeline uses `checkpoint` or a `checkpoint` source. Defaults to a null storage that throws on use. */
   storage?: Storage;
   transforms?: Record<string, TransformFn>;
   graphClient?: GraphClient;
@@ -42,11 +43,16 @@ export type Integration = {
   run(): Promise<void>;
   stop(): Promise<void>;
   sync(): Promise<SyncResult>;
-  syncSources(filter?: string[]): Promise<SyncResult>;
+  syncSources(filter?: string[], options?: SyncOptions): Promise<SyncResult>;
+  flushGraphLinks(): Promise<SyncResult>;
   getSourceOrder(): string[];
 };
 
 export { type SyncResult, type SyncError, emptySyncResult, mergeSyncResults };
+
+export type SyncOptions = {
+  deferGraphLinks?: boolean;
+};
 
 /** Validates topology, source/connector alignment, and `pipe()` paths up front. */
 export function integrate(spec: IntegrationSpec): Integration {
@@ -58,6 +64,7 @@ export function integrate(spec: IntegrationSpec): Integration {
 
   const topo = sortPipelines(spec.pipelines);
   const pipelines = topo.order;
+  const linkPipelines = spec.linkPipelines ?? [];
   for (const hint of topo.hints) log.info(`topology: ${hint}`);
 
   assertSourcesDeclared(spec.connector, pipelines);
@@ -183,7 +190,12 @@ export function integrate(spec: IntegrationSpec): Integration {
     return result;
   }
 
-  async function batchSync(filter?: string[]): Promise<SyncResult> {
+  async function flushGraphLinks(connectorId: string): Promise<SyncResult> {
+    if (!spec.graphClient) return emptySyncResult();
+    return flushPendingGraphLinks(connectorId, queryStore, spec.graphClient, sinkLog);
+  }
+
+  async function batchSync(filter?: string[], options: SyncOptions = {}): Promise<SyncResult> {
     if (syncing) return emptySyncResult();
     syncing = true;
     const start = Date.now();
@@ -210,6 +222,17 @@ export function integrate(spec: IntegrationSpec): Integration {
           loadedAt,
         }));
       }
+      if (!options.deferGraphLinks) {
+        if (linkPipelines.length > 0) log.info(`link phase: ${linkPipelines.length} link pipeline(s) starting`);
+        for (const lp of linkPipelines) {
+          const lpProv = composeProvenance({ connectorId: connector.id, source: linkPipelineSourceLabel(lp), connector: spec.connector.provenance, loadedAt });
+          totals = mergeSyncResults(totals, await processLinkPipeline(lp, connector.id, queryStore, storage, lpProv, sinkLog.child({ link: lp.id })));
+        }
+        if (linkPipelines.length > 0) {
+          log.info(`link phase: all pipelines staged, flushing to graph`);
+          totals = mergeSyncResults(totals, await flushGraphLinks(connector.id));
+        }
+      }
     } finally {
       await connector.close();
       syncing = false;
@@ -223,7 +246,18 @@ export function integrate(spec: IntegrationSpec): Integration {
 
   return {
     sync: () => batchSync(),
-    syncSources: (filter) => batchSync(filter),
+    syncSources: (filter, options) => batchSync(filter, options),
+    flushGraphLinks: async () => {
+      let totals = emptySyncResult();
+      const connectorId = spec.connector.id;
+      const loadedAt = new Date().toISOString();
+      for (const lp of linkPipelines) {
+        const lpProv = composeProvenance({ connectorId, source: linkPipelineSourceLabel(lp), connector: spec.connector.provenance, loadedAt });
+        totals = mergeSyncResults(totals, await processLinkPipeline(lp, connectorId, queryStore, storage, lpProv, sinkLog.child({ link: lp.id })));
+      }
+      totals = mergeSyncResults(totals, await flushGraphLinks(connectorId));
+      return totals;
+    },
     getSourceOrder: () => pipelines.map((tp) => tp.source),
 
     async run() {
@@ -348,13 +382,14 @@ export function integrate(spec: IntegrationSpec): Integration {
 
           const onSideEffect: SideEffectHandler = async (step, currentTable) => {
             if (step.kind === "graph-sink") {
-              await processGraphSink(step.config, currentTable, connector.id, queryStore, spec.graphClient!, makeProvenance(step.config.provenance), sinkLogForSource);
+              await processGraphSink(step.id, step.config, currentTable, connector.id, queryStore, spec.graphClient!, makeProvenance(step.config.provenance), sinkLogForSource);
             } else if (step.kind === "checkpoint") {
               await writeCheckpoint(step.name, currentTable, queryStore, storage);
             }
           };
 
           await runPipeline(pipeline, queryStore, resolveTransform, onSideEffect);
+          if (spec.graphClient) await flushGraphLinks(connector.id);
 
           return { nextSeq };
         } finally {
@@ -383,6 +418,12 @@ function buildHydrateContext(args: Omit<HydrateContext, "materialize">): Hydrate
   };
 }
 
+function linkPipelineSourceLabel(lp: LinkPipeline): string {
+  if (lp.source) return lp.source;
+  const checkpoints = Object.values(lp.inputs ?? {});
+  return checkpoints.length > 0 ? checkpoints.join(",") : lp.id;
+}
+
 function allStepIds(steps: readonly Step[]): string[] {
   const ids: string[] = [];
   for (const s of steps) {
@@ -394,6 +435,7 @@ function allStepIds(steps: readonly Step[]): string[] {
   }
   return ids;
 }
+
 
 function declaredSources(def: ConnectorDef): string[] {
   switch (def.mode) {
