@@ -52,6 +52,7 @@ export { type SyncResult, type SyncError, emptySyncResult, mergeSyncResults };
 
 export type SyncOptions = {
   deferGraphLinks?: boolean;
+  skipEntities?: boolean;
 };
 
 /** Validates topology, source/connector alignment, and `pipe()` paths up front. */
@@ -190,9 +191,9 @@ export function integrate(spec: IntegrationSpec): Integration {
     return result;
   }
 
-  async function flushGraphLinks(connectorId: string): Promise<SyncResult> {
+  async function flushGraphLinks(connectorId: string, label?: string): Promise<SyncResult> {
     if (!spec.graphClient) return emptySyncResult();
-    return flushPendingGraphLinks(connectorId, queryStore, spec.graphClient, sinkLog);
+    return flushPendingGraphLinks(connectorId, queryStore, spec.graphClient, sinkLog, label);
   }
 
   async function batchSync(filter?: string[], options: SyncOptions = {}): Promise<SyncResult> {
@@ -213,24 +214,25 @@ export function integrate(spec: IntegrationSpec): Integration {
     log.info(`sync: connector "${connector.id}" sources=[${targets.map((tp) => tp.source).join(", ")}]`);
 
     try {
-      for (const { source, pipeline } of targets) {
-        totals = mergeSyncResults(totals, await syncOneSource({
-          source, pipeline,
-          connectorId: connector.id,
-          connectorDef: spec.connector,
-          hydrate: (ctx) => connector.hydrate(ctx),
-          loadedAt,
-        }));
+      if (!options.skipEntities) {
+        for (const { source, pipeline } of targets) {
+          totals = mergeSyncResults(totals, await syncOneSource({
+            source, pipeline,
+            connectorId: connector.id,
+            connectorDef: spec.connector,
+            hydrate: (ctx) => connector.hydrate(ctx),
+            loadedAt,
+          }));
+        }
+      } else {
+        log.info(`entity phase skipped (skipEntities)`);
       }
       if (!options.deferGraphLinks) {
-        if (linkPipelines.length > 0) log.info(`link phase: ${linkPipelines.length} link pipeline(s) starting`);
+        if (linkPipelines.length > 0) log.info(`link phase: ${linkPipelines.length} link pipeline(s)`);
         for (const lp of linkPipelines) {
           const lpProv = composeProvenance({ connectorId: connector.id, source: linkPipelineSourceLabel(lp), connector: spec.connector.provenance, loadedAt });
           totals = mergeSyncResults(totals, await processLinkPipeline(lp, connector.id, queryStore, storage, lpProv, sinkLog.child({ link: lp.id })));
-        }
-        if (linkPipelines.length > 0) {
-          log.info(`link phase: all pipelines staged, flushing to graph`);
-          totals = mergeSyncResults(totals, await flushGraphLinks(connector.id));
+          totals = mergeSyncResults(totals, await flushGraphLinks(connector.id, lp.id));
         }
       }
     } finally {
@@ -254,8 +256,8 @@ export function integrate(spec: IntegrationSpec): Integration {
       for (const lp of linkPipelines) {
         const lpProv = composeProvenance({ connectorId, source: linkPipelineSourceLabel(lp), connector: spec.connector.provenance, loadedAt });
         totals = mergeSyncResults(totals, await processLinkPipeline(lp, connectorId, queryStore, storage, lpProv, sinkLog.child({ link: lp.id })));
+        totals = mergeSyncResults(totals, await flushGraphLinks(connectorId, lp.id));
       }
-      totals = mergeSyncResults(totals, await flushGraphLinks(connectorId));
       return totals;
     },
     getSourceOrder: () => pipelines.map((tp) => tp.source),

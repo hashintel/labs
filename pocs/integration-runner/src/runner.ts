@@ -24,6 +24,7 @@ export type RunOpts = {
   config: RunnerConfig;
   transforms?: Record<string, TransformFn>;
   logLevel?: LogLevel;
+  linksOnly?: boolean;
 };
 
 function hasGraphSinkDeep(steps: readonly Step[]): boolean {
@@ -77,9 +78,11 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
 
   const cleanup = () => { queryStore.close(); };
 
+  const linksOnly = opts.linksOnly ?? false;
+
   const syncSource = async (source: string): Promise<SourceResult> => {
     const start = Date.now();
-    const sync = await app.syncSources([source], { deferGraphLinks: true });
+    const sync = await app.syncSources([source], { deferGraphLinks: true, skipEntities: linksOnly });
     return sourceResultFromSync(source, sync, Date.now() - start);
   };
 
@@ -92,11 +95,13 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
   const sources = app.getSourceOrder();
   const syncWorkflow: WorkflowFn<SourceResult[]> = async (ctx) => {
     const results: SourceResult[] = [];
-    for (const source of sources) {
-      try {
-        results.push(await ctx.run(`sync:${source}`, () => syncSource(source)));
-      } catch (err) {
-        results.push(failedSourceResult(source, `retries exhausted: ${err instanceof Error ? err.message : String(err)}`));
+    if (!linksOnly) {
+      for (const source of sources) {
+        try {
+          results.push(await ctx.run(`sync:${source}`, () => syncSource(source)));
+        } catch (err) {
+          results.push(failedSourceResult(source, `retries exhausted: ${err instanceof Error ? err.message : String(err)}`));
+        }
       }
     }
     if (needsGraph) {
@@ -164,7 +169,8 @@ async function main() {
   process.on("SIGTERM", () => process.exit(0));
   process.on("SIGINT", () => process.exit(0));
 
-  const result = await run({ yaml, config, transforms, logLevel: (process.env.LOG_LEVEL ?? "info") as LogLevel });
+  const linksOnly = args.includes("--links-only");
+  const result = await run({ yaml, config, transforms, logLevel: (process.env.LOG_LEVEL ?? "info") as LogLevel, linksOnly });
 
   const ok = result.totals.inserts + result.totals.updates;
   console.log(`sync: ${ok} ok, ${result.errorCount} errors, ${result.durationMs}ms`);

@@ -213,11 +213,14 @@ export async function flushGraphLinks(
   db: QueryableStore,
   client: GraphClient,
   log?: Logger,
+  label?: string,
 ): Promise<SyncResult> {
   const start = Date.now();
   const table = await ensurePendingLinksTable(db, connectorId);
-  const { rows } = await db.query(`SELECT op_id, operation, payload FROM ${qi(table)} ORDER BY operation, op_id`);
-  if (rows.length > 0) log?.info(`flush: ${rows.length} pending link op(s) to process`);
+  const where = label ? ` WHERE sink_id = ${escLiteral(label)}` : "";
+  const { rows } = await db.query(`SELECT op_id, operation, payload FROM ${qi(table)}${where} ORDER BY operation, op_id`);
+  const tag = label ? `flush ${label}` : "flush";
+  if (rows.length > 0) log?.info(`${tag}: ${rows.length} pending link op(s) to process`);
   const errors: SyncError[] = [];
   const archiveOps: Array<{ opId: string; op: Extract<GraphOp, { kind: "archive" }> }> = [];
   const linkOps: GraphLinkOp[] = [];
@@ -240,13 +243,14 @@ export async function flushGraphLinks(
   });
 
   if (linkOps.length > 0) {
-    const onProgress = bulkProgressLogger("links", log);
+    log?.info(`${tag}: starting bulk upsert of ${linkOps.length} link(s) in ${Math.ceil(linkOps.length / 128)} batches`);
+    const onProgress = bulkProgressLogger(label ?? "links", log);
     const { ok, failed, batches, fellBackBatches, durationMs } = await client.bulkUpsertLinks(linkOps, {
       onProgress,
       onBatchOk: (opIds) => deletePendingLinks(db, connectorId, opIds),
     });
     const perSec = durationMs > 0 ? Math.round((ok.length / durationMs) * 1000) : 0;
-    log?.info(`bulk-upsert links: ${ok.length}/${linkOps.length} ok, ${failed.length} failed, ${batches} batches (${fellBackBatches} fell back) in ${durationMs}ms (${perSec}/s)`);
+    log?.info(`bulk-upsert ${label ?? "links"}: ${ok.length}/${linkOps.length} ok, ${failed.length} failed, ${batches} batches (${fellBackBatches} fell back) in ${durationMs}ms (${perSec}/s)`);
     for (const { op, error } of failed) {
       errors.push(syncError("link-upsert", op.linkType, `${String(op.sourceEntityId)}::${String(op.targetId)}`, error));
       log?.error(`link-upsert failed for ${typeSlug(op.linkType)}/${String(op.sourceEntityId)}::${String(op.targetId)}: ${errMsg(error)} (will retry next sync)`);
