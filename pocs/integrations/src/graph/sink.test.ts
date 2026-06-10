@@ -66,6 +66,31 @@ describe("rowToGraphOp", () => {
     assert.equal(op.provenance.entityId, undefined);
   });
 
+  it("stamps per-property source field into location.name when propertyFields is set", () => {
+    const withFields: GraphSinkConfig = {
+      ...config,
+      propertyFields: { [T.property("email/v/1")]: "EMAIL_COL", [T.property("display-name/v/1")]: "NAME_COL" },
+    };
+    const sourceProv: SourceProvenance = { type: "integration", loadedAt: "2026-01-01T00:00:00Z", location: { name: "sap/mara" } };
+    const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice" };
+    const op = rowToGraphOp(row, withFields, "sap", sourceProv);
+
+    assert.equal(op.propertyProvenance![T.property("email/v/1")].sources[0].location?.name, "sap/mara/EMAIL_COL");
+    assert.equal(op.propertyProvenance![T.property("display-name/v/1")].sources[0].location?.name, "sap/mara/NAME_COL");
+    // base provenance fields preserved
+    assert.equal(op.propertyProvenance![T.property("email/v/1")].sources[0].loadedAt, "2026-01-01T00:00:00Z");
+  });
+
+  it("falls back to source-level provenance for properties without a mapped field", () => {
+    const withFields: GraphSinkConfig = {
+      ...config,
+      propertyFields: { [T.property("email/v/1")]: "EMAIL_COL" },
+    };
+    const row: Row & Envelope = { _op: "insert", _key: "{}", userId: "1", email: "a@example.com", name: "Alice" };
+    const op = rowToGraphOp(row, withFields, "test-connector", prov);
+    assert.deepEqual(op.propertyProvenance![T.property("display-name/v/1")], { sources: [prov] });
+  });
+
   it("supports function accessors", () => {
     const fnConfig: GraphSinkConfig = {
       entityType: T.entity("user/v/1"),

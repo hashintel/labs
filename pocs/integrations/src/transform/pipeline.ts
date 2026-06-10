@@ -57,6 +57,8 @@ export type GraphSinkConfig = {
   webId: string;
   idNamespace?: string;
   properties: Record<VersionedUrl, Accessor>;
+  /** Per-property source field name. Appended to the property's provenance `location.name` (`<source>/<field>`) so each value records the field it came from. */
+  propertyFields?: Record<VersionedUrl, string>;
   provenance?: ProvenanceConfig;
 };
 

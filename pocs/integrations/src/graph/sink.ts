@@ -7,6 +7,14 @@ import type { Logger } from "../log.js";
 
 const DEFAULT_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
 
+// Rows pulled from DuckDB into the heap per upsert/delete window. Caps peak
+// memory independent of table size -- a full first-run extract streams in
+// windows rather than materializing every row + op at once. Read at call time
+// so it can be tuned (or shrunk in tests) without a restart.
+function syncWindow(): number {
+  return Math.max(1, Number(process.env.HASH_SYNC_WINDOW ?? 20000));
+}
+
 export async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
   let i = 0;
   async function worker() {
@@ -20,6 +28,13 @@ export async function parallel<T>(items: T[], concurrency: number, fn: (item: T)
 
 function resolve(accessor: Accessor, data: Row): unknown {
   return typeof accessor === "string" ? data[accessor] : accessor(data);
+}
+
+/** Per-property provenance: clone the base source and suffix `location.name` with the source field, e.g. `sap/marc` -> `sap/marc/WEBAZ`. */
+function withField(base: SourceProvenance, field: string): PropertyProvenance {
+  const baseName = base.location?.name;
+  const name = baseName ? `${baseName}/${field}` : field;
+  return { sources: [{ ...base, location: { ...base.location, name } }] };
 }
 
 export function typeSlug(url: string): string {
@@ -49,7 +64,8 @@ export function rowToGraphOp(
   const propertyProvenance: Record<string, PropertyProvenance> = {};
   for (const [propUrl, accessor] of Object.entries(config.properties)) {
     properties[propUrl] = resolve(accessor, data);
-    propertyProvenance[propUrl] = propSources;
+    const field = config.propertyFields?.[propUrl];
+    propertyProvenance[propUrl] = field ? withField(provenance, field) : propSources;
   }
 
   return { kind: "upsert", namespace, entityType: config.entityType, entityId, properties, propertyProvenance, provenance, webId: config.webId };
@@ -304,47 +320,36 @@ export async function diffAndSync(
       WHERE _entity_id NOT IN (SELECT _entity_id FROM ${currentTable})`);
   }
 
-  let inserts: string[];
-  let updates: string[];
-  let deletes: string[];
-  let unchanged: number;
-
-  if (!hasPrevious) {
-    const { rows } = await db.query(`SELECT _entity_id FROM ${currentTable}`);
-    inserts = rows.map((r) => r._entity_id as string);
-    updates = [];
-    deletes = [];
-    unchanged = 0;
-  } else {
-    const { rows } = await db.query(
-      `SELECT
-         COALESCE(c._entity_id, p._entity_id) AS _entity_id,
-         CASE
-           WHEN p._entity_id IS NULL THEN 'insert'
-           WHEN c._entity_id IS NULL THEN 'delete'
-           WHEN c._content_hash = p._content_hash THEN 'unchanged'
-           ELSE 'update'
-         END AS op
-       FROM ${currentTable} c
-       FULL OUTER JOIN ${stateTable} p ON c._entity_id = p._entity_id`,
-    );
-
-    inserts = [];
-    updates = [];
-    deletes = [];
-    unchanged = 0;
-    for (const r of rows) {
-      switch (r.op) {
-        case "insert":    inserts.push(r._entity_id as string); break;
-        case "update":    updates.push(r._entity_id as string); break;
-        case "delete":    deletes.push(r._entity_id as string); break;
-        case "unchanged": unchanged++; break;
-      }
-    }
-  }
-
   const errors: SyncError[] = [];
   if (!hasPrevious) await db.exec(`CREATE TABLE ${stateTable} AS SELECT * FROM ${currentTable} WHERE 1=0`);
+
+  // Classify every entity once, in DuckDB. The diff table holds only id + op,
+  // so it stays tiny even for multi-million-row sources; the heavy row payload
+  // is fetched later in bounded windows.
+  const diffTable = qi(`_diff/${connectorId}/${sinkId}`);
+  await db.exec(`CREATE OR REPLACE TABLE ${diffTable} AS
+    SELECT
+      COALESCE(c._entity_id, p._entity_id) AS _entity_id,
+      CASE
+        WHEN p._entity_id IS NULL THEN 'insert'
+        WHEN c._entity_id IS NULL THEN 'delete'
+        WHEN c._content_hash = p._content_hash THEN 'unchanged'
+        ELSE 'update'
+      END AS _diff_op
+    FROM ${currentTable} c
+    FULL OUTER JOIN ${stateTable} p ON c._entity_id = p._entity_id`);
+
+  const counts = await db.query(`SELECT _diff_op, COUNT(*)::BIGINT AS n FROM ${diffTable} GROUP BY _diff_op`);
+  let inserts = 0, updates = 0, deletes = 0, unchanged = 0;
+  for (const r of counts.rows) {
+    const n = Number(r.n);
+    switch (r._diff_op) {
+      case "insert":    inserts = n; break;
+      case "update":    updates = n; break;
+      case "delete":    deletes = n; break;
+      case "unchanged": unchanged = n; break;
+    }
+  }
 
   const namespace = config.idNamespace ?? connectorId;
 
@@ -355,55 +360,86 @@ export async function diffAndSync(
     await db.exec(`INSERT INTO ${stateTable} SELECT * FROM ${currentTable} WHERE _entity_id IN (${idList})`);
   };
 
-  const changedIds = [...inserts, ...updates];
-  if (changedIds.length > 0 && inputTable) {
-    const idList = inList(changedIds);
-    const { rows } = await db.query(
-      `SELECT * FROM ${qi(inputTable)} WHERE CAST(${qi(entityIdCol)} AS VARCHAR) IN (${idList})`,
-    );
-    const ops: Extract<GraphOp, { kind: "upsert" }>[] = [];
-    for (const row of rows) {
-      try {
-        ops.push(rowToGraphOp(row as Row & Envelope, config, namespace, provenance));
-      } catch (err) {
-        const id = String((row as Row)[entityIdCol]);
-        errors.push(syncError("row-build", config.entityType, id, err));
-        log?.error(`row-build failed for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
+  const window = syncWindow();
+  const changedTotal = inserts + updates;
+  if (changedTotal > 0 && inputTable) {
+    const slug = typeSlug(config.entityType);
+    // Stage the full changed-row payload with a window index, then stream it
+    // out SYNC_WINDOW rows at a time. Only one window is ever resident in JS.
+    const upsertTable = qi(`_upsert/${connectorId}/${sinkId}`);
+    await db.exec(`CREATE OR REPLACE TABLE ${upsertTable} AS
+      SELECT i.*, row_number() OVER () - 1 AS "__rn"
+      FROM ${qi(inputTable)} i
+      JOIN ${diffTable} d ON CAST(i.${qi(entityIdCol)} AS VARCHAR) = d._entity_id
+      WHERE d._diff_op IN ('insert', 'update')`);
+
+    log?.info(`bulk-upsert ${slug}: ${changedTotal} changed, streaming in windows of ${window}`);
+    const overall = bulkProgressLogger(slug, log);
+    let okTotal = 0, failedTotal = 0;
+    for (let offset = 0; offset < changedTotal; offset += window) {
+      const { rows } = await db.query(
+        `SELECT * EXCLUDE ("__rn") FROM ${upsertTable} WHERE "__rn" >= ${offset} AND "__rn" < ${offset + window}`,
+      );
+      if (rows.length === 0) break;
+
+      const ops: Extract<GraphOp, { kind: "upsert" }>[] = [];
+      for (const row of rows) {
+        try {
+          ops.push(rowToGraphOp(row as Row & Envelope, config, namespace, provenance));
+        } catch (err) {
+          const id = String((row as Row)[entityIdCol]);
+          errors.push(syncError("row-build", config.entityType, id, err));
+          log?.error(`row-build failed for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
+        }
       }
+      if (ops.length > 0) {
+        const { ok, failed } = await client.bulkUpsertEntities(ops);
+        await commitSlice(ok);
+        okTotal += ok.length;
+        failedTotal += failed.length;
+        for (const { op, error } of failed) {
+          errors.push(syncError("upsert", op.entityType, op.entityId, error));
+          log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(error)} (will retry next sync)`);
+        }
+      }
+      overall(Math.min(offset + rows.length, changedTotal), changedTotal);
     }
-    if (ops.length > 0) {
-      const slug = typeSlug(config.entityType);
-      log?.info(`bulk-upsert ${slug}: ${ops.length} ops starting`);
-      const onProgress = bulkProgressLogger(slug, log);
-      const { ok, failed, batches, fellBackBatches, durationMs } = await client.bulkUpsertEntities(ops, { onProgress });
-      const perSec = durationMs > 0 ? Math.round((ok.length / durationMs) * 1000) : 0;
-      log?.info(`bulk-upsert ${slug}: ${ok.length}/${ops.length} ok, ${failed.length} failed, ${batches} batches (${fellBackBatches} fell back) in ${durationMs}ms (${perSec}/s)`);
-      await commitSlice(ok);
-      for (const { op, error } of failed) {
-        errors.push(syncError("upsert", op.entityType, op.entityId, error));
-        log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(error)} (will retry next sync)`);
-      }
+    await db.exec(`DROP TABLE IF EXISTS ${upsertTable}`);
+    log?.info(`bulk-upsert ${slug}: ${okTotal}/${changedTotal} ok, ${failedTotal} failed`);
+  }
+
+  if (deletes > 0) {
+    let cursor = "";
+    for (;;) {
+      const { rows } = await db.query(
+        `SELECT _entity_id FROM ${diffTable}
+         WHERE _diff_op = 'delete' AND _entity_id > ${escLiteral(cursor)}
+         ORDER BY _entity_id LIMIT ${window}`,
+      );
+      if (rows.length === 0) break;
+      cursor = String(rows[rows.length - 1]._entity_id);
+      const ids = rows.map((r) => r._entity_id as string);
+      await parallel(ids, DEFAULT_CONCURRENCY, async (entityId) => {
+        try {
+          log?.info(`archive ${typeSlug(config.entityType)} id=${entityId} (removed)`);
+          await client.archiveEntity({ kind: "archive", namespace, entityType: config.entityType, entityId, provenance, webId: config.webId });
+          await db.exec(`DELETE FROM ${stateTable} WHERE _entity_id = ${escLiteral(entityId)}`);
+        } catch (err) {
+          errors.push(syncError("archive", config.entityType, entityId, err));
+          log?.error(`archive failed for ${typeSlug(config.entityType)}/${entityId}: ${errMsg(err)} (will retry next sync)`);
+        }
+      });
     }
   }
 
-  await parallel(deletes, DEFAULT_CONCURRENCY, async (entityId) => {
-    try {
-      log?.info(`archive ${typeSlug(config.entityType)} id=${entityId} (removed)`);
-      await client.archiveEntity({ kind: "archive", namespace, entityType: config.entityType, entityId, provenance, webId: config.webId });
-      await db.exec(`DELETE FROM ${stateTable} WHERE _entity_id = ${escLiteral(entityId)}`);
-    } catch (err) {
-      errors.push(syncError("archive", config.entityType, entityId, err));
-      log?.error(`archive failed for ${typeSlug(config.entityType)}/${entityId}: ${errMsg(err)} (will retry next sync)`);
-    }
-  });
-
   await db.exec(`DROP TABLE IF EXISTS ${currentTable}`);
+  await db.exec(`DROP TABLE IF EXISTS ${diffTable}`);
 
   const durationMs = Date.now() - start;
   const failureSummary = errors.length > 0 ? `, ${errors.length} FAILED` : "";
-  log?.info(`sync: ${inserts.length} inserts, ${updates.length} updates, ${deletes.length} deletes, ${unchanged} unchanged${failureSummary} (${durationMs}ms)`);
+  log?.info(`sync: ${inserts} inserts, ${updates} updates, ${deletes} deletes, ${unchanged} unchanged${failureSummary} (${durationMs}ms)`);
 
-  return { inserts: inserts.length, updates: updates.length, deletes: deletes.length, unchanged, errors, durationMs };
+  return { inserts, updates, deletes, unchanged, errors, durationMs };
 }
 
 export function bulkProgressLogger(slug: string, log: Logger | undefined): (done: number, total: number) => void {

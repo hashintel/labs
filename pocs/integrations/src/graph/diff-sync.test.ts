@@ -263,6 +263,46 @@ describe("diffAndSync", () => {
     assert.equal(retry.ops[0].entityId, "2");
   });
 
+  it("streams a large changeset in bounded windows instead of one materialization", async () => {
+    const prev = process.env.HASH_SYNC_WINDOW;
+    process.env.HASH_SYNC_WINDOW = "2";
+    try {
+      await seedTable(db, "output", [
+        row("1", "a@b.com", "NYC", "org-1"),
+        row("2", "c@d.com", "LA", "org-2"),
+        row("3", "e@f.com", "London", "org-1"),
+        row("4", "g@h.com", "Berlin", "org-2"),
+        row("5", "i@j.com", "Tokyo", "org-1"),
+      ]);
+
+      let upsertCalls = 0;
+      let maxWindow = 0;
+      const seen: unknown[] = [];
+      const client: GraphClient = {
+        async upsertEntity() {},
+        async bulkUpsertEntities(inOps) {
+          upsertCalls++;
+          maxWindow = Math.max(maxWindow, inOps.length);
+          for (const op of inOps) seen.push(op.entityId);
+          return { ok: inOps.map((o) => String(o.entityId)), failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
+        },
+        async upsertLink() { return "ok" as const; },
+        async bulkUpsertLinks(inOps) { return { ok: inOps.map((o) => o.opId), failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 }; },
+        async archiveEntity() {},
+      };
+
+      const result = await diffAndSync("write-users", sinkConfig, "output", "crm", db, client);
+
+      assert.equal(result.inserts, 5);
+      assert.equal(upsertCalls, 3, "5 rows / window 2 = three windows (2 + 2 + 1)");
+      assert.ok(maxWindow <= 2, "no window exceeds the configured size");
+      assert.deepEqual([...seen].map(String).sort(), ["1", "2", "3", "4", "5"], "every row reaches the graph exactly once");
+    } finally {
+      if (prev === undefined) delete process.env.HASH_SYNC_WINDOW;
+      else process.env.HASH_SYNC_WINDOW = prev;
+    }
+  });
+
   describe("mergeSyncResults", () => {
     const err = (id: string): SyncError => ({ kind: "upsert", entityType: "user/v/1", entityId: id, message: "boom" });
     const a: SyncResult = { inserts: 1, updates: 2, deletes: 0, unchanged: 3, errors: [err("a")], durationMs: 10 };

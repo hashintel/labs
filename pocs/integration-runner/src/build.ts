@@ -31,6 +31,16 @@ function toAccessors(props: Record<string, string | { column: string; coerce: st
   return Object.fromEntries(Object.entries(props).map(([url, val]) => [url, resolveAccessor(val)]));
 }
 
+/** Source field per property: the column a string/coerce accessor reads. Lets the engine stamp `location.name = <source>/<FIELD>` per value. */
+function toPropertyFields(props: Record<string, string | { column: string; coerce: string }>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [url, val] of Object.entries(props)) {
+    const column = typeof val === "string" ? val : val.column;
+    if (column) out[url] = column;
+  }
+  return out;
+}
+
 function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string): GraphSinkConfig {
   const entityId: Accessor = Array.isArray(yaml.entityId)
     ? ((cols) => (row: Record<string, unknown>) => cols.map((c) => String(row[c] ?? "")).join("|"))(yaml.entityId)
@@ -38,7 +48,8 @@ function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string): GraphSinkC
 
   return {
     entityType: yaml.entityType, entityId, webId: yaml.webId, idNamespace,
-    properties: toAccessors(yaml.properties), provenance: toProvenance(yaml.provenance),
+    properties: toAccessors(yaml.properties), propertyFields: toPropertyFields(yaml.properties),
+    provenance: toProvenance(yaml.provenance),
   };
 }
 
