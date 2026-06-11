@@ -1,5 +1,5 @@
 import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { parse as parseYaml } from "yaml";
 import { resolveEnvVars, type IntegrationYaml } from "./schema.js";
 import { validateYaml } from "./validate.js";
@@ -8,7 +8,7 @@ import { loadConfig, type RunnerConfig } from "./config.js";
 import { integrationId, statePaths } from "./identity.js";
 import { workflowId } from "./config.js";
 import { createBackend, retryPolicyFrom, type WorkflowFn } from "./orchestrator.js";
-import { type WorkflowResult, type SourceResult, sourceResultFromSync, failedSourceResult, buildWorkflowResult } from "./result.js";
+import { type WorkflowResult, type SourceResult, sourceResultFromSync, failedSourceResult, buildWorkflowResult, assertSyncProgress } from "./result.js";
 import { integrate, type IntegrationSpec } from "@integrations/engine.js";
 import { createMemoryEventStore } from "@integrations/staging/memory.js";
 import { createDuckDbQueryStore } from "@integrations/staging/duckdb.js";
@@ -57,7 +57,26 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
     }
   }
 
-  const queryStore = await createDuckDbQueryStore(paths.duckdb);
+  // DuckDB sandbox: SQL may only touch the state dir (db file + staging), the
+  // source folder, and any explicitly allowed extras. DUCKDB_SANDBOX=off opts
+  // out (required for attach sources, which the sandbox blocks).
+  const sandboxOff = process.env.DUCKDB_SANDBOX === "off";
+  const allowedDirectories = sandboxOff ? undefined : [
+    dirname(resolve(paths.duckdb)),
+    resolve(paths.staging),
+    ...(process.env.SOURCE_FOLDER ? [resolve(process.env.SOURCE_FOLDER)] : []),
+    ...(process.env.DUCKDB_ALLOWED_DIRS ?? "").split(":").filter(Boolean).map((d) => resolve(d)),
+  ];
+  const extensions = [...new Set(Object.values(yaml.sources ?? {}).flatMap((s) => (s.kind === "sql" ? s.extensions ?? [] : [])))];
+
+  const queryStore = await createDuckDbQueryStore({
+    path: paths.duckdb,
+    allowedDirectories,
+    extensions,
+    memoryLimit: process.env.DUCKDB_MEMORY_LIMIT,
+    maxTempDirectorySize: process.env.DUCKDB_MAX_TEMP_SIZE,
+    threads: process.env.DUCKDB_THREADS ? Number(process.env.DUCKDB_THREADS) : undefined,
+  });
 
   const spec: IntegrationSpec = {
     connector: connectorDef,
@@ -76,19 +95,36 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
   const backendKind = config.dbosUrl ? "dbos" : "direct";
   console.log(`[runner] ${id.canonical} (${id.configHash}): ${tablePipelines.length} pipelines, db=${paths.duckdb}, backend=${backendKind}`);
 
-  const cleanup = () => { queryStore.close(); };
+  // Close the store on interrupt so DuckDB checkpoints its WAL; committed
+  // sync/pending-link state must survive a Ctrl-C mid-flush.
+  const onSignal = () => {
+    try { queryStore.close(); } catch { /* already closed */ }
+    process.exit(130);
+  };
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
+
+  const cleanup = () => {
+    process.removeListener("SIGINT", onSignal);
+    process.removeListener("SIGTERM", onSignal);
+    queryStore.close();
+  };
 
   const linksOnly = opts.linksOnly ?? false;
 
   const syncSource = async (source: string): Promise<SourceResult> => {
     const start = Date.now();
     const sync = await app.syncSources([source], { deferGraphLinks: true, skipEntities: linksOnly });
+    assertSyncProgress(`sync:${source}`, sync);
     return sourceResultFromSync(source, sync, Date.now() - start);
   };
 
   const flushLinks = async (): Promise<SourceResult> => {
     const start = Date.now();
     const sync = await app.flushGraphLinks();
+    // A flush counts no inserts of its own (staging already did); only the
+    // circuit breaker marks it systemically failed.
+    assertSyncProgress("flush-links", sync, { requireProgress: false });
     return sourceResultFromSync("flush-links", sync, Date.now() - start);
   };
 
@@ -110,6 +146,21 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
       } catch (err) {
         results.push(failedSourceResult("flush-links", `retries exhausted: ${err instanceof Error ? err.message : String(err)}`));
       }
+    }
+
+    // A step that exhausted its retries fails the workflow: the orchestrator
+    // (DBOS) records the job as failed with this message instead of
+    // checkpointing a "successful" run full of errors. Per-step results were
+    // already logged; partial row-level errors alone do not fail the job.
+    const exhausted = results.filter((r) => r.status === "retries_exhausted");
+    if (exhausted.length > 0) {
+      for (const r of results) {
+        console.error(`[workflow] ${r.source}: ${r.status} (${r.inserts + r.updates} ok, ${r.errors.length} errors)`);
+      }
+      throw new Error(
+        `integration failed: ${exhausted.length}/${results.length} step(s) exhausted retries -- ` +
+        exhausted.map((r) => `${r.source}: ${r.errors[0]?.message ?? "unknown"}`).join(" | "),
+      );
     }
     return results;
   };
@@ -166,11 +217,15 @@ async function main() {
   const config = loadConfig();
   const transforms = transformsArg ? await loadTransforms(transformsArg) : undefined;
 
-  process.on("SIGTERM", () => process.exit(0));
-  process.on("SIGINT", () => process.exit(0));
 
   const linksOnly = args.includes("--links-only");
-  const result = await run({ yaml, config, transforms, logLevel: (process.env.LOG_LEVEL ?? "info") as LogLevel, linksOnly });
+  let result: WorkflowResult;
+  try {
+    result = await run({ yaml, config, transforms, logLevel: (process.env.LOG_LEVEL ?? "info") as LogLevel, linksOnly });
+  } catch (err) {
+    console.error(`[runner] FAILED: ${err instanceof Error ? err.message : String(err)}`);
+    process.exit(1);
+  }
 
   const ok = result.totals.inserts + result.totals.updates;
   console.log(`sync: ${ok} ok, ${result.errorCount} errors, ${result.durationMs}ms`);

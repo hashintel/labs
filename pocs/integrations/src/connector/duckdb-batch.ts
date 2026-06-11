@@ -15,7 +15,7 @@ type SourceCommon = {
 export type DuckdbSqlSource = SourceCommon & {
   kind: "sql";
   sql: string;
-  /** INSTALL+LOAD before running (DuckDB 1.x autoloads; list is a pre-warm hint). */
+  /** INSTALL+LOAD before running. Required: the store disables extension autoload. */
   extensions?: readonly string[];
   /** Derive column names from N data rows; use with `header=false` readers. */
   headerRows?: readonly number[];
@@ -67,13 +67,21 @@ export type DuckdbBatchConfig = {
   provenance?: ProvenanceConfig;
 };
 
+const ATTACH_TYPES = new Set(["postgres", "mysql", "sqlite"]);
+
 export function createDuckdbBatchConnector(config: DuckdbBatchConfig): BatchConnector {
   const loaded = new Set<string>();
 
   async function ensureExtension(ctx: HydrateContext, name: string): Promise<void> {
     if (loaded.has(name)) return;
-    await ctx.store.exec(`INSTALL ${name}`);
-    await ctx.store.exec(`LOAD ${name}`);
+    // Already loaded (e.g. preloaded by a sandboxed store, which blocks INSTALL/LOAD)?
+    const { rows } = await ctx.store.query(
+      `SELECT loaded FROM duckdb_extensions() WHERE extension_name = ${quoteLit(name)}`,
+    );
+    if (rows[0]?.loaded !== true) {
+      await ctx.store.exec(`INSTALL ${qi(name)}`);
+      await ctx.store.exec(`LOAD ${qi(name)}`);
+    }
     loaded.add(name);
   }
 
@@ -95,6 +103,7 @@ export function createDuckdbBatchConnector(config: DuckdbBatchConfig): BatchConn
       }
 
       if (spec.kind === "attach") {
+        if (!ATTACH_TYPES.has(spec.type)) throw new Error(`Unsupported attach type "${spec.type}" on source "${ctx.source}"`);
         const alias = attachAlias(ctx.connectorId, ctx.source);
         await ctx.store.exec(`ATTACH ${quoteLit(spec.url)} AS ${qi(alias)} (TYPE ${spec.type}, READ_ONLY)`);
         try {

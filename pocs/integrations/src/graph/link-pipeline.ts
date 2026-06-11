@@ -5,7 +5,7 @@ import type { GraphLinkOp, GraphOp, SourceProvenance, PropertyProvenance } from 
 import type { Storage } from "../storage/types.js";
 import type { Logger } from "../log.js";
 import { checkpointKey } from "../transform/checkpoint.js";
-import { stageGraphLinks, type SyncResult, type SyncError } from "./sink.js";
+import { stageGraphLinks, escLiteral, syncWindow, type SyncResult } from "./sink.js";
 import { executeSqlStep } from "../transform/run.js";
 
 function linkOpId(namespace: string, webId: string, linkType: string, sourceId: string, targetId: string): string {
@@ -21,6 +21,12 @@ function linkInputs(entry: LinkPipeline): Record<string, string> {
   return inputs;
 }
 
+/**
+ * Diff current links against `_state/links/...` and stage upserts/archives for
+ * the next flush. The diff lives entirely in DuckDB; rows are pulled into JS
+ * in `syncWindow()`-sized slices so peak memory is bounded regardless of link
+ * count (mirrors `diffAndSync` for entities).
+ */
 export async function processLinkPipeline(
   entry: LinkPipeline,
   connectorId: string,
@@ -31,49 +37,52 @@ export async function processLinkPipeline(
 ): Promise<SyncResult> {
   const start = Date.now();
   const namespace = entry.idNamespace ?? connectorId;
-  const inputs = linkInputs(entry);
-  const inputEntries = Object.entries(inputs);
+  const inputEntries = Object.entries(linkInputs(entry));
   const srcTables = inputEntries.map(([alias]) => ({ alias, table: `_link_src/${entry.id}/${alias}` }));
-  const currentTable = `_link_current/${entry.id}`;
-  const stateTable = `_state/links/${connectorId}/${entry.id}`;
+  const currentTable = qi(`_link_current/${entry.id}`);
+  const diffTable = qi(`_link_diff/${entry.id}`);
+  const upsertTable = qi(`_link_upsert/${entry.id}`);
+  const stateTable = qi(`_state/links/${connectorId}/${entry.id}`);
   const fromCol = qi(entry.from.column);
   const toCol = qi(entry.to.column);
 
   for (const [alias, checkpointName] of inputEntries) {
     const cpUri = storage.uriFor(checkpointKey(checkpointName));
-    const srcTable = `_link_src/${entry.id}/${alias}`;
-    await db.exec(`CREATE OR REPLACE TABLE ${qi(srcTable)} AS SELECT * FROM read_parquet('${cpUri.replace(/'/g, "''")}')`);
+    await db.exec(`CREATE OR REPLACE TABLE ${qi(`_link_src/${entry.id}/${alias}`)} AS SELECT * FROM read_parquet(${escLiteral(cpUri)})`);
   }
 
   let dataTable = srcTables.length === 1 ? srcTables[0].table : null;
   if (!dataTable && (!entry.steps || entry.steps.length === 0)) throw new Error(`link pipeline "${entry.id}" with multiple inputs requires at least one sql step`);
 
-  if (entry.steps) {
-    for (const step of entry.steps) {
-      const out = `_link_step/${step.id}`;
-      await executeSqlStep(step.sql, dataTable, out, db, { namedInputs: srcTables, keepViews: true });
-      dataTable = out;
-    }
+  for (const step of entry.steps ?? []) {
+    const out = `_link_step/${step.id}`;
+    await executeSqlStep(step.sql, dataTable, out, db, { namedInputs: srcTables, keepViews: true });
+    dataTable = out;
   }
   if (!dataTable) throw new Error(`link pipeline "${entry.id}" did not produce an output table`);
 
-  const hasPropCols = entry.properties && Object.keys(entry.properties).length > 0;
-  const propColsSql = hasPropCols
-    ? `, md5(CONCAT_WS('::', ${Object.values(entry.properties!).map((col) => qi(col)).join(", ")})) AS _prop_hash`
-    : "";
-  const hashExpr = hasPropCols ? `md5(CONCAT_WS('::', _source_id, _target_id, _prop_hash))` : `md5(CONCAT_WS('::', _source_id, _target_id))`;
+  // Current = ids + content hash + the property columns the ops will need, so
+  // upserts never re-scan the data table.
+  const propColumns = Object.values(entry.properties ?? {});
+  const propSelect = [...new Set(propColumns)]
+    .map((col) => `, ${qi(col)}`)
+    .join("");
+  const hashExpr = propColumns.length > 0
+    ? `md5(CONCAT_WS('::', _source_id, _target_id, md5(CONCAT_WS('::', ${propColumns.map(qi).join(", ")}))))`
+    : `md5(CONCAT_WS('::', _source_id, _target_id))`;
 
-  await db.exec(`CREATE OR REPLACE TABLE ${qi(currentTable)} AS
-    SELECT
-      CAST(${fromCol} AS VARCHAR) AS _source_id,
-      CAST(${toCol} AS VARCHAR) AS _target_id${propColsSql},
-      ${hashExpr} AS _content_hash
-    FROM ${qi(dataTable)}
-    WHERE ${fromCol} IS NOT NULL AND ${toCol} IS NOT NULL`);
+  await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
+    SELECT *, ${hashExpr} AS _content_hash FROM (
+      SELECT
+        CAST(${fromCol} AS VARCHAR) AS _source_id,
+        CAST(${toCol} AS VARCHAR) AS _target_id${propSelect}
+      FROM ${qi(dataTable)}
+      WHERE ${fromCol} IS NOT NULL AND ${toCol} IS NOT NULL
+    )`);
 
   const duplicatePairs = await db.query(
-    `SELECT _source_id, _target_id, COUNT(*) AS rows, COUNT(DISTINCT _content_hash) AS variants
-     FROM ${qi(currentTable)}
+    `SELECT _source_id, _target_id, COUNT(*) AS rows
+     FROM ${currentTable}
      GROUP BY _source_id, _target_id
      HAVING COUNT(*) > 1
      LIMIT 5`,
@@ -83,91 +92,65 @@ export async function processLinkPipeline(
     throw new Error(`link pipeline "${entry.id}" produced duplicate source-target pairs: ${bad}`);
   }
 
-  let hasPrevious = false;
   try {
-    await db.schemaOf(stateTable);
-    hasPrevious = true;
-  } catch {}
-
-  let newLinks: Array<{ sourceId: string; targetId: string }>;
-  let staleLinks: Array<{ sourceId: string; targetId: string }>;
-  let unchanged: number;
-
-  if (!hasPrevious) {
-    const { rows } = await db.query(`SELECT _source_id, _target_id FROM ${qi(currentTable)}`);
-    newLinks = rows.map((r) => ({ sourceId: r._source_id as string, targetId: r._target_id as string }));
-    staleLinks = [];
-    unchanged = 0;
-  } else {
-    const { rows } = await db.query(
-      `SELECT
-         COALESCE(c._source_id, p._source_id) AS _source_id,
-         COALESCE(c._target_id, p._target_id) AS _target_id,
-         CASE
-           WHEN p._source_id IS NULL OR p._target_id IS NULL THEN 'insert'
-           WHEN c._source_id IS NULL OR c._target_id IS NULL THEN 'delete'
-           WHEN c._content_hash = p._content_hash THEN 'unchanged'
-           ELSE 'update'
-         END AS op
-       FROM ${qi(currentTable)} c
-       FULL OUTER JOIN ${qi(stateTable)} p ON c._source_id = p._source_id AND c._target_id = p._target_id`,
-    );
-
-    newLinks = [];
-    staleLinks = [];
-    unchanged = 0;
-    for (const r of rows) {
-      switch (r.op) {
-        case "insert":
-        case "update":
-          newLinks.push({ sourceId: r._source_id as string, targetId: r._target_id as string });
-          break;
-        case "delete":
-          staleLinks.push({ sourceId: r._source_id as string, targetId: r._target_id as string });
-          break;
-        case "unchanged":
-          unchanged++;
-          break;
-      }
-    }
+    await db.schemaOf(`_state/links/${connectorId}/${entry.id}`);
+  } catch {
+    await db.exec(`CREATE TABLE ${stateTable} (_source_id VARCHAR, _target_id VARCHAR, _content_hash VARCHAR)`);
   }
 
-  if (!hasPrevious) {
-    await db.exec(`CREATE TABLE ${qi(stateTable)} AS SELECT _source_id, _target_id, _content_hash FROM ${qi(currentTable)} WHERE 1=0`);
+  await db.exec(`CREATE OR REPLACE TABLE ${diffTable} AS
+    SELECT
+      COALESCE(c._source_id, p._source_id) AS _source_id,
+      COALESCE(c._target_id, p._target_id) AS _target_id,
+      CASE
+        WHEN p._source_id IS NULL THEN 'insert'
+        WHEN c._source_id IS NULL THEN 'delete'
+        WHEN c._content_hash = p._content_hash THEN 'unchanged'
+        ELSE 'update'
+      END AS _diff_op
+    FROM ${currentTable} c
+    FULL OUTER JOIN ${stateTable} p ON c._source_id = p._source_id AND c._target_id = p._target_id`);
+
+  const counts = await db.query(`SELECT _diff_op, COUNT(*)::BIGINT AS n FROM ${diffTable} GROUP BY _diff_op`);
+  let changed = 0, deletes = 0, unchanged = 0;
+  for (const r of counts.rows) {
+    const n = Number(r.n);
+    if (r._diff_op === "delete") deletes = n;
+    else if (r._diff_op === "unchanged") unchanged = n;
+    else changed += n;
   }
 
+  const window = syncWindow();
   const propSources: PropertyProvenance = { sources: [provenance] };
-  const linkOps: GraphLinkOp[] = [];
 
-  if (newLinks.length > 0) {
-    const dataRows = entry.properties
-      ? (await db.query(`SELECT * FROM ${qi(dataTable)} WHERE ${fromCol} IS NOT NULL AND ${toCol} IS NOT NULL`)).rows
-      : null;
+  if (changed > 0) {
+    await db.exec(`CREATE OR REPLACE TABLE ${upsertTable} AS
+      SELECT c.*, row_number() OVER () - 1 AS "__rn"
+      FROM ${currentTable} c
+      JOIN ${diffTable} d ON c._source_id = d._source_id AND c._target_id = d._target_id
+      WHERE d._diff_op IN ('insert', 'update')`);
 
-    const rowIndex = new Map<string, Record<string, unknown>>();
-    if (dataRows) {
-      for (const row of dataRows) {
-        const key = `${String(row[entry.from.column])}::${String(row[entry.to.column])}`;
-        rowIndex.set(key, row);
-      }
-    }
+    for (let offset = 0; offset < changed; offset += window) {
+      const { rows } = await db.query(
+        `SELECT * EXCLUDE ("__rn") FROM ${upsertTable} WHERE "__rn" >= ${offset} AND "__rn" < ${offset + window}`,
+      );
+      if (rows.length === 0) break;
 
-    for (const { sourceId, targetId } of newLinks) {
-      const opId = linkOpId(namespace, entry.webId, entry.linkType, sourceId, targetId);
-      const op: GraphLinkOp = {
-        opId,
-        namespace,
-        webId: entry.webId,
-        sourceEntityType: entry.from.entityType,
-        sourceEntityId: sourceId,
-        linkType: entry.linkType,
-        targetEntityType: entry.to.entityType,
-        targetId,
-        provenance,
-      };
-      if (entry.properties) {
-        const row = rowIndex?.get(`${sourceId}::${targetId}`);
-        if (row) {
+      const linkOps: GraphLinkOp[] = rows.map((row) => {
+        const sourceId = String(row._source_id);
+        const targetId = String(row._target_id);
+        const op: GraphLinkOp = {
+          opId: linkOpId(namespace, entry.webId, entry.linkType, sourceId, targetId),
+          namespace,
+          webId: entry.webId,
+          sourceEntityType: entry.from.entityType,
+          sourceEntityId: sourceId,
+          linkType: entry.linkType,
+          targetEntityType: entry.to.entityType,
+          targetId,
+          provenance,
+        };
+        if (entry.properties) {
           op.properties = {};
           op.propertyProvenance = {};
           for (const [url, column] of Object.entries(entry.properties)) {
@@ -175,48 +158,55 @@ export async function processLinkPipeline(
             op.propertyProvenance[url] = propSources;
           }
         }
-      }
-      linkOps.push(op);
+        return op;
+      });
+      await stageGraphLinks(db, connectorId, entry.id, linkOps, [], log);
+    }
+    await db.exec(`DROP TABLE IF EXISTS ${upsertTable}`);
+  }
+
+  if (deletes > 0) {
+    let cursor: [string, string] | null = null;
+    for (;;) {
+      const after = cursor ? ` AND (_source_id, _target_id) > (${escLiteral(cursor[0])}, ${escLiteral(cursor[1])})` : "";
+      const { rows } = await db.query(
+        `SELECT _source_id, _target_id FROM ${diffTable}
+         WHERE _diff_op = 'delete'${after}
+         ORDER BY _source_id, _target_id LIMIT ${window}`,
+      );
+      if (rows.length === 0) break;
+      const last = rows[rows.length - 1];
+      cursor = [String(last._source_id), String(last._target_id)];
+
+      const archiveOps: Extract<GraphOp, { kind: "archive" }>[] = rows.map((r) => ({
+        kind: "archive" as const,
+        namespace,
+        entityType: entry.linkType,
+        entityId: `${r._source_id}::${r._target_id}`,
+        provenance,
+        webId: entry.webId,
+      }));
+      await stageGraphLinks(db, connectorId, entry.id, [], archiveOps, log);
     }
   }
 
-  const archiveOps: Extract<GraphOp, { kind: "archive" }>[] = staleLinks.map(({ sourceId, targetId }) => ({
-    kind: "archive" as const,
-    namespace,
-    entityType: entry.linkType,
-    entityId: `${sourceId}::${targetId}`,
-    provenance,
-    webId: entry.webId,
-  }));
+  await db.exec(`DELETE FROM ${stateTable}`);
+  await db.exec(`INSERT INTO ${stateTable} SELECT _source_id, _target_id, _content_hash FROM ${currentTable}`);
 
-  const errors: SyncError[] = [];
-
-  await stageGraphLinks(db, connectorId, entry.id, linkOps, archiveOps, log);
-
-  await db.exec(`DELETE FROM ${qi(stateTable)}`);
-  await db.exec(`INSERT INTO ${qi(stateTable)} SELECT _source_id, _target_id, _content_hash FROM ${qi(currentTable)}`);
-
-  await db.exec(`DROP TABLE IF EXISTS ${qi(currentTable)}`);
+  await db.exec(`DROP TABLE IF EXISTS ${currentTable}`);
+  await db.exec(`DROP TABLE IF EXISTS ${diffTable}`);
   for (const { alias, table } of srcTables) {
     await db.exec(`DROP VIEW IF EXISTS ${qi(alias)}`);
     await db.exec(`DROP TABLE IF EXISTS ${qi(table)}`);
   }
   await db.exec(`DROP VIEW IF EXISTS "input"`);
-  if (entry.steps) {
-    for (const step of entry.steps) {
-      await db.exec(`DROP TABLE IF EXISTS ${qi(`_link_step/${step.id}`)}`);
-    }
+  for (const step of entry.steps ?? []) {
+    await db.exec(`DROP TABLE IF EXISTS ${qi(`_link_step/${step.id}`)}`);
   }
 
   const durationMs = Date.now() - start;
-  log?.info(`link pipeline "${entry.id}": ${newLinks.length} upserts, ${staleLinks.length} archives, ${unchanged} unchanged (${durationMs}ms)`);
+  log?.info(`link pipeline "${entry.id}": ${changed} upserts, ${deletes} archives, ${unchanged} unchanged (${durationMs}ms)`);
 
-  return {
-    inserts: newLinks.length,
-    updates: 0,
-    deletes: staleLinks.length,
-    unchanged,
-    errors,
-    durationMs,
-  };
+  // Staged ops surface their errors at flush time; nothing can fail here short of a thrown SQL error.
+  return { inserts: changed, updates: 0, deletes, unchanged, errors: [], durationMs };
 }

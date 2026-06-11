@@ -13,10 +13,55 @@ function columnType(col: string, kinds: Map<string, FieldKind>): "VARCHAR" | "JS
   return kinds.get(col) === "json" ? "JSON" : "VARCHAR";
 }
 
-export async function createDuckDbQueryStore(path?: string): Promise<QueryableStore> {
-  const instance = await DuckDBInstance.create(path ?? ":memory:");
+export type DuckDbStoreOptions = {
+  path?: string;
+  /**
+   * Filesystem sandbox (securing-duckdb): when set, `enable_external_access` is
+   * turned off and SQL may only touch these directories. Include the source
+   * data dir, the staging/checkpoint root, and the directory holding the
+   * database file (temp spill lives next to it).
+   */
+  allowedDirectories?: readonly string[];
+  /**
+   * Extensions to INSTALL+LOAD at open. Required under the sandbox: locked
+   * connections cannot install later, and autoinstall/autoload are disabled.
+   */
+  extensions?: readonly string[];
+  /** e.g. "2GB". Default: DuckDB's own (80% of RAM) -- set this in containers. */
+  memoryLimit?: string;
+  /** Cap for temp-file spill, e.g. "10GB". */
+  maxTempDirectorySize?: string;
+  threads?: number;
+};
+
+function quoteLit(s: string): string {
+  return `'${s.replace(/'/g, "''")}'`;
+}
+
+export async function createDuckDbQueryStore(pathOrOptions?: string | DuckDbStoreOptions): Promise<QueryableStore> {
+  const opts: DuckDbStoreOptions = typeof pathOrOptions === "string" ? { path: pathOrOptions } : pathOrOptions ?? {};
+  const instance = await DuckDBInstance.create(opts.path ?? ":memory:");
   const conn = await instance.connect();
   const schemas = new Map<string, TableSchema>();
+
+  for (const ext of opts.extensions ?? []) {
+    await conn.run(`INSTALL ${qi(ext)}`);
+    await conn.run(`LOAD ${qi(ext)}`);
+  }
+
+  // Securing-duckdb baseline: explicit extensions only, no community repo,
+  // then freeze the configuration so pipeline SQL cannot reopen anything.
+  await conn.run(`SET allow_community_extensions = false`);
+  await conn.run(`SET autoinstall_known_extensions = false`);
+  await conn.run(`SET autoload_known_extensions = false`);
+  if (opts.memoryLimit) await conn.run(`SET memory_limit = ${quoteLit(opts.memoryLimit)}`);
+  if (opts.maxTempDirectorySize) await conn.run(`SET max_temp_directory_size = ${quoteLit(opts.maxTempDirectorySize)}`);
+  if (opts.threads) await conn.run(`SET threads = ${Math.max(1, Math.floor(opts.threads))}`);
+  if (opts.allowedDirectories?.length) {
+    await conn.run(`SET allowed_directories = [${opts.allowedDirectories.map(quoteLit).join(", ")}]`);
+    await conn.run(`SET enable_external_access = false`);
+  }
+  await conn.run(`SET lock_configuration = true`);
 
   function detectFieldKinds(dataColumns: string[], row: Record<string, unknown>, columns?: ColumnInfo[]): Map<string, FieldKind> {
     const kinds = new Map<string, FieldKind>();

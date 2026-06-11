@@ -208,3 +208,29 @@ describe("document data (nested objects)", () => {
     assert.ok(columns.includes("payload"));
   });
 });
+
+describe("sandbox", () => {
+  it("restricts file access to allowed directories and locks configuration", async () => {
+    const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const allowed = mkdtempSync(join(tmpdir(), "duck-allowed-"));
+    const denied = mkdtempSync(join(tmpdir(), "duck-denied-"));
+    writeFileSync(join(allowed, "ok.csv"), "id\n1\n");
+    writeFileSync(join(denied, "no.csv"), "id\n1\n");
+
+    try {
+      db = await createDuckDbQueryStore({ allowedDirectories: [allowed], memoryLimit: "512MB" });
+
+      const { rows } = await db.query(`SELECT * FROM read_csv('${join(allowed, "ok.csv")}')`);
+      assert.equal(rows.length, 1);
+
+      await assert.rejects(() => db.query(`SELECT * FROM read_csv('${join(denied, "no.csv")}')`));
+      await assert.rejects(() => db.exec(`SET enable_external_access = true`));
+      await assert.rejects(() => db.exec(`SET memory_limit = '100GB'`));
+    } finally {
+      rmSync(allowed, { recursive: true, force: true });
+      rmSync(denied, { recursive: true, force: true });
+    }
+  });
+});

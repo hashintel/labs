@@ -4,6 +4,10 @@ import type { ChangeEvent } from "../connector/types.js";
 import type { Accessor, GraphSinkConfig, Row, Envelope } from "../transform/pipeline.js";
 import type { GraphLinkOp, GraphOp, SourceProvenance, PropertyProvenance, GraphClient } from "./types.js";
 import type { Logger } from "../log.js";
+import { parallel } from "../parallel.js";
+import { GraphApiError } from "./client.js";
+
+export { parallel };
 
 const DEFAULT_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
 
@@ -11,19 +15,8 @@ const DEFAULT_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENC
 // memory independent of table size -- a full first-run extract streams in
 // windows rather than materializing every row + op at once. Read at call time
 // so it can be tuned (or shrunk in tests) without a restart.
-function syncWindow(): number {
+export function syncWindow(): number {
   return Math.max(1, Number(process.env.HASH_SYNC_WINDOW ?? 20000));
-}
-
-export async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
-  let i = 0;
-  async function worker() {
-    while (i < items.length) {
-      const idx = i++;
-      await fn(items[idx]);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
 }
 
 function resolve(accessor: Accessor, data: Row): unknown {
@@ -133,6 +126,8 @@ export type SyncResult = {
   unchanged: number;
   errors: SyncError[];
   durationMs: number;
+  /** A bulk circuit breaker tripped: systemic failure, remaining ops unattempted. Orchestrators should treat the step as failed. */
+  aborted?: boolean;
 };
 
 export const emptySyncResult = (): SyncResult => ({
@@ -147,6 +142,7 @@ export function mergeSyncResults(a: SyncResult, b: SyncResult): SyncResult {
     unchanged: a.unchanged + b.unchanged,
     errors: [...a.errors, ...b.errors],
     durationMs: a.durationMs + b.durationMs,
+    ...(a.aborted || b.aborted ? { aborted: true } : {}),
   };
 }
 
@@ -258,18 +254,25 @@ export async function flushGraphLinks(
     }
   });
 
+  let flushAborted = false;
   if (linkOps.length > 0) {
     log?.info(`${tag}: starting bulk upsert of ${linkOps.length} link(s) in ${Math.ceil(linkOps.length / 128)} batches`);
     const onProgress = bulkProgressLogger(label ?? "links", log);
-    const { ok, failed, batches, fellBackBatches, durationMs } = await client.bulkUpsertLinks(linkOps, {
+    const { ok, failed, batches, fellBackBatches, durationMs, aborted } = await client.bulkUpsertLinks(linkOps, {
       onProgress,
       onBatchOk: (opIds) => deletePendingLinks(db, connectorId, opIds),
+      onFailure: failureLogger(log, ({ op, error }) =>
+        `link-upsert failed for ${typeSlug(op.linkType)}/${String(op.sourceEntityId)}::${String(op.targetId)}: ${errMsg(error)} (will retry next sync)`),
+      onBatchFallback: batchFallbackLogger(tag, log),
     });
     const perSec = durationMs > 0 ? Math.round((ok.length / durationMs) * 1000) : 0;
     log?.info(`bulk-upsert ${label ?? "links"}: ${ok.length}/${linkOps.length} ok, ${failed.length} failed, ${batches} batches (${fellBackBatches} fell back) in ${durationMs}ms (${perSec}/s)`);
+    if (aborted || (failed.length > 0 && ok.length === 0)) {
+      flushAborted = true;
+      log?.error(`${tag}: ${aborted ? "ABORTED" : "no link op succeeded"} (${failed.length} failures, 0 ok) -- systemic failure (graph down? wrong actor? missing link targets?). ${linkOps.length - ok.length - failed.length} op(s) unattempted; all stay pending for the next sync.`);
+    }
     for (const { op, error } of failed) {
       errors.push(syncError("link-upsert", op.linkType, `${String(op.sourceEntityId)}::${String(op.targetId)}`, error));
-      log?.error(`link-upsert failed for ${typeSlug(op.linkType)}/${String(op.sourceEntityId)}::${String(op.targetId)}: ${errMsg(error)} (will retry next sync)`);
     }
   }
 
@@ -278,7 +281,7 @@ export async function flushGraphLinks(
     const failureSummary = errors.length > 0 ? `, ${errors.length} FAILED` : "";
     log?.info(`link sync: ${rows.length - errors.length} done${failureSummary} (${durationMs}ms)`);
   }
-  return { ...emptySyncResult(), errors, durationMs };
+  return { ...emptySyncResult(), errors, durationMs, ...(flushAborted ? { aborted: true } : {}) };
 }
 
 export async function diffAndSync(
@@ -362,6 +365,7 @@ export async function diffAndSync(
 
   const window = syncWindow();
   const changedTotal = inserts + updates;
+  let syncAborted = false;
   if (changedTotal > 0 && inputTable) {
     const slug = typeSlug(config.entityType);
     // Stage the full changed-row payload with a window index, then stream it
@@ -392,19 +396,32 @@ export async function diffAndSync(
           log?.error(`row-build failed for ${typeSlug(config.entityType)}/${id}: ${errMsg(err)}`);
         }
       }
+      let windowAborted = false;
       if (ops.length > 0) {
-        const { ok, failed } = await client.bulkUpsertEntities(ops);
+        const { ok, failed, aborted } = await client.bulkUpsertEntities(ops, {
+          onFailure: failureLogger(log, ({ op, error }) =>
+            `upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(error)} (will retry next sync)`),
+          onBatchFallback: batchFallbackLogger(slug, log),
+        });
         await commitSlice(ok);
         okTotal += ok.length;
         failedTotal += failed.length;
+        windowAborted = aborted ?? false;
         for (const { op, error } of failed) {
           errors.push(syncError("upsert", op.entityType, op.entityId, error));
-          log?.error(`upsert failed for ${typeSlug(op.entityType)}/${String(op.entityId)}: ${errMsg(error)} (will retry next sync)`);
         }
       }
       overall(Math.min(offset + rows.length, changedTotal), changedTotal);
+      if (windowAborted) {
+        syncAborted = true;
+        log?.error(`bulk-upsert ${slug}: ABORTED -- no batch succeeded; failed/unattempted rows retry next sync`);
+        break;
+      }
     }
     await db.exec(`DROP TABLE IF EXISTS ${upsertTable}`);
+    // Zero successes with failures present is systemic even when the table is
+    // too small to trip the batch-streak breaker.
+    if (failedTotal > 0 && okTotal === 0) syncAborted = true;
     log?.info(`bulk-upsert ${slug}: ${okTotal}/${changedTotal} ok, ${failedTotal} failed`);
   }
 
@@ -439,7 +456,33 @@ export async function diffAndSync(
   const failureSummary = errors.length > 0 ? `, ${errors.length} FAILED` : "";
   log?.info(`sync: ${inserts} inserts, ${updates} updates, ${deletes} deletes, ${unchanged} unchanged${failureSummary} (${durationMs}ms)`);
 
-  return { inserts, updates, deletes, unchanged, errors, durationMs };
+  return { inserts, updates, deletes, unchanged, errors, durationMs, ...(syncAborted ? { aborted: true } : {}) };
+}
+
+/** Logs the first few batch rejections immediately so a fallback-heavy flush is visible while it runs. */
+export function batchFallbackLogger(tag: string, log: Logger | undefined): (error: Error) => void {
+  let count = 0;
+  return (error) => {
+    if (++count <= 3) {
+      // GraphApiError.message truncates the body at 200 chars; for batch
+      // rejections the tail usually holds the actual db error, so log more.
+      const detail = error instanceof GraphApiError ? `${error.status}: ${error.body.slice(0, 600)}` : errMsg(error).slice(0, 600);
+      log?.warn(`${tag}: bulk batch rejected (${detail}); retrying per-op`);
+    } else if (count === 4) {
+      log?.warn(`${tag}: further batch rejections not logged individually (see summary)`);
+    }
+  };
+}
+
+/** Logs the first few failures as they happen, then samples; the bulk summary carries the total. */
+export function failureLogger<F>(log: Logger | undefined, render: (failure: F) => string): (failure: F) => void {
+  let count = 0;
+  return (failure) => {
+    count++;
+    if (count <= 5 || count % 1000 === 0) {
+      log?.error(render(failure) + (count === 5 ? " (further failures sampled 1/1000)" : ""));
+    }
+  };
 }
 
 export function bulkProgressLogger(slug: string, log: Logger | undefined): (done: number, total: number) => void {

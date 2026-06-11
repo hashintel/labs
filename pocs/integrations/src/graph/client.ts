@@ -1,9 +1,17 @@
 import { createHash } from "node:crypto";
 import type { BulkLinkFailure, BulkLinkOptions, BulkLinkResult, BulkUpsertFailure, BulkUpsertOptions, BulkUpsertResult, GraphClient, GraphLinkOp, GraphOp, PropertyProvenance, SourceProvenance } from "./types.js";
 import type { VersionedUrl } from "../transform/pipeline.js";
+import { parallel } from "../parallel.js";
 
 const BULK_SIZE = Math.max(1, Number(process.env.HASH_GRAPH_BULK_SIZE ?? 128));
 const BULK_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
+// Circuit breaker: this many wholly-failed batches in a row aborts the bulk
+// call. A systemic failure (graph down, wrong actor, missing link targets)
+// fails every op; without this, a large flush grinds through hours of
+// guaranteed failures. Read at call time so tests can shrink it.
+function maxFailedBatchStreak(): number {
+  return Math.max(1, Number(process.env.HASH_GRAPH_MAX_FAILED_BATCHES ?? 5));
+}
 
 export type GraphClientConfig = {
   baseUrl: string;
@@ -133,15 +141,32 @@ function isDuplicate(e: GraphApiError): boolean {
   return e.body.includes("duplicate key") || e.body.includes("ALREADY_EXISTS");
 }
 
+// Per-request ceiling. Without it a wedged graph (e.g. exhausted Postgres
+// pool) hangs every worker silently and the flush makes no progress for the
+// life of the process.
+function requestTimeoutMs(): number {
+  return Math.max(1000, Number(process.env.HASH_GRAPH_TIMEOUT_MS ?? 120_000));
+}
+
 async function request<T>(method: string, config: GraphClientConfig, path: string, body: unknown): Promise<T> {
-  const res = await fetch(`${config.baseUrl}${path}`, {
-    method,
-    headers: {
-      "Content-Type": "application/json",
-      "X-Authenticated-User-Actor-Id": config.actorId,
-    },
-    body: JSON.stringify(body),
-  });
+  const timeoutMs = requestTimeoutMs();
+  let res: Response;
+  try {
+    res = await fetch(`${config.baseUrl}${path}`, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Authenticated-User-Actor-Id": config.actorId,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    if (e instanceof DOMException && e.name === "TimeoutError") {
+      throw new GraphApiError(0, `${method} ${path}`, `request timed out after ${timeoutMs}ms (graph overloaded or unreachable)`);
+    }
+    throw e;
+  }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new GraphApiError(res.status, `${method} ${path}`, text);
@@ -177,7 +202,8 @@ export async function queryEntities(config: GraphClientConfig): Promise<GraphEnt
 }
 
 export function createGraphClient(config: GraphClientConfig): GraphClient {
-  async function upsertMain(op: Extract<GraphOp, { kind: "upsert" }>): Promise<{ fullEntityId: string; provenance: HASHProvenance }> {
+  /** Create-then-patch upsert. Returns whether the entity already existed. */
+  async function upsertMain(op: Extract<GraphOp, { kind: "upsert" }>): Promise<boolean> {
     const entityUuid = deterministicUuid(op.namespace, op.entityType, op.entityId);
     const fullEntityId = compositeEntityId(op.webId, entityUuid);
     const provenance = mapProvenance(op.provenance);
@@ -191,6 +217,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
         provenance,
         entityUuid,
       } satisfies CreateEntityParams);
+      return false;
     } catch (e) {
       if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
         await request("PATCH", config, "/entities", {
@@ -200,11 +227,10 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
           entityTypeIds: [op.entityType],
           properties: mapPropertiesAsPatch(op.properties, op.propertyProvenance),
         } satisfies PatchEntityParams);
-      } else {
-        throw e;
+        return true;
       }
+      throw e;
     }
-    return { fullEntityId, provenance };
   }
 
   async function upsertEntity(op: Extract<GraphOp, { kind: "upsert" }>): Promise<void> {
@@ -236,6 +262,23 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     };
   }
 
+  /** PATCH-first upsert for re-flushes where the entity is known to exist; falls back to create on 404. */
+  async function upsertEntityPatchFirst(op: Extract<GraphOp, { kind: "upsert" }>): Promise<void> {
+    const entityUuid = deterministicUuid(op.namespace, op.entityType, op.entityId);
+    try {
+      await request("PATCH", config, "/entities", {
+        entityId: compositeEntityId(op.webId, entityUuid),
+        provenance: mapProvenance(op.provenance),
+        archived: false,
+        entityTypeIds: [op.entityType],
+        properties: mapPropertiesAsPatch(op.properties, op.propertyProvenance),
+      } satisfies PatchEntityParams);
+    } catch (e) {
+      if (e instanceof GraphApiError && e.status === 404) return upsertEntity(op);
+      throw e;
+    }
+  }
+
   async function bulkUpsertEntities(
     ops: Extract<GraphOp, { kind: "upsert" }>[],
     options?: BulkUpsertOptions,
@@ -246,8 +289,12 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     const chunks: (typeof ops)[] = [];
     for (let i = 0; i < ops.length; i += BULK_SIZE) chunks.push(ops.slice(i, i + BULK_SIZE));
     let fellBackBatches = 0;
+    const maxStreak = maxFailedBatchStreak();
+    let failedStreak = 0;
+    let aborted = false;
 
     await parallel(chunks, BULK_CONCURRENCY, async (chunk) => {
+      if (aborted) return;
       const payload: CreateEntityParams[] = [];
       for (const op of chunk) {
         const provenance = mapProvenance(op.provenance);
@@ -263,36 +310,66 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       }
 
       const chunkOk: string[] = [];
+      // Commit successes incrementally: per-op fallback on a slow graph can
+      // take minutes per chunk, and an interrupted run must not lose the
+      // delete/commit record for ops that already reached the graph.
+      let notified = 0;
+      const notify = async () => {
+        if (chunkOk.length === notified) return;
+        const fresh = chunkOk.slice(notified);
+        notified = chunkOk.length;
+        ok.push(...fresh);
+        if (options?.onBatchOk) await options.onBatchOk(fresh);
+        options?.onProgress?.(ok.length + failed.length, ops.length);
+      };
+
       try {
         await request("POST", config, "/entities/bulk", payload);
         for (const op of chunk) chunkOk.push(String(op.entityId));
-      } catch {
-        // Batch rejected; retry individually so 409s become PATCHes.
+      } catch (batchErr) {
+        // Batch rejected; retry individually. Bulk is all-or-nothing, so one
+        // duplicate poisons a batch of otherwise-new ops. Sample the first op
+        // create-first: if it already existed, the batch is likely a re-flush
+        // and the rest go PATCH-first (one request instead of POST-409-PATCH).
         fellBackBatches++;
-        for (const op of chunk) {
+        options?.onBatchFallback?.(batchErr as Error);
+        const duplicate = batchErr instanceof GraphApiError && (batchErr.status === 409 || isDuplicate(batchErr));
+        let patchFirst = false;
+        for (let i = 0; i < chunk.length; i++) {
+          const op = chunk[i];
           try {
-            await upsertEntity(op);
+            if (patchFirst) {
+              await upsertEntityPatchFirst(op);
+            } else {
+              const existed = await upsertMain(op);
+              if (i === 0 && existed && duplicate) patchFirst = true;
+            }
             chunkOk.push(String(op.entityId));
+            if (chunkOk.length - notified >= 16) await notify();
           } catch (err) {
-            failed.push({ op, error: err as Error });
+            const failure = { op, error: err as Error };
+            failed.push(failure);
+            options?.onFailure?.(failure);
           }
         }
       }
-      ok.push(...chunkOk);
-      if (chunkOk.length > 0 && options?.onBatchOk) await options.onBatchOk(chunkOk);
+      failedStreak = chunkOk.length > 0 ? 0 : failedStreak + 1;
+      if (failedStreak >= maxStreak) aborted = true;
+      await notify();
       options?.onProgress?.(ok.length + failed.length, ops.length);
     });
 
-    return { ok, failed, batches: chunks.length, fellBackBatches, durationMs: Date.now() - start };
+    return { ok, failed, batches: chunks.length, fellBackBatches, durationMs: Date.now() - start, aborted };
   }
 
-  async function upsertLink(op: GraphLinkOp): Promise<"ok"> {
+  /** Create-then-patch link upsert. Returns whether the link already existed. */
+  async function upsertLinkMain(op: GraphLinkOp): Promise<boolean> {
     const provenance = mapProvenance(op.provenance);
     const { fullLinkId } = linkEntityIds(op);
 
     try {
       await request("POST", config, "/entities", linkCreateParams(op, provenance));
-      return "ok";
+      return false;
     } catch (e) {
       if (e instanceof GraphApiError && (e.status === 409 || isDuplicate(e))) {
         await request("PATCH", config, "/entities", {
@@ -303,8 +380,30 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
             ? { properties: mapPropertiesAsPatch(op.properties as Record<VersionedUrl, unknown>, op.propertyProvenance) }
             : {}),
         } satisfies PatchEntityParams);
-        return "ok";
+        return true;
       }
+      throw e;
+    }
+  }
+
+  async function upsertLink(op: GraphLinkOp): Promise<"ok"> {
+    await upsertLinkMain(op);
+    return "ok";
+  }
+
+  async function upsertLinkPatchFirst(op: GraphLinkOp): Promise<void> {
+    const { fullLinkId } = linkEntityIds(op);
+    try {
+      await request("PATCH", config, "/entities", {
+        entityId: fullLinkId,
+        provenance: mapProvenance(op.provenance),
+        archived: false,
+        ...(op.properties
+          ? { properties: mapPropertiesAsPatch(op.properties as Record<VersionedUrl, unknown>, op.propertyProvenance) }
+          : {}),
+      } satisfies PatchEntityParams);
+    } catch (e) {
+      if (e instanceof GraphApiError && e.status === 404) { await upsertLink(op); return; }
       throw e;
     }
   }
@@ -316,30 +415,59 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     const chunks: GraphLinkOp[][] = [];
     for (let i = 0; i < ops.length; i += BULK_SIZE) chunks.push(ops.slice(i, i + BULK_SIZE));
     let fellBackBatches = 0;
+    const maxStreak = maxFailedBatchStreak();
+    let failedStreak = 0;
+    let aborted = false;
 
     await parallel(chunks, BULK_CONCURRENCY, async (chunk) => {
+      if (aborted) return;
       const payload = chunk.map((op) => linkCreateParams(op, mapProvenance(op.provenance)));
       const chunkOk: string[] = [];
+      let notified = 0;
+      const notify = async () => {
+        if (chunkOk.length === notified) return;
+        const fresh = chunkOk.slice(notified);
+        notified = chunkOk.length;
+        ok.push(...fresh);
+        if (options?.onBatchOk) await options.onBatchOk(fresh);
+        options?.onProgress?.(ok.length + failed.length, ops.length);
+      };
+
       try {
         await request("POST", config, "/entities/bulk", payload);
         for (const op of chunk) chunkOk.push(op.opId);
-      } catch {
+      } catch (batchErr) {
+        // Same sampling as bulkUpsertEntities: only go PATCH-first when the
+        // first op proves the batch is a re-flush of existing links.
         fellBackBatches++;
-        for (const op of chunk) {
+        options?.onBatchFallback?.(batchErr as Error);
+        const duplicate = batchErr instanceof GraphApiError && (batchErr.status === 409 || isDuplicate(batchErr));
+        let patchFirst = false;
+        for (let i = 0; i < chunk.length; i++) {
+          const op = chunk[i];
           try {
-            await upsertLink(op);
+            if (patchFirst) {
+              await upsertLinkPatchFirst(op);
+            } else {
+              const existed = await upsertLinkMain(op);
+              if (i === 0 && existed && duplicate) patchFirst = true;
+            }
             chunkOk.push(op.opId);
+            if (chunkOk.length - notified >= 16) await notify();
           } catch (err) {
-            failed.push({ op, error: err as Error });
+            const failure = { op, error: err as Error };
+            failed.push(failure);
+            options?.onFailure?.(failure);
           }
         }
       }
-      ok.push(...chunkOk);
-      if (chunkOk.length > 0 && options?.onBatchOk) await options.onBatchOk(chunkOk);
+      failedStreak = chunkOk.length > 0 ? 0 : failedStreak + 1;
+      if (failedStreak >= maxStreak) aborted = true;
+      await notify();
       options?.onProgress?.(ok.length + failed.length, ops.length);
     });
 
-    return { ok, failed, batches: chunks.length, fellBackBatches, durationMs: Date.now() - start };
+    return { ok, failed, batches: chunks.length, fellBackBatches, durationMs: Date.now() - start, aborted };
   }
 
   async function archiveEntity(op: Extract<GraphOp, { kind: "archive" }>): Promise<void> {
@@ -358,16 +486,5 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
   }
 
   return { upsertEntity, bulkUpsertEntities, upsertLink, bulkUpsertLinks, archiveEntity };
-}
-
-async function parallel<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>): Promise<void> {
-  let i = 0;
-  async function worker() {
-    while (i < items.length) {
-      const idx = i++;
-      await fn(items[idx]);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, worker));
 }
 

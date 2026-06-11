@@ -51,6 +51,8 @@ export type BulkUpsertResult = {
   batches: number;
   fellBackBatches: number;
   durationMs: number;
+  /** Circuit breaker tripped: consecutive wholly-failed batches; remaining ops were not attempted. */
+  aborted?: boolean;
 };
 
 export type BulkLinkFailure = { op: GraphLinkOp; error: Error };
@@ -60,16 +62,23 @@ export type BulkLinkResult = {
   batches: number;
   fellBackBatches: number;
   durationMs: number;
+  aborted?: boolean;
 };
 
 export type BulkUpsertOptions = {
   onProgress?: (done: number, total: number) => void;
   onBatchOk?: (entityIds: string[]) => Promise<void>;
+  /** Called as each failure happens, not after the bulk call returns. */
+  onFailure?: (failure: BulkUpsertFailure) => void;
+  /** Called when a bulk batch is rejected and falls back to per-op upserts. */
+  onBatchFallback?: (error: Error) => void;
 };
 
 export type BulkLinkOptions = {
   onProgress?: (done: number, total: number) => void;
   onBatchOk?: (opIds: string[]) => Promise<void>;
+  onFailure?: (failure: BulkLinkFailure) => void;
+  onBatchFallback?: (error: Error) => void;
 };
 
 export type GraphClient = {

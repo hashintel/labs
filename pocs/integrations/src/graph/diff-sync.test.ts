@@ -354,3 +354,53 @@ describe("diffAndSync", () => {
     assert.equal(result.deletes, 1);
   });
 });
+
+describe("aborted propagation", () => {
+  let db: QueryableStore;
+  beforeEach(async () => { db = await createDuckDbQueryStore(); });
+  afterEach(() => db?.close());
+
+  function abortingClient(): GraphClient {
+    return {
+      async upsertEntity() { throw new Error("graph down"); },
+      async bulkUpsertEntities(inOps) {
+        return { ok: [], failed: inOps.map((op) => ({ op, error: new Error("graph down") })), batches: 1, fellBackBatches: 1, durationMs: 0, aborted: true };
+      },
+      async upsertLink() { throw new Error("graph down"); },
+      async bulkUpsertLinks(inOps) {
+        return { ok: [], failed: inOps.map((op) => ({ op, error: new Error("graph down") })), batches: 1, fellBackBatches: 1, durationMs: 0, aborted: true };
+      },
+      async archiveEntity() { throw new Error("graph down"); },
+    };
+  }
+
+  it("diffAndSync surfaces a tripped circuit breaker as result.aborted", async () => {
+    await seedTable(db, "output", [
+      { _op: "snapshot", _key: `{"id":1}`, _before: null, userId: "u1", email: "a@b.c", city: "X", orgId: "o1" },
+    ]);
+    const result = await diffAndSync("write-users", sinkConfig, "output", "crm", db, abortingClient());
+    assert.equal(result.aborted, true);
+    assert.ok(result.errors.length > 0);
+  });
+
+  it("flushGraphLinks surfaces a tripped circuit breaker as result.aborted", async () => {
+    const { stageGraphLinks, flushGraphLinks } = await import("./sink.js");
+    await stageGraphLinks(db, "crm", "users-orgs", [{
+      opId: "op-1", namespace: "crm", webId: "web-1",
+      sourceEntityType: T.entity("user/v/1"), sourceEntityId: "u1",
+      linkType: T.entity("member-of/v/1"),
+      targetEntityType: T.entity("org/v/1"), targetId: "o1",
+      provenance: prov,
+    }], []);
+
+    const result = await flushGraphLinks("crm", db, abortingClient());
+    assert.equal(result.aborted, true);
+    assert.equal(result.errors.length, 1);
+  });
+
+  it("mergeSyncResults ORs aborted across results", () => {
+    const merged = mergeSyncResults(emptySyncResult(), { ...emptySyncResult(), aborted: true });
+    assert.equal(merged.aborted, true);
+    assert.equal(mergeSyncResults(emptySyncResult(), emptySyncResult()).aborted, undefined);
+  });
+});

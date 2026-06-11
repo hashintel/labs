@@ -9,10 +9,12 @@ const T = namespace("https://hash.ai/@test/types");
 
 type RequestLog = { method: string; path: string; headers: Record<string, string>; body: unknown };
 
-function startMockServer(): Promise<{ port: number; requests: RequestLog[]; close(): Promise<void>; nextStatus: (s: number) => void; nextResponse: (s: number, body: unknown) => void }> {
+function startMockServer(): Promise<{ port: number; requests: RequestLog[]; close(): Promise<void>; nextStatus: (s: number) => void; nextResponse: (s: number, body: unknown) => void; alwaysStatus: (s: number) => void; queueStatuses: (...s: number[]) => void }> {
   const requests: RequestLog[] = [];
   let overrideStatus: number | undefined;
   let overrideBody: unknown | undefined;
+  let always: number | undefined;
+  const statusQueue: number[] = [];
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
     const chunks: Buffer[] = [];
@@ -22,7 +24,7 @@ function startMockServer(): Promise<{ port: number; requests: RequestLog[]; clos
     for (const [k, v] of Object.entries(req.headers)) if (typeof v === "string") headers[k] = v;
     requests.push({ method: req.method!, path: req.url!, headers, body });
 
-    const status = overrideStatus ?? 200;
+    const status = overrideStatus ?? statusQueue.shift() ?? always ?? 200;
     overrideStatus = undefined;
     const responseBody = overrideBody ?? { metadata: { recordId: { entityId: "test-id", editionId: "ed-1" } } };
     overrideBody = undefined;
@@ -39,6 +41,8 @@ function startMockServer(): Promise<{ port: number; requests: RequestLog[]; clos
         close: () => new Promise<void>((r) => server.close(() => r())),
         nextStatus: (s: number) => { overrideStatus = s; },
         nextResponse: (s: number, body: unknown) => { overrideStatus = s; overrideBody = body; },
+        alwaysStatus: (s: number) => { always = s; },
+        queueStatuses: (...s: number[]) => { statusQueue.push(...s); },
       });
     });
   });
@@ -265,5 +269,92 @@ describe("createGraphClient", () => {
     const uuid1 = (mock.requests[0].body as { entityUuid: string }).entityUuid;
     const uuid2 = (mock.requests[1].body as { entityUuid: string }).entityUuid;
     assert.equal(uuid1, uuid2);
+  });
+});
+
+describe("bulk circuit breaker and duplicate fallback", () => {
+  let mock: Awaited<ReturnType<typeof startMockServer>>;
+  let config: GraphClientConfig;
+  const prov: SourceProvenance = { type: "integration", loadedAt: "2026-01-01T00:00:00Z" };
+
+  beforeEach(async () => {
+    mock = await startMockServer();
+    config = { baseUrl: `http://localhost:${mock.port}`, actorId: "actor-uuid" };
+  });
+
+  function entityOp(i: number) {
+    return {
+      kind: "upsert" as const, namespace: "t",
+      entityType: T.entity("user/v/1"),
+      entityId: `u-${i}`, webId: "web-1",
+      properties: { [T.property("email/v/1")]: `${i}@example.com` },
+      provenance: prov,
+    };
+  }
+
+  it("aborts after consecutive wholly-failed batches instead of attempting every op", async () => {
+    mock.alwaysStatus(500);
+    const client = createGraphClient(config);
+    // 22 batches of 128: more than concurrency (16) + streak limit (5), so the
+    // tail batches must be skipped once the breaker trips.
+    const ops = Array.from({ length: 22 * 128 }, (_, i) => entityOp(i));
+
+    let failures = 0;
+    const result = await client.bulkUpsertEntities(ops, { onFailure: () => failures++ });
+    await mock.close();
+
+    assert.equal(result.aborted, true);
+    assert.equal(result.ok.length, 0);
+    assert.ok(result.failed.length < ops.length, `expected unattempted ops, got ${result.failed.length}/${ops.length} failures`);
+    assert.equal(failures, result.failed.length);
+  });
+
+  it("duplicate-rejected batch with mostly-new ops stays create-first (no PATCH 404 storm)", async () => {
+    // Bulk 409s, but the first op creates cleanly -- the batch is sparse, so
+    // the rest also go create-first (one request each, no 404s graph-side).
+    mock.queueStatuses(409);
+    const client = createGraphClient(config);
+    const result = await client.bulkUpsertEntities([entityOp(1), entityOp(2), entityOp(3)]);
+    await mock.close();
+
+    assert.equal(result.ok.length, 3);
+    assert.equal(result.fellBackBatches, 1);
+    const methods = mock.requests.map((r) => `${r.method} ${r.path}`);
+    assert.deepEqual(methods, ["POST /entities/bulk", "POST /entities", "POST /entities", "POST /entities"]);
+  });
+
+  it("duplicate-rejected batch where the first op exists switches to PATCH-first", async () => {
+    // Bulk 409s AND the first per-op create 409s: the batch is a re-flush of
+    // existing entities, so the remainder go PATCH-first (one request each).
+    mock.queueStatuses(409, 409);
+    const client = createGraphClient(config);
+    const result = await client.bulkUpsertEntities([entityOp(1), entityOp(2), entityOp(3)]);
+    await mock.close();
+
+    assert.equal(result.ok.length, 3);
+    const methods = mock.requests.map((r) => `${r.method} ${r.path}`);
+    assert.deepEqual(methods, [
+      "POST /entities/bulk",
+      "POST /entities", "PATCH /entities",
+      "PATCH /entities", "PATCH /entities",
+    ]);
+  });
+
+  it("link fallback samples the first op before going PATCH-first", async () => {
+    mock.queueStatuses(409, 409);
+    const client = createGraphClient(config);
+    const linkOp = (i: number) => ({
+      opId: `l-${i}`, namespace: "t", webId: "web-1",
+      sourceEntityType: T.entity("user/v/1"), sourceEntityId: `u-${i}`,
+      linkType: T.link("is-member-of/v/1"),
+      targetEntityType: T.entity("org/v/1"), targetId: "o-1",
+      provenance: prov,
+    });
+    const result = await client.bulkUpsertLinks([linkOp(1), linkOp(2)]);
+    await mock.close();
+
+    assert.equal(result.ok.length, 2);
+    const methods = mock.requests.map((r) => `${r.method} ${r.path}`);
+    assert.deepEqual(methods, ["POST /entities/bulk", "POST /entities", "PATCH /entities", "PATCH /entities"]);
   });
 });
