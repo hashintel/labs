@@ -58,7 +58,14 @@ export async function createDuckDbQueryStore(pathOrOptions?: string | DuckDbStor
   if (opts.maxTempDirectorySize) await conn.run(`SET max_temp_directory_size = ${quoteLit(opts.maxTempDirectorySize)}`);
   if (opts.threads) await conn.run(`SET threads = ${Math.max(1, Math.floor(opts.threads))}`);
   if (opts.allowedDirectories?.length) {
-    await conn.run(`SET allowed_directories = [${opts.allowedDirectories.map(quoteLit).join(", ")}]`);
+    const dirs = [...opts.allowedDirectories];
+    if ((opts.extensions ?? []).length) {
+      // Loaded extensions (e.g. excel/read_xlsx) read their install dir at query time.
+      const r = await conn.runAndReadAll(`SELECT current_setting('extension_directory')`);
+      const extDir = String(r.getRows()[0]?.[0] ?? "").trim() || `${process.env.HOME ?? ""}/.duckdb/extensions`;
+      if (extDir) dirs.push(extDir);
+    }
+    await conn.run(`SET allowed_directories = [${dirs.map(quoteLit).join(", ")}]`);
     await conn.run(`SET enable_external_access = false`);
   }
   await conn.run(`SET lock_configuration = true`);

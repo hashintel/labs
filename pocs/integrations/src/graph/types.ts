@@ -1,5 +1,23 @@
 import type { VersionedUrl } from "../transform/pipeline.js";
 
+// A value carrying its data type id, so the client can emit metadata.dataTypeId.
+// Symbol-branded to distinguish from a plain { value, dataTypeId } object; never serialized.
+export const TYPED_VALUE = Symbol.for("@hash/integrations/typed-value");
+
+export type TypedValue = {
+  readonly [TYPED_VALUE]: true;
+  value: unknown;
+  dataTypeId: VersionedUrl;
+};
+
+export function typedValue(value: unknown, dataTypeId: VersionedUrl): TypedValue {
+  return { [TYPED_VALUE]: true, value, dataTypeId };
+}
+
+export function isTypedValue(v: unknown): v is TypedValue {
+  return typeof v === "object" && v !== null && (v as Record<PropertyKey, unknown>)[TYPED_VALUE] === true;
+}
+
 /** `entityId` reserved for File-entity opt-in; v1 never sets it. Runtime mtime / CDC-ts capture is deferred. */
 export type SourceProvenance = {
   type: "integration";

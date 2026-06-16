@@ -95,8 +95,7 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
   const backendKind = config.dbosUrl ? "dbos" : "direct";
   console.log(`[runner] ${id.canonical} (${id.configHash}): ${tablePipelines.length} pipelines, db=${paths.duckdb}, backend=${backendKind}`);
 
-  // Close the store on interrupt so DuckDB checkpoints its WAL; committed
-  // sync/pending-link state must survive a Ctrl-C mid-flush.
+  // Close on interrupt so DuckDB checkpoints its WAL (state survives Ctrl-C mid-flush).
   const onSignal = () => {
     try { queryStore.close(); } catch { /* already closed */ }
     process.exit(130);
@@ -122,8 +121,7 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
   const flushLinks = async (): Promise<SourceResult> => {
     const start = Date.now();
     const sync = await app.flushGraphLinks();
-    // A flush counts no inserts of its own (staging already did); only the
-    // circuit breaker marks it systemically failed.
+    // A flush makes no inserts of its own, so only abort counts as failure.
     assertSyncProgress("flush-links", sync, { requireProgress: false });
     return sourceResultFromSync("flush-links", sync, Date.now() - start);
   };
@@ -148,10 +146,7 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
       }
     }
 
-    // A step that exhausted its retries fails the workflow: the orchestrator
-    // (DBOS) records the job as failed with this message instead of
-    // checkpointing a "successful" run full of errors. Per-step results were
-    // already logged; partial row-level errors alone do not fail the job.
+    // Fail the workflow if any step exhausted retries, so the job isn't recorded as successful.
     const exhausted = results.filter((r) => r.status === "retries_exhausted");
     if (exhausted.length > 0) {
       for (const r of results) {

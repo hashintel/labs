@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { createGraphClient, GraphApiError, type GraphClientConfig } from "./client.js";
 import { namespace } from "../transform/pipeline.js";
+import { typedValue } from "./types.js";
 import type { SourceProvenance } from "./types.js";
 
 const T = namespace("https://hash.ai/@test/types");
@@ -356,5 +357,73 @@ describe("bulk circuit breaker and duplicate fallback", () => {
     assert.equal(result.ok.length, 2);
     const methods = mock.requests.map((r) => `${r.method} ${r.path}`);
     assert.deepEqual(methods, ["POST /entities/bulk", "POST /entities", "PATCH /entities", "PATCH /entities"]);
+  });
+});
+
+describe("typed values (per-value dataTypeId)", () => {
+  let mock: Awaited<ReturnType<typeof startMockServer>>;
+  let config: GraphClientConfig;
+  const prov: SourceProvenance = { type: "integration", loadedAt: "2026-01-01T00:00:00Z" };
+
+  beforeEach(async () => {
+    mock = await startMockServer();
+    config = { baseUrl: `http://localhost:${mock.port}`, actorId: "actor-uuid" };
+  });
+
+  const kg = T.dataType("kilograms/v/1");
+
+  it("sets metadata.dataTypeId from a typed value, null for a plain value", async () => {
+    const client = createGraphClient(config);
+    await client.upsertEntity({
+      kind: "upsert", namespace: "t",
+      entityType: T.entity("product/v/1"),
+      entityId: "p-1", webId: "web-1",
+      properties: {
+        [T.property("net-weight/v/1")]: typedValue(12.5, kg),
+        [T.property("identifier/v/1")]: "MAT-1",
+      },
+      provenance: prov,
+    });
+    await mock.close();
+
+    const body = mock.requests[0].body as Record<string, unknown>;
+    const props = (body.properties as { value: Record<string, { value: unknown; metadata: { dataTypeId: unknown } }> }).value;
+    assert.equal(props[T.property("net-weight/")].value, 12.5);
+    assert.equal(props[T.property("net-weight/")].metadata.dataTypeId, kg);
+    assert.equal(props[T.property("identifier/")].value, "MAT-1");
+    assert.equal(props[T.property("identifier/")].metadata.dataTypeId, null);
+  });
+
+  it("carries dataTypeId through the PATCH fallback", async () => {
+    mock.nextStatus(409);
+    const client = createGraphClient(config);
+    await client.upsertEntity({
+      kind: "upsert", namespace: "t",
+      entityType: T.entity("product/v/1"),
+      entityId: "p-1", webId: "web-1",
+      properties: { [T.property("net-weight/v/1")]: typedValue(12.5, kg) },
+      provenance: prov,
+    });
+    await mock.close();
+
+    const patch = mock.requests[1].body as { properties: { path: string[]; property: { value: unknown; metadata: { dataTypeId: unknown } } }[] };
+    assert.equal(patch.properties[0].property.value, 12.5);
+    assert.equal(patch.properties[0].property.metadata.dataTypeId, kg);
+  });
+
+  it("skips a typed value whose inner value is null", async () => {
+    const client = createGraphClient(config);
+    await client.upsertEntity({
+      kind: "upsert", namespace: "t",
+      entityType: T.entity("product/v/1"),
+      entityId: "p-1", webId: "web-1",
+      properties: { [T.property("net-weight/v/1")]: typedValue(null, kg) },
+      provenance: prov,
+    });
+    await mock.close();
+
+    const body = mock.requests[0].body as Record<string, unknown>;
+    const props = (body.properties as { value: Record<string, unknown> }).value;
+    assert.equal(props[T.property("net-weight/")], undefined);
   });
 });

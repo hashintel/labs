@@ -1,4 +1,5 @@
-import type { Accessor, Row } from "@integrations/transform/pipeline.js";
+import type { Accessor, Row, VersionedUrl } from "@integrations/transform/pipeline.js";
+import { typedValue } from "@integrations/graph/types.js";
 
 export type CoercionFn = (column: string) => Accessor;
 
@@ -109,4 +110,14 @@ export function resolveCoercion(name: string): CoercionFn {
 export function resolveAccessor(yaml: string | { column: string; coerce: string }): Accessor {
   if (typeof yaml === "string") return yaml;
   return resolveCoercion(yaml.coerce)(yaml.column);
+}
+
+export function measureAccessor(amount: string, unit: string, unitMap: Record<string, string>): Accessor {
+  return (r: Row) => {
+    const n = coerceNumber(r[amount]);
+    if (n === null) return null;
+    const code = String(r[unit] ?? "").trim();
+    const dataTypeId = unitMap[code] ?? unitMap["*"];
+    return dataTypeId ? typedValue(n, dataTypeId as VersionedUrl) : n;
+  };
 }

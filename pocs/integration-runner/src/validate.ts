@@ -131,6 +131,10 @@ function validateGraphSink(config: GraphSinkYaml | undefined, prefix: string, er
   for (const [url, acc] of Object.entries(config.properties ?? {})) {
     validateAccessor(acc, `${prefix}.properties["${url}"]`, errors);
   }
+  for (const role of ["authors", "firstPublished", "lastUpdated"] as const) {
+    const acc = config.provenanceFields?.[role];
+    if (acc !== undefined) validateAccessor(acc, `${prefix}.provenanceFields.${role}`, errors);
+  }
 }
 
 function validateLinkPipeline(
@@ -188,11 +192,16 @@ function validateLinkPipeline(
   }
 }
 function validateAccessor(acc: AccessorYaml, path: string, errors: ValidationError[]) {
-  if (typeof acc === "object" && acc !== null) {
-    if (!acc.column) errors.push({ path: `${path}.column`, message: "required" });
-    if (!acc.coerce) errors.push({ path: `${path}.coerce`, message: "required" });
-    else if (!COERCION_NAMES.has(acc.coerce)) {
-      errors.push({ path: `${path}.coerce`, message: `unknown coercion "${acc.coerce}". Available: ${[...COERCION_NAMES].join(", ")}` });
-    }
+  if (typeof acc !== "object" || acc === null) return;
+  if ("measure" in acc) {
+    if (!acc.amount) errors.push({ path: `${path}.amount`, message: "required" });
+    if (!acc.unit) errors.push({ path: `${path}.unit`, message: "required" });
+    if (!acc.measure) errors.push({ path: `${path}.measure`, message: "required" });
+    return;
+  }
+  if (!acc.column) errors.push({ path: `${path}.column`, message: "required" });
+  if (!acc.coerce) errors.push({ path: `${path}.coerce`, message: "required" });
+  else if (!COERCION_NAMES.has(acc.coerce)) {
+    errors.push({ path: `${path}.coerce`, message: `unknown coercion "${acc.coerce}". Available: ${[...COERCION_NAMES].join(", ")}` });
   }
 }

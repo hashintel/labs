@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { registry } from "./coerce.js";
+import { registry, measureAccessor } from "./coerce.js";
+import { isTypedValue } from "@integrations/graph/types.js";
 
 type Row = Record<string, unknown>;
 const apply = (name: keyof typeof registry, col: string, v: unknown) => {
@@ -47,5 +48,40 @@ describe("coerce number", () => {
   });
   it("parses plain decimals", () => {
     assert.equal(num("141.532"), 141.532);
+  });
+});
+
+describe("measureAccessor", () => {
+  const each = "https://hash.ai/@h/types/data-type/each/v/1";
+  const kg = "https://hash.ai/@h/types/data-type/kilograms/v/1";
+  const unit = "https://hash.ai/@h/types/data-type/unit/v/1";
+  const map = { EA: each, KG: kg, "*": unit };
+
+  const call = (acc: ReturnType<typeof measureAccessor>, row: Row) => {
+    if (typeof acc !== "function") throw new Error("measure accessor is not a function");
+    return acc(row);
+  };
+
+  it("types the amount by the unit's data type", () => {
+    const v = call(measureAccessor("qty", "uom", map), { qty: "12,5", uom: "KG" }) as any;
+    assert.ok(isTypedValue(v));
+    assert.equal(v.value, 12.5);
+    assert.equal(v.dataTypeId, kg);
+  });
+
+  it("falls back to '*' for an unmapped unit", () => {
+    const v = call(measureAccessor("qty", "uom", map), { qty: "3", uom: "ZZZ" }) as any;
+    assert.ok(isTypedValue(v));
+    assert.equal(v.dataTypeId, unit);
+  });
+
+  it("returns a plain number when unmapped and no fallback", () => {
+    const v = call(measureAccessor("qty", "uom", { EA: each }), { qty: "3", uom: "ZZZ" });
+    assert.equal(v, 3);
+    assert.equal(isTypedValue(v), false);
+  });
+
+  it("returns null for a missing amount", () => {
+    assert.equal(call(measureAccessor("qty", "uom", map), { qty: "", uom: "KG" }), null);
   });
 });

@@ -1,4 +1,9 @@
-export type AccessorYaml = string | { column: string; coerce: string };
+export type ScalarAccessorYaml = string | { column: string; coerce: string };
+
+export type AccessorYaml =
+  | ScalarAccessorYaml
+  // `amount` typed by the data type the `unit` code resolves to in the named `measure` map.
+  | { amount: string; unit: string; measure: string };
 
 export type ProvenanceYaml = {
   location?: { name?: string; uri?: string; description?: string };
@@ -13,6 +18,12 @@ export type GraphSinkYaml = {
   webId: string;
   properties: Record<string, AccessorYaml>;
   provenance?: ProvenanceYaml;
+  // Audit columns routed to provenance instead of properties.
+  provenanceFields?: {
+    authors?: ScalarAccessorYaml;
+    firstPublished?: ScalarAccessorYaml;
+    lastUpdated?: ScalarAccessorYaml;
+  };
 };
 
 export type BranchYaml = {
@@ -114,6 +125,8 @@ export type IntegrationYaml = {
     links?: LinkPipelineYaml[];
   };
   orchestration?: OrchestrationYaml;
+  // Maps a unit/currency code to a data-type id, keyed by map name; `"*"` is the fallback.
+  unitMaps?: Record<string, Record<string, string>>;
 };
 
 export function interpolateEnv(raw: string, env: Record<string, string | undefined>): string {

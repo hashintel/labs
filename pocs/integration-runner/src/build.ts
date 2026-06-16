@@ -1,5 +1,5 @@
-import type { IntegrationYaml, StepYaml, GraphSinkYaml, ProvenanceYaml } from "./schema.js";
-import { resolveAccessor } from "./coerce.js";
+import type { IntegrationYaml, StepYaml, GraphSinkYaml, ProvenanceYaml, AccessorYaml } from "./schema.js";
+import { resolveAccessor, measureAccessor } from "./coerce.js";
 import type { DuckdbSource } from "@integrations/connector/duckdb-batch.js";
 import type { RestApiEndpoint, RestApiBatchConfig } from "@integrations/connector/rest-api.js";
 import type { ConnectorDef } from "@integrations/connector/create.js";
@@ -27,33 +27,54 @@ function buildSource(yaml: NonNullable<IntegrationYaml["sources"]>[string]): Duc
   }
 }
 
-function toAccessors(props: Record<string, string | { column: string; coerce: string }>): Record<string, Accessor> {
-  return Object.fromEntries(Object.entries(props).map(([url, val]) => [url, resolveAccessor(val)]));
+type UnitMaps = Record<string, Record<string, string>>;
+
+function resolveProp(val: AccessorYaml, unitMaps: UnitMaps): Accessor {
+  if (typeof val === "object" && val !== null && "measure" in val) {
+    const map = unitMaps[val.measure];
+    if (!map) throw new Error(`Unknown unit map "${val.measure}" referenced by a measure accessor`);
+    return measureAccessor(val.amount, val.unit, map);
+  }
+  return resolveAccessor(val);
 }
 
-/** Source field per property: the column a string/coerce accessor reads. Lets the engine stamp `location.name = <source>/<FIELD>` per value. */
-function toPropertyFields(props: Record<string, string | { column: string; coerce: string }>): Record<string, string> {
+function toAccessors(props: Record<string, AccessorYaml>, unitMaps: UnitMaps): Record<string, Accessor> {
+  return Object.fromEntries(Object.entries(props).map(([url, val]) => [url, resolveProp(val, unitMaps)]));
+}
+
+// The source column each property reads, for per-value provenance.
+function toPropertyFields(props: Record<string, AccessorYaml>): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [url, val] of Object.entries(props)) {
-    const column = typeof val === "string" ? val : val.column;
+    const column = typeof val === "string" ? val : "measure" in val ? val.amount : val.column;
     if (column) out[url] = column;
   }
   return out;
 }
 
-function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string): GraphSinkConfig {
+function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string, unitMaps: UnitMaps): GraphSinkConfig {
   const entityId: Accessor = Array.isArray(yaml.entityId)
     ? ((cols) => (row: Record<string, unknown>) => cols.map((c) => String(row[c] ?? "")).join("|"))(yaml.entityId)
     : yaml.entityId;
 
+  const pf = yaml.provenanceFields;
+  const provenanceFields = pf
+    ? {
+        authors: pf.authors ? resolveAccessor(pf.authors) : undefined,
+        firstPublished: pf.firstPublished ? resolveAccessor(pf.firstPublished) : undefined,
+        lastUpdated: pf.lastUpdated ? resolveAccessor(pf.lastUpdated) : undefined,
+      }
+    : undefined;
+
   return {
     entityType: yaml.entityType, entityId, webId: yaml.webId, idNamespace,
-    properties: toAccessors(yaml.properties), propertyFields: toPropertyFields(yaml.properties),
+    properties: toAccessors(yaml.properties, unitMaps), propertyFields: toPropertyFields(yaml.properties),
     provenance: toProvenance(yaml.provenance),
+    provenanceFields,
   };
 }
 
-function toStep(yaml: StepYaml, idNamespace: string): Step {
+function toStep(yaml: StepYaml, idNamespace: string, unitMaps: UnitMaps): Step {
   const deps = yaml.dependsOn;
   switch (yaml.kind) {
     case "sql":
@@ -61,13 +82,13 @@ function toStep(yaml: StepYaml, idNamespace: string): Step {
     case "fn":
       return deps ? fnStep({ id: yaml.id, transform: yaml.transform, dependsOn: deps }) : fnStep({ id: yaml.id, transform: yaml.transform });
     case "graph-sink": {
-      const config = toGraphSinkConfig(yaml.config, idNamespace);
+      const config = toGraphSinkConfig(yaml.config, idNamespace, unitMaps);
       return deps ? graphSinkStep({ id: yaml.id, ...config, dependsOn: deps }) : graphSinkStep({ id: yaml.id, ...config });
     }
     case "checkpoint":
       return deps ? checkpoint({ id: yaml.id, name: yaml.name, dependsOn: deps }) : checkpoint({ id: yaml.id, name: yaml.name });
     case "branch":
-      return branch(yaml.id, ...yaml.branches.map((b) => b.map((s) => toStep(s, idNamespace))));
+      return branch(yaml.id, ...yaml.branches.map((b) => b.map((s) => toStep(s, idNamespace, unitMaps))));
   }
 }
 
@@ -98,9 +119,10 @@ export function buildConnectorDef(yaml: IntegrationYaml): ConnectorDef {
 export function buildPipelines(yaml: IntegrationYaml): TablePipeline[] {
   const connectorId = yaml.connector.id;
   const idNamespace = yaml.connector.idNamespace ?? connectorId;
+  const unitMaps = yaml.unitMaps ?? {};
   return yaml.pipelines.entities.map((p) => ({
     source: p.source,
-    pipeline: { source: `${connectorId}/${p.source}`, steps: p.steps.map((s) => toStep(s, idNamespace)) } as Pipeline,
+    pipeline: { source: `${connectorId}/${p.source}`, steps: p.steps.map((s) => toStep(s, idNamespace, unitMaps)) } as Pipeline,
     dependsOn: p.dependsOn,
   }));
 }

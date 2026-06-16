@@ -11,10 +11,7 @@ export { parallel };
 
 const DEFAULT_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
 
-// Rows pulled from DuckDB into the heap per upsert/delete window. Caps peak
-// memory independent of table size -- a full first-run extract streams in
-// windows rather than materializing every row + op at once. Read at call time
-// so it can be tuned (or shrunk in tests) without a restart.
+// Rows held in memory per window, bounding peak memory regardless of table size.
 export function syncWindow(): number {
   return Math.max(1, Number(process.env.HASH_SYNC_WINDOW ?? 20000));
 }
@@ -23,11 +20,34 @@ function resolve(accessor: Accessor, data: Row): unknown {
   return typeof accessor === "string" ? data[accessor] : accessor(data);
 }
 
-/** Per-property provenance: clone the base source and suffix `location.name` with the source field, e.g. `sap/marc` -> `sap/marc/WEBAZ`. */
+// Suffixes location.name with the source field, e.g. `acme/marc` -> `acme/marc/WEBAZ`.
 function withField(base: SourceProvenance, field: string): PropertyProvenance {
   const baseName = base.location?.name;
   const name = baseName ? `${baseName}/${field}` : field;
   return { sources: [{ ...base, location: { ...base.location, name } }] };
+}
+
+function applyProvenanceFields(base: SourceProvenance, data: Row, fields: GraphSinkConfig["provenanceFields"]): SourceProvenance {
+  if (!fields) return base;
+  const str = (accessor: Accessor | undefined): string | undefined => {
+    if (accessor == null) return undefined;
+    const v = resolve(accessor, data);
+    if (v == null) return undefined;
+    const s = String(v).trim();
+    return s === "" ? undefined : s;
+  };
+  // Provenance timestamps need RFC3339; promote date-only values to midnight UTC.
+  const ts = (v: string | undefined) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? `${v}T00:00:00Z` : v);
+  const authors = str(fields.authors);
+  const firstPublished = ts(str(fields.firstPublished));
+  const lastUpdated = ts(str(fields.lastUpdated));
+  if (authors === undefined && firstPublished === undefined && lastUpdated === undefined) return base;
+  return {
+    ...base,
+    ...(authors !== undefined ? { authors: [authors] } : {}),
+    ...(firstPublished !== undefined ? { firstPublished } : {}),
+    ...(lastUpdated !== undefined ? { lastUpdated } : {}),
+  };
 }
 
 export function typeSlug(url: string): string {
@@ -52,16 +72,17 @@ export function rowToGraphOp(
 
   const entityId = resolve(config.entityId, data);
 
-  const propSources: PropertyProvenance = { sources: [provenance] };
+  const prov = applyProvenanceFields(provenance, data, config.provenanceFields);
+  const propSources: PropertyProvenance = { sources: [prov] };
   const properties: Record<string, unknown> = {};
   const propertyProvenance: Record<string, PropertyProvenance> = {};
   for (const [propUrl, accessor] of Object.entries(config.properties)) {
     properties[propUrl] = resolve(accessor, data);
     const field = config.propertyFields?.[propUrl];
-    propertyProvenance[propUrl] = field ? withField(provenance, field) : propSources;
+    propertyProvenance[propUrl] = field ? withField(prov, field) : propSources;
   }
 
-  return { kind: "upsert", namespace, entityType: config.entityType, entityId, properties, propertyProvenance, provenance, webId: config.webId };
+  return { kind: "upsert", namespace, entityType: config.entityType, entityId, properties, propertyProvenance, provenance: prov, webId: config.webId };
 }
 
 export async function processGraphSink(
@@ -126,7 +147,7 @@ export type SyncResult = {
   unchanged: number;
   errors: SyncError[];
   durationMs: number;
-  /** A bulk circuit breaker tripped: systemic failure, remaining ops unattempted. Orchestrators should treat the step as failed. */
+  // Circuit breaker tripped: remaining ops unattempted, treat the step as failed.
   aborted?: boolean;
 };
 
@@ -326,9 +347,7 @@ export async function diffAndSync(
   const errors: SyncError[] = [];
   if (!hasPrevious) await db.exec(`CREATE TABLE ${stateTable} AS SELECT * FROM ${currentTable} WHERE 1=0`);
 
-  // Classify every entity once, in DuckDB. The diff table holds only id + op,
-  // so it stays tiny even for multi-million-row sources; the heavy row payload
-  // is fetched later in bounded windows.
+  // Classify in DuckDB; the diff table holds only id + op, rows fetched later in windows.
   const diffTable = qi(`_diff/${connectorId}/${sinkId}`);
   await db.exec(`CREATE OR REPLACE TABLE ${diffTable} AS
     SELECT
@@ -368,8 +387,7 @@ export async function diffAndSync(
   let syncAborted = false;
   if (changedTotal > 0 && inputTable) {
     const slug = typeSlug(config.entityType);
-    // Stage the full changed-row payload with a window index, then stream it
-    // out SYNC_WINDOW rows at a time. Only one window is ever resident in JS.
+    // Stage changed rows with a window index, then stream out one window at a time.
     const upsertTable = qi(`_upsert/${connectorId}/${sinkId}`);
     await db.exec(`CREATE OR REPLACE TABLE ${upsertTable} AS
       SELECT i.*, row_number() OVER () - 1 AS "__rn"
@@ -419,8 +437,7 @@ export async function diffAndSync(
       }
     }
     await db.exec(`DROP TABLE IF EXISTS ${upsertTable}`);
-    // Zero successes with failures present is systemic even when the table is
-    // too small to trip the batch-streak breaker.
+    // All-failed (too small to trip the batch-streak breaker) is still systemic.
     if (failedTotal > 0 && okTotal === 0) syncAborted = true;
     log?.info(`bulk-upsert ${slug}: ${okTotal}/${changedTotal} ok, ${failedTotal} failed`);
   }
@@ -459,13 +476,11 @@ export async function diffAndSync(
   return { inserts, updates, deletes, unchanged, errors, durationMs, ...(syncAborted ? { aborted: true } : {}) };
 }
 
-/** Logs the first few batch rejections immediately so a fallback-heavy flush is visible while it runs. */
+// Logs the first few batch rejections (with the db error tail), then goes quiet.
 export function batchFallbackLogger(tag: string, log: Logger | undefined): (error: Error) => void {
   let count = 0;
   return (error) => {
     if (++count <= 3) {
-      // GraphApiError.message truncates the body at 200 chars; for batch
-      // rejections the tail usually holds the actual db error, so log more.
       const detail = error instanceof GraphApiError ? `${error.status}: ${error.body.slice(0, 600)}` : errMsg(error).slice(0, 600);
       log?.warn(`${tag}: bulk batch rejected (${detail}); retrying per-op`);
     } else if (count === 4) {
@@ -474,7 +489,7 @@ export function batchFallbackLogger(tag: string, log: Logger | undefined): (erro
   };
 }
 
-/** Logs the first few failures as they happen, then samples; the bulk summary carries the total. */
+// Logs the first few failures, then samples; the summary carries the total.
 export function failureLogger<F>(log: Logger | undefined, render: (failure: F) => string): (failure: F) => void {
   let count = 0;
   return (failure) => {

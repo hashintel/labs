@@ -1,11 +1,8 @@
 import { DBOS } from "@dbos-inc/dbos-sdk";
 import type { Backend, StepContext, RetryPolicy } from "./orchestrator.js";
 
-// Workflow bodies are closures over live resources (DuckDB handle, graph
-// client), so they cannot be serialized as workflow inputs. They are keyed by
-// workflow ID instead; resuming after a crash means re-invoking the runner
-// with the same RUN_ID, which re-registers the body before DBOS replays the
-// workflow and skips already-checkpointed steps.
+// Workflow bodies close over live resources, so they can't be DBOS inputs; keyed
+// by workflow ID instead. Recovery re-runs with the same RUN_ID to re-register.
 const bodies = new Map<string, () => Promise<unknown>>();
 
 async function integrationWorkflow(): Promise<unknown> {

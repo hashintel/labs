@@ -1,14 +1,12 @@
 import { createHash } from "node:crypto";
 import type { BulkLinkFailure, BulkLinkOptions, BulkLinkResult, BulkUpsertFailure, BulkUpsertOptions, BulkUpsertResult, GraphClient, GraphLinkOp, GraphOp, PropertyProvenance, SourceProvenance } from "./types.js";
+import { isTypedValue } from "./types.js";
 import type { VersionedUrl } from "../transform/pipeline.js";
 import { parallel } from "../parallel.js";
 
 const BULK_SIZE = Math.max(1, Number(process.env.HASH_GRAPH_BULK_SIZE ?? 128));
 const BULK_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
-// Circuit breaker: this many wholly-failed batches in a row aborts the bulk
-// call. A systemic failure (graph down, wrong actor, missing link targets)
-// fails every op; without this, a large flush grinds through hours of
-// guaranteed failures. Read at call time so tests can shrink it.
+// Consecutive all-failed batches that abort a bulk call (fail fast on systemic errors).
 function maxFailedBatchStreak(): number {
   return Math.max(1, Number(process.env.HASH_GRAPH_MAX_FAILED_BATCHES ?? 5));
 }
@@ -18,7 +16,7 @@ export type GraphClientConfig = {
   actorId: string;
 };
 
-type ValueMetadata = { dataTypeId: null; provenance?: PropertyProvenance };
+type ValueMetadata = { dataTypeId: VersionedUrl | null; provenance?: PropertyProvenance };
 type PropertyValueWithMetadata = { value: unknown; metadata: ValueMetadata };
 type PropertyObjectWithMetadata = { value: Record<string, PropertyValueWithMetadata> };
 
@@ -82,9 +80,18 @@ function toBaseUrl(versionedUrl: string): string {
   return versionedUrl.replace(/v\/\d+$/, "");
 }
 
-function metadataFor(url: VersionedUrl, prov: Record<VersionedUrl, PropertyProvenance> | undefined): ValueMetadata {
+function metadataFor(
+  url: VersionedUrl,
+  prov: Record<VersionedUrl, PropertyProvenance> | undefined,
+  dataTypeId: VersionedUrl | null,
+): ValueMetadata {
   const p = prov?.[url];
-  return p ? { dataTypeId: null, provenance: p } : { dataTypeId: null };
+  return p ? { dataTypeId, provenance: p } : { dataTypeId };
+}
+
+/** Unwrap a typed value to its (value, dataTypeId); a plain value keeps dataTypeId null. */
+function unwrap(raw: unknown): { value: unknown; dataTypeId: VersionedUrl | null } {
+  return isTypedValue(raw) ? { value: raw.value, dataTypeId: raw.dataTypeId } : { value: raw, dataTypeId: null };
 }
 
 function mapProperties(
@@ -92,8 +99,9 @@ function mapProperties(
   prov?: Record<VersionedUrl, PropertyProvenance>,
 ): PropertyObjectWithMetadata {
   const value: Record<string, PropertyValueWithMetadata> = {};
-  for (const [url, val] of Object.entries(props)) {
-    if (val != null) value[toBaseUrl(url)] = { value: val, metadata: metadataFor(url, prov) };
+  for (const [url, raw] of Object.entries(props)) {
+    const { value: val, dataTypeId } = unwrap(raw);
+    if (val != null) value[toBaseUrl(url)] = { value: val, metadata: metadataFor(url, prov, dataTypeId) };
   }
   return { value };
 }
@@ -106,11 +114,12 @@ function mapPropertiesAsPatch(
   // `replace` would require every property key to already exist on the record, which
   // fails for properties that were null on the initial write and are set on a resync.
   return Object.entries(props)
-    .filter(([, val]) => val != null)
-    .map(([url, val]) => ({
+    .map(([url, raw]) => ({ url, ...unwrap(raw) }))
+    .filter(({ value: val }) => val != null)
+    .map(({ url, value: val, dataTypeId }) => ({
       op: "add" as const,
       path: [toBaseUrl(url)],
-      property: { value: val, metadata: metadataFor(url, prov) },
+      property: { value: val, metadata: metadataFor(url as VersionedUrl, prov, dataTypeId) },
     }));
 }
 
@@ -130,7 +139,7 @@ function mapProvenance(source: SourceProvenance): HASHProvenance {
   return prov;
 }
 
-/** Full response body is preserved on `.body` for branching (e.g. 409 / duplicate detection); only the first 200 chars appear in the error message. */
+// Full response body kept on `.body` for duplicate detection; message shows the first 200 chars.
 export class GraphApiError extends Error {
   constructor(public status: number, public operation: string, public body: string) {
     super(`Graph API ${operation} failed (${status}): ${body.slice(0, 200)}`);
@@ -141,9 +150,7 @@ function isDuplicate(e: GraphApiError): boolean {
   return e.body.includes("duplicate key") || e.body.includes("ALREADY_EXISTS");
 }
 
-// Per-request ceiling. Without it a wedged graph (e.g. exhausted Postgres
-// pool) hangs every worker silently and the flush makes no progress for the
-// life of the process.
+// Per-request ceiling, so a wedged graph fails fast instead of hanging workers.
 function requestTimeoutMs(): number {
   return Math.max(1000, Number(process.env.HASH_GRAPH_TIMEOUT_MS ?? 120_000));
 }
@@ -310,9 +317,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       }
 
       const chunkOk: string[] = [];
-      // Commit successes incrementally: per-op fallback on a slow graph can
-      // take minutes per chunk, and an interrupted run must not lose the
-      // delete/commit record for ops that already reached the graph.
+      // Commit successes incrementally so an interrupted slow flush keeps its progress.
       let notified = 0;
       const notify = async () => {
         if (chunkOk.length === notified) return;
@@ -327,10 +332,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
         await request("POST", config, "/entities/bulk", payload);
         for (const op of chunk) chunkOk.push(String(op.entityId));
       } catch (batchErr) {
-        // Batch rejected; retry individually. Bulk is all-or-nothing, so one
-        // duplicate poisons a batch of otherwise-new ops. Sample the first op
-        // create-first: if it already existed, the batch is likely a re-flush
-        // and the rest go PATCH-first (one request instead of POST-409-PATCH).
+        // Fall back to per-op; if the first already existed, the rest go PATCH-first.
         fellBackBatches++;
         options?.onBatchFallback?.(batchErr as Error);
         const duplicate = batchErr instanceof GraphApiError && (batchErr.status === 409 || isDuplicate(batchErr));
@@ -437,8 +439,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
         await request("POST", config, "/entities/bulk", payload);
         for (const op of chunk) chunkOk.push(op.opId);
       } catch (batchErr) {
-        // Same sampling as bulkUpsertEntities: only go PATCH-first when the
-        // first op proves the batch is a re-flush of existing links.
+        // Sampled PATCH-first, as in bulkUpsertEntities.
         fellBackBatches++;
         options?.onBatchFallback?.(batchErr as Error);
         const duplicate = batchErr instanceof GraphApiError && (batchErr.status === 409 || isDuplicate(batchErr));

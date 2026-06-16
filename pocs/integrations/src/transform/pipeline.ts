@@ -57,9 +57,15 @@ export type GraphSinkConfig = {
   webId: string;
   idNamespace?: string;
   properties: Record<VersionedUrl, Accessor>;
-  /** Per-property source field name. Appended to the property's provenance `location.name` (`<source>/<field>`) so each value records the field it came from. */
+  // Source column per property, appended to its provenance location.name as `<source>/<field>`.
   propertyFields?: Record<VersionedUrl, string>;
   provenance?: ProvenanceConfig;
+  // Audit columns overlaid onto each row's provenance.
+  provenanceFields?: {
+    authors?: Accessor;
+    firstPublished?: Accessor;
+    lastUpdated?: Accessor;
+  };
 };
 
 export type LinkPipeline = {
@@ -209,6 +215,7 @@ export function namespace(base: string) {
     entity:   (name: string): VersionedUrl => `${base}/entity-type/${name}`,
     property: (name: string): VersionedUrl => `${base}/property-type/${name}`,
     link:     (name: string): VersionedUrl => `${base}/entity-type/${name}`,
+    dataType: (name: string): VersionedUrl => `${base}/data-type/${name}`,
   };
 }
 

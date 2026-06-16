@@ -35,9 +35,7 @@ export function sourceResultFromSync(source: string, sync: SyncResult, durationM
   };
 }
 
-// Step results are serialized into the orchestrator's checkpoint store (DBOS:
-// a Postgres row per step). Cap the error list so a mass failure doesn't write
-// megabytes of JSON; full detail is in the engine logs.
+// Cap errors kept in the checkpointed step result; full detail stays in the logs.
 const MAX_SERIALIZED_ERRORS = 25;
 
 function capErrors(errors: SyncError[]): SyncError[] {
@@ -48,16 +46,8 @@ function capErrors(errors: SyncError[]): SyncError[] {
   ];
 }
 
-/**
- * Throw when a sync result is a systemic failure -- the circuit breaker
- * aborted, or every attempted op errored with zero progress. Thrown inside a
- * `StepContext.run` step so the orchestrator retries it under the YAML policy
- * and, on exhaustion, records the step as failed instead of checkpointing a
- * "successful" step full of errors.
- *
- * Partial row-level errors do NOT throw: they stay in the result and retry
- * naturally on the next sync via diff state / pending links.
- */
+// Throws on systemic failure (abort, or errors with zero progress) so the step
+// retries. Partial row errors don't throw; they retry next sync.
 export function assertSyncProgress(step: string, sync: SyncResult, opts: { requireProgress?: boolean } = {}): void {
   const progressed = sync.inserts + sync.updates + sync.deletes + sync.unchanged > 0;
   const noProgress = (opts.requireProgress ?? true) && sync.errors.length > 0 && !progressed;
