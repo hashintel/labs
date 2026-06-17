@@ -124,6 +124,7 @@ export function buildPipelines(yaml: IntegrationYaml): TablePipeline[] {
     source: p.source,
     pipeline: { source: `${connectorId}/${p.source}`, steps: p.steps.map((s) => toStep(s, idNamespace, unitMaps)) } as Pipeline,
     dependsOn: p.dependsOn,
+    inputs: p.inputs,
   }));
 }
 

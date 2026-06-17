@@ -72,6 +72,7 @@ export type SourceYaml = {
 export type PipelineYaml = {
   source: string;
   dependsOn?: string[];
+  inputs?: Record<string, string>;
   steps: StepYaml[];
 };
 
@@ -119,6 +120,8 @@ export type ConnectorYaml =
 
 export type IntegrationYaml = {
   connector: ConnectorYaml;
+  // Defaults for `${NAME}` placeholders; a same-named env var overrides each.
+  vars?: Record<string, string>;
   sources?: Record<string, SourceYaml>;
   pipelines: {
     entities: PipelineYaml[];
@@ -151,5 +154,12 @@ function walkStrings(obj: unknown, fn: (s: string) => string): unknown {
 }
 
 export function resolveEnvVars(yaml: unknown, env: Record<string, string | undefined> = process.env as Record<string, string | undefined>): IntegrationYaml {
-  return walkStrings(yaml, (s) => interpolateEnv(s, env)) as IntegrationYaml;
+  const declared = (yaml && typeof yaml === "object" && (yaml as { vars?: unknown }).vars);
+  const vars = declared && typeof declared === "object" ? (declared as Record<string, unknown>) : {};
+  const resolved: Record<string, string | undefined> = {};
+  for (const [k, v] of Object.entries(vars)) {
+    if (typeof v === "string") resolved[k] = interpolateEnv(v, env);
+  }
+  const lookup = { ...resolved, ...env };
+  return walkStrings(yaml, (s) => interpolateEnv(s, lookup)) as IntegrationYaml;
 }

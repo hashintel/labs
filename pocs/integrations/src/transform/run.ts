@@ -10,8 +10,9 @@ export type SqlInputView = { alias: string; table: string };
 export async function validatePipeline(
   pipeline: Pipeline,
   db: QueryableStore,
-  opts?: { log?: Logger; resolveTransform?: TransformResolver },
+  opts?: { log?: Logger; resolveTransform?: TransformResolver; namedInputs?: readonly SqlInputView[] },
 ): Promise<void> {
+  const namedInputs = opts?.namedInputs;
   const log = opts?.log ? (msg: string) => opts.log!.debug(msg) : () => {};
 
   let currentTable = pipeline.source;
@@ -42,7 +43,7 @@ export async function validatePipeline(
 
     if (step.kind === "sql") {
       const tmpTable = `_validate/${step.id}`;
-      await executeSqlStep(step.sql, currentTable, tmpTable, db, { suffix: "LIMIT 0" });
+      await executeSqlStep(step.sql, currentTable, tmpTable, db, { suffix: "LIMIT 0", namedInputs });
 
       columns = await db.schemaOf(tmpTable);
       assertMeta(columns, step.id);
@@ -108,13 +109,14 @@ export async function runPipeline(
   db: QueryableStore,
   resolveTransform?: TransformResolver,
   onSideEffect?: SideEffectHandler,
+  namedInputs?: readonly SqlInputView[],
 ): Promise<string> {
   let currentTable = pipeline.source;
 
   for (const step of pipeline.steps) {
     if (step.kind === "sql") {
       const outputTable = `_step/${step.id}`;
-      await executeSqlStep(step.sql, currentTable, outputTable, db);
+      await executeSqlStep(step.sql, currentTable, outputTable, db, { namedInputs });
       assertMeta(await db.schemaOf(outputTable), step.id);
       currentTable = outputTable;
     } else if (step.kind === "fn") {

@@ -73,6 +73,18 @@ export function sortPipelines(pipelines: TablePipeline[]): TopologyResult {
       if (j === i) throw new TopologyError(`Pipeline "${pipelines[i].source}" dependsOn itself.`);
       deps[i].add(j);
     }
+    for (const checkpointName of Object.values(pipelines[i].inputs ?? {})) {
+      const producer = checkpointNames.get(checkpointName);
+      if (!producer) {
+        throw new TopologyError(
+          `Pipeline "${pipelines[i].source}" inputs checkpoint "${checkpointName}", but no pipeline produces it.`,
+        );
+      }
+      if (producer.pipelineIdx === i) {
+        throw new TopologyError(`Pipeline "${pipelines[i].source}" inputs its own checkpoint "${checkpointName}".`);
+      }
+      deps[i].add(producer.pipelineIdx);
+    }
     for (const step of steps[i]) {
       for (const depId of step.dependsOn ?? []) {
         if (depId === step.id) throw new TopologyError(`Step "${step.id}" dependsOn itself.`);

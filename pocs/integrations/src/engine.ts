@@ -98,6 +98,7 @@ export function integrate(spec: IntegrationSpec): Integration {
   type SourceCtx = {
     source: string;
     pipeline: Pipeline;
+    inputs?: Record<string, string>;
     connectorId: string;
     connectorDef: ConnectorDef;
     hydrate: (ctx: HydrateContext) => Promise<{ rowCount: number }>;
@@ -152,8 +153,15 @@ export function integrate(spec: IntegrationSpec): Integration {
         return result;
       }
 
+      const inputEntries = Object.entries(ctx.inputs ?? {});
+      const namedInputs = inputEntries.map(([alias]) => ({ alias, table: `_ent_src/${source}/${alias}` }));
+      for (const [alias, checkpointName] of inputEntries) {
+        const uri = storage.uriFor(checkpointKey(checkpointName)).replace(/'/g, "''");
+        await queryStore.exec(`CREATE OR REPLACE TABLE ${qi(`_ent_src/${source}/${alias}`)} AS SELECT * FROM read_parquet('${uri}')`);
+      }
+
       if (spec.validate !== false) {
-        await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform });
+        await validatePipeline(pipeline, queryStore, { log: log.child({ component: "validate" }), resolveTransform, namedInputs });
       }
 
       await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
@@ -172,7 +180,7 @@ export function integrate(spec: IntegrationSpec): Integration {
         } else if (step.kind === "checkpoint") {
           await writeCheckpoint(step.name, currentTable, queryStore, storage);
         }
-      });
+      }, namedInputs);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       result = mergeSyncResults(result, {
@@ -185,6 +193,9 @@ export function integrate(spec: IntegrationSpec): Integration {
       for (const id of allStepIds(pipeline.steps)) {
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_step/${id}`)}`);
         await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_validate/${id}`)}`);
+      }
+      for (const alias of Object.keys(ctx.inputs ?? {})) {
+        await queryStore.exec(`DROP TABLE IF EXISTS ${qi(`_ent_src/${source}/${alias}`)}`);
       }
       await queryStore.exec(`DROP VIEW IF EXISTS "input"`);
     }
@@ -215,9 +226,9 @@ export function integrate(spec: IntegrationSpec): Integration {
 
     try {
       if (!options.skipEntities) {
-        for (const { source, pipeline } of targets) {
+        for (const { source, pipeline, inputs } of targets) {
           totals = mergeSyncResults(totals, await syncOneSource({
-            source, pipeline,
+            source, pipeline, inputs,
             connectorId: connector.id,
             connectorDef: spec.connector,
             hydrate: (ctx) => connector.hydrate(ctx),

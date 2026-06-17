@@ -251,4 +251,27 @@ describe("sortPipelines", () => {
     );
   });
 
+  it("orders an inputs-checkpoint producer before its consumer", () => {
+    const producer = pipe(
+      "src/organizations",
+      sqlStep({ id: "o1", query: "SELECT _op, _key, id AS orgId FROM input" }),
+      checkpoint({ id: "cp-orgs", name: "cp/orgs" }),
+    );
+    const pipelines: TablePipeline[] = [
+      { source: "users", pipeline: userPipeline(), inputs: { orgs: "cp/orgs" } },
+      { source: "organizations", pipeline: producer },
+    ];
+    const { order } = sortPipelines(pipelines);
+    assert.deepEqual(order.map((p) => p.source), ["organizations", "users"]);
+  });
+
+  it("throws when inputs reference an unproduced checkpoint", () => {
+    const pipelines: TablePipeline[] = [
+      { source: "users", pipeline: userPipeline(), inputs: { orgs: "cp/missing" } },
+    ];
+    assert.throws(() => sortPipelines(pipelines), (err: Error) =>
+      err instanceof TopologyError && err.message.includes("no pipeline produces it"),
+    );
+  });
+
 });
