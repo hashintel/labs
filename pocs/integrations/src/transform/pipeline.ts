@@ -137,7 +137,7 @@ export type Pipeline<
   readonly __ids?: Ids;
 };
 
-export type TablePipeline = { source: string; pipeline: Pipeline; dependsOn?: readonly string[] };
+export type TablePipeline = { source: string; pipeline: Pipeline; dependsOn?: readonly string[]; inputs?: Record<string, string> };
 export type SideEffectHandler = (step: Step, currentTable: string) => Promise<void>;
 
 // Each factory has overload pairs (with/without `dependsOn`). This prevents

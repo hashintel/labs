@@ -20,6 +20,13 @@ function resolve(accessor: Accessor, data: Row): unknown {
   return typeof accessor === "string" ? data[accessor] : accessor(data);
 }
 
+// Source text is often fixed-width padded; trim string property values (blank -> null).
+export function trimmed(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const t = value.trim();
+  return t === "" ? null : t;
+}
+
 // Suffixes location.name with the source field, e.g. `acme/marc` -> `acme/marc/WEBAZ`.
 function withField(base: SourceProvenance, field: string): PropertyProvenance {
   const baseName = base.location?.name;
@@ -77,7 +84,7 @@ export function rowToGraphOp(
   const properties: Record<string, unknown> = {};
   const propertyProvenance: Record<string, PropertyProvenance> = {};
   for (const [propUrl, accessor] of Object.entries(config.properties)) {
-    properties[propUrl] = resolve(accessor, data);
+    properties[propUrl] = trimmed(resolve(accessor, data));
     const field = config.propertyFields?.[propUrl];
     propertyProvenance[propUrl] = field ? withField(prov, field) : propSources;
   }
@@ -297,12 +304,41 @@ export async function flushGraphLinks(
     }
   }
 
+  await commitLinkState(db, connectorId, table, label);
+
   const durationMs = Date.now() - start;
   if (rows.length > 0) {
     const failureSummary = errors.length > 0 ? `, ${errors.length} FAILED` : "";
     log?.info(`link sync: ${rows.length - errors.length} done${failureSummary} (${durationMs}ms)`);
   }
   return { ...emptySyncResult(), errors, durationMs, ...(flushAborted ? { aborted: true } : {}) };
+}
+
+const NEXT_LINK_STATE_PREFIX = "_state/links-next";
+
+// Finalize `_state/links/...` from the staged next state, keeping only ops that
+// left the pending table: upserts that flushed, and archives that did NOT (their
+// link still exists, so it stays recorded for a retry next run).
+async function commitLinkState(db: QueryableStore, connectorId: string, pendingTable: string, label?: string): Promise<void> {
+  const prefix = `${NEXT_LINK_STATE_PREFIX}/${connectorId}/`;
+  const match = label ? `${prefix}${label}` : null;
+  const { rows } = await db.query(
+    `SELECT table_name FROM information_schema.tables
+     WHERE table_name LIKE ${escLiteral(`${prefix}%`)}${match ? ` AND table_name = ${escLiteral(match)}` : ""}`,
+  );
+  for (const row of rows) {
+    const nextStateName = String(row.table_name);
+    const sinkId = nextStateName.slice(prefix.length);
+    const nextStateTable = qi(nextStateName);
+    const stateTable = qi(`_state/links/${connectorId}/${sinkId}`);
+    await db.exec(`CREATE OR REPLACE TABLE ${stateTable} AS
+      SELECT n._source_id, n._target_id, n._content_hash
+      FROM ${nextStateTable} n
+      LEFT JOIN ${qi(pendingTable)} p ON p.op_id = n._op_id
+      WHERE (n._op_kind = 'upsert' AND p.op_id IS NULL)
+         OR (n._op_kind = 'archive' AND p.op_id IS NOT NULL)`);
+    await db.exec(`DROP TABLE IF EXISTS ${nextStateTable}`);
+  }
 }
 
 export async function diffAndSync(

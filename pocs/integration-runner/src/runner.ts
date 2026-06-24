@@ -212,7 +212,6 @@ async function main() {
   const config = loadConfig();
   const transforms = transformsArg ? await loadTransforms(transformsArg) : undefined;
 
-
   const linksOnly = args.includes("--links-only");
   let result: WorkflowResult;
   try {

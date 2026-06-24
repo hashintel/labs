@@ -5,7 +5,7 @@ import type { GraphLinkOp, GraphOp, SourceProvenance, PropertyProvenance } from 
 import type { Storage } from "../storage/types.js";
 import type { Logger } from "../log.js";
 import { checkpointKey } from "../transform/checkpoint.js";
-import { stageGraphLinks, escLiteral, syncWindow, type SyncResult } from "./sink.js";
+import { stageGraphLinks, escLiteral, syncWindow, trimmed, type SyncResult } from "./sink.js";
 import { executeSqlStep } from "../transform/run.js";
 
 function linkOpId(namespace: string, webId: string, linkType: string, sourceId: string, targetId: string): string {
@@ -43,6 +43,7 @@ export async function processLinkPipeline(
   const diffTable = qi(`_link_diff/${entry.id}`);
   const upsertTable = qi(`_link_upsert/${entry.id}`);
   const stateTable = qi(`_state/links/${connectorId}/${entry.id}`);
+  const nextStateTable = qi(`_state/links-next/${connectorId}/${entry.id}`);
   const fromCol = qi(entry.from.column);
   const toCol = qi(entry.to.column);
 
@@ -154,7 +155,7 @@ export async function processLinkPipeline(
           op.properties = {};
           op.propertyProvenance = {};
           for (const [url, column] of Object.entries(entry.properties)) {
-            op.properties[url] = row[column];
+            op.properties[url] = trimmed(row[column]);
             op.propertyProvenance[url] = propSources;
           }
         }
@@ -190,8 +191,20 @@ export async function processLinkPipeline(
     }
   }
 
-  await db.exec(`DELETE FROM ${stateTable}`);
-  await db.exec(`INSERT INTO ${stateTable} SELECT _source_id, _target_id, _content_hash FROM ${currentTable}`);
+  // Stage the intended next state with each row's flush op id; flushGraphLinks
+  // commits only the rows whose op actually left the pending table (succeeded),
+  // so a failed flush never records phantom links as synced.
+  const idPrefix = `${escLiteral(namespace)}, ${escLiteral(entry.webId)}, ${escLiteral(entry.linkType)}`;
+  const upsertOpId = (src: string, tgt: string) => `CONCAT_WS('::', 'upsert', ${idPrefix}, ${src}, ${tgt})`;
+  const archiveOpId = (src: string, tgt: string) => `CONCAT_WS('::', 'archive', ${idPrefix}, CONCAT_WS('::', ${src}, ${tgt}))`;
+  await db.exec(`CREATE OR REPLACE TABLE ${nextStateTable} AS
+    SELECT _source_id, _target_id, _content_hash, 'upsert' AS _op_kind, ${upsertOpId("_source_id", "_target_id")} AS _op_id
+    FROM ${currentTable}
+    UNION ALL
+    SELECT p._source_id, p._target_id, p._content_hash, 'archive' AS _op_kind, ${archiveOpId("p._source_id", "p._target_id")} AS _op_id
+    FROM ${stateTable} p
+    LEFT JOIN ${currentTable} c ON c._source_id = p._source_id AND c._target_id = p._target_id
+    WHERE c._source_id IS NULL`);
 
   await db.exec(`DROP TABLE IF EXISTS ${currentTable}`);
   await db.exec(`DROP TABLE IF EXISTS ${diffTable}`);

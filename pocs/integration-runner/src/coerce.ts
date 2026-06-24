@@ -112,11 +112,17 @@ export function resolveAccessor(yaml: string | { column: string; coerce: string 
   return resolveCoercion(yaml.coerce)(yaml.column);
 }
 
+const warnedUnitCodes = new Set<string>();
+
 export function measureAccessor(amount: string, unit: string, unitMap: Record<string, string>): Accessor {
   return (r: Row) => {
     const n = coerceNumber(r[amount]);
     if (n === null) return null;
     const code = String(r[unit] ?? "").trim();
+    if (!(code in unitMap) && !warnedUnitCodes.has(code)) {
+      warnedUnitCodes.add(code);
+      console.warn(`[measure] unmapped unit code "${code}" -> falling back`);
+    }
     const dataTypeId = unitMap[code] ?? unitMap["*"];
     return dataTypeId ? typedValue(n, dataTypeId as VersionedUrl) : n;
   };
