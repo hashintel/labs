@@ -44,6 +44,7 @@ type CreateEntityParams = {
   provenance: HASHProvenance;
   entityUuid?: string;
   linkData?: { leftEntityId: string; rightEntityId: string };
+  readOnly?: boolean;
 };
 
 type PatchEntityParams = {
@@ -223,6 +224,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
         draft: false,
         provenance,
         entityUuid,
+        readOnly: true,
       } satisfies CreateEntityParams);
       return false;
     } catch (e) {
@@ -266,6 +268,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       provenance,
       entityUuid: linkUuid,
       linkData: { leftEntityId, rightEntityId },
+      readOnly: true,
     };
   }
 
@@ -313,6 +316,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
           draft: false,
           provenance,
           entityUuid,
+          readOnly: true,
         });
       }
 
