@@ -183,7 +183,7 @@ export async function processLinkPipeline(
         kind: "archive" as const,
         namespace,
         entityType: entry.linkType,
-        entityId: `${r._source_id}::${r._target_id}`,
+        entityId: `${entry.from.entityType}::${r._source_id}::${entry.to.entityType}::${r._target_id}`,
         provenance,
         webId: entry.webId,
       }));

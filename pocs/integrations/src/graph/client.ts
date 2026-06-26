@@ -247,7 +247,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
   function linkEntityIds(op: GraphLinkOp): { leftEntityId: string; rightEntityId: string; linkUuid: string; fullLinkId: string } {
     const leftEntityId = compositeEntityId(op.webId, deterministicUuid(op.namespace, op.sourceEntityType, op.sourceEntityId));
     const rightEntityId = compositeEntityId(op.webId, deterministicUuid(op.namespace, op.targetEntityType, op.targetId));
-    const linkUuid = deterministicUuid(op.namespace, op.linkType, `${op.sourceEntityId}::${op.targetId}`);
+    const linkUuid = deterministicUuid(op.namespace, op.linkType, `${op.sourceEntityType}::${op.sourceEntityId}::${op.targetEntityType}::${op.targetId}`);
     return { leftEntityId, rightEntityId, linkUuid, fullLinkId: compositeEntityId(op.webId, linkUuid) };
   }
 
