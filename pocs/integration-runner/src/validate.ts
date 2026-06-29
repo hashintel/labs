@@ -186,9 +186,8 @@ function validateLinkPipeline(
     if (!step.sql) errors.push({ path: `${sp}.sql`, message: "required" });
   }
 
-  for (const [url, col] of Object.entries(link.properties ?? {})) {
-    if (!col) errors.push({ path: `${prefix}.properties["${url}"]`, message: "required" });
-    else if (typeof col !== "string") errors.push({ path: `${prefix}.properties["${url}"]`, message: "link properties must be column names" });
+  for (const [url, acc] of Object.entries(link.properties ?? {})) {
+    validateAccessor(acc, `${prefix}.properties["${url}"]`, errors);
   }
 }
 function validateAccessor(acc: AccessorYaml, path: string, errors: ValidationError[]) {

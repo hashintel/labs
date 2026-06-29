@@ -78,7 +78,8 @@ export type LinkPipeline = {
   linkType: VersionedUrl;
   webId: string;
   idNamespace?: string;
-  properties?: Record<VersionedUrl, string>;
+  properties?: Record<VersionedUrl, Accessor>;
+  propertyColumns?: string[];
   provenance?: ProvenanceConfig;
 };
 

@@ -52,6 +52,16 @@ function toPropertyFields(props: Record<string, AccessorYaml>): Record<string, s
   return out;
 }
 
+function toPropertyColumns(props: Record<string, AccessorYaml>): string[] {
+  const cols = new Set<string>();
+  for (const val of Object.values(props)) {
+    if (typeof val === "string") cols.add(val);
+    else if ("measure" in val) { cols.add(val.amount); cols.add(val.unit); }
+    else cols.add(val.column);
+  }
+  return [...cols];
+}
+
 function toGraphSinkConfig(yaml: GraphSinkYaml, idNamespace: string, unitMaps: UnitMaps): GraphSinkConfig {
   const entityId: Accessor = Array.isArray(yaml.entityId)
     ? ((cols) => (row: Record<string, unknown>) => cols.map((c) => String(row[c] ?? "")).join("|"))(yaml.entityId)
@@ -131,6 +141,7 @@ export function buildPipelines(yaml: IntegrationYaml): TablePipeline[] {
 export function buildLinkPipelines(yaml: IntegrationYaml, webId: string): LinkPipeline[] {
   const connectorId = yaml.connector.id;
   const idNamespace = yaml.connector.idNamespace ?? connectorId;
+  const unitMaps = yaml.unitMaps ?? {};
   return (yaml.pipelines.links ?? []).map((l) => ({
     id: l.id,
     source: l.source,
@@ -141,7 +152,8 @@ export function buildLinkPipelines(yaml: IntegrationYaml, webId: string): LinkPi
     linkType: l.linkType,
     webId,
     idNamespace,
-    properties: l.properties,
+    properties: l.properties ? toAccessors(l.properties, unitMaps) : undefined,
+    propertyColumns: l.properties ? toPropertyColumns(l.properties) : undefined,
     provenance: toProvenance(l.provenance),
   }));
 }

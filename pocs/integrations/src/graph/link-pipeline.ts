@@ -5,7 +5,7 @@ import type { GraphLinkOp, GraphOp, SourceProvenance, PropertyProvenance } from 
 import type { Storage } from "../storage/types.js";
 import type { Logger } from "../log.js";
 import { checkpointKey } from "../transform/checkpoint.js";
-import { stageGraphLinks, escLiteral, syncWindow, trimmed, type SyncResult } from "./sink.js";
+import { stageGraphLinks, escLiteral, syncWindow, trimmed, resolve, type SyncResult } from "./sink.js";
 import { executeSqlStep } from "../transform/run.js";
 
 function linkOpId(namespace: string, webId: string, linkType: string, sourceId: string, targetId: string): string {
@@ -64,7 +64,7 @@ export async function processLinkPipeline(
 
   // Current = ids + content hash + the property columns the ops will need, so
   // upserts never re-scan the data table.
-  const propColumns = Object.values(entry.properties ?? {});
+  const propColumns = entry.propertyColumns ?? [];
   const propSelect = [...new Set(propColumns)]
     .map((col) => `, ${qi(col)}`)
     .join("");
@@ -154,8 +154,8 @@ export async function processLinkPipeline(
         if (entry.properties) {
           op.properties = {};
           op.propertyProvenance = {};
-          for (const [url, column] of Object.entries(entry.properties)) {
-            op.properties[url] = trimmed(row[column]);
+          for (const [url, accessor] of Object.entries(entry.properties)) {
+            op.properties[url] = trimmed(resolve(accessor, row));
             op.propertyProvenance[url] = propSources;
           }
         }

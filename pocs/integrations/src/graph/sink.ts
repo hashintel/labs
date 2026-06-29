@@ -3,6 +3,7 @@ import type { QueryableStore } from "../staging/types.js";
 import type { ChangeEvent } from "../connector/types.js";
 import type { Accessor, GraphSinkConfig, Row, Envelope } from "../transform/pipeline.js";
 import type { GraphLinkOp, GraphOp, SourceProvenance, PropertyProvenance, GraphClient } from "./types.js";
+import { typedValueReplacer, typedValueReviver } from "./types.js";
 import type { Logger } from "../log.js";
 import { parallel } from "../parallel.js";
 import { GraphApiError } from "./client.js";
@@ -16,7 +17,7 @@ export function syncWindow(): number {
   return Math.max(1, Number(process.env.HASH_SYNC_WINDOW ?? 20000));
 }
 
-function resolve(accessor: Accessor, data: Row): unknown {
+export function resolve(accessor: Accessor, data: Row): unknown {
   return typeof accessor === "string" ? data[accessor] : accessor(data);
 }
 
@@ -224,7 +225,7 @@ export async function stageGraphLinks(
   }
 
   const rows = [
-    ...linkOps.map((op) => ({ id: op.opId, operation: "upsert", payload: JSON.stringify(op) })),
+    ...linkOps.map((op) => ({ id: op.opId, operation: "upsert", payload: JSON.stringify(op, typedValueReplacer) })),
     ...archiveOps.map((op) => ({ id: archiveOpId(op), operation: "archive", payload: JSON.stringify(op) })),
   ];
 
@@ -267,7 +268,7 @@ export async function flushGraphLinks(
 
   for (const row of rows) {
     const operation = String(row.operation);
-    const payload = JSON.parse(String(row.payload)) as GraphLinkOp | Extract<GraphOp, { kind: "archive" }>;
+    const payload = JSON.parse(String(row.payload), typedValueReviver) as GraphLinkOp | Extract<GraphOp, { kind: "archive" }>;
     if (operation === "archive") archiveOps.push({ opId: String(row.op_id), op: payload as Extract<GraphOp, { kind: "archive" }> });
     else linkOps.push(payload as GraphLinkOp);
   }

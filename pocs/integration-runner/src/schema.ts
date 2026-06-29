@@ -84,7 +84,7 @@ export type LinkPipelineYaml = {
   from: { entityType: string; column: string };
   to: { entityType: string; column: string };
   linkType: string;
-  properties?: Record<string, string>;
+  properties?: Record<string, AccessorYaml>;
   provenance?: ProvenanceYaml;
 };
 
