@@ -51,6 +51,8 @@ function mockClient(): { ops: Op[]; client: GraphClient } {
         return { ok: okIds, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
       },
       async archiveEntity(op) { ops.push({ kind: "archive", entityId: op.entityId }); },
+      identity: () => "mock:graph",
+      async hasEntity() { return true; },
     },
   };
 }
@@ -236,6 +238,8 @@ describe("diffAndSync", () => {
         return { ok, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
       },
       async archiveEntity(op) { ops.push({ kind: "archive", entityId: op.entityId }); },
+      identity: () => "mock:graph",
+      async hasEntity() { return true; },
     };
 
     const result = await diffAndSync("write-users", sinkConfig, "output", "crm", db, flakyClient);
@@ -289,6 +293,8 @@ describe("diffAndSync", () => {
         async upsertLink() { return "ok" as const; },
         async bulkUpsertLinks(inOps) { return { ok: inOps.map((o) => o.opId), failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 }; },
         async archiveEntity() {},
+        identity: () => "mock:graph",
+        async hasEntity() { return true; },
       };
 
       const result = await diffAndSync("write-users", sinkConfig, "output", "crm", db, client);
@@ -371,6 +377,8 @@ describe("aborted propagation", () => {
         return { ok: [], failed: inOps.map((op) => ({ op, error: new Error("graph down") })), batches: 1, fellBackBatches: 1, durationMs: 0, aborted: true };
       },
       async archiveEntity() { throw new Error("graph down"); },
+      identity: () => "mock:graph",
+      async hasEntity() { return true; },
     };
   }
 
@@ -402,5 +410,96 @@ describe("aborted propagation", () => {
     const merged = mergeSyncResults(emptySyncResult(), { ...emptySyncResult(), aborted: true });
     assert.equal(merged.aborted, true);
     assert.equal(mergeSyncResults(emptySyncResult(), emptySyncResult()).aborted, undefined);
+  });
+});
+
+describe("canonical content hash", () => {
+  let db: QueryableStore;
+  beforeEach(async () => { db = await createDuckDbQueryStore(); });
+  afterEach(() => { db?.close(); delete process.env.HASH_ALLOW_MASS_ARCHIVE; });
+
+  const row = (userId: string, email: string, city: string, orgId: string) => ({
+    _op: "snapshot", _key: `{"id":${userId}}`, _before: null,
+    userId, email, city, orgId,
+  });
+
+  const resync = async (rows: Record<string, unknown>[], config = sinkConfig) => {
+    await db.exec(`DROP TABLE IF EXISTS "output"`);
+    await seedTable(db, "output", rows);
+    const { client, ops } = mockClient();
+    const result = await diffAndSync("write-users", config, "output", "crm", db, client);
+    return { result, ops };
+  };
+  const base = () => [row("1", "a@b.com", "NYC", "org-1")];
+
+  it("whitespace and blank-vs-null churn does not classify updates", async () => {
+    await resync(base());
+    const { result } = await resync([row("1", "  a@b.com  ", "NYC", "org-1")]);
+    assert.equal(result.updates, 0);
+    assert.equal(result.unchanged, 1);
+    const { result: r2 } = await resync([{ ...row("1", "a@b.com", "", "org-1"), city: null }]);
+    assert.equal(r2.updates, 1); // NYC -> null is a real change
+    const { result: r3 } = await resync([{ ...row("1", "a@b.com", "", "org-1"), city: "   " }]);
+    assert.equal(r3.updates, 0); // null -> blank is not
+  });
+
+  it("NULL and the string 'NULL' are distinct values", async () => {
+    await resync([{ ...row("1", "a@b.com", "X", "org-1"), city: null }]);
+    const { result } = await resync([row("1", "a@b.com", "NULL", "org-1")]);
+    assert.equal(result.updates, 1);
+  });
+
+  it("unmapped-column churn does not classify updates", async () => {
+    await resync(base());
+    const { result } = await resync([row("1", "a@b.com", "NYC", "org-CHANGED")]);
+    assert.equal(result.updates, 0);
+    assert.equal(result.unchanged, 1);
+  });
+
+  it("adjacent values containing delimiters do not collide", async () => {
+    await resync([row("1", "a::b", "c", "org-1")]);
+    const { result } = await resync([row("1", "a", "b::c", "org-1")]);
+    assert.equal(result.updates, 1);
+  });
+
+  it("provenanceFields-only change classifies as update", async () => {
+    const config: GraphSinkConfig = { ...sinkConfig, provenanceFields: { lastUpdated: "orgId" } };
+    await resync([row("1", "a@b.com", "NYC", "2024-01-01")], config);
+    const { result } = await resync([row("1", "a@b.com", "NYC", "2024-06-01")], config);
+    assert.equal(result.updates, 1);
+  });
+
+  it("function accessors fall back to whole-row hashing (unmapped churn detected)", async () => {
+    const config: GraphSinkConfig = { ...sinkConfig, properties: { [T.property("email/v/1")]: (r) => r.email } };
+    await resync(base(), config);
+    const { result } = await resync([row("1", "a@b.com", "NYC", "org-CHANGED")], config);
+    assert.equal(result.updates, 1);
+  });
+
+  it("hash/config change re-upserts once and applies same-run data changes, then converges", async () => {
+    await resync(base());
+    // Simulate pre-canonical state: legacy hashes with no meta row.
+    await db.exec(`UPDATE "_state/sync/crm/write-users" SET _content_hash = 'legacy'`);
+    await db.exec(`DELETE FROM "_state/meta"`);
+    const { result, ops } = await resync([row("1", "a@b.com", "CHANGED-CITY", "org-1")]);
+    assert.equal(result.updates, 1);
+    assert.equal(ops.length, 1); // the genuine change rides the migration pass
+    const { result: r2 } = await resync([row("1", "a@b.com", "CHANGED-CITY", "org-1")]);
+    assert.equal(r2.unchanged, 1);
+    assert.equal(r2.updates, 0);
+  });
+
+  it("mass archive is refused without HASH_ALLOW_MASS_ARCHIVE", async () => {
+    await db.exec(`CREATE TABLE "_state/sync/crm/write-users" (_entity_id VARCHAR, _content_hash VARCHAR)`);
+    await db.exec(`INSERT INTO "_state/sync/crm/write-users" SELECT 'u' || i, 'h' FROM range(2500) t(i)`);
+    await seedTable(db, "output", base());
+    const { client } = mockClient();
+    await assert.rejects(
+      () => diffAndSync("write-users", sinkConfig, "output", "crm", db, client),
+      /refusing to archive 2500 of 2500/,
+    );
+    process.env.HASH_ALLOW_MASS_ARCHIVE = "1";
+    const result = await diffAndSync("write-users", sinkConfig, "output", "crm", db, mockClient().client);
+    assert.equal(result.deletes, 2500);
   });
 });

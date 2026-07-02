@@ -8,12 +8,14 @@ import { sortPipelines } from "./transform/topology.js";
 import type { GraphClient, SourceProvenance } from "./graph/types.js";
 import { processGraphSink, archiveDeletes, diffAndSync, flushGraphLinks as flushPendingGraphLinks, emptySyncResult, mergeSyncResults, type SyncResult, type SyncError } from "./graph/sink.js";
 import { processLinkPipeline } from "./graph/link-pipeline.js";
+import { checkStateCoherence, collectGraphSinks } from "./graph/coherence.js";
 import { composeProvenance } from "./graph/provenance.js";
 import { writeCheckpoint, checkpointKey } from "./transform/checkpoint.js";
 import { nullStorage } from "./storage/null.js";
 import type { Storage } from "./storage/types.js";
 import { materialize as materializeSnapshot } from "./connector/snapshot.js";
 import type { HydrateContext } from "./connector/types.js";
+import { runSourceAsserts, type SourceAsserts } from "./connector/asserts.js";
 import { createLogger, type LogLevel, type Logger } from "./log.js";
 
 export type { TablePipeline };
@@ -71,6 +73,14 @@ export function integrate(spec: IntegrationSpec): Integration {
   assertSourcesDeclared(spec.connector, pipelines);
   assertPipelineSourcesMatch(spec.connector.id, pipelines);
 
+  // Function accessors are invisible to the link content hash; propertyColumns is
+  // the explicit contract naming the columns they read.
+  for (const lp of linkPipelines) {
+    if (lp.properties && Object.values(lp.properties).some((a) => typeof a !== "string") && !lp.propertyColumns) {
+      throw new Error(`link pipeline "${lp.id}" has function property accessors; declare propertyColumns listing every column those functions read`);
+    }
+  }
+
   const resolveTransform: TransformResolver | undefined = spec.transforms
     ? (name) => {
         const fn = spec.transforms![name];
@@ -126,6 +136,9 @@ export function integrate(spec: IntegrationSpec): Integration {
           log: log.child({ component: "hydrate", source }),
         }),
       );
+
+      const asserts = sourceAsserts(connectorDef, source);
+      if (asserts) await runSourceAsserts(queryStore, sourceTable, source, asserts, hydrated.rowCount);
 
       if (hydrated.rowCount === 0) {
         const archiveOnEmpty = isArchiveOnEmpty(connectorDef, source);
@@ -225,6 +238,12 @@ export function integrate(spec: IntegrationSpec): Integration {
     log.info(`sync: connector "${connector.id}" sources=[${targets.map((tp) => tp.source).join(", ")}]`);
 
     try {
+      if (spec.graphClient) {
+        await checkStateCoherence({
+          db: queryStore, client: spec.graphClient, connectorId: connector.id,
+          sinks: collectGraphSinks(pipelines), linkPipelines, log: sinkLog,
+        });
+      }
       if (!options.skipEntities) {
         for (const { source, pipeline, inputs } of targets) {
           totals = mergeSyncResults(totals, await syncOneSource({
@@ -264,6 +283,12 @@ export function integrate(spec: IntegrationSpec): Integration {
       let totals = emptySyncResult();
       const connectorId = spec.connector.id;
       const loadedAt = new Date().toISOString();
+      if (spec.graphClient) {
+        await checkStateCoherence({
+          db: queryStore, client: spec.graphClient, connectorId,
+          sinks: collectGraphSinks(pipelines), linkPipelines, log: sinkLog,
+        });
+      }
       for (const lp of linkPipelines) {
         const lpProv = composeProvenance({ connectorId, source: linkPipelineSourceLabel(lp), connector: spec.connector.provenance, loadedAt });
         totals = mergeSyncResults(totals, await processLinkPipeline(lp, connectorId, queryStore, storage, lpProv, sinkLog.child({ link: lp.id })));
@@ -491,6 +516,10 @@ function overlay(user: ProvenanceConfig | undefined, base: ProvenanceConfig): Pr
     firstPublished: user.firstPublished ?? base.firstPublished,
     lastUpdated: user.lastUpdated ?? base.lastUpdated,
   };
+}
+
+function sourceAsserts(def: ConnectorDef, source: string): SourceAsserts | undefined {
+  return def.mode === "batch" ? def.sources[source]?.asserts : undefined;
 }
 
 function isPartialSource(def: ConnectorDef, source: string): boolean {

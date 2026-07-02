@@ -19,11 +19,12 @@ function buildSource(yaml: NonNullable<IntegrationYaml["sources"]>[string]): Duc
         extensions: yaml.extensions, headerRows: yaml.headerRows, forwardFill: yaml.forwardFill,
         unfilledHeaderRows: yaml.unfilledHeaderRows, dropHeaderTokens: yaml.dropHeaderTokens,
         partial: yaml.partial, archiveOnEmpty: yaml.archiveOnEmpty, provenance: toProvenance(yaml.provenance),
+        asserts: yaml.asserts,
       };
     case "checkpoint":
-      return { kind: "checkpoint", name: yaml.name, partial: yaml.partial, archiveOnEmpty: yaml.archiveOnEmpty, provenance: toProvenance(yaml.provenance) };
+      return { kind: "checkpoint", name: yaml.name, partial: yaml.partial, archiveOnEmpty: yaml.archiveOnEmpty, provenance: toProvenance(yaml.provenance), asserts: yaml.asserts };
     case "external":
-      return { kind: "external", key: yaml.key, primaryKey: yaml.primaryKey, partial: yaml.partial, archiveOnEmpty: yaml.archiveOnEmpty, provenance: toProvenance(yaml.provenance) };
+      return { kind: "external", key: yaml.key, primaryKey: yaml.primaryKey, partial: yaml.partial, archiveOnEmpty: yaml.archiveOnEmpty, provenance: toProvenance(yaml.provenance), asserts: yaml.asserts };
   }
 }
 

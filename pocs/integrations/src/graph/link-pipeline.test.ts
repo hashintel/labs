@@ -49,6 +49,8 @@ async function setup(): Promise<{ storage: Storage; ops: string[]; client: Graph
       return { ok, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
     },
     async archiveEntity(op) { ops.push(`archive:${op.entityId}`); },
+    identity: () => "mock:graph",
+    async hasEntity() { return true; },
   };
   return { storage, ops, client };
 }
@@ -103,6 +105,40 @@ describe("processLinkPipeline", () => {
     assert.equal(result.inserts, 1);
     assert.equal(result.deletes, 0);
     assert.deepEqual(ops, ["link:u1->o1"]);
+  });
+
+  it("keeps failed stale-link archives in state for retry", async () => {
+    const { storage, ops, client } = await setup();
+    await writeUsers([{ user_id: "u1", org_id: "o1", role: "member" }], storage);
+    await processLinkPipeline(link, "crm", db, storage, prov);
+    await flushGraphLinks("crm", db, client);
+    ops.length = 0;
+
+    await writeUsers([], storage);
+    const firstDelete = await processLinkPipeline(link, "crm", db, storage, prov);
+    assert.equal(firstDelete.deletes, 1);
+
+    const failingClient: GraphClient = {
+      ...client,
+      async archiveEntity(op) {
+        ops.push(`archive-failed:${op.entityId}`);
+        throw new Error("graph down");
+      },
+    };
+    const failedFlush = await flushGraphLinks("crm", db, failingClient);
+    assert.equal(failedFlush.errors.length, 1);
+    assert.deepEqual(ops, [`archive-failed:${link.from.entityType}::u1::${link.to.entityType}::o1`]);
+
+    const retryDelete = await processLinkPipeline(link, "crm", db, storage, prov);
+    assert.equal(retryDelete.deletes, 1, "failed archive remains in link state and is staged again");
+
+    ops.length = 0;
+    const retryFlush = await flushGraphLinks("crm", db, client);
+    assert.equal(retryFlush.errors.length, 0);
+    assert.deepEqual(ops, [`archive:${link.from.entityType}::u1::${link.to.entityType}::o1`]);
+
+    const afterSuccess = await processLinkPipeline(link, "crm", db, storage, prov);
+    assert.equal(afterSuccess.deletes, 0, "successful archive removes the link from state");
   });
 
   it("rejects duplicate source-target pairs", async () => {

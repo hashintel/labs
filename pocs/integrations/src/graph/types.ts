@@ -123,4 +123,8 @@ export type GraphClient = {
   upsertLink(op: GraphLinkOp): Promise<"ok">;
   bulkUpsertLinks(ops: GraphLinkOp[], options?: BulkLinkOptions): Promise<BulkLinkResult>;
   archiveEntity(op: Extract<GraphOp, { kind: "archive" }>): Promise<void>;
+  /** Stable identifier of the target graph (normalized base URL); pairs with sync state to detect target changes. */
+  identity(): string;
+  /** Whether the entity exists in the graph, archived or not. Used by the state coherence probe. */
+  hasEntity(compositeEntityId: string): Promise<boolean>;
 };

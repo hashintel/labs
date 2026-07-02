@@ -59,7 +59,7 @@ type PatchEntityParams = {
 // Fixed namespace prevents collisions with other UUID v5 users.
 const NAMESPACE = Buffer.from("d6e2c7a1f84b4e3a9c0d5b7f1e3a2d4c", "hex"); // 16 bytes
 
-function deterministicUuid(ns: string, entityType: string, entityId: unknown): string {
+export function deterministicUuid(ns: string, entityType: string, entityId: unknown): string {
   const hash = createHash("sha1")
     .update(NAMESPACE)
     .update(`${ns}::${entityType}::${String(entityId)}`)
@@ -73,7 +73,7 @@ function deterministicUuid(ns: string, entityType: string, entityId: unknown): s
   ].join("-");
 }
 
-function compositeEntityId(webId: string, entityUuid: string): string {
+export function compositeEntityId(webId: string, entityUuid: string): string {
   return `${webId}~${entityUuid}`;
 }
 
@@ -490,6 +490,30 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
     }
   }
 
-  return { upsertEntity, bulkUpsertEntities, upsertLink, bulkUpsertLinks, archiveEntity };
+  function identity(): string {
+    return config.baseUrl.replace(/\/+$/, "");
+  }
+
+  // Archived entities count as existing: the state row may legitimately outlive an
+  // archive (user-archived in HASH, or our own crash between archive and state delete).
+  async function hasEntity(fullEntityId: string): Promise<boolean> {
+    const uuid = fullEntityId.split("~")[1] ?? fullEntityId;
+    const body = {
+      filter: { equal: [{ path: ["uuid"] }, { parameter: uuid }] },
+      temporalAxes: {
+        pinned: { axis: "transactionTime", timestamp: null },
+        variable: { axis: "decisionTime", interval: { start: null, end: null } },
+      },
+      includeDrafts: false,
+      includePermissions: false,
+      limit: 1,
+    };
+    const { entities } = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body);
+    // Deterministic UUIDs are web-independent; require the composite id to match so an
+    // identical entity in another web does not satisfy the probe.
+    return entities.some((e) => e.metadata.recordId.entityId === fullEntityId);
+  }
+
+  return { upsertEntity, bulkUpsertEntities, upsertLink, bulkUpsertLinks, archiveEntity, identity, hasEntity };
 }
 

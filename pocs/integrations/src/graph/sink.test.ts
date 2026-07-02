@@ -127,6 +127,8 @@ describe("archiveDeletes composite-key determinism", () => {
         return { ok: okIds, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
       },
       async archiveEntity(op) { ops.push(op); },
+      identity: () => "mock:graph",
+      async hasEntity() { return true; },
     };
   }
 

@@ -42,6 +42,12 @@ export type StepYaml =
   | { kind: "checkpoint"; id: string; name: string; dependsOn?: string[] }
   | BranchYaml;
 
+export type SourceAssertsYaml = {
+  rowCount?: { min?: number; max?: number };
+  notNull?: string[];
+  unique?: (string | string[])[];
+};
+
 export type SourceYaml = {
   kind: "sql";
   sql: string;
@@ -54,12 +60,14 @@ export type SourceYaml = {
   partial?: boolean;
   archiveOnEmpty?: boolean;
   provenance?: ProvenanceYaml;
+  asserts?: SourceAssertsYaml;
 } | {
   kind: "checkpoint";
   name: string;
   partial?: boolean;
   archiveOnEmpty?: boolean;
   provenance?: ProvenanceYaml;
+  asserts?: SourceAssertsYaml;
 } | {
   kind: "external";
   key: string;
@@ -67,6 +75,7 @@ export type SourceYaml = {
   partial?: boolean;
   archiveOnEmpty?: boolean;
   provenance?: ProvenanceYaml;
+  asserts?: SourceAssertsYaml;
 };
 
 export type PipelineYaml = {

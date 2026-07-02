@@ -4,12 +4,14 @@ import { materialize } from "./snapshot.js";
 import { readMultiRowHeaders } from "./headers.js";
 import { checkpointKey } from "../transform/checkpoint.js";
 import type { ProvenanceConfig } from "../transform/pipeline.js";
+import type { SourceAsserts } from "./asserts.js";
 
 type SourceCommon = {
   primaryKey: string | string[];
   partial?: boolean;
   archiveOnEmpty?: boolean;
   provenance?: ProvenanceConfig;
+  asserts?: SourceAsserts;
 };
 
 export type DuckdbSqlSource = SourceCommon & {
@@ -46,6 +48,7 @@ export type DuckdbCheckpointSource = {
   partial?: boolean;
   archiveOnEmpty?: boolean;
   provenance?: ProvenanceConfig;
+  asserts?: SourceAsserts;
 };
 
 /** Reads a plain Parquet from Storage and wraps it with snapshot meta columns. */

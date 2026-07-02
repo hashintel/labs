@@ -80,7 +80,7 @@ export async function validatePipeline(
           }
           if (s.kind === "sql") {
             const tmpTable = `_validate/${s.id}`;
-            await executeSqlStep(s.sql, branchTable, tmpTable, db, { suffix: "LIMIT 0" });
+            await executeSqlStep(s.sql, branchTable, tmpTable, db, { suffix: "LIMIT 0", namedInputs });
             branchCols = await db.schemaOf(tmpTable);
             assertMeta(branchCols, s.id);
             log(`  sql "${s.id}": ${stripMeta(branchCols).join(", ")}`);
@@ -133,7 +133,7 @@ export async function runPipeline(
         for (const s of branchSteps) {
           if (s.kind === "sql") {
             const out = `_step/${s.id}`;
-            await executeSqlStep(s.sql, branchTable, out, db);
+            await executeSqlStep(s.sql, branchTable, out, db, { namedInputs });
             assertMeta(await db.schemaOf(out), s.id);
             branchTable = out;
           } else if (s.kind === "fn") {

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { quotedIdentifier as qi } from "@duckdb/node-api";
 import type { QueryableStore } from "../staging/types.js";
 import type { ChangeEvent } from "../connector/types.js";
@@ -7,6 +8,7 @@ import { typedValueReplacer, typedValueReviver } from "./types.js";
 import type { Logger } from "../log.js";
 import { parallel } from "../parallel.js";
 import { GraphApiError } from "./client.js";
+import { HASH_VERSION, readMeta, writeMeta } from "./state-meta.js";
 
 export { parallel };
 
@@ -342,6 +344,111 @@ async function commitLinkState(db: QueryableStore, connectorId: string, pendingT
   }
 }
 
+/**
+ * md5 over a struct of the given columns. Struct-to-VARCHAR rendering is injective
+ * (NULL vs 'NULL' distinguished, delimiters quoted), unlike CONCAT_WS which drops
+ * NULLs positionally. VARCHAR columns mirror trimmed(): TRIM + blank-to-NULL.
+ */
+export function structHashExpr(cols: readonly string[], columnTypes: Map<string, string>, onMissing?: (col: string) => void): string {
+  if (cols.length === 0) return `md5('')`;
+  const fields = cols.map((col, i) => {
+    if (!columnTypes.has(col)) {
+      onMissing?.(col);
+      return `p${i} := NULL`;
+    }
+    const expr = columnTypes.get(col) === "VARCHAR" ? `NULLIF(TRIM(${qi(col)}), '')` : qi(col);
+    return `p${i} := ${expr}`;
+  });
+  return `md5(struct_pack(${fields.join(", ")})::VARCHAR)`;
+}
+
+/**
+ * Content-hash expression over exactly the columns the sink maps into the emitted op:
+ * sorted-by-URL property columns plus provenanceFields columns. The entityId column is
+ * the diff join key and stays out. Returns null when any accessor is a function; the
+ * caller falls back to the whole-row hash (conservative: output changes imply some
+ * input column changed).
+ */
+export function canonicalHashExpr(config: GraphSinkConfig, columnTypes: Map<string, string>, log?: Logger): string | null {
+  const accessors = [
+    ...Object.entries(config.properties)
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([, accessor]) => accessor),
+    config.provenanceFields?.authors,
+    config.provenanceFields?.firstPublished,
+    config.provenanceFields?.lastUpdated,
+  ].filter((a): a is Accessor => a != null);
+  if (accessors.some((a) => typeof a !== "string")) return null;
+  return structHashExpr(accessors as string[], columnTypes, (col) =>
+    log?.warn(`content hash: column "${col}" not in pipeline output; hashed as NULL (property will be null)`));
+}
+
+function accessorRepr(a: Accessor | undefined): string | null {
+  if (a == null) return null;
+  return typeof a === "string" ? a : `fn:${a.toString()}`;
+}
+
+/** Hash of the config surface that shapes emitted ops; a change forces one re-upsert pass. */
+export function sinkConfigHash(config: GraphSinkConfig, connectorId: string): string {
+  const payload = {
+    entityType: config.entityType,
+    entityId: accessorRepr(config.entityId),
+    namespace: config.idNamespace ?? connectorId,
+    properties: Object.entries(config.properties)
+      .map(([url, a]) => [url, accessorRepr(a)] as const)
+      .sort(([a], [b]) => (a < b ? -1 : 1)),
+    propertyFields: Object.entries(config.propertyFields ?? {}).sort(([a], [b]) => (a < b ? -1 : 1)),
+    provenanceFields: {
+      authors: accessorRepr(config.provenanceFields?.authors),
+      firstPublished: accessorRepr(config.provenanceFields?.firstPublished),
+      lastUpdated: accessorRepr(config.provenanceFields?.lastUpdated),
+    },
+    provenance: config.provenance ?? null,
+  };
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+}
+
+export async function columnTypesOf(db: QueryableStore, table: string): Promise<Map<string, string>> {
+  const { rows } = await db.query(`DESCRIBE ${qi(table)}`);
+  return new Map(rows.map((r) => [String(r.column_name), String(r.column_type)]));
+}
+
+/**
+ * Per mapped property, the share of rows with a value. An always-empty source
+ * column silently yields an entity property that never populates; surface it.
+ */
+async function reportPropertyCoverage(
+  db: QueryableStore,
+  inputTable: string,
+  config: GraphSinkConfig,
+  columnTypes: Map<string, string>,
+  sinkId: string,
+  log?: Logger,
+): Promise<void> {
+  if (!log) return;
+  const mapped = Object.entries(config.properties)
+    .filter((e): e is [string, string] => typeof e[1] === "string")
+    .filter(([, col]) => columnTypes.has(col));
+  if (mapped.length === 0) return;
+
+  const cols = [...new Set(mapped.map(([, col]) => col))];
+  const aggs = cols.map((col, i) => `COUNT(NULLIF(TRIM(${qi(col)}::VARCHAR), '')) AS ${qi(`c${i}`)}`);
+  const { rows } = await db.query(`SELECT COUNT(*)::BIGINT AS _total, ${aggs.join(", ")} FROM ${qi(inputTable)}`);
+  const total = Number(rows[0]?._total ?? 0);
+  if (total === 0) return;
+
+  const empty: string[] = [];
+  const parts = cols.map((col, i) => {
+    const pct = (100 * Number(rows[0][`c${i}`])) / total;
+    if (pct === 0) empty.push(col);
+    return `${col} ${pct < 10 ? pct.toFixed(1) : Math.round(pct)}%`;
+  });
+  log.debug(`coverage ${typeSlug(config.entityType)}: ${parts.join(", ")}`);
+  if (empty.length > 0) {
+    log.warn(`sink "${sinkId}": mapped column(s) with NO values in ${total} rows: ${empty.join(", ")} (property will never populate)`);
+  }
+}
+
 export async function diffAndSync(
   sinkId: string,
   config: GraphSinkConfig,
@@ -360,10 +467,22 @@ export async function diffAndSync(
 
   if (!entityIdCol) throw new Error("diffAndSync requires a string entityId accessor");
 
+  let canonical = false;
   if (inputTable) {
-    await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
-      SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, md5(data::VARCHAR) AS _content_hash
-      FROM (SELECT * EXCLUDE (${qi("_op")}, ${qi("_key")}, ${qi("_before")}) FROM ${qi(inputTable)}) data`);
+    const columnTypes = await columnTypesOf(db, inputTable);
+    await reportPropertyCoverage(db, inputTable, config, columnTypes, sinkId, log);
+    const hashExpr = canonicalHashExpr(config, columnTypes, log);
+    canonical = hashExpr != null;
+    if (hashExpr) {
+      await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
+        SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, ${hashExpr} AS _content_hash
+        FROM ${qi(inputTable)}`);
+    } else {
+      // Function accessors: hash every non-envelope column (conservative superset).
+      await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
+        SELECT ${qi(entityIdCol)}::VARCHAR AS _entity_id, md5(data::VARCHAR) AS _content_hash
+        FROM (SELECT * EXCLUDE (${qi("_op")}, ${qi("_key")}, ${qi("_before")}) FROM ${qi(inputTable)}) data`);
+    }
     await assertUniqueEntityIds(db, currentTable, sinkId, entityIdCol);
   } else {
     await db.exec(`CREATE OR REPLACE TABLE ${currentTable} (_entity_id VARCHAR, _content_hash VARCHAR)`);
@@ -374,6 +493,27 @@ export async function diffAndSync(
     await db.schemaOf(`_state/sync/${connectorId}/${sinkId}`);
     hasPrevious = true;
   } catch {}
+
+  // Hash-algorithm or sink-config changes must not mis-diff. State rows carrying
+  // old-style hashes simply classify as updates once (upserts are PATCH-idempotent)
+  // and converge; deletes stay id-based throughout. Version the newly written hashes.
+  if (inputTable) {
+    const scope = { scope: "entity" as const, connectorId, sinkId };
+    const hashVersion = canonical ? HASH_VERSION : 1;
+    const configHash = sinkConfigHash(config, connectorId);
+    const meta = await readMeta(db, scope);
+    if (meta?.hashVersion !== hashVersion || meta?.configHash !== configHash) {
+      if (hasPrevious) {
+        log?.info(`sink "${sinkId}": content-hash algorithm or config changed (v${meta?.hashVersion ?? "?"} -> v${hashVersion}); rows with old-style hashes re-upsert once`);
+      }
+      await writeMeta(db, scope, {
+        hashVersion, configHash,
+        graphIdentity: meta?.graphIdentity ?? null,
+        webId: meta?.webId ?? null,
+        namespace: meta?.namespace ?? null,
+      });
+    }
+  }
 
   if (partial && hasPrevious) {
     await db.exec(`INSERT INTO ${currentTable}
@@ -408,6 +548,18 @@ export async function diffAndSync(
       case "delete":    deletes = n; break;
       case "unchanged": unchanged = n; break;
     }
+  }
+
+  // A truncated or wrong source file shows up as a mass delete; no fingerprint can
+  // catch it because the target graph is unchanged. Refuse before any write.
+  const stateRows = updates + deletes + unchanged;
+  if (deletes > Math.max(1000, stateRows * 0.5) && process.env.HASH_ALLOW_MASS_ARCHIVE !== "1") {
+    await db.exec(`DROP TABLE IF EXISTS ${currentTable}`);
+    await db.exec(`DROP TABLE IF EXISTS ${diffTable}`);
+    throw new Error(
+      `sink "${sinkId}": refusing to archive ${deletes} of ${stateRows} previously synced rows ` +
+      `(truncated source file?). Set HASH_ALLOW_MASS_ARCHIVE=1 if this mass archive is intended.`,
+    );
   }
 
   const namespace = config.idNamespace ?? connectorId;

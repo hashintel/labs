@@ -21,6 +21,7 @@ async function withRetry<T>(fn: () => Promise<T>, retry: RetryPolicy): Promise<T
       return await fn();
     } catch (err) {
       lastErr = err;
+      if ((err as { nonRetryable?: boolean } | null)?.nonRetryable) break;
       if (attempt < retry.maxAttempts) {
         const delay = retry.intervalSeconds * Math.pow(retry.backoffRate, attempt - 1) * 1000;
         await new Promise((r) => setTimeout(r, delay));

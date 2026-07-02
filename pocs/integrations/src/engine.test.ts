@@ -8,6 +8,7 @@ import type { Connector, BatchConnector } from "./connector/types.js";
 import type { ConnectorDef } from "./connector/create.js";
 import type { GraphClient, GraphLinkOp, GraphOp } from "./graph/types.js";
 import type { QueryableStore } from "./staging/types.js";
+import { writeMeta } from "./graph/state-meta.js";
 
 const trivialPipeline = (source: string): TablePipeline => ({
   source,
@@ -39,15 +40,21 @@ function recordingGraphClient(): GraphClient & { ops: RecordedOp[] } {
       return { ok: okIds, failed: [], batches: 1, fellBackBatches: 0, durationMs: 0 };
     },
     async archiveEntity(op) { ops.push(op); },
+    identity: () => "mock:graph",
+    async hasEntity() { return true; },
   };
 }
 
-async function seedState(db: QueryableStore, connectorId: string, sinkId: string, ids: string[]): Promise<void> {
+async function seedState(db: QueryableStore, connectorId: string, sinkId: string, ids: string[], webId = "w"): Promise<void> {
   const table = `_state/sync/${connectorId}/${sinkId}`;
   await db.exec(`CREATE OR REPLACE TABLE "${table}" (_entity_id VARCHAR, _content_hash VARCHAR)`);
   for (const id of ids) {
     await db.exec(`INSERT INTO "${table}" VALUES ($1, $2)`, [id, "hash-" + id]);
   }
+  await writeMeta(db, { scope: "entity", connectorId, sinkId }, {
+    hashVersion: null, configHash: null,
+    graphIdentity: "mock:graph", webId, namespace: connectorId,
+  });
 }
 
 describe("integrate(): runtime validation", () => {

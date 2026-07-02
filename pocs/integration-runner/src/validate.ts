@@ -1,4 +1,4 @@
-import type { IntegrationYaml, StepYaml, GraphSinkYaml, LinkPipelineYaml, AccessorYaml } from "./schema.js";
+import type { IntegrationYaml, StepYaml, GraphSinkYaml, LinkPipelineYaml, AccessorYaml, SourceAssertsYaml } from "./schema.js";
 import { registry as coercionRegistry } from "./coerce.js";
 
 const COERCION_NAMES = new Set(Object.keys(coercionRegistry));
@@ -22,6 +22,7 @@ export function validateYaml(yaml: IntegrationYaml): ValidationError[] {
       if (src.kind === "sql" && !src.primaryKey) errors.push({ path: `sources.${name}.primaryKey`, message: "required" });
       if (src.kind === "checkpoint" && !src.name) errors.push({ path: `sources.${name}.name`, message: "required" });
       if (src.kind === "external" && !src.key) errors.push({ path: `sources.${name}.key`, message: "required" });
+      if (src.asserts) validateAsserts(src.asserts, `sources.${name}.asserts`, errors);
     }
   } else if (conn.mode === "rest-api") {
     if (!conn.endpoints || Object.keys(conn.endpoints).length === 0) {
@@ -44,6 +45,7 @@ export function validateYaml(yaml: IntegrationYaml): ValidationError[] {
 
   const allStepIds = new Set<string>();
   const checkpointNames = new Set<string>();
+  const checkpointProducers = new Map<string, number>();
 
   for (let pi = 0; pi < (pipelines?.entities ?? []).length; pi++) {
     const p = pipelines.entities[pi];
@@ -64,7 +66,11 @@ export function validateYaml(yaml: IntegrationYaml): ValidationError[] {
       errors.push({ path: `${prefix}.steps`, message: "at least one step required" });
     }
 
-    validateSteps(p.steps ?? [], prefix, errors, allStepIds, checkpointNames);
+    validateSteps(p.steps ?? [], prefix, errors, allStepIds, checkpointNames, checkpointProducers, pi);
+  }
+
+  for (let pi = 0; pi < (pipelines?.entities ?? []).length; pi++) {
+    validateEntityInputs(pipelines!.entities[pi].inputs, `pipelines.entities[${pi}].inputs`, errors, checkpointProducers, pi);
   }
 
   const linkIds = new Set<string>();
@@ -75,12 +81,38 @@ export function validateYaml(yaml: IntegrationYaml): ValidationError[] {
   return errors;
 }
 
+function validateAsserts(asserts: SourceAssertsYaml, prefix: string, errors: ValidationError[]) {
+  const known = new Set(["rowCount", "notNull", "unique"]);
+  for (const key of Object.keys(asserts)) {
+    if (!known.has(key)) errors.push({ path: `${prefix}.${key}`, message: `unknown assert (expected rowCount, notNull, unique)` });
+  }
+  const { rowCount, notNull, unique } = asserts;
+  if (rowCount != null) {
+    if (typeof rowCount !== "object") errors.push({ path: `${prefix}.rowCount`, message: "expected { min?, max? }" });
+    else {
+      if (rowCount.min != null && typeof rowCount.min !== "number") errors.push({ path: `${prefix}.rowCount.min`, message: "expected number" });
+      if (rowCount.max != null && typeof rowCount.max !== "number") errors.push({ path: `${prefix}.rowCount.max`, message: "expected number" });
+    }
+  }
+  if (notNull != null && (!Array.isArray(notNull) || notNull.some((c) => typeof c !== "string"))) {
+    errors.push({ path: `${prefix}.notNull`, message: "expected array of column names" });
+  }
+  if (unique != null) {
+    const validKey = (k: unknown) => typeof k === "string" || (Array.isArray(k) && k.length > 0 && k.every((c) => typeof c === "string"));
+    if (!Array.isArray(unique) || unique.some((k) => !validKey(k))) {
+      errors.push({ path: `${prefix}.unique`, message: "expected array of column names or column-name arrays" });
+    }
+  }
+}
+
 function validateSteps(
   steps: StepYaml[],
   prefix: string,
   errors: ValidationError[],
   allStepIds: Set<string>,
   checkpointNames: Set<string>,
+  checkpointProducers: Map<string, number>,
+  pipelineIdx: number,
 ) {
   for (let si = 0; si < steps.length; si++) {
     const s = steps[si];
@@ -103,18 +135,44 @@ function validateSteps(
       case "checkpoint":
         if (!s.name) errors.push({ path: `${sp}.name`, message: "required" });
         else if (checkpointNames.has(s.name)) errors.push({ path: `${sp}.name`, message: `duplicate checkpoint name "${s.name}"` });
-        else checkpointNames.add(s.name);
+        else {
+          checkpointNames.add(s.name);
+          checkpointProducers.set(s.name, pipelineIdx);
+        }
         break;
       case "branch":
         if (!s.branches || s.branches.length === 0) {
           errors.push({ path: `${sp}.branches`, message: "at least one branch required" });
         }
         for (let bi = 0; bi < (s.branches ?? []).length; bi++) {
-          validateSteps(s.branches[bi], `${sp}.branches[${bi}]`, errors, allStepIds, checkpointNames);
+          validateSteps(s.branches[bi], `${sp}.branches[${bi}]`, errors, allStepIds, checkpointNames, checkpointProducers, pipelineIdx);
         }
         break;
       default:
         errors.push({ path: sp, message: `unknown step kind "${(s as { kind: string }).kind}"` });
+    }
+  }
+}
+
+function validateEntityInputs(
+  inputs: Record<string, string> | undefined,
+  prefix: string,
+  errors: ValidationError[],
+  checkpointProducers: Map<string, number>,
+  pipelineIdx: number,
+) {
+  for (const [alias, checkpointName] of Object.entries(inputs ?? {})) {
+    if (!alias) errors.push({ path: prefix, message: "input alias cannot be empty" });
+    else if (alias === "input") errors.push({ path: `${prefix}.input`, message: "input alias \"input\" is reserved for the rolling step input" });
+    if (!checkpointName) {
+      errors.push({ path: `${prefix}.${alias}`, message: "required" });
+      continue;
+    }
+    const producer = checkpointProducers.get(checkpointName);
+    if (producer === undefined) {
+      errors.push({ path: `${prefix}.${alias}`, message: `checkpoint "${checkpointName}" is not produced by an entity pipeline` });
+    } else if (producer === pipelineIdx) {
+      errors.push({ path: `${prefix}.${alias}`, message: `checkpoint "${checkpointName}" is produced by the same entity pipeline` });
     }
   }
 }

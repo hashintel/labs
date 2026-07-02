@@ -37,6 +37,10 @@ export function createStubGraphClient(): GraphClient {
     async archiveEntity(op) {
       console.log(`[graph] ARCHIVE ${short(op.entityType)} id=${op.entityId}`);
     },
+    identity: () => "stub:local",
+    async hasEntity() {
+      return true;
+    },
   };
 }
 

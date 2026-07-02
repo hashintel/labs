@@ -490,6 +490,38 @@ describe("branch step", () => {
     assert.equal(rows[0].phase2, "after");
     assert.ok(rows[0].email);
   });
+
+  it("branch SQL can read named checkpoint inputs", async () => {
+    db = await createDuckDbQueryStore();
+    await seedUsers(db);
+    await db.materialize("test", "orgs", [
+      { table: "orgs", op: "insert" as const, key: { id: 1 }, row: { id: "1", org_name: "Acme" } },
+    ]);
+
+    let joinedOrg: unknown;
+    const handler: SideEffectHandler = async (step, table) => {
+      if (step.kind !== "graph-sink") return;
+      const { rows } = await db.query(`SELECT org_name FROM "${table}"`);
+      joinedOrg = rows[0]?.org_name;
+    };
+    const namedInputs = [{ alias: "orgs", table: "test/orgs" }];
+    const p = pipe("test/users",
+      branch("join-orgs",
+        [
+          sqlStep({
+            id: "branch-join-orgs",
+            query: `SELECT input._op, input._key, input._before, input.id, orgs.org_name FROM input JOIN orgs ON input.id = orgs.id`,
+          }),
+          graphSinkStep({ id: "sink-joined-orgs", entityType: T.entity("joined/v/1"), entityId: "id", webId: "w", properties: {} }),
+        ],
+      ),
+    );
+
+    await validatePipeline(p, db, { namedInputs });
+    await runPipeline(p, db, undefined, handler, namedInputs);
+
+    assert.equal(joinedOrg, "Acme");
+  });
 });
 
 // Compile-time refinement tests. If the refinement regresses, the

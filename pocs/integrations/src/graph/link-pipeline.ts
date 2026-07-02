@@ -5,11 +5,28 @@ import type { GraphLinkOp, GraphOp, SourceProvenance, PropertyProvenance } from 
 import type { Storage } from "../storage/types.js";
 import type { Logger } from "../log.js";
 import { checkpointKey } from "../transform/checkpoint.js";
-import { stageGraphLinks, escLiteral, syncWindow, trimmed, resolve, type SyncResult } from "./sink.js";
+import { stageGraphLinks, escLiteral, syncWindow, trimmed, resolve, structHashExpr, columnTypesOf, type SyncResult } from "./sink.js";
 import { executeSqlStep } from "../transform/run.js";
+import { createHash } from "node:crypto";
+import { HASH_VERSION, readMeta, writeMeta } from "./state-meta.js";
 
 function linkOpId(namespace: string, webId: string, linkType: string, sourceId: string, targetId: string): string {
   return ["upsert", namespace, webId, linkType, sourceId, targetId].join("::");
+}
+
+/** Hash of the link-pipeline surface that shapes emitted ops; a change forces one re-upsert pass. */
+function linkConfigHash(entry: LinkPipeline, namespace: string): string {
+  const payload = {
+    linkType: entry.linkType,
+    namespace,
+    from: { entityType: entry.from.entityType, column: entry.from.column },
+    to: { entityType: entry.to.entityType, column: entry.to.column },
+    properties: Object.entries(entry.properties ?? {})
+      .map(([url, a]) => [url, typeof a === "string" ? a : `fn:${a.toString()}`] as const)
+      .sort(([a], [b]) => (a < b ? -1 : 1)),
+    propertyColumns: [...(entry.propertyColumns ?? [])].sort(),
+  };
+  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
 function linkInputs(entry: LinkPipeline): Record<string, string> {
@@ -63,14 +80,18 @@ export async function processLinkPipeline(
   if (!dataTable) throw new Error(`link pipeline "${entry.id}" did not produce an output table`);
 
   // Current = ids + content hash + the property columns the ops will need, so
-  // upserts never re-scan the data table.
-  const propColumns = entry.propertyColumns ?? [];
-  const propSelect = [...new Set(propColumns)]
-    .map((col) => `, ${qi(col)}`)
-    .join("");
-  const hashExpr = propColumns.length > 0
-    ? `md5(CONCAT_WS('::', _source_id, _target_id, md5(CONCAT_WS('::', ${propColumns.map(qi).join(", ")}))))`
-    : `md5(CONCAT_WS('::', _source_id, _target_id))`;
+  // upserts never re-scan the data table. The ids are the diff join key and stay
+  // out of the hash; property columns are sorted so declaration order is irrelevant.
+  const propColumns = [...new Set(
+    entry.propertyColumns
+      ?? Object.values(entry.properties ?? {}).filter((accessor): accessor is string => typeof accessor === "string"),
+  )];
+  const propSelect = propColumns.map((col) => `, ${qi(col)}`).join("");
+  const hashExpr = structHashExpr(
+    [...propColumns].sort(),
+    await columnTypesOf(db, dataTable),
+    (col) => log?.warn(`link pipeline "${entry.id}": property column "${col}" not in output; hashed as NULL`),
+  );
 
   await db.exec(`CREATE OR REPLACE TABLE ${currentTable} AS
     SELECT *, ${hashExpr} AS _content_hash FROM (
@@ -93,10 +114,29 @@ export async function processLinkPipeline(
     throw new Error(`link pipeline "${entry.id}" produced duplicate source-target pairs: ${bad}`);
   }
 
+  let hasPrevious = true;
   try {
     await db.schemaOf(`_state/links/${connectorId}/${entry.id}`);
   } catch {
+    hasPrevious = false;
     await db.exec(`CREATE TABLE ${stateTable} (_source_id VARCHAR, _target_id VARCHAR, _content_hash VARCHAR)`);
+  }
+
+  {
+    const scope = { scope: "link" as const, connectorId, sinkId: entry.id };
+    const configHash = linkConfigHash(entry, namespace);
+    const meta = await readMeta(db, scope);
+    if (meta?.hashVersion !== HASH_VERSION || meta?.configHash !== configHash) {
+      if (hasPrevious) {
+        log?.info(`link pipeline "${entry.id}": content-hash algorithm or config changed; pairs with old-style hashes re-upsert once`);
+      }
+      await writeMeta(db, scope, {
+        hashVersion: HASH_VERSION, configHash,
+        graphIdentity: meta?.graphIdentity ?? null,
+        webId: meta?.webId ?? null,
+        namespace: meta?.namespace ?? null,
+      });
+    }
   }
 
   await db.exec(`CREATE OR REPLACE TABLE ${diffTable} AS
@@ -196,7 +236,8 @@ export async function processLinkPipeline(
   // so a failed flush never records phantom links as synced.
   const idPrefix = `${escLiteral(namespace)}, ${escLiteral(entry.webId)}, ${escLiteral(entry.linkType)}`;
   const upsertOpId = (src: string, tgt: string) => `CONCAT_WS('::', 'upsert', ${idPrefix}, ${src}, ${tgt})`;
-  const archiveOpId = (src: string, tgt: string) => `CONCAT_WS('::', 'archive', ${idPrefix}, CONCAT_WS('::', ${src}, ${tgt}))`;
+  const archiveOpId = (src: string, tgt: string) =>
+    `CONCAT_WS('::', 'archive', ${idPrefix}, ${escLiteral(entry.from.entityType)}, ${src}, ${escLiteral(entry.to.entityType)}, ${tgt})`;
   await db.exec(`CREATE OR REPLACE TABLE ${nextStateTable} AS
     SELECT _source_id, _target_id, _content_hash, 'upsert' AS _op_kind, ${upsertOpId("_source_id", "_target_id")} AS _op_id
     FROM ${currentTable}
