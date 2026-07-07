@@ -177,3 +177,77 @@ describe("rest-api connector", () => {
     assert.equal(srv.calls.length, 1);
   });
 });
+
+describe("fetch throttling", () => {
+  let servers: { close(): Promise<void> }[] = [];
+  afterEach(async () => {
+    for (const s of servers) await s.close();
+    servers = [];
+  });
+
+  async function throttleServer(handler: (url: URL, hits: number) => { status: number; body: unknown; headers?: Record<string, string> }) {
+    const calls: URL[] = [];
+    const server = createServer((req, res) => {
+      const url = new URL(req.url!, `http://localhost`);
+      calls.push(url);
+      const { status, body, headers } = handler(url, calls.length);
+      res.writeHead(status, { "content-type": "application/json", ...(headers ?? {}) });
+      res.end(JSON.stringify(body));
+    });
+    const port = await new Promise<number>((resolve) => {
+      server.listen(0, () => resolve((server.address() as { port: number }).port));
+    });
+    const handle = { port, calls, close: () => new Promise<void>((r) => server.close(() => r())) };
+    servers.push(handle);
+    return handle;
+  }
+
+  it("a 429 mid-pagination retries honoring Retry-After and completes the pull", async () => {
+    const srv = await throttleServer((url, hits) => {
+      const offset = Number(url.searchParams.get("offset") ?? "0");
+      if (offset === 2 && hits === 2) {
+        return { status: 429, body: {}, headers: { "Retry-After": "0" } };
+      }
+      return { status: 200, body: offset === 0 ? [{ id: 1 }, { id: 2 }] : [{ id: 3 }] };
+    });
+
+    const connector = createRestApiBatchConnector({
+      id: "throttle-test",
+      endpoints: {
+        things: {
+          url: `http://localhost:${srv.port}/things`,
+          primaryKey: "id",
+          pagination: { type: "offset" },
+        },
+      },
+      pageSize: 2,
+    });
+
+    const rows = await collect(connector as unknown as WithPullPages, "things");
+    assert.equal(rows.length, 3);
+    assert.equal(srv.calls.length, 3); // page1, 429'd page2, retried page2
+  });
+
+  it("rateLimitMs paces through a shared per-host schedule across endpoints", async () => {
+    const srv = await throttleServer(() => ({ status: 200, body: [{ id: 1 }] }));
+
+    const connector = createRestApiBatchConnector({
+      id: "pace-test",
+      rateLimitMs: 150,
+      endpoints: {
+        a: { url: `http://localhost:${srv.port}/a`, primaryKey: "id" },
+        b: { url: `http://localhost:${srv.port}/b`, primaryKey: "id" },
+      },
+    });
+
+    const started = Date.now();
+    await collect(connector as unknown as WithPullPages, "a");
+    await collect(connector as unknown as WithPullPages, "b");
+    const elapsed = Date.now() - started;
+
+    // endpoint a's single page is immediate (idle host); endpoint b shares the
+    // host schedule, so its request waits out the interval
+    assert.ok(elapsed >= 140, `expected shared-host pacing >= ~150ms, got ${elapsed}ms`);
+    assert.equal(srv.calls.length, 2);
+  });
+});

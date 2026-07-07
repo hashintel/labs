@@ -1,8 +1,13 @@
 import type { BatchConnector, ChangeEvent } from "./types.js";
 import { compileKeyExtractor, type KeyExtractor } from "./types.js";
 import { hydrateFromEvents } from "./hydrate.js";
+import { paceHost } from "./fetch-pacer.js";
+import { with429Retry } from "../http-retry.js";
 import type { Logger } from "../log.js";
 import type { ProvenanceConfig } from "../transform/pipeline.js";
+
+// A hung source must not hang the run; matches the graph client's default ceiling.
+const FETCH_TIMEOUT_MS = 120_000;
 
 export type RestApiEndpoint = {
   url: string;
@@ -122,7 +127,11 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Lo
 
   async function fetchPage(url: string): Promise<unknown> {
     log?.debug(`GET ${url}`);
-    const res = await fetch(url, { headers });
+    // 429s retry honoring Retry-After (same semantics as the graph client); a
+    // hung source times out instead of hanging the run.
+    const res = await with429Retry(() =>
+      fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) }),
+    );
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       throw new Error(`REST API ${res.status}: ${url} -- ${body.slice(0, 200)}`);
@@ -138,9 +147,10 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Lo
     let pagesSeen = 0;
 
     while (url) {
-      if (pagesSeen > 0 && rateLimitMs > 0) {
-        await new Promise((r) => setTimeout(r, rateLimitMs));
-      }
+      // rateLimitMs paces through the process-wide per-host schedule: the first
+      // request on an idle host is immediate (historical behavior), and
+      // concurrent endpoints against the same API share one schedule.
+      await paceHost(new URL(url).host, rateLimitMs);
 
       const body = await fetchPage(url);
       const results = ep.getResults(body);

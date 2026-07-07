@@ -3,6 +3,7 @@ import type { BulkLinkFailure, BulkLinkOptions, BulkLinkResult, BulkUpsertFailur
 import { isTypedValue } from "./types.js";
 import type { VersionedUrl } from "../transform/pipeline.js";
 import { parallel } from "../parallel.js";
+import { with429Retry } from "../http-retry.js";
 
 const BULK_SIZE = Math.max(1, Number(process.env.HASH_GRAPH_BULK_SIZE ?? 128));
 const BULK_CONCURRENCY = Math.max(1, Number(process.env.HASH_GRAPH_CONCURRENCY ?? 16));
@@ -11,9 +12,19 @@ function maxFailedBatchStreak(): number {
   return Math.max(1, Number(process.env.HASH_GRAPH_MAX_FAILED_BATCHES ?? 5));
 }
 
+/**
+ * Op-weighted write budget. `acquire` is awaited before each write request with
+ * the number of graph ops it carries (bulk chunk = chunk length, single op = 1);
+ * a slow acquire back-pressures the windowed sink loops upstream. What backs it
+ * (local window, orchestrator-coordinated budget) is the runner's concern; the
+ * engine only awaits.
+ */
+export type GraphLimiter = { acquire(ops: number): Promise<void> };
+
 export type GraphClientConfig = {
   baseUrl: string;
   actorId: string;
+  limiter?: GraphLimiter;
 };
 
 type ValueMetadata = { dataTypeId: VersionedUrl | null; provenance?: PropertyProvenance };
@@ -156,19 +167,24 @@ function requestTimeoutMs(): number {
   return Math.max(1000, Number(process.env.HASH_GRAPH_TIMEOUT_MS ?? 120_000));
 }
 
-async function request<T>(method: string, config: GraphClientConfig, path: string, body: unknown): Promise<T> {
+async function request<T>(method: string, config: GraphClientConfig, path: string, body: unknown, opWeight = 1): Promise<T> {
   const timeoutMs = requestTimeoutMs();
+  if (opWeight > 0) await config.limiter?.acquire(opWeight);
+
   let res: Response;
   try {
-    res = await fetch(`${config.baseUrl}${path}`, {
-      method,
-      headers: {
-        "Content-Type": "application/json",
-        "X-Authenticated-User-Actor-Id": config.actorId,
-      },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
-    });
+    // Budget acquired once per intent; 429 retries are server pushback, not new spend.
+    res = await with429Retry(() =>
+      fetch(`${config.baseUrl}${path}`, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "X-Authenticated-User-Actor-Id": config.actorId,
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(timeoutMs),
+      }),
+    );
   } catch (e) {
     if (e instanceof DOMException && e.name === "TimeoutError") {
       throw new GraphApiError(0, `${method} ${path}`, `request timed out after ${timeoutMs}ms (graph overloaded or unreachable)`);
@@ -205,7 +221,7 @@ export async function queryEntities(config: GraphClientConfig): Promise<GraphEnt
     includePermissions: false,
     limit: 100,
   };
-  const { entities } = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body);
+  const { entities } = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body, 0);
   return entities;
 }
 
@@ -333,7 +349,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       };
 
       try {
-        await request("POST", config, "/entities/bulk", payload);
+        await request("POST", config, "/entities/bulk", payload, chunk.length);
         for (const op of chunk) chunkOk.push(String(op.entityId));
       } catch (batchErr) {
         // Fall back to per-op; if the first already existed, the rest go PATCH-first.
@@ -440,7 +456,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       };
 
       try {
-        await request("POST", config, "/entities/bulk", payload);
+        await request("POST", config, "/entities/bulk", payload, chunk.length);
         for (const op of chunk) chunkOk.push(op.opId);
       } catch (batchErr) {
         // Sampled PATCH-first, as in bulkUpsertEntities.
@@ -508,7 +524,7 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       includePermissions: false,
       limit: 1,
     };
-    const { entities } = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body);
+    const { entities } = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body, 0);
     // Deterministic UUIDs are web-independent; require the composite id to match so an
     // identical entity in another web does not satisfy the probe.
     return entities.some((e) => e.metadata.recordId.entityId === fullEntityId);

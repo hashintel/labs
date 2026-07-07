@@ -101,6 +101,13 @@ export type OrchestrationYaml = {
   maxRetries?: number;
   retryIntervalSeconds?: number;
   backoffRate?: number;
+  /**
+   * Write-budget override for this integration: a dedicated ops/sec lane
+   * (scope webId:connectorId) instead of the shared per-web pool
+   * (HASH_GRAPH_WEB_OPS_PER_SEC). For integrations important enough to be
+   * insulated from pool contention.
+   */
+  opsPerSec?: number;
 };
 
 export type RestEndpointYaml = {

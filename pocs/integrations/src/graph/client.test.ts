@@ -10,11 +10,12 @@ const T = namespace("https://hash.ai/@test/types");
 
 type RequestLog = { method: string; path: string; headers: Record<string, string>; body: unknown };
 
-function startMockServer(): Promise<{ port: number; requests: RequestLog[]; close(): Promise<void>; nextStatus: (s: number) => void; nextResponse: (s: number, body: unknown) => void; alwaysStatus: (s: number) => void; queueStatuses: (...s: number[]) => void }> {
+function startMockServer(): Promise<{ port: number; requests: RequestLog[]; close(): Promise<void>; nextStatus: (s: number) => void; nextResponse: (s: number, body: unknown) => void; alwaysStatus: (s: number) => void; queueStatuses: (...s: number[]) => void; setRetryAfter: (v: string | undefined) => void }> {
   const requests: RequestLog[] = [];
   let overrideStatus: number | undefined;
   let overrideBody: unknown | undefined;
   let always: number | undefined;
+  let retryAfterValue: string | undefined;
   const statusQueue: number[] = [];
 
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -29,7 +30,10 @@ function startMockServer(): Promise<{ port: number; requests: RequestLog[]; clos
     overrideStatus = undefined;
     const responseBody = overrideBody ?? { metadata: { recordId: { entityId: "test-id", editionId: "ed-1" } } };
     overrideBody = undefined;
-    res.writeHead(status, { "Content-Type": "application/json" });
+    res.writeHead(status, {
+      "Content-Type": "application/json",
+      ...(status === 429 && retryAfterValue !== undefined ? { "Retry-After": retryAfterValue } : {}),
+    });
     res.end(JSON.stringify(responseBody));
   });
 
@@ -44,6 +48,7 @@ function startMockServer(): Promise<{ port: number; requests: RequestLog[]; clos
         nextResponse: (s: number, body: unknown) => { overrideStatus = s; overrideBody = body; },
         alwaysStatus: (s: number) => { always = s; },
         queueStatuses: (...s: number[]) => { statusQueue.push(...s); },
+        setRetryAfter: (v: string | undefined) => { retryAfterValue = v; },
       });
     });
   });
@@ -425,5 +430,79 @@ describe("typed values (per-value dataTypeId)", () => {
     const body = mock.requests[0].body as Record<string, unknown>;
     const props = (body.properties as { value: Record<string, unknown> }).value;
     assert.equal(props[T.property("net-weight/")], undefined);
+  });
+});
+
+describe("write throttling", () => {
+  let mock: Awaited<ReturnType<typeof startMockServer>>;
+  let config: GraphClientConfig;
+  const prov: SourceProvenance = { type: "integration", loadedAt: "2026-01-01T00:00:00Z", location: { name: "test" } };
+
+  const upsertOp = (id: string) => ({
+    kind: "upsert" as const, namespace: "conn",
+    entityType: T.entity("user/v/1"), entityId: id, webId: "web-1",
+    properties: { [T.property("email/v/1")]: `${id}@example.com` }, provenance: prov,
+  });
+
+  beforeEach(async () => {
+    mock = await startMockServer();
+    config = { baseUrl: `http://localhost:${mock.port}`, actorId: "actor-uuid" };
+  });
+
+  it("429 with Retry-After retries and succeeds; the retry is not new budget", async () => {
+    const acquired: number[] = [];
+    config.limiter = { acquire: async (ops) => { acquired.push(ops); } };
+    mock.setRetryAfter("0");
+    mock.queueStatuses(429, 429);
+
+    const client = createGraphClient(config);
+    await client.upsertEntity(upsertOp("u-1"));
+    await mock.close();
+
+    assert.equal(mock.requests.length, 3);
+    assert.deepEqual(acquired, [1]);
+  });
+
+  it("429 exhaustion falls through to GraphApiError after 11 attempts", async () => {
+    mock.setRetryAfter("0");
+    mock.alwaysStatus(429);
+
+    const client = createGraphClient(config);
+    await assert.rejects(client.upsertEntity(upsertOp("u-1")), (e: GraphApiError) => e.status === 429);
+    await mock.close();
+    assert.equal(mock.requests.length, 11);
+  });
+
+  it("limiter acquires are op-weighted: bulk chunks by length, archives by 1, reads unmetered", async () => {
+    const acquired: number[] = [];
+    config.limiter = { acquire: async (ops) => { acquired.push(ops); } };
+    const client = createGraphClient(config);
+
+    const ops = Array.from({ length: 150 }, (_, i) => upsertOp(`u-${i}`));
+    await client.bulkUpsertEntities(ops);
+    await client.archiveEntity({ kind: "archive", namespace: "conn", entityType: T.entity("user/v/1"), entityId: "u-0", provenance: prov, webId: "web-1" });
+    await client.hasEntity("web-1~00000000-0000-5000-8000-000000000000");
+    await mock.close();
+
+    // default BULK_SIZE 128: chunks of 128 + 22, then the single archive; the read acquires nothing
+    assert.deepEqual([...acquired].sort((a, b) => b - a), [128, 22, 1]);
+  });
+
+  it("a slow limiter delays the request (back-pressure), it does not drop it", async () => {
+    let released = false;
+    config.limiter = {
+      acquire: async () => {
+        await new Promise((r) => setTimeout(r, 120));
+        released = true;
+      },
+    };
+    const client = createGraphClient(config);
+    const started = Date.now();
+    await client.upsertEntity(upsertOp("u-1"));
+    await mock.close();
+
+    assert.ok(released);
+    assert.ok(Date.now() - started >= 120);
+    assert.equal(mock.requests.length, 1);
   });
 });
