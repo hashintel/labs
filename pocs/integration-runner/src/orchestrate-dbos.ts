@@ -2,7 +2,7 @@ import { hostname } from "node:os";
 import { randomUUID } from "node:crypto";
 import { DBOS, Error as DBOSErrors } from "@dbos-inc/dbos-sdk";
 import pg from "pg";
-import { createWindowLimiter, RunAlreadyActiveError, type Backend, type CoordinationStore, type RetryPolicy, type StepContext } from "./orchestrator.js";
+import { createTokenLimiter, RunAlreadyActiveError, type Backend, type CoordinationStore, type RetryPolicy, type StepContext } from "./orchestrator.js";
 import { runSync, budgetScope, type SyncInput } from "./sync-workflow.js";
 import type { SourceResult } from "./result.js";
 
@@ -17,7 +17,7 @@ let sharedCoordination: CoordinationStore | undefined;
 async function integrationSync(input: SyncInput): Promise<SourceResult[]> {
   const scope = budgetScope(input);
   const limiter = scope && sharedCoordination
-    ? createWindowLimiter(sharedCoordination, scope.scope, scope.opsPerSec)
+    ? createTokenLimiter(sharedCoordination, scope.scope, scope.opsPerSec)
     : undefined;
   return runSync(input, dbosCtx(input.retry), { limiter });
 }
@@ -94,39 +94,44 @@ export async function createDbosBackend(databaseUrl: string, maxConcurrentRuns?:
 }
 
 /**
- * The DBOS backend's CoordinationStore: one row per scope in a namespaced table
- * in the DBOS system database, created idempotently at init (the same
- * ensure-on-boot pattern DBOS itself uses; no migration framework). The window
- * rolls and increments in ONE atomic UPDATE, so concurrent processes serialize
- * on the row lock. Exported for the cross-backend contract tests.
+ * The DBOS backend's CoordinationStore: one token-bucket row per scope in a
+ * namespaced table in the DBOS system database, created idempotently at init
+ * (the same ensure-on-boot pattern DBOS itself uses; no migration framework).
+ * Refill-to-now and deduct happen in ONE atomic UPDATE, so concurrent processes
+ * serialize on the row lock and the balance (possibly negative) is consistent.
+ * Exported for the cross-backend contract tests.
  */
 export async function createPgCoordination(databaseUrl: string): Promise<CoordinationStore & { close(): Promise<void> }> {
   const pool = new pg.Pool({ connectionString: databaseUrl, max: 2 });
 
   await pool.query(`CREATE SCHEMA IF NOT EXISTS integrations_coordination`);
-  await pool.query(`CREATE TABLE IF NOT EXISTS integrations_coordination.write_budget (
+  await pool.query(`CREATE TABLE IF NOT EXISTS integrations_coordination.token_bucket (
     scope text PRIMARY KEY,
-    window_start bigint NOT NULL,
-    used bigint NOT NULL
+    tokens double precision NOT NULL,
+    last_refill_ms bigint NOT NULL
   )`);
 
   return {
-    async addToWindow(scope, windowStartMs, ops) {
+    async consume(scope, ratePerSec, capacity, ops, nowMs) {
+      // Fresh bucket starts full (allows an initial burst up to capacity).
       await pool.query(
-        `INSERT INTO integrations_coordination.write_budget (scope, window_start, used)
-         VALUES ($1, $2, 0) ON CONFLICT (scope) DO NOTHING`,
-        [scope, windowStartMs],
+        `INSERT INTO integrations_coordination.token_bucket (scope, tokens, last_refill_ms)
+         VALUES ($1, $2, $3) ON CONFLICT (scope) DO NOTHING`,
+        [scope, capacity, nowMs],
       );
 
+      // refill to now (clamped to capacity), then deduct ops; balance may go negative.
       const { rows } = await pool.query(
-        `UPDATE integrations_coordination.write_budget
-         SET used = CASE WHEN window_start = $2 THEN used + $3 ELSE $3 END,
-             window_start = $2
+        `UPDATE integrations_coordination.token_bucket
+         SET tokens = LEAST($3::float8,
+                            tokens + GREATEST(0, $4::bigint - last_refill_ms)::float8 * $2::float8 / 1000.0)
+                      - $5::float8,
+             last_refill_ms = $4
          WHERE scope = $1
-         RETURNING used`,
-        [scope, windowStartMs, ops],
+         RETURNING tokens`,
+        [scope, ratePerSec, capacity, nowMs, ops],
       );
-      return Number(rows[0].used);
+      return Number(rows[0].tokens);
     },
 
     async close() {

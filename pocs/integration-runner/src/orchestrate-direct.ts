@@ -1,4 +1,4 @@
-import { createInProcessCoordination, createWindowLimiter, type Backend, type RetryPolicy, type StepContext } from "./orchestrator.js";
+import { createInProcessCoordination, createTokenLimiter, type Backend, type RetryPolicy, type StepContext } from "./orchestrator.js";
 import { runSync, budgetScope } from "./sync-workflow.js";
 
 export function createDirectBackend(): Backend {
@@ -18,7 +18,7 @@ export function createDirectBackend(): Backend {
       if (admission) active.add(admission.dedupKey);
 
       const scope = budgetScope(input);
-      const limiter = scope ? createWindowLimiter(coordination, scope.scope, scope.opsPerSec) : undefined;
+      const limiter = scope ? createTokenLimiter(coordination, scope.scope, scope.opsPerSec) : undefined;
 
       try {
         return await runSync(input, directCtx(input.retry), { limiter });

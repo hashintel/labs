@@ -16,15 +16,21 @@ export type RetryPolicy = {
 /**
  * THE COORDINATION CONTRACT: what any orchestrator runtime must provide so that
  * throttling metadata can be shared across every process using that runtime.
- * One primitive suffices: an atomic op-weighted fixed-window counter. The DBOS
- * backend stores it in the DBOS system database; the direct backend keeps it
+ * One primitive suffices: an atomic token-bucket consume. The DBOS backend
+ * stores the bucket in the DBOS system database; the direct backend keeps it
  * in-process (correct for its single-process scope); a future runtime
  * (Inngest/Restate) implements it with its own facilities. The engine never
  * sees this type -- it gets only a GraphLimiter built on top.
  */
 export type CoordinationStore = {
-  /** Add `ops` to the scope's window starting at `windowStartMs`; return usage after the add. */
-  addToWindow(scope: string, windowStartMs: number, ops: number): Promise<number>;
+  /**
+   * Refill the scope's bucket to `nowMs` at `ratePerSec` (clamped to `capacity`),
+   * then deduct `ops` and return the resulting token balance. The balance MAY go
+   * negative: the caller has reserved those ops and waits `-balance/rate` before
+   * proceeding, so concurrent callers self-pace at the rate without retrying. A
+   * fresh bucket starts full (`capacity` tokens), allowing an initial burst.
+   */
+  consume(scope: string, ratePerSec: number, capacity: number, ops: number, nowMs: number): Promise<number>;
 };
 
 /**
@@ -61,78 +67,87 @@ export class RunAlreadyActiveError extends Error {
   }
 }
 
-const WINDOW_MS = 1000;
+// Bucket capacity as a multiple of the rate: a fresh scope may burst up to this
+// many ops, then the refill paces it to the rate. 2x rate = up to a 2-second
+// burst, enough to absorb a wave of concurrent bulk chunks while still capping
+// the sustained rate. Not a knob (keeps the config surface to rate + override).
+const BURST_FACTOR = 2;
+
+export function capacityFor(ratePerSec: number): number {
+  return ratePerSec * BURST_FACTOR;
+}
 
 /**
- * Runtime-agnostic write limiter over the coordination contract. An op is
- * RELEASED only once it fits under the budget: charge it to the current window
- * and, if that pushes usage over the cap, wait out the window and retry in the
- * next one. Counting-then-releasing (an earlier design) let every in-flight
- * caller charge the same window and proceed, so N concurrent chunks of size C
- * sustained ~N*C ops/sec regardless of the cap; retrying-until-it-fits caps at
- * the budget instead (phantom charges in skipped windows reset each window and
- * only make it more conservative). Store failures fail OPEN to a local window
- * at the same rate: throttling is protective, not correctness, and a
- * coordination blip must not halt ingestion.
+ * Runtime-agnostic write limiter: a debt-based token bucket over the
+ * coordination contract. Each acquire consumes `ops` tokens; if that drives the
+ * balance negative the caller has RESERVED those ops and sleeps
+ * `-balance / rate` before proceeding, so concurrent callers self-pace to the
+ * rate with no retry loop and no thundering herd (each reservation is told a
+ * progressively longer wait). Bursts up to capacity are allowed; sustained rate
+ * is hard-capped. Store failures fail OPEN to a local bucket at the same params:
+ * throttling is protective, not correctness, and a coordination blip must not
+ * halt ingestion.
  */
-export function createWindowLimiter(store: CoordinationStore, scope: string, opsPerSec: number): GraphLimiter {
-  const local = createLocalWindow();
+export function createTokenLimiter(store: CoordinationStore, scope: string, ratePerSec: number): GraphLimiter {
+  const capacity = capacityFor(ratePerSec);
+  const local = createLocalBucket(ratePerSec, capacity);
   let failedOpen = false;
 
-  const charge = async (windowStart: number, ops: number): Promise<number> => {
+  const consume = async (ops: number, now: number): Promise<number> => {
     try {
-      const used = await store.addToWindow(scope, windowStart, ops);
+      const balance = await store.consume(scope, ratePerSec, capacity, ops, now);
       failedOpen = false;
-      return used;
+      return balance;
     } catch (err) {
       if (!failedOpen) {
         failedOpen = true;
-        console.warn(`[throttle] coordination store unreachable, failing open to a local window for "${scope}": ${err instanceof Error ? err.message : String(err)}`);
+        console.warn(`[throttle] coordination store unreachable, failing open to a local bucket for "${scope}": ${err instanceof Error ? err.message : String(err)}`);
       }
-      return local(windowStart, ops);
+      return local(ops, now);
     }
   };
 
   return {
     async acquire(ops: number): Promise<void> {
-      for (;;) {
-        const now = Date.now();
-        const windowStart = now - (now % WINDOW_MS);
-        const used = await charge(windowStart, ops);
-        // A single op larger than the whole budget can never "fit"; let it
-        // through once its window opens rather than spin forever.
-        if (used <= opsPerSec || ops >= opsPerSec) return;
-        await new Promise((r) => setTimeout(r, windowStart + WINDOW_MS - Date.now()));
+      const balance = await consume(ops, Date.now());
+      if (balance < 0) {
+        await new Promise((r) => setTimeout(r, Math.ceil((-balance / ratePerSec) * 1000)));
       }
     },
   };
 }
 
-function createLocalWindow(): (windowStartMs: number, ops: number) => number {
-  let windowStart = 0;
-  let used = 0;
-  return (win, ops) => {
-    if (win !== windowStart) {
-      windowStart = win;
-      used = 0;
-    }
-    used += ops;
-    return used;
-  };
+/** Pure token-bucket refill+deduct; shared by the in-process store and the fail-open path. */
+export function tokenConsume(
+  state: { tokens: number; lastMs: number },
+  ratePerSec: number,
+  capacity: number,
+  ops: number,
+  nowMs: number,
+): number {
+  const elapsed = Math.max(0, nowMs - state.lastMs);
+  const refilled = Math.min(capacity, state.tokens + (elapsed * ratePerSec) / 1000);
+  state.tokens = refilled - ops;
+  state.lastMs = nowMs;
+  return state.tokens;
+}
+
+function createLocalBucket(ratePerSec: number, capacity: number): (ops: number, nowMs: number) => number {
+  const state = { tokens: capacity, lastMs: Date.now() };
+  return (ops, nowMs) => tokenConsume(state, ratePerSec, capacity, ops, nowMs);
 }
 
 /** The direct backend's CoordinationStore: correct within its single process. */
 export function createInProcessCoordination(): CoordinationStore {
-  const windows = new Map<string, { windowStart: number; used: number }>();
+  const buckets = new Map<string, { tokens: number; lastMs: number }>();
   return {
-    async addToWindow(scope, windowStartMs, ops) {
-      const entry = windows.get(scope);
-      if (!entry || entry.windowStart !== windowStartMs) {
-        windows.set(scope, { windowStart: windowStartMs, used: ops });
-        return ops;
+    async consume(scope, ratePerSec, capacity, ops, nowMs) {
+      let state = buckets.get(scope);
+      if (!state) {
+        state = { tokens: capacity, lastMs: nowMs };
+        buckets.set(scope, state);
       }
-      entry.used += ops;
-      return entry.used;
+      return tokenConsume(state, ratePerSec, capacity, ops, nowMs);
     },
   };
 }

@@ -48,7 +48,7 @@ export function buildSyncInput(opts: RunOpts): SyncInput {
     },
     limits: {
       webOpsPerSec: config.webOpsPerSec,
-      opsPerSecOverride: yaml.orchestration?.opsPerSec,
+      opsPerSecOverride: config.opsPerSecOverride,
     },
   };
 }
