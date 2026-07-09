@@ -16,7 +16,7 @@ function maxFailedBatchStreak(): number {
  * Op-weighted write budget. `acquire` is awaited before each write request with
  * the number of graph ops it carries (bulk chunk = chunk length, single op = 1);
  * a slow acquire back-pressures the windowed sink loops upstream. What backs it
- * (local window, orchestrator-coordinated budget) is the runner's concern; the
+ * (a local or orchestrator-coordinated token bucket) is the runner's concern; the
  * engine only awaits.
  */
 export type GraphLimiter = { acquire(ops: number): Promise<void> };

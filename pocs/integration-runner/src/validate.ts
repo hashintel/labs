@@ -34,13 +34,6 @@ export function validateYaml(yaml: IntegrationYaml): ValidationError[] {
     }
   }
 
-  if (yaml.orchestration?.opsPerSec !== undefined) {
-    const v = yaml.orchestration.opsPerSec;
-    if (typeof v !== "number" || !Number.isFinite(v) || v < 1) {
-      errors.push({ path: "orchestration.opsPerSec", message: "expected a positive number (ops/sec)" });
-    }
-  }
-
   const pipelines = yaml.pipelines;
   if (!pipelines?.entities || pipelines.entities.length === 0) {
     errors.push({ path: "pipelines.entities", message: "at least one entity pipeline required" });

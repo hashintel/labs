@@ -144,19 +144,3 @@ describe("validateYaml source asserts", () => {
     assert.equal(errors[0].path, "sources.users.asserts.unique");
   });
 });
-
-describe("validateYaml orchestration.opsPerSec", () => {
-  it("accepts a positive rate and rejects non-numbers and zero", () => {
-    const good = base();
-    good.orchestration = { opsPerSec: 500 };
-    assert.deepEqual(validateYaml(good), []);
-
-    const bad = base();
-    bad.orchestration = { opsPerSec: 0 };
-    assert.equal(validateYaml(bad)[0].path, "orchestration.opsPerSec");
-
-    const wrongType = base();
-    (wrongType.orchestration as Record<string, unknown>) = { opsPerSec: "fast" };
-    assert.equal(validateYaml(wrongType)[0].path, "orchestration.opsPerSec");
-  });
-});

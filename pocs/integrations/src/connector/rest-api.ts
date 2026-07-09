@@ -147,9 +147,7 @@ export function createRestApiBatchConnector(config: RestApiBatchConfig, log?: Lo
     let pagesSeen = 0;
 
     while (url) {
-      // rateLimitMs paces through the process-wide per-host schedule: the first
-      // request on an idle host is immediate (historical behavior), and
-      // concurrent endpoints against the same API share one schedule.
+      // rateLimitMs routes through the per-host pacer (see fetch-pacer.ts).
       await paceHost(new URL(url).host, rateLimitMs);
 
       const body = await fetchPage(url);

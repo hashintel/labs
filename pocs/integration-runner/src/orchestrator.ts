@@ -78,15 +78,11 @@ export function capacityFor(ratePerSec: number): number {
 }
 
 /**
- * Runtime-agnostic write limiter: a debt-based token bucket over the
- * coordination contract. Each acquire consumes `ops` tokens; if that drives the
- * balance negative the caller has RESERVED those ops and sleeps
- * `-balance / rate` before proceeding, so concurrent callers self-pace to the
- * rate with no retry loop and no thundering herd (each reservation is told a
- * progressively longer wait). Bursts up to capacity are allowed; sustained rate
- * is hard-capped. Store failures fail OPEN to a local bucket at the same params:
- * throttling is protective, not correctness, and a coordination blip must not
- * halt ingestion.
+ * The GraphLimiter built on the coordination contract: acquire `ops` via
+ * `store.consume` and, if that returns a negative balance, sleep `-balance / rate`
+ * (the ops are already reserved, so no retry). Store failures fail OPEN to a local
+ * bucket at the same params -- throttling is protective, not correctness, and a
+ * coordination blip must not halt ingestion.
  */
 export function createTokenLimiter(store: CoordinationStore, scope: string, ratePerSec: number): GraphLimiter {
   const capacity = capacityFor(ratePerSec);

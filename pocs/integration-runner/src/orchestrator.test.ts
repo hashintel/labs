@@ -122,9 +122,9 @@ describe("budgetScope", () => {
       limits,
     }) as SyncInput;
 
-  it("an integration override gets its own lane; the web target is the shared pool", () => {
+  it("always scopes to the web; a per-web override just changes that web's rate", () => {
     assert.deepEqual(budgetScope(input({ webOpsPerSec: 500, opsPerSecOverride: 200 })), {
-      scope: "web-1:conn-a",
+      scope: "web-1",
       opsPerSec: 200,
     });
     assert.deepEqual(budgetScope(input({ webOpsPerSec: 500 })), { scope: "web-1", opsPerSec: 500 });

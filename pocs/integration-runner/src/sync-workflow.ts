@@ -44,9 +44,9 @@ export type SyncInput = {
     };
   };
   limits: {
-    /** THE target: shared write budget for this web (HASH_GRAPH_WEB_OPS_PER_SEC). */
+    /** THE default target: shared write budget (ops/sec) applied to every web. */
     webOpsPerSec?: number;
-    /** Per-integration override: a dedicated budget lane instead of the web pool. */
+    /** Per-web override of the default rate for this run's web (else the default applies). */
     opsPerSecOverride?: number;
   };
 };
@@ -194,14 +194,13 @@ export async function runSync(input: SyncInput, ctx: StepContext, deps: Workflow
   }
 }
 
-/** Budget scope: an override gives the integration its own lane; otherwise the web pool. */
+/**
+ * Budget scope is always the web: every run throttles against a bucket shared by all
+ * of its web's runs. A per-web override sets that web's rate; otherwise the default
+ * web rate applies. No rate configured = unthrottled.
+ */
 export function budgetScope(input: SyncInput): { scope: string; opsPerSec: number } | undefined {
-  const connectorId = input.yaml.connector.id;
-  if (input.limits.opsPerSecOverride) {
-    return { scope: `${input.runtime.webId}:${connectorId}`, opsPerSec: input.limits.opsPerSecOverride };
-  }
-  if (input.limits.webOpsPerSec) {
-    return { scope: input.runtime.webId, opsPerSec: input.limits.webOpsPerSec };
-  }
-  return undefined;
+  const opsPerSec = input.limits.opsPerSecOverride ?? input.limits.webOpsPerSec;
+  if (!opsPerSec) return undefined;
+  return { scope: input.runtime.webId, opsPerSec };
 }

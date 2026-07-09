@@ -56,10 +56,17 @@ export async function createDbosBackend(databaseUrl: string, maxConcurrentRuns?:
 
   await DBOS.launch();
 
-  // DB-backed queues register post-launch (the SDK requires it); other worker
-  // processes discover them dynamically from the system database.
+  // DB-backed queues register post-launch (the SDK requires it) and persist in the
+  // shared system database, so a second process's launch already discovers the queue.
+  // Re-registering it then races in the SDK; the await + catch keeps that from
+  // becoming an unhandled rejection that kills the process (the queue is present
+  // either way, and enqueue/dedup use it by name).
   if (maxConcurrentRuns) {
-    DBOS.registerQueue(QUEUE_NAME, { concurrency: maxConcurrentRuns });
+    try {
+      await DBOS.registerQueue(QUEUE_NAME, { concurrency: maxConcurrentRuns });
+    } catch (err) {
+      console.warn(`[runner] queue "${QUEUE_NAME}" already registered by a peer; continuing (${err instanceof Error ? err.message : String(err)})`);
+    }
   }
 
   return {

@@ -47,8 +47,8 @@ export function buildSyncInput(opts: RunOpts): SyncInput {
       },
     },
     limits: {
-      webOpsPerSec: config.webOpsPerSec,
-      opsPerSecOverride: config.opsPerSecOverride,
+      webOpsPerSec: config.policy.webOpsPerSec,
+      opsPerSecOverride: config.policy.overrides[config.webId],
     },
   };
 }
@@ -63,7 +63,7 @@ export async function run(opts: RunOpts): Promise<WorkflowResult> {
 
   const backend = await createBackend(
     config.dbosUrl
-      ? { kind: "dbos", databaseUrl: config.dbosUrl, maxConcurrentRuns: config.maxConcurrentRuns }
+      ? { kind: "dbos", databaseUrl: config.dbosUrl, maxConcurrentRuns: config.policy.maxConcurrentRuns }
       : { kind: "direct" },
   );
 

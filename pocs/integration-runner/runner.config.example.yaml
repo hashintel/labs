@@ -1,0 +1,30 @@
+# Runner operator policy -- throttling and admission.
+#
+# This file is OPERATOR-owned. It is intentionally separate from the per-integration
+# pipeline YAML (which tenants author) and from transient env vars: a tenant must not
+# be able to raise its own write budget, and policy should be a reviewable, versioned
+# artifact rather than a shell variable set at launch.
+#
+# The runner reads ./runner.config.yaml by default; set RUNNER_CONFIG=<path> to point
+# elsewhere. If no file is found, throttling and admission are OFF (writes are
+# unthrottled, all runs admitted) -- so this file is opt-in.
+
+writeBudget:
+  # THE default target: shared write budget in graph ops/sec, applied PER WEB. Every
+  # run draws from one bucket shared by all of its web's concurrent runs (scope = webId),
+  # so they self-pace to stay under it together. Omit to disable write throttling.
+  webOpsPerSec: 1000
+
+  # Per-web overrides of the default rate, keyed by web id (a web = a tenant). A listed
+  # web throttles at its own rate instead of the default -- raise it for an important
+  # tenant, or lower it to rein in a noisy one. The scope is still the web; overriding
+  # only changes that web's number.
+  overrides:
+    "00000000-0000-0000-0000-000000000000": 1500
+    # 11111111-1111-1111-1111-111111111111: 250
+
+# Admission: the maximum number of runs executing at once across every process sharing
+# the orchestrator (enforced by the DBOS queue; ignored by the in-process direct
+# backend). A second run of the SAME integration while one is queued/running is always
+# rejected regardless of this number (one state DB, one writer). Omit to disable.
+maxConcurrentRuns: 8
