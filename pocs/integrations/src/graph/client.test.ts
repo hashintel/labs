@@ -28,7 +28,9 @@ function startMockServer(): Promise<{ port: number; requests: RequestLog[]; clos
 
     const status = overrideStatus ?? statusQueue.shift() ?? always ?? 200;
     overrideStatus = undefined;
-    const responseBody = overrideBody ?? { metadata: { recordId: { entityId: "test-id", editionId: "ed-1" } } };
+    const responseBody = overrideBody ?? (req.url === "/entities/query"
+      ? { entities: [] }
+      : { metadata: { recordId: { entityId: "test-id", editionId: "ed-1" } } });
     overrideBody = undefined;
     res.writeHead(status, {
       "Content-Type": "application/json",

@@ -62,6 +62,38 @@ describe("checkpoint", () => {
     assert.equal(rows[0].email, "a@b.com");
   });
 
+  it("empty source still writes an empty, correctly-shaped checkpoint", async () => {
+    const { storage, csvPath } = tmp();
+    db = await createDuckDbQueryStore();
+
+    const producer = await integrate({
+      connector: {
+        id: "src",
+        mode: "batch",
+        sources: { users: { kind: "sql", sql: `SELECT * FROM read_csv('${csvPath}') WHERE id < 0`, primaryKey: "id" } },
+      },
+      pipelines: pipelines([{
+        source: "users",
+        pipeline: pipe("src/users",
+          sqlStep({ id: "pass", query: "SELECT _op, _key, _before, id, email FROM input" }),
+          checkpoint({ id: "cp-users", name: "users-enriched" }),
+        ),
+      }] as const),
+      eventStore: createMemoryEventStore(),
+      queryStore: db,
+      storage,
+      logLevel: "error",
+    }).sync();
+
+    assert.equal(producer.errors.length, 0);
+    assert.equal(await storage.exists("checkpoints/users-enriched.parquet"), true);
+
+    // Downstream consumers can bind every column; there are just no rows.
+    const uri = storage.uriFor("checkpoints/users-enriched.parquet");
+    const { rows } = await db.query(`SELECT _op, _key, id, email FROM read_parquet('${uri}')`);
+    assert.equal(rows.length, 0);
+  });
+
   it("consumer pipeline hydrates from a checkpoint written by a producer", async () => {
     const { storage, csvPath } = tmp();
     db = await createDuckDbQueryStore();

@@ -140,9 +140,15 @@ export function integrate(spec: IntegrationSpec): Integration {
       const asserts = sourceAsserts(connectorDef, source);
       if (asserts) await runSourceAsserts(queryStore, sourceTable, source, asserts, hydrated.rowCount);
 
-      if (hydrated.rowCount === 0) {
-        const archiveOnEmpty = isArchiveOnEmpty(connectorDef, source);
-        log.debug(`"${source}" is empty (partial=${partial}, archiveOnEmpty=${archiveOnEmpty})`);
+      const isEmpty = hydrated.rowCount === 0;
+      const archiveOnEmpty = isEmpty && isArchiveOnEmpty(connectorDef, source);
+      if (isEmpty) log.debug(`"${source}" is empty (partial=${partial}, archiveOnEmpty=${archiveOnEmpty})`);
+
+      // A zero-event hydrate may stage no table at all (evented connectors), in which
+      // case the pipeline cannot run and only the sinks' empty semantics apply. A
+      // staged-but-empty table (SQL sources) flows through the pipeline normally so
+      // checkpoints emit correctly-shaped empty Parquet for downstream consumers.
+      if (isEmpty && !(await tableExists(queryStore, sourceTable))) {
         for (const step of pipeline.steps) {
           if (step.kind !== "graph-sink" || !spec.graphClient) continue;
           if (!partial && !archiveOnEmpty && await stateExists(queryStore, connectorId, step.id)) {
@@ -179,6 +185,12 @@ export function integrate(spec: IntegrationSpec): Integration {
 
       await runPipeline(pipeline, queryStore, resolveTransform, async (step, currentTable) => {
         if (step.kind === "graph-sink" && spec.graphClient) {
+          if (isEmpty && !partial && !archiveOnEmpty && await stateExists(queryStore, connectorId, step.id)) {
+            sinkLogForSource.warn(
+              `"${source}": zero rows but prior state exists for sink "${step.id}"; skipping archival. Set archiveOnEmpty: true on the source config to opt into drain-on-empty.`,
+            );
+            return;
+          }
           const provenance = composeProvenance({
             connectorId, source,
             connector: connectorDef.provenance,
@@ -188,7 +200,7 @@ export function integrate(spec: IntegrationSpec): Integration {
           });
           result = mergeSyncResults(
             result,
-            await diffAndSync(step.id, step.config, currentTable, connectorId, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
+            await diffAndSync(step.id, step.config, isEmpty ? null : currentTable, connectorId, queryStore, spec.graphClient, provenance, sinkLogForSource, partial),
           );
         } else if (step.kind === "checkpoint") {
           await writeCheckpoint(step.name, currentTable, queryStore, storage);
@@ -447,6 +459,13 @@ export function integrate(spec: IntegrationSpec): Integration {
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+async function tableExists(store: QueryableStore, table: string): Promise<boolean> {
+  const { rows } = await store.query(
+    `SELECT COUNT(*) AS n FROM duckdb_tables() WHERE table_name = '${table.replace(/'/g, "''")}'`,
+  );
+  return Number(rows[0].n) > 0;
 }
 
 function buildHydrateContext(args: Omit<HydrateContext, "materialize">): HydrateContext {

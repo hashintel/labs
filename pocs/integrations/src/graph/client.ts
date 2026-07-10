@@ -524,10 +524,11 @@ export function createGraphClient(config: GraphClientConfig): GraphClient {
       includePermissions: false,
       limit: 1,
     };
-    const { entities } = await request<{ entities: GraphEntity[] }>("POST", config, "/entities/query", body, 0);
+    const { entities } = await request<{ entities?: GraphEntity[] }>("POST", config, "/entities/query", body, 0);
     // Deterministic UUIDs are web-independent; require the composite id to match so an
-    // identical entity in another web does not satisfy the probe.
-    return entities.some((e) => e.metadata.recordId.entityId === fullEntityId);
+    // identical entity in another web does not satisfy the probe. A malformed response
+    // reads as absent -- the all-absent sentinel check then hard-errors before any write.
+    return (entities ?? []).some((e) => e.metadata.recordId.entityId === fullEntityId);
   }
 
   return { upsertEntity, bulkUpsertEntities, upsertLink, bulkUpsertLinks, archiveEntity, identity, hasEntity };
