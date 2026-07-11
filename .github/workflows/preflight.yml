@@ -14,16 +14,16 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: hashintel/.github/.github/workflows/preflight-dependencies.yml@b52c15784c5c7f6cfb543d9ecdbb5312aea62237
+    uses: hashintel/.github/.github/workflows/preflight-dependencies.yml@b52c15784c5c7f6cfb543d9ecdbb5312aea62237 # main
 
   todo-comments:
     name: Todo comments
     permissions:
       contents: read
-    uses: hashintel/.github/.github/workflows/preflight-todo-comments.yml@b52c15784c5c7f6cfb543d9ecdbb5312aea62237
+    uses: hashintel/.github/.github/workflows/preflight-todo-comments.yml@b52c15784c5c7f6cfb543d9ecdbb5312aea62237 # main
 
   pr-title:
     name: PR title
     permissions:
       contents: read
-    uses: hashintel/.github/.github/workflows/preflight-pr-title.yml@b52c15784c5c7f6cfb543d9ecdbb5312aea62237
+    uses: hashintel/.github/.github/workflows/preflight-pr-title.yml@b52c15784c5c7f6cfb543d9ecdbb5312aea62237 # main
