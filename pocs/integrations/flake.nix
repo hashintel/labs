@@ -21,6 +21,14 @@
             nodejs_24
 	    jq
             corepack_24
+            # examples/sap-mock generator (or: venv + requirements.txt)
+            (python3.withPackages (ps: [
+              ps.deltalake
+              ps.pandas
+              ps.numpy
+              ps.faker
+              ps.pyarrow
+            ]))
           ];
         };
       }
