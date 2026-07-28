@@ -1,0 +1,47 @@
+{
+  "connectorId": "conn-a",
+  "configs": [
+    {
+      "config": {
+        "entityType": "https://x/@t/types/entity-type/material/v/1",
+        "entityId": "MATNR",
+        "webId": "web-fixture",
+        "properties": {
+          "https://x/@t/types/property-type/name/v/1": "MAKTX",
+          "https://x/@t/types/property-type/weight/v/1": "BRGEW",
+          "https://x/@t/types/property-type/created/v/1": "ERSDA"
+        }
+      },
+      "sha256": "5f5f9bfb881c8f2637fb37cfc5a3b02e6f8308cc5a4fd458d0b512892f3bede9"
+    },
+    {
+      "config": {
+        "entityType": "https://x/@t/types/entity-type/material/v/1",
+        "entityId": "MATNR",
+        "webId": "web-fixture",
+        "idNamespace": "custom-ns",
+        "properties": {
+          "https://x/@t/types/property-type/name/v/1": "MAKTX"
+        },
+        "provenanceFields": {
+          "authors": "ERNAM",
+          "firstPublished": null,
+          "lastUpdated": "AEDAT"
+        }
+      },
+      "sha256": "8b2b55a113771f3db7f802794d2f3d2808e8261f412a8b0ad2232d1facb50f76"
+    },
+    {
+      "config": {
+        "entityType": "https://x/@t/types/entity-type/material/v/1",
+        "entityId": "MATNR",
+        "webId": "web-fixture",
+        "properties": {
+          "https://x/@t/types/property-type/name/v/1": "fn:data=>`${data.MAKTX}`"
+        }
+      },
+      "sha256": "3ea886e128a069b8c392acfe470f3c455d310946b6fe820e62cb94b143a2b318"
+    }
+  ],
+  "linkConfigHash": "skipped: linkConfigHash is module-private in src/graph/link-pipeline.ts"
+}

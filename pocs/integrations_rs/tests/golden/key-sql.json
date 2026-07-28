@@ -1,0 +1,19 @@
+{
+  "source": "src/connector/snapshot.ts lines 42-43 (materialize)",
+  "cases": [
+    {
+      "primaryKey": [
+        "id"
+      ],
+      "keySql": "CAST(to_json({'id': \"id\"}) AS VARCHAR)"
+    },
+    {
+      "primaryKey": [
+        "MATNR",
+        "WERKS",
+        "CHARG"
+      ],
+      "keySql": "CAST(to_json({'MATNR': \"MATNR\", 'WERKS': \"WERKS\", 'CHARG': \"CHARG\"}) AS VARCHAR)"
+    }
+  ]
+}

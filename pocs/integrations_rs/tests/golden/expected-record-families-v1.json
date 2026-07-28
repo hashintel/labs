@@ -1,0 +1,308 @@
+{
+  "version": 1,
+  "families": [
+    {
+      "name": "admission_pointer",
+      "owningModule": "orchestrator::submission",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "immutable_input_digest",
+          "version": 1
+        },
+        {
+          "name": "run_accepted_event_identity",
+          "version": 1
+        }
+      ],
+      "durability": "mutable_cas",
+      "migration": "mutable_cas"
+    },
+    {
+      "name": "control_baseline",
+      "owningModule": "orchestrator::baseline",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "control_prefix",
+          "version": 1
+        },
+        {
+          "name": "durable_metadata_baseline",
+          "version": 1
+        },
+        {
+          "name": "routing",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "control_projection_payload",
+      "owningModule": "orchestrator::projection_snapshot",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "control_projector_schema",
+          "version": 1
+        }
+      ],
+      "durability": "derived",
+      "migration": "rebuild"
+    },
+    {
+      "name": "control_projection_snapshot",
+      "owningModule": "orchestrator::projection_snapshot",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "control_projector_schema",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_journal",
+      "migration": "never_retire_while_untrimmed"
+    },
+    {
+      "name": "control_request",
+      "owningModule": "orchestrator::control",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "control_request_identity",
+          "version": 1
+        },
+        {
+          "name": "request_digest",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "control_request_result",
+      "owningModule": "orchestrator::inbox",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [],
+      "durability": "derived",
+      "migration": "rebuild"
+    },
+    {
+      "name": "current_state_hint",
+      "owningModule": "orchestrator::state",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [],
+      "durability": "derived",
+      "migration": "rebuild"
+    },
+    {
+      "name": "desired_projection_artifact",
+      "owningModule": "graph::artifacts",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "desired_projection_schema",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "effect_index_artifact",
+      "owningModule": "graph::artifacts",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "effect_index_schema",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "graph_delivery_payload",
+      "owningModule": "graph::planner",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "graph_delivery_encoding",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "graph_effect",
+      "owningModule": "graph::effects",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "effect_encoding",
+          "version": 1
+        },
+        {
+          "name": "effect_identity",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "journal_record",
+      "owningModule": "orchestrator::events",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "control_outcome_event_identity",
+          "version": 1
+        },
+        {
+          "name": "dlq_entry_identity",
+          "version": 1
+        },
+        {
+          "name": "event_identity",
+          "version": 1
+        },
+        {
+          "name": "journal_record_digest",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_journal",
+      "migration": "never_retire_while_untrimmed"
+    },
+    {
+      "name": "known_shard_marker",
+      "owningModule": "orchestrator::submission",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "routing",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "ready_receipt",
+      "owningModule": "orchestrator::submission",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "immutable_input_digest",
+          "version": 1
+        },
+        {
+          "name": "run_accepted_event_identity",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "request_binding",
+      "owningModule": "orchestrator::internal_metadata",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "run_input",
+      "owningModule": "orchestrator::internal_metadata",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "run_locator",
+      "owningModule": "orchestrator::internal_metadata",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "run_policy",
+      "owningModule": "orchestrator::internal_metadata",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "shard_lease",
+      "owningModule": "orchestrator::lease",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [],
+      "durability": "mutable_cas",
+      "migration": "mutable_cas"
+    },
+    {
+      "name": "state_version",
+      "owningModule": "orchestrator::work",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "state_identity",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    },
+    {
+      "name": "work_manifest",
+      "owningModule": "orchestrator::work",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "apply_work_identity",
+          "version": 1
+        },
+        {
+          "name": "reconcile_work_identity",
+          "version": 1
+        },
+        {
+          "name": "restore_work_identity",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    }
+  ]
+}

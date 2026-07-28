@@ -1,0 +1,44 @@
+[package]
+name = "integrations_rs"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+futures = "0.3"
+async-trait = "0.1"
+error-stack = "0.5"
+fs4 = "0.13"
+bytes = "1"
+object_store = { version = "=0.12.4", features = ["aws"] }
+opendata_log = { package = "opendata-log", version = "=1.0.0" }
+opendata_common = { package = "opendata-common", version = "=0.1.17" }
+slatedb = "=0.13.1"
+duckdb = { version = "1", features = ["bundled", "json", "parquet"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+serde_yaml = "0.9"
+uuid = { version = "1", features = ["v5", "v4", "serde"] }
+sha1 = "0.10"
+sha2 = "0.10"
+hex = "0.4"
+regex = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+libc = "0.2"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+[dev-dependencies]
+axum = "0.8"
+tempfile = "3"
+wiremock = "0.6"
+
+[profile.dev]
+# DuckDB is unusable without optimization; deps stay cached.
+opt-level = 0
+
+[profile.dev.package."*"]
+opt-level = 2

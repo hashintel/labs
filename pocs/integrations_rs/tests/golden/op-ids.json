@@ -1,0 +1,57 @@
+[
+  {
+    "kind": "upsert",
+    "input": {
+      "ns": "conn-a",
+      "webId": "web-fixture",
+      "linkType": "https://x/@t/types/entity-type/stored-at/v/1",
+      "sourceId": "M-0001",
+      "targetId": "P-0100"
+    },
+    "opId": "upsert::conn-a::web-fixture::https://x/@t/types/entity-type/stored-at/v/1::M-0001::P-0100"
+  },
+  {
+    "kind": "upsert",
+    "note": "link-pipeline ids are String(row._source_id) etc., so numeric 42 renders as \"42\"",
+    "input": {
+      "ns": "conn-a",
+      "webId": "web-fixture",
+      "linkType": "https://x/@t/types/entity-type/stored-at/v/1",
+      "sourceId": 42,
+      "targetId": 7.5
+    },
+    "opId": "upsert::conn-a::web-fixture::https://x/@t/types/entity-type/stored-at/v/1::42::7.5"
+  },
+  {
+    "kind": "archive",
+    "input": {
+      "ns": "conn-a",
+      "webId": "web-fixture",
+      "entityType": "https://x/@t/types/entity-type/material/v/1",
+      "entityId": "M-0001"
+    },
+    "opId": "archive::conn-a::web-fixture::https://x/@t/types/entity-type/material/v/1::M-0001"
+  },
+  {
+    "kind": "archive",
+    "note": "numeric entityId goes through String()",
+    "input": {
+      "ns": "conn-a",
+      "webId": "web-fixture",
+      "entityType": "https://x/@t/types/entity-type/material/v/1",
+      "entityId": 7
+    },
+    "opId": "archive::conn-a::web-fixture::https://x/@t/types/entity-type/material/v/1::7"
+  },
+  {
+    "kind": "archive",
+    "note": "stale-link archive: entityId is the link's composite sourceType::sourceId::targetType::targetId",
+    "input": {
+      "ns": "conn-a",
+      "webId": "web-fixture",
+      "entityType": "https://x/@t/types/entity-type/stored-at/v/1",
+      "entityId": "https://x/@t/types/entity-type/material/v/1::M-0001::https://x/@t/types/entity-type/plant/v/1::P-0100"
+    },
+    "opId": "archive::conn-a::web-fixture::https://x/@t/types/entity-type/stored-at/v/1::https://x/@t/types/entity-type/material/v/1::M-0001::https://x/@t/types/entity-type/plant/v/1::P-0100"
+  }
+]

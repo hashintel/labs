@@ -1,0 +1,62 @@
+[
+  {
+    "note": "all-string accessors; properties sorted by URL; VARCHAR gets NULLIF(TRIM(..), ''), non-VARCHAR passes through",
+    "config": {
+      "entityType": "https://x/@t/types/entity-type/material/v/1",
+      "entityId": "MATNR",
+      "webId": "web-fixture",
+      "properties": {
+        "https://x/@t/types/property-type/name/v/1": "MAKTX",
+        "https://x/@t/types/property-type/weight/v/1": "BRGEW",
+        "https://x/@t/types/property-type/created/v/1": "ERSDA"
+      }
+    },
+    "columnTypes": {
+      "MATNR": "VARCHAR",
+      "MAKTX": "VARCHAR",
+      "BRGEW": "DOUBLE",
+      "ERSDA": "DATE"
+    },
+    "canonicalSql": "md5(struct_pack(p0 := \"ERSDA\", p1 := NULLIF(TRIM(\"MAKTX\"), ''), p2 := \"BRGEW\")::VARCHAR)"
+  },
+  {
+    "note": "provenanceFields appended after sorted properties, in authors/firstPublished/lastUpdated order",
+    "config": {
+      "entityType": "https://x/@t/types/entity-type/material/v/1",
+      "entityId": "MATNR",
+      "webId": "web-fixture",
+      "idNamespace": "custom-ns",
+      "properties": {
+        "https://x/@t/types/property-type/name/v/1": "MAKTX"
+      },
+      "provenanceFields": {
+        "authors": "ERNAM",
+        "firstPublished": null,
+        "lastUpdated": "AEDAT"
+      }
+    },
+    "columnTypes": {
+      "MATNR": "VARCHAR",
+      "MAKTX": "VARCHAR",
+      "ERNAM": "VARCHAR",
+      "AEDAT": "DATE"
+    },
+    "canonicalSql": "md5(struct_pack(p0 := NULLIF(TRIM(\"MAKTX\"), ''), p1 := NULLIF(TRIM(\"ERNAM\"), ''), p2 := \"AEDAT\")::VARCHAR)"
+  },
+  {
+    "note": "function accessor: canonicalSql is null, caller falls back to whole-row md5(data::VARCHAR)",
+    "config": {
+      "entityType": "https://x/@t/types/entity-type/material/v/1",
+      "entityId": "MATNR",
+      "webId": "web-fixture",
+      "properties": {
+        "https://x/@t/types/property-type/name/v/1": "fn:data=>`${data.MAKTX}`"
+      }
+    },
+    "columnTypes": {
+      "MATNR": "VARCHAR",
+      "MAKTX": "VARCHAR"
+    },
+    "canonicalSql": null
+  }
+]

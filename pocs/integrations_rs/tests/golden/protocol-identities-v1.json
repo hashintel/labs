@@ -1,0 +1,20 @@
+{
+  "canonicalEncoding": "UTF-8(domain + NUL + compact JSON projection with declared struct-field order)",
+  "stateVersionId": "39202b178481876923c12e87d429c909e2784956d1cbb0dd0a235ec1399fbd82",
+  "reconcileWorkId": "8b1c9f825d475516adc14d807631889e775688c70c8115316101822425e67273",
+  "reconcileWorkIdWithNewIncarnation": "21dd294146fef4ef6153bf6b75aaae694e38a45d73762b9e4bb4bdec8adf7033",
+  "restoreWorkId": "801ee2df1767ba0206360d5ceee46ecb40f93d7c0522d070e95b5be0cb89b602",
+  "emptyStateRestoreWorkId": "f0481d253d038895f65f32749d2eacf4c6df6ba7249260b1b48f76704dc4056f",
+  "immutableInputDigest": "e05f5d5e387b7aa1521d8eed75924d3000d5fca231b54b4ee90e65ed05dd3b73",
+  "initialRunRevision": "28e52ac4f97183ffb2897e31a65a64f21fddd6ef1990255853d75177f52fc4ac",
+  "controlRequestId": "2f47eda4b41283057c1471fc03d0379f8840c84fee0aa3d79140b6ea41002e1d",
+  "controlRequestDigest": "82f7f7bff5923cfef55cd1413b60ff63c38e1e705981e0b0923b7f4b35aaa06c",
+  "attemptId": "eb4f1847cc1d70d08535a372ee927c4b7ad123c9aa0a509ba8cd3a2d4b4b1f38",
+  "ordinaryEventId": "60e8f63625a55d95f28040a57d2f103683d66aa20e2125f5c074e0de141e9610",
+  "attemptFailedEventId": "e2a9ba1c91a5f0549d19152a29e9fff77df10f19e2af8542f68b43ecfb7f898b",
+  "upsertGraphEffectId": "e466582be09d62193f8ad288d575de4afb6c10c8050d4210ef0e7421141f9991",
+  "archiveGraphEffectId": "72a50e2064d32b11bbade9f378b63855464cc064588ee8d62a0461d282af66da",
+  "controlOutcomeEventId": "5de355f656f3cfae01c31a14b9ea6d8bebb2dd2c30f2307a1875ff246526e321",
+  "journalRecordDigest": "172f82e42309c0f8a7843e451851e2f23362ab24c34921caf2241ac590f556e9",
+  "dlqEntryId": "7a5959953e823e04303d8116c471480736b4c15ea1d12c1e1afbdb43dffbc4e9"
+}

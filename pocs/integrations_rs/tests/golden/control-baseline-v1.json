@@ -1,0 +1,1 @@
+{"version":"v1","data":{"tenant_namespace":"alice","control_prefix_version":1,"durable_metadata_baseline":1,"routing_version":1,"shard_count":256,"externally_pinned_identity_contract":"ts-elixir-rust-v1"}}

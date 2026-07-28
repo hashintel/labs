@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "families": [
+    {
+      "name": "test_record",
+      "owningModule": "orchestrator::registry::tests",
+      "emittedVersion": 1,
+      "supportedVersions": [1],
+      "algorithmVersions": [
+        {
+          "name": "test_identity",
+          "version": 1
+        }
+      ],
+      "durability": "immutable_artifact",
+      "migration": "pure_upcast"
+    }
+  ]
+}

@@ -1,0 +1,97 @@
+# Self-contained example integration: two inline-data sources, coercions, a
+# measured (unit-mapped) property, a checkpoint, and a link pipeline. Runs with
+# zero setup against the stub client:
+#
+#   cargo run -- examples/aviation.yaml
+#
+# Point HASH_GRAPH_URL + HASH_ACTOR_ID (+ HASH_WEB_ID) at a graph to write for
+# real. State lands under ${RUNNER_BASE_DIR:-.}/state/${WEB_ID}/aviation/.
+
+connector:
+  id: aviation
+  mode: batch
+
+vars:
+  WEB_ID: demo-web
+  TYPES: https://example.test/@demo/types
+
+unitMaps:
+  masses:
+    KG: "${TYPES}/data-type/kilogram/v/1"
+    LB: "${TYPES}/data-type/pound/v/1"
+    "*": "${TYPES}/data-type/mass/v/1"
+
+sources:
+  aircraft:
+    kind: sql
+    primaryKey: TAIL
+    asserts:
+      rowCount: { min: 1 }
+      unique: [TAIL]
+      notNull: [TAIL, MODEL]
+    sql: |
+      SELECT * FROM (VALUES
+        ('SE-ABC', 'DC-3',   '1946-04-02', '8.030,0', 'KG', 'ESSA'),
+        ('SE-DEF', 'J35 Draken', '19630917', '7425',  'KG', 'ESSB'),
+        ('N-100',  'L-1049', '07/15/1957', '31644',   'LB', 'ESSA'),
+        ('SE-GHI', 'Tp 84',  '',           NULL,      NULL, 'ESGG')
+      ) t(TAIL, MODEL, FIRST_FLIGHT, EMPTY_MASS, MASS_UNIT, HOME_BASE)
+
+  airfields:
+    kind: sql
+    primaryKey: ICAO
+    sql: |
+      SELECT * FROM (VALUES
+        ('ESSA', 'Arlanda',  'X'),
+        ('ESSB', 'Bromma',   'X'),
+        ('ESGG', 'Landvetter', '')
+      ) t(ICAO, FIELD_NAME, TOWERED)
+
+pipelines:
+  entities:
+    - source: airfields
+      steps:
+        - id: sink-airfields
+          kind: graph-sink
+          config:
+            entityType: "${TYPES}/entity-type/airfield/v/1"
+            entityId: ICAO
+            webId: "${WEB_ID}"
+            properties:
+              "${TYPES}/property-type/name/v/1": FIELD_NAME
+              "${TYPES}/property-type/towered/v/1": { column: TOWERED, coerce: boolean }
+        - id: cp-airfields
+          kind: checkpoint
+          name: aviation/airfields
+
+    - source: aircraft
+      dependsOn: [airfields]
+      steps:
+        - id: shape-aircraft
+          kind: sql
+          sql: SELECT _op, _key, _before, TAIL, MODEL, FIRST_FLIGHT, EMPTY_MASS, MASS_UNIT, HOME_BASE FROM input
+        - id: sink-aircraft
+          kind: graph-sink
+          config:
+            entityType: "${TYPES}/entity-type/aircraft/v/1"
+            entityId: TAIL
+            webId: "${WEB_ID}"
+            properties:
+              "${TYPES}/property-type/model/v/1": MODEL
+              # Mixed source formats: ISO, packed yyyymmdd, and mm/dd/yyyy all
+              # coerce to YYYY-MM-DD; the blank one is null (blanks never
+              # quarantine; only non-blank values that convert to nil do).
+              "${TYPES}/property-type/first-flight/v/1": { column: FIRST_FLIGHT, coerce: date }
+              # EU-formatted '8.030,0' and plain numbers both parse; the unit
+              # column picks the dataTypeId through the masses map.
+              "${TYPES}/property-type/empty-mass/v/1": { amount: EMPTY_MASS, unit: MASS_UNIT, measure: masses }
+        - id: cp-aircraft
+          kind: checkpoint
+          name: aviation/aircraft
+
+  links:
+    - id: aircraft-based-at
+      source: aviation/aircraft
+      from: { entityType: "${TYPES}/entity-type/aircraft/v/1", column: TAIL }
+      to: { entityType: "${TYPES}/entity-type/airfield/v/1", column: HOME_BASE }
+      linkType: "${TYPES}/entity-type/based-at/v/1"

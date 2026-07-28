@@ -1,0 +1,72 @@
+{
+  "routingVersion": 1,
+  "shardCount": 256,
+  "maxCanonicalIntegrationIdBytes": 1024,
+  "tenantPathCase": {
+    "tenantNamespace": "alice",
+    "canonicalIntegrationId": "alice:supply-chain",
+    "controlRoot": "tenants/alice/control/v1",
+    "admission": "tenants/alice/control/v1/admissions/c30cdc149537cc27c75c4516d71eb30750e27b82c61ef7fc4969d7ea4c79a69e.json",
+    "artifactRoot": "tenants/alice/integrations/c30cdc149537cc27c75c4516d71eb30750e27b82c61ef7fc4969d7ea4c79a69e"
+  },
+  "cases": [
+    {
+      "id": "alice:supply-chain",
+      "sha256": "c30cdc149537cc27c75c4516d71eb30750e27b82c61ef7fc4969d7ea4c79a69e",
+      "routingValueHex": "c30cdc149537cc27",
+      "shard": 39,
+      "shardPath": "027"
+    },
+    {
+      "id": "wéb:försörjning",
+      "sha256": "cb4f3833778ee58f33271005b7675e2f3219f0c53cf7732f78d84d5e21019bef",
+      "routingValueHex": "cb4f3833778ee58f",
+      "shard": 143,
+      "shardPath": "08f"
+    },
+    {
+      "id": "web:café",
+      "sha256": "639236db925d935cf839655787b9a96b37c034c2d9feacdefe172dcc2249b83b",
+      "routingValueHex": "639236db925d935c",
+      "shard": 92,
+      "shardPath": "05c"
+    },
+    {
+      "id": "web:café",
+      "sha256": "27684e09eba027c3dd72647c2e7b487efe51ab6cff3a194fdd050504b2be2b59",
+      "routingValueHex": "27684e09eba027c3",
+      "shard": 195,
+      "shardPath": "0c3"
+    },
+    {
+      "id": "edge:710",
+      "sha256": "9bb5b3d15ac2ab00408cfdc9c65a51aa5fbe9f403a99225211796d4f16be7654",
+      "routingValueHex": "9bb5b3d15ac2ab00",
+      "shard": 0,
+      "shardPath": "000"
+    },
+    {
+      "id": "edge:296",
+      "sha256": "34d40e553b4620ffe8410a24a931141d99f6fcb786a01609d022739e431f7a65",
+      "routingValueHex": "34d40e553b4620ff",
+      "shard": 255,
+      "shardPath": "0ff"
+    }
+  ],
+  "invalidWhitespace": [
+    " web:id",
+    "web:id ",
+    "web:\tid",
+    "web:\nid",
+    "web: id"
+  ],
+  "invalidTenantNamespaces": [
+    "",
+    ".",
+    "..",
+    "../alice",
+    "alice/web",
+    "white space",
+    "wéb"
+  ]
+}

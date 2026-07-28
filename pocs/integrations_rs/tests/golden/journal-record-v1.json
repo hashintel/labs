@@ -1,0 +1,1 @@
+{"version":"v1","data":{"event_id":"60e8f63625a55d95f28040a57d2f103683d66aa20e2125f5c074e0de141e9610","integration_id":"alice:supply-chain","event":{"version":"v1","data":{"kind":"attempt_started","data":{"run_id":"00000000-0000-4000-8000-000000000001","attempt_id":"eb4f1847cc1d70d08535a372ee927c4b7ad123c9aa0a509ba8cd3a2d4b4b1f38","attempt":1}}}}}

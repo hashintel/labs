@@ -1,0 +1,46 @@
+{
+  "payload": {
+    "version": "v1",
+    "data": {
+      "shard": "03c",
+      "through_log_sequence": 7,
+      "projector_schema_version": 1,
+      "projected_journal_event_versions": {
+        "min_inclusive": 1,
+        "max_inclusive": 1
+      },
+      "projection": {
+        "integrations": {},
+        "runs": {},
+        "work": {},
+        "control_request_outcomes": {},
+        "seen_event_digests": {},
+        "through_log_sequence": 7,
+        "poisoned": null
+      }
+    }
+  },
+  "reference": {
+    "version": "v1",
+    "data": {
+      "shard": "03c",
+      "through_log_sequence": 7,
+      "projector_schema_version": 1,
+      "projected_journal_event_versions": {
+        "min_inclusive": 1,
+        "max_inclusive": 1
+      },
+      "payload_sha256": "2a5bc2e33957c23c6cce99a1c64af88d0c6b413b8ccf53559e64f3238f42ede8",
+      "payload": {
+        "version": "v1",
+        "value": {
+          "key": "tenants/alice/control/v1/shards/03c/projection/sha256/2a/2a5bc2e33957c23c6cce99a1c64af88d0c6b413b8ccf53559e64f3238f42ede8.json",
+          "sha256": "2a5bc2e33957c23c6cce99a1c64af88d0c6b413b8ccf53559e64f3238f42ede8",
+          "size": 314,
+          "mediaType": "application/vnd.integrations.control-projection-payload+json"
+        }
+      },
+      "created_at": "2026-07-22T10:00:00+00:00"
+    }
+  }
+}

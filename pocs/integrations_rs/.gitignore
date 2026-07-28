@@ -1,0 +1,56 @@
+# Rust build output
+/target/
+
+# Nix/direnv outputs. Nix source filtering depends on this directory being a
+# real Git worktree; `result*` symlinks and evaluated shells are never inputs.
+/.direnv/
+/.devenv/
+/.cache/
+/result
+/result-*
+
+# Local runner workspaces. Use one named directory per development/E2E run,
+# for example: RUNNER_BASE_DIR="$PWD/state/supply-chain-alice".
+/state/
+/runs/
+/workspaces/
+/local-state/
+
+# Legacy ad-hoc E2E directories (kept ignored while old workspaces age out).
+/e2e-*/
+
+# Local source/input captures. Reproducible, deliberately small fixtures belong
+# under examples/ or tests/fixtures/ instead of these directories.
+/data/
+/input/
+/inputs/
+/captures/
+/downloads/
+
+# Runtime artifacts must never become source files, even if a custom runner
+# base accidentally points at the repository root.
+/blob-store/
+/blob-cache/
+/artifact-cache/
+/artifacts/
+/staging/
+/tmp/
+/logs/
+*.duckdb
+*.duckdb.wal
+*.duckdb.tmp
+*.parquet.tmp
+*.multipart
+
+# Common editor/OS and diagnostic output.
+*.log
+*.profraw
+*.profdata
+*.flamegraph
+.DS_Store
+
+# Local secrets and overrides.
+/.env
+/.env.*
+!/.env.example
+local/**

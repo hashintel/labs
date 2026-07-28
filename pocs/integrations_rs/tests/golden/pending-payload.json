@@ -1,0 +1,29 @@
+{
+  "payload": "{\"opId\":\"upsert::conn-a::web-fixture::https://x/@t/types/entity-type/stored-at/v/1::M-0001::P-0100\",\"namespace\":\"conn-a\",\"webId\":\"web-fixture\",\"sourceEntityType\":\"https://x/@t/types/entity-type/material/v/1\",\"sourceEntityId\":\"M-0001\",\"linkType\":\"https://x/@t/types/entity-type/stored-at/v/1\",\"targetEntityType\":\"https://x/@t/types/entity-type/plant/v/1\",\"targetId\":\"P-0100\",\"properties\":{\"https://x/@t/types/property-type/quantity/v/1\":{\"$typedValue\":true,\"value\":42,\"dataTypeId\":\"https://x/@t/types/data-type/quantity/v/1\"},\"https://x/@t/types/property-type/bin/v/1\":\"BIN-7\",\"https://x/@t/types/property-type/batch/v/1\":null},\"provenance\":{\"type\":\"integration\",\"location\":{\"name\":\"fixture/source\"},\"loadedAt\":\"2026-01-01T00:00:00Z\"}}",
+  "parsed": {
+    "opId": "upsert::conn-a::web-fixture::https://x/@t/types/entity-type/stored-at/v/1::M-0001::P-0100",
+    "namespace": "conn-a",
+    "webId": "web-fixture",
+    "sourceEntityType": "https://x/@t/types/entity-type/material/v/1",
+    "sourceEntityId": "M-0001",
+    "linkType": "https://x/@t/types/entity-type/stored-at/v/1",
+    "targetEntityType": "https://x/@t/types/entity-type/plant/v/1",
+    "targetId": "P-0100",
+    "properties": {
+      "https://x/@t/types/property-type/quantity/v/1": {
+        "$typedValue": true,
+        "value": 42,
+        "dataTypeId": "https://x/@t/types/data-type/quantity/v/1"
+      },
+      "https://x/@t/types/property-type/bin/v/1": "BIN-7",
+      "https://x/@t/types/property-type/batch/v/1": null
+    },
+    "provenance": {
+      "type": "integration",
+      "location": {
+        "name": "fixture/source"
+      },
+      "loadedAt": "2026-01-01T00:00:00Z"
+    }
+  }
+}
