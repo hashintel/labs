@@ -40,6 +40,9 @@ use crate::orchestrator::work::{
 use crate::throttle::{GraphRequestCharge, GraphRequestsUsed};
 
 const MAX_DIAGNOSTIC_BYTES: usize = 1_000;
+/// Artifact loading is bounded independently from the Graph-request budget.
+/// A turn may issue sixteen concurrent 128-effect bulk requests.
+const MAX_EFFECTS_PER_WINDOW: usize = 2_048;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum EffectExecutorError {
@@ -283,10 +286,11 @@ impl ExecutionPlanLoader {
             .attach_printable("validate work manifest identity")?;
         validate_manifest(intent, &manifest)?;
 
-        let maximum = usize::try_from(budget.maximum_requests).map_err(|_error| {
+        let maximum_requests = usize::try_from(budget.maximum_requests).map_err(|_error| {
             Report::new(EffectExecutorError::InvalidConfiguration)
                 .attach_printable("request budget does not fit in memory")
         })?;
+        let maximum = maximum_requests.max(MAX_EFFECTS_PER_WINDOW);
         let window = self
             .effects
             .load_effect_window(&manifest.effects, intent.completed_effect_count, maximum)
@@ -304,7 +308,10 @@ impl ExecutionPlanLoader {
             window
                 .effect_count
                 .saturating_sub(intent.completed_effect_count)
-                .min(u64::from(budget.maximum_requests)),
+                .min(u64::try_from(maximum).map_err(|_error| {
+                    Report::new(EffectExecutorError::InvalidConfiguration)
+                        .attach_printable("effect window bound does not fit in u64")
+                })?),
         )
         .map_err(|_error| {
             Report::new(EffectExecutorError::InvalidConfiguration)
@@ -927,30 +934,25 @@ impl BoundedEffectExecutor {
         maximum_requests: u32,
     ) -> Vec<&'a PreparedEffectV1> {
         let batch_size = self.transport.max_create_batch_size();
-        let mut reserved = 0_u32;
-        let mut selected = Vec::new();
-        for effect in &work.effects {
-            if effect.effect.operation != dependency_class
-                || self.conflict_proven(&work.work_id, &effect.effect.effect_id)
-            {
-                break;
-            }
-            let batch_request = u32::from(selected.len() % batch_size == 0);
-            // A rejected batch may require PATCH, Create after PATCH 404, and
-            // one final PATCH if that Create races another writer.
-            let Some(next) = reserved
-                .checked_add(batch_request)
-                .and_then(|value| value.checked_add(3))
-            else {
-                break;
-            };
-            if next > maximum_requests {
-                break;
-            }
-            reserved = next;
-            selected.push(effect);
-        }
-        selected
+        // Each concurrent batch owns at least four request slots: its bulk
+        // request plus enough room for one worst-case PATCH-first fallback.
+        // Dividing the turn budget between groups keeps aggregate fallback
+        // charges within the DRR admission even when every batch is rejected.
+        let batch_count = usize::try_from(maximum_requests / 4)
+            .unwrap_or(usize::MAX)
+            .max(1)
+            .min(self.transport.max_in_flight().max(1));
+        let effect_limit = batch_size.saturating_mul(batch_count);
+        work.effects
+            .iter()
+            .take_while(|effect| {
+                effect.effect.operation == dependency_class
+                    && !self.conflict_proven(&work.work_id, &effect.effect.effect_id)
+            })
+            // Admission charges each optimistic bulk request, not every
+            // hypothetical per-effect fallback.
+            .take(effect_limit)
+            .collect()
     }
 
     async fn execute_create_batches(
@@ -962,12 +964,24 @@ impl BoundedEffectExecutor {
         selected: Vec<&PreparedEffectV1>,
     ) -> Result<TurnOutcomeV1, Report<EffectExecutorError>> {
         let batch_size = self.transport.max_create_batch_size();
+        let batch_count = selected.len().div_ceil(batch_size);
+        let per_batch_budget = state.maximum
+            / u32::try_from(batch_count).map_err(|_error| {
+                Report::new(EffectExecutorError::InvalidConfiguration)
+                    .attach_printable("bulk batch count does not fit in u32")
+            })?;
         let pending = selected
             .chunks(batch_size)
             .map(<[_]>::to_vec)
             .map(|batch| async move {
                 let outcome = self
-                    .execute_create_batch_group(work, permit, integration_path, &batch)
+                    .execute_create_batch_group(
+                        work,
+                        permit,
+                        integration_path,
+                        &batch,
+                        per_batch_budget,
+                    )
                     .await;
                 (batch, outcome)
             })
@@ -998,6 +1012,7 @@ impl BoundedEffectExecutor {
         permit: &dyn EffectTurnPermit,
         integration_path: &str,
         selected: &[&PreparedEffectV1],
+        maximum_requests: u32,
     ) -> BatchGroupOutcome {
         let creates = selected
             .iter()
@@ -1009,7 +1024,7 @@ impl BoundedEffectExecutor {
             })
             .collect();
         let mut state = TurnState {
-            maximum: u32::MAX,
+            maximum: maximum_requests,
             used: 0,
             completed: 0,
             last_effect: None,
@@ -1046,6 +1061,15 @@ impl BoundedEffectExecutor {
                 let mut completed = 0;
                 let mut terminal = None;
                 for effect in selected {
+                    let fallback_cost = if patch_first {
+                        3
+                    } else {
+                        effect.request_cost()
+                    };
+                    if !state.can_start(fallback_cost) {
+                        terminal = Some(Terminal::Yield(None));
+                        break;
+                    }
                     let outcome = if patch_first {
                         self.execute_patch_first_effect(work, effect, permit, integration_path)
                             .await
@@ -2977,7 +3001,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn successful_bulk_create_charges_one_actual_graph_request() {
+    async fn successful_full_bulk_create_charges_one_actual_graph_request() {
         let transport = Arc::new(BatchTransport::new(EffectResponseV1::Success));
         let committer = Arc::new(RecordingCommitter::default());
         let outcome = BoundedEffectExecutor::new(
@@ -2987,26 +3011,26 @@ mod tests {
             Arc::new(EffectLaneRegistry::default()),
         )
         .execute_turn(
-            &work((1..=6).map(upsert).collect(), 0),
-            ChunkBudget::new(19).expect("batch plus worst-case PATCH-first fallbacks"),
+            &work((1..=64).map(upsert).collect(), 0),
+            ChunkBudget::new(4).expect("one bulk request and bounded fallback room"),
         )
         .await
         .expect("bulk turn");
         assert_eq!(
             outcome,
             TurnOutcomeV1::Progressed {
-                completed_effect_count: 6,
+                completed_effect_count: 64,
                 work_exhausted: true,
                 requests_used: 1,
             }
         );
         assert_eq!(transport.batch_requests.load(Ordering::SeqCst), 1);
         assert_eq!(transport.individual_requests.load(Ordering::SeqCst), 0);
-        assert_eq!(committer.cursors().await[0].completed_effect_count, 6);
+        assert_eq!(committer.cursors().await[0].completed_effect_count, 64);
     }
 
     #[tokio::test]
-    async fn rejected_bulk_create_falls_back_within_the_reserved_request_budget() {
+    async fn rejected_bulk_create_falls_back_only_within_the_remaining_request_budget() {
         let transport = Arc::new(BatchTransport::new(EffectResponseV1::Http {
             status: 409,
             retry_after: None,
@@ -3021,25 +3045,25 @@ mod tests {
         )
         .execute_turn(
             &work(vec![upsert(1), upsert(2), upsert(3)], 0),
-            ChunkBudget::new(10).expect("one batch plus worst-case PATCH-first fallbacks"),
+            ChunkBudget::new(4).expect("one batch plus one worst-case PATCH-first fallback"),
         )
         .await
         .expect("fallback turn");
         assert_eq!(
             outcome,
-            TurnOutcomeV1::Progressed {
-                completed_effect_count: 3,
-                work_exhausted: true,
-                requests_used: 4,
+            TurnOutcomeV1::Yielded {
+                completed_effect_count: 1,
+                requests_used: 2,
+                retry_after: None,
             }
         );
         assert_eq!(transport.batch_requests.load(Ordering::SeqCst), 1);
-        assert_eq!(transport.individual_requests.load(Ordering::SeqCst), 3);
-        assert_eq!(committer.cursors().await[0].completed_effect_count, 3);
+        assert_eq!(transport.individual_requests.load(Ordering::SeqCst), 1);
+        assert_eq!(committer.cursors().await[0].completed_effect_count, 1);
     }
 
     #[tokio::test]
-    async fn multiple_bulk_waves_overlap_and_commit_one_contiguous_cursor() {
+    async fn concurrent_full_bulk_waves_share_one_bounded_turn() {
         let transport = Arc::new(ParallelBatchTransport {
             in_flight: AtomicUsize::new(0),
             max_seen: AtomicUsize::new(0),
@@ -3063,18 +3087,18 @@ mod tests {
         assert_eq!(
             outcome,
             TurnOutcomeV1::Progressed {
-                completed_effect_count: 10,
-                work_exhausted: true,
-                requests_used: 5,
+                completed_effect_count: 8,
+                work_exhausted: false,
+                requests_used: 4,
             }
         );
-        assert_eq!(transport.batch_requests.load(Ordering::SeqCst), 5);
+        assert_eq!(transport.batch_requests.load(Ordering::SeqCst), 4);
         assert_eq!(transport.max_seen.load(Ordering::SeqCst), 4);
-        assert_eq!(committer.cursors().await[0].completed_effect_count, 10);
+        assert_eq!(committer.cursors().await[0].completed_effect_count, 8);
     }
 
     #[tokio::test]
-    async fn a_later_successful_batch_never_advances_past_an_earlier_retry() {
+    async fn a_rejected_full_batch_never_sends_or_advances_a_later_batch() {
         let transport = Arc::new(ParallelBatchTransport {
             in_flight: AtomicUsize::new(0),
             max_seen: AtomicUsize::new(0),
@@ -3103,6 +3127,7 @@ mod tests {
                 retry_after: None,
             }
         );
+        assert_eq!(transport.batch_requests.load(Ordering::SeqCst), 2);
         assert!(committer.cursors().await.is_empty());
     }
 

@@ -20,7 +20,10 @@ use std::collections::HashMap;
 use std::process::{Child, Command, Stdio};
 use std::time::Duration;
 
+use futures::StreamExt as _;
 use integrations_rs::config::Env;
+use integrations_rs::graph::client::entity_create_params;
+use integrations_rs::graph::{EntityOp, Provenance};
 use integrations_rs::orchestrator::{
     prepare_task, CommandRunState, CommandSurface, InvocationV1, SubmissionTriggerV1,
 };
@@ -51,9 +54,102 @@ impl Drop for WorkerGuard {
     }
 }
 
+/// Measures the Graph HTTP write surface without the journal, S3, planning,
+/// or worker lease lifecycle. This is intentionally separate from the
+/// end-to-end contract below so the two numbers identify where time is spent.
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[ignore = "performs real entity writes against an explicitly approved Graph web"]
+#[allow(clippy::cast_precision_loss, reason = "benchmark rate is approximate")]
+async fn real_graph_write_throughput_probe() {
+    assert_eq!(
+        std::env::var("INTEGRATIONS_GRAPH_CONTRACT").as_deref(),
+        Ok("1"),
+        "set INTEGRATIONS_GRAPH_CONTRACT=1 to confirm the target web is disposable"
+    );
+    let graph_url = std::env::var("HASH_GRAPH_URL").expect("HASH_GRAPH_URL is required");
+    let actor_id = std::env::var("HASH_ACTOR_ID").expect("HASH_ACTOR_ID is required");
+    let web_id = std::env::var("HASH_WEB_ID").expect("HASH_WEB_ID is required");
+    let entity_type = std::env::var(ENTITY_TYPE_VAR)
+        .unwrap_or_else(|_missing| panic!("{ENTITY_TYPE_VAR} is required"));
+    let name_property = std::env::var(NAME_PROPERTY_VAR)
+        .unwrap_or_else(|_missing| panic!("{NAME_PROPERTY_VAR} is required"));
+    let row_count = std::env::var("INTEGRATIONS_GRAPH_CONTRACT_ROWS")
+        .ok()
+        .map_or(5_000_usize, |value| value.parse().expect("row count"));
+    let bulk_size = std::env::var("HASH_GRAPH_BULK_SIZE")
+        .ok()
+        .map_or(128_usize, |value| value.parse().expect("bulk size"));
+    let concurrency = std::env::var("HASH_GRAPH_CONCURRENCY")
+        .ok()
+        .map_or(16_usize, |value| value.parse().expect("concurrency"));
+    assert!(row_count > 0 && bulk_size > 0 && concurrency > 0);
+
+    let namespace = format!("graph-throughput-{}", uuid::Uuid::new_v4());
+    let provenance = Provenance {
+        loaded_at: chrono::Utc::now().to_rfc3339(),
+        location_name: "Graph throughput probe".to_owned(),
+        ..Provenance::default()
+    };
+    let payloads = (0..row_count)
+        .map(|row| {
+            entity_create_params(&EntityOp {
+                namespace: namespace.clone(),
+                entity_type: entity_type.clone(),
+                entity_id: serde_json::json!(row),
+                properties: vec![(
+                    name_property.clone(),
+                    serde_json::json!(format!("Graph throughput row {row}")),
+                )],
+                property_provenance: std::collections::BTreeMap::new(),
+                provenance: provenance.clone(),
+                web_id: web_id.clone(),
+            })
+        })
+        .collect::<Vec<_>>();
+    let client = reqwest::Client::new();
+    let endpoint = format!("{}/entities/bulk", graph_url.trim_end_matches('/'));
+    let started = std::time::Instant::now();
+    futures::stream::iter(payloads.chunks(bulk_size).map(|chunk| {
+        let client = client.clone();
+        let endpoint = endpoint.clone();
+        let actor_id = actor_id.clone();
+        let body = chunk.to_vec();
+        async move {
+            let response = client
+                .post(endpoint)
+                .header("x-authenticated-user-actor-id", actor_id)
+                .json(&body)
+                .send()
+                .await
+                .expect("send Graph bulk create");
+            let status = response.status();
+            let diagnostic = response.text().await.unwrap_or_default();
+            assert!(
+                status.is_success(),
+                "Graph bulk create {status}: {diagnostic}"
+            );
+        }
+    }))
+    .buffer_unordered(concurrency)
+    .collect::<Vec<_>>()
+    .await;
+    let seconds = started.elapsed().as_secs_f64();
+    println!(
+        "INTEGRATIONS_RAW_GRAPH_THROUGHPUT {}",
+        serde_json::json!({
+            "entities": row_count,
+            "bulkSize": bulk_size,
+            "concurrency": concurrency,
+            "seconds": seconds,
+            "entitiesPerSecond": row_count as f64 / seconds,
+        })
+    );
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[allow(
     clippy::too_many_lines,
+    clippy::cast_precision_loss,
     reason = "one linear two-round contract scenario reads better unfragmented"
 )]
 #[ignore = "requires a real Graph URL and a disposable or explicitly approved web"]
@@ -80,6 +176,25 @@ async fn real_graph_delivery_contract() {
     let name_property = std::env::var(NAME_PROPERTY_VAR).unwrap_or_else(|_missing| {
         panic!("{NAME_PROPERTY_VAR} is required for the Graph contract")
     });
+    let row_count = std::env::var("INTEGRATIONS_GRAPH_CONTRACT_ROWS")
+        .ok()
+        .map_or(1_u64, |value| {
+            value
+                .parse()
+                .expect("INTEGRATIONS_GRAPH_CONTRACT_ROWS must be u64")
+        });
+    assert!(row_count > 0, "Graph contract row count must be positive");
+    let round_count = std::env::var("INTEGRATIONS_GRAPH_CONTRACT_ROUNDS")
+        .ok()
+        .map_or(2_u8, |value| {
+            value
+                .parse()
+                .expect("INTEGRATIONS_GRAPH_CONTRACT_ROUNDS must be 1 or 2")
+        });
+    assert!(
+        (1..=2).contains(&round_count),
+        "Graph contract rounds must be 1 or 2"
+    );
     let cache = tempfile::tempdir().expect("cache");
     let local = tempfile::tempdir().expect("local state");
     let attestation = local.path().join("release-attestation.json");
@@ -135,7 +250,7 @@ async fn real_graph_delivery_contract() {
         name_property.clone(),
         serde_json::Value::String("name".to_owned()),
     );
-    for round in 0..2 {
+    for round in 0..round_count {
         let definition = serde_json::json!({
             "connector": {"id": connector, "mode": "batch"},
             "sources": {
@@ -143,7 +258,7 @@ async fn real_graph_delivery_contract() {
                     "kind": "sql",
                     "primaryKey": "id",
                     "sql": format!(
-                        "SELECT 'contract-one' AS id, 'Contract order round {round}' AS name"
+                        "SELECT 'contract-' || range::VARCHAR AS id, 'Contract order round {round} row ' || range::VARCHAR AS name FROM range({row_count})"
                     )
                 }
             },
@@ -172,6 +287,7 @@ async fn real_graph_delivery_contract() {
         )
         .expect("prepare contract submission");
         let surface = CommandSurface::open(&env).expect("open command surface");
+        let started = std::time::Instant::now();
         let submitted = surface.submit(prepared).await.expect("submit contract run");
         let mut worker = Command::new(env!("CARGO_BIN_EXE_integrations_rs"));
         for (name, value) in &variables {
@@ -202,6 +318,17 @@ async fn real_graph_delivery_contract() {
         .await;
         drop(worker);
         assert_eq!(completed.attempt, 1, "round {round} completed on attempt 1");
+        let seconds = started.elapsed().as_secs_f64();
+        println!(
+            "INTEGRATIONS_GRAPH_THROUGHPUT {}",
+            serde_json::json!({
+                "round": round,
+                "operation": if round == 0 { "create" } else { "conflict_update" },
+                "entities": row_count,
+                "seconds": seconds,
+                "entitiesPerSecond": row_count as f64 / seconds,
+            })
+        );
     }
     let evidence = serde_json::json!({
         "evidenceVersion": 1,

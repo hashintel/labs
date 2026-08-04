@@ -658,6 +658,7 @@ mod tests {
 
     use super::*;
     use crate::orchestrator::ids::{EventId, RunId};
+    use crate::orchestrator::managed::{InMemorySecretStore, ManagedStore};
 
     #[derive(Default)]
     struct FakeService {
@@ -698,6 +699,113 @@ mod tests {
             _run_id: &str,
         ) -> Result<PublishedCancellation, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
+        }
+    }
+
+    struct ManagedTestService {
+        store: ManagedStore,
+    }
+
+    fn managed_error(error: crate::orchestrator::managed::ManagedError) -> ApplicationError {
+        ApplicationError::invalid(error.to_string())
+    }
+
+    #[async_trait]
+    impl IntegrationService for ManagedTestService {
+        async fn submit(
+            &self,
+            _context: RequestContext,
+            _command: SubmitIntegration,
+        ) -> Result<CommandSubmission, ApplicationError> {
+            Err(ApplicationError::invalid("not used"))
+        }
+
+        async fn status(
+            &self,
+            _context: RequestContext,
+            _connector_id: Option<&str>,
+            _run_id: &str,
+        ) -> Result<CommandRunStatus, ApplicationError> {
+            Err(ApplicationError::invalid("not used"))
+        }
+
+        async fn cancel(
+            &self,
+            _context: RequestContext,
+            _connector_id: Option<&str>,
+            _run_id: &str,
+        ) -> Result<PublishedCancellation, ApplicationError> {
+            Err(ApplicationError::invalid("not used"))
+        }
+
+        async fn put_managed(
+            &self,
+            context: RequestContext,
+            connector_id: &str,
+            definition: Value,
+            expected_revision: Option<&str>,
+            replaces_connector_id: Option<String>,
+        ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
+            self.store
+                .put_definition(
+                    &context.web_id,
+                    connector_id,
+                    context.actor_id.as_deref().unwrap_or_default(),
+                    definition,
+                    expected_revision,
+                    replaces_connector_id,
+                )
+                .await
+                .map_err(managed_error)
+        }
+
+        async fn get_managed(
+            &self,
+            context: RequestContext,
+            connector_id: &str,
+        ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
+            self.store
+                .get_definition(&context.web_id, connector_id)
+                .await
+                .map_err(managed_error)
+        }
+
+        async fn set_managed_desired_state(
+            &self,
+            context: RequestContext,
+            connector_id: &str,
+            desired: ManagedDesiredState,
+            expected_revision: &str,
+        ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
+            self.store
+                .set_desired_state(&context.web_id, connector_id, desired, expected_revision)
+                .await
+                .map_err(managed_error)
+        }
+
+        async fn bind_managed(
+            &self,
+            _context: RequestContext,
+            binding: ProviderBinding,
+            secret: Option<crate::secret::Secret<Vec<u8>>>,
+        ) -> Result<(), ApplicationError> {
+            self.store
+                .bind(binding, secret)
+                .await
+                .map_err(managed_error)
+        }
+
+        async fn ingest_webhook(
+            &self,
+            provider: WebhookProvider,
+            binding_id: Option<&str>,
+            headers: &BTreeMap<String, String>,
+            body: &[u8],
+        ) -> Result<IngressDisposition, ApplicationError> {
+            self.store
+                .accept(provider, binding_id, headers, body, 1_700_000_000)
+                .await
+                .map_err(managed_error)
         }
     }
 
@@ -775,5 +883,129 @@ mod tests {
             .pointer("/paths/~1v1~1webs~1{web_id}~1integrations~1{connector_id}~1runs/post")
             .unwrap();
         assert!(submit_operation.to_string().contains(ACTOR_HEADER));
+    }
+
+    #[tokio::test]
+    async fn managed_http_journey_accepts_one_real_signed_github_delivery() {
+        let cache = tempfile::tempdir().expect("cache");
+        let blobs = crate::blob::ArtifactStore::in_memory(cache.path()).expect("blob store");
+        let store = ManagedStore::new(blobs, Arc::new(InMemorySecretStore::default()));
+        let service = Arc::new(ManagedTestService {
+            store: store.clone(),
+        });
+        let app = router(service);
+        let definition = serde_json::json!({
+            "connector": {
+                "id": "events",
+                "mode": "webhook",
+                "provider": "github",
+                "subscriptions": ["issues"]
+            },
+            "sources": {"events": {"kind": "table", "primaryKey": "delivery"}},
+            "pipelines": {"entities": [{
+                "source": "events",
+                "steps": [{
+                    "id": "sink", "kind": "graph-sink", "config": {
+                        "entityType": "issue/v/1", "entityId": "payload.id",
+                        "webId": "alice", "properties": {}
+                    }
+                }]
+            }]}
+        });
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PUT")
+                    .uri("/v1/webs/alice/integrations/events")
+                    .header(ACTOR_HEADER, "actor:alice")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({"definition": definition}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::CREATED);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let created: Value = serde_json::from_slice(&bytes).unwrap();
+        let revision = created["revision"].as_str().expect("definition revision");
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("PATCH")
+                    .uri("/v1/webs/alice/integrations/events/desired-state")
+                    .header(ACTOR_HEADER, "actor:alice")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "desiredState": "enabled",
+                            "expectedRevision": revision
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/webs/alice/integrations/events/bindings")
+                    .header(ACTOR_HEADER, "actor:alice")
+                    .header("content-type", "application/json")
+                    .body(Body::from(
+                        serde_json::json!({
+                            "bindingId": "github-7",
+                            "provider": "github",
+                            "externalId": "7",
+                            "secretBackend": "memory",
+                            "secretPath": "github/7",
+                            "secret": "secret"
+                        })
+                        .to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+
+        let body = br#"{"installation":{"id":7},"action":"opened"}"#;
+        let signature = hex::encode(crate::orchestrator::managed::hmac_sha256(b"secret", body));
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/v1/hooks/github")
+                    .header("content-type", "application/json")
+                    .header("x-github-delivery", "delivery-1")
+                    .header("x-github-event", "issues")
+                    .header("x-hub-signature-256", format!("sha256={signature}"))
+                    .body(Body::from(body.as_slice()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let accepted: Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(accepted["accepted"], Value::Bool(true));
+
+        let pending = store
+            .pending_events("alice", "events")
+            .await
+            .expect("durable accepted event");
+        assert_eq!(pending.len(), 1);
+        assert_eq!(pending[0].receipt.owner_actor, "actor:alice");
+        assert_eq!(pending[0].receipt.definition_revision, revision);
     }
 }

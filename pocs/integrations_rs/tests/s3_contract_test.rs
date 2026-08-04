@@ -20,12 +20,108 @@ use object_store::ObjectStore;
 use serde_json::json;
 use sha2::{Digest as _, Sha256};
 use tempfile::tempdir;
+use tokio::io::AsyncWriteExt as _;
 
 const MULTIPART_PART_SIZE: usize = 8 * 1024 * 1024;
 const CRASH_HELPER_MARKER: &str = "INTEGRATIONS_S3_CRASH_HELPER";
 const CRASH_HELPER_URL: &str = "INTEGRATIONS_S3_CRASH_HELPER_URL";
 const CRASH_HELPER_EXIT: i32 = 86;
 const EVIDENCE_PREFIX: &str = "INTEGRATIONS_CONTRACT_EVIDENCE ";
+
+/// Bounded end-to-end S3 transfer probe for roles that intentionally lack
+/// bucket listing. It touches one exact key, verifies the downloaded bytes,
+/// and deletes that key before returning.
+#[tokio::test]
+#[ignore = "requires an explicit real-S3 scratch key and provider credentials"]
+async fn real_s3_throughput_probe() {
+    let url = std::env::var("INTEGRATIONS_S3_THROUGHPUT_URL")
+        .expect("set INTEGRATIONS_S3_THROUGHPUT_URL=s3://bucket/exact-scratch-prefix");
+    let (bucket, prefix) = parse_s3_url(&url);
+    assert!(
+        !prefix.is_empty(),
+        "throughput URL requires a scratch prefix"
+    );
+    let bytes = std::env::var("INTEGRATIONS_S3_THROUGHPUT_BYTES")
+        .ok()
+        .map_or(256 * 1024 * 1024, |value| {
+            value
+                .parse::<usize>()
+                .expect("throughput bytes must be usize")
+        });
+    assert!(bytes > 0, "throughput bytes must be positive");
+    let raw: Arc<dyn ObjectStore> = Arc::new(
+        AmazonS3Builder::from_env()
+            .with_bucket_name(bucket)
+            .build()
+            .expect("build S3 throughput backend"),
+    );
+    let key = Path::from(format!("{prefix}/object.bin"));
+    raw.delete(&key).await.expect("delete stale benchmark key");
+
+    let result = throughput_round_trip(Arc::clone(&raw), &key, bytes).await;
+    let cleanup = raw.delete(&key).await;
+    cleanup.expect("delete exact throughput object");
+    result.expect("S3 throughput round trip");
+}
+
+async fn throughput_round_trip(
+    raw: Arc<dyn ObjectStore>,
+    key: &Path,
+    bytes: usize,
+) -> Result<(), String> {
+    let chunk_size = MULTIPART_PART_SIZE.min(bytes);
+    let chunk = Bytes::from(
+        (0..chunk_size)
+            .map(|index| {
+                u8::try_from(index.wrapping_mul(31) % 251).expect("modulo 251 always fits in u8")
+            })
+            .collect::<Vec<_>>(),
+    );
+    let mut expected_hash = Sha256::new();
+    let upload_started = std::time::Instant::now();
+    let mut writer = BufWriter::with_capacity(Arc::clone(&raw), key.clone(), MULTIPART_PART_SIZE);
+    let mut remaining = bytes;
+    while remaining > 0 {
+        let count = remaining.min(chunk.len());
+        let part = chunk.slice(..count);
+        expected_hash.update(&part);
+        writer.put(part).await.map_err(|error| error.to_string())?;
+        remaining -= count;
+    }
+    writer.shutdown().await.map_err(|error| error.to_string())?;
+    let upload_seconds = upload_started.elapsed().as_secs_f64();
+
+    let download_started = std::time::Instant::now();
+    let result = raw.get(key).await.map_err(|error| error.to_string())?;
+    let mut stream = result.into_stream();
+    let mut observed_hash = Sha256::new();
+    let mut observed_bytes = 0_usize;
+    while let Some(part) = stream.next().await {
+        let part = part.map_err(|error| error.to_string())?;
+        observed_hash.update(&part);
+        observed_bytes = observed_bytes
+            .checked_add(part.len())
+            .ok_or("download byte count overflow")?;
+    }
+    let download_seconds = download_started.elapsed().as_secs_f64();
+    if observed_bytes != bytes || observed_hash.finalize() != expected_hash.finalize() {
+        return Err("downloaded payload failed size or SHA-256 verification".to_owned());
+    }
+    #[allow(clippy::cast_precision_loss, reason = "benchmark rate is approximate")]
+    let mebibytes = bytes as f64 / (1024.0 * 1024.0);
+    println!(
+        "INTEGRATIONS_S3_THROUGHPUT {}",
+        serde_json::json!({
+            "bytes": bytes,
+            "uploadSeconds": upload_seconds,
+            "uploadMiBPerSecond": mebibytes / upload_seconds,
+            "downloadSeconds": download_seconds,
+            "downloadMiBPerSecond": mebibytes / download_seconds,
+            "sha256Verified": true,
+        })
+    );
+    Ok(())
+}
 
 #[tokio::test]
 #[ignore = "requires an explicit real-S3 scratch prefix and provider credentials"]
