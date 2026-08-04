@@ -104,6 +104,7 @@ impl std::error::Error for RunInputError {}
 #[derive(Debug)]
 pub(crate) struct LoadedRunInputV1 {
     pub(crate) integration: Integration,
+    pub(crate) owner_actor_id: String,
     /// Tests assert the exact interpolated definition; production consumes
     /// only the built integration and the verified digests.
     #[cfg(test)]
@@ -167,6 +168,10 @@ fn load_current(
     current: CurrentRunInputRecord,
     env: &Env,
 ) -> Result<LoadedRunInputV1, Report<RunInputError>> {
+    if current.owner_actor_id.trim().is_empty() || current.owner_actor_id.len() > 256 {
+        return Err(Report::new(RunInputError::InvalidReference)
+            .attach_printable("run owner actor ID is missing or exceeds 256 bytes"));
+    }
     let raw: Value = serde_json::from_str(&current.definition)
         .change_context(RunInputError::InvalidDefinition)?;
     if !raw.is_object() {
@@ -228,6 +233,7 @@ fn load_current(
 
     Ok(LoadedRunInputV1 {
         integration,
+        owner_actor_id: current.owner_actor_id,
         #[cfg(test)]
         resolved_definition: resolved,
         invocation,
@@ -301,6 +307,7 @@ mod tests {
                 (LINKS_ONLY_VARIABLE.to_owned(), "true".to_owned()),
                 (REPLAY_VARIABLE.to_owned(), r#"{"orders":null}"#.to_owned()),
             ]),
+            "actor:owner".to_owned(),
             resolved_digest,
         );
         let prefix = format!("tenants/{tenant}/artifacts/run-inputs");
@@ -339,6 +346,7 @@ mod tests {
         );
         assert!(loaded.invocation.links_only);
         assert!(loaded.invocation.replay.contains_key("orders"));
+        assert_eq!(loaded.owner_actor_id, "actor:owner");
         assert_eq!(
             loaded.definition_digest,
             metadata::definition_digest(&raw).expect("digest")

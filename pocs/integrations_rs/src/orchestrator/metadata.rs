@@ -152,9 +152,6 @@ pub fn prepare_task(
     trace_context: Map<String, Value>,
     env: &Env,
 ) -> Result<PreparedTask, Report<DurableError>> {
-    let raw = yaml::raw(source).change_context(DurableError)?;
-    reject_inline_secrets(&raw)?;
-    reject_unsafe_env_placeholders(&raw, env)?;
     let web_id = env
         .get("HASH_WEB_ID")
         .filter(|value| !value.trim().is_empty())
@@ -163,6 +160,26 @@ pub fn prepare_task(
                 "HASH_WEB_ID is required for durable submission; refusing an ambiguous canonical identity",
             )
         })?;
+    prepare_task_for_web(source, invocation, trigger, trace_context, web_id, env)
+}
+
+/// Prepare a task for an explicit authenticated tenant. This is the shared
+/// application boundary used by HTTP requests; the CLI wrapper above retains
+/// its process-environment convenience.
+pub fn prepare_task_for_web(
+    source: &Source,
+    invocation: InvocationV1,
+    trigger: SubmissionTriggerV1,
+    trace_context: Map<String, Value>,
+    web_id: &str,
+    env: &Env,
+) -> Result<PreparedTask, Report<DurableError>> {
+    let raw = yaml::raw(source).change_context(DurableError)?;
+    reject_inline_secrets(&raw)?;
+    reject_unsafe_env_placeholders(&raw, env)?;
+    if web_id.trim().is_empty() {
+        return Err(Report::new(DurableError).attach_printable("web identity must not be empty"));
+    }
     let durable_env = env.durable_interpolation_scope();
     let resolved = yaml::resolve_env(&raw, &durable_env).change_context(DurableError)?;
     let integration = crate::build::build(&resolved, web_id).change_context(DurableError)?;

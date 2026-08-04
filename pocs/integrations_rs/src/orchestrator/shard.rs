@@ -1381,6 +1381,7 @@ mod tests {
         effect_count: u64,
     ) -> (Vec<JournalRecordV1>, WorkId, String) {
         let state = StateVersionV1::new(
+            "actor:owner".to_owned(),
             None,
             StatePhase::V1(StatePhaseV1::SourcesCommitted),
             StateSnapshot::V1(StateSnapshotV1 {
@@ -1412,6 +1413,7 @@ mod tests {
         };
         let manifest = WorkManifestV1::new(
             &integration,
+            "actor:owner".to_owned(),
             WorkKind::Apply(ApplyWorkV1 {
                 run_id: run_id.clone(),
                 candidate,

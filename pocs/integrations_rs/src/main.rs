@@ -8,9 +8,13 @@
 
 //! CLI for the V1 durable integration control plane.
 
+use integrations_rs::application::{
+    DurableIntegrationService, IntegrationService as _, RequestContext, SubmitIntegration,
+};
 use integrations_rs::config::Env;
-use integrations_rs::orchestrator::{self, InvocationV1, SubmissionTriggerV1};
+use integrations_rs::orchestrator::{InvocationV1, SubmissionTriggerV1};
 use integrations_rs::yaml::Source;
+use std::sync::Arc;
 
 fn main() {
     tracing_subscriber::fmt()
@@ -47,6 +51,7 @@ async fn dispatch(args: Vec<String>) -> i32 {
         Some("tune") => durable_tune(&args[1..], &env).await,
         Some("doctor") => production_doctor(&args[1..], &env).await,
         Some("verify-store") => production_verify_store(&args[1..], &env).await,
+        Some("serve") => production_serve(&args[1..], &env).await,
         Some("worker") => production_worker(&args[1..], &env).await,
         Some("help" | "--help" | "-h") => {
             println!("{}", usage());
@@ -69,9 +74,82 @@ const fn usage() -> &'static str {
   integrations_rs tune graph-rps <requests-per-second|default>
   integrations_rs doctor
   integrations_rs verify-store [--full]
+  integrations_rs serve --activate-baseline
   integrations_rs worker --activate-baseline
 
 Durable commands use the blob-backed OpenData/SlateDB backend."
+}
+
+async fn production_serve(args: &[String], env: &Env) -> i32 {
+    if args != ["--activate-baseline"] {
+        eprintln!(
+            "serve refuses to start without explicit baseline activation\n\nUsage: integrations_rs serve --activate-baseline"
+        );
+        return 64;
+    }
+    let bind = env
+        .get("INTEGRATIONS_HTTP_BIND")
+        .unwrap_or("127.0.0.1:3000");
+    let listener = match tokio::net::TcpListener::bind(bind).await {
+        Ok(listener) => listener,
+        Err(error) => {
+            eprintln!("HTTP API could not bind to {bind}: {error}");
+            return 1;
+        }
+    };
+    let address = listener
+        .local_addr()
+        .map_or_else(|_| bind.to_owned(), |address| address.to_string());
+    let service: Arc<dyn integrations_rs::application::IntegrationService> =
+        Arc::new(integrations_rs::application::DurableIntegrationService::new(env.clone()));
+    let shutdown = tokio_util::sync::CancellationToken::new();
+    let worker = integrations_rs::production::run_worker_until(env, shutdown.clone());
+    let api = integrations_rs::web_api::serve(listener, service, shutdown.clone());
+    tokio::pin!(worker);
+    tokio::pin!(api);
+    tracing::info!(bind = %address, docs = %format!("http://{address}/docs"), "integrations node listening");
+
+    tokio::select! {
+        signal = tokio::signal::ctrl_c() => {
+            if let Err(error) = signal {
+                eprintln!("shutdown signal failed: {error}");
+                shutdown.cancel();
+                return 1;
+            }
+            shutdown.cancel();
+            let (worker_result, api_result) = tokio::join!(worker, api);
+            report_node_results(worker_result, api_result)
+        }
+        worker_result = &mut worker => {
+            shutdown.cancel();
+            let api_result = api.await;
+            report_node_results(worker_result, api_result)
+        }
+        api_result = &mut api => {
+            shutdown.cancel();
+            let worker_result = worker.await;
+            report_node_results(worker_result, api_result)
+        }
+    }
+}
+
+fn report_node_results(
+    worker: Result<(), error_stack::Report<integrations_rs::orchestrator::runner::WorkerError>>,
+    api: std::io::Result<()>,
+) -> i32 {
+    let worker_failed = if let Err(error) = worker {
+        print_worker_error("worker stopped", &error);
+        true
+    } else {
+        false
+    };
+    let api_failed = if let Err(error) = api {
+        eprintln!("HTTP API stopped: {error}");
+        true
+    } else {
+        false
+    };
+    i32::from(worker_failed || api_failed)
 }
 
 async fn production_worker(args: &[String], env: &Env) -> i32 {
@@ -180,27 +258,27 @@ async fn submit_durable(definition: &str, flags: &[String], env: Env) -> i32 {
             return 64;
         }
     };
-    let prepared = match orchestrator::prepare_task(
-        &Source::from_arg(definition),
-        invocation,
-        SubmissionTriggerV1::Manual,
-        serde_json::Map::new(),
-        &env,
-    ) {
-        Ok(prepared) => prepared,
-        Err(error) => {
-            print_durable_error("submission rejected", &error);
+    let context = match local_request_context(&env) {
+        Ok(context) => context,
+        Err(message) => {
+            eprintln!("submission unavailable: {message}");
             return 1;
         }
     };
-    let surface = match orchestrator::CommandSurface::open(&env) {
-        Ok(surface) => surface,
-        Err(error) => {
-            print_command_error("submission unavailable", &error);
-            return 1;
-        }
-    };
-    match surface.submit(prepared).await {
+    let service = DurableIntegrationService::new(env);
+    match service
+        .submit(
+            context,
+            SubmitIntegration {
+                connector_id: None,
+                source: Source::from_arg(definition),
+                invocation,
+                trigger: SubmissionTriggerV1::Manual,
+                trace_context: serde_json::Map::new(),
+            },
+        )
+        .await
+    {
         Ok(outcome) => {
             if json_output {
                 println!(
@@ -224,7 +302,7 @@ async fn submit_durable(definition: &str, flags: &[String], env: Env) -> i32 {
             0
         }
         Err(error) => {
-            print_command_error("submission failed", &error);
+            eprintln!("submission failed: {error}");
             1
         }
     }
@@ -275,14 +353,15 @@ async fn durable_status(args: &[String], env: Env) -> i32 {
             return 64;
         }
     };
-    let surface = match orchestrator::CommandSurface::open(&env) {
-        Ok(surface) => surface,
-        Err(error) => {
-            print_command_error("status unavailable", &error);
+    let context = match local_request_context(&env) {
+        Ok(context) => context,
+        Err(message) => {
+            eprintln!("status unavailable: {message}");
             return 1;
         }
     };
-    match surface.status(&task_id).await {
+    let service = DurableIntegrationService::new(env);
+    match service.status(context, None, &task_id).await {
         Ok(result) if json_output => {
             println!(
                 "{}",
@@ -309,7 +388,7 @@ async fn durable_status(args: &[String], env: Env) -> i32 {
             0
         }
         Err(error) => {
-            print_command_error("status failed", &error);
+            eprintln!("status failed: {error}");
             1
         }
     }
@@ -323,14 +402,15 @@ async fn durable_cancel(args: &[String], env: Env) -> i32 {
             return 64;
         }
     };
-    let surface = match orchestrator::CommandSurface::open(&env) {
-        Ok(surface) => surface,
-        Err(error) => {
-            print_command_error("cancel unavailable", &error);
+    let context = match local_request_context(&env) {
+        Ok(context) => context,
+        Err(message) => {
+            eprintln!("cancel unavailable: {message}");
             return 1;
         }
     };
-    match surface.cancel(&task_id).await {
+    let service = DurableIntegrationService::new(env);
+    match service.cancel(context, None, &task_id).await {
         Ok(request) => {
             if json_output {
                 println!(
@@ -348,10 +428,22 @@ async fn durable_cancel(args: &[String], env: Env) -> i32 {
             0
         }
         Err(error) => {
-            print_command_error("cancel failed", &error);
+            eprintln!("cancel failed: {error}");
             1
         }
     }
+}
+
+fn local_request_context(env: &Env) -> Result<RequestContext, &'static str> {
+    let web_id = env
+        .get("HASH_WEB_ID")
+        .filter(|value| !value.trim().is_empty())
+        .ok_or("HASH_WEB_ID is required")?;
+    Ok(RequestContext {
+        web_id: web_id.to_owned(),
+        actor_id: env.get("HASH_ACTOR_ID").map(str::to_owned),
+        request_id: None,
+    })
 }
 
 async fn durable_tune(args: &[String], env: &Env) -> i32 {
@@ -461,52 +553,6 @@ fn parse_task_command(command: &str, args: &[String]) -> Result<(String, bool), 
         return Err(format!("too many arguments for {command}"));
     }
     Ok((task_id, json_output))
-}
-
-fn print_durable_error(
-    label: &str,
-    report: &error_stack::Report<integrations_rs::orchestrator::DurableError>,
-) {
-    if let Some(config) = report.downcast_ref::<integrations_rs::error::ConfigError>() {
-        eprintln!("{label}: {config}");
-        return;
-    }
-    let details: Vec<String> = report
-        .frames()
-        .filter_map(|frame| match frame.kind() {
-            error_stack::FrameKind::Attachment(error_stack::AttachmentKind::Printable(value)) => {
-                Some(value.to_string())
-            }
-            _ => None,
-        })
-        .collect();
-    if let Some((first, rest)) = details.split_first() {
-        eprintln!("{label}: {first}");
-        for detail in rest {
-            eprintln!("caused by: {detail}");
-        }
-        return;
-    }
-    eprintln!("{label}: {report:?}");
-}
-
-fn print_command_error(
-    label: &str,
-    report: &error_stack::Report<orchestrator::CommandSurfaceError>,
-) {
-    let details = report
-        .frames()
-        .filter_map(|frame| match frame.kind() {
-            error_stack::FrameKind::Attachment(error_stack::AttachmentKind::Printable(value)) => {
-                Some(value.to_string())
-            }
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    eprintln!("{label}: {}", report.current_context());
-    for detail in details {
-        eprintln!("caused by: {detail}");
-    }
 }
 
 fn print_worker_error(

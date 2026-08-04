@@ -34,6 +34,7 @@ use crate::throttle::coordinator::{GraphTokenCoordinator, TurnTokens};
 use crate::throttle::drr::{LaneAfterTurn, LaneClass, RunnableLane};
 use crate::throttle::rate::{FairAdmission, FairDecision};
 use crate::throttle::{GraphRequestCharge as _, RateLimiter, Throttle};
+use tokio_util::sync::CancellationToken;
 
 const DISCOVERY_INTERVAL: Duration = Duration::from_secs(2);
 const ACTIVE_POLL_INTERVAL: Duration = Duration::from_millis(25);
@@ -92,6 +93,20 @@ struct ShardRuntime {
 }
 
 pub async fn run(env: &Env) -> Result<(), Report<WorkerError>> {
+    let shutdown = CancellationToken::new();
+    let worker = Box::pin(run_until(env, shutdown.clone()));
+    tokio::pin!(worker);
+    tokio::select! {
+        result = &mut worker => result,
+        signal = tokio::signal::ctrl_c() => {
+            signal.change_context(WorkerError::Shutdown)?;
+            shutdown.cancel();
+            worker.await
+        }
+    }
+}
+
+pub async fn run_until(env: &Env, shutdown: CancellationToken) -> Result<(), Report<WorkerError>> {
     let readiness = activation::activate(env)
         .await
         .change_context(WorkerError::Activation)?;
@@ -130,7 +145,6 @@ pub async fn run(env: &Env) -> Result<(), Report<WorkerError>> {
         env,
     ));
     let lanes = Arc::new(EffectLaneRegistry::default());
-    let actor = required(env, "HASH_ACTOR_ID")?.to_owned();
     tracing::info!(
         runner_rate = readiness.config.rate.runner_rate,
         reconcile_numerator = readiness.config.rate.reconcile_numerator,
@@ -149,7 +163,6 @@ pub async fn run(env: &Env) -> Result<(), Report<WorkerError>> {
         cleaner,
         transport,
         lanes,
-        actor,
         delivery,
         runtime_settings,
         delivery_settings_revision: 0,
@@ -162,7 +175,7 @@ pub async fn run(env: &Env) -> Result<(), Report<WorkerError>> {
         lanes_declared: false,
         unowned_since: BTreeMap::new(),
     };
-    Box::pin(runner.serve()).await
+    Box::pin(runner.serve(shutdown)).await
 }
 
 struct Runner {
@@ -171,7 +184,6 @@ struct Runner {
     cleaner: Arc<dyn ShardWorkspaceCleaner>,
     transport: Arc<dyn GraphEffectTransport>,
     lanes: Arc<EffectLaneRegistry>,
-    actor: String,
     /// The single process-wide fair Graph scheduler shared by every owned
     /// shard. Delivery capacity is admitted, paced, and settled only here.
     delivery: Arc<GraphTokenCoordinator>,
@@ -196,7 +208,7 @@ struct Runner {
 }
 
 impl Runner {
-    async fn serve(&mut self) -> Result<(), Report<WorkerError>> {
+    async fn serve(&mut self, shutdown: CancellationToken) -> Result<(), Report<WorkerError>> {
         loop {
             let progressed = Box::pin(self.tick()).await?;
             let delay = if progressed {
@@ -205,8 +217,7 @@ impl Runner {
                 IDLE_POLL_INTERVAL
             };
             tokio::select! {
-                signal = tokio::signal::ctrl_c() => {
-                    signal.change_context(WorkerError::Shutdown)?;
+                () = shutdown.cancelled() => {
                     return self.shutdown().await;
                 }
                 () = tokio::time::sleep(delay) => {}
@@ -713,11 +724,11 @@ impl Runner {
             ChunkBudget::new(self.readiness.config.max_graph_requests_per_chunk)
                 .change_context(WorkerError::Executor)?,
         );
-        let expected_actor = self.actor.clone();
         let scheduler = renewing.scheduler(
-            Arc::new(move |request: &super::control::ControlRequestV1| {
-                request.actor == expected_actor
-            }),
+            // The HTTP boundary is private and authenticated. Per-run owners
+            // vary, so a process-wide actor comparison would incorrectly
+            // reject legitimate controls for every other owner.
+            Arc::new(|_request: &super::control::ControlRequestV1| true),
             self.readiness.config.control_batch_size,
             self.readiness.config.reconcile_interval,
         );

@@ -1187,6 +1187,7 @@ mod tests {
             .await
             .unwrap();
         let state = StateVersionV1::new(
+            "actor:owner".to_owned(),
             None,
             StatePhase::V1(StatePhaseV1::LinksCommitted),
             StateSnapshot::V1(StateSnapshotV1 {
@@ -1274,6 +1275,7 @@ mod tests {
         });
         let manifest = WorkManifestV1::new(
             &integration(),
+            "actor:owner".to_owned(),
             kind.clone(),
             effect_index_ref.clone(),
             1,

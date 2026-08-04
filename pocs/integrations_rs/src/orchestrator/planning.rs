@@ -378,6 +378,7 @@ impl RunPlanner {
         guard.discard().change_context(RunPlanningError::Cleanup)?;
         Ok(ApplyCandidateV1 {
             integration_id: run.integration_id,
+            owner_actor_id: loaded.owner_actor_id,
             run_id: run.run_id,
             attempt_id,
             attempt,
@@ -529,6 +530,7 @@ mod tests {
                     "{}".to_owned(),
                 ),
             ]),
+            "actor:owner".to_owned(),
             digest.clone(),
         );
         let artifacts = ArtifactStore::local(remote.path(), cache.path()).expect("artifact store");

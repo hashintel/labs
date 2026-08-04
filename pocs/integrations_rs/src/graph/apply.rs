@@ -74,6 +74,7 @@ impl std::error::Error for ApplyLifecycleError {}
 #[derive(Debug, Clone)]
 pub(crate) struct ApplyCandidateV1 {
     pub(crate) integration_id: CanonicalIntegrationId,
+    pub(crate) owner_actor_id: String,
     pub(crate) run_id: RunId,
     pub(crate) attempt_id: AttemptId,
     pub(crate) attempt: u64,
@@ -284,6 +285,7 @@ impl ApplyLifecycle {
         self.fail_after(ApplyFault::DesiredPublished).await?;
         let state = StateVersion::V1(
             StateVersionV1::new(
+                candidate.owner_actor_id.clone(),
                 cursor.state,
                 candidate.phase,
                 candidate.snapshot,
@@ -318,6 +320,7 @@ impl ApplyLifecycle {
         let manifest = WorkManifest::V1(
             WorkManifestV1::new(
                 &candidate.integration_id,
+                candidate.owner_actor_id,
                 WorkKind::Apply(ApplyWorkV1 {
                     run_id: candidate.run_id,
                     candidate: state_reference,
@@ -943,6 +946,7 @@ mod tests {
         };
         ApplyCandidateV1 {
             integration_id: rig.integration.clone(),
+            owner_actor_id: "actor:owner".to_owned(),
             run_id: rig.run_id.clone(),
             attempt_id: rig.attempt_id.clone(),
             attempt: 1,

@@ -2239,6 +2239,7 @@ mod tests {
         let run_id =
             RunId::parse(format!("{run:08x}-0000-4000-8000-000000000001")).expect("valid run ID");
         let state = StateVersionV1::new(
+            "actor:owner".to_owned(),
             None,
             StatePhase::V1(StatePhaseV1::SourcesCommitted),
             StateSnapshot::V1(StateSnapshotV1 {
@@ -2270,6 +2271,7 @@ mod tests {
 
         let manifest = WorkManifestV1::new(
             &integration,
+            "actor:owner".to_owned(),
             WorkKind::Apply(ApplyWorkV1 {
                 run_id: run_id.clone(),
                 candidate: candidate.clone(),

@@ -124,6 +124,7 @@ pub struct CommandSurface {
     env: Env,
     store: ArtifactStore,
     tenant: TenantNamespace,
+    actor: Option<String>,
 }
 
 impl CommandSurface {
@@ -132,6 +133,17 @@ impl CommandSurface {
             Report::new(CommandSurfaceError::Configuration)
                 .attach_printable("HASH_WEB_ID is required")
         })?;
+        Self::open_for(env, web_id, env.get("HASH_ACTOR_ID"))
+    }
+
+    /// Open a request-scoped surface without changing process-global
+    /// configuration. HTTP authentication remains outside this boundary; the
+    /// already-authenticated tenant and actor are explicit inputs.
+    pub fn open_for(
+        env: &Env,
+        web_id: &str,
+        actor: Option<&str>,
+    ) -> Result<Self, Report<CommandSurfaceError>> {
         let tenant = TenantNamespace::parse(web_id.to_owned())
             .change_context(CommandSurfaceError::Configuration)?;
         let store =
@@ -141,6 +153,7 @@ impl CommandSurface {
             env: env.clone(),
             store,
             tenant,
+            actor: actor.map(str::to_owned),
         })
     }
 
@@ -164,8 +177,11 @@ impl CommandSurface {
         let integration_id = CanonicalIntegrationId::parse(metadata.canonical_integration_id)
             .change_context(CommandSurfaceError::InvalidSubmission)?;
         if metadata.web_id != self.tenant.as_str() {
-            return Err(Report::new(CommandSurfaceError::InvalidSubmission)
-                .attach_printable("prepared submission web identity disagrees with HASH_WEB_ID"));
+            return Err(
+                Report::new(CommandSurfaceError::InvalidSubmission).attach_printable(
+                    "prepared submission web identity disagrees with request tenant",
+                ),
+            );
         }
         let mut variables = std::collections::BTreeMap::new();
         variables.insert(
@@ -179,8 +195,16 @@ impl CommandSurface {
         );
         let definition = serde_json::to_string(&payload.definition)
             .change_context(CommandSurfaceError::InvalidSubmission)?;
-        let input_record =
-            RunInputRecord::current(definition, variables, metadata.resolved_definition_digest);
+        let owner_actor_id = self.actor.clone().ok_or_else(|| {
+            Report::new(CommandSurfaceError::Configuration)
+                .attach_printable("an authenticated actor is required to submit a run")
+        })?;
+        let input_record = RunInputRecord::current(
+            definition,
+            variables,
+            owner_actor_id,
+            metadata.resolved_definition_digest,
+        );
         require_registered::<RunInputRecord>()
             .change_context(CommandSurfaceError::InvalidSubmission)?;
         let input_bytes = input_record
@@ -251,9 +275,9 @@ impl CommandSurface {
         run_id: &str,
     ) -> Result<PublishedCancellation, Report<CommandSurfaceError>> {
         let status = self.status(run_id).await?;
-        let actor = self.env.get("HASH_ACTOR_ID").ok_or_else(|| {
+        let actor = self.actor.as_deref().ok_or_else(|| {
             Report::new(CommandSurfaceError::Configuration)
-                .attach_printable("HASH_ACTOR_ID is required to publish a control request")
+                .attach_printable("an authenticated actor is required to publish a control request")
         })?;
         let request = ControlRequestV1::new(
             self.tenant.clone(),

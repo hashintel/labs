@@ -44,6 +44,7 @@ integrations_rs tune concurrency <count|default>
 integrations_rs tune graph-rps <requests-per-second|default>
 integrations_rs doctor
 integrations_rs verify-store [--full]
+integrations_rs serve --activate-baseline
 integrations_rs worker --activate-baseline
 ```
 
@@ -65,12 +66,43 @@ The production worker remains fail-closed until the explicit activation gate is
 complete. The only accepted activation form is:
 
 ```text
+integrations_rs serve --activate-baseline
 integrations_rs worker --activate-baseline
 ```
 
-That flag authorizes baseline initialization and leased worker construction only
-after registry, migration-capability, configuration, provider-attestation, Graph
-permission, and baseline checks succeed.
+`serve` is the normal deployment mode: one process exposes the HTTP API and
+concurrently owns as many leased shards as its capacity permits. `worker` is
+retained for operational and compatibility testing. The local `submit`,
+`status`, and `cancel` commands call the same application service directly, so
+they do not need a running HTTP server.
+
+The API defaults to `127.0.0.1:3000`; set `INTEGRATIONS_HTTP_BIND` to change it.
+Interactive OpenAPI documentation is at `/docs`, with the OpenAPI 3.1 document
+at `/openapi.json`. V1 routes are:
+
+```text
+POST   /v1/webs/{web}/integrations/{connector}/runs
+GET    /v1/webs/{web}/integrations/{connector}/runs/{run}
+DELETE /v1/webs/{web}/integrations/{connector}/runs/{run}
+GET    /health/live
+```
+
+The deployment boundary authenticates requests and supplies the trusted
+`x-hash-actor-id` header. The HTTP module contains only strict transport DTOs,
+error/status mapping, and OpenAPI generation; durable orchestration is behind a
+framework-independent service interface. The current worker is configured for
+one `HASH_WEB_ID`, so the API rejects another web rather than accepting work no
+local worker can consume. Fleet-wide multi-web discovery is a separate rollout
+step.
+
+The authenticated actor is stored in the immutable run input and carried into
+the state and work manifests. Graph requests—including retries, Restore, and
+Reconcile—therefore use the run owner recorded by durable history rather than
+the actor configured on whichever node executes the work.
+
+Both production modes authorize baseline initialization and leased worker
+construction only after registry, migration-capability, configuration,
+provider-attestation, Graph permission, and baseline checks succeed.
 
 Continuous stream definitions are outside protocol V1 and are rejected at
 admission.
@@ -97,7 +129,7 @@ Graph delivery requires:
 
 ```text
 HASH_GRAPH_URL=<Graph base URL>
-HASH_ACTOR_ID=<machine actor UUID>
+HASH_ACTOR_ID=<node actor UUID used for activation and direct CLI submissions>
 ```
 
 The activation permission preflight additionally accepts optional managed

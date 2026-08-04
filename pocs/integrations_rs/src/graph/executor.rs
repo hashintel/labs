@@ -106,6 +106,10 @@ pub(crate) enum TransportFailureV1 {
 pub(crate) trait GraphEffectTransport: Send + Sync {
     async fn send(&self, request: EffectRequestV1) -> EffectResponseV1;
 
+    async fn send_as(&self, _actor_id: &str, request: EffectRequestV1) -> EffectResponseV1 {
+        self.send(request).await
+    }
+
     /// Sends one physical Graph bulk-create request. `None` means the
     /// transport has no bulk capability and the executor uses individual
     /// requests. A rejected batch is resolved per effect by the executor so
@@ -113,6 +117,14 @@ pub(crate) trait GraphEffectTransport: Send + Sync {
     /// under one authority.
     async fn send_create_batch(&self, _requests: Vec<Value>) -> Option<EffectResponseV1> {
         None
+    }
+
+    async fn send_create_batch_as(
+        &self,
+        _actor_id: &str,
+        requests: Vec<Value>,
+    ) -> Option<EffectResponseV1> {
+        self.send_create_batch(requests).await
     }
 
     fn max_create_batch_size(&self) -> usize {
@@ -237,6 +249,7 @@ struct PreparedEffectV1 {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct PreparedWorkV1 {
     integration_id: CanonicalIntegrationId,
+    owner_actor_id: String,
     work_id: WorkId,
     manifest_digest: String,
     completed_effect_count: u64,
@@ -384,6 +397,7 @@ impl ExecutionPlanLoader {
         );
         Ok(PreparedWorkV1 {
             integration_id: intent.integration_id.clone(),
+            owner_actor_id: manifest.owner_actor_id,
             work_id: intent.work_id.clone(),
             manifest_digest: intent.manifest.manifest_digest.clone(),
             completed_effect_count: intent.completed_effect_count,
@@ -728,7 +742,7 @@ impl BoundedEffectExecutor {
             }
             loop {
                 match self
-                    .deliver_once(&work.work_id, effect, &mut state, permit, &integration_path)
+                    .deliver_once(work, effect, &mut state, permit, &integration_path)
                     .await
                 {
                     DeliveryAttempt::Acknowledged => {
@@ -1001,7 +1015,13 @@ impl BoundedEffectExecutor {
             last_effect: None,
         };
         let Some(classified) = self
-            .charged_create_batch(&mut state, permit, creates, integration_path)
+            .charged_create_batch(
+                &work.owner_actor_id,
+                &mut state,
+                permit,
+                creates,
+                integration_path,
+            )
             .await
         else {
             return BatchGroupOutcome {
@@ -1088,6 +1108,7 @@ impl BoundedEffectExecutor {
 
     async fn charged_create_batch(
         &self,
+        owner_actor_id: &str,
         state: &mut TurnState,
         permit: &dyn EffectTurnPermit,
         requests: Vec<Value>,
@@ -1097,7 +1118,9 @@ impl BoundedEffectExecutor {
             return None;
         }
         state.used += 1;
-        let send = self.transport.send_create_batch(requests);
+        let send = self
+            .transport
+            .send_create_batch_as(owner_actor_id, requests);
         let response = match permit.send_deadline() {
             Some(deadline) => tokio::time::timeout_at(deadline, send).await.ok()?,
             None => send.await,
@@ -1125,7 +1148,7 @@ impl BoundedEffectExecutor {
         };
         let terminal = if permit.send_allowed() {
             match self
-                .deliver_once(&work.work_id, effect, &mut state, permit, integration_path)
+                .deliver_once(work, effect, &mut state, permit, integration_path)
                 .await
             {
                 DeliveryAttempt::Acknowledged => None,
@@ -1167,6 +1190,7 @@ impl BoundedEffectExecutor {
         };
         let Some(patch_result) = self
             .charged_send(
+                &work.owner_actor_id,
                 &mut state,
                 permit,
                 EffectRequestV1::Patch(patch.clone()),
@@ -1192,6 +1216,7 @@ impl BoundedEffectExecutor {
             } => {
                 let Some(create_result) = self
                     .charged_send(
+                        &work.owner_actor_id,
                         &mut state,
                         permit,
                         EffectRequestV1::Create(create.clone()),
@@ -1216,6 +1241,7 @@ impl BoundedEffectExecutor {
                         self.record_proven_conflict(&work.work_id, effect_id);
                         let Some(final_patch) = self
                             .charged_send(
+                                &work.owner_actor_id,
                                 &mut state,
                                 permit,
                                 EffectRequestV1::Patch(patch.clone()),
@@ -1347,7 +1373,7 @@ impl BoundedEffectExecutor {
 
     async fn deliver_once(
         &self,
-        work_id: &WorkId,
+        work: &PreparedWorkV1,
         effect: &PreparedEffectV1,
         state: &mut TurnState,
         permit: &dyn EffectTurnPermit,
@@ -1359,9 +1385,10 @@ impl BoundedEffectExecutor {
                 // PATCH-first once a conflict is proven: re-proving it every
                 // retry would waste charged requests and can phase-lock with
                 // a periodic provider throttle.
-                if !self.conflict_proven(work_id, effect_id) {
+                if !self.conflict_proven(&work.work_id, effect_id) {
                     let Some(classified) = self
                         .charged_send(
+                            &work.owner_actor_id,
                             state,
                             permit,
                             EffectRequestV1::Create(create.clone()),
@@ -1373,7 +1400,9 @@ impl BoundedEffectExecutor {
                     };
                     match classified {
                         Classified::Success => return DeliveryAttempt::Acknowledged,
-                        Classified::Conflict => self.record_proven_conflict(work_id, effect_id),
+                        Classified::Conflict => {
+                            self.record_proven_conflict(&work.work_id, effect_id);
+                        }
                         Classified::Retryable { retry_after } => {
                             return DeliveryAttempt::Retryable { retry_after };
                         }
@@ -1384,6 +1413,7 @@ impl BoundedEffectExecutor {
                 }
                 let Some(classified) = self
                     .charged_send(
+                        &work.owner_actor_id,
                         state,
                         permit,
                         EffectRequestV1::Patch(patch.clone()),
@@ -1395,14 +1425,14 @@ impl BoundedEffectExecutor {
                 };
                 match classified {
                     Classified::Success => {
-                        self.forget_proven_conflict(work_id, effect_id);
+                        self.forget_proven_conflict(&work.work_id, effect_id);
                         DeliveryAttempt::Acknowledged
                     }
                     Classified::Retryable { retry_after } => {
                         DeliveryAttempt::Retryable { retry_after }
                     }
                     Classified::Conflict => {
-                        self.forget_proven_conflict(work_id, effect_id);
+                        self.forget_proven_conflict(&work.work_id, effect_id);
                         DeliveryAttempt::Permanent {
                             status: Some(409),
                             diagnostic: "PATCH returned conflict; only create 409 is authoritative"
@@ -1410,7 +1440,7 @@ impl BoundedEffectExecutor {
                         }
                     }
                     Classified::Permanent { status, diagnostic } => {
-                        self.forget_proven_conflict(work_id, effect_id);
+                        self.forget_proven_conflict(&work.work_id, effect_id);
                         DeliveryAttempt::Permanent { status, diagnostic }
                     }
                 }
@@ -1418,6 +1448,7 @@ impl BoundedEffectExecutor {
             PreparedDeliveryV1::Archive { archive } => {
                 let Some(classified) = self
                     .charged_send(
+                        &work.owner_actor_id,
                         state,
                         permit,
                         EffectRequestV1::Archive(archive.clone()),
@@ -1507,6 +1538,7 @@ impl BoundedEffectExecutor {
     /// was really transmitted.
     async fn charged_send(
         &self,
+        owner_actor_id: &str,
         state: &mut TurnState,
         permit: &dyn EffectTurnPermit,
         request: EffectRequestV1,
@@ -1519,7 +1551,9 @@ impl BoundedEffectExecutor {
             return None;
         }
         state.used += 1;
-        let response = self.send(permit, request, integration_path).await?;
+        let response = self
+            .send(owner_actor_id, permit, request, integration_path)
+            .await?;
         match &response {
             EffectResponseV1::Success => tracing::trace!("charged Graph request succeeded"),
             EffectResponseV1::Http { status, .. } => {
@@ -1543,11 +1577,12 @@ impl BoundedEffectExecutor {
     /// real provider capacity, so the caller keeps the charge.
     async fn send(
         &self,
+        owner_actor_id: &str,
         permit: &dyn EffectTurnPermit,
         request: EffectRequestV1,
         integration_path: &str,
     ) -> Option<EffectResponseV1> {
-        let send = self.transport.send(request);
+        let send = self.transport.send_as(owner_actor_id, request);
         let response = match permit.send_deadline() {
             Some(deadline) => tokio::time::timeout_at(deadline, send).await.ok(),
             None => Some(send.await),
@@ -1769,6 +1804,7 @@ mod tests {
     struct ScriptedTransport {
         responses: Mutex<VecDeque<EffectResponseV1>>,
         requests: Mutex<Vec<EffectRequestV1>>,
+        actors: Mutex<Vec<String>>,
     }
 
     impl ScriptedTransport {
@@ -1776,6 +1812,7 @@ mod tests {
             Self {
                 responses: Mutex::new(responses.into()),
                 requests: Mutex::new(Vec::new()),
+                actors: Mutex::new(Vec::new()),
             }
         }
 
@@ -1793,6 +1830,11 @@ mod tests {
                 .await
                 .pop_front()
                 .expect("scripted transport response")
+        }
+
+        async fn send_as(&self, actor_id: &str, request: EffectRequestV1) -> EffectResponseV1 {
+            self.actors.lock().await.push(actor_id.to_owned());
+            self.send(request).await
         }
     }
 
@@ -2156,6 +2198,7 @@ mod tests {
         let completed_index = usize::try_from(completed).expect("completed cursor");
         PreparedWorkV1 {
             integration_id: CanonicalIntegrationId::parse("web:connector").expect("integration"),
+            owner_actor_id: "actor:owner".to_owned(),
             work_id: WorkId::parse("d".repeat(64)).expect("work"),
             manifest_digest: "e".repeat(64),
             completed_effect_count: completed,
@@ -2242,6 +2285,7 @@ mod tests {
             .await
             .expect("publish desired");
         let state = StateVersionV1::new(
+            "actor:owner".to_owned(),
             None,
             StatePhase::V1(StatePhaseV1::LinksCommitted),
             StateSnapshot::V1(StateSnapshotV1 {
@@ -2297,6 +2341,7 @@ mod tests {
         });
         let manifest = WorkManifestV1::new(
             &integration,
+            "actor:owner".to_owned(),
             kind.clone(),
             effect_index,
             1,
@@ -2380,6 +2425,10 @@ mod tests {
             transport.requests().await.as_slice(),
             [EffectRequestV1::Create(_), EffectRequestV1::Patch(_)]
         ));
+        assert_eq!(
+            *transport.actors.lock().await,
+            vec!["actor:owner".to_owned(), "actor:owner".to_owned()]
+        );
         assert_eq!(committer.cursors().await[0].completed_effect_count, 1);
     }
 

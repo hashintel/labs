@@ -1361,6 +1361,7 @@ mod tests {
             .expect("publish desired projection");
         let definition_digest = hex::encode(Sha256::digest(label.as_bytes()));
         let state = StateVersionV1::new(
+            "actor:owner".to_owned(),
             parent,
             StatePhase::V1(StatePhaseV1::SourcesCommitted),
             StateSnapshot::V1(StateSnapshotV1 {

@@ -30,7 +30,9 @@ use super::{ArchiveOp, BatchOk, BulkResult, EntityOp, GraphClient, LinkOp, OpFai
 
 pub struct HttpClient {
     base_url: String,
-    /// The auth credential; never printed.
+    /// Node/default actor for direct GraphClient calls. Durable effect
+    /// delivery overrides this with the owner in the verified work manifest.
+    /// Never printed.
     actor_id: crate::secret::Secret<String>,
     bulk_size: usize,
     durable_bulk_size: usize,
@@ -117,7 +119,11 @@ impl HttpClient {
         }
     }
 
-    async fn effect_request_once(&self, request: EffectRequestV1) -> EffectResponseV1 {
+    async fn effect_request_once(
+        &self,
+        actor_id: &str,
+        request: EffectRequestV1,
+    ) -> EffectResponseV1 {
         if self
             .throttle
             .acquire(&self.throttle_scope, 1, self.rate_limit)
@@ -137,7 +143,7 @@ impl HttpClient {
             .request(method.clone(), format!("{}/entities", self.base_url))
             .json(&body)
             .header("content-type", "application/json")
-            .header("x-authenticated-user-actor-id", self.actor_id.expose())
+            .header("x-authenticated-user-actor-id", actor_id)
             .timeout(std::time::Duration::from_millis(self.timeout_ms))
             .send()
             .await;
@@ -171,7 +177,7 @@ impl HttpClient {
         }
     }
 
-    async fn create_batch_once(&self, requests: Vec<Value>) -> EffectResponseV1 {
+    async fn create_batch_once(&self, actor_id: &str, requests: Vec<Value>) -> EffectResponseV1 {
         if self
             .throttle
             .acquire(&self.throttle_scope, 1, self.rate_limit)
@@ -185,7 +191,7 @@ impl HttpClient {
             .post(format!("{}/entities/bulk", self.base_url))
             .json(&requests)
             .header("content-type", "application/json")
-            .header("x-authenticated-user-actor-id", self.actor_id.expose())
+            .header("x-authenticated-user-actor-id", actor_id)
             .timeout(std::time::Duration::from_millis(self.timeout_ms))
             .send()
             .await;
@@ -240,11 +246,27 @@ impl HttpClient {
 #[async_trait::async_trait]
 impl GraphEffectTransport for HttpClient {
     async fn send(&self, request: EffectRequestV1) -> EffectResponseV1 {
-        self.effect_request_once(request).await
+        self.effect_request_once(self.actor_id.expose(), request)
+            .await
+    }
+
+    async fn send_as(&self, actor_id: &str, request: EffectRequestV1) -> EffectResponseV1 {
+        self.effect_request_once(actor_id, request).await
     }
 
     async fn send_create_batch(&self, requests: Vec<Value>) -> Option<EffectResponseV1> {
-        Some(self.create_batch_once(requests).await)
+        Some(
+            self.create_batch_once(self.actor_id.expose(), requests)
+                .await,
+        )
+    }
+
+    async fn send_create_batch_as(
+        &self,
+        actor_id: &str,
+        requests: Vec<Value>,
+    ) -> Option<EffectResponseV1> {
+        Some(self.create_batch_once(actor_id, requests).await)
     }
 
     fn max_create_batch_size(&self) -> usize {
@@ -760,7 +782,7 @@ impl GraphClient for HttpClient {
 mod tests {
     use super::*;
     use std::sync::atomic::AtomicUsize;
-    use wiremock::matchers::{body_json, method, path};
+    use wiremock::matchers::{body_json, header, method, path};
     use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
 
     #[derive(Clone)]
@@ -817,6 +839,40 @@ mod tests {
             response,
             EffectResponseV1::Http { status: 409, .. }
         ));
+    }
+
+    #[tokio::test]
+    async fn durable_effect_transport_uses_the_run_owner_instead_of_the_node_actor() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/entities"))
+            .and(header("x-authenticated-user-actor-id", "run-owner"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("POST"))
+            .and(path("/entities/bulk"))
+            .and(header("x-authenticated-user-actor-id", "run-owner"))
+            .respond_with(ResponseTemplate::new(200))
+            .expect(1)
+            .mount(&server)
+            .await;
+
+        let response = GraphEffectTransport::send_as(
+            &test_client(&server),
+            "run-owner",
+            EffectRequestV1::Create(json!({"create": true})),
+        )
+        .await;
+        assert_eq!(response, EffectResponseV1::Success);
+        let response = GraphEffectTransport::send_create_batch_as(
+            &test_client(&server),
+            "run-owner",
+            vec![json!({"create": true})],
+        )
+        .await;
+        assert_eq!(response, Some(EffectResponseV1::Success));
     }
 
     #[tokio::test]

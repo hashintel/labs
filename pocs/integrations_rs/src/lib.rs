@@ -50,6 +50,7 @@
     clippy::unwrap_in_result
 )]
 
+pub mod application;
 pub mod blob;
 pub mod build;
 pub mod coerce;
@@ -72,6 +73,7 @@ pub mod storage;
 pub mod store;
 pub mod throttle;
 pub mod value;
+pub mod web_api;
 pub mod yaml;
 
 pub mod connectors;

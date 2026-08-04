@@ -50,6 +50,9 @@ pub(crate) enum RunInputRecord {
 pub(crate) struct RunInputRecordV1 {
     definition: String,
     public_variables: BTreeMap<String, String>,
+    /// Authenticated Graph actor responsible for this run. This is engine
+    /// metadata, never part of the user-authored pipeline definition.
+    owner_actor_id: String,
     /// Digest of the fully resolved semantic definition. The resolved
     /// definition itself may contain credentials and is never persisted.
     resolved_definition_digest: String,
@@ -96,11 +99,13 @@ impl RunInputRecord {
     pub(crate) fn current(
         definition: String,
         public_variables: BTreeMap<String, String>,
+        owner_actor_id: String,
         resolved_definition_digest: String,
     ) -> Self {
         Self::V1(RunInputRecordV1 {
             definition,
             public_variables,
+            owner_actor_id,
             resolved_definition_digest,
         })
     }
@@ -111,6 +116,7 @@ impl RunInputRecord {
         CurrentRunInputRecord {
             definition: value.definition,
             public_variables: value.public_variables,
+            owner_actor_id: value.owner_actor_id,
             resolved_definition_digest: value.resolved_definition_digest,
         }
     }
@@ -120,6 +126,7 @@ impl RunInputRecord {
 pub(crate) struct CurrentRunInputRecord {
     pub(crate) definition: String,
     pub(crate) public_variables: BTreeMap<String, String>,
+    pub(crate) owner_actor_id: String,
     pub(crate) resolved_definition_digest: String,
 }
 
@@ -245,6 +252,15 @@ impl ValidateInternal for RunInputRecord {
                 "definition must not be empty".to_owned(),
             ));
         }
+        if value.owner_actor_id.trim().is_empty()
+            || value.owner_actor_id.len() > 256
+            || value.owner_actor_id.chars().any(char::is_control)
+        {
+            return Err(malformed(
+                Self::FAMILY.name,
+                "owner_actor_id must be 1..=256 bytes without control characters".to_owned(),
+            ));
+        }
         validate_sha256(
             Self::FAMILY.name,
             "resolved_definition_digest",
@@ -323,6 +339,7 @@ durable_record!(
     [
         "definition",
         "public_variables",
+        "owner_actor_id",
         "resolved_definition_digest"
     ]
 );
@@ -436,6 +453,7 @@ mod tests {
         assert_v1_strict(&RunInputRecord::V1(RunInputRecordV1 {
             definition: "pipeline: metadata".to_owned(),
             public_variables: BTreeMap::new(),
+            owner_actor_id: "actor:owner".to_owned(),
             resolved_definition_digest: "c".repeat(64),
         }));
         assert_v1_strict(&RunPolicyRecord::V1(RunPolicyRecordV1 {
@@ -463,6 +481,7 @@ mod tests {
                 RunInputRecord::current(
                     "pipeline: metadata".to_owned(),
                     BTreeMap::from([("mode".to_owned(), "full".to_owned())]),
+                    "actor:owner".to_owned(),
                     "c".repeat(64),
                 )
                 .encode()

@@ -173,6 +173,14 @@ impl RestoreLifecycle {
             return Err(Report::new(RestoreLifecycleError::EvidenceConflict)
                 .attach_printable("Restore evidence disagrees with projected A or G"));
         }
+        let owner_actor_id = self
+            .state
+            .load(integration_id, &evidence.contaminated)
+            .await
+            .change_context(RestoreLifecycleError::ArtifactIntegrity)?
+            .into_current()
+            .change_context(RestoreLifecycleError::ArtifactIntegrity)?
+            .owner_actor_id;
         let target_desired = self
             .load_desired(integration_id, evidence.target.as_ref())
             .await?;
@@ -196,6 +204,7 @@ impl RestoreLifecycle {
         let manifest = WorkManifest::V1(
             WorkManifestV1::new(
                 integration_id,
+                owner_actor_id,
                 WorkKind::Restore(RestoreWorkV1 {
                     failed_run_id: evidence.failed_run_id,
                     failed_work_id: evidence.failed_work_id,
@@ -800,6 +809,7 @@ mod tests {
             BlobNamespace::v1(&rig.tenant, &routing::integration_path(&rig.integration));
         ApplyCandidateV1 {
             integration_id: rig.integration.clone(),
+            owner_actor_id: "actor:owner".to_owned(),
             run_id: rig.run_id.clone(),
             attempt_id: rig.attempt_id.clone(),
             attempt: 1,

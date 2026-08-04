@@ -1055,6 +1055,7 @@ mod tests {
         suffix: &str,
     ) -> (StateVersionRef, StateVersion) {
         let current = StateVersionV1::new(
+            "actor:owner".to_owned(),
             parent,
             StatePhase::V1(phase),
             StateSnapshot::V1(StateSnapshotV1 {
@@ -1101,6 +1102,7 @@ mod tests {
     fn manifest(kind: WorkKind, count: u64, suffix: &str) -> (WorkManifestRef, WorkManifest) {
         let current = WorkManifestV1::new(
             &integration(),
+            "actor:owner".to_owned(),
             kind,
             blob(
                 &format!("artifacts/{suffix}.effects.ndjson"),

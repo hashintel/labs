@@ -62,6 +62,7 @@ pub enum StateVersion {
 #[serde(deny_unknown_fields)]
 pub struct StateVersionV1 {
     pub id: StateVersionId,
+    pub owner_actor_id: String,
     pub parent: Option<StateVersionRef>,
     pub phase: StatePhase,
     pub snapshot: StateSnapshot,
@@ -103,6 +104,7 @@ pub enum StatePhaseV1 {
 impl StateVersionV1 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        owner_actor_id: String,
         parent: Option<StateVersionRef>,
         phase: StatePhase,
         snapshot: StateSnapshot,
@@ -115,6 +117,7 @@ impl StateVersionV1 {
     ) -> Result<Self, CompatError> {
         let mut state = Self {
             id: StateVersionId::from_digest("0".repeat(64)),
+            owner_actor_id,
             parent,
             phase,
             snapshot,
@@ -173,6 +176,7 @@ pub enum WorkManifest {
 #[serde(deny_unknown_fields)]
 pub struct WorkManifestV1 {
     pub work_id: WorkId,
+    pub owner_actor_id: String,
     pub kind: WorkKind,
     pub effects: BlobRef,
     pub effect_count: u64,
@@ -217,6 +221,7 @@ impl WorkManifestV1 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         integration_id: &CanonicalIntegrationId,
+        owner_actor_id: String,
         kind: WorkKind,
         effects: BlobRef,
         effect_count: u64,
@@ -226,6 +231,7 @@ impl WorkManifestV1 {
     ) -> Result<Self, CompatError> {
         let mut manifest = Self {
             work_id: WorkId::from_digest("0".repeat(64)),
+            owner_actor_id,
             kind,
             effects,
             effect_count,
@@ -300,6 +306,7 @@ struct StateRefIdentity<'a> {
 
 #[derive(Serialize)]
 struct StateIdentity<'a> {
+    owner_actor_id: &'a str,
     parent: Option<StateRefIdentity<'a>>,
     phase: &'a StatePhase,
     snapshot: SnapshotIdentity<'a>,
@@ -321,6 +328,7 @@ struct SnapshotIdentity<'a> {
 #[derive(Serialize)]
 struct ApplyWorkIdentity<'a> {
     integration_id: &'a CanonicalIntegrationId,
+    owner_actor_id: &'a str,
     run_id: &'a RunId,
     candidate: StateRefIdentity<'a>,
     effects: BlobIdentity<'a>,
@@ -332,6 +340,7 @@ struct ApplyWorkIdentity<'a> {
 #[derive(Serialize)]
 struct RestoreWorkIdentity<'a> {
     integration_id: &'a CanonicalIntegrationId,
+    owner_actor_id: &'a str,
     failed_work_id: &'a WorkId,
     target_state_digest_or_empty: &'a str,
     contaminated_state_digest: &'a StateVersionId,
@@ -340,6 +349,7 @@ struct RestoreWorkIdentity<'a> {
 #[derive(Serialize)]
 struct ReconcileWorkIdentity<'a> {
     integration_id: &'a CanonicalIntegrationId,
+    owner_actor_id: &'a str,
     target_state_digest: &'a StateVersionId,
     applied_incarnation: Option<EventId>,
     cycle: u64,
@@ -348,6 +358,7 @@ struct ReconcileWorkIdentity<'a> {
 fn derive_state_version_id(state: &StateVersionV1) -> Result<StateVersionId, CompatError> {
     let snapshot = state.snapshot.current();
     let projection = StateIdentity {
+        owner_actor_id: &state.owner_actor_id,
         parent: state.parent.as_ref().map(state_ref_identity),
         phase: &state.phase,
         snapshot: SnapshotIdentity {
@@ -383,6 +394,7 @@ fn derive_work_id(
             "work:v1",
             &ApplyWorkIdentity {
                 integration_id,
+                owner_actor_id: &manifest.owner_actor_id,
                 run_id: &work.run_id,
                 candidate: state_ref_identity(&work.candidate),
                 effects: blob_identity(&manifest.effects),
@@ -395,6 +407,7 @@ fn derive_work_id(
             "restore-v1",
             &RestoreWorkIdentity {
                 integration_id,
+                owner_actor_id: &manifest.owner_actor_id,
                 failed_work_id: &work.failed_work_id,
                 target_state_digest_or_empty: work
                     .target
@@ -407,6 +420,7 @@ fn derive_work_id(
             "reconcile-v1",
             &ReconcileWorkIdentity {
                 integration_id,
+                owner_actor_id: &manifest.owner_actor_id,
                 target_state_digest: &work.target.id,
                 applied_incarnation: work.applied_incarnation.clone(),
                 cycle: work.cycle,
@@ -445,6 +459,7 @@ fn validate_state(state: &StateVersionV1) -> Result<(), CompatError> {
 }
 
 fn validate_state_fields(state: &StateVersionV1) -> Result<(), CompatError> {
+    validate_actor_id(StateVersion::FAMILY.name, &state.owner_actor_id)?;
     if matches!(state.phase, StatePhase::V1(StatePhaseV1::Stream)) {
         return Err(malformed(
             StateVersion::FAMILY.name,
@@ -511,6 +526,7 @@ fn validate_state_fields(state: &StateVersionV1) -> Result<(), CompatError> {
 }
 
 fn validate_work_fields(manifest: &WorkManifestV1) -> Result<(), CompatError> {
+    validate_actor_id(WorkManifest::FAMILY.name, &manifest.owner_actor_id)?;
     if manifest.effect_identity_version == 0 || manifest.effect_encoding_version == 0 {
         return Err(malformed(
             WorkManifest::FAMILY.name,
@@ -525,6 +541,17 @@ fn validate_work_fields(manifest: &WorkManifestV1) -> Result<(), CompatError> {
         )
     })?;
     Ok(())
+}
+
+fn validate_actor_id(family: &'static str, actor_id: &str) -> Result<(), CompatError> {
+    if actor_id.is_empty() || actor_id.len() > 256 || actor_id.chars().any(char::is_control) {
+        Err(malformed(
+            family,
+            "owner_actor_id must be 1..=256 bytes without control characters".to_owned(),
+        ))
+    } else {
+        Ok(())
+    }
 }
 
 fn validate_blob(family: &'static str, path: &str, reference: &BlobRef) -> Result<(), CompatError> {
@@ -689,6 +716,7 @@ mod tests {
 
     fn state() -> StateVersionV1 {
         StateVersionV1::new(
+            "actor:owner".to_owned(),
             None,
             StatePhase::V1(StatePhaseV1::SourcesCommitted),
             StateSnapshot::V1(StateSnapshotV1 {
@@ -734,6 +762,7 @@ mod tests {
     fn protocol_v1_rejects_reserved_stream_state() {
         let current = state();
         let error = StateVersionV1::new(
+            current.owner_actor_id,
             current.parent,
             StatePhase::V1(StatePhaseV1::Stream),
             current.snapshot,
@@ -753,6 +782,7 @@ mod tests {
             CanonicalIntegrationId::parse("alice:supply-chain").expect("valid integration");
         WorkManifestV1::new(
             &integration,
+            "actor:owner".to_owned(),
             WorkKind::Reconcile(ReconcileWorkV1 {
                 target: StateVersionRef {
                     id: state().id,
@@ -803,6 +833,7 @@ mod tests {
         });
         WorkManifestV1::new(
             &integration,
+            "actor:owner".to_owned(),
             WorkKind::Restore(RestoreWorkV1 {
                 failed_run_id: RunId::parse("00000000-0000-4000-8000-000000000001")
                     .expect("valid failed run ID"),
@@ -865,6 +896,22 @@ mod tests {
         desired.provider_version = Some("different".to_owned());
         second.id = derive_state_version_id(&second).expect("derive changed state ID");
         assert_eq!(first.id, second.id);
+    }
+
+    #[test]
+    fn owner_actor_is_covered_by_state_and_work_identity() {
+        let first_state = state();
+        let mut other_state = state();
+        other_state.owner_actor_id = "actor:other".to_owned();
+        other_state.id = derive_state_version_id(&other_state).expect("derive state ID");
+        assert_ne!(first_state.id, other_state.id);
+
+        let first_work = reconcile('f');
+        let mut other_work = reconcile('f');
+        other_work.owner_actor_id = "actor:other".to_owned();
+        let integration = CanonicalIntegrationId::parse("alice:supply-chain").expect("integration");
+        other_work.work_id = derive_work_id(&integration, &other_work).expect("derive work ID");
+        assert_ne!(first_work.work_id, other_work.work_id);
     }
 
     #[test]

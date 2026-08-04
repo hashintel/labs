@@ -15,6 +15,13 @@ pub async fn run_worker(env: &Env) -> Result<(), Report<crate::orchestrator::run
     Box::pin(crate::orchestrator::runner::run(env)).await
 }
 
+pub async fn run_worker_until(
+    env: &Env,
+    shutdown: tokio_util::sync::CancellationToken,
+) -> Result<(), Report<crate::orchestrator::runner::WorkerError>> {
+    Box::pin(crate::orchestrator::runner::run_until(env, shutdown)).await
+}
+
 /// Release-contract probe: proves writer fencing at the storage epoch on the
 /// configured journal backend, through the same open, recover, and append
 /// path production uses.

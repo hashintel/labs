@@ -44,8 +44,8 @@ pub use command_surface::{
 };
 pub use memory_adapter::InMemoryOrchestrator;
 pub use metadata::{
-    prepare_task, CurrentTaskMetadata, CurrentTaskPayload, InvocationV1, PreparedTask,
-    SubmissionTriggerV1, TaskMetadata, TaskMetadataV1, TaskPayload, TaskPayloadV1,
+    prepare_task, prepare_task_for_web, CurrentTaskMetadata, CurrentTaskPayload, InvocationV1,
+    PreparedTask, SubmissionTriggerV1, TaskMetadata, TaskMetadataV1, TaskPayload, TaskPayloadV1,
 };
 pub use port::{
     CheckpointCommand, CheckpointName, CheckpointValue, ControlCommand, ControlCommandKind,

@@ -195,10 +195,11 @@ impl ReconcileLifecycle {
             .load(integration_id, &target)
             .await
             .change_context(ReconcileLifecycleError::ArtifactIntegrity)?;
-        let desired_reference = state
+        let state = state
             .into_current()
-            .change_context(ReconcileLifecycleError::ArtifactIntegrity)?
-            .desired_projection;
+            .change_context(ReconcileLifecycleError::ArtifactIntegrity)?;
+        let owner_actor_id = state.owner_actor_id;
+        let desired_reference = state.desired_projection;
         let desired = self
             .effects
             .load_desired_projection(&desired_reference)
@@ -217,6 +218,7 @@ impl ReconcileLifecycle {
         let manifest = WorkManifest::V1(
             WorkManifestV1::new(
                 integration_id,
+                owner_actor_id,
                 WorkKind::Reconcile(ReconcileWorkV1 {
                     target,
                     applied_incarnation: view.applied_incarnation,
@@ -877,6 +879,7 @@ mod tests {
             BlobNamespace::v1(&rig.tenant, &routing::integration_path(&rig.integration));
         ApplyCandidateV1 {
             integration_id: rig.integration.clone(),
+            owner_actor_id: "actor:owner".to_owned(),
             run_id: rig.run_id.clone(),
             attempt_id: rig.attempt_id.clone(),
             attempt: 1,

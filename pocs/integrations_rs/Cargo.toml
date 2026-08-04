@@ -30,10 +30,13 @@ chrono = { version = "0.4", default-features = false, features = ["clock", "std"
 libc = "0.2"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+axum = "0.8"
+aide = { version = "=0.15.1", features = ["axum", "axum-json", "scalar"] }
+schemars = "0.9"
 
 [dev-dependencies]
-axum = "0.8"
 tempfile = "3"
+tower = { version = "0.5", features = ["util"] }
 wiremock = "0.6"
 
 [profile.dev]
