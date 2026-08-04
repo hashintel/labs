@@ -7,7 +7,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{orders_definition, permitted_body, wait_for, WorkerHarness};
+use common::{orders_definition, wait_for, WorkerHarness};
 use integrations_rs::orchestrator::CommandRunState;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -19,12 +19,6 @@ async fn v1_submission_recovers_plans_delivers_and_completes_without_process_loc
         .with_test_writer()
         .try_init();
     let graph = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/entities/permissions"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(permitted_body()))
-        .expect(2)
-        .mount(&graph)
-        .await;
     Mock::given(method("POST"))
         .and(path("/entities"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
@@ -76,11 +70,6 @@ async fn fresh_worker_delivers_a_new_run_after_recovering_a_completed_one() {
         .with_test_writer()
         .try_init();
     let graph = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/entities/permissions"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(permitted_body()))
-        .mount(&graph)
-        .await;
     Mock::given(method("POST"))
         .and(path("/entities"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
@@ -181,11 +170,6 @@ async fn second_submission_after_completion_starts_and_completes_a_new_run() {
         .with_test_writer()
         .try_init();
     let graph = MockServer::start().await;
-    Mock::given(method("POST"))
-        .and(path("/entities/permissions"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(permitted_body()))
-        .mount(&graph)
-        .await;
     Mock::given(method("POST"))
         .and(path("/entities"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))

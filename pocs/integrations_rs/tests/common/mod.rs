@@ -21,15 +21,10 @@ use integrations_rs::orchestrator::{
 };
 use integrations_rs::yaml::Source;
 use sha2::{Digest as _, Sha256};
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
+use wiremock::MockServer;
 
 pub(crate) const WEB_ID: &str = "00000000-0000-4000-8000-000000000001";
 pub(crate) const ACTOR_ID: &str = "00000000-0000-4000-8000-000000000002";
-pub(crate) const ENTITY_CANARY: &str =
-    "00000000-0000-4000-8000-000000000001~00000000-0000-4000-8000-000000000003";
-pub(crate) const LINK_CANARY: &str =
-    "00000000-0000-4000-8000-000000000001~00000000-0000-4000-8000-000000000004";
 
 pub(crate) struct WorkerHarness {
     pub(crate) remote: tempfile::TempDir,
@@ -180,13 +175,6 @@ pub(crate) fn orders_definition(connector_id: &str, sql: &str) -> serde_json::Va
     })
 }
 
-pub(crate) fn permitted_body() -> serde_json::Value {
-    serde_json::json!({
-        ENTITY_CANARY: ["00000000-0000-4000-8000-000000000010"],
-        LINK_CANARY: ["00000000-0000-4000-8000-000000000011"]
-    })
-}
-
 pub(crate) fn digest(value: &str) -> String {
     hex::encode(Sha256::digest(value.as_bytes()))
 }
@@ -236,14 +224,6 @@ pub(crate) fn base_worker_env(
         ("HASH_WEB_ID".to_owned(), WEB_ID.to_owned()),
         ("HASH_ACTOR_ID".to_owned(), ACTOR_ID.to_owned()),
         ("HASH_GRAPH_URL".to_owned(), graph_url.to_owned()),
-        (
-            "INTEGRATIONS_GRAPH_PERMISSION_ENTITY_ID".to_owned(),
-            ENTITY_CANARY.to_owned(),
-        ),
-        (
-            "INTEGRATIONS_GRAPH_PERMISSION_LINK_ID".to_owned(),
-            LINK_CANARY.to_owned(),
-        ),
         ("INTEGRATIONS_BLOB_URL".to_owned(), blob_url.to_owned()),
         (
             "INTEGRATIONS_BLOB_CACHE".to_owned(),
@@ -275,15 +255,6 @@ pub(crate) fn resource_bounds_env() -> [(String, String); 6] {
             "2".to_owned(),
         ),
     ]
-}
-
-/// Mounts the verified permission-preflight response.
-pub(crate) async fn mount_permissions(graph: &MockServer) {
-    Mock::given(method("POST"))
-        .and(path("/entities/permissions"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(permitted_body()))
-        .mount(graph)
-        .await;
 }
 
 /// Polls a run's projected status until `accept` holds, panicking loudly on

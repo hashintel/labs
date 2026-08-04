@@ -185,12 +185,11 @@ async fn production_doctor(args: &[String], env: &Env) -> i32 {
     }
     match integrations_rs::production::doctor(env).await {
         Ok(report) => {
-            let exit = i32::from(report.graph_permissions_blocking);
             println!(
                 "{}",
                 serde_json::to_string_pretty(&report).expect("doctor report always serializes")
             );
-            exit
+            0
         }
         Err(error) => {
             print_diagnostics_error("doctor failed", &error);

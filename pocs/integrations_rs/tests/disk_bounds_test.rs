@@ -7,7 +7,7 @@ mod common;
 use std::path::Path;
 use std::time::Duration;
 
-use common::{mount_permissions, orders_definition, WorkerHarness, WorkerLocal};
+use common::{orders_definition, WorkerHarness, WorkerLocal};
 use integrations_rs::orchestrator::CommandRunState;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
@@ -36,7 +36,6 @@ fn tree_size(root: &Path) -> u64 {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn lifecycle_load_stays_inside_disk_bounds_and_releases_the_workspace() {
     let graph = MockServer::start().await;
-    mount_permissions(&graph).await;
     Mock::given(method("POST"))
         .and(path("/entities"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))

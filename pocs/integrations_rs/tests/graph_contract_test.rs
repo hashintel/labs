@@ -1,13 +1,13 @@
 //! Opt-in contract test against a real, isolated HASH Graph web.
 //!
 //! Set `INTEGRATIONS_GRAPH_CONTRACT=1` plus the ordinary worker environment
-//! (`HASH_GRAPH_URL`, `HASH_WEB_ID`, `HASH_ACTOR_ID`, the permission canary
-//! IDs, and a disposable `INTEGRATIONS_BLOB_URL`). The web must be disposable
+//! (`HASH_GRAPH_URL`, `HASH_WEB_ID`, `HASH_ACTOR_ID`, and a disposable
+//! `INTEGRATIONS_BLOB_URL`). The web must be disposable
 //! or explicitly approved: the contract performs real entity writes with the
 //! configured machine actor.
 //!
-//! Coverage: side-effect-free permission preflight, machine-actor create
-//! authority, and create-conflict convergence (the second identical run
+//! Coverage: actor-scoped create authority and create-conflict convergence
+//! (the second identical run
 //! replays the same deterministic identity, so the Graph answers 409 and the
 //! engine converges through the update path). Provider throttling (429 with
 //! `Retry-After`) and bounded error handling cannot be forced against a real
@@ -32,13 +32,6 @@ const FORWARDED: &[&str] = &[
     "HASH_WEB_ID",
     "HASH_ACTOR_ID",
     "INTEGRATIONS_BLOB_URL",
-];
-
-/// Optional: with canaries the preflight verifies write authority up front;
-/// without them activation proceeds unverified.
-const OPTIONAL_CANARIES: &[&str] = &[
-    "INTEGRATIONS_GRAPH_PERMISSION_ENTITY_ID",
-    "INTEGRATIONS_GRAPH_PERMISSION_LINK_ID",
 ];
 
 const OPTIONAL_BLOB_PROVIDER: &[&str] = &["AWS_REGION", "AWS_DEFAULT_REGION"];
@@ -75,11 +68,6 @@ async fn real_graph_delivery_contract() {
         let value = std::env::var(name)
             .unwrap_or_else(|_missing| panic!("{name} is required for the Graph contract"));
         variables.insert((*name).to_owned(), value);
-    }
-    for name in OPTIONAL_CANARIES {
-        if let Ok(value) = std::env::var(name) {
-            variables.insert((*name).to_owned(), value);
-        }
     }
     for name in OPTIONAL_BLOB_PROVIDER {
         if let Ok(value) = std::env::var(name) {
@@ -133,14 +121,9 @@ async fn real_graph_delivery_contract() {
     ]);
     let env = Env::from_map(surface_variables);
 
-    // Side-effect-free permission preflight with the machine actor.
-    let doctor = integrations_rs::production::doctor(&env)
+    integrations_rs::production::doctor(&env)
         .await
-        .expect("doctor runs against the real Graph");
-    assert!(
-        !doctor.graph_permissions_blocking,
-        "the machine actor lacks write authority in the contract web: {doctor:?}"
-    );
+        .expect("object-store diagnostics pass");
 
     let connector = format!("graph-contract-{}", uuid::Uuid::new_v4());
     // Round 0 proves machine-actor create authority for a brand-new entity.

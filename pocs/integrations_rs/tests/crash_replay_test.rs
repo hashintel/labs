@@ -11,7 +11,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use common::{mount_permissions, orders_definition, wait_for, WorkerHarness, WorkerLocal};
+use common::{orders_definition, wait_for, WorkerHarness, WorkerLocal};
 use integrations_rs::orchestrator::CommandRunState;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, Request, Respond, ResponseTemplate};
@@ -61,7 +61,6 @@ impl Respond for FirstThenStall {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn process_death_mid_delivery_resumes_at_the_durable_cursor_on_a_fresh_machine() {
     let graph = MockServer::start().await;
-    mount_permissions(&graph).await;
     let stall = Arc::new(FirstThenStall {
         served: AtomicUsize::new(0),
         bodies: Mutex::new(Vec::new()),
@@ -106,7 +105,6 @@ async fn process_death_mid_delivery_resumes_at_the_durable_cursor_on_a_fresh_mac
 
     // A brand-new worker on a brand-new machine: same remote prefix only.
     harness.graph.reset().await;
-    mount_permissions(&harness.graph).await;
     let replay_bodies = Arc::new(Mutex::new(Vec::new()));
     let trace = Arc::clone(&replay_bodies);
     Mock::given(method("POST"))
@@ -155,7 +153,6 @@ async fn process_death_mid_delivery_resumes_at_the_durable_cursor_on_a_fresh_mac
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn a_restarted_owner_reclaims_its_unexpired_lease_in_seconds_not_a_lease_duration() {
     let graph = MockServer::start().await;
-    mount_permissions(&graph).await;
     let stall = Arc::new(FirstThenStall {
         served: AtomicUsize::new(0),
         bodies: Mutex::new(Vec::new()),
@@ -192,7 +189,6 @@ async fn a_restarted_owner_reclaims_its_unexpired_lease_in_seconds_not_a_lease_d
     let _ = first_worker.wait();
 
     harness.graph.reset().await;
-    mount_permissions(&harness.graph).await;
     Mock::given(method("POST"))
         .and(path("/entities"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
@@ -248,7 +244,6 @@ impl Respond for ConflictScript {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn lost_create_ack_converges_through_429_retry_conflict_and_patch() {
     let graph = MockServer::start().await;
-    mount_permissions(&graph).await;
     let script = Arc::new(ConflictScript {
         served: AtomicUsize::new(0),
         arrivals: Mutex::new(Vec::new()),
@@ -307,7 +302,6 @@ async fn lost_create_ack_converges_through_429_retry_conflict_and_patch() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn cancellation_before_acceptance_promotes_the_exact_receipt() {
     let graph = MockServer::start().await;
-    mount_permissions(&graph).await;
     Mock::given(method("POST"))
         .and(path("/entities"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
@@ -344,7 +338,6 @@ async fn cancellation_before_acceptance_promotes_the_exact_receipt() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn deterministic_planning_failure_consumes_the_durable_handler_budget() {
     let graph = MockServer::start().await;
-    mount_permissions(&graph).await;
     let harness = WorkerHarness::start(graph);
     let submitted = harness
         .submit(orders_definition(
@@ -376,8 +369,7 @@ async fn deterministic_planning_failure_consumes_the_durable_handler_budget() {
             .received_requests()
             .await
             .unwrap_or_default()
-            .iter()
-            .all(|request| request.url.path() == "/entities/permissions"),
-        "planning failures never reach entity delivery"
+            .is_empty(),
+        "planning failures never reach Graph delivery"
     );
 }

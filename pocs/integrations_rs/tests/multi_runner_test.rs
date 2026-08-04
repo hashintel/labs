@@ -5,7 +5,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{mount_permissions, orders_definition, WorkerHarness, WorkerLocal, WEB_ID};
+use common::{orders_definition, WorkerHarness, WorkerLocal, WEB_ID};
 use integrations_rs::orchestrator::ids::CanonicalIntegrationId;
 use integrations_rs::orchestrator::routing;
 use integrations_rs::orchestrator::CommandRunState;
@@ -35,7 +35,6 @@ fn three_distinct_shard_connectors() -> Vec<String> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn four_capped_runners_split_three_shards_with_one_owner_each() {
     let graph = MockServer::start().await;
-    mount_permissions(&graph).await;
     Mock::given(method("POST"))
         .and(path("/entities"))
         .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))

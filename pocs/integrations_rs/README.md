@@ -132,18 +132,9 @@ HASH_GRAPH_URL=<Graph base URL>
 HASH_ACTOR_ID=<node actor UUID used for activation and direct CLI submissions>
 ```
 
-The activation permission preflight additionally accepts optional managed
-entity and link canaries:
-
-```text
-INTEGRATIONS_GRAPH_PERMISSION_ENTITY_ID=<managed entity canary>
-INTEGRATIONS_GRAPH_PERMISSION_LINK_ID=<managed link canary>
-```
-
-When both canaries are configured, the permission preflight sends only bounded
-`POST /entities/permissions` requests. It does not fetch entity payloads or
-mutate Graph. A proven denial or a configured but failed preflight blocks
-activation. Missing canaries report `Unverified`, warn, and proceed.
+Graph authorization is enforced at the trusted submission boundary and by the
+Graph on each delivery. The engine does not use managed entities to probe an
+actor's permissions during worker activation.
 
 Useful operational settings include:
 

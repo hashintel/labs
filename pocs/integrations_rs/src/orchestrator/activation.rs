@@ -3,7 +3,7 @@
 //! Every non-storage check completes before the canonical baseline is the
 //! first remote write. Passing the explicit CLI flag authorizes baseline
 //! initialization, but never bypasses registry, configuration, release
-//! contract, or Graph permission validation.
+//! contract validation.
 use std::fmt;
 use std::num::{NonZeroU64, NonZeroUsize};
 use std::path::PathBuf;
@@ -31,7 +31,6 @@ pub(crate) enum ActivationCheck {
     MigrationCapabilities,
     Configuration,
     ProviderAttestation,
-    GraphPermissions,
     ControlBaseline,
     KnownShards,
 }
@@ -45,7 +44,6 @@ impl fmt::Display for ActivationCheck {
             }
             Self::Configuration => "worker configuration validation failed",
             Self::ProviderAttestation => "release-contract attestation validation failed",
-            Self::GraphPermissions => "Graph permission activation preflight failed",
             Self::ControlBaseline => "canonical control baseline activation failed",
             Self::KnownShards => "known-shard discovery failed",
         })
@@ -155,20 +153,6 @@ pub(crate) async fn activate(env: &Env) -> Result<ActivationReadiness, Report<Ac
         .change_context(ActivationCheck::MigrationCapabilities)?;
     let mut config = activation_config(env).change_context(ActivationCheck::Configuration)?;
     validate_attestation(env, Utc::now()).change_context(ActivationCheck::ProviderAttestation)?;
-    let permissions = super::preflight::graph_permission_preflight(env)
-        .await
-        .change_context(ActivationCheck::GraphPermissions)?;
-    if !permissions.allows_production_activation() {
-        return Err(Report::new(ActivationCheck::GraphPermissions)
-            .attach_printable(format!("preflight status: {:?}", permissions.status)));
-    }
-    if permissions.status == super::preflight::PermissionPreflightStatus::Unverified {
-        tracing::warn!(
-            reasons = ?permissions.unverified_reasons,
-            "activating without verified Graph write authority; configure the permission \
-             canary IDs to verify the machine actor before delivery"
-        );
-    }
     let artifacts =
         ArtifactStore::from_url(&config::blob_store_url(env), config::blob_cache_dir(env))
             .change_context(ActivationCheck::ControlBaseline)?;

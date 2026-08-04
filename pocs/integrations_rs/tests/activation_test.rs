@@ -12,11 +12,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::Duration;
 
-use common::{permitted_body, WEB_ID};
-use wiremock::matchers::{method, path};
-use wiremock::{Mock, MockServer, ResponseTemplate};
-
-const PERMISSION_PATH: &str = "/entities/permissions";
+use common::WEB_ID;
+use wiremock::MockServer;
 
 struct Fixture {
     remote: tempfile::TempDir,
@@ -27,17 +24,7 @@ struct Fixture {
 }
 
 impl Fixture {
-    async fn verified() -> Self {
-        let fixture = Self::unmounted().await;
-        Mock::given(method("POST"))
-            .and(path(PERMISSION_PATH))
-            .respond_with(ResponseTemplate::new(200).set_body_json(permitted_body()))
-            .mount(&fixture.graph)
-            .await;
-        fixture
-    }
-
-    async fn unmounted() -> Self {
+    async fn new() -> Self {
         let fixture = Self {
             remote: tempfile::tempdir().expect("remote object store"),
             cache: tempfile::tempdir().expect("verified cache"),
@@ -169,7 +156,7 @@ fn collect_files(root: &Path, dir: &Path, into: &mut Vec<String>) {
 
 #[tokio::test]
 async fn worker_refuses_by_default_and_unknown_flags_exit_64_without_persistent_operations() {
-    let fixture = Fixture::verified().await;
+    let fixture = Fixture::new().await;
 
     let refused = fixture.run_worker(&[], &[]);
     assert_eq!(refused.status.code(), Some(1), "{refused:?}");
@@ -187,7 +174,7 @@ async fn worker_refuses_by_default_and_unknown_flags_exit_64_without_persistent_
 
 #[tokio::test]
 async fn invalid_configuration_fails_before_any_baseline_write_or_graph_request() {
-    let fixture = Fixture::verified().await;
+    let fixture = Fixture::new().await;
     for (name, value) in [
         ("INTEGRATIONS_MAX_GRAPH_REQUESTS_PER_CHUNK", "1"),
         ("INTEGRATIONS_LEASE_SECONDS", "1"),
@@ -206,7 +193,7 @@ async fn invalid_configuration_fails_before_any_baseline_write_or_graph_request(
 
 #[tokio::test]
 async fn attestation_failures_precede_baseline_creation_and_graph_contact() {
-    let fixture = Fixture::verified().await;
+    let fixture = Fixture::new().await;
     for shape in [
         AttestationShape::Expired,
         AttestationShape::WrongBinary,
@@ -229,58 +216,8 @@ async fn attestation_failures_precede_baseline_creation_and_graph_contact() {
 }
 
 #[tokio::test]
-async fn denied_permissions_fail_before_baseline_while_missing_canaries_proceed_unverified() {
-    // A proven denial blocks before any write.
-    let denied = Fixture::unmounted().await;
-    Mock::given(method("POST"))
-        .and(path(PERMISSION_PATH))
-        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({})))
-        .mount(&denied.graph)
-        .await;
-    let output = denied.run_worker(&["--activate-baseline"], &[]);
-    assert_eq!(output.status.code(), Some(1), "{output:?}");
-    assert!(denied.remote_objects().is_empty());
-
-    // Canary IDs are optional: missing canaries activate unverified, the
-    // worker initializes the baseline, and no Graph request is made.
-    let unverified = Fixture::verified().await;
-    let mut worker = unverified
-        .command(&[
-            ("INTEGRATIONS_GRAPH_PERMISSION_ENTITY_ID", ""),
-            ("INTEGRATIONS_GRAPH_PERMISSION_LINK_ID", ""),
-        ])
-        .args(["worker", "--activate-baseline"])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .spawn()
-        .expect("spawn unverified worker");
-    let deadline = std::time::Instant::now() + Duration::from_secs(20);
-    while !unverified.baseline_path().exists() {
-        assert!(
-            std::time::Instant::now() < deadline,
-            "unverified activation initializes the baseline"
-        );
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
-    worker.kill().expect("stop unverified worker");
-    let _ = worker.wait();
-    assert!(unverified.graph_requests().await.is_empty());
-
-    // A preflight that cannot complete stays fail-closed.
-    let unreachable = Fixture::unmounted().await;
-    Mock::given(method("POST"))
-        .and(path(PERMISSION_PATH))
-        .respond_with(ResponseTemplate::new(500))
-        .mount(&unreachable.graph)
-        .await;
-    let output = unreachable.run_worker(&["--activate-baseline"], &[]);
-    assert_eq!(output.status.code(), Some(1), "{output:?}");
-    assert!(unreachable.remote_objects().is_empty());
-}
-
-#[tokio::test]
 async fn markerless_non_empty_prefix_fails_closed_and_deletes_nothing() {
-    let fixture = Fixture::verified().await;
+    let fixture = Fixture::new().await;
     let stray = fixture
         .remote
         .path()
@@ -296,7 +233,7 @@ async fn markerless_non_empty_prefix_fails_closed_and_deletes_nothing() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn successful_activation_creates_one_canonical_baseline_and_mutates_nothing() {
-    let fixture = Fixture::verified().await;
+    let fixture = Fixture::new().await;
     let mut worker = fixture
         .command(&[])
         .args(["worker", "--activate-baseline"])
@@ -336,19 +273,15 @@ async fn successful_activation_creates_one_canonical_baseline_and_mutates_nothin
     assert_eq!(baseline["data"]["routing_version"], 1);
     assert_eq!(baseline["data"]["shard_count"], 256);
 
-    let requests = fixture.graph_requests().await;
-    assert!(!requests.is_empty(), "preflight consulted the Graph");
     assert!(
-        requests
-            .iter()
-            .all(|(method, path)| method == "POST" && path == PERMISSION_PATH),
-        "activation performed a non-preflight Graph request: {requests:?}"
+        fixture.graph_requests().await.is_empty(),
+        "activation must not contact Graph"
     );
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn concurrent_first_activation_adopts_the_same_baseline() {
-    let fixture = Fixture::verified().await;
+    let fixture = Fixture::new().await;
     // Each runner gets its own local state and cache, as in a real
     // deployment: only the remote prefix is shared.
     let locals = (0..2)

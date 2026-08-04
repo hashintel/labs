@@ -21,7 +21,6 @@ mod metadata;
 mod phase2_adapter;
 pub(crate) mod planning;
 mod port;
-pub mod preflight;
 pub mod projection;
 pub(crate) mod projection_snapshot;
 mod projection_types;

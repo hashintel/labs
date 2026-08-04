@@ -1,6 +1,6 @@
-//! One-shot production preflight and authoritative-store verification.
+//! One-shot production diagnostics and authoritative-store verification.
 //!
-//! These checks are CLI/operator tools, not health probes: the CAS canary
+//! These checks are CLI/operator tools, not health probes: the CAS probe
 //! performs writes and a full store verification may download large objects.
 
 use error_stack::{Report, ResultExt as _};
@@ -179,11 +179,9 @@ const DIAGNOSTICS_ROOT: &str = "control/diagnostics/v1";
 #[serde(rename_all = "camelCase")]
 pub struct DoctorReport {
     pub status: &'static str,
-    pub graph_permissions_blocking: bool,
     pub blob_url: String,
     pub cache_directory: String,
     pub cas_contract: &'static str,
-    pub graph_permissions: crate::orchestrator::preflight::PermissionPreflightReport,
     pub baseline_initialized: bool,
     pub baseline_compatible: bool,
     pub duckdb_max_bytes: u64,
@@ -213,7 +211,7 @@ pub struct StoreVerification {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct DiagnosticCanary {
+struct DiagnosticProbe {
     nonce: String,
     generation: u8,
 }
@@ -248,11 +246,11 @@ pub async fn doctor(env: &Env) -> Result<DoctorReport, Report<DiagnosticsError>>
         .change_context(DiagnosticsError)?;
     let nonce = uuid::Uuid::new_v4().to_string();
     let key = format!("{DIAGNOSTICS_ROOT}/{nonce}.json");
-    let first = DiagnosticCanary {
+    let first = DiagnosticProbe {
         nonce: nonce.clone(),
         generation: 1,
     };
-    let second = DiagnosticCanary {
+    let second = DiagnosticProbe {
         nonce,
         generation: 2,
     };
@@ -261,15 +259,15 @@ pub async fn doctor(env: &Env) -> Result<DoctorReport, Report<DiagnosticsError>>
         let created = blobs.create_json(&key, &first).await?;
         let CasWrite::Written(created_version) = created else {
             return Err(Report::new(crate::error::BlobError)
-                .attach_printable("unique diagnostics canary unexpectedly already existed"));
+                .attach_printable("unique diagnostics probe unexpectedly already existed"));
         };
         let (observed, read_version) =
             blobs
-                .get_json::<DiagnosticCanary>(&key)
+                .get_json::<DiagnosticProbe>(&key)
                 .await?
                 .ok_or_else(|| {
                     Report::new(crate::error::BlobError)
-                        .attach_printable("diagnostics canary was not visible after create")
+                        .attach_printable("diagnostics probe was not visible after create")
                 })?;
         if observed != first || read_version != created_version {
             return Err(Report::new(crate::error::BlobError)
@@ -295,7 +293,7 @@ pub async fn doctor(env: &Env) -> Result<DoctorReport, Report<DiagnosticsError>>
             ));
         }
         let observed = blobs
-            .get_json::<DiagnosticCanary>(&key)
+            .get_json::<DiagnosticProbe>(&key)
             .await?
             .map(|(value, _)| value);
         if observed.as_ref() != Some(&second) {
@@ -315,13 +313,8 @@ pub async fn doctor(env: &Env) -> Result<DoctorReport, Report<DiagnosticsError>>
         .is_some()
     {
         return Err(Report::new(DiagnosticsError)
-            .attach_printable("diagnostics canary remained visible after delete"));
+            .attach_printable("diagnostics probe remained visible after delete"));
     }
-
-    let graph_permissions = crate::orchestrator::preflight::graph_permission_preflight(env)
-        .await
-        .change_context(DiagnosticsError)?;
-    let graph_permissions_blocking = !graph_permissions.allows_production_activation();
     let baseline = match env.get("HASH_WEB_ID") {
         Some(web_id) => {
             let tenant = crate::orchestrator::ids::TenantNamespace::parse(web_id.to_owned())
@@ -340,16 +333,10 @@ pub async fn doctor(env: &Env) -> Result<DoctorReport, Report<DiagnosticsError>>
         ]
     };
     Ok(DoctorReport {
-        status: if graph_permissions_blocking {
-            "blocked"
-        } else {
-            "ok"
-        },
-        graph_permissions_blocking,
+        status: "ok",
         blob_url,
         cache_directory: config::blob_cache_dir(env).display().to_string(),
         cas_contract: "create/read/update/stale-conflict/delete",
-        graph_permissions,
         baseline_initialized: baseline,
         baseline_compatible: baseline,
         duckdb_max_bytes,
@@ -587,13 +574,8 @@ fn canonical_uuid_json(value: &str) -> bool {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use wiremock::matchers::{method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
 
     const WEB: &str = "00000000-0000-4000-8000-000000000001";
-    const ENTITY: &str =
-        "00000000-0000-4000-8000-000000000001~00000000-0000-4000-8000-000000000002";
-    const LINK: &str = "00000000-0000-4000-8000-000000000001~00000000-0000-4000-8000-000000000003";
 
     fn local_env(remote: &tempfile::TempDir, cache: &tempfile::TempDir) -> Env {
         Env::from_map(std::collections::HashMap::from([
@@ -610,7 +592,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn doctor_proves_the_cas_contract_and_cleans_its_canary() {
+    async fn doctor_proves_the_cas_contract_and_cleans_its_probe() {
         let remote = tempfile::tempdir().unwrap();
         let cache = tempfile::tempdir().unwrap();
         let env = local_env(&remote, &cache);
@@ -621,14 +603,7 @@ mod tests {
         );
         assert!(!report.baseline_initialized);
         assert!(!report.baseline_compatible);
-        // Canary IDs are optional: an unverified preflight warns but no
-        // longer blocks activation, so the doctor reports ok.
         assert_eq!(report.status, "ok");
-        assert!(!report.graph_permissions_blocking);
-        assert_eq!(
-            report.graph_permissions.status,
-            crate::orchestrator::preflight::PermissionPreflightStatus::Unverified
-        );
         let diagnostics = remote.path().join(DIAGNOSTICS_ROOT);
         assert!(!diagnostics.exists() || std::fs::read_dir(diagnostics).unwrap().next().is_none());
     }
@@ -656,60 +631,6 @@ mod tests {
             report.object_store,
             crate::progress::ObjectStoreSignalsV1::default()
         );
-    }
-
-    #[tokio::test]
-    async fn doctor_is_unblocked_only_by_verified_batched_graph_permissions() {
-        let remote = tempfile::tempdir().unwrap();
-        let cache = tempfile::tempdir().unwrap();
-        let graph = MockServer::start().await;
-        Mock::given(method("POST"))
-            .and(path("/entities/permissions"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                ENTITY: ["00000000-0000-4000-8000-000000000010"],
-                LINK: ["00000000-0000-4000-8000-000000000011"]
-            })))
-            .expect(2)
-            .mount(&graph)
-            .await;
-        let env = Env::from_map(std::collections::HashMap::from([
-            (
-                "INTEGRATIONS_BLOB_URL".to_owned(),
-                format!("file://{}", remote.path().display()),
-            ),
-            (
-                "INTEGRATIONS_BLOB_CACHE".to_owned(),
-                cache.path().display().to_string(),
-            ),
-            ("HASH_GRAPH_URL".to_owned(), graph.uri()),
-            (
-                "HASH_ACTOR_ID".to_owned(),
-                "00000000-0000-4000-8000-000000000004".to_owned(),
-            ),
-            ("HASH_WEB_ID".to_owned(), WEB.to_owned()),
-            (
-                "INTEGRATIONS_GRAPH_PERMISSION_ENTITY_ID".to_owned(),
-                ENTITY.to_owned(),
-            ),
-            (
-                "INTEGRATIONS_GRAPH_PERMISSION_LINK_ID".to_owned(),
-                LINK.to_owned(),
-            ),
-            ("HASH_GRAPH_TIMEOUT_MS".to_owned(), "1000".to_owned()),
-        ]));
-
-        let report = doctor(&env).await.unwrap();
-        assert_eq!(report.status, "ok");
-        assert!(!report.graph_permissions_blocking);
-        assert_eq!(
-            report.graph_permissions.status,
-            crate::orchestrator::preflight::PermissionPreflightStatus::Verified
-        );
-        let requests = graph.received_requests().await.unwrap();
-        assert_eq!(requests.len(), 2);
-        assert!(requests
-            .iter()
-            .all(|request| request.url.path() == "/entities/permissions"));
     }
 
     #[tokio::test]

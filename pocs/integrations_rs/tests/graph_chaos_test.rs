@@ -164,7 +164,7 @@ async fn real_graph_delivery_converges_under_injected_throttling_and_failures() 
     });
 
     // The scripted proxy is the only Graph endpoint the system under test
-    // ever sees; preflight and delivery both traverse it.
+    // ever sees; all delivery traverses it.
     let proxy = Arc::new(ChaosProxy {
         upstream: graph_url.trim_end_matches('/').to_owned(),
         client: reqwest::Client::new(),

@@ -696,7 +696,7 @@ impl ArtifactStore {
 
     /// Deletes a known small control object. Immutable artifacts are removed
     /// only by the separate reachability-aware GC; this primitive exists for
-    /// unique diagnostic canaries and explicit maintenance workflows.
+    /// unique diagnostic probes and explicit maintenance workflows.
     pub async fn delete_control(&self, key: &str) -> Result<(), Report<BlobError>> {
         let components = key.split('/').collect::<Vec<_>>();
         let is_diagnostics_control = components.first() == Some(&"control");
