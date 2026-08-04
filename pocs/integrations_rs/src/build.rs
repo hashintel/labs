@@ -169,7 +169,7 @@ const BATCH_SOURCE_KINDS: &[&str] = &["sql", "checkpoint", "external", "table"];
 const STEP_KINDS: &[&str] = &["sql", "fn", "checkpoint", "branch", "graph-sink"];
 
 pub fn stream_modes() -> &'static [&'static str] {
-    &["cdc", "mongo-stream"]
+    &["webhook", "cdc", "mongo-stream"]
 }
 
 pub fn build(yaml: &Value, web_id: &str) -> Result<Integration, Report<ConfigError>> {
@@ -248,6 +248,8 @@ fn shape_issues(yaml: &Value, web_id: &str) -> Vec<Issue> {
 
     if mode == "rest-api" {
         issues.extend(endpoint_issues(connector));
+    } else if mode == "webhook" {
+        issues.extend(webhook_issues(connector));
     } else if mode != "batch" && !stream_modes().contains(&mode) {
         issues.push(Issue::new(
             "connector.mode",
@@ -259,6 +261,33 @@ fn shape_issues(yaml: &Value, web_id: &str) -> Vec<Issue> {
     issues.extend(sources_issues(yaml));
     issues.extend(pipelines_issues(yaml, &declared));
     issues.extend(link_issues(yaml, web_id));
+    issues
+}
+
+fn webhook_issues(connector: &Value) -> Vec<Issue> {
+    let mut issues = Vec::new();
+    match text(connector, "provider") {
+        Some("github" | "slack" | "linear" | "notion") => {}
+        Some(provider) => issues.push(Issue::new(
+            "connector.provider",
+            format!("unsupported webhook provider \"{provider}\""),
+        )),
+        None => issues.push(Issue::new(
+            "connector.provider",
+            "required for mode webhook",
+        )),
+    }
+    match connector.get("subscriptions").and_then(Value::as_array) {
+        Some(values)
+            if !values.is_empty()
+                && values
+                    .iter()
+                    .all(|value| value.as_str().is_some_and(|name| !name.is_empty())) => {}
+        _ => issues.push(Issue::new(
+            "connector.subscriptions",
+            "must be a non-empty array of event selectors",
+        )),
+    }
     issues
 }
 

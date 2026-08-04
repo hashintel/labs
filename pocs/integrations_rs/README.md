@@ -104,8 +104,26 @@ Both production modes authorize baseline initialization and leased worker
 construction only after registry, migration-capability, configuration,
 provider-attestation, Graph permission, and baseline checks succeed.
 
-Continuous stream definitions are outside protocol V1 and are rejected at
-admission.
+Finite-run protocol V1 still rejects continuous definitions at run admission.
+Managed webhook definitions instead use `connector.mode: webhook`, a supported
+`provider`, and a non-empty `subscriptions` list. Their routes are:
+
+```text
+PUT    /v1/webs/{web}/integrations/{connector}
+GET    /v1/webs/{web}/integrations/{connector}
+PATCH  /v1/webs/{web}/integrations/{connector}/desired-state
+POST   /v1/webs/{web}/integrations/{connector}/bindings
+POST   /v1/hooks/github
+POST   /v1/hooks/slack
+POST   /v1/hooks/linear
+POST   /v1/hooks/notion/{binding_id}
+```
+
+Webhook payloads are signature-checked as exact raw bytes, stored
+content-addressed, and then create-written as tenant receipts. Only after both
+objects are durable is the request acknowledged. Delivery-ID redelivery is
+idempotent; reusing an ID with different bytes is rejected. Production webhook
+activation remains fail-closed until a Vault-backed `SecretStore` is supplied.
 
 ## Required configuration
 

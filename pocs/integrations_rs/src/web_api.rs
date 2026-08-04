@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use aide::axum::routing::{get, post};
+use aide::axum::routing::{get, patch, post};
 use aide::axum::{ApiRouter, IntoApiResponse};
 use aide::openapi::{
     HeaderStyle, Info, OpenApi, Parameter, ParameterData, ParameterSchemaOrContent, Response,
@@ -15,6 +15,7 @@ use aide::openapi::{
 };
 use aide::operation::OperationOutput;
 use aide::scalar::Scalar;
+use axum::extract::DefaultBodyLimit;
 use axum::extract::{Extension, FromRequestParts, Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response as AxumResponse};
@@ -26,6 +27,10 @@ use serde_json::{Map, Value};
 
 use crate::application::{
     ApplicationError, ApplicationErrorKind, IntegrationService, RequestContext, SubmitIntegration,
+};
+use crate::orchestrator::managed::{
+    IngressDisposition, ManagedDesiredState, ProviderBinding, SecretRef, WebhookProvider,
+    DEFAULT_MAX_BODY_BYTES,
 };
 use crate::orchestrator::{
     CommandRunStatus, CommandSubmission, InvocationV1, PublishedCancellation, SubmissionTriggerV1,
@@ -157,6 +162,34 @@ pub struct ErrorResponse {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct PutManagedRequest {
+    pub definition: Value,
+    pub expected_revision: Option<String>,
+    pub replaces_connector_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct DesiredStateRequest {
+    pub desired_state: String,
+    pub expected_revision: String,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct BindManagedRequest {
+    pub binding_id: String,
+    pub provider: String,
+    pub external_id: String,
+    pub secret_backend: String,
+    pub secret_path: String,
+    /// Optional write-once bootstrap value. It is never returned or persisted
+    /// in object storage; production rejects it until Vault is available.
+    pub secret: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct HealthResponse {
@@ -185,6 +218,7 @@ impl From<ApplicationError> for ApiError {
         let (status, code) = match error.kind {
             ApplicationErrorKind::InvalidRequest => (StatusCode::BAD_REQUEST, "invalid_request"),
             ApplicationErrorKind::NotFound => (StatusCode::NOT_FOUND, "not_found"),
+            ApplicationErrorKind::Conflict => (StatusCode::CONFLICT, "revision_conflict"),
             ApplicationErrorKind::Unavailable => {
                 (StatusCode::SERVICE_UNAVAILABLE, "service_unavailable")
             }
@@ -222,7 +256,7 @@ impl OperationOutput for ApiError {
         let Some(response) = Self::operation_response(context, operation) else {
             return Vec::new();
         };
-        [400_u16, 404, 503]
+        [400_u16, 404, 409, 503]
             .into_iter()
             .map(|status| (Some(status), response.clone()))
             .collect()
@@ -245,6 +279,22 @@ pub fn router(service: Arc<dyn IntegrationService>) -> axum::Router {
             "/v1/webs/{web_id}/integrations/{connector_id}/runs/{run_id}",
             get(run_status).delete(cancel_run),
         )
+        .api_route(
+            "/v1/webs/{web_id}/integrations/{connector_id}",
+            get(get_managed).put(put_managed),
+        )
+        .api_route(
+            "/v1/webs/{web_id}/integrations/{connector_id}/desired-state",
+            patch(patch_desired_state),
+        )
+        .api_route(
+            "/v1/webs/{web_id}/integrations/{connector_id}/bindings",
+            post(bind_managed),
+        )
+        .api_route("/v1/hooks/github", post(github_hook))
+        .api_route("/v1/hooks/slack", post(slack_hook))
+        .api_route("/v1/hooks/linear", post(linear_hook))
+        .api_route("/v1/hooks/notion/{binding_id}", post(notion_hook))
         .route(
             "/docs",
             Scalar::new("/openapi.json")
@@ -265,8 +315,175 @@ pub fn router(service: Arc<dyn IntegrationService>) -> axum::Router {
         ..OpenApi::default()
     };
     app.finish_api(&mut document)
+        .layer(DefaultBodyLimit::max(DEFAULT_MAX_BODY_BYTES))
         .layer(Extension(Arc::new(document)))
         .with_state(ApiState { service })
+}
+
+async fn put_managed(
+    State(state): State<ApiState>,
+    Path((web_id, connector_id)): Path<(String, String)>,
+    headers: RequestHeaders,
+    Json(request): Json<PutManagedRequest>,
+) -> Result<(StatusCode, Json<Value>), ApiError> {
+    let context = request_context(web_id, &headers.0)?;
+    let created = request.expected_revision.is_none();
+    let definition = state
+        .service
+        .put_managed(
+            context,
+            &connector_id,
+            request.definition,
+            request.expected_revision.as_deref(),
+            request.replaces_connector_id,
+        )
+        .await?;
+    Ok((
+        if created {
+            StatusCode::CREATED
+        } else {
+            StatusCode::OK
+        },
+        Json(serde_json::to_value(definition).expect("managed definition serializes")),
+    ))
+}
+
+async fn get_managed(
+    State(state): State<ApiState>,
+    Path((web_id, connector_id)): Path<(String, String)>,
+    headers: RequestHeaders,
+) -> Result<Json<Value>, ApiError> {
+    let context = request_context(web_id, &headers.0)?;
+    let definition = state.service.get_managed(context, &connector_id).await?;
+    Ok(Json(
+        serde_json::to_value(definition).expect("managed definition serializes"),
+    ))
+}
+
+async fn patch_desired_state(
+    State(state): State<ApiState>,
+    Path((web_id, connector_id)): Path<(String, String)>,
+    headers: RequestHeaders,
+    Json(request): Json<DesiredStateRequest>,
+) -> Result<Json<Value>, ApiError> {
+    let context = request_context(web_id, &headers.0)?;
+    let desired = match request.desired_state.as_str() {
+        "enabled" => ManagedDesiredState::Enabled,
+        "disabled" => ManagedDesiredState::Disabled,
+        _ => {
+            return Err(ApiError::invalid(
+                "desiredState must be enabled or disabled",
+            ))
+        }
+    };
+    let definition = state
+        .service
+        .set_managed_desired_state(context, &connector_id, desired, &request.expected_revision)
+        .await?;
+    Ok(Json(
+        serde_json::to_value(definition).expect("managed definition serializes"),
+    ))
+}
+
+async fn bind_managed(
+    State(state): State<ApiState>,
+    Path((web_id, connector_id)): Path<(String, String)>,
+    headers: RequestHeaders,
+    Json(request): Json<BindManagedRequest>,
+) -> Result<StatusCode, ApiError> {
+    let context = request_context(web_id.clone(), &headers.0)?;
+    let provider = request
+        .provider
+        .parse::<WebhookProvider>()
+        .map_err(|error| ApiError::invalid(error.to_string()))?;
+    let binding = ProviderBinding {
+        binding_id: request.binding_id,
+        provider,
+        external_id: request.external_id,
+        web_id,
+        connector_id,
+        secret_ref: SecretRef {
+            backend: request.secret_backend,
+            path: request.secret_path,
+        },
+    };
+    let secret = request
+        .secret
+        .map(|value| crate::secret::Secret::new(value.into_bytes()));
+    state.service.bind_managed(context, binding, secret).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+async fn github_hook(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<Json<Value>, ApiError> {
+    hook(state, WebhookProvider::Github, None, headers, body).await
+}
+
+async fn slack_hook(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<Json<Value>, ApiError> {
+    hook(state, WebhookProvider::Slack, None, headers, body).await
+}
+
+async fn linear_hook(
+    State(state): State<ApiState>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<Json<Value>, ApiError> {
+    hook(state, WebhookProvider::Linear, None, headers, body).await
+}
+
+async fn notion_hook(
+    State(state): State<ApiState>,
+    Path(binding_id): Path<String>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<Json<Value>, ApiError> {
+    hook(
+        state,
+        WebhookProvider::Notion,
+        Some(binding_id.as_str()),
+        headers,
+        body,
+    )
+    .await
+}
+
+async fn hook(
+    state: ApiState,
+    provider: WebhookProvider,
+    binding_id: Option<&str>,
+    headers: HeaderMap,
+    body: axum::body::Bytes,
+) -> Result<Json<Value>, ApiError> {
+    let headers = headers
+        .iter()
+        .filter_map(|(name, value)| {
+            value
+                .to_str()
+                .ok()
+                .map(|value| (name.as_str().to_ascii_lowercase(), value.to_owned()))
+        })
+        .collect();
+    let disposition = state
+        .service
+        .ingest_webhook(provider, binding_id, &headers, &body)
+        .await?;
+    let response = match disposition {
+        IngressDisposition::Accepted { targets } => {
+            serde_json::json!({"accepted": true, "duplicate": false, "targets": targets})
+        }
+        IngressDisposition::Duplicate { targets } => {
+            serde_json::json!({"accepted": true, "duplicate": true, "targets": targets})
+        }
+        IngressDisposition::Challenge(challenge) => serde_json::json!({"challenge": challenge}),
+    };
+    Ok(Json(response))
 }
 
 pub async fn serve(

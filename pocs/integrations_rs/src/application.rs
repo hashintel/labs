@@ -2,12 +2,17 @@
 //! CLI. Durable orchestration remains below this boundary; transports supply
 //! authenticated request context and translate results into their own DTOs.
 
+use std::collections::BTreeMap;
 use std::fmt;
 
 use async_trait::async_trait;
 use serde_json::{Map, Value};
 
 use crate::config::Env;
+use crate::orchestrator::managed::{
+    IngressDisposition, ManagedDefinition, ManagedDesiredState, ManagedError, ManagedStore,
+    ProviderBinding, WebhookProvider,
+};
 use crate::orchestrator::{
     self, CommandRunStatus, CommandSubmission, CommandSurface, CommandSurfaceError, InvocationV1,
     PublishedCancellation, SubmissionTriggerV1, TaskMetadata,
@@ -34,6 +39,7 @@ pub struct SubmitIntegration {
 pub enum ApplicationErrorKind {
     InvalidRequest,
     NotFound,
+    Conflict,
     Unavailable,
 }
 
@@ -48,6 +54,26 @@ impl ApplicationError {
         Self {
             kind: ApplicationErrorKind::InvalidRequest,
             message: message.into(),
+        }
+    }
+
+    fn from_managed(error: ManagedError) -> Self {
+        let kind = match error {
+            ManagedError::Invalid(_)
+            | ManagedError::IdentityBreaking { .. }
+            | ManagedError::Signature
+            | ManagedError::Replay
+            | ManagedError::DeliveryCollision
+            | ManagedError::Disabled => ApplicationErrorKind::InvalidRequest,
+            ManagedError::NotFound => ApplicationErrorKind::NotFound,
+            ManagedError::Conflict { .. } => ApplicationErrorKind::Conflict,
+            ManagedError::BacklogFull
+            | ManagedError::SecretUnavailable
+            | ManagedError::Storage(_) => ApplicationErrorKind::Unavailable,
+        };
+        Self {
+            kind,
+            message: error.to_string(),
         }
     }
 
@@ -97,6 +123,69 @@ pub trait IntegrationService: Send + Sync {
         connector_id: Option<&str>,
         run_id: &str,
     ) -> Result<PublishedCancellation, ApplicationError>;
+
+    async fn put_managed(
+        &self,
+        _context: RequestContext,
+        _connector_id: &str,
+        _definition: Value,
+        _expected_revision: Option<&str>,
+        _replaces_connector_id: Option<String>,
+    ) -> Result<ManagedDefinition, ApplicationError> {
+        Err(ApplicationError {
+            kind: ApplicationErrorKind::Unavailable,
+            message: "managed integrations are unavailable".to_owned(),
+        })
+    }
+
+    async fn get_managed(
+        &self,
+        _context: RequestContext,
+        _connector_id: &str,
+    ) -> Result<ManagedDefinition, ApplicationError> {
+        Err(ApplicationError {
+            kind: ApplicationErrorKind::Unavailable,
+            message: "managed integrations are unavailable".to_owned(),
+        })
+    }
+
+    async fn set_managed_desired_state(
+        &self,
+        _context: RequestContext,
+        _connector_id: &str,
+        _desired: ManagedDesiredState,
+        _expected_revision: &str,
+    ) -> Result<ManagedDefinition, ApplicationError> {
+        Err(ApplicationError {
+            kind: ApplicationErrorKind::Unavailable,
+            message: "managed integrations are unavailable".to_owned(),
+        })
+    }
+
+    async fn bind_managed(
+        &self,
+        _context: RequestContext,
+        _binding: ProviderBinding,
+        _secret: Option<crate::secret::Secret<Vec<u8>>>,
+    ) -> Result<(), ApplicationError> {
+        Err(ApplicationError {
+            kind: ApplicationErrorKind::Unavailable,
+            message: "managed integrations are unavailable".to_owned(),
+        })
+    }
+
+    async fn ingest_webhook(
+        &self,
+        _provider: WebhookProvider,
+        _binding_id: Option<&str>,
+        _headers: &BTreeMap<String, String>,
+        _body: &[u8],
+    ) -> Result<IngressDisposition, ApplicationError> {
+        Err(ApplicationError {
+            kind: ApplicationErrorKind::Unavailable,
+            message: "webhook ingress is unavailable".to_owned(),
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -124,6 +213,21 @@ impl DurableIntegrationService {
         }
         CommandSurface::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
             .map_err(ApplicationError::from_command)
+    }
+
+    fn managed(&self) -> Result<ManagedStore, ApplicationError> {
+        let blobs = crate::blob::ArtifactStore::from_url(
+            &crate::config::blob_store_url(&self.env),
+            crate::config::blob_cache_dir(&self.env),
+        )
+        .map_err(|error| ApplicationError {
+            kind: ApplicationErrorKind::Unavailable,
+            message: format!("open managed integration storage failed: {error:?}"),
+        })?;
+        Ok(ManagedStore::new(
+            blobs,
+            std::sync::Arc::new(crate::orchestrator::managed::UnavailableVaultSecretStore),
+        ))
     }
 }
 
@@ -206,6 +310,91 @@ impl IntegrationService for DurableIntegrationService {
             .cancel(run_id)
             .await
             .map_err(ApplicationError::from_command)
+    }
+
+    async fn put_managed(
+        &self,
+        context: RequestContext,
+        connector_id: &str,
+        definition: Value,
+        expected_revision: Option<&str>,
+        replaces_connector_id: Option<String>,
+    ) -> Result<ManagedDefinition, ApplicationError> {
+        let actor = context
+            .actor_id
+            .as_deref()
+            .ok_or_else(|| ApplicationError::invalid("an authenticated owner actor is required"))?;
+        self.managed()?
+            .put_definition(
+                &context.web_id,
+                connector_id,
+                actor,
+                definition,
+                expected_revision,
+                replaces_connector_id,
+            )
+            .await
+            .map_err(ApplicationError::from_managed)
+    }
+
+    async fn get_managed(
+        &self,
+        context: RequestContext,
+        connector_id: &str,
+    ) -> Result<ManagedDefinition, ApplicationError> {
+        self.managed()?
+            .get_definition(&context.web_id, connector_id)
+            .await
+            .map_err(ApplicationError::from_managed)
+    }
+
+    async fn set_managed_desired_state(
+        &self,
+        context: RequestContext,
+        connector_id: &str,
+        desired: ManagedDesiredState,
+        expected_revision: &str,
+    ) -> Result<ManagedDefinition, ApplicationError> {
+        self.managed()?
+            .set_desired_state(&context.web_id, connector_id, desired, expected_revision)
+            .await
+            .map_err(ApplicationError::from_managed)
+    }
+
+    async fn bind_managed(
+        &self,
+        context: RequestContext,
+        binding: ProviderBinding,
+        secret: Option<crate::secret::Secret<Vec<u8>>>,
+    ) -> Result<(), ApplicationError> {
+        if binding.web_id != context.web_id {
+            return Err(ApplicationError::invalid(
+                "binding web does not match route",
+            ));
+        }
+        self.managed()?
+            .bind(binding, secret)
+            .await
+            .map_err(ApplicationError::from_managed)
+    }
+
+    async fn ingest_webhook(
+        &self,
+        provider: WebhookProvider,
+        binding_id: Option<&str>,
+        headers: &BTreeMap<String, String>,
+        body: &[u8],
+    ) -> Result<IngressDisposition, ApplicationError> {
+        self.managed()?
+            .accept(
+                provider,
+                binding_id,
+                headers,
+                body,
+                crate::orchestrator::managed::unix_now(),
+            )
+            .await
+            .map_err(ApplicationError::from_managed)
     }
 }
 

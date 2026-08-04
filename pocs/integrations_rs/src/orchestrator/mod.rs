@@ -15,6 +15,7 @@ pub mod ids;
 mod inbox;
 mod internal_metadata;
 pub(crate) mod lease;
+pub mod managed;
 mod memory_adapter;
 mod metadata;
 #[cfg(test)]

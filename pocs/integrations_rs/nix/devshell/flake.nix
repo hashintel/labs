@@ -22,6 +22,8 @@
               gcc
               cmake
               pkg-config
+              # TLA+ model checking (local/spec)
+              tlaplus
             ];
           };
         });
