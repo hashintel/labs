@@ -34,7 +34,14 @@ pub const GRAPH_EFFECT_PAGE_MEDIA_TYPE: &str = "application/vnd.hash.graph-effec
 
 pub(crate) const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_PAGE_BYTES: usize = 32 * 1024 * 1024;
-const PAGE_ENTRIES: usize = 256;
+/// Page width for newly written indexes. Readers must use the index's own
+/// `page_entries` field, so changing this default is not a format break.
+/// Measured against real S3 (2026-08-05): 1024 was slower than 256 in every
+/// phase, because window loads fetch pages 16-wide and wider pages reduce
+/// that concurrency while enlarging each verified read-back.
+const DEFAULT_PAGE_ENTRIES: usize = 256;
+/// Upper bound accepted from a decoded index; byte bounds still apply.
+const MAX_PAGE_ENTRIES: u64 = 8192;
 const PAGE_PUBLICATION_CONCURRENCY: usize = 16;
 const MAX_GRAPH_IDENTITY_BYTES: usize = 8 * 1024;
 
@@ -82,6 +89,7 @@ pub enum DesiredProjectionArtifactV1 {
 pub struct DesiredProjectionIndexV1 {
     pub schema_version: u32,
     pub object_count: u64,
+    pub page_entries: u64,
     pub pages: Vec<BlobRef>,
     pub page_bounds: Vec<DesiredProjectionPageBoundsV1>,
 }
@@ -202,6 +210,7 @@ pub struct EffectIndexV1 {
     pub schema_version: u32,
     pub target_state_digest: String,
     pub effect_count: u64,
+    pub page_entries: u64,
     pub pages: Vec<BlobRef>,
 }
 
@@ -462,7 +471,7 @@ impl ArtifactEffectRepository {
     {
         let mut page_records = Vec::new();
         let mut page_bounds = Vec::new();
-        for chunk in objects.chunks(PAGE_ENTRIES) {
+        for chunk in objects.chunks(DEFAULT_PAGE_ENTRIES) {
             let first = chunk
                 .first()
                 .map(desired_object_key)
@@ -501,7 +510,7 @@ impl ArtifactEffectRepository {
         effects: &[GraphEffectV1],
     ) -> Result<Vec<BlobRef>, Report<EffectRepositoryError>> {
         let page_records = effects
-            .chunks(PAGE_ENTRIES)
+            .chunks(DEFAULT_PAGE_ENTRIES)
             .map(|chunk| {
                 EffectIndexArtifact::V1(EffectIndexArtifactV1::Page(EffectPageV1 {
                     effects: chunk.iter().cloned().map(GraphEffect::V1).collect(),
@@ -579,6 +588,7 @@ impl EffectRepository for ArtifactEffectRepository {
             DesiredProjectionIndexV1 {
                 schema_version: DESIRED_PROJECTION_SCHEMA_VERSION,
                 object_count: objects.len() as u64,
+                page_entries: DEFAULT_PAGE_ENTRIES as u64,
                 pages,
                 page_bounds,
             },
@@ -755,6 +765,7 @@ impl EffectRepository for ArtifactEffectRepository {
             schema_version: EFFECT_INDEX_SCHEMA_VERSION,
             target_state_digest: target_state_digest.to_owned(),
             effect_count: effects.len() as u64,
+            page_entries: DEFAULT_PAGE_ENTRIES as u64,
             pages,
         }));
         self.store
@@ -837,10 +848,15 @@ impl EffectRepository for ArtifactEffectRepository {
             return Err(Report::new(EffectRepositoryError::ArtifactIntegrity)
                 .attach_printable("effect window starts beyond the effect count"));
         }
+        let page_entries = index.page_entries;
+        if page_entries == 0 {
+            return Err(Report::new(EffectRepositoryError::ArtifactIntegrity)
+                .attach_printable("effect index declares a zero page width"));
+        }
         let expected_pages = if index.effect_count == 0 {
             0
         } else {
-            ((index.effect_count - 1) / PAGE_ENTRIES as u64) + 1
+            ((index.effect_count - 1) / page_entries) + 1
         };
         if index.pages.len() as u64 != expected_pages {
             return Err(Report::new(EffectRepositoryError::ArtifactIntegrity)
@@ -849,12 +865,12 @@ impl EffectRepository for ArtifactEffectRepository {
         let end = start.saturating_add(maximum as u64).min(index.effect_count);
         let first_needed = start.saturating_sub(1);
         let page_start = if first_needed < index.effect_count {
-            first_needed / PAGE_ENTRIES as u64
+            first_needed / page_entries
         } else {
             expected_pages
         };
         let page_end = if end > 0 {
-            ((end - 1) / PAGE_ENTRIES as u64) + 1
+            ((end - 1) / page_entries) + 1
         } else {
             0
         };
@@ -889,9 +905,9 @@ impl EffectRepository for ArtifactEffectRepository {
                 return Err(Report::new(EffectRepositoryError::UnsupportedArtifact)
                     .attach_printable("effect page reference names an index"));
             };
-            let global_page_start = page_index * PAGE_ENTRIES as u64;
+            let global_page_start = page_index * page_entries;
             let expected_len =
-                (index.effect_count - global_page_start).min(PAGE_ENTRIES as u64) as usize;
+                (index.effect_count - global_page_start).min(page_entries) as usize;
             if page.effects.len() != expected_len {
                 return Err(Report::new(EffectRepositoryError::ArtifactIntegrity)
                     .attach_printable("effect page length disagrees with its root position"));
@@ -1366,7 +1382,13 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
                 family,
                 "data.data",
                 body,
-                &["schema_version", "object_count", "pages", "page_bounds"],
+                &[
+                    "schema_version",
+                    "object_count",
+                    "page_entries",
+                    "pages",
+                    "page_bounds",
+                ],
             )?;
             for (index, page) in body
                 .get("pages")
@@ -1482,6 +1504,7 @@ fn validate_effect_shape(value: &Value) -> Result<(), CompatError> {
                     "schema_version",
                     "target_state_digest",
                     "effect_count",
+                    "page_entries",
                     "pages",
                 ],
             )?;
@@ -1593,10 +1616,15 @@ fn validate_desired_artifact(value: &DesiredProjectionArtifact) -> Result<(), Co
                     ));
                 }
             }
+            if index.page_entries == 0 || index.page_entries > MAX_PAGE_ENTRIES {
+                return Err(desired_malformed(format!(
+                    "page_entries must be 1 through {MAX_PAGE_ENTRIES}"
+                )));
+            }
             let expected_pages = if index.object_count == 0 {
                 0
             } else {
-                ((index.object_count - 1) / PAGE_ENTRIES as u64) + 1
+                ((index.object_count - 1) / index.page_entries) + 1
             };
             if index.pages.len() as u64 != expected_pages {
                 return Err(desired_malformed(format!(
@@ -1632,9 +1660,9 @@ fn validate_desired_artifact(value: &DesiredProjectionArtifact) -> Result<(), Co
             }
         }
         DesiredProjectionArtifact::V1(DesiredProjectionArtifactV1::Page(page)) => {
-            if page.objects.is_empty() || page.objects.len() > PAGE_ENTRIES {
+            if page.objects.is_empty() || page.objects.len() as u64 > MAX_PAGE_ENTRIES {
                 return Err(desired_malformed(format!(
-                    "page must contain 1 through {PAGE_ENTRIES} objects"
+                    "page must contain 1 through {MAX_PAGE_ENTRIES} objects"
                 )));
             }
             validate_desired_objects(&page.objects)?;
@@ -1661,10 +1689,15 @@ fn validate_effect_artifact(value: &EffectIndexArtifact) -> Result<(), CompatErr
                     ));
                 }
             }
+            if index.page_entries == 0 || index.page_entries > MAX_PAGE_ENTRIES {
+                return Err(effect_malformed(format!(
+                    "page_entries must be 1 through {MAX_PAGE_ENTRIES}"
+                )));
+            }
             let expected_pages = if index.effect_count == 0 {
                 0
             } else {
-                ((index.effect_count - 1) / PAGE_ENTRIES as u64) + 1
+                ((index.effect_count - 1) / index.page_entries) + 1
             };
             if index.pages.len() as u64 != expected_pages {
                 return Err(effect_malformed(format!(
@@ -1674,9 +1707,9 @@ fn validate_effect_artifact(value: &EffectIndexArtifact) -> Result<(), CompatErr
             }
         }
         EffectIndexArtifact::V1(EffectIndexArtifactV1::Page(page)) => {
-            if page.effects.is_empty() || page.effects.len() > PAGE_ENTRIES {
+            if page.effects.is_empty() || page.effects.len() as u64 > MAX_PAGE_ENTRIES {
                 return Err(effect_malformed(format!(
-                    "page must contain 1 through {PAGE_ENTRIES} effects"
+                    "page must contain 1 through {MAX_PAGE_ENTRIES} effects"
                 )));
             }
             let effects = page
@@ -2081,7 +2114,7 @@ mod tests {
     #[tokio::test]
     async fn desired_object_lookup_reads_only_pages_covering_requested_keys() {
         let (_remote, _cache, repository) = repository();
-        let inputs = (0..300)
+        let inputs = (0..DEFAULT_PAGE_ENTRIES + 44)
             .map(|index| DesiredObjectInputV1 {
                 kind: GraphObjectKindV1::Entity,
                 graph_identity: format!("entity:{index:04}"),
@@ -2206,28 +2239,30 @@ mod tests {
     async fn effect_window_crosses_page_boundary_with_exact_preceding_cursor() {
         let (_remote, _cache, repository) = repository();
         let target = "1".repeat(64);
-        let effects = (0..300)
+        let count = DEFAULT_PAGE_ENTRIES + 44;
+        let effects = (0..count)
             .map(|index| {
                 GraphEffectV1::new(
                     target.clone(),
                     GraphOperationV1::ArchiveEntity,
-                    format!("entity:{index:03}"),
+                    format!("entity:{index:04}"),
                     None,
                     None,
                 )
                 .expect("effect")
             })
             .collect::<Vec<_>>();
-        let previous = effects[254].effect_id.clone();
+        let start = DEFAULT_PAGE_ENTRIES - 1;
+        let previous = effects[start - 1].effect_id.clone();
         let index = repository
             .publish_effect_index(&target, effects)
             .await
             .expect("publish effects");
         let window = repository
-            .load_effect_window(&index, 255, 3)
+            .load_effect_window(&index, start as u64, 3)
             .await
             .expect("cross-page window");
-        assert_eq!(window.effect_count, 300);
+        assert_eq!(window.effect_count, count as u64);
         assert_eq!(window.previous_effect_id, Some(previous));
         assert_eq!(
             window
@@ -2235,8 +2270,88 @@ mod tests {
                 .iter()
                 .map(|effect| effect.effect.graph_identity.as_str())
                 .collect::<Vec<_>>(),
-            vec!["entity:255", "entity:256", "entity:257"]
+            vec![
+                format!("entity:{start:04}"),
+                format!("entity:{:04}", start + 1),
+                format!("entity:{:04}", start + 2),
+            ]
         );
+    }
+
+    #[tokio::test]
+    async fn effect_window_honors_a_declared_page_width_other_than_the_default() {
+        let (_remote, _cache, repository) = repository();
+        let target = "1".repeat(64);
+        let effects = (0..5_usize)
+            .map(|index| {
+                GraphEffectV1::new(
+                    target.clone(),
+                    GraphOperationV1::ArchiveEntity,
+                    format!("entity:{index:04}"),
+                    None,
+                    None,
+                )
+                .expect("effect")
+            })
+            .collect::<Vec<_>>();
+        let mut pages = Vec::new();
+        for chunk in effects.chunks(2) {
+            let page = EffectIndexArtifact::V1(EffectIndexArtifactV1::Page(EffectPageV1 {
+                effects: chunk.iter().cloned().map(GraphEffect::V1).collect(),
+            }));
+            pages.push(
+                repository
+                    .store
+                    .publish_record(
+                        &page,
+                        MAX_PAGE_BYTES,
+                        "tenants/alice/integration/effects/pages",
+                        GRAPH_EFFECT_PAGE_MEDIA_TYPE,
+                    )
+                    .await
+                    .expect("publish narrow page"),
+            );
+        }
+        let index = EffectIndexArtifact::V1(EffectIndexArtifactV1::Index(EffectIndexV1 {
+            schema_version: EFFECT_INDEX_SCHEMA_VERSION,
+            target_state_digest: target.clone(),
+            effect_count: 5,
+            page_entries: 2,
+            pages: pages.clone(),
+        }));
+        let reference = repository
+            .store
+            .publish_record(
+                &index,
+                MAX_INDEX_BYTES,
+                "tenants/alice/integration/effects/indexes",
+                GRAPH_EFFECT_INDEX_MEDIA_TYPE,
+            )
+            .await
+            .expect("publish narrow index");
+        let window = repository
+            .load_effect_window(&reference, 1, 3)
+            .await
+            .expect("window across narrow pages");
+        assert_eq!(window.effect_count, 5);
+        assert_eq!(
+            window
+                .effects
+                .iter()
+                .map(|effect| effect.effect.graph_identity.as_str())
+                .collect::<Vec<_>>(),
+            vec!["entity:0001", "entity:0002", "entity:0003"]
+        );
+
+        // Encode-side check: the width must agree with the page count.
+        let lying = EffectIndexArtifact::V1(EffectIndexArtifactV1::Index(EffectIndexV1 {
+            schema_version: EFFECT_INDEX_SCHEMA_VERSION,
+            target_state_digest: target,
+            effect_count: 5,
+            page_entries: 3,
+            pages,
+        }));
+        assert!(lying.encode().is_err());
     }
 
     #[tokio::test]

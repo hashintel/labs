@@ -19,7 +19,7 @@ use error_stack::{Report, ResultExt};
 use fs4::fs_std::FileExt as _;
 use futures::stream::BoxStream;
 use futures::StreamExt;
-use object_store::aws::AmazonS3Builder;
+use object_store::aws::{AmazonS3Builder, Checksum};
 use object_store::buffered::BufWriter;
 use object_store::local::LocalFileSystem;
 use object_store::memory::InMemory;
@@ -586,6 +586,11 @@ impl ArtifactStore {
         let (bucket, prefix) = parse_s3_url(url)?;
         let store = AmazonS3Builder::from_env()
             .with_bucket_name(bucket)
+            // Ask the provider to validate and retain an object-level SHA-256
+            // checksum in addition to SigV4 transport signing and our own
+            // content-address verification. This strengthens the acceptance
+            // boundary without replacing the authoritative read-back checks.
+            .with_checksum_algorithm(Checksum::SHA256)
             .build()
             .change_context(BlobError)
             .attach_printable("build S3 blob backend")?;
@@ -753,12 +758,78 @@ impl ArtifactStore {
         );
         let location = self.location(&relative_key)?;
 
+        // Small immutable artifacts fit in one bounded request. Creating them
+        // conditionally both saves the speculative HEAD on the overwhelmingly
+        // common new-object path and strengthens immutability: a concurrent or
+        // pre-existing object can never be overwritten. Existing content still
+        // takes the authoritative HEAD + full-byte verification path below.
+        if size <= UPLOAD_CHUNK_SIZE as u64 {
+            let bytes = tokio::fs::read(source_path_name(source.as_path())?)
+                .await
+                .change_context(BlobError)
+                .attach_printable("read bounded staged artifact")?;
+            let read_size = bytes.len() as u64;
+            let read_hash = hex::encode(Sha256::digest(&bytes));
+            if read_size != size || read_hash != sha256 {
+                return Err(Report::new(BlobError).attach_printable(format!(
+                    "staged artifact changed before upload: expected {size} bytes/{sha256}, read {read_size} bytes/{read_hash}"
+                )));
+            }
+            let options = PutOptions {
+                mode: PutMode::Create,
+                ..PutOptions::default()
+            };
+            match self
+                .store
+                .put_opts(&location, Bytes::from(bytes).into(), options)
+                .await
+            {
+                Ok(_result) => {
+                    if let Some(root) = &self.local_root {
+                        let root = root.clone();
+                        let relative = location.to_string();
+                        tokio::task::spawn_blocking(move || {
+                            sync_local_published_object(&root, &relative)
+                        })
+                        .await
+                        .change_context(BlobError)
+                        .attach_printable("join local artifact durability task")??;
+                    }
+                    let meta = self
+                        .store
+                        .head(&location)
+                        .await
+                        .map_err(|error| store_report("verify uploaded artifact", error))?;
+                    if meta.size != size {
+                        return Err(Report::new(BlobError).attach_printable(format!(
+                            "uploaded object {} has size {}, expected {size}",
+                            meta.location, meta.size
+                        )));
+                    }
+                    let reference = blob_ref(relative_key, sha256, size, media_type, &meta);
+                    self.seed_cache_best_effort(&reference, &source).await;
+                    return Ok(reference);
+                }
+                Err(
+                    object_store::Error::AlreadyExists { .. }
+                    | object_store::Error::Precondition { .. },
+                ) => {}
+                // A backend without conditional puts retains the prior safe
+                // HEAD/upload/HEAD implementation below.
+                Err(
+                    object_store::Error::NotSupported { .. } | object_store::Error::NotImplemented,
+                ) => {}
+                Err(error) => return Err(store_report("create immutable content object", error)),
+            }
+        }
+
         match self.store.head(&location).await {
             Ok(meta) if meta.size == size => {
                 let reference = blob_ref(relative_key, sha256, size, media_type, &meta);
                 self.verify_content(&reference).await.attach_printable(
                     "existing content-addressed object failed byte verification",
                 )?;
+                self.seed_cache_best_effort(&reference, &source).await;
                 return Ok(reference);
             }
             Ok(meta) => {
@@ -831,11 +902,18 @@ impl ArtifactStore {
                 meta.location, meta.size
             )));
         }
-        Ok(blob_ref(relative_key, sha256, size, media_type, &meta))
+        let reference = blob_ref(relative_key, sha256, size, media_type, &meta);
+        // The staged file is already fsynced and was hashed both before and
+        // during upload. Retain those exact bytes in the disposable cache so
+        // the execution phase does not immediately download its own output.
+        // S3 remains authoritative; a cache-admission failure is therefore
+        // deliberately non-fatal and materialization will fetch it normally.
+        self.seed_cache_best_effort(&reference, &source).await;
+        Ok(reference)
     }
 
     /// Publishes one registered, bounded durable record through the same
-    /// staged-file path as large artifacts, then verifies the stored bytes.
+    /// staged-file path as large artifacts, then verifies the published bytes.
     /// Keeping this typed prevents arbitrary application JSON from entering a
     /// canonical V1 immutable-artifact prefix.
     pub(crate) async fn publish_record<T: crate::orchestrator::registry::DurableRecord + Sync>(
@@ -884,10 +962,147 @@ impl ArtifactStore {
             .attach_printable("remove staged durable record");
         let reference = published?;
         cleanup?;
+        // Durable records retain the stronger authoritative read-back check.
+        // The write-through cache is only an execution accelerator and must
+        // never substitute for verifying the bytes accepted by the provider.
         self.verify_content(&reference)
             .await
             .attach_printable("verify published durable-record bytes")?;
         Ok(reference)
+    }
+
+    async fn seed_cache_best_effort(&self, reference: &BlobRef, source: &FsPath) {
+        if let Err(error) = self.seed_cache(reference, source).await {
+            tracing::debug!(
+                error = ?error,
+                key = %reference.current().key,
+                "published artifact was not admitted to the local cache"
+            );
+        }
+    }
+
+    async fn seed_cache(
+        &self,
+        reference: &BlobRef,
+        source: &FsPath,
+    ) -> Result<(), Report<BlobError>> {
+        let value = reference.current();
+        validate_blob_reference(value)?;
+        let destination = self.cached_path(reference)?;
+
+        // A verified materialization deliberately holds this object's lock
+        // for the guard's lifetime. Republishing identical content must not
+        // wait for that guard (the small process cache may retain it for an
+        // arbitrarily long time). A lock-free valid hit needs no mutation;
+        // eviction racing this check is harmless because S3 remains the
+        // authority and a later materialization can fetch it again.
+        if destination.is_file() {
+            let path = destination.clone();
+            let expected_hash = value.sha256.clone();
+            let expected_size = value.size;
+            let valid = tokio::task::spawn_blocking(move || {
+                verify_file(&path, &expected_hash, expected_size)
+            })
+            .await
+            .change_context(BlobError)
+            .attach_printable("join existing published-cache verification task")??;
+            if valid {
+                return Ok(());
+            }
+        }
+
+        let Some(mut object_lock) = self.try_lock_cache_object(&value.sha256).await? else {
+            // Cache population is optional. Never delay a successfully
+            // published artifact behind a reader holding the cache object.
+            return Ok(());
+        };
+
+        if destination.is_file() {
+            let path = destination.clone();
+            let expected_hash = value.sha256.clone();
+            let expected_size = value.size;
+            let valid = tokio::task::spawn_blocking(move || {
+                verify_file(&path, &expected_hash, expected_size)
+            })
+            .await
+            .change_context(BlobError)
+            .attach_printable("join published-cache verification task")??;
+            if valid {
+                touch_cache_lock(&mut object_lock)?;
+                return Ok(());
+            }
+            tokio::fs::remove_file(&destination)
+                .await
+                .change_context(BlobError)
+                .attach_printable("remove corrupt published-cache object")?;
+        }
+
+        let _cache_reservation = self.ensure_cache_capacity(value.size, Some(&destination))?;
+        if let Some(parent) = destination.parent() {
+            tokio::fs::create_dir_all(parent)
+                .await
+                .change_context(BlobError)
+                .attach_printable("create published-cache shard")?;
+        }
+        let temporary = destination.with_extension(format!(
+            "{}part-{}",
+            destination
+                .extension()
+                .and_then(|value| value.to_str())
+                .unwrap_or(""),
+            Uuid::new_v4()
+        ));
+        let copied = async {
+            tokio::fs::copy(source, &temporary)
+                .await
+                .change_context(BlobError)
+                .attach_printable("copy published artifact into cache")?;
+            let temporary_file = tokio::fs::OpenOptions::new()
+                .read(true)
+                .open(&temporary)
+                .await
+                .change_context(BlobError)
+                .attach_printable("open published-cache temporary file")?;
+            temporary_file
+                .sync_all()
+                .await
+                .change_context(BlobError)
+                .attach_printable("fsync published-cache object")?;
+            drop(temporary_file);
+
+            let path = temporary.clone();
+            let expected_hash = value.sha256.clone();
+            let expected_size = value.size;
+            tokio::task::spawn_blocking(move || verify_file(&path, &expected_hash, expected_size))
+                .await
+                .change_context(BlobError)
+                .attach_printable("join copied published-cache verification task")?
+        }
+        .await;
+        let valid = match copied {
+            Ok(valid) => valid,
+            Err(error) => {
+                let _ = tokio::fs::remove_file(&temporary).await;
+                return Err(error);
+            }
+        };
+        if !valid {
+            let _ = tokio::fs::remove_file(&temporary).await;
+            return Err(Report::new(BlobError)
+                .attach_printable("published artifact changed while copying into cache"));
+        }
+        if let Err(error) = tokio::fs::rename(&temporary, &destination).await {
+            let _ = tokio::fs::remove_file(&temporary).await;
+            return Err(Report::new(error)
+                .change_context(BlobError)
+                .attach_printable("commit published-cache object"));
+        }
+        if let Err(error) = set_read_only(&destination) {
+            let _ = tokio::fs::remove_file(&destination).await;
+            return Err(error);
+        }
+        touch_cache_lock(&mut object_lock)?;
+        Ok(())
     }
 
     /// Convenience for bounded control-plane and test artifacts that already
@@ -1180,6 +1395,31 @@ impl ArtifactStore {
         .await
         .change_context(BlobError)
         .attach_printable("join cache-object lock task")?
+    }
+
+    async fn try_lock_cache_object(&self, sha256: &str) -> Result<Option<File>, Report<BlobError>> {
+        let sha256 = sha256.to_owned();
+        let path = self.cache_root.join("locks").join(format!("{sha256}.lock"));
+        tokio::task::spawn_blocking(move || {
+            if let Some(parent) = path.parent() {
+                std::fs::create_dir_all(parent).change_context(BlobError)?;
+            }
+            let file = std::fs::OpenOptions::new()
+                .read(true)
+                .write(true)
+                .create(true)
+                .truncate(false)
+                .open(&path)
+                .change_context(BlobError)?;
+            if file.try_lock_exclusive().change_context(BlobError)? {
+                Ok(Some(file))
+            } else {
+                Ok(None)
+            }
+        })
+        .await
+        .change_context(BlobError)
+        .attach_printable("join cache-object try-lock task")?
     }
 
     fn ensure_cache_capacity(
@@ -2267,7 +2507,9 @@ mod tests {
         aborted.abort().await.unwrap();
 
         let observed = store.telemetry().snapshot(chrono::Utc::now()).object_store;
-        assert!(observed.head_operations_total >= 2);
+        // A new bounded immutable object uses atomic create + one confirming
+        // HEAD; it no longer needs a speculative existence HEAD.
+        assert_eq!(observed.head_operations_total, 1);
         assert!(observed.get_operations_total >= 1);
         assert!(observed.put_operations_total >= 1);
         assert!(observed.put_bytes_total >= reference.current().size);
@@ -2276,6 +2518,95 @@ mod tests {
         assert_eq!(observed.multipart_completions_total, 1);
         assert!(observed.multipart_parts_total >= 1);
         assert_eq!(observed.multipart_aborts_total, 1);
+    }
+
+    #[tokio::test]
+    async fn freshly_published_artifact_materializes_without_a_remote_get() {
+        let cache = tempdir().unwrap();
+        let store = ArtifactStore::in_memory(cache.path()).unwrap();
+        let reference = store
+            .publish_bytes(
+                b"write-through cache",
+                ".bin",
+                "cache",
+                "application/octet-stream",
+            )
+            .await
+            .unwrap();
+        let after_publish = store.telemetry().snapshot(chrono::Utc::now()).object_store;
+        assert_eq!(after_publish.get_operations_total, 0);
+
+        let materialized = store.materialize(&reference).await.unwrap();
+        assert_eq!(
+            tokio::fs::read(materialized).await.unwrap(),
+            b"write-through cache"
+        );
+        let after_materialize = store.telemetry().snapshot(chrono::Utc::now()).object_store;
+        assert_eq!(after_materialize.get_operations_total, 0);
+    }
+
+    #[tokio::test]
+    async fn deduplicated_artifact_is_authoritatively_verified_after_create_conflict() {
+        let cache = tempdir().unwrap();
+        let store = ArtifactStore::in_memory(cache.path()).unwrap();
+        let first = store
+            .publish_bytes(
+                b"immutable conflict",
+                ".bin",
+                "dedup",
+                "application/octet-stream",
+            )
+            .await
+            .unwrap();
+        let before = store.telemetry().snapshot(chrono::Utc::now()).object_store;
+
+        let second = store
+            .publish_bytes(
+                b"immutable conflict",
+                ".bin",
+                "dedup",
+                "application/octet-stream",
+            )
+            .await
+            .unwrap();
+        let after = store.telemetry().snapshot(chrono::Utc::now()).object_store;
+
+        assert_eq!(first, second);
+        assert_eq!(after.get_operations_total, before.get_operations_total + 1);
+        assert_eq!(
+            after.get_bytes_total,
+            before.get_bytes_total + first.current().size
+        );
+        assert_eq!(
+            after.failed_operations_total,
+            before.failed_operations_total + 1
+        );
+    }
+
+    #[tokio::test]
+    async fn cache_write_through_never_waits_for_a_live_reader_lock() {
+        let cache = tempdir().unwrap();
+        let store = ArtifactStore::in_memory(cache.path()).unwrap();
+        let source = store.stage(".bin").unwrap();
+        let bytes = b"reader owns cache lock";
+        tokio::fs::write(&source, bytes).await.unwrap();
+        let sha256 = hex::encode(Sha256::digest(bytes));
+        let held = store.lock_cache_object(&sha256).await.unwrap();
+
+        let reference = tokio::time::timeout(
+            Duration::from_millis(100),
+            store.publish(&source, "cache-lock", "application/octet-stream"),
+        )
+        .await
+        .expect("best-effort cache population must not wait for a reader")
+        .unwrap();
+        assert!(!store.cached_path(&reference).unwrap().exists());
+
+        drop(held);
+        let before = store.telemetry().snapshot(chrono::Utc::now()).object_store;
+        store.materialize(&reference).await.unwrap();
+        let after = store.telemetry().snapshot(chrono::Utc::now()).object_store;
+        assert_eq!(after.get_operations_total, before.get_operations_total + 1);
     }
 
     #[test]

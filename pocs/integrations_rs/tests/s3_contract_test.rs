@@ -164,6 +164,167 @@ async fn real_s3_provider_contract() {
     println!("{EVIDENCE_PREFIX}{evidence}");
 }
 
+/// End-to-end artifact pipeline against the real provider: publish a 5,000
+/// object desired projection and its effect index, then load the effects in
+/// delivery-sized windows. Prints per-phase timings so page-format changes
+/// can be compared across runs.
+#[tokio::test]
+#[ignore = "requires an explicit real-S3 scratch prefix and provider credentials"]
+async fn real_s3_artifact_page_throughput() {
+    let base_url = std::env::var("INTEGRATIONS_S3_CONTRACT_URL")
+        .expect("set INTEGRATIONS_S3_CONTRACT_URL=s3://bucket/scratch-prefix");
+    let (bucket, base_prefix) = parse_s3_url(&base_url);
+    assert!(
+        !base_prefix.is_empty(),
+        "INTEGRATIONS_S3_CONTRACT_URL must include a non-empty scratch prefix"
+    );
+    let run = format!("artifact-pages-{}", uuid::Uuid::new_v4());
+    let run_prefix = format!("{base_prefix}/{run}");
+    let run_url = format!("s3://{bucket}/{run_prefix}");
+    let raw: Arc<dyn ObjectStore> = Arc::new(
+        AmazonS3Builder::from_env()
+            .with_bucket_name(bucket)
+            .build()
+            .expect("build S3 contract backend"),
+    );
+
+    let result = exercise_artifact_pages(&run_url).await;
+    let cleanup = delete_prefix(raw.as_ref(), &run_prefix).await;
+    if let Err(error) = cleanup {
+        panic!("S3 artifact page cleanup failed for unique prefix {run_prefix:?}: {error}");
+    }
+    if let Err(error) = result {
+        panic!("S3 artifact page throughput run failed: {error}");
+    }
+}
+
+async fn exercise_artifact_pages(run_url: &str) -> Result<(), String> {
+    use integrations_rs::graph::artifacts::{
+        ArtifactEffectRepository, DesiredDispositionV1, DesiredObjectInputDispositionV1,
+        DesiredObjectInputV1, EffectRepository as _, GraphObjectKindV1,
+    };
+    use integrations_rs::graph::effects::{GraphEffectV1, GraphOperationV1};
+
+    const ENTITIES: u64 = 5_000;
+    const WINDOW: usize = 2_048;
+
+    let cache = tempdir().map_err(|error| error.to_string())?;
+    let store = ArtifactStore::from_url(run_url, cache.path()).map_err(report)?;
+    let repository =
+        ArtifactEffectRepository::new(store, "tenants/contract/integration").map_err(report)?;
+
+    let inputs = (0..ENTITIES)
+        .map(|index| DesiredObjectInputV1 {
+            kind: GraphObjectKindV1::Entity,
+            graph_identity: format!("https://graph.example/entities/{index:08}"),
+            disposition: DesiredObjectInputDispositionV1::Live(
+                format!(r#"{{"entityId":"{index:08}","properties":{{"name":"entity {index}"}}}}"#)
+                    .into_bytes(),
+            ),
+        })
+        .collect::<Vec<_>>();
+
+    let started = std::time::Instant::now();
+    let published = repository
+        .publish_desired_projection(inputs)
+        .await
+        .map_err(report)?;
+    let desired_elapsed = started.elapsed();
+
+    let target = "1".repeat(64);
+    let effects = published
+        .objects
+        .iter()
+        .map(|object| {
+            let (DesiredDispositionV1::Live {
+                payload_digest,
+                payload,
+            }
+            | DesiredDispositionV1::Archived {
+                payload_digest,
+                payload,
+            }) = &object.disposition;
+            GraphEffectV1::new(
+                target.clone(),
+                GraphOperationV1::UpsertEntity,
+                object.graph_identity.clone(),
+                Some(payload_digest.clone()),
+                Some(payload.clone()),
+            )
+            .map_err(report)
+        })
+        .collect::<Result<Vec<_>, String>>()?;
+
+    let started = std::time::Instant::now();
+    let index = repository
+        .publish_effect_index(&target, effects)
+        .await
+        .map_err(report)?;
+    let effects_elapsed = started.elapsed();
+
+    let started = std::time::Instant::now();
+    let mut loaded = 0_u64;
+    let mut windows = 0_u32;
+    while loaded < ENTITIES {
+        let window = repository
+            .load_effect_window(&index, loaded, WINDOW)
+            .await
+            .map_err(report)?;
+        if window.effect_count != ENTITIES {
+            return Err(format!(
+                "window declares {} effects, expected {ENTITIES}",
+                window.effect_count
+            ));
+        }
+        if window.effects.is_empty() {
+            return Err(format!("empty window at offset {loaded}"));
+        }
+        loaded += window.effects.len() as u64;
+        windows += 1;
+    }
+    let load_elapsed = started.elapsed();
+
+    // A fresh cache directory models another worker taking over: every page
+    // and pack must be fetched and verified from the provider.
+    let cold_cache = tempdir().map_err(|error| error.to_string())?;
+    let cold_store = ArtifactStore::from_url(run_url, cold_cache.path()).map_err(report)?;
+    let cold_repository =
+        ArtifactEffectRepository::new(cold_store, "tenants/contract/integration")
+            .map_err(report)?;
+    let started = std::time::Instant::now();
+    let mut cold_loaded = 0_u64;
+    while cold_loaded < ENTITIES {
+        let window = cold_repository
+            .load_effect_window(&index, cold_loaded, WINDOW)
+            .await
+            .map_err(report)?;
+        if window.effects.is_empty() {
+            return Err(format!("empty cold window at offset {cold_loaded}"));
+        }
+        cold_loaded += window.effects.len() as u64;
+    }
+    let cold_load_elapsed = started.elapsed();
+    let started = std::time::Instant::now();
+    let cold_desired = cold_repository
+        .load_desired_projection(&published.reference)
+        .await
+        .map_err(report)?;
+    if cold_desired.len() as u64 != ENTITIES {
+        return Err(format!(
+            "cold desired load returned {} objects, expected {ENTITIES}",
+            cold_desired.len()
+        ));
+    }
+    let cold_desired_elapsed = started.elapsed();
+
+    println!(
+        "artifact page throughput: {ENTITIES} entities, desired publish {desired_elapsed:?}, \
+         effect publish {effects_elapsed:?}, {windows} windows of {WINDOW} loaded warm in \
+         {load_elapsed:?}, cold in {cold_load_elapsed:?}, cold desired load {cold_desired_elapsed:?}"
+    );
+    Ok(())
+}
+
 async fn exercise_contract(
     run_url: &str,
     raw: Arc<dyn ObjectStore>,

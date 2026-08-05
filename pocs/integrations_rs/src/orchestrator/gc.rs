@@ -1155,6 +1155,7 @@ mod tests {
             DesiredProjectionIndexV1 {
                 schema_version: 1,
                 object_count: 1,
+                page_entries: 256,
                 pages: vec![desired_page_ref.clone()],
                 page_bounds: vec![DesiredProjectionPageBoundsV1 {
                     first: DesiredObjectKeyV1 {
@@ -1257,6 +1258,7 @@ mod tests {
             schema_version: EFFECT_INDEX_SCHEMA_VERSION,
             target_state_digest: state.id.to_string(),
             effect_count: 1,
+            page_entries: 256,
             pages: vec![effect_page_ref.clone()],
         }));
         let effect_index_ref = store
