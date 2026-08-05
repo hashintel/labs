@@ -19,7 +19,7 @@ use opendata_log::{
 
 use super::events::JournalRecord;
 use super::projection_snapshot::ControlProjectionSnapshot;
-use super::registry::{require_registered, DurableRecord};
+use super::registry::{require_registered, DurableRecord, UntrimmedJournalRecord};
 use super::DurableError;
 
 mod command_loop;
@@ -509,12 +509,19 @@ fn recovery_range(
     })
 }
 
-async fn scan_records<R: LogRead + Sync>(
+/// Scans and decodes one shard's journal suffix. Generic over the journal
+/// record family so a non-integrations domain can replay its own vocabulary
+/// through the same recovery path; protocol V1 instantiates `JournalRecord`.
+async fn scan_records<T, R>(
     reader: &R,
     range: (Bound<Sequence>, Bound<Sequence>),
     expected_window: Option<(u64, u64)>,
-) -> Result<Vec<(u64, JournalRecord)>, Report<DurableError>> {
-    require_registered::<JournalRecord>()
+) -> Result<Vec<(u64, T)>, Report<DurableError>>
+where
+    T: UntrimmedJournalRecord,
+    R: LogRead + Sync,
+{
+    require_registered::<T>()
         .change_context(DurableError)
         .attach_printable("validate shard recovery record family")?;
     let mut iterator = reader
@@ -537,12 +544,12 @@ async fn scan_records<R: LogRead + Sync>(
                 )));
             }
         }
-        let record = JournalRecord::decode(&entry.value)
+        let record = T::decode(&entry.value)
             .change_context(DurableError)
             .attach_printable(format!(
                 "decode shard sequence {} as {}",
                 entry.sequence,
-                JournalRecord::FAMILY.name
+                T::FAMILY.name
             ))?;
         records.push((entry.sequence, record));
     }
