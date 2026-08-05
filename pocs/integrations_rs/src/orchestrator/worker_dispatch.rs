@@ -7,6 +7,7 @@
 use std::fmt;
 use std::sync::Arc;
 
+use async_trait::async_trait;
 use error_stack::{Report, ResultExt as _};
 
 use super::events::{
@@ -94,6 +95,34 @@ pub(crate) struct AdmittedWorkTurn {
     pub(crate) lane_after: LaneDisposition,
 }
 
+/// Kernel-facing execution seam from the durable-kernel split: the scheduler
+/// loop plans and delivers only through this trait, so a future domain can
+/// supply its own planner and effect executor. `WorkerDispatcher` is the
+/// integrations implementation.
+#[async_trait]
+pub(crate) trait Executor: Send + Sync {
+    /// Settles one scheduler turn: plan an accepted run, restore, or
+    /// reconcile cycle; finalize a delivered run; or report idleness.
+    async fn dispatch(
+        &self,
+        turn: SchedulerTurn,
+    ) -> Result<WorkerDispatchOutcome, Report<WorkerDispatchError>>;
+
+    /// Executes exactly one bounded turn for a DRR-admitted work item. The
+    /// caller settles the admitted lane with the returned authoritative
+    /// request count; on an error return it settles with the charge attached
+    /// to the report and keeps the lane runnable.
+    async fn execute_admitted_work(
+        &self,
+        work: &WorkRecoveryIntent,
+        permit: &dyn EffectTurnPermit,
+    ) -> Result<AdmittedWorkTurn, Report<WorkerDispatchError>>;
+
+    /// Drops executor-only retry acceleration for work the authoritative
+    /// scheduler determined is no longer runnable before dispatch.
+    fn forget_work_conflicts(&self, work_id: &WorkId);
+}
+
 pub(crate) struct WorkerDispatcher {
     tenant: TenantNamespace,
     artifacts: ArtifactStore,
@@ -126,7 +155,11 @@ impl WorkerDispatcher {
         }
     }
 
-    pub(crate) async fn dispatch(
+}
+
+#[async_trait]
+impl Executor for WorkerDispatcher {
+    async fn dispatch(
         &self,
         turn: SchedulerTurn,
     ) -> Result<WorkerDispatchOutcome, Report<WorkerDispatchError>> {
@@ -205,11 +238,7 @@ impl WorkerDispatcher {
         }
     }
 
-    /// Executes exactly one bounded turn for a DRR-admitted work item. The
-    /// caller settles the admitted lane with the returned authoritative
-    /// request count; on an error return it settles with the charge attached
-    /// to the report and keeps the lane runnable.
-    pub(crate) async fn execute_admitted_work(
+    async fn execute_admitted_work(
         &self,
         work: &WorkRecoveryIntent,
         permit: &dyn EffectTurnPermit,
@@ -300,12 +329,12 @@ impl WorkerDispatcher {
         Ok(turn)
     }
 
-    /// Drops executor-only retry acceleration for work the authoritative
-    /// scheduler determined is no longer runnable before dispatch.
-    pub(crate) fn forget_work_conflicts(&self, work_id: &WorkId) {
+    fn forget_work_conflicts(&self, work_id: &WorkId) {
         self.executor.forget_work_conflicts(work_id);
     }
+}
 
+impl WorkerDispatcher {
     /// Best effort: the run is already durably terminal, and the scheduler's
     /// startup sweep repairs any admission this call fails to retire.
     async fn retire_terminal_admission(

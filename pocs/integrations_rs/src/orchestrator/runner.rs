@@ -20,7 +20,9 @@ use super::shard::{
 };
 use super::shard_log::{ShardLogLocation, WorkRecoveryIntent};
 use super::state::{self, JournalStateAuthority, StateAuthority};
-use super::worker_dispatch::{LaneDisposition, WorkerDispatchOutcome, WorkerDispatcher};
+use super::worker_dispatch::{
+    Executor, LaneDisposition, WorkerDispatchOutcome, WorkerDispatcher,
+};
 use crate::config::Env;
 use crate::graph::client::{HttpClient, HttpClientOptions};
 use crate::graph::executor::{
@@ -85,7 +87,8 @@ impl ShardWorkspaceCleaner for ScavengingCleaner {
 struct ShardRuntime {
     renewing: RenewingShard,
     scheduler: RecoveryScheduler,
-    dispatcher: WorkerDispatcher,
+    /// The kernel/domain execution seam; integrations is the first impl.
+    dispatcher: Box<dyn Executor>,
     _state_hint_task: tokio::task::JoinHandle<()>,
     snapshot_interval: Duration,
     snapshot_events: u64,
@@ -714,7 +717,7 @@ impl Runner {
             commands.clone(),
         )
         .change_context(WorkerError::Planner)?;
-        let dispatcher = WorkerDispatcher::new(
+        let dispatcher: Box<dyn Executor> = Box::new(WorkerDispatcher::new(
             self.readiness.config.tenant.clone(),
             self.readiness.artifacts.clone(),
             planner,
@@ -723,7 +726,7 @@ impl Runner {
             executor,
             ChunkBudget::new(self.readiness.config.max_graph_requests_per_chunk)
                 .change_context(WorkerError::Executor)?,
-        );
+        ));
         let scheduler = renewing.scheduler(
             // The HTTP boundary is private and authenticated. Per-run owners
             // vary, so a process-wide actor comparison would incorrectly
