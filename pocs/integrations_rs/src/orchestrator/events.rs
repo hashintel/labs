@@ -88,6 +88,223 @@ pub enum JournalEventV1 {
     DlqEntryExpired(DlqEntryExpiredV1),
 }
 
+/// Lifecycle events the kernel itself drives. Compile-time half of the
+/// kernel/domain split: `JournalEventV1` stays the V1 wire codec (kind names
+/// are frozen), while kernel code consumes this vocabulary and never sees
+/// integration facts.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KernelEventV1 {
+    RunAccepted(RunAcceptedV1),
+    AttemptStarted(AttemptStartedV1),
+    AttemptFailed(AttemptFailedV1),
+    WorkPlanned(WorkPlannedV1),
+    WorkChunkCompleted(WorkChunkCompletedV1),
+    WorkCompleted(WorkCompletedV1),
+    WorkBlocked(WorkBlockedV1),
+    RetryRequested(RetryRequestedV1),
+    RunCompleted(RunCompletedV1),
+    RunTerminated(RunTerminatedV1),
+    ControlRequestRejected(ControlRequestRejectedV1),
+    DlqEntryExpired(DlqEntryExpiredV1),
+}
+
+/// Integration-domain facts recorded in the same journal. The first
+/// `Domain::Event` once the kernel generalizes.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum IntegrationsEventV1 {
+    ArtifactPublished(ArtifactPublishedV1),
+    StreamBatchAccepted(StreamBatchAcceptedV1),
+    StateCheckpointCommitted(StateCheckpointCommittedV1),
+    StepCommitted(StepCommittedV1),
+    IntegrationDesiredStateSet(IntegrationDesiredStateSetV1),
+}
+
+/// Total classification of a journal event into its kernel or domain half.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum SplitEventV1 {
+    Kernel(KernelEventV1),
+    Integrations(IntegrationsEventV1),
+}
+
+/// Borrowed classification for fold paths that must not clone payloads.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SplitEventRefV1<'a> {
+    Kernel(KernelEventRefV1<'a>),
+    Integrations(IntegrationsEventRefV1<'a>),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KernelEventRefV1<'a> {
+    RunAccepted(&'a RunAcceptedV1),
+    AttemptStarted(&'a AttemptStartedV1),
+    AttemptFailed(&'a AttemptFailedV1),
+    WorkPlanned(&'a WorkPlannedV1),
+    WorkChunkCompleted(&'a WorkChunkCompletedV1),
+    WorkCompleted(&'a WorkCompletedV1),
+    WorkBlocked(&'a WorkBlockedV1),
+    RetryRequested(&'a RetryRequestedV1),
+    RunCompleted(&'a RunCompletedV1),
+    RunTerminated(&'a RunTerminatedV1),
+    ControlRequestRejected(&'a ControlRequestRejectedV1),
+    DlqEntryExpired(&'a DlqEntryExpiredV1),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegrationsEventRefV1<'a> {
+    ArtifactPublished(&'a ArtifactPublishedV1),
+    StreamBatchAccepted(&'a StreamBatchAcceptedV1),
+    StateCheckpointCommitted(&'a StateCheckpointCommittedV1),
+    StepCommitted(&'a StepCommittedV1),
+    IntegrationDesiredStateSet(&'a IntegrationDesiredStateSetV1),
+}
+
+impl JournalEventV1 {
+    /// Classifies this event into its kernel or domain half. Total by
+    /// construction: adding a variant fails compilation here until it is
+    /// assigned to one side.
+    pub fn split(self) -> SplitEventV1 {
+        match self {
+            Self::RunAccepted(value) => SplitEventV1::Kernel(KernelEventV1::RunAccepted(value)),
+            Self::AttemptStarted(value) => {
+                SplitEventV1::Kernel(KernelEventV1::AttemptStarted(value))
+            }
+            Self::AttemptFailed(value) => SplitEventV1::Kernel(KernelEventV1::AttemptFailed(value)),
+            Self::WorkPlanned(value) => SplitEventV1::Kernel(KernelEventV1::WorkPlanned(value)),
+            Self::WorkChunkCompleted(value) => {
+                SplitEventV1::Kernel(KernelEventV1::WorkChunkCompleted(value))
+            }
+            Self::WorkCompleted(value) => SplitEventV1::Kernel(KernelEventV1::WorkCompleted(value)),
+            Self::WorkBlocked(value) => SplitEventV1::Kernel(KernelEventV1::WorkBlocked(value)),
+            Self::RetryRequested(value) => {
+                SplitEventV1::Kernel(KernelEventV1::RetryRequested(value))
+            }
+            Self::RunCompleted(value) => SplitEventV1::Kernel(KernelEventV1::RunCompleted(value)),
+            Self::RunTerminated(value) => SplitEventV1::Kernel(KernelEventV1::RunTerminated(value)),
+            Self::ControlRequestRejected(value) => {
+                SplitEventV1::Kernel(KernelEventV1::ControlRequestRejected(value))
+            }
+            Self::DlqEntryExpired(value) => {
+                SplitEventV1::Kernel(KernelEventV1::DlqEntryExpired(value))
+            }
+            Self::ArtifactPublished(value) => {
+                SplitEventV1::Integrations(IntegrationsEventV1::ArtifactPublished(value))
+            }
+            Self::StreamBatchAccepted(value) => {
+                SplitEventV1::Integrations(IntegrationsEventV1::StreamBatchAccepted(value))
+            }
+            Self::StateCheckpointCommitted(value) => {
+                SplitEventV1::Integrations(IntegrationsEventV1::StateCheckpointCommitted(value))
+            }
+            Self::StepCommitted(value) => {
+                SplitEventV1::Integrations(IntegrationsEventV1::StepCommitted(value))
+            }
+            Self::IntegrationDesiredStateSet(value) => {
+                SplitEventV1::Integrations(IntegrationsEventV1::IntegrationDesiredStateSet(value))
+            }
+        }
+    }
+
+    pub fn split_ref(&self) -> SplitEventRefV1<'_> {
+        match self {
+            Self::RunAccepted(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::RunAccepted(value))
+            }
+            Self::AttemptStarted(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::AttemptStarted(value))
+            }
+            Self::AttemptFailed(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::AttemptFailed(value))
+            }
+            Self::WorkPlanned(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::WorkPlanned(value))
+            }
+            Self::WorkChunkCompleted(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::WorkChunkCompleted(value))
+            }
+            Self::WorkCompleted(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::WorkCompleted(value))
+            }
+            Self::WorkBlocked(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::WorkBlocked(value))
+            }
+            Self::RetryRequested(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::RetryRequested(value))
+            }
+            Self::RunCompleted(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::RunCompleted(value))
+            }
+            Self::RunTerminated(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::RunTerminated(value))
+            }
+            Self::ControlRequestRejected(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::ControlRequestRejected(value))
+            }
+            Self::DlqEntryExpired(value) => {
+                SplitEventRefV1::Kernel(KernelEventRefV1::DlqEntryExpired(value))
+            }
+            Self::ArtifactPublished(value) => {
+                SplitEventRefV1::Integrations(IntegrationsEventRefV1::ArtifactPublished(value))
+            }
+            Self::StreamBatchAccepted(value) => {
+                SplitEventRefV1::Integrations(IntegrationsEventRefV1::StreamBatchAccepted(value))
+            }
+            Self::StateCheckpointCommitted(value) => SplitEventRefV1::Integrations(
+                IntegrationsEventRefV1::StateCheckpointCommitted(value),
+            ),
+            Self::StepCommitted(value) => {
+                SplitEventRefV1::Integrations(IntegrationsEventRefV1::StepCommitted(value))
+            }
+            Self::IntegrationDesiredStateSet(value) => SplitEventRefV1::Integrations(
+                IntegrationsEventRefV1::IntegrationDesiredStateSet(value),
+            ),
+        }
+    }
+}
+
+impl From<KernelEventV1> for JournalEventV1 {
+    fn from(event: KernelEventV1) -> Self {
+        match event {
+            KernelEventV1::RunAccepted(value) => Self::RunAccepted(value),
+            KernelEventV1::AttemptStarted(value) => Self::AttemptStarted(value),
+            KernelEventV1::AttemptFailed(value) => Self::AttemptFailed(value),
+            KernelEventV1::WorkPlanned(value) => Self::WorkPlanned(value),
+            KernelEventV1::WorkChunkCompleted(value) => Self::WorkChunkCompleted(value),
+            KernelEventV1::WorkCompleted(value) => Self::WorkCompleted(value),
+            KernelEventV1::WorkBlocked(value) => Self::WorkBlocked(value),
+            KernelEventV1::RetryRequested(value) => Self::RetryRequested(value),
+            KernelEventV1::RunCompleted(value) => Self::RunCompleted(value),
+            KernelEventV1::RunTerminated(value) => Self::RunTerminated(value),
+            KernelEventV1::ControlRequestRejected(value) => Self::ControlRequestRejected(value),
+            KernelEventV1::DlqEntryExpired(value) => Self::DlqEntryExpired(value),
+        }
+    }
+}
+
+impl From<IntegrationsEventV1> for JournalEventV1 {
+    fn from(event: IntegrationsEventV1) -> Self {
+        match event {
+            IntegrationsEventV1::ArtifactPublished(value) => Self::ArtifactPublished(value),
+            IntegrationsEventV1::StreamBatchAccepted(value) => Self::StreamBatchAccepted(value),
+            IntegrationsEventV1::StateCheckpointCommitted(value) => {
+                Self::StateCheckpointCommitted(value)
+            }
+            IntegrationsEventV1::StepCommitted(value) => Self::StepCommitted(value),
+            IntegrationsEventV1::IntegrationDesiredStateSet(value) => {
+                Self::IntegrationDesiredStateSet(value)
+            }
+        }
+    }
+}
+
+impl From<SplitEventV1> for JournalEventV1 {
+    fn from(event: SplitEventV1) -> Self {
+        match event {
+            SplitEventV1::Kernel(event) => event.into(),
+            SplitEventV1::Integrations(event) => event.into(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct InputRef {
@@ -983,6 +1200,37 @@ mod tests {
             e_tag: Some(e_tag.to_owned()),
             provider_version: Some(provider_version.to_owned()),
         })
+    }
+
+    #[test]
+    fn split_classifies_and_round_trips_without_changing_the_event() {
+        let kernel_event = JournalEventV1::AttemptStarted(AttemptStartedV1 {
+            run_id: run_id(),
+            attempt_id: derive_attempt_id(&run_id(), 1),
+            attempt: 1,
+        });
+        let SplitEventV1::Kernel(half) = kernel_event.clone().split() else {
+            panic!("attempt lifecycle must classify as kernel");
+        };
+        assert_eq!(JournalEventV1::from(half), kernel_event);
+        assert!(matches!(
+            kernel_event.split_ref(),
+            SplitEventRefV1::Kernel(KernelEventRefV1::AttemptStarted(_))
+        ));
+
+        let domain_event = JournalEventV1::StepCommitted(StepCommittedV1 {
+            run_id: run_id(),
+            name: "extract".to_owned(),
+            checkpoint: blob("etag", "version"),
+        });
+        let SplitEventV1::Integrations(half) = domain_event.clone().split() else {
+            panic!("step facts must classify as integrations domain");
+        };
+        assert_eq!(JournalEventV1::from(half), domain_event);
+        assert!(matches!(
+            domain_event.split_ref(),
+            SplitEventRefV1::Integrations(IntegrationsEventRefV1::StepCommitted(_))
+        ));
     }
 
     #[test]
