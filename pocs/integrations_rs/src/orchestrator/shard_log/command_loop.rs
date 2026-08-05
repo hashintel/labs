@@ -62,9 +62,9 @@ pub(crate) struct ControlRequestSnapshot {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ControlResolution {
+pub(crate) struct ControlResolution<D: Domain = IntegrationsDomain> {
     pub(crate) append: ShardCommandOutcome,
-    pub(crate) outcome: ControlRequestOutcomeV1,
+    pub(crate) outcome: D::ControlOutcome,
 }
 
 /// Bounded run view used by orchestration adapters. The command loop retains
@@ -150,35 +150,35 @@ pub(crate) struct IntegrationDeliveryView {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct StartupRecovery {
+pub(crate) struct StartupRecovery<W = WorkRecoveryIntent> {
     pub(crate) durable_end_exclusive: u64,
     /// Inclusive sequence restored from a validated snapshot, or `None` when
     /// startup replayed the complete journal.
     pub(crate) snapshot_through_log_sequence: Option<u64>,
-    pub(crate) live_work: Vec<WorkRecoveryIntent>,
+    pub(crate) live_work: Vec<W>,
 }
 
 /// Lossy, derived notifications for rebuilding non-authoritative state hints.
 /// The initial set makes restart repair independent of whether a notification
 /// was observed before the previous process stopped.
 #[derive(Debug)]
-pub(crate) struct StateChangeFeed {
-    pub(crate) initial: Vec<CanonicalIntegrationId>,
-    pub(crate) receiver: mpsc::Receiver<CanonicalIntegrationId>,
+pub(crate) struct StateChangeFeed<K = CanonicalIntegrationId> {
+    pub(crate) initial: Vec<K>,
+    pub(crate) receiver: mpsc::Receiver<K>,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ShardCommandHandle {
-    sender: mpsc::Sender<Command>,
+pub(crate) struct ShardCommandHandle<D: Domain = IntegrationsDomain> {
+    sender: mpsc::Sender<Command<D>>,
     accepting: Arc<AtomicBool>,
     ownership_lost: CancellationToken,
     shard: super::super::routing::Shard,
 }
 
-impl ShardCommandHandle {
+impl<D: Domain> ShardCommandHandle<D> {
     pub(crate) async fn propose(
         &self,
-        record: JournalRecordV1,
+        record: D::RecordCurrent,
     ) -> Result<ShardCommandOutcome, ShardCommandError> {
         if !self.accepting.load(Ordering::Acquire) {
             return Err(closed("shard command loop is not accepting proposals"));
@@ -193,6 +193,101 @@ impl ShardCommandHandle {
         })?
     }
 
+    /// Returns only the bounded control-plane view needed by the inbox. The
+    /// whole projection and append handle never escape the shard owner loop.
+    pub(crate) async fn inspect_control(
+        &self,
+        request: D::ControlRequest,
+    ) -> Result<D::ControlSnapshot, ShardCommandError> {
+        if !self.accepting.load(Ordering::Acquire) {
+            return Err(closed("shard command loop is not accepting control reads"));
+        }
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .send(Command::InspectControl { request, reply })
+            .await
+            .map_err(|_send_error| {
+                closed("shard command loop closed before accepting control read")
+            })?;
+        response.await.map_err(|_receive_error| {
+            closed("shard command loop stopped before replying to control read")
+        })?
+    }
+
+    /// Atomically re-checks the request against the current projection, builds
+    /// its pure promoted event (or durable rejection), and appends it through
+    /// the sole fenced writer.
+    pub(crate) async fn resolve_control(
+        &self,
+        request: D::ControlRequest,
+        preflight_rejection: Option<D::ControlRejection>,
+    ) -> Result<ControlResolution<D>, ShardCommandError> {
+        if !self.accepting.load(Ordering::Acquire) {
+            return Err(closed(
+                "shard command loop is not accepting control requests",
+            ));
+        }
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .send(Command::ResolveControl {
+                request,
+                preflight_rejection,
+                reply,
+            })
+            .await
+            .map_err(|_send_error| {
+                closed("shard command loop closed before accepting control request")
+            })?;
+        response.await.map_err(|_receive_error| {
+            closed("shard command loop stopped before replying to control request")
+        })?
+    }
+
+    async fn query(&self, query: D::Query) -> Result<D::QueryResult, ShardCommandError> {
+        if !self.accepting.load(Ordering::Acquire) {
+            return Err(closed("shard command loop is not accepting queries"));
+        }
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .send(Command::Query { query, reply })
+            .await
+            .map_err(|_send_error| closed("shard command loop closed before accepting query"))?;
+        response.await.map_err(|_receive_error| {
+            closed("shard command loop stopped before replying to query")
+        })?
+    }
+
+    pub(crate) async fn shutdown(&self) -> Result<(), ShardCommandError> {
+        if self
+            .accepting
+            .compare_exchange(true, false, Ordering::AcqRel, Ordering::Acquire)
+            .is_err()
+        {
+            return Err(closed("shard command loop is already stopping"));
+        }
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .send(Command::Shutdown { reply })
+            .await
+            .map_err(|_send_error| closed("shard command loop closed before accepting shutdown"))?;
+        response.await.map_err(|_receive_error| {
+            closed("shard command loop stopped before acknowledging shutdown")
+        })?
+    }
+
+    /// Stops new admission immediately and wakes the loop through a dedicated
+    /// control path. Commands already queued are rejected rather than draining
+    /// through a lease-lost writer.
+    pub(crate) fn stop_admission(&self) {
+        self.accepting.store(false, Ordering::Release);
+    }
+
+    pub(crate) fn cancel_owned_writer(&self) {
+        self.ownership_lost.cancel();
+    }
+}
+
+impl ShardCommandHandle {
     /// Captures the current pure projection inside the serialized loop,
     /// publishes it outside the loop, then records the immutable reference
     /// through the same sole writer. The projection itself never escapes.
@@ -246,56 +341,6 @@ impl ShardCommandHandle {
             .telemetry()
             .record_snapshot_published(snapshot_created_at);
         Ok(Some(snapshot))
-    }
-
-    /// Returns only the bounded control-plane view needed by the inbox. The
-    /// whole projection and append handle never escape the shard owner loop.
-    pub(crate) async fn inspect_control(
-        &self,
-        request: ControlRequestV1,
-    ) -> Result<ControlRequestSnapshot, ShardCommandError> {
-        if !self.accepting.load(Ordering::Acquire) {
-            return Err(closed("shard command loop is not accepting control reads"));
-        }
-        let (reply, response) = oneshot::channel();
-        self.sender
-            .send(Command::InspectControl { request, reply })
-            .await
-            .map_err(|_send_error| {
-                closed("shard command loop closed before accepting control read")
-            })?;
-        response.await.map_err(|_receive_error| {
-            closed("shard command loop stopped before replying to control read")
-        })?
-    }
-
-    /// Atomically re-checks the request against the current projection, builds
-    /// its pure promoted event (or durable rejection), and appends it through
-    /// the sole fenced writer.
-    pub(crate) async fn resolve_control(
-        &self,
-        request: ControlRequestV1,
-        preflight_rejection: Option<ControlRejectionReason>,
-    ) -> Result<ControlResolution, ShardCommandError> {
-        if !self.accepting.load(Ordering::Acquire) {
-            return Err(closed(
-                "shard command loop is not accepting control requests",
-            ));
-        }
-        let (reply, response) = oneshot::channel();
-        self.sender
-            .send(Command::ResolveControl {
-                request,
-                preflight_rejection,
-                reply,
-            })
-            .await
-            .map_err(|_send_error| {
-                closed("shard command loop closed before accepting control request")
-            })?;
-        response.await.map_err(|_receive_error| {
-            closed("shard command loop stopped before replying to control request")
-        })?
     }
 
     pub(crate) async fn inspect_run(
@@ -631,75 +676,33 @@ impl ShardCommandHandle {
             })
     }
 
-    async fn query(&self, query: CommandQuery) -> Result<QueryResult, ShardCommandError> {
-        if !self.accepting.load(Ordering::Acquire) {
-            return Err(closed("shard command loop is not accepting queries"));
-        }
-        let (reply, response) = oneshot::channel();
-        self.sender
-            .send(Command::Query { query, reply })
-            .await
-            .map_err(|_send_error| closed("shard command loop closed before accepting query"))?;
-        response.await.map_err(|_receive_error| {
-            closed("shard command loop stopped before replying to query")
-        })?
-    }
-
-    pub(crate) async fn shutdown(&self) -> Result<(), ShardCommandError> {
-        if self
-            .accepting
-            .compare_exchange(true, false, Ordering::AcqRel, Ordering::Acquire)
-            .is_err()
-        {
-            return Err(closed("shard command loop is already stopping"));
-        }
-        let (reply, response) = oneshot::channel();
-        self.sender
-            .send(Command::Shutdown { reply })
-            .await
-            .map_err(|_send_error| closed("shard command loop closed before accepting shutdown"))?;
-        response.await.map_err(|_receive_error| {
-            closed("shard command loop stopped before acknowledging shutdown")
-        })?
-    }
-
-    /// Stops new admission immediately and wakes the loop through a dedicated
-    /// control path. Commands already queued are rejected rather than draining
-    /// through a lease-lost writer.
-    pub(crate) fn stop_admission(&self) {
-        self.accepting.store(false, Ordering::Release);
-    }
-
-    pub(crate) fn cancel_owned_writer(&self) {
-        self.ownership_lost.cancel();
-    }
 }
 
-enum Command {
+enum Command<D: Domain> {
     Propose {
-        record: JournalRecordV1,
+        record: D::RecordCurrent,
         reply: oneshot::Sender<Result<ShardCommandOutcome, ShardCommandError>>,
     },
     InspectControl {
-        request: ControlRequestV1,
-        reply: oneshot::Sender<Result<ControlRequestSnapshot, ShardCommandError>>,
+        request: D::ControlRequest,
+        reply: oneshot::Sender<Result<D::ControlSnapshot, ShardCommandError>>,
     },
     ResolveControl {
-        request: ControlRequestV1,
-        preflight_rejection: Option<ControlRejectionReason>,
-        reply: oneshot::Sender<Result<ControlResolution, ShardCommandError>>,
+        request: D::ControlRequest,
+        preflight_rejection: Option<D::ControlRejection>,
+        reply: oneshot::Sender<Result<ControlResolution<D>, ShardCommandError>>,
     },
     CaptureSnapshot {
         minimum_sequence_span: u64,
-        reply: oneshot::Sender<Result<Option<SnapshotCapture>, ShardCommandError>>,
+        reply: oneshot::Sender<Result<Option<D::SnapshotCapture>, ShardCommandError>>,
     },
     CommitSnapshot {
-        snapshot: ControlProjectionSnapshot,
+        snapshot: D::Snapshot,
         reply: oneshot::Sender<Result<u64, ShardCommandError>>,
     },
     Query {
-        query: CommandQuery,
-        reply: oneshot::Sender<Result<QueryResult, ShardCommandError>>,
+        query: D::Query,
+        reply: oneshot::Sender<Result<D::QueryResult, ShardCommandError>>,
     },
     Shutdown {
         reply: oneshot::Sender<Result<(), ShardCommandError>>,
@@ -751,6 +754,7 @@ pub(crate) enum QueryResult {
 /// next to its consumer because the query vocabulary is private to this
 /// module; everything here delegates to the existing V1 functions, so the
 /// trait adds a seam, not behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct IntegrationsDomain;
 
 impl Domain for IntegrationsDomain {
@@ -772,6 +776,16 @@ impl Domain for IntegrationsDomain {
 
     fn record_shard(record: &JournalRecordV1) -> Shard {
         crate::orchestrator::routing::shard(&record.integration_id)
+    }
+
+    fn reject_foreign_shard(record: &JournalRecordV1) -> InvalidTransition {
+        InvalidTransition {
+            event_id: record.event_id.clone(),
+            reason: format!(
+                "integration {} routes to a different shard",
+                record.integration_id
+            ),
+        }
     }
 
     fn record_event_id(record: &JournalRecordV1) -> EventId {
@@ -824,6 +838,13 @@ impl Domain for IntegrationsDomain {
 
     fn control_shard(request: &ControlRequestV1) -> Shard {
         crate::orchestrator::routing::shard(&request.integration_id)
+    }
+
+    fn describe_foreign_control(request: &ControlRequestV1) -> String {
+        format!(
+            "control request integration {} routes to a different shard",
+            request.integration_id
+        )
     }
 
     fn inspect_control(
@@ -1020,10 +1041,10 @@ impl ShardCommandConfig {
 }
 
 #[derive(Debug)]
-pub(crate) struct StartedShard {
-    pub(crate) handle: ShardCommandHandle,
-    pub(crate) recovery: StartupRecovery,
-    pub(crate) state_changes: StateChangeFeed,
+pub(crate) struct StartedShard<D: Domain = IntegrationsDomain> {
+    pub(crate) handle: ShardCommandHandle<D>,
+    pub(crate) recovery: StartupRecovery<D::WorkIntent>,
+    pub(crate) state_changes: StateChangeFeed<D::StateKey>,
     pub(crate) task: tokio::task::JoinHandle<Result<(), ShardCommandError>>,
 }
 
@@ -1055,22 +1076,22 @@ impl OpenedShard {
     /// Snapshot-free recovery used by unleased test rigs. The production
     /// handshake always recovers through `recover_with_snapshots`.
     #[cfg(test)]
-    pub(crate) async fn recover(self) -> Result<RecoveredShard, ShardCommandError> {
+    pub(crate) async fn recover<D: Domain>(self) -> Result<RecoveredShard<D>, ShardCommandError> {
         self.recover_inner(None).await
     }
 
-    pub(crate) async fn recover_with_snapshots(
+    pub(crate) async fn recover_with_snapshots<D: Domain>(
         self,
         store: &ArtifactStore,
         tenant: &TenantNamespace,
-    ) -> Result<RecoveredShard, ShardCommandError> {
+    ) -> Result<RecoveredShard<D>, ShardCommandError> {
         self.recover_inner(Some((store, tenant))).await
     }
 
-    async fn recover_inner(
+    async fn recover_inner<D: Domain>(
         mut self,
         snapshots: Option<(&ArtifactStore, &TenantNamespace)>,
-    ) -> Result<RecoveredShard, ShardCommandError> {
+    ) -> Result<RecoveredShard<D>, ShardCommandError> {
         let snapshot_store = snapshots.map(|(store, _tenant)| store.clone());
         let snapshot_tenant = snapshots.map(|(_store, tenant)| tenant.clone());
         let writer = self
@@ -1079,7 +1100,7 @@ impl OpenedShard {
             .ok_or_else(|| recovery("opened shard writer is unavailable"))?;
         let durable_end_exclusive = writer.durable_end_exclusive();
         let replay_started = std::time::Instant::now();
-        let recovered = match replay_with_snapshots(
+        let recovered = match replay_with_snapshots::<D>(
             &writer,
             self.location.shard,
             durable_end_exclusive,
@@ -1115,9 +1136,9 @@ impl OpenedShard {
         let recovery = StartupRecovery {
             durable_end_exclusive,
             snapshot_through_log_sequence: recovered.snapshot_through_log_sequence,
-            live_work: IntegrationsDomain::live_work(&projection),
+            live_work: D::live_work(&projection),
         };
-        let initial_state_changes = IntegrationsDomain::initial_state_keys(&projection);
+        let initial_state_changes = D::initial_state_keys(&projection);
         Ok(RecoveredShard {
             location: self.location,
             writer: Some(writer),
@@ -1143,19 +1164,19 @@ impl OpenedShard {
 
 /// Fully recovered state that is still unable to accept commands. The lease
 /// handshake performs its second revalidation before consuming this value.
-pub(crate) struct RecoveredShard {
+pub(crate) struct RecoveredShard<D: Domain = IntegrationsDomain> {
     location: ShardLogLocation,
     writer: Option<ShardLogWriter>,
-    projection: Projection,
+    projection: D::Projection,
     last_snapshot_through_log_sequence: Option<u64>,
     snapshot_store: Option<ArtifactStore>,
     snapshot_tenant: Option<TenantNamespace>,
-    recovery: StartupRecovery,
-    initial_state_changes: Vec<CanonicalIntegrationId>,
+    recovery: StartupRecovery<D::WorkIntent>,
+    initial_state_changes: Vec<D::StateKey>,
 }
 
-impl RecoveredShard {
-    pub(crate) fn enable(self, config: ShardCommandConfig) -> StartedShard {
+impl<D: Domain> RecoveredShard<D> {
+    pub(crate) fn enable(self, config: ShardCommandConfig) -> StartedShard<D> {
         self.enable_inner(
             config,
             #[cfg(test)]
@@ -1164,7 +1185,11 @@ impl RecoveredShard {
     }
 
     #[cfg(test)]
-    fn enable_with_harness(self, config: ShardCommandConfig, harness: TestHarness) -> StartedShard {
+    fn enable_with_harness(
+        self,
+        config: ShardCommandConfig,
+        harness: TestHarness,
+    ) -> StartedShard<D> {
         self.enable_inner(config, harness)
     }
 
@@ -1172,7 +1197,7 @@ impl RecoveredShard {
         mut self,
         config: ShardCommandConfig,
         #[cfg(test)] harness: TestHarness,
-    ) -> StartedShard {
+    ) -> StartedShard<D> {
         let (sender, receiver) = mpsc::channel(config.channel_capacity.get());
         let (state_change_sender, state_change_receiver) =
             mpsc::channel(config.channel_capacity.get());
@@ -1240,17 +1265,17 @@ pub(crate) async fn start_recovered(
     Ok(recovered.enable(config))
 }
 
-struct CommandLoop {
+struct CommandLoop<D: Domain> {
     location: ShardLogLocation,
     writer: Option<ShardLogWriter>,
-    projection: Projection,
+    projection: D::Projection,
     last_snapshot_through_log_sequence: Option<u64>,
     snapshot_store: Option<ArtifactStore>,
     snapshot_tenant: Option<TenantNamespace>,
     safe_append_retries: u32,
     recovery_mode: RecoveryMode,
-    receiver: mpsc::Receiver<Command>,
-    state_change_sender: mpsc::Sender<CanonicalIntegrationId>,
+    receiver: mpsc::Receiver<Command<D>>,
+    state_change_sender: mpsc::Sender<D::StateKey>,
     accepting: Arc<AtomicBool>,
     ownership_lost: CancellationToken,
     #[cfg(test)]
@@ -1261,8 +1286,8 @@ struct CommandLoop {
     before_recovery: Option<Arc<TestGate>>,
 }
 
-impl CommandLoop {
-    #[cfg(test)]
+#[cfg(test)]
+impl CommandLoop<IntegrationsDomain> {
     async fn start(
         location: ShardLogLocation,
         config: ShardCommandConfig,
@@ -1277,7 +1302,7 @@ impl CommandLoop {
         ShardCommandError,
     > {
         let opened = OpenedShard::open(location).await?;
-        let recovered = opened.recover().await?;
+        let recovered = opened.recover::<IntegrationsDomain>().await?;
         let started = recovered.enable_with_harness(config, harness);
         Ok((
             started.handle,
@@ -1286,7 +1311,9 @@ impl CommandLoop {
             started.task,
         ))
     }
+}
 
+impl<D: Domain> CommandLoop<D> {
     async fn run(mut self) -> Result<(), ShardCommandError> {
         loop {
             let command = tokio::select! {
@@ -1356,7 +1383,7 @@ impl CommandLoop {
                     minimum_sequence_span,
                     reply,
                 } => {
-                    let capture = IntegrationsDomain::through_sequence(&self.projection)
+                    let capture = D::through_sequence(&self.projection)
                         .filter(|through| {
                             let span = self.last_snapshot_through_log_sequence.map_or_else(
                                 || through.saturating_add(1),
@@ -1365,7 +1392,7 @@ impl CommandLoop {
                             span >= minimum_sequence_span.max(1)
                         })
                         .and_then(|_through| {
-                            IntegrationsDomain::capture_snapshot(
+                            D::capture_snapshot(
                                 self.location.shard,
                                 &self.projection,
                             )
@@ -1385,7 +1412,7 @@ impl CommandLoop {
                     }
                 }
                 Command::Query { query, reply } => {
-                    let _ = reply.send(Ok(IntegrationsDomain::answer(&self.projection, query)));
+                    let _ = reply.send(Ok(D::answer(&self.projection, query)));
                 }
                 Command::Shutdown { reply } => {
                     self.accepting.store(false, Ordering::Release);
@@ -1424,63 +1451,56 @@ impl CommandLoop {
 
     fn inspect_control_request(
         &self,
-        request: &ControlRequestV1,
-    ) -> Result<ControlRequestSnapshot, ShardCommandError> {
-        if IntegrationsDomain::control_shard(request) != self.location.shard {
+        request: &D::ControlRequest,
+    ) -> Result<D::ControlSnapshot, ShardCommandError> {
+        if D::control_shard(request) != self.location.shard {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
-                message: format!(
-                    "control request integration {} routes to a different shard",
-                    request.integration_id
-                ),
+                message: D::describe_foreign_control(request),
             });
         }
-        IntegrationsDomain::inspect_control(&self.projection, request)
+        D::inspect_control(&self.projection, request)
     }
 
     async fn process_control_request(
         &mut self,
-        request: ControlRequestV1,
-        preflight_rejection: Option<ControlRejectionReason>,
-    ) -> Result<ControlResolution, ShardCommandError> {
+        request: D::ControlRequest,
+        preflight_rejection: Option<D::ControlRejection>,
+    ) -> Result<ControlResolution<D>, ShardCommandError> {
         let snapshot = self.inspect_control_request(&request)?;
-        if let Some(outcome) = IntegrationsDomain::control_prior_outcome(&snapshot) {
+        if let Some(outcome) = D::control_prior_outcome(&snapshot) {
             return Ok(ControlResolution {
                 append: ShardCommandOutcome::AlreadyDurable {
-                    event_id: IntegrationsDomain::control_event_id(&request),
+                    event_id: D::control_event_id(&request),
                 },
                 outcome,
             });
         }
         let record =
-            IntegrationsDomain::promote_control(&self.projection, &request, preflight_rejection)
+            D::promote_control(&self.projection, &request, preflight_rejection)
                 .map_err(invalid_candidate)?;
         let append = self.process(record).await?;
-        let outcome = IntegrationsDomain::control_outcome_after_append(&self.projection, &request)
+        let outcome = D::control_outcome_after_append(&self.projection, &request)
             .map_err(recovery)?;
         Ok(ControlResolution { append, outcome })
     }
 
     async fn process(
         &mut self,
-        record: JournalRecordV1,
+        record: D::RecordCurrent,
     ) -> Result<ShardCommandOutcome, ShardCommandError> {
-        if IntegrationsDomain::record_shard(&record) != self.location.shard {
-            return Err(invalid_candidate(InvalidTransition {
-                event_id: record.event_id.clone(),
-                reason: format!(
-                    "integration {} routes to a different shard",
-                    record.integration_id
-                ),
-            }));
+        if D::record_shard(&record) != self.location.shard {
+            return Err(invalid_candidate(D::reject_foreign_shard(
+                &record,
+            )));
         }
-        let event_id = IntegrationsDomain::record_event_id(&record);
-        let integration_id = IntegrationsDomain::record_state_key(&record);
+        let event_id = D::record_event_id(&record);
+        let integration_id = D::record_state_key(&record);
         let mut safe_failures = 0_u32;
         loop {
             let previous_state_sequence = self.checkpoint_state_sequence(&integration_id);
             let transition =
-                IntegrationsDomain::prepare(&self.projection, &record).map_err(invalid_candidate)?;
+                D::prepare(&self.projection, &record).map_err(invalid_candidate)?;
             let Prepared::Mutation(delta) = transition else {
                 self.notify_state_change_if_established(&integration_id);
                 return Ok(ShardCommandOutcome::AlreadyDurable { event_id });
@@ -1494,12 +1514,12 @@ impl CommandLoop {
                 });
             }
             let append_result = self
-                .append(&IntegrationsDomain::wire(record.clone()))
+                .append(&D::wire(record.clone()))
                 .await;
             match append_result {
                 Ok(sequence) => {
                     if let Err(error) =
-                        IntegrationsDomain::finalize(&mut self.projection, delta, sequence)
+                        D::finalize(&mut self.projection, delta, sequence)
                     {
                         // The append is already durable. A local finalization
                         // failure is never a candidate rejection: rebuild from
@@ -1512,7 +1532,7 @@ impl CommandLoop {
                                 "finalize failed after durable append ({error}); {recovery_error}"
                             ))
                             })?;
-                        return match IntegrationsDomain::prepare(&self.projection, &record) {
+                        return match D::prepare(&self.projection, &record) {
                             Ok(Prepared::Noop) => {
                                 self.notify_state_change_if_established(&integration_id);
                                 Ok(ShardCommandOutcome::AlreadyDurable { event_id })
@@ -1554,10 +1574,10 @@ impl CommandLoop {
 
     async fn process_snapshot(
         &mut self,
-        snapshot: ControlProjectionSnapshot,
+        snapshot: D::Snapshot,
     ) -> Result<u64, ShardCommandError> {
         let (snapshot_shard, snapshot_through) =
-            IntegrationsDomain::snapshot_bounds(&snapshot).map_err(recovery)?;
+            D::snapshot_bounds(&snapshot).map_err(recovery)?;
         if snapshot_shard != self.location.shard {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
@@ -1568,7 +1588,7 @@ impl CommandLoop {
                 ),
             });
         }
-        let Some(current_sequence) = IntegrationsDomain::through_sequence(&self.projection) else {
+        let Some(current_sequence) = D::through_sequence(&self.projection) else {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
                 message: "cannot reference a snapshot for an empty projection".to_owned(),
@@ -1612,11 +1632,11 @@ impl CommandLoop {
         }
     }
 
-    fn checkpoint_state_sequence(&self, integration_id: &CanonicalIntegrationId) -> Option<u64> {
-        IntegrationsDomain::state_sequence(&self.projection, integration_id)
+    fn checkpoint_state_sequence(&self, integration_id: &D::StateKey) -> Option<u64> {
+        D::state_sequence(&self.projection, integration_id)
     }
 
-    fn notify_state_change_if_established(&self, integration_id: &CanonicalIntegrationId) {
+    fn notify_state_change_if_established(&self, integration_id: &D::StateKey) {
         if self.checkpoint_state_sequence(integration_id).is_some() {
             // Hints are derived. A full channel may drop this notification;
             // startup replay and later state events deterministically repair it.
@@ -1628,7 +1648,7 @@ impl CommandLoop {
         clippy::needless_pass_by_ref_mut,
         reason = "test builds consume the deterministic fault schedule before append"
     )]
-    async fn append(&mut self, record: &JournalRecord) -> Result<u64, ShardAppendError> {
+    async fn append(&mut self, record: &D::Record) -> Result<u64, ShardAppendError> {
         let writer = self.writer.as_ref().ok_or_else(|| ShardAppendError {
             disposition: AppendDisposition::CommitUnknown,
             source: error_stack::Report::new(super::super::DurableError)
@@ -1667,14 +1687,14 @@ impl CommandLoop {
             .snapshot_store
             .as_ref()
             .zip(self.snapshot_tenant.as_ref());
-        let recovered = replay_with_snapshots(
+        let recovered = replay_with_snapshots::<D>(
             writer,
             self.location.shard,
             durable_end_exclusive,
             snapshots,
         )
         .await?;
-        IntegrationsDomain::validate_recovered_prefix(&self.projection, &recovered.projection)
+        D::validate_recovered_prefix(&self.projection, &recovered.projection)
             .map_err(recovery)?;
         self.projection = recovered.projection;
         self.last_snapshot_through_log_sequence = recovered.snapshot_through_log_sequence;
@@ -1968,20 +1988,20 @@ fn run_view(projection: &Projection, run_id: &super::super::ids::RunId) -> Optio
     })
 }
 
-struct RecoveredProjection {
-    projection: Projection,
+struct RecoveredProjection<D: Domain> {
+    projection: D::Projection,
     snapshot_through_log_sequence: Option<u64>,
     snapshot_created_at: Option<String>,
     replayed_events: u64,
     corruption_fallbacks: u64,
 }
 
-async fn replay_with_snapshots(
+async fn replay_with_snapshots<D: Domain>(
     writer: &ShardLogWriter,
     shard: crate::orchestrator::routing::Shard,
     durable_end_exclusive: u64,
     snapshots: Option<(&ArtifactStore, &TenantNamespace)>,
-) -> Result<RecoveredProjection, ShardCommandError> {
+) -> Result<RecoveredProjection<D>, ShardCommandError> {
     let mut corruption_fallbacks = 0_u64;
     if let Some((store, tenant)) = snapshots {
         match writer
@@ -2003,7 +2023,7 @@ async fn replay_with_snapshots(
                             continue;
                         }
                     };
-                    let through = match IntegrationsDomain::snapshot_bounds(&snapshot) {
+                    let through = match D::snapshot_bounds(&snapshot) {
                         Ok((_shard, through)) => through,
                         Err(error) => {
                             corruption_fallbacks = corruption_fallbacks.saturating_add(1);
@@ -2027,7 +2047,7 @@ async fn replay_with_snapshots(
                         );
                         continue;
                     }
-                    let projection = match IntegrationsDomain::load_snapshot_projection(
+                    let projection = match D::load_snapshot_projection(
                         store, tenant, shard, &snapshot,
                     )
                     .await
@@ -2044,14 +2064,14 @@ async fn replay_with_snapshots(
                             continue;
                         }
                     };
-                    match replay_durable_suffix(writer, shard, durable_end_exclusive, projection)
+                    match replay_durable_suffix::<D>(writer, shard, durable_end_exclusive, projection)
                         .await
                     {
                         Ok((projection, replayed_events)) => {
                             return Ok(RecoveredProjection {
                                 projection,
                                 snapshot_through_log_sequence: Some(through),
-                                snapshot_created_at: Some(IntegrationsDomain::snapshot_created_at(
+                                snapshot_created_at: Some(D::snapshot_created_at(
                                     &snapshot,
                                 )),
                                 replayed_events,
@@ -2080,7 +2100,7 @@ async fn replay_with_snapshots(
             }
         }
     }
-    replay_durable_prefix(writer, shard, durable_end_exclusive)
+    replay_durable_prefix::<D>(writer, shard, durable_end_exclusive)
         .await
         .map(|(projection, replayed_events)| RecoveredProjection {
             projection,
@@ -2091,24 +2111,24 @@ async fn replay_with_snapshots(
         })
 }
 
-async fn replay_durable_prefix(
+async fn replay_durable_prefix<D: Domain>(
     writer: &ShardLogWriter,
     shard: crate::orchestrator::routing::Shard,
     durable_end_exclusive: u64,
-) -> Result<(Projection, u64), ShardCommandError> {
-    replay_durable_suffix(writer, shard, durable_end_exclusive, Projection::default()).await
+) -> Result<(D::Projection, u64), ShardCommandError> {
+    replay_durable_suffix::<D>(writer, shard, durable_end_exclusive, D::Projection::default()).await
 }
 
-async fn replay_durable_suffix(
+async fn replay_durable_suffix<D: Domain>(
     writer: &ShardLogWriter,
     shard: crate::orchestrator::routing::Shard,
     durable_end_exclusive: u64,
-    mut recovered: Projection,
-) -> Result<(Projection, u64), ShardCommandError> {
+    mut recovered: D::Projection,
+) -> Result<(D::Projection, u64), ShardCommandError> {
     // Scan through the same Remote-visible LogDb whose watermark was captured.
     // A detached or stale reader must never certify prefix completeness.
     let scan_started = std::time::Instant::now();
-    let through_sequence = IntegrationsDomain::through_sequence(&recovered);
+    let through_sequence = D::through_sequence(&recovered);
     let records = writer
         .scan_suffix(through_sequence, durable_end_exclusive)
         .await
@@ -2126,7 +2146,7 @@ async fn replay_durable_suffix(
 
     let replayed_events = u64::try_from(records.len()).unwrap_or(u64::MAX);
     for (sequence, record) in records {
-        IntegrationsDomain::replay(&mut recovered, shard, sequence, record).map_err(recovery)?;
+        D::replay(&mut recovered, shard, sequence, record).map_err(recovery)?;
     }
     Ok((recovered, replayed_events))
 }
@@ -2185,7 +2205,7 @@ fn work_intent_from_projection(
     }
 }
 
-fn invalid_candidate(error: InvalidTransition) -> ShardCommandError {
+fn invalid_candidate<E: fmt::Display>(error: E) -> ShardCommandError {
     ShardCommandError {
         kind: ShardCommandErrorKind::InvalidCandidate,
         message: error.to_string(),
@@ -2549,7 +2569,7 @@ mod tests {
         let reader = ShardLogRecovery::open(&prefix.location)
             .await
             .expect("open recovery reader");
-        let records = reader.scan().await.expect("scan durable records");
+        let records = reader.scan::<JournalRecord>().await.expect("scan durable records");
         reader.close().await;
         records
     }
@@ -2578,13 +2598,13 @@ mod tests {
             .await
             .expect("open bounded reader");
         assert!(reader
-            .scan_suffix(None, 0)
+            .scan_suffix::<JournalRecord>(None, 0)
             .await
             .expect("empty window")
             .is_empty());
         assert_eq!(
             reader
-                .scan_suffix(None, 1)
+                .scan_suffix::<JournalRecord>(None, 1)
                 .await
                 .expect("one-record window")
                 .iter()
@@ -2594,7 +2614,7 @@ mod tests {
         );
         assert_eq!(
             reader
-                .scan_suffix(Some(0), durable_end_exclusive)
+                .scan_suffix::<JournalRecord>(Some(0), durable_end_exclusive)
                 .await
                 .expect("snapshot suffix")
                 .iter()
@@ -2603,11 +2623,11 @@ mod tests {
             vec![1, 2]
         );
         assert!(reader
-            .scan_suffix(Some(0), 1)
+            .scan_suffix::<JournalRecord>(Some(0), 1)
             .await
             .expect("empty suffix after inclusive cursor")
             .is_empty());
-        assert!(reader.scan_suffix(Some(1), 1).await.is_err());
+        assert!(reader.scan_suffix::<JournalRecord>(Some(1), 1).await.is_err());
         reader.close().await;
     }
 

@@ -17,8 +17,6 @@ use opendata_log::{
     Config, LogDb, LogDbReader, LogRead, ReadVisibility, ReaderConfig, Record, Sequence,
 };
 
-use super::events::JournalRecord;
-use super::projection_snapshot::ControlProjectionSnapshot;
 use super::registry::{require_registered, DurableRecord, UntrimmedJournalRecord};
 use super::DurableError;
 
@@ -27,7 +25,8 @@ mod command_loop;
 #[cfg(test)]
 pub(crate) use command_loop::start_recovered;
 pub(crate) use command_loop::{
-    ControlRequestSnapshot, OpenedShard, RunView, ShardCommandConfig, ShardCommandError,
+    ControlRequestSnapshot, OpenedShard, RecoveredShard, RunView, ShardCommandConfig,
+    ShardCommandError,
     ShardCommandErrorKind, ShardCommandHandle, ShardCommandOutcome, StartedShard, StartupRecovery,
     StateChangeFeed, WorkRecoveryIntent,
 };
@@ -291,13 +290,16 @@ impl ShardLogWriter {
         })
     }
 
-    async fn append(&self, value: &JournalRecord) -> Result<u64, ShardAppendError> {
+    async fn append<T: UntrimmedJournalRecord + Sync>(
+        &self,
+        value: &T,
+    ) -> Result<u64, ShardAppendError> {
         self.append_with_fault(value, AppendFault::None).await
     }
 
-    async fn append_projection_snapshot(
+    async fn append_projection_snapshot<T: DurableRecord + Sync>(
         &self,
-        value: &ControlProjectionSnapshot,
+        value: &T,
     ) -> Result<u64, ShardAppendError> {
         self.append_registered(PROJECTION_SNAPSHOTS_KEY, value, AppendFault::None)
             .await
@@ -310,25 +312,19 @@ impl ShardLogWriter {
         self.log.durable_sequence()
     }
 
-    async fn scan_suffix(
+    async fn scan_suffix<T: UntrimmedJournalRecord>(
         &self,
         through_log_sequence: Option<u64>,
         durable_end_exclusive: u64,
-    ) -> Result<Vec<(u64, JournalRecord)>, Report<DurableError>> {
+    ) -> Result<Vec<(u64, T)>, Report<DurableError>> {
         let range = recovery_range(through_log_sequence, durable_end_exclusive)?;
         scan_records(&self.log, range.bounds, Some(range.window)).await
     }
 
-    async fn scan_projection_snapshots(
+    async fn scan_projection_snapshots<T: DurableRecord>(
         &self,
         durable_end_exclusive: u64,
-    ) -> Result<
-        Vec<(
-            u64,
-            Result<ControlProjectionSnapshot, super::registry::CompatError>,
-        )>,
-        Report<DurableError>,
-    > {
+    ) -> Result<Vec<(u64, Result<T, super::registry::CompatError>)>, Report<DurableError>> {
         scan_snapshot_records(
             &self.log,
             (Bound::Unbounded, Bound::Excluded(durable_end_exclusive)),
@@ -337,9 +333,9 @@ impl ShardLogWriter {
         .await
     }
 
-    async fn append_with_fault(
+    async fn append_with_fault<T: UntrimmedJournalRecord + Sync>(
         &self,
-        value: &JournalRecord,
+        value: &T,
         fault: AppendFault,
     ) -> Result<u64, ShardAppendError> {
         self.append_registered(EVENTS_KEY, value, fault).await
@@ -461,15 +457,17 @@ impl ShardLogRecovery {
         Ok(Self { reader })
     }
 
-    pub(crate) async fn scan(&self) -> Result<Vec<(u64, JournalRecord)>, Report<DurableError>> {
+    pub(crate) async fn scan<T: UntrimmedJournalRecord>(
+        &self,
+    ) -> Result<Vec<(u64, T)>, Report<DurableError>> {
         scan_records(&self.reader, (Bound::Unbounded, Bound::Unbounded), None).await
     }
 
-    async fn scan_suffix(
+    async fn scan_suffix<T: UntrimmedJournalRecord>(
         &self,
         through_log_sequence: Option<u64>,
         durable_end_exclusive: u64,
-    ) -> Result<Vec<(u64, JournalRecord)>, Report<DurableError>> {
+    ) -> Result<Vec<(u64, T)>, Report<DurableError>> {
         let range = recovery_range(through_log_sequence, durable_end_exclusive)?;
         scan_records(&self.reader, range.bounds, Some(range.window)).await
     }
@@ -564,18 +562,16 @@ where
     Ok(records)
 }
 
-async fn scan_snapshot_records<R: LogRead + Sync>(
+async fn scan_snapshot_records<T, R>(
     reader: &R,
     range: (Bound<Sequence>, Bound<Sequence>),
     expected_end: u64,
-) -> Result<
-    Vec<(
-        u64,
-        Result<ControlProjectionSnapshot, super::registry::CompatError>,
-    )>,
-    Report<DurableError>,
-> {
-    require_registered::<ControlProjectionSnapshot>()
+) -> Result<Vec<(u64, Result<T, super::registry::CompatError>)>, Report<DurableError>>
+where
+    T: DurableRecord,
+    R: LogRead + Sync,
+{
+    require_registered::<T>()
         .change_context(DurableError)
         .attach_printable("validate projection-snapshot record family")?;
     let mut iterator = reader
@@ -596,10 +592,7 @@ async fn scan_snapshot_records<R: LogRead + Sync>(
                 entry.sequence
             )));
         }
-        records.push((
-            entry.sequence,
-            ControlProjectionSnapshot::decode(&entry.value),
-        ));
+        records.push((entry.sequence, T::decode(&entry.value)));
     }
     if iterator.next_sequence() != expected_end {
         return Err(Report::new(DurableError).attach_printable(format!(
@@ -736,7 +729,7 @@ mod tests {
 
     use super::*;
     use crate::orchestrator::events::{
-        AttemptStartedV1, JournalEvent, JournalEventV1, JournalRecordV1,
+        AttemptStartedV1, JournalEvent, JournalEventV1, JournalRecord, JournalRecordV1,
     };
     use crate::orchestrator::ids::{
         derive_attempt_id, CanonicalIntegrationId, EventId, RunId, TenantNamespace,
@@ -817,8 +810,8 @@ mod tests {
 
         let zero_reader = ShardLogRecovery::open(&zero_location).await.unwrap();
         let one_reader = ShardLogRecovery::open(&one_location).await.unwrap();
-        let zero_records = zero_reader.scan().await.unwrap();
-        let one_records = one_reader.scan().await.unwrap();
+        let zero_records = zero_reader.scan::<JournalRecord>().await.unwrap();
+        let one_records = one_reader.scan::<JournalRecord>().await.unwrap();
         assert_eq!(
             zero_records,
             vec![(zero_sequence, record("zero:integration"))]
@@ -937,7 +930,7 @@ mod tests {
         let _ = first.close().await;
         second.close().await.unwrap();
         let reader = ShardLogRecovery::open(&location).await.unwrap();
-        let records = reader.scan().await.unwrap();
+        let records = reader.scan::<JournalRecord>().await.unwrap();
         assert_eq!(records.len(), 2);
         assert_eq!(records[0].1, record("first:integration"));
         assert_eq!(records[1].1, record("second:integration"));

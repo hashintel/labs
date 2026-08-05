@@ -5,16 +5,14 @@
 //! know about the records it appends and the state it folds comes through
 //! this trait. Protocol V1's `IntegrationsDomain` (in
 //! `orchestrator::shard_log::command_loop`, next to its consumer) is the
-//! first implementation; a second domain brings its own vocabulary and
-//! reuses the loop unchanged.
-//!
-//! Stage 1 of the step-5 plan (`local/docs/kernel-split-step5-plan.md`): the
-//! loop calls through this trait at a concrete type. Stage 2 parameterizes
-//! the loop structs over `D: Domain`.
+//! first implementation and the default type parameter everywhere, so V1
+//! call sites never name it; a second domain brings its own vocabulary and
+//! reuses `CommandLoop<D>`, `ShardCommandHandle<D>`, and the recovery path
+//! unchanged.
 
 use crate::blob::ArtifactStore;
 use crate::orchestrator::ids::{EventId, TenantNamespace};
-use crate::orchestrator::registry::UntrimmedJournalRecord;
+use crate::orchestrator::registry::{DurableRecord, UntrimmedJournalRecord};
 use crate::orchestrator::routing::Shard;
 use crate::orchestrator::shard_log::ShardCommandError;
 
@@ -33,7 +31,7 @@ pub(crate) trait Domain: Send + Sync + 'static {
     /// appends, and the fold consumes.
     type RecordCurrent: Clone + Send;
     /// Pure fold state. `Default` is the empty pre-history projection.
-    type Projection: Default + Send;
+    type Projection: Default + Send + Sync;
     /// Prepared mutation between `prepare` and `finalize`.
     type Delta: Send;
     /// Fold rejection; its `Display` output becomes the candidate-rejection
@@ -41,25 +39,28 @@ pub(crate) trait Domain: Send + Sync + 'static {
     type FoldError: std::fmt::Display + Send;
     /// Key of the domain's state-change signal (V1: the integration ID whose
     /// checkpoint state advanced).
-    type StateKey: Clone + Send;
+    type StateKey: Clone + Send + std::fmt::Debug;
     type Query: Send;
     type QueryResult: Send;
     type ControlRequest: Send;
     /// Pre-append view of a control request against the projection.
     type ControlSnapshot: Send;
-    type ControlOutcome: Clone + Send;
+    type ControlOutcome: Clone + Send + std::fmt::Debug + PartialEq + Eq;
     /// Reason a caller-side preflight already rejected a control request.
     type ControlRejection: Send;
-    /// Committed projection snapshot record (bounds replay).
-    type Snapshot: Send;
+    /// Committed projection snapshot record (bounds replay). Appended to the
+    /// shard log through the same registered-record discipline as events.
+    type Snapshot: DurableRecord + Send + Sync;
     /// In-memory capture handed to the out-of-loop snapshot publisher.
     type SnapshotCapture: Send;
     /// Recovered live-work descriptor reported to the scheduler at startup.
-    type WorkIntent: Send;
+    type WorkIntent: Clone + Send + std::fmt::Debug + PartialEq + Eq;
 
     // Records and fold.
 
     fn record_shard(record: &Self::RecordCurrent) -> Shard;
+    /// The fold error rejecting a record proposed to the wrong shard.
+    fn reject_foreign_shard(record: &Self::RecordCurrent) -> Self::FoldError;
     fn record_event_id(record: &Self::RecordCurrent) -> EventId;
     fn record_state_key(record: &Self::RecordCurrent) -> Self::StateKey;
     fn wire(record: Self::RecordCurrent) -> Self::Record;
@@ -86,6 +87,8 @@ pub(crate) trait Domain: Send + Sync + 'static {
     // Control requests.
 
     fn control_shard(request: &Self::ControlRequest) -> Shard;
+    /// Rejection message for a control request proposed to the wrong shard.
+    fn describe_foreign_control(request: &Self::ControlRequest) -> String;
     fn inspect_control(
         projection: &Self::Projection,
         request: &Self::ControlRequest,

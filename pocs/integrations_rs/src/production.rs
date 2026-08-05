@@ -110,7 +110,7 @@ pub async fn slatedb_fencing_contract(env: &Env) -> Result<(), Report<Diagnostic
         let opened = OpenedShard::open(location)
             .await
             .map_err(|error| Report::new(DiagnosticsError).attach_printable(error.to_string()))?;
-        let recovered = opened
+        let recovered: crate::orchestrator::shard_log::RecoveredShard = opened
             .recover_with_snapshots(&store, &tenant)
             .await
             .map_err(|error| Report::new(DiagnosticsError).attach_printable(error.to_string()))?;
