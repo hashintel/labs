@@ -926,7 +926,7 @@ impl ArtifactStore {
     ) -> Result<BlobRef, Report<BlobError>> {
         crate::orchestrator::registry::require_registered::<T>()
             .change_context(BlobError)
-            .attach_printable("publish only a registered durable-record family")?;
+            .attach_printable("publish only a registered durable record")?;
         let bytes = record
             .encode()
             .change_context(BlobError)

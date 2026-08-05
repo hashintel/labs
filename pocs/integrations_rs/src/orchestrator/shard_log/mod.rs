@@ -26,9 +26,8 @@ mod command_loop;
 pub(crate) use command_loop::start_recovered;
 pub(crate) use command_loop::{
     ControlRequestSnapshot, OpenedShard, RecoveredShard, RunView, ShardCommandConfig,
-    ShardCommandError,
-    ShardCommandErrorKind, ShardCommandHandle, ShardCommandOutcome, StartedShard, StartupRecovery,
-    StateChangeFeed, WorkRecoveryIntent,
+    ShardCommandError, ShardCommandErrorKind, ShardCommandHandle, ShardCommandOutcome,
+    StartedShard, StartupRecovery, StateChangeFeed, WorkRecoveryIntent,
 };
 
 const EVENTS_KEY: &[u8] = b"events";
@@ -92,6 +91,25 @@ impl ShardLogLocation {
         })
     }
 
+    /// Location for a kernel-hosted (non-V1) shard log with explicit
+    /// storage inputs; no environment coupling.
+    #[allow(
+        dead_code,
+        reason = "consumed by kernel::runtime, which the binary does not reach"
+    )]
+    pub(crate) fn for_kernel(
+        shard: super::routing::Shard,
+        log_path: &str,
+        options: &LogStorageOptions,
+    ) -> Result<Self, Report<DurableError>> {
+        Ok(Self {
+            shard,
+            read_timeout: DURABILITY_TIMEOUT,
+            durability_timeout: DURABILITY_TIMEOUT,
+            storage: storage_for_path(options, log_path)?,
+        })
+    }
+
     #[cfg(test)]
     pub(crate) fn disposable_local(
         shard: super::routing::Shard,
@@ -119,11 +137,43 @@ impl ShardLogLocation {
     }
 }
 
+/// Explicit storage inputs for kernel-hosted (non-V1) shard logs, so a
+/// library embedding never needs the `HASH_*`/`INTEGRATIONS_*` environment.
+#[derive(Debug, Clone)]
+pub(crate) struct LogStorageOptions {
+    pub(crate) blob_url: String,
+    pub(crate) aws_region: Option<String>,
+    pub(crate) shard_capacity: u64,
+    pub(crate) block_cache_bytes: u64,
+    pub(crate) meta_cache_bytes: u64,
+}
+
 fn storage_for_control_path(
     env: &crate::config::Env,
     control_path: &str,
 ) -> Result<StorageConfig, Report<DurableError>> {
-    let url = crate::config::blob_store_url(env);
+    storage_for_path(
+        &LogStorageOptions {
+            blob_url: crate::config::blob_store_url(env),
+            aws_region: env
+                .get("AWS_REGION")
+                .or_else(|| env.get("AWS_DEFAULT_REGION"))
+                .map(str::to_owned),
+            shard_capacity: crate::config::configured_shard_capacity(env).max(1),
+            block_cache_bytes: crate::config::slatedb_block_cache_bytes(env)
+                .map_err(|message| Report::new(DurableError).attach_printable(message))?,
+            meta_cache_bytes: crate::config::slatedb_meta_cache_bytes(env)
+                .map_err(|message| Report::new(DurableError).attach_printable(message))?,
+        },
+        control_path,
+    )
+}
+
+fn storage_for_path(
+    options: &LogStorageOptions,
+    control_path: &str,
+) -> Result<StorageConfig, Report<DurableError>> {
+    let url = options.blob_url.clone();
     let (object_store, prefix) = if let Some(path) = url.strip_prefix("file://") {
         std::fs::create_dir_all(path)
             .change_context(DurableError)
@@ -141,11 +191,10 @@ fn storage_for_control_path(
                 Report::new(DurableError).attach_printable("blob URL has an empty S3 bucket")
             );
         }
-        let region = env
-            .get("AWS_REGION")
-            .or_else(|| env.get("AWS_DEFAULT_REGION"))
-            .unwrap_or("us-east-1")
-            .to_owned();
+        let region = options
+            .aws_region
+            .clone()
+            .unwrap_or_else(|| "us-east-1".to_owned());
         (
             ObjectStoreConfig::Aws(AwsObjectStoreConfig {
                 region,
@@ -162,14 +211,14 @@ fn storage_for_control_path(
     } else {
         format!("{prefix}/{control_path}")
     };
-    let shard_capacity = crate::config::configured_shard_capacity(env).max(1);
-    let block_cache_capacity = crate::config::slatedb_block_cache_bytes(env)
-        .map_err(|message| Report::new(DurableError).attach_printable(message))?
+    let shard_capacity = options.shard_capacity.max(1);
+    let block_cache_capacity = options
+        .block_cache_bytes
         .checked_div(shard_capacity)
         .unwrap_or(0)
         .max(64 * 1024);
-    let meta_cache_capacity = crate::config::slatedb_meta_cache_bytes(env)
-        .map_err(|message| Report::new(DurableError).attach_printable(message))?
+    let meta_cache_capacity = options
+        .meta_cache_bytes
         .checked_div(shard_capacity)
         .unwrap_or(0)
         .max(64 * 1024);
@@ -508,7 +557,7 @@ fn recovery_range(
 }
 
 /// Scans and decodes one shard's journal suffix. Generic over the journal
-/// record family so a non-integrations domain can replay its own vocabulary
+/// record type so a non-integrations domain can replay its own vocabulary
 /// through the same recovery path; protocol V1 instantiates `JournalRecord`.
 async fn scan_records<T, R>(
     reader: &R,
@@ -521,7 +570,7 @@ where
 {
     require_registered::<T>()
         .change_context(DurableError)
-        .attach_printable("validate shard recovery record family")?;
+        .attach_printable("validate shard recovery record registration")?;
     let mut iterator = reader
         .scan(Bytes::from_static(EVENTS_KEY), range)
         .await
@@ -547,7 +596,7 @@ where
             .attach_printable(format!(
                 "decode shard sequence {} as {}",
                 entry.sequence,
-                T::FAMILY.name
+                T::declaration().name
             ))?;
         records.push((entry.sequence, record));
     }
@@ -573,7 +622,7 @@ where
 {
     require_registered::<T>()
         .change_context(DurableError)
-        .attach_printable("validate projection-snapshot record family")?;
+        .attach_printable("validate projection-snapshot record registration")?;
     let mut iterator = reader
         .scan(Bytes::from_static(PROJECTION_SNAPSHOTS_KEY), range)
         .await

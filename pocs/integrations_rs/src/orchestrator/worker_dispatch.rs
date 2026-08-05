@@ -95,12 +95,11 @@ pub(crate) struct AdmittedWorkTurn {
     pub(crate) lane_after: LaneDisposition,
 }
 
-/// Kernel-facing execution seam from the durable-kernel split: the scheduler
-/// loop plans and delivers only through this trait, so a future domain can
-/// supply its own planner and effect executor. `WorkerDispatcher` is the
-/// integrations implementation.
+/// Execution port for the scheduler loop: planning and delivery go only
+/// through this trait, so a domain supplies its own planner and effect
+/// executor. `WorkerDispatcher` is the integrations implementation.
 #[async_trait]
-pub(crate) trait Executor: Send + Sync {
+pub(crate) trait Dispatch: Send + Sync {
     /// Settles one scheduler turn: plan an accepted run, restore, or
     /// reconcile cycle; finalize a delivered run; or report idleness.
     async fn dispatch(
@@ -154,11 +153,10 @@ impl WorkerDispatcher {
             chunk_budget,
         }
     }
-
 }
 
 #[async_trait]
-impl Executor for WorkerDispatcher {
+impl Dispatch for WorkerDispatcher {
     async fn dispatch(
         &self,
         turn: SchedulerTurn,

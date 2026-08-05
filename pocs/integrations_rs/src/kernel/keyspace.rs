@@ -2,13 +2,13 @@
 //!
 //! Every durable key is derived here from one validated [`Namespace`]:
 //! the control plane under `{namespace}/control/v1/...`, content-addressed
-//! artifact prefixes under `{namespace}/artifacts/{family}/sha256/...`, and
+//! artifact prefixes under `{namespace}/artifacts/{kind}/sha256/...`, and
 //! per-integration roots under `{namespace}/integrations/{digest}`. Call
 //! sites must not format keys ad hoc — a writer and its validator drifting
 //! apart on layout is exactly the bug this type exists to prevent.
 //!
 //! Protocol V1 instantiates the namespace as `tenants/{tenant}`; the layout
-//! under it is frozen and byte-identical to the pre-keyspace formatting.
+//! under it is frozen.
 
 use std::fmt;
 
@@ -154,7 +154,11 @@ impl Keyspace {
     }
 
     pub fn request_results(&self, shard: Shard) -> String {
-        format!("{}/request-results/{}", self.control_root(), shard_path(shard))
+        format!(
+            "{}/request-results/{}",
+            self.control_root(),
+            shard_path(shard)
+        )
     }
 
     pub fn request_result(&self, shard: Shard, request_id: &RequestId) -> String {
@@ -181,15 +185,15 @@ impl Keyspace {
     // `/sha256/{digest[..2]}/{digest}{ext}` under these prefixes;
     // `artifact_digest_prefix` is the matching validation boundary.
 
-    pub fn artifact_prefix(&self, family: &str) -> Result<String, InvalidNamespace> {
-        if !valid_segment(family) {
+    pub fn artifact_prefix(&self, kind: &str) -> Result<String, InvalidNamespace> {
+        if !valid_segment(kind) {
             return Err(InvalidNamespace::UnsafeSegment);
         }
-        Ok(format!("{}/artifacts/{family}", self.namespace))
+        Ok(format!("{}/artifacts/{kind}", self.namespace))
     }
 
-    pub fn artifact_digest_prefix(&self, family: &str) -> Result<String, InvalidNamespace> {
-        Ok(format!("{}/sha256/", self.artifact_prefix(family)?))
+    pub fn artifact_digest_prefix(&self, kind: &str) -> Result<String, InvalidNamespace> {
+        Ok(format!("{}/sha256/", self.artifact_prefix(kind)?))
     }
 
     pub fn run_inputs(&self) -> String {
@@ -231,7 +235,14 @@ mod tests {
         assert!(Namespace::parse("tenants/alice").is_ok());
         assert!(Namespace::parse("flat-domain").is_ok());
         assert_eq!(Namespace::parse(""), Err(InvalidNamespace::Empty));
-        for invalid in ["tenants//alice", "a/../b", "a/", "/a", "sp ace", "back\\slash"] {
+        for invalid in [
+            "tenants//alice",
+            "a/../b",
+            "a/",
+            "/a",
+            "sp ace",
+            "back\\slash",
+        ] {
             assert_eq!(
                 Namespace::parse(invalid),
                 Err(InvalidNamespace::UnsafeSegment),
@@ -249,7 +260,10 @@ mod tests {
         let keyspace = keyspace();
         let shard = Shard::try_from(15).expect("valid shard");
         assert_eq!(keyspace.control_root(), "tenants/alice/control/v1");
-        assert_eq!(keyspace.baseline(), "tenants/alice/control/v1/baseline.json");
+        assert_eq!(
+            keyspace.baseline(),
+            "tenants/alice/control/v1/baseline.json"
+        );
         assert_eq!(
             keyspace.known_shard(shard),
             "tenants/alice/control/v1/known-shards/00f.json"
@@ -299,7 +313,7 @@ mod tests {
             "tenants/alice/artifacts/run-policies"
         );
         assert_eq!(
-            keyspace.artifact_prefix("run-inputs").expect("valid family"),
+            keyspace.artifact_prefix("run-inputs").expect("valid kind"),
             keyspace.run_inputs()
         );
         assert!(keyspace.artifact_prefix("no/slash").is_err());

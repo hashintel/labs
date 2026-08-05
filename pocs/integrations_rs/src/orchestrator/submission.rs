@@ -19,7 +19,7 @@ use super::record_io::{
 };
 use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, MutableCasRecord, PureUpcastRecord, RecordFamily, VersionedRecord,
+    MigrationPolicy, MutableCasRecord, PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 use super::routing::{self, shard_path, Keyspace, Shard, ROUTING_VERSION};
 use super::DurableError;
@@ -29,7 +29,7 @@ const MAX_READY_RECEIPT_BYTES: usize = 256 * 1024;
 const MAX_ADMISSION_POINTER_BYTES: usize = 16 * 1024;
 const MAX_ADMISSION_ATTEMPTS: usize = 8;
 
-pub(crate) static ADMISSION_POINTER_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static ADMISSION_POINTER_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "admission_pointer",
     owning_module: "orchestrator::submission",
     emitted_version: 1,
@@ -48,7 +48,7 @@ pub(crate) static ADMISSION_POINTER_FAMILY: RecordFamily = RecordFamily {
     migration: MigrationPolicy::MutableCas,
 };
 
-pub(crate) static KNOWN_SHARD_MARKER_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static KNOWN_SHARD_MARKER_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "known_shard_marker",
     owning_module: "orchestrator::submission",
     emitted_version: 1,
@@ -61,7 +61,7 @@ pub(crate) static KNOWN_SHARD_MARKER_FAMILY: RecordFamily = RecordFamily {
     migration: MigrationPolicy::PureUpcast,
 };
 
-pub(crate) static READY_RECEIPT_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static READY_RECEIPT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "ready_receipt",
     owning_module: "orchestrator::submission",
     emitted_version: 1,
@@ -845,10 +845,10 @@ async fn create_ready_receipt(
 
 fn validate_known_shard(marker: &KnownShardMarkerV1) -> Result<(), CompatError> {
     Shard::try_from(marker.shard)
-        .map_err(|error| malformed(KnownShardMarker::FAMILY.name, error.to_string()))?;
+        .map_err(|error| malformed(KnownShardMarker::declaration().name, error.to_string()))?;
     if marker.routing_version != ROUTING_VERSION {
         return Err(malformed(
-            KnownShardMarker::FAMILY.name,
+            KnownShardMarker::declaration().name,
             format!(
                 "routing_version must be {ROUTING_VERSION}, found {}",
                 marker.routing_version
@@ -860,14 +860,14 @@ fn validate_known_shard(marker: &KnownShardMarkerV1) -> Result<(), CompatError> 
 
 fn validate_ready_receipt(receipt: &ReadyReceiptV1) -> Result<(), CompatError> {
     validate_timestamp(
-        ReadyReceipt::FAMILY.name,
+        ReadyReceipt::declaration().name,
         "submitted_at",
         &receipt.submitted_at,
     )?;
     let expected = immutable_input_digest(&receipt.immutable_input)?;
     if receipt.immutable_input_digest != expected {
         return Err(CompatError::Conflict {
-            family: ReadyReceipt::FAMILY.name,
+            name: ReadyReceipt::declaration().name,
             message: format!(
                 "immutable_input_digest mismatch: expected {expected}, found {}",
                 receipt.immutable_input_digest
@@ -880,12 +880,12 @@ fn validate_ready_receipt(receipt: &ReadyReceiptV1) -> Result<(), CompatError> {
 
 fn validate_admission_pointer(pointer: &AdmissionPointerV1) -> Result<(), CompatError> {
     validate_sha256(
-        AdmissionPointer::FAMILY.name,
+        AdmissionPointer::declaration().name,
         "immutable_input_digest",
         &pointer.immutable_input_digest,
     )?;
     validate_timestamp(
-        AdmissionPointer::FAMILY.name,
+        AdmissionPointer::declaration().name,
         "submitted_at",
         &pointer.submitted_at,
     )?;
@@ -896,7 +896,7 @@ fn validate_admission_pointer(pointer: &AdmissionPointerV1) -> Result<(), Compat
         || pointer.receipt_key.contains('\\')
     {
         return Err(malformed(
-            AdmissionPointer::FAMILY.name,
+            AdmissionPointer::declaration().name,
             "receipt_key is not a bounded canonical object key".to_owned(),
         ));
     }
@@ -904,14 +904,14 @@ fn validate_admission_pointer(pointer: &AdmissionPointerV1) -> Result<(), Compat
         parse_ready_receipt_key_for_validation(&pointer.receipt_key)
     else {
         return Err(malformed(
-            AdmissionPointer::FAMILY.name,
+            AdmissionPointer::declaration().name,
             "receipt_key is not a canonical ready-receipt key".to_owned(),
         ));
     };
     if receipt_shard != routing::shard(&pointer.integration_id) || receipt_run_id != pointer.run_id
     {
         return Err(CompatError::Conflict {
-            family: AdmissionPointer::FAMILY.name,
+            name: AdmissionPointer::declaration().name,
             message: "integration identity or run ID disagrees with the receipt key".to_owned(),
         });
     }
@@ -936,13 +936,13 @@ fn parse_ready_receipt_key_for_validation(key: &str) -> Option<(Shard, RunId)> {
     Some((shard, run_id))
 }
 
-fn validate_timestamp(family: &'static str, field: &str, value: &str) -> Result<(), CompatError> {
+fn validate_timestamp(name: &'static str, field: &str, value: &str) -> Result<(), CompatError> {
     chrono::DateTime::parse_from_rfc3339(value)
         .map(|_timestamp| ())
-        .map_err(|error| malformed(family, format!("{field} must be RFC 3339: {error}")))
+        .map_err(|error| malformed(name, format!("{field} must be RFC 3339: {error}")))
 }
 
-fn validate_sha256(family: &'static str, field: &str, value: &str) -> Result<(), CompatError> {
+fn validate_sha256(name: &'static str, field: &str, value: &str) -> Result<(), CompatError> {
     if value.len() == 64
         && value
             .bytes()
@@ -951,57 +951,63 @@ fn validate_sha256(family: &'static str, field: &str, value: &str) -> Result<(),
         Ok(())
     } else {
         Err(malformed(
-            family,
+            name,
             format!("{field} must be 64 lowercase hexadecimal characters"),
         ))
     }
 }
 
-fn malformed(family: &'static str, message: String) -> CompatError {
-    CompatError::Malformed { family, message }
+fn malformed(name: &'static str, message: String) -> CompatError {
+    CompatError::Malformed { name, message }
 }
 
 fn decode_submission_record<T: for<'de> Deserialize<'de>>(
     bytes: &[u8],
-    family: &'static str,
+    name: &'static str,
     maximum: usize,
 ) -> Result<T, CompatError> {
     if bytes.len() > maximum {
         return Err(malformed(
-            family,
+            name,
             format!("record is {} bytes; maximum is {maximum}", bytes.len()),
         ));
     }
     let value: Value =
-        serde_json::from_slice(bytes).map_err(|error| malformed(family, error.to_string()))?;
-    reject_unknown_fields(family, "", &value, &["version", "data"])?;
+        serde_json::from_slice(bytes).map_err(|error| malformed(name, error.to_string()))?;
+    reject_unknown_fields(name, "", &value, &["version", "data"])?;
     let version = value
         .get("version")
         .and_then(Value::as_str)
-        .ok_or_else(|| malformed(family, "version must be a string".to_owned()))?;
+        .ok_or_else(|| malformed(name, "version must be a string".to_owned()))?;
     if version != "v1" {
         return Err(CompatError::UnsupportedVersion {
-            family,
+            name,
             version: version.to_owned(),
         });
     }
-    serde_json::from_value(value).map_err(|error| malformed(family, error.to_string()))
+    serde_json::from_value(value).map_err(|error| malformed(name, error.to_string()))
 }
 
 impl super::registry::sealed::Sealed for KnownShardMarker {}
 
 impl DurableRecord for KnownShardMarker {
-    const FAMILY: &'static RecordFamily = &KNOWN_SHARD_MARKER_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &KNOWN_SHARD_MARKER_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
         validate_known_shard(self.wire())?;
-        serde_json::to_vec(self).map_err(|error| malformed(Self::FAMILY.name, error.to_string()))
+        serde_json::to_vec(self)
+            .map_err(|error| malformed(Self::declaration().name, error.to_string()))
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
-        let marker: Self =
-            decode_submission_record(bytes, Self::FAMILY.name, MAX_KNOWN_SHARD_MARKER_BYTES)?;
+        let marker: Self = decode_submission_record(
+            bytes,
+            Self::declaration().name,
+            MAX_KNOWN_SHARD_MARKER_BYTES,
+        )?;
         validate_known_shard(marker.wire())?;
         Ok(marker)
     }
@@ -1020,17 +1026,20 @@ impl PureUpcastRecord for KnownShardMarker {}
 impl super::registry::sealed::Sealed for ReadyReceipt {}
 
 impl DurableRecord for ReadyReceipt {
-    const FAMILY: &'static RecordFamily = &READY_RECEIPT_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &READY_RECEIPT_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
         validate_ready_receipt(self.wire())?;
-        serde_json::to_vec(self).map_err(|error| malformed(Self::FAMILY.name, error.to_string()))
+        serde_json::to_vec(self)
+            .map_err(|error| malformed(Self::declaration().name, error.to_string()))
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
         let receipt: Self =
-            decode_submission_record(bytes, Self::FAMILY.name, MAX_READY_RECEIPT_BYTES)?;
+            decode_submission_record(bytes, Self::declaration().name, MAX_READY_RECEIPT_BYTES)?;
         validate_ready_receipt(receipt.wire())?;
         Ok(receipt)
     }
@@ -1049,17 +1058,20 @@ impl PureUpcastRecord for ReadyReceipt {}
 impl super::registry::sealed::Sealed for AdmissionPointer {}
 
 impl DurableRecord for AdmissionPointer {
-    const FAMILY: &'static RecordFamily = &ADMISSION_POINTER_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &ADMISSION_POINTER_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::MutableCas;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
         validate_admission_pointer(self.wire())?;
-        serde_json::to_vec(self).map_err(|error| malformed(Self::FAMILY.name, error.to_string()))
+        serde_json::to_vec(self)
+            .map_err(|error| malformed(Self::declaration().name, error.to_string()))
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
         let pointer: Self =
-            decode_submission_record(bytes, Self::FAMILY.name, MAX_ADMISSION_POINTER_BYTES)?;
+            decode_submission_record(bytes, Self::declaration().name, MAX_ADMISSION_POINTER_BYTES)?;
         validate_admission_pointer(pointer.wire())?;
         Ok(pointer)
     }
@@ -1267,7 +1279,8 @@ mod tests {
     async fn mutable_migrator_never_rewrites_an_unknown_future_version() {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
-        let key = Keyspace::for_tenant(&tenant()).admission(&routing::integration_path(&integration()));
+        let key =
+            Keyspace::for_tenant(&tenant()).admission(&routing::integration_path(&integration()));
         let future = br#"{"version":"v2","data":{"opaque":true}}"#.to_vec();
         store
             .create_cas_document(&key, future.clone())

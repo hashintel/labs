@@ -16,7 +16,7 @@ use sha2::{Digest as _, Sha256};
 use super::projection::Projection;
 use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, RebuildableRecord, RecordFamily, UntrimmedJournalRecord, VersionedRecord,
+    MigrationPolicy, RebuildableRecord, RecordDeclaration, UntrimmedJournalRecord, VersionedRecord,
 };
 use super::routing::{shard_path, Keyspace, Shard};
 use crate::blob::{ArtifactStore, BlobRef};
@@ -29,7 +29,7 @@ pub(crate) const MAX_PROJECTION_SNAPSHOT_RECORD_BYTES: usize = 16 * 1024;
 pub(crate) const SNAPSHOT_PAYLOAD_MEDIA_TYPE: &str =
     "application/vnd.integrations.control-projection-payload+json";
 
-pub(crate) static CONTROL_PROJECTION_PAYLOAD_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static CONTROL_PROJECTION_PAYLOAD_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "control_projection_payload",
     owning_module: "orchestrator::projection_snapshot",
     emitted_version: 1,
@@ -42,7 +42,7 @@ pub(crate) static CONTROL_PROJECTION_PAYLOAD_FAMILY: RecordFamily = RecordFamily
     migration: MigrationPolicy::Rebuild,
 };
 
-pub(crate) static CONTROL_PROJECTION_SNAPSHOT_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static CONTROL_PROJECTION_SNAPSHOT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "control_projection_snapshot",
     owning_module: "orchestrator::projection_snapshot",
     emitted_version: 1,
@@ -124,7 +124,9 @@ impl ControlProjectionPayload {
 impl super::registry::sealed::Sealed for ControlProjectionPayload {}
 
 impl DurableRecord for ControlProjectionPayload {
-    const FAMILY: &'static RecordFamily = &CONTROL_PROJECTION_PAYLOAD_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &CONTROL_PROJECTION_PAYLOAD_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::Rebuild;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -142,7 +144,7 @@ impl DurableRecord for ControlProjectionPayload {
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
         decode_versioned(
-            Self::FAMILY.name,
+            Self::declaration().name,
             bytes,
             MAX_PROJECTION_SNAPSHOT_PAYLOAD_BYTES,
             |value| {
@@ -239,7 +241,9 @@ impl ControlProjectionSnapshot {
 impl super::registry::sealed::Sealed for ControlProjectionSnapshot {}
 
 impl DurableRecord for ControlProjectionSnapshot {
-    const FAMILY: &'static RecordFamily = &CONTROL_PROJECTION_SNAPSHOT_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &CONTROL_PROJECTION_SNAPSHOT_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::NeverRetireWhileUntrimmed;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -256,7 +260,7 @@ impl DurableRecord for ControlProjectionSnapshot {
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
         decode_versioned(
-            Self::FAMILY.name,
+            Self::declaration().name,
             bytes,
             MAX_PROJECTION_SNAPSHOT_RECORD_BYTES,
             |value| {
@@ -415,7 +419,7 @@ pub(crate) async fn load_projection(
 
 fn validate_payload(value: &ControlProjectionPayloadV1) -> Result<(), CompatError> {
     validate_metadata(
-        CONTROL_PROJECTION_PAYLOAD_FAMILY.name,
+        CONTROL_PROJECTION_PAYLOAD_DECLARATION.name,
         &value.shard,
         value.through_log_sequence,
         value.projector_schema_version,
@@ -431,7 +435,7 @@ fn validate_payload(value: &ControlProjectionPayloadV1) -> Result<(), CompatErro
 
 fn validate_snapshot(value: &ControlProjectionSnapshotV1) -> Result<(), CompatError> {
     validate_metadata(
-        CONTROL_PROJECTION_SNAPSHOT_FAMILY.name,
+        CONTROL_PROJECTION_SNAPSHOT_DECLARATION.name,
         &value.shard,
         value.through_log_sequence,
         value.projector_schema_version,
@@ -461,22 +465,22 @@ fn validate_snapshot(value: &ControlProjectionSnapshotV1) -> Result<(), CompatEr
 }
 
 fn validate_metadata(
-    family: &'static str,
+    name: &'static str,
     shard: &str,
     _through_log_sequence: u64,
     projector_schema_version: u32,
     versions: JournalEventVersionRangeV1,
 ) -> Result<(), CompatError> {
-    parse_shard_for(family, shard)?;
+    parse_shard_for(name, shard)?;
     if projector_schema_version == 0 {
         return Err(malformed_for(
-            family,
+            name,
             "projector_schema_version must be nonzero".to_owned(),
         ));
     }
     if versions.min_inclusive == 0 || versions.min_inclusive > versions.max_inclusive {
         return Err(malformed_for(
-            family,
+            name,
             "projected journal-event version range must be nonzero and ordered".to_owned(),
         ));
     }
@@ -484,22 +488,22 @@ fn validate_metadata(
 }
 
 pub(crate) fn parse_shard(value: &str) -> Result<Shard, CompatError> {
-    parse_shard_for(CONTROL_PROJECTION_SNAPSHOT_FAMILY.name, value)
+    parse_shard_for(CONTROL_PROJECTION_SNAPSHOT_DECLARATION.name, value)
 }
 
-fn parse_shard_for(family: &'static str, value: &str) -> Result<Shard, CompatError> {
+fn parse_shard_for(name: &'static str, value: &str) -> Result<Shard, CompatError> {
     if value.len() != 3 || !value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return Err(malformed_for(
-            family,
+            name,
             "shard must be three hexadecimal characters".to_owned(),
         ));
     }
     let raw = u16::from_str_radix(value, 16)
-        .map_err(|error| malformed_for(family, format!("shard is invalid: {error}")))?;
-    let shard = Shard::try_from(raw).map_err(|error| malformed_for(family, error.to_string()))?;
+        .map_err(|error| malformed_for(name, format!("shard is invalid: {error}")))?;
+    let shard = Shard::try_from(raw).map_err(|error| malformed_for(name, error.to_string()))?;
     if shard_path(shard) != value {
         return Err(malformed_for(
-            family,
+            name,
             "shard path must use canonical lowercase encoding".to_owned(),
         ));
     }
@@ -521,27 +525,27 @@ fn validate_sha256(value: &str, field: &str) -> Result<(), CompatError> {
 }
 
 fn decode_versioned<T>(
-    family: &'static str,
+    name: &'static str,
     bytes: &[u8],
     maximum: usize,
     decode: impl FnOnce(Value) -> Result<T, CompatError>,
 ) -> Result<T, CompatError> {
     if bytes.len() > maximum {
         return Err(malformed_for(
-            family,
+            name,
             format!("record is {} bytes; maximum is {maximum}", bytes.len()),
         ));
     }
     let value: Value =
-        serde_json::from_slice(bytes).map_err(|error| malformed_for(family, error.to_string()))?;
-    reject_unknown_fields(family, "", &value, &["version", "data"])?;
+        serde_json::from_slice(bytes).map_err(|error| malformed_for(name, error.to_string()))?;
+    reject_unknown_fields(name, "", &value, &["version", "data"])?;
     let version = value
         .get("version")
         .and_then(Value::as_str)
-        .ok_or_else(|| malformed_for(family, "version must be a string".to_owned()))?;
+        .ok_or_else(|| malformed_for(name, "version must be a string".to_owned()))?;
     if version != "v1" {
         return Err(CompatError::UnsupportedVersion {
-            family,
+            name,
             version: version.to_owned(),
         });
     }
@@ -549,15 +553,15 @@ fn decode_versioned<T>(
 }
 
 fn malformed(message: String) -> CompatError {
-    malformed_for(CONTROL_PROJECTION_SNAPSHOT_FAMILY.name, message)
+    malformed_for(CONTROL_PROJECTION_SNAPSHOT_DECLARATION.name, message)
 }
 
 fn payload_malformed(message: String) -> CompatError {
-    malformed_for(CONTROL_PROJECTION_PAYLOAD_FAMILY.name, message)
+    malformed_for(CONTROL_PROJECTION_PAYLOAD_DECLARATION.name, message)
 }
 
-fn malformed_for(family: &'static str, message: String) -> CompatError {
-    CompatError::Malformed { family, message }
+fn malformed_for(name: &'static str, message: String) -> CompatError {
+    CompatError::Malformed { name, message }
 }
 
 #[cfg(test)]

@@ -24,14 +24,14 @@ use super::{ArchiveOp, EntityOp, LinkOp, Provenance};
 use crate::build::{Accessor, LinkEntry, SinkConfig};
 use crate::orchestrator::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, PureUpcastRecord, RecordFamily, VersionedRecord,
+    MigrationPolicy, PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 use crate::value::{js_string, Row};
 
 pub const GRAPH_DELIVERY_ENCODING_VERSION: u32 = 1;
 const MAX_GRAPH_DELIVERY_PAYLOAD_BYTES: usize = 4 * 1024 * 1024;
 
-pub(crate) static GRAPH_DELIVERY_PAYLOAD_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static GRAPH_DELIVERY_PAYLOAD_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "graph_delivery_payload",
     owning_module: "graph::planner",
     emitted_version: 1,
@@ -920,7 +920,7 @@ fn validate_request_identity(
 
 fn malformed(message: String) -> CompatError {
     CompatError::Malformed {
-        family: GraphDeliveryPayload::FAMILY.name,
+        name: GraphDeliveryPayload::declaration().name,
         message,
     }
 }
@@ -928,7 +928,9 @@ fn malformed(message: String) -> CompatError {
 impl crate::orchestrator::registry::sealed::Sealed for GraphDeliveryPayload {}
 
 impl DurableRecord for GraphDeliveryPayload {
-    const FAMILY: &'static RecordFamily = &GRAPH_DELIVERY_PAYLOAD_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &GRAPH_DELIVERY_PAYLOAD_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -952,10 +954,10 @@ impl DurableRecord for GraphDeliveryPayload {
         }
         let raw: Value =
             serde_json::from_slice(bytes).map_err(|error| malformed(error.to_string()))?;
-        reject_unknown_fields(Self::FAMILY.name, "", &raw, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &raw, &["version", "data"])?;
         if raw.get("version").and_then(Value::as_str) != Some("v1") {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: raw
                     .get("version")
                     .and_then(Value::as_str)
@@ -967,7 +969,7 @@ impl DurableRecord for GraphDeliveryPayload {
             .get("data")
             .ok_or_else(|| malformed("data is required".to_owned()))?;
         reject_unknown_fields(
-            Self::FAMILY.name,
+            Self::declaration().name,
             "data",
             data,
             &["encoding_version", "graph_identity", "request"],
@@ -976,7 +978,7 @@ impl DurableRecord for GraphDeliveryPayload {
             .get("request")
             .ok_or_else(|| malformed("data.request is required".to_owned()))?;
         reject_unknown_fields(
-            Self::FAMILY.name,
+            Self::declaration().name,
             "data.request",
             request,
             &["kind", "data"],
@@ -986,13 +988,13 @@ impl DurableRecord for GraphDeliveryPayload {
             .ok_or_else(|| malformed("data.request.data is required".to_owned()))?;
         match request.get("kind").and_then(Value::as_str) {
             Some("upsert") => reject_unknown_fields(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "data.request.data",
                 request_data,
                 &["create", "patch", "archive"],
             )?,
             Some("archive") => reject_unknown_fields(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "data.request.data",
                 request_data,
                 &["archive"],

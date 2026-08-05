@@ -29,7 +29,7 @@ use super::projection::{
 use super::record_io::{self, InspectedRecord};
 use super::registry::{
     reject_unknown_fields, CompatError, DurabilityClass, DurableRecord, MigrationPolicy,
-    RebuildableRecord, RecordFamily,
+    RebuildableRecord, RecordDeclaration,
 };
 use super::routing::{self, Keyspace, Shard};
 use super::shard_log::{
@@ -44,7 +44,7 @@ const MAX_CONTROL_RESULT_BYTES: usize = 16 * 1024;
 const MAX_DEFINITION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESULT_CAS_ATTEMPTS: usize = 8;
 
-pub(crate) static CONTROL_REQUEST_RESULT_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static CONTROL_REQUEST_RESULT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "control_request_result",
     owning_module: "orchestrator::inbox",
     emitted_version: 1,
@@ -116,7 +116,9 @@ impl ControlRequestResult {
 impl super::registry::sealed::Sealed for ControlRequestResult {}
 
 impl DurableRecord for ControlRequestResult {
-    const FAMILY: &'static RecordFamily = &CONTROL_REQUEST_RESULT_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &CONTROL_REQUEST_RESULT_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::Rebuild;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -133,10 +135,10 @@ impl DurableRecord for ControlRequestResult {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| malformed_result(error.to_string()))?;
-        reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
         if value.get("version").and_then(Value::as_str) != Some("v1") {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: value
                     .get("version")
                     .and_then(Value::as_str)
@@ -159,7 +161,7 @@ fn validate_result(result: &ControlRequestResultV1) -> Result<(), CompatError> {
             let expected = control_outcome_event_id(&result.request_id);
             if promoted_event_id != &expected {
                 return Err(CompatError::Conflict {
-                    family: ControlRequestResult::FAMILY.name,
+                    name: ControlRequestResult::declaration().name,
                     message: format!(
                         "promoted event ID mismatch: expected {expected}, found {promoted_event_id}"
                     ),
@@ -189,7 +191,7 @@ fn validate_result(result: &ControlRequestResultV1) -> Result<(), CompatError> {
 
 fn malformed_result(message: String) -> CompatError {
     CompatError::Malformed {
-        family: ControlRequestResult::FAMILY.name,
+        name: ControlRequestResult::declaration().name,
         message,
     }
 }

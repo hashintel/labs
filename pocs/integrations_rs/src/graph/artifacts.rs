@@ -19,7 +19,7 @@ use super::effects::{BlobSliceRefV1, GraphEffect, GraphEffectV1, GRAPH_EFFECT_PA
 use crate::blob::{ArtifactStore, BlobRef, MaterializedBlob};
 use crate::orchestrator::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, PureUpcastRecord, RecordFamily, VersionedRecord,
+    MigrationPolicy, PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 use crate::orchestrator::work::DesiredProjectionRef;
 
@@ -36,16 +36,16 @@ pub(crate) const MAX_INDEX_BYTES: usize = 4 * 1024 * 1024;
 pub(crate) const MAX_PAGE_BYTES: usize = 32 * 1024 * 1024;
 /// Page width for newly written indexes. Readers must use the index's own
 /// `page_entries` field, so changing this default is not a format break.
-/// Measured against real S3 (2026-08-05): 1024 was slower than 256 in every
-/// phase, because window loads fetch pages 16-wide and wider pages reduce
-/// that concurrency while enlarging each verified read-back.
+/// Wider pages measured slower against real S3: window loads fetch pages
+/// 16-wide, so fewer, larger objects reduce usable concurrency while
+/// enlarging each verified read-back.
 const DEFAULT_PAGE_ENTRIES: usize = 256;
 /// Upper bound accepted from a decoded index; byte bounds still apply.
 const MAX_PAGE_ENTRIES: u64 = 8192;
 const PAGE_PUBLICATION_CONCURRENCY: usize = 16;
 const MAX_GRAPH_IDENTITY_BYTES: usize = 8 * 1024;
 
-pub(crate) static DESIRED_PROJECTION_ARTIFACT_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static DESIRED_PROJECTION_ARTIFACT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "desired_projection_artifact",
     owning_module: "graph::artifacts",
     emitted_version: 1,
@@ -58,7 +58,7 @@ pub(crate) static DESIRED_PROJECTION_ARTIFACT_FAMILY: RecordFamily = RecordFamil
     migration: MigrationPolicy::PureUpcast,
 };
 
-pub(crate) static EFFECT_INDEX_ARTIFACT_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static EFFECT_INDEX_ARTIFACT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "effect_index_artifact",
     owning_module: "graph::artifacts",
     emitted_version: 1,
@@ -906,8 +906,7 @@ impl EffectRepository for ArtifactEffectRepository {
                     .attach_printable("effect page reference names an index"));
             };
             let global_page_start = page_index * page_entries;
-            let expected_len =
-                (index.effect_count - global_page_start).min(page_entries) as usize;
+            let expected_len = (index.effect_count - global_page_start).min(page_entries) as usize;
             if page.effects.len() != expected_len {
                 return Err(Report::new(EffectRepositoryError::ArtifactIntegrity)
                     .attach_printable("effect page length disagrees with its root position"));
@@ -1219,14 +1218,14 @@ fn sha256(bytes: &[u8]) -> String {
 
 fn desired_malformed(message: String) -> CompatError {
     CompatError::Malformed {
-        family: DesiredProjectionArtifact::FAMILY.name,
+        name: DesiredProjectionArtifact::declaration().name,
         message,
     }
 }
 
 fn effect_malformed(message: String) -> CompatError {
     CompatError::Malformed {
-        family: EffectIndexArtifact::FAMILY.name,
+        name: EffectIndexArtifact::declaration().name,
         message,
     }
 }
@@ -1234,7 +1233,9 @@ fn effect_malformed(message: String) -> CompatError {
 impl crate::orchestrator::registry::sealed::Sealed for DesiredProjectionArtifact {}
 
 impl DurableRecord for DesiredProjectionArtifact {
-    const FAMILY: &'static RecordFamily = &DESIRED_PROJECTION_ARTIFACT_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &DESIRED_PROJECTION_ARTIFACT_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -1262,7 +1263,7 @@ impl DurableRecord for DesiredProjectionArtifact {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| desired_malformed(error.to_string()))?;
-        validate_artifact_shape(Self::FAMILY.name, &value)?;
+        validate_artifact_shape(Self::declaration().name, &value)?;
         validate_desired_shape(&value)?;
         let decoded: Self =
             serde_json::from_value(value).map_err(|error| desired_malformed(error.to_string()))?;
@@ -1285,7 +1286,9 @@ impl PureUpcastRecord for DesiredProjectionArtifact {}
 impl crate::orchestrator::registry::sealed::Sealed for EffectIndexArtifact {}
 
 impl DurableRecord for EffectIndexArtifact {
-    const FAMILY: &'static RecordFamily = &EFFECT_INDEX_ARTIFACT_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &EFFECT_INDEX_ARTIFACT_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -1311,7 +1314,7 @@ impl DurableRecord for EffectIndexArtifact {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| effect_malformed(error.to_string()))?;
-        validate_artifact_shape(Self::FAMILY.name, &value)?;
+        validate_artifact_shape(Self::declaration().name, &value)?;
         validate_effect_shape(&value)?;
         let decoded: Self =
             serde_json::from_value(value).map_err(|error| effect_malformed(error.to_string()))?;
@@ -1331,11 +1334,11 @@ impl VersionedRecord for EffectIndexArtifact {
 
 impl PureUpcastRecord for EffectIndexArtifact {}
 
-fn validate_artifact_shape(family: &'static str, value: &Value) -> Result<(), CompatError> {
-    reject_unknown_fields(family, "", value, &["version", "data"])?;
+fn validate_artifact_shape(name: &'static str, value: &Value) -> Result<(), CompatError> {
+    reject_unknown_fields(name, "", value, &["version", "data"])?;
     if value.get("version").and_then(Value::as_str) != Some("v1") {
         return Err(CompatError::UnsupportedVersion {
-            family,
+            name,
             version: value
                 .get("version")
                 .and_then(Value::as_str)
@@ -1344,42 +1347,42 @@ fn validate_artifact_shape(family: &'static str, value: &Value) -> Result<(), Co
         });
     }
     let data = value.get("data").ok_or_else(|| CompatError::Malformed {
-        family,
+        name,
         message: "data is required".to_owned(),
     })?;
-    reject_unknown_fields(family, "data", data, &["artifact", "data"])?;
+    reject_unknown_fields(name, "data", data, &["artifact", "data"])?;
     Ok(())
 }
 
 fn artifact_body<'a>(
-    family: &'static str,
+    name: &'static str,
     value: &'a Value,
 ) -> Result<(&'a str, &'a Value), CompatError> {
     let envelope = value.get("data").ok_or_else(|| CompatError::Malformed {
-        family,
+        name,
         message: "data is required".to_owned(),
     })?;
     let kind = envelope
         .get("artifact")
         .and_then(Value::as_str)
         .ok_or_else(|| CompatError::Malformed {
-            family,
+            name,
             message: "data.artifact must be a string".to_owned(),
         })?;
     let body = envelope.get("data").ok_or_else(|| CompatError::Malformed {
-        family,
+        name,
         message: "data.data is required".to_owned(),
     })?;
     Ok((kind, body))
 }
 
 fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
-    let family = DesiredProjectionArtifact::FAMILY.name;
-    let (kind, body) = artifact_body(family, value)?;
+    let name = DesiredProjectionArtifact::declaration().name;
+    let (kind, body) = artifact_body(name, value)?;
     match kind {
         "index" => {
             reject_unknown_fields(
-                family,
+                name,
                 "data.data",
                 body,
                 &[
@@ -1397,7 +1400,7 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
                 .flatten()
                 .enumerate()
             {
-                validate_blob_ref_shape(family, &format!("data.data.pages[{index}]"), page)?;
+                validate_blob_ref_shape(name, &format!("data.data.pages[{index}]"), page)?;
             }
             for (index, bounds) in body
                 .get("page_bounds")
@@ -1407,13 +1410,13 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
                 .enumerate()
             {
                 let path = format!("data.data.page_bounds[{index}]");
-                reject_unknown_fields(family, &path, bounds, &["first", "last"])?;
+                reject_unknown_fields(name, &path, bounds, &["first", "last"])?;
                 for field in ["first", "last"] {
                     let key = bounds
                         .get(field)
                         .ok_or_else(|| desired_malformed(format!("{path}.{field} is required")))?;
                     reject_unknown_fields(
-                        family,
+                        name,
                         &format!("{path}.{field}"),
                         key,
                         &["kind", "graph_identity"],
@@ -1422,7 +1425,7 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
             }
         }
         "page" => {
-            reject_unknown_fields(family, "data.data", body, &["objects"])?;
+            reject_unknown_fields(name, "data.data", body, &["objects"])?;
             for (index, object) in body
                 .get("objects")
                 .and_then(Value::as_array)
@@ -1432,7 +1435,7 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
             {
                 let path = format!("data.data.objects[{index}]");
                 reject_unknown_fields(
-                    family,
+                    name,
                     &path,
                     object,
                     &["kind", "graph_identity", "disposition"],
@@ -1444,7 +1447,7 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
                 match state {
                     Some("live") => {
                         reject_unknown_fields(
-                            family,
+                            name,
                             &format!("{path}.disposition"),
                             disposition,
                             &["state", "payload_digest", "payload"],
@@ -1453,14 +1456,14 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
                             desired_malformed(format!("{path}.disposition.payload is required"))
                         })?;
                         validate_slice_shape(
-                            family,
+                            name,
                             &format!("{path}.disposition.payload"),
                             payload,
                         )?;
                     }
                     Some("archived") => {
                         reject_unknown_fields(
-                            family,
+                            name,
                             &format!("{path}.disposition"),
                             disposition,
                             &["state", "payload_digest", "payload"],
@@ -1469,7 +1472,7 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
                             desired_malformed(format!("{path}.disposition.payload is required"))
                         })?;
                         validate_slice_shape(
-                            family,
+                            name,
                             &format!("{path}.disposition.payload"),
                             payload,
                         )?;
@@ -1492,12 +1495,12 @@ fn validate_desired_shape(value: &Value) -> Result<(), CompatError> {
 }
 
 fn validate_effect_shape(value: &Value) -> Result<(), CompatError> {
-    let family = EffectIndexArtifact::FAMILY.name;
-    let (kind, body) = artifact_body(family, value)?;
+    let name = EffectIndexArtifact::declaration().name;
+    let (kind, body) = artifact_body(name, value)?;
     match kind {
         "index" => {
             reject_unknown_fields(
-                family,
+                name,
                 "data.data",
                 body,
                 &[
@@ -1515,11 +1518,11 @@ fn validate_effect_shape(value: &Value) -> Result<(), CompatError> {
                 .flatten()
                 .enumerate()
             {
-                validate_blob_ref_shape(family, &format!("data.data.pages[{index}]"), page)?;
+                validate_blob_ref_shape(name, &format!("data.data.pages[{index}]"), page)?;
             }
         }
         "page" => {
-            reject_unknown_fields(family, "data.data", body, &["effects"])?;
+            reject_unknown_fields(name, "data.data", body, &["effects"])?;
             for (index, effect) in body
                 .get("effects")
                 .and_then(Value::as_array)
@@ -1528,12 +1531,12 @@ fn validate_effect_shape(value: &Value) -> Result<(), CompatError> {
                 .enumerate()
             {
                 let path = format!("data.data.effects[{index}]");
-                reject_unknown_fields(family, &path, effect, &["version", "data"])?;
+                reject_unknown_fields(name, &path, effect, &["version", "data"])?;
                 let data = effect
                     .get("data")
                     .ok_or_else(|| effect_malformed(format!("{path}.data is required")))?;
                 reject_unknown_fields(
-                    family,
+                    name,
                     &format!("{path}.data"),
                     data,
                     &[
@@ -1548,7 +1551,7 @@ fn validate_effect_shape(value: &Value) -> Result<(), CompatError> {
                     ],
                 )?;
                 if let Some(payload) = data.get("payload").filter(|value| !value.is_null()) {
-                    validate_slice_shape(family, &format!("{path}.data.payload"), payload)?;
+                    validate_slice_shape(name, &format!("{path}.data.payload"), payload)?;
                 }
             }
         }
@@ -1561,33 +1564,29 @@ fn validate_effect_shape(value: &Value) -> Result<(), CompatError> {
     Ok(())
 }
 
-fn validate_slice_shape(
-    family: &'static str,
-    path: &str,
-    value: &Value,
-) -> Result<(), CompatError> {
-    reject_unknown_fields(family, path, value, &["artifact", "offset", "length"])?;
+fn validate_slice_shape(name: &'static str, path: &str, value: &Value) -> Result<(), CompatError> {
+    reject_unknown_fields(name, path, value, &["artifact", "offset", "length"])?;
     let artifact = value
         .get("artifact")
         .ok_or_else(|| CompatError::Malformed {
-            family,
+            name,
             message: format!("{path}.artifact is required"),
         })?;
-    validate_blob_ref_shape(family, &format!("{path}.artifact"), artifact)
+    validate_blob_ref_shape(name, &format!("{path}.artifact"), artifact)
 }
 
 fn validate_blob_ref_shape(
-    family: &'static str,
+    name: &'static str,
     path: &str,
     value: &Value,
 ) -> Result<(), CompatError> {
-    reject_unknown_fields(family, path, value, &["version", "value"])?;
+    reject_unknown_fields(name, path, value, &["version", "value"])?;
     let body = value.get("value").ok_or_else(|| CompatError::Malformed {
-        family,
+        name,
         message: format!("{path}.value is required"),
     })?;
     reject_unknown_fields(
-        family,
+        name,
         &format!("{path}.value"),
         body,
         &[

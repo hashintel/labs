@@ -20,9 +20,7 @@ use super::shard::{
 };
 use super::shard_log::{ShardLogLocation, WorkRecoveryIntent};
 use super::state::{self, JournalStateAuthority, StateAuthority};
-use super::worker_dispatch::{
-    Executor, LaneDisposition, WorkerDispatchOutcome, WorkerDispatcher,
-};
+use super::worker_dispatch::{Dispatch, LaneDisposition, WorkerDispatchOutcome, WorkerDispatcher};
 use crate::config::Env;
 use crate::graph::client::{HttpClient, HttpClientOptions};
 use crate::graph::executor::{
@@ -87,8 +85,7 @@ impl ShardWorkspaceCleaner for ScavengingCleaner {
 struct ShardRuntime {
     renewing: RenewingShard,
     scheduler: RecoveryScheduler,
-    /// The kernel/domain execution seam; integrations is the first impl.
-    dispatcher: Box<dyn Executor>,
+    dispatcher: Box<dyn Dispatch>,
     _state_hint_task: tokio::task::JoinHandle<()>,
     snapshot_interval: Duration,
     snapshot_events: u64,
@@ -717,7 +714,7 @@ impl Runner {
             commands.clone(),
         )
         .change_context(WorkerError::Planner)?;
-        let dispatcher: Box<dyn Executor> = Box::new(WorkerDispatcher::new(
+        let dispatcher: Box<dyn Dispatch> = Box::new(WorkerDispatcher::new(
             self.readiness.config.tenant.clone(),
             self.readiness.artifacts.clone(),
             planner,

@@ -66,7 +66,7 @@ pub(crate) enum InspectedRecord<T> {
 fn ensure_registered<T: DurableRecord>() -> Result<(), Report<RecordIoError>> {
     require_registered::<T>()
         .change_context(RecordIoError::Registration)
-        .attach_printable(T::FAMILY.name)
+        .attach_printable(T::declaration().name)
 }
 
 fn encode_registered<T: DurableRecord>(record: &T) -> Result<Vec<u8>, Report<RecordIoError>> {
@@ -74,7 +74,7 @@ fn encode_registered<T: DurableRecord>(record: &T) -> Result<Vec<u8>, Report<Rec
     record
         .encode()
         .change_context(RecordIoError::Encode)
-        .attach_printable(T::FAMILY.name)
+        .attach_printable(T::declaration().name)
 }
 
 /// Reads a registered record while preserving malformed bytes as an
@@ -90,7 +90,7 @@ pub(crate) async fn inspect<T: DurableRecord>(
         .get_cas_document_bounded(key, maximum_bytes)
         .await
         .change_context(RecordIoError::Read)
-        .attach_printable(T::FAMILY.name)
+        .attach_printable(T::declaration().name)
         .attach_printable(key.to_owned())?;
     Ok(match observed {
         BoundedCasDocument::Missing => InspectedRecord::Missing,
@@ -139,7 +139,7 @@ pub(crate) async fn create<T: DurableRecord + Sync>(
         .create_cas_document(key, bytes)
         .await
         .change_context(RecordIoError::Create)
-        .attach_printable(T::FAMILY.name)
+        .attach_printable(T::declaration().name)
         .attach_printable(key.to_owned())
 }
 
@@ -154,7 +154,7 @@ pub(crate) async fn compare_and_swap<T: DurableRecord + Sync>(
         .compare_and_swap_cas_document(key, expected, bytes)
         .await
         .change_context(RecordIoError::Update)
-        .attach_printable(T::FAMILY.name)
+        .attach_printable(T::declaration().name)
         .attach_printable(key.to_owned())
 }
 
@@ -172,7 +172,7 @@ pub(crate) async fn read_mutable<T: MutableCasRecord>(
             .get_cas_document_bounded(key, maximum_bytes)
             .await
             .change_context(RecordIoError::Read)
-            .attach_printable(T::FAMILY.name)
+            .attach_printable(T::declaration().name)
             .attach_printable(key.to_owned())?
         {
             BoundedCasDocument::Missing => return Ok(None),
@@ -193,7 +193,7 @@ pub(crate) async fn read_mutable<T: MutableCasRecord>(
         let canonical = current
             .encode()
             .change_context(RecordIoError::Encode)
-            .attach_printable(T::FAMILY.name)?;
+            .attach_printable(T::declaration().name)?;
         if canonical.as_slice() == bytes.as_ref() {
             return Ok(Some((current, observed_version)));
         }
@@ -201,7 +201,7 @@ pub(crate) async fn read_mutable<T: MutableCasRecord>(
             .compare_and_swap_cas_document(key, &observed_version, canonical)
             .await
             .change_context(RecordIoError::Update)
-            .attach_printable(T::FAMILY.name)
+            .attach_printable(T::declaration().name)
             .attach_printable(key.to_owned())?
         {
             CasWrite::Written(version) => return Ok(Some((current, version))),
@@ -209,17 +209,17 @@ pub(crate) async fn read_mutable<T: MutableCasRecord>(
         }
     }
     Err(Report::new(RecordIoError::MigrationConflictLimit)
-        .attach_printable(T::FAMILY.name)
+        .attach_printable(T::declaration().name)
         .attach_printable(key.to_owned()))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::orchestrator::registry::{DurabilityClass, MigrationPolicy, RecordFamily};
+    use crate::orchestrator::registry::{DurabilityClass, MigrationPolicy, RecordDeclaration};
     use tempfile::tempdir;
 
-    static UNREGISTERED_FAMILY: RecordFamily = RecordFamily {
+    static UNREGISTERED_DECLARATION: RecordDeclaration = RecordDeclaration {
         name: "record_io_unregistered_fixture",
         owning_module: "orchestrator::record_io::tests",
         emitted_version: 1,
@@ -234,7 +234,9 @@ mod tests {
     impl super::super::registry::sealed::Sealed for UnregisteredRecord {}
 
     impl DurableRecord for UnregisteredRecord {
-        const FAMILY: &'static RecordFamily = &UNREGISTERED_FAMILY;
+        fn declaration() -> &'static RecordDeclaration {
+            &UNREGISTERED_DECLARATION
+        }
         const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
         fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -254,7 +256,7 @@ mod tests {
 
         let error = create(&store, "control/fixture.json", &UnregisteredRecord)
             .await
-            .expect_err("unregistered family must fail");
+            .expect_err("unregistered record must fail");
         assert!(matches!(
             error.current_context(),
             RecordIoError::Registration

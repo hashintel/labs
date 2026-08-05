@@ -109,8 +109,8 @@ async fn four_capped_runners_split_three_shards_with_one_owner_each() {
         let integration =
             CanonicalIntegrationId::parse(format!("{WEB_ID}:{connector}")).expect("integration");
         let shard = routing::shard(&integration);
-        let lease_key = routing::Keyspace::for_tenant(&
-            integrations_rs::orchestrator::ids::TenantNamespace::parse(WEB_ID).expect("tenant"),
+        let lease_key = routing::Keyspace::for_tenant(
+            &integrations_rs::orchestrator::ids::TenantNamespace::parse(WEB_ID).expect("tenant"),
         )
         .lease(shard);
         let lease: serde_json::Value = serde_json::from_slice(

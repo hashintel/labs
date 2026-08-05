@@ -5,8 +5,8 @@ use std::fmt;
 
 use super::control::{ControlRequestContextV1, ControlRequestTargetV1};
 use super::events::{
-    dlq_entry_id, ControlRejectionReason, IntegrationsEventRefV1, JournalEvent,
-    JournalRecordV1, KernelEventRefV1, SequencedJournalRecord, SplitEventRefV1, TerminalOutcome,
+    dlq_entry_id, ControlRejectionReason, IntegrationsEventRefV1, JournalEvent, JournalRecordV1,
+    KernelEventRefV1, SequencedJournalRecord, SplitEventRefV1, TerminalOutcome,
 };
 use super::ids::{CanonicalIntegrationId, EventId, RunId, WorkId};
 pub use super::projection_types::{
@@ -104,9 +104,9 @@ pub fn prepare(
 }
 
 /// Kernel half of the fold: run/attempt lifecycle, work cursors, admission
-/// slots, control outcomes, and the DLQ. Reads integration facts only through
-/// shared eligibility helpers (`execution_eligible`, checkpoint lineage) —
-/// the couplings a generic `Domain` projection must expose.
+/// slots, control outcomes, and the DLQ. Reads integration facts only
+/// through the shared eligibility helpers (`execution_eligible`, checkpoint
+/// lineage).
 fn prepare_kernel(
     state: &Projection,
     record: &JournalRecordV1,

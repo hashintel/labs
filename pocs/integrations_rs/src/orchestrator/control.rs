@@ -9,7 +9,7 @@ use super::ids::{
 };
 use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, PureUpcastRecord, RecordFamily, VersionedRecord,
+    MigrationPolicy, PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 use crate::blob::BlobRef;
 
@@ -18,7 +18,7 @@ const MAX_ACTOR_BYTES: usize = 1024;
 const CONTROL_REQUEST_IDENTITY_VERSION: u32 = 1;
 const REQUEST_DIGEST_VERSION: u32 = 1;
 
-pub(crate) static CONTROL_REQUEST_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static CONTROL_REQUEST_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "control_request",
     owning_module: "orchestrator::control",
     emitted_version: 1,
@@ -133,7 +133,7 @@ impl ControlRequestV1 {
             Ok(())
         } else {
             Err(CompatError::Conflict {
-                family: ControlRequest::FAMILY.name,
+                name: ControlRequest::declaration().name,
                 message: format!(
                     "request ID mismatch: expected {expected}, found {}",
                     self.request_id
@@ -266,7 +266,7 @@ fn validate_request_fields(request: &ControlRequestV1) -> Result<(), CompatError
 
 fn malformed(message: String) -> CompatError {
     CompatError::Malformed {
-        family: ControlRequest::FAMILY.name,
+        name: ControlRequest::declaration().name,
         message,
     }
 }
@@ -274,7 +274,9 @@ fn malformed(message: String) -> CompatError {
 impl super::registry::sealed::Sealed for ControlRequest {}
 
 impl DurableRecord for ControlRequest {
-    const FAMILY: &'static RecordFamily = &CONTROL_REQUEST_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &CONTROL_REQUEST_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -291,14 +293,14 @@ impl DurableRecord for ControlRequest {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| malformed(error.to_string()))?;
-        reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
         let version = value
             .get("version")
             .and_then(Value::as_str)
             .ok_or_else(|| malformed("version must be a string".to_owned()))?;
         if version != "v1" {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: version.to_owned(),
             });
         }

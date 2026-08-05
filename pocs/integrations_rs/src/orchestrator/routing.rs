@@ -95,8 +95,8 @@ pub fn integration_path(id: &CanonicalIntegrationId) -> IntegrationPath {
     route(id).integration_path
 }
 
-// Key derivation lives in the kernel keyspace; re-exported here so the
-// orchestrator's `routing::` imports keep resolving until the module moves.
+// Key derivation lives in the kernel keyspace; re-exported for the
+// orchestrator's `routing::` import paths.
 pub use crate::kernel::keyspace::Keyspace;
 
 #[cfg(test)]
@@ -127,5 +127,4 @@ mod tests {
         assert_eq!(integration_path(&id), routed.integration_path);
         assert_eq!(routed.integration_path.to_hex().len(), 64);
     }
-
 }

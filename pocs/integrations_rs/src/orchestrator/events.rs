@@ -11,7 +11,7 @@ use super::ids::{
 };
 use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, RecordFamily, UntrimmedJournalRecord, VersionedRecord,
+    MigrationPolicy, RecordDeclaration, UntrimmedJournalRecord, VersionedRecord,
 };
 use super::work::{StateVersion, StateVersionRef, WorkKind, WorkManifest};
 use crate::blob::BlobRef;
@@ -19,7 +19,7 @@ use crate::blob::BlobRef;
 const MAX_JOURNAL_RECORD_BYTES: usize = 1024 * 1024;
 const MAX_NAME_BYTES: usize = 1024;
 
-pub(crate) static JOURNAL_RECORD_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static JOURNAL_RECORD_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "journal_record",
     owning_module: "orchestrator::events",
     emitted_version: 1,
@@ -88,10 +88,9 @@ pub enum JournalEventV1 {
     DlqEntryExpired(DlqEntryExpiredV1),
 }
 
-/// Lifecycle events the kernel itself drives. Compile-time half of the
-/// kernel/domain split: `JournalEventV1` stays the V1 wire codec (kind names
-/// are frozen), while kernel code consumes this vocabulary and never sees
-/// integration facts.
+/// Lifecycle events the kernel itself drives. `JournalEventV1` remains the
+/// wire codec (kind names are frozen); kernel code consumes this vocabulary
+/// and never sees integration facts.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KernelEventV1 {
     RunAccepted(RunAcceptedV1),
@@ -108,8 +107,8 @@ pub enum KernelEventV1 {
     DlqEntryExpired(DlqEntryExpiredV1),
 }
 
-/// Integration-domain facts recorded in the same journal. The first
-/// `Domain::Event` once the kernel generalizes.
+/// Integration-domain facts recorded in the same journal: the integrations
+/// half of the vocabulary, disjoint from the kernel lifecycle above.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum IntegrationsEventV1 {
     ArtifactPublished(ArtifactPublishedV1),
@@ -537,7 +536,7 @@ impl JournalRecordV1 {
             Ok(())
         } else {
             Err(CompatError::Conflict {
-                family: JournalRecord::FAMILY.name,
+                name: JournalRecord::declaration().name,
                 message: format!(
                     "event ID mismatch: expected {expected}, found {}",
                     self.event_id
@@ -1084,14 +1083,14 @@ fn validate_sha256(name: &str, value: &str) -> Result<(), CompatError> {
 
 fn malformed(message: String) -> CompatError {
     CompatError::Malformed {
-        family: JournalRecord::FAMILY.name,
+        name: JournalRecord::declaration().name,
         message,
     }
 }
 
 fn conflict(message: String) -> CompatError {
     CompatError::Conflict {
-        family: JournalRecord::FAMILY.name,
+        name: JournalRecord::declaration().name,
         message,
     }
 }
@@ -1099,7 +1098,9 @@ fn conflict(message: String) -> CompatError {
 impl super::registry::sealed::Sealed for JournalRecord {}
 
 impl DurableRecord for JournalRecord {
-    const FAMILY: &'static RecordFamily = &JOURNAL_RECORD_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &JOURNAL_RECORD_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::NeverRetireWhileUntrimmed;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -1116,14 +1117,14 @@ impl DurableRecord for JournalRecord {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| malformed(error.to_string()))?;
-        reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
         let version = value
             .get("version")
             .and_then(Value::as_str)
             .ok_or_else(|| malformed("version must be a string".to_owned()))?;
         if version != "v1" {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: version.to_owned(),
             });
         }

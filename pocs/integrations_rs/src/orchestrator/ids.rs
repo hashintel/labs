@@ -90,7 +90,7 @@ macro_rules! digest_id {
 
             #[allow(
                 dead_code,
-                reason = "some identity families are introduced before their owning record PR"
+                reason = "some identity types are introduced before their owning record PR"
             )]
             pub(crate) fn from_digest(digest: String) -> Self {
                 debug_assert_eq!(digest.len(), SHA256_HEX_BYTES);

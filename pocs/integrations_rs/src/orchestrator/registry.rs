@@ -1,7 +1,7 @@
 //! Compatibility registry for the clean durable-protocol baseline.
 //!
 //! A record cannot enter protocol storage unless it implements [`DurableRecord`] and
-//! points at one of the families in [`record_families`]. The independently
+//! points at one of the declarations in [`record_declarations`]. The independently
 //! maintained manifest is checked again by the production activation gate.
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -15,7 +15,7 @@ pub const REGISTRY_MANIFEST_VERSION: u32 = 1;
 // Before the first production activation, protocol V1 is one design target:
 // implementation PRs evolve its structs and independent fixtures in place.
 // After V1 is released, a shape change adds a declared version, retains every
-// still-supported decoder, and follows the family's migration policy below.
+// still-supported decoder, and follows the declaration's migration policy below.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -42,7 +42,7 @@ pub struct AlgorithmVersion {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RecordFamily {
+pub struct RecordDeclaration {
     pub name: &'static str,
     pub owning_module: &'static str,
     pub emitted_version: u32,
@@ -52,33 +52,94 @@ pub struct RecordFamily {
     pub migration: MigrationPolicy,
 }
 
-/// V1 families are added here with the change that introduces their codec.
-static RECORD_FAMILIES: &[&RecordFamily] = &[
-    &super::submission::ADMISSION_POINTER_FAMILY,
-    &super::baseline::CONTROL_BASELINE_FAMILY,
-    &super::projection_snapshot::CONTROL_PROJECTION_PAYLOAD_FAMILY,
-    &super::projection_snapshot::CONTROL_PROJECTION_SNAPSHOT_FAMILY,
-    &super::control::CONTROL_REQUEST_FAMILY,
-    &super::inbox::CONTROL_REQUEST_RESULT_FAMILY,
-    &super::state::CURRENT_STATE_HINT_FAMILY,
-    &crate::graph::artifacts::DESIRED_PROJECTION_ARTIFACT_FAMILY,
-    &crate::graph::artifacts::EFFECT_INDEX_ARTIFACT_FAMILY,
-    &crate::graph::planner::GRAPH_DELIVERY_PAYLOAD_FAMILY,
-    &crate::graph::effects::GRAPH_EFFECT_FAMILY,
-    &super::events::JOURNAL_RECORD_FAMILY,
-    &super::submission::KNOWN_SHARD_MARKER_FAMILY,
-    &super::submission::READY_RECEIPT_FAMILY,
-    &super::internal_metadata::REQUEST_BINDING_FAMILY,
-    &super::internal_metadata::RUN_INPUT_FAMILY,
-    &super::internal_metadata::RUN_LOCATOR_FAMILY,
-    &super::internal_metadata::RUN_POLICY_FAMILY,
-    &super::lease::SHARD_LEASE_FAMILY,
-    &super::work::STATE_VERSION_FAMILY,
-    &super::work::WORK_MANIFEST_FAMILY,
+/// V1 declarations are added here with the change that introduces their codec.
+static RECORD_DECLARATIONS: &[&RecordDeclaration] = &[
+    &super::submission::ADMISSION_POINTER_DECLARATION,
+    &super::baseline::CONTROL_BASELINE_DECLARATION,
+    &super::projection_snapshot::CONTROL_PROJECTION_PAYLOAD_DECLARATION,
+    &super::projection_snapshot::CONTROL_PROJECTION_SNAPSHOT_DECLARATION,
+    &super::control::CONTROL_REQUEST_DECLARATION,
+    &super::inbox::CONTROL_REQUEST_RESULT_DECLARATION,
+    &super::state::CURRENT_STATE_HINT_DECLARATION,
+    &crate::graph::artifacts::DESIRED_PROJECTION_ARTIFACT_DECLARATION,
+    &crate::graph::artifacts::EFFECT_INDEX_ARTIFACT_DECLARATION,
+    &crate::graph::planner::GRAPH_DELIVERY_PAYLOAD_DECLARATION,
+    &crate::graph::effects::GRAPH_EFFECT_DECLARATION,
+    &super::events::JOURNAL_RECORD_DECLARATION,
+    &super::submission::KNOWN_SHARD_MARKER_DECLARATION,
+    &super::submission::READY_RECEIPT_DECLARATION,
+    &super::internal_metadata::REQUEST_BINDING_DECLARATION,
+    &super::internal_metadata::RUN_INPUT_DECLARATION,
+    &super::internal_metadata::RUN_LOCATOR_DECLARATION,
+    &super::internal_metadata::RUN_POLICY_DECLARATION,
+    &super::lease::SHARD_LEASE_DECLARATION,
+    &super::work::STATE_VERSION_DECLARATION,
+    &super::work::WORK_MANIFEST_DECLARATION,
 ];
 
-pub fn record_families() -> &'static [&'static RecordFamily] {
-    RECORD_FAMILIES
+pub fn record_declarations() -> &'static [&'static RecordDeclaration] {
+    RECORD_DECLARATIONS
+}
+
+/// Families registered at runtime by kernel-hosted domains.
+/// Deliberately separate from [`record_declarations`]: the V1 activation
+/// manifest and its golden fixture cover only the static list, so a
+/// dynamically registered declaration never changes what V1 attests.
+static DYNAMIC_DECLARATIONS: std::sync::RwLock<BTreeMap<&'static str, &'static RecordDeclaration>> =
+    std::sync::RwLock::new(BTreeMap::new());
+
+/// Interns a kernel-hosted domain's record declaration, leaking one canonical
+/// copy per name. Idempotent for an identical declaration; a name collision
+/// with a static declaration or a different declaration under the same name is
+/// refused, preserving the property that one name means one codec.
+#[allow(
+    dead_code,
+    reason = "consumed by kernel::domain, which the binary does not reach"
+)]
+pub(crate) fn intern_dynamic_declaration(
+    declaration: RecordDeclaration,
+) -> Result<&'static RecordDeclaration, RegistryError> {
+    if declaration.migration != MigrationPolicy::NeverRetireWhileUntrimmed
+        && declaration.durability == DurabilityClass::ImmutableJournal
+    {
+        return Err(RegistryError::InvalidDeclaration {
+            name: declaration.name.to_owned(),
+            message: "journal records cannot retire decoders while untrimmed".to_owned(),
+        });
+    }
+    if record_declarations()
+        .iter()
+        .any(|known| known.name == declaration.name)
+    {
+        return Err(RegistryError::InvalidDeclaration {
+            name: declaration.name.to_owned(),
+            message: "name collides with a statically registered declaration".to_owned(),
+        });
+    }
+    let mut declarations = DYNAMIC_DECLARATIONS
+        .write()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some(existing) = declarations.get(declaration.name) {
+        return if **existing == declaration {
+            Ok(existing)
+        } else {
+            Err(RegistryError::InvalidDeclaration {
+                name: declaration.name.to_owned(),
+                message: "name is already registered with a different declaration".to_owned(),
+            })
+        };
+    }
+    let interned: &'static RecordDeclaration = Box::leak(Box::new(declaration));
+    declarations.insert(interned.name, interned);
+    Ok(interned)
+}
+
+fn dynamic_declaration_matches(declaration: &RecordDeclaration) -> bool {
+    DYNAMIC_DECLARATIONS
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(declaration.name)
+        .is_some_and(|known| **known == *declaration)
 }
 
 pub(crate) mod sealed {
@@ -86,7 +147,7 @@ pub(crate) mod sealed {
 }
 
 pub trait DurableRecord: sealed::Sealed + Sized {
-    const FAMILY: &'static RecordFamily;
+    fn declaration() -> &'static RecordDeclaration;
     const MIGRATION_POLICY: MigrationPolicy;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError>;
@@ -124,62 +185,53 @@ pub trait RebuildableRecord: DurableRecord {}
 
 /// Storage entry points call this before accepting a generic record. The
 /// sealed trait prevents downstream implementations; this check also prevents
-/// an internal test or unfinished family from reaching the baseline prefix.
+/// an internal test or unfinished declaration from reaching the baseline prefix.
 pub fn require_registered<T: DurableRecord>() -> Result<(), RegistryError> {
-    if T::MIGRATION_POLICY != T::FAMILY.migration {
-        return Err(RegistryError::InvalidFamily {
-            family: T::FAMILY.name.to_owned(),
+    if T::MIGRATION_POLICY != T::declaration().migration {
+        return Err(RegistryError::InvalidDeclaration {
+            name: T::declaration().name.to_owned(),
             message: format!(
                 "record type declares {:?} but registry declares {:?}",
                 T::MIGRATION_POLICY,
-                T::FAMILY.migration
+                T::declaration().migration
             ),
         });
     }
-    if record_families()
+    if record_declarations()
         .iter()
-        .any(|family| **family == *T::FAMILY)
+        .any(|declaration| **declaration == *T::declaration())
+        || dynamic_declaration_matches(T::declaration())
     {
         Ok(())
     } else {
-        Err(RegistryError::UnregisteredFamily(T::FAMILY.name.to_owned()))
+        Err(RegistryError::UnregisteredDeclaration(
+            T::declaration().name.to_owned(),
+        ))
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum CompatError {
-    UnsupportedVersion {
-        family: &'static str,
-        version: String,
-    },
-    ExtraField {
-        family: &'static str,
-        path: String,
-    },
-    Malformed {
-        family: &'static str,
-        message: String,
-    },
-    Conflict {
-        family: &'static str,
-        message: String,
-    },
+    UnsupportedVersion { name: &'static str, version: String },
+    ExtraField { name: &'static str, path: String },
+    Malformed { name: &'static str, message: String },
+    Conflict { name: &'static str, message: String },
 }
 
 impl fmt::Display for CompatError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::UnsupportedVersion { family, version } => {
-                write!(formatter, "unsupported {family} version {version:?}")
+            Self::UnsupportedVersion { name, version } => {
+                write!(formatter, "unsupported {name} version {version:?}")
             }
-            Self::ExtraField { family, path } => {
-                write!(formatter, "{family} contains undeclared field {path:?}")
+            Self::ExtraField { name, path } => {
+                write!(formatter, "{name} contains undeclared field {path:?}")
             }
-            Self::Malformed { family, message } => {
-                write!(formatter, "malformed {family}: {message}")
+            Self::Malformed { name, message } => {
+                write!(formatter, "malformed {name}: {message}")
             }
-            Self::Conflict { family, message } => {
-                write!(formatter, "conflicting {family}: {message}")
+            Self::Conflict { name, message } => {
+                write!(formatter, "conflicting {name}: {message}")
             }
         }
     }
@@ -191,13 +243,13 @@ impl std::error::Error for CompatError {}
 /// Version codecs call this for the envelope and every nested object before
 /// deserializing the validated value.
 pub fn reject_unknown_fields(
-    family: &'static str,
+    name: &'static str,
     path: &str,
     value: &Value,
     allowed: &[&str],
 ) -> Result<(), CompatError> {
     let object = value.as_object().ok_or_else(|| CompatError::Malformed {
-        family,
+        name,
         message: format!("{path} must be an object"),
     })?;
     for key in object.keys() {
@@ -207,7 +259,7 @@ pub fn reject_unknown_fields(
             } else {
                 format!("{path}.{key}")
             };
-            return Err(CompatError::ExtraField { family, path });
+            return Err(CompatError::ExtraField { name, path });
         }
     }
     Ok(())
@@ -217,12 +269,15 @@ pub fn reject_unknown_fields(
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RegistryManifest {
     pub version: u32,
-    pub families: Vec<RecordFamilyManifest>,
+    /// Wire key stays `families`: the attestation manifest format and its
+    /// golden fixture are frozen from before the declaration rename.
+    #[serde(rename = "families")]
+    pub declarations: Vec<RecordDeclarationManifest>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
-pub struct RecordFamilyManifest {
+pub struct RecordDeclarationManifest {
     pub name: String,
     pub owning_module: String,
     pub emitted_version: u32,
@@ -242,13 +297,13 @@ pub struct AlgorithmVersionManifest {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RegistryError {
     ManifestMalformed(String),
-    InvalidFamily {
-        family: String,
+    InvalidDeclaration {
+        name: String,
         message: String,
     },
-    UnregisteredFamily(String),
-    DuplicateFamily(String),
-    FamiliesNotSorted,
+    UnregisteredDeclaration(String),
+    DuplicateDeclaration(String),
+    DeclarationsNotSorted,
     Mismatch {
         missing: Vec<String>,
         unexpected: Vec<String>,
@@ -262,18 +317,18 @@ impl fmt::Display for RegistryError {
             Self::ManifestMalformed(message) => {
                 write!(formatter, "durable-record manifest is malformed: {message}")
             }
-            Self::InvalidFamily { family, message } => {
-                write!(formatter, "durable-record family {family:?} is invalid: {message}")
+            Self::InvalidDeclaration { name, message } => {
+                write!(formatter, "durable-record declaration {name:?} is invalid: {message}")
             }
-            Self::UnregisteredFamily(family) => write!(
+            Self::UnregisteredDeclaration(name) => write!(
                 formatter,
-                "durable-record family {family:?} is not in the V1 registry"
+                "durable-record declaration {name:?} is not in the V1 registry"
             ),
-            Self::DuplicateFamily(family) => {
-                write!(formatter, "durable-record family {family:?} is duplicated")
+            Self::DuplicateDeclaration(name) => {
+                write!(formatter, "durable-record declaration {name:?} is duplicated")
             }
-            Self::FamiliesNotSorted => formatter.write_str(
-                "durable-record families must be sorted by name for reviewable diffs",
+            Self::DeclarationsNotSorted => formatter.write_str(
+                "durable-record declarations must be sorted by name for reviewable diffs",
             ),
             Self::Mismatch {
                 missing,
@@ -290,28 +345,28 @@ impl fmt::Display for RegistryError {
 impl std::error::Error for RegistryError {}
 
 pub fn validate_expected_manifest(bytes: &[u8]) -> Result<(), RegistryError> {
-    validate_manifest_against(bytes, record_families())
+    validate_manifest_against(bytes, record_declarations())
 }
 
-/// Proves that every registered family has the capability required by its
+/// Proves that every registered declaration has the capability required by its
 /// declared migration policy. The generic bounds make this an executable
 /// compatibility check rather than a second string-only registry.
 pub fn validate_migration_capabilities() -> Result<(), RegistryError> {
     fn pure_upcast<T: PureUpcastRecord>() -> Result<&'static str, RegistryError> {
         require_registered::<T>()?;
-        Ok(T::FAMILY.name)
+        Ok(T::declaration().name)
     }
     fn mutable_cas<T: MutableCasRecord>() -> Result<&'static str, RegistryError> {
         require_registered::<T>()?;
-        Ok(T::FAMILY.name)
+        Ok(T::declaration().name)
     }
     fn rebuildable<T: RebuildableRecord>() -> Result<&'static str, RegistryError> {
         require_registered::<T>()?;
-        Ok(T::FAMILY.name)
+        Ok(T::declaration().name)
     }
     fn untrimmed<T: UntrimmedJournalRecord>() -> Result<&'static str, RegistryError> {
         require_registered::<T>()?;
-        Ok(T::FAMILY.name)
+        Ok(T::declaration().name)
     }
 
     let covered = BTreeSet::from([
@@ -337,9 +392,9 @@ pub fn validate_migration_capabilities() -> Result<(), RegistryError> {
         pure_upcast::<super::work::StateVersion>()?,
         pure_upcast::<super::work::WorkManifest>()?,
     ]);
-    let registered = record_families()
+    let registered = record_declarations()
         .iter()
-        .map(|family| family.name)
+        .map(|declaration| declaration.name)
         .collect::<BTreeSet<_>>();
     if covered == registered {
         Ok(())
@@ -360,23 +415,23 @@ pub fn validate_migration_capabilities() -> Result<(), RegistryError> {
 
 pub fn validate_manifest_against(
     bytes: &[u8],
-    families: &[&RecordFamily],
+    declarations: &[&RecordDeclaration],
 ) -> Result<(), RegistryError> {
     let expected: RegistryManifest = serde_json::from_slice(bytes)
         .map_err(|error| RegistryError::ManifestMalformed(error.to_string()))?;
     validate_manifest_structure(&expected)?;
-    validate_family_definitions(families)?;
-    let actual = manifest_from_families(families);
+    validate_declaration_definitions(declarations)?;
+    let actual = manifest_from_declarations(declarations);
 
     let expected_by_name = expected
-        .families
+        .declarations
         .iter()
-        .map(|family| (family.name.as_str(), family))
+        .map(|declaration| (declaration.name.as_str(), declaration))
         .collect::<BTreeMap<_, _>>();
     let actual_by_name = actual
-        .families
+        .declarations
         .iter()
-        .map(|family| (family.name.as_str(), family))
+        .map(|declaration| (declaration.name.as_str(), declaration))
         .collect::<BTreeMap<_, _>>();
 
     let missing = expected_by_name
@@ -391,10 +446,10 @@ pub fn validate_manifest_against(
         .collect::<Vec<_>>();
     let changed = expected_by_name
         .iter()
-        .filter_map(|(name, expected_family)| {
+        .filter_map(|(name, expected_declaration)| {
             actual_by_name
                 .get(name)
-                .filter(|actual_family| *actual_family != expected_family)
+                .filter(|actual_declaration| *actual_declaration != expected_declaration)
                 .map(|_| (*name).to_owned())
         })
         .collect::<Vec<_>>();
@@ -410,17 +465,17 @@ pub fn validate_manifest_against(
     }
 }
 
-pub fn manifest_from_families(families: &[&RecordFamily]) -> RegistryManifest {
+pub fn manifest_from_declarations(declarations: &[&RecordDeclaration]) -> RegistryManifest {
     RegistryManifest {
         version: REGISTRY_MANIFEST_VERSION,
-        families: families
+        declarations: declarations
             .iter()
-            .map(|family| RecordFamilyManifest {
-                name: family.name.to_owned(),
-                owning_module: family.owning_module.to_owned(),
-                emitted_version: family.emitted_version,
-                supported_versions: family.supported_versions.to_vec(),
-                algorithm_versions: family
+            .map(|declaration| RecordDeclarationManifest {
+                name: declaration.name.to_owned(),
+                owning_module: declaration.owning_module.to_owned(),
+                emitted_version: declaration.emitted_version,
+                supported_versions: declaration.supported_versions.to_vec(),
+                algorithm_versions: declaration
                     .algorithm_versions
                     .iter()
                     .map(|algorithm| AlgorithmVersionManifest {
@@ -428,8 +483,8 @@ pub fn manifest_from_families(families: &[&RecordFamily]) -> RegistryManifest {
                         version: algorithm.version,
                     })
                     .collect(),
-                durability: family.durability,
-                migration: family.migration,
+                durability: declaration.durability,
+                migration: declaration.migration,
             })
             .collect(),
     }
@@ -443,9 +498,9 @@ fn validate_manifest_structure(manifest: &RegistryManifest) -> Result<(), Regist
         )));
     }
     let names = manifest
-        .families
+        .declarations
         .iter()
-        .map(|family| family.name.as_str())
+        .map(|declaration| declaration.name.as_str())
         .collect::<Vec<_>>();
     if !names.windows(2).all(|pair| pair[0] < pair[1]) {
         if names.windows(2).any(|pair| pair[0] == pair[1]) {
@@ -453,65 +508,77 @@ fn validate_manifest_structure(manifest: &RegistryManifest) -> Result<(), Regist
                 .windows(2)
                 .find(|pair| pair[0] == pair[1])
                 .map_or("<unknown>", |pair| pair[0]);
-            return Err(RegistryError::DuplicateFamily(duplicate.to_owned()));
+            return Err(RegistryError::DuplicateDeclaration(duplicate.to_owned()));
         }
-        return Err(RegistryError::FamiliesNotSorted);
+        return Err(RegistryError::DeclarationsNotSorted);
     }
-    for family in &manifest.families {
-        validate_manifest_family(family)?;
+    for declaration in &manifest.declarations {
+        validate_manifest_declaration(declaration)?;
     }
     Ok(())
 }
 
-fn validate_manifest_family(family: &RecordFamilyManifest) -> Result<(), RegistryError> {
-    if family.name.trim().is_empty() || family.owning_module.trim().is_empty() {
-        return Err(RegistryError::InvalidFamily {
-            family: family.name.clone(),
+fn validate_manifest_declaration(
+    declaration: &RecordDeclarationManifest,
+) -> Result<(), RegistryError> {
+    if declaration.name.trim().is_empty() || declaration.owning_module.trim().is_empty() {
+        return Err(RegistryError::InvalidDeclaration {
+            name: declaration.name.clone(),
             message: "name and owning module must be non-empty".to_owned(),
         });
     }
     validate_versions(
-        &family.name,
-        family.emitted_version,
-        &family.supported_versions,
+        &declaration.name,
+        declaration.emitted_version,
+        &declaration.supported_versions,
     )?;
-    validate_policy_class(&family.name, family.durability, family.migration)?;
+    validate_policy_class(
+        &declaration.name,
+        declaration.durability,
+        declaration.migration,
+    )?;
     validate_algorithms(
-        &family.name,
-        family
+        &declaration.name,
+        declaration
             .algorithm_versions
             .iter()
             .map(|algorithm| (algorithm.name.as_str(), algorithm.version)),
     )
 }
 
-fn validate_family_definitions(families: &[&RecordFamily]) -> Result<(), RegistryError> {
-    let names = families
+fn validate_declaration_definitions(
+    declarations: &[&RecordDeclaration],
+) -> Result<(), RegistryError> {
+    let names = declarations
         .iter()
-        .map(|family| family.name)
+        .map(|declaration| declaration.name)
         .collect::<Vec<_>>();
     if !names.windows(2).all(|pair| pair[0] < pair[1]) {
         if let Some(duplicate) = names.windows(2).find(|pair| pair[0] == pair[1]) {
-            return Err(RegistryError::DuplicateFamily(duplicate[0].to_owned()));
+            return Err(RegistryError::DuplicateDeclaration(duplicate[0].to_owned()));
         }
-        return Err(RegistryError::FamiliesNotSorted);
+        return Err(RegistryError::DeclarationsNotSorted);
     }
-    for family in families {
-        if family.name.trim().is_empty() || family.owning_module.trim().is_empty() {
-            return Err(RegistryError::InvalidFamily {
-                family: family.name.to_owned(),
+    for declaration in declarations {
+        if declaration.name.trim().is_empty() || declaration.owning_module.trim().is_empty() {
+            return Err(RegistryError::InvalidDeclaration {
+                name: declaration.name.to_owned(),
                 message: "name and owning module must be non-empty".to_owned(),
             });
         }
         validate_versions(
-            family.name,
-            family.emitted_version,
-            family.supported_versions,
+            declaration.name,
+            declaration.emitted_version,
+            declaration.supported_versions,
         )?;
-        validate_policy_class(family.name, family.durability, family.migration)?;
+        validate_policy_class(
+            declaration.name,
+            declaration.durability,
+            declaration.migration,
+        )?;
         validate_algorithms(
-            family.name,
-            family
+            declaration.name,
+            declaration
                 .algorithm_versions
                 .iter()
                 .map(|algorithm| (algorithm.name, algorithm.version)),
@@ -521,7 +588,7 @@ fn validate_family_definitions(families: &[&RecordFamily]) -> Result<(), Registr
 }
 
 fn validate_policy_class(
-    family: &str,
+    name: &str,
     durability: DurabilityClass,
     migration: MigrationPolicy,
 ) -> Result<(), RegistryError> {
@@ -539,8 +606,8 @@ fn validate_policy_class(
     if valid {
         Ok(())
     } else {
-        Err(RegistryError::InvalidFamily {
-            family: family.to_owned(),
+        Err(RegistryError::InvalidDeclaration {
+            name: name.to_owned(),
             message: format!(
                 "durability class {durability:?} is incompatible with migration policy {migration:?}"
             ),
@@ -549,13 +616,13 @@ fn validate_policy_class(
 }
 
 fn validate_versions(
-    family: &str,
+    name: &str,
     emitted_version: u32,
     supported_versions: &[u32],
 ) -> Result<(), RegistryError> {
     if emitted_version == 0 || supported_versions.is_empty() {
-        return Err(RegistryError::InvalidFamily {
-            family: family.to_owned(),
+        return Err(RegistryError::InvalidDeclaration {
+            name: name.to_owned(),
             message: "versions are one-based and the supported set must be non-empty".to_owned(),
         });
     }
@@ -565,8 +632,8 @@ fn validate_versions(
         || !unique.contains(&emitted_version)
         || !supported_versions.windows(2).all(|pair| pair[0] < pair[1])
     {
-        return Err(RegistryError::InvalidFamily {
-            family: family.to_owned(),
+        return Err(RegistryError::InvalidDeclaration {
+            name: name.to_owned(),
             message: "supported versions must be unique, nonzero, and contain the emitted version"
                 .to_owned(),
         });
@@ -575,7 +642,7 @@ fn validate_versions(
 }
 
 fn validate_algorithms<'a>(
-    family: &str,
+    name: &str,
     algorithms: impl Iterator<Item = (&'a str, u32)>,
 ) -> Result<(), RegistryError> {
     let algorithms = algorithms.collect::<Vec<_>>();
@@ -587,8 +654,8 @@ fn validate_algorithms<'a>(
         || algorithms.iter().any(|(_name, version)| *version == 0)
         || !names.windows(2).all(|pair| pair[0] < pair[1])
     {
-        return Err(RegistryError::InvalidFamily {
-            family: family.to_owned(),
+        return Err(RegistryError::InvalidDeclaration {
+            name: name.to_owned(),
             message: "algorithm names must be non-empty, unique, and sorted".to_owned(),
         });
     }
@@ -600,7 +667,7 @@ fn validate_algorithms<'a>(
 mod tests {
     use super::*;
 
-    const TEST_FAMILY: RecordFamily = RecordFamily {
+    const TEST_DECLARATION: RecordDeclaration = RecordDeclaration {
         name: "test_record",
         owning_module: "orchestrator::registry::tests",
         emitted_version: 1,
@@ -628,12 +695,14 @@ mod tests {
     impl sealed::Sealed for TestRecord {}
 
     impl DurableRecord for TestRecord {
-        const FAMILY: &'static RecordFamily = &TEST_FAMILY;
+        fn declaration() -> &'static RecordDeclaration {
+            &TEST_DECLARATION
+        }
         const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
         fn encode(&self) -> Result<Vec<u8>, CompatError> {
             serde_json::to_vec(self).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })
         }
@@ -641,30 +710,30 @@ mod tests {
         fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
             let value: Value =
                 serde_json::from_slice(bytes).map_err(|error| CompatError::Malformed {
-                    family: Self::FAMILY.name,
+                    name: Self::declaration().name,
                     message: error.to_string(),
                 })?;
-            reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+            reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
             let version = value
                 .get("version")
                 .and_then(Value::as_str)
                 .ok_or_else(|| CompatError::Malformed {
-                    family: Self::FAMILY.name,
+                    name: Self::declaration().name,
                     message: "version must be a string".to_owned(),
                 })?;
             if version != "v1" {
                 return Err(CompatError::UnsupportedVersion {
-                    family: Self::FAMILY.name,
+                    name: Self::declaration().name,
                     version: version.to_owned(),
                 });
             }
             let data = value.get("data").ok_or_else(|| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: "data is required".to_owned(),
             })?;
-            reject_unknown_fields(Self::FAMILY.name, "data", data, &["value"])?;
+            reject_unknown_fields(Self::declaration().name, "data", data, &["value"])?;
             serde_json::from_value(value).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })
         }
@@ -681,7 +750,7 @@ mod tests {
 
     impl PureUpcastRecord for TestRecord {}
 
-    const TEST_MUTABLE_FAMILY: RecordFamily = RecordFamily {
+    const TEST_MUTABLE_DECLARATION: RecordDeclaration = RecordDeclaration {
         name: "test_mutable_record",
         owning_module: "orchestrator::registry::tests",
         emitted_version: 2,
@@ -701,19 +770,21 @@ mod tests {
     impl sealed::Sealed for TestMutableRecord {}
 
     impl DurableRecord for TestMutableRecord {
-        const FAMILY: &'static RecordFamily = &TEST_MUTABLE_FAMILY;
+        fn declaration() -> &'static RecordDeclaration {
+            &TEST_MUTABLE_DECLARATION
+        }
         const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::MutableCas;
 
         fn encode(&self) -> Result<Vec<u8>, CompatError> {
             serde_json::to_vec(self).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })
         }
 
         fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
             serde_json::from_slice(bytes).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })
         }
@@ -739,9 +810,9 @@ mod tests {
     }
 
     #[test]
-    fn every_production_family_has_its_executable_migration_capability() {
+    fn every_production_declaration_has_its_executable_migration_capability() {
         validate_migration_capabilities()
-            .expect("every family has its policy-specific executable capability");
+            .expect("every declaration has its policy-specific executable capability");
     }
 
     #[test]
@@ -768,12 +839,12 @@ mod tests {
     }
 
     #[test]
-    fn independent_manifest_detects_an_omitted_family() {
+    fn independent_manifest_detects_an_omitted_declaration() {
         let error = validate_manifest_against(
             include_bytes!("../../tests/golden/registry-omitted-family.json"),
             &[],
         )
-        .expect_err("the manifest family is deliberately absent from the registry");
+        .expect_err("the manifest declaration is deliberately absent from the registry");
         assert_eq!(
             error,
             RegistryError::Mismatch {
@@ -806,27 +877,30 @@ mod tests {
         assert_eq!(
             extra,
             CompatError::ExtraField {
-                family: "test_record",
+                name: "test_record",
                 path: "data.future".to_owned(),
             }
         );
     }
 
     #[test]
-    fn sealed_but_unfinished_family_cannot_reach_storage() {
+    fn sealed_but_unfinished_declaration_cannot_reach_storage() {
         assert_eq!(
             require_registered::<TestRecord>(),
-            Err(RegistryError::UnregisteredFamily("test_record".to_owned()))
+            Err(RegistryError::UnregisteredDeclaration(
+                "test_record".to_owned()
+            ))
         );
     }
 
     #[test]
-    fn changed_family_metadata_is_a_registry_mismatch() {
-        let expected = serde_json::to_vec(&manifest_from_families(&[&TEST_FAMILY])).unwrap();
-        let changed = RecordFamily {
+    fn changed_declaration_metadata_is_a_registry_mismatch() {
+        let expected =
+            serde_json::to_vec(&manifest_from_declarations(&[&TEST_DECLARATION])).unwrap();
+        let changed = RecordDeclaration {
             emitted_version: 2,
             supported_versions: &[1, 2],
-            ..TEST_FAMILY
+            ..TEST_DECLARATION
         };
         let error = validate_manifest_against(&expected, &[&changed]).unwrap_err();
         assert_eq!(
@@ -849,7 +923,7 @@ mod tests {
         .expect_err("derived records must rebuild");
         assert!(matches!(
             error,
-            RegistryError::InvalidFamily { family, .. } if family == "derived_test"
+            RegistryError::InvalidDeclaration { name, .. } if name == "derived_test"
         ));
     }
 }

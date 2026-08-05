@@ -292,9 +292,8 @@ async fn exercise_artifact_pages(run_url: &str) -> Result<(), String> {
     // and pack must be fetched and verified from the provider.
     let cold_cache = tempdir().map_err(|error| error.to_string())?;
     let cold_store = ArtifactStore::from_url(run_url, cold_cache.path()).map_err(report)?;
-    let cold_repository =
-        ArtifactEffectRepository::new(cold_store, "tenants/contract/integration")
-            .map_err(report)?;
+    let cold_repository = ArtifactEffectRepository::new(cold_store, "tenants/contract/integration")
+        .map_err(report)?;
     let started = std::time::Instant::now();
     let mut cold_loaded = 0_u64;
     while cold_loaded < ENTITIES {

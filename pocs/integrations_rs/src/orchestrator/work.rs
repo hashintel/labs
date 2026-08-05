@@ -8,7 +8,7 @@ use super::ids::{
 };
 use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, PureUpcastRecord, RecordFamily, VersionedRecord,
+    MigrationPolicy, PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 use crate::blob::{BlobRef, BlobRefV1, StateSnapshot};
 
@@ -16,7 +16,7 @@ pub(crate) const MAX_STATE_VERSION_BYTES: usize = 256 * 1024;
 pub(crate) const MAX_WORK_MANIFEST_BYTES: usize = 256 * 1024;
 const IDENTITY_VERSION: u32 = 1;
 
-pub(crate) static STATE_VERSION_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static STATE_VERSION_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "state_version",
     owning_module: "orchestrator::work",
     emitted_version: 1,
@@ -29,7 +29,7 @@ pub(crate) static STATE_VERSION_FAMILY: RecordFamily = RecordFamily {
     migration: MigrationPolicy::PureUpcast,
 };
 
-pub(crate) static WORK_MANIFEST_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static WORK_MANIFEST_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "work_manifest",
     owning_module: "orchestrator::work",
     emitted_version: 1,
@@ -139,7 +139,7 @@ impl StateVersionV1 {
             Ok(())
         } else {
             Err(conflict(
-                StateVersion::FAMILY.name,
+                StateVersion::declaration().name,
                 format!("state ID mismatch: expected {expected}, found {}", self.id),
             ))
         }
@@ -253,7 +253,7 @@ impl WorkManifestV1 {
             Ok(())
         } else {
             Err(conflict(
-                WorkManifest::FAMILY.name,
+                WorkManifest::declaration().name,
                 format!(
                     "work ID mismatch for integration {integration_id}: expected {expected}, found {}",
                     self.work_id
@@ -379,7 +379,7 @@ fn derive_state_version_id(state: &StateVersionV1) -> Result<StateVersionId, Com
     };
     canonical_digest("state-version:v1", &projection)
         .map(StateVersionId::from_digest)
-        .map_err(|error| malformed(StateVersion::FAMILY.name, error.to_string()))
+        .map_err(|error| malformed(StateVersion::declaration().name, error.to_string()))
 }
 
 fn derive_work_id(
@@ -429,7 +429,7 @@ fn derive_work_id(
     };
     digest
         .map(WorkId::from_digest)
-        .map_err(|error| malformed(WorkManifest::FAMILY.name, error.to_string()))
+        .map_err(|error| malformed(WorkManifest::declaration().name, error.to_string()))
 }
 
 fn state_ref_identity(reference: &StateVersionRef) -> StateRefIdentity<'_> {
@@ -459,15 +459,15 @@ fn validate_state(state: &StateVersionV1) -> Result<(), CompatError> {
 }
 
 fn validate_state_fields(state: &StateVersionV1) -> Result<(), CompatError> {
-    validate_actor_id(StateVersion::FAMILY.name, &state.owner_actor_id)?;
+    validate_actor_id(StateVersion::declaration().name, &state.owner_actor_id)?;
     if matches!(state.phase, StatePhase::V1(StatePhaseV1::Stream)) {
         return Err(malformed(
-            StateVersion::FAMILY.name,
+            StateVersion::declaration().name,
             "continuous stream state is reserved and unsupported in protocol v1".to_owned(),
         ));
     }
     validate_sha256(
-        StateVersion::FAMILY.name,
+        StateVersion::declaration().name,
         "definition_digest",
         &state.definition_digest,
     )?;
@@ -485,7 +485,7 @@ fn validate_state_fields(state: &StateVersionV1) -> Result<(), CompatError> {
     ] {
         if version == 0 {
             return Err(malformed(
-                StateVersion::FAMILY.name,
+                StateVersion::declaration().name,
                 format!("{name} must be nonzero"),
             ));
         }
@@ -493,31 +493,31 @@ fn validate_state_fields(state: &StateVersionV1) -> Result<(), CompatError> {
     chrono::DateTime::parse_from_rfc3339(&state.snapshot.current().created_at).map_err(
         |error| {
             malformed(
-                StateVersion::FAMILY.name,
+                StateVersion::declaration().name,
                 format!("snapshot.created_at must be RFC 3339: {error}"),
             )
         },
     )?;
     validate_blob(
-        StateVersion::FAMILY.name,
+        StateVersion::declaration().name,
         "snapshot.duckdb",
         &state.snapshot.current().duckdb,
     )?;
     for (index, batch) in state.snapshot.current().accepted_batches.iter().enumerate() {
         validate_blob(
-            StateVersion::FAMILY.name,
+            StateVersion::declaration().name,
             &format!("snapshot.accepted_batches[{index}]"),
             batch,
         )?;
     }
     validate_blob(
-        StateVersion::FAMILY.name,
+        StateVersion::declaration().name,
         "desired_projection.artifact",
         &state.desired_projection.artifact,
     )?;
     if let Some(parent) = &state.parent {
         validate_blob(
-            StateVersion::FAMILY.name,
+            StateVersion::declaration().name,
             "parent.artifact",
             &parent.artifact,
         )?;
@@ -526,27 +526,31 @@ fn validate_state_fields(state: &StateVersionV1) -> Result<(), CompatError> {
 }
 
 fn validate_work_fields(manifest: &WorkManifestV1) -> Result<(), CompatError> {
-    validate_actor_id(WorkManifest::FAMILY.name, &manifest.owner_actor_id)?;
+    validate_actor_id(WorkManifest::declaration().name, &manifest.owner_actor_id)?;
     if manifest.effect_identity_version == 0 || manifest.effect_encoding_version == 0 {
         return Err(malformed(
-            WorkManifest::FAMILY.name,
+            WorkManifest::declaration().name,
             "effect identity and encoding versions must be nonzero".to_owned(),
         ));
     }
-    validate_blob(WorkManifest::FAMILY.name, "effects", &manifest.effects)?;
+    validate_blob(
+        WorkManifest::declaration().name,
+        "effects",
+        &manifest.effects,
+    )?;
     chrono::DateTime::parse_from_rfc3339(&manifest.created_at).map_err(|error| {
         malformed(
-            WorkManifest::FAMILY.name,
+            WorkManifest::declaration().name,
             format!("created_at must be RFC 3339: {error}"),
         )
     })?;
     Ok(())
 }
 
-fn validate_actor_id(family: &'static str, actor_id: &str) -> Result<(), CompatError> {
+fn validate_actor_id(name: &'static str, actor_id: &str) -> Result<(), CompatError> {
     if actor_id.is_empty() || actor_id.len() > 256 || actor_id.chars().any(char::is_control) {
         Err(malformed(
-            family,
+            name,
             "owner_actor_id must be 1..=256 bytes without control characters".to_owned(),
         ))
     } else {
@@ -554,18 +558,18 @@ fn validate_actor_id(family: &'static str, actor_id: &str) -> Result<(), CompatE
     }
 }
 
-fn validate_blob(family: &'static str, path: &str, reference: &BlobRef) -> Result<(), CompatError> {
+fn validate_blob(name: &'static str, path: &str, reference: &BlobRef) -> Result<(), CompatError> {
     let value = reference.current();
     if value.key.is_empty() || value.media_type.is_empty() {
         return Err(malformed(
-            family,
+            name,
             format!("{path} key and media_type must be non-empty"),
         ));
     }
-    validate_sha256(family, &format!("{path}.sha256"), &value.sha256)
+    validate_sha256(name, &format!("{path}.sha256"), &value.sha256)
 }
 
-fn validate_sha256(family: &'static str, path: &str, value: &str) -> Result<(), CompatError> {
+fn validate_sha256(name: &'static str, path: &str, value: &str) -> Result<(), CompatError> {
     if value.len() == 64
         && value
             .bytes()
@@ -574,60 +578,63 @@ fn validate_sha256(family: &'static str, path: &str, value: &str) -> Result<(), 
         Ok(())
     } else {
         Err(malformed(
-            family,
+            name,
             format!("{path} must be 64 lowercase hexadecimal characters"),
         ))
     }
 }
 
-fn malformed(family: &'static str, message: String) -> CompatError {
-    CompatError::Malformed { family, message }
+fn malformed(name: &'static str, message: String) -> CompatError {
+    CompatError::Malformed { name, message }
 }
 
-fn conflict(family: &'static str, message: String) -> CompatError {
-    CompatError::Conflict { family, message }
+fn conflict(name: &'static str, message: String) -> CompatError {
+    CompatError::Conflict { name, message }
 }
 
 fn decode<T: for<'de> Deserialize<'de>>(
     bytes: &[u8],
-    family: &'static str,
+    name: &'static str,
     maximum: usize,
 ) -> Result<T, CompatError> {
     if bytes.len() > maximum {
         return Err(malformed(
-            family,
+            name,
             format!("record is {} bytes; maximum is {maximum}", bytes.len()),
         ));
     }
     let value: Value =
-        serde_json::from_slice(bytes).map_err(|error| malformed(family, error.to_string()))?;
-    reject_unknown_fields(family, "", &value, &["version", "data"])?;
+        serde_json::from_slice(bytes).map_err(|error| malformed(name, error.to_string()))?;
+    reject_unknown_fields(name, "", &value, &["version", "data"])?;
     let version = value
         .get("version")
         .and_then(Value::as_str)
-        .ok_or_else(|| malformed(family, "version must be a string".to_owned()))?;
+        .ok_or_else(|| malformed(name, "version must be a string".to_owned()))?;
     if version != "v1" {
         return Err(CompatError::UnsupportedVersion {
-            family,
+            name,
             version: version.to_owned(),
         });
     }
-    serde_json::from_value(value).map_err(|error| malformed(family, error.to_string()))
+    serde_json::from_value(value).map_err(|error| malformed(name, error.to_string()))
 }
 
 impl super::registry::sealed::Sealed for StateVersion {}
 
 impl DurableRecord for StateVersion {
-    const FAMILY: &'static RecordFamily = &STATE_VERSION_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &STATE_VERSION_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
         validate_state(self.wire())?;
-        serde_json::to_vec(self).map_err(|error| malformed(Self::FAMILY.name, error.to_string()))
+        serde_json::to_vec(self)
+            .map_err(|error| malformed(Self::declaration().name, error.to_string()))
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
-        let state: Self = decode(bytes, Self::FAMILY.name, MAX_STATE_VERSION_BYTES)?;
+        let state: Self = decode(bytes, Self::declaration().name, MAX_STATE_VERSION_BYTES)?;
         validate_state(state.wire())?;
         Ok(state)
     }
@@ -646,16 +653,19 @@ impl PureUpcastRecord for StateVersion {}
 impl super::registry::sealed::Sealed for WorkManifest {}
 
 impl DurableRecord for WorkManifest {
-    const FAMILY: &'static RecordFamily = &WORK_MANIFEST_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &WORK_MANIFEST_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
         validate_work_fields(self.wire())?;
-        serde_json::to_vec(self).map_err(|error| malformed(Self::FAMILY.name, error.to_string()))
+        serde_json::to_vec(self)
+            .map_err(|error| malformed(Self::declaration().name, error.to_string()))
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
-        let manifest: Self = decode(bytes, Self::FAMILY.name, MAX_WORK_MANIFEST_BYTES)?;
+        let manifest: Self = decode(bytes, Self::declaration().name, MAX_WORK_MANIFEST_BYTES)?;
         validate_work_fields(manifest.wire())?;
         Ok(manifest)
     }

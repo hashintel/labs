@@ -15,6 +15,7 @@ use tokio_util::sync::CancellationToken;
 
 use super::{AppendDisposition, ShardAppendError, ShardLogLocation, ShardLogWriter};
 use crate::blob::ArtifactStore;
+use crate::kernel::port::{Domain, Prepared};
 use crate::orchestrator::control::ControlRequestV1;
 use crate::orchestrator::events::{
     ControlRejectionReason, FailureSummary, InputRef, JournalRecord, JournalRecordV1, PolicyRef,
@@ -22,15 +23,14 @@ use crate::orchestrator::events::{
 };
 use crate::orchestrator::ids::TenantNamespace;
 use crate::orchestrator::ids::{AttemptId, CanonicalIntegrationId, EffectId, EventId, WorkId};
-use crate::kernel::domain::{Domain, Prepared};
 use crate::orchestrator::projection::{
     apply, ControlRequestOutcomeV1, InvalidTransition, PreparedTransition, Projection,
     ProjectionDelta, WorkStatus,
 };
-use crate::orchestrator::routing::Shard;
 use crate::orchestrator::projection_snapshot::{
     self, ControlProjectionSnapshot, SnapshotCapture, SnapshotError,
 };
+use crate::orchestrator::routing::Shard;
 use crate::orchestrator::state::StateCursor;
 use crate::orchestrator::work::WorkKind;
 
@@ -243,7 +243,64 @@ impl<D: Domain> ShardCommandHandle<D> {
         })?
     }
 
-    async fn query(&self, query: D::Query) -> Result<D::QueryResult, ShardCommandError> {
+    /// Captures the loop's snapshot payload once at least
+    /// `minimum_sequence_span` events landed since the last committed
+    /// snapshot; `None` means the span is not yet worth snapshotting.
+    #[allow(
+        dead_code,
+        reason = "V1 snapshots go through publish_projection_snapshot; kernel::runtime is the only caller"
+    )]
+    pub(crate) async fn capture_snapshot(
+        &self,
+        minimum_sequence_span: u64,
+    ) -> Result<Option<D::SnapshotCapture>, ShardCommandError> {
+        if !self.accepting.load(Ordering::Acquire) {
+            return Err(closed(
+                "shard command loop is not accepting snapshot captures",
+            ));
+        }
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .send(Command::CaptureSnapshot {
+                minimum_sequence_span,
+                reply,
+            })
+            .await
+            .map_err(|_send_error| {
+                closed("shard command loop closed before accepting snapshot capture")
+            })?;
+        response.await.map_err(|_receive_error| {
+            closed("shard command loop stopped before replying to snapshot capture")
+        })?
+    }
+
+    /// Appends a committed snapshot record through the sole fenced writer.
+    #[allow(
+        dead_code,
+        reason = "V1 snapshots go through publish_projection_snapshot; kernel::runtime is the only caller"
+    )]
+    pub(crate) async fn commit_snapshot(
+        &self,
+        snapshot: D::Snapshot,
+    ) -> Result<u64, ShardCommandError> {
+        if !self.accepting.load(Ordering::Acquire) {
+            return Err(closed(
+                "shard command loop is not accepting snapshot commits",
+            ));
+        }
+        let (reply, response) = oneshot::channel();
+        self.sender
+            .send(Command::CommitSnapshot { snapshot, reply })
+            .await
+            .map_err(|_send_error| {
+                closed("shard command loop closed before accepting snapshot commit")
+            })?;
+        response.await.map_err(|_receive_error| {
+            closed("shard command loop stopped before replying to snapshot commit")
+        })?
+    }
+
+    pub(crate) async fn query(&self, query: D::Query) -> Result<D::QueryResult, ShardCommandError> {
         if !self.accepting.load(Ordering::Acquire) {
             return Err(closed("shard command loop is not accepting queries"));
         }
@@ -675,7 +732,6 @@ impl ShardCommandHandle {
                 }
             })
     }
-
 }
 
 enum Command<D: Domain> {
@@ -751,9 +807,8 @@ pub(crate) enum QueryResult {
 }
 
 /// Protocol V1's implementation of the kernel [`Domain`] contract. It lives
-/// next to its consumer because the query vocabulary is private to this
-/// module; everything here delegates to the existing V1 functions, so the
-/// trait adds a seam, not behavior.
+/// in this module because the query vocabulary is private here; every
+/// function delegates to the V1 fold, inbox, and snapshot code.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub(crate) struct IntegrationsDomain;
 
@@ -867,7 +922,11 @@ impl Domain for IntegrationsDomain {
         request: &ControlRequestV1,
         preflight_rejection: Option<ControlRejectionReason>,
     ) -> Result<JournalRecordV1, InvalidTransition> {
-        crate::orchestrator::inbox::promote_control_request(projection, request, preflight_rejection)
+        crate::orchestrator::inbox::promote_control_request(
+            projection,
+            request,
+            preflight_rejection,
+        )
     }
 
     fn control_outcome_after_append(
@@ -1392,10 +1451,7 @@ impl<D: Domain> CommandLoop<D> {
                             span >= minimum_sequence_span.max(1)
                         })
                         .and_then(|_through| {
-                            D::capture_snapshot(
-                                self.location.shard,
-                                &self.projection,
-                            )
+                            D::capture_snapshot(self.location.shard, &self.projection)
                         });
                     let _ = reply.send(Ok(capture));
                 }
@@ -1476,12 +1532,11 @@ impl<D: Domain> CommandLoop<D> {
                 outcome,
             });
         }
-        let record =
-            D::promote_control(&self.projection, &request, preflight_rejection)
-                .map_err(invalid_candidate)?;
+        let record = D::promote_control(&self.projection, &request, preflight_rejection)
+            .map_err(invalid_candidate)?;
         let append = self.process(record).await?;
-        let outcome = D::control_outcome_after_append(&self.projection, &request)
-            .map_err(recovery)?;
+        let outcome =
+            D::control_outcome_after_append(&self.projection, &request).map_err(recovery)?;
         Ok(ControlResolution { append, outcome })
     }
 
@@ -1490,17 +1545,14 @@ impl<D: Domain> CommandLoop<D> {
         record: D::RecordCurrent,
     ) -> Result<ShardCommandOutcome, ShardCommandError> {
         if D::record_shard(&record) != self.location.shard {
-            return Err(invalid_candidate(D::reject_foreign_shard(
-                &record,
-            )));
+            return Err(invalid_candidate(D::reject_foreign_shard(&record)));
         }
         let event_id = D::record_event_id(&record);
         let integration_id = D::record_state_key(&record);
         let mut safe_failures = 0_u32;
         loop {
             let previous_state_sequence = self.checkpoint_state_sequence(&integration_id);
-            let transition =
-                D::prepare(&self.projection, &record).map_err(invalid_candidate)?;
+            let transition = D::prepare(&self.projection, &record).map_err(invalid_candidate)?;
             let Prepared::Mutation(delta) = transition else {
                 self.notify_state_change_if_established(&integration_id);
                 return Ok(ShardCommandOutcome::AlreadyDurable { event_id });
@@ -1513,14 +1565,10 @@ impl<D: Domain> CommandLoop<D> {
                     message: "shard ownership was lost before append".to_owned(),
                 });
             }
-            let append_result = self
-                .append(&D::wire(record.clone()))
-                .await;
+            let append_result = self.append(&D::wire(record.clone())).await;
             match append_result {
                 Ok(sequence) => {
-                    if let Err(error) =
-                        D::finalize(&mut self.projection, delta, sequence)
-                    {
+                    if let Err(error) = D::finalize(&mut self.projection, delta, sequence) {
                         // The append is already durable. A local finalization
                         // failure is never a candidate rejection: rebuild from
                         // the authoritative prefix and require it to adopt the
@@ -1572,12 +1620,8 @@ impl<D: Domain> CommandLoop<D> {
         }
     }
 
-    async fn process_snapshot(
-        &mut self,
-        snapshot: D::Snapshot,
-    ) -> Result<u64, ShardCommandError> {
-        let (snapshot_shard, snapshot_through) =
-            D::snapshot_bounds(&snapshot).map_err(recovery)?;
+    async fn process_snapshot(&mut self, snapshot: D::Snapshot) -> Result<u64, ShardCommandError> {
+        let (snapshot_shard, snapshot_through) = D::snapshot_bounds(&snapshot).map_err(recovery)?;
         if snapshot_shard != self.location.shard {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
@@ -1694,8 +1738,7 @@ impl<D: Domain> CommandLoop<D> {
             snapshots,
         )
         .await?;
-        D::validate_recovered_prefix(&self.projection, &recovered.projection)
-            .map_err(recovery)?;
+        D::validate_recovered_prefix(&self.projection, &recovered.projection).map_err(recovery)?;
         self.projection = recovered.projection;
         self.last_snapshot_through_log_sequence = recovered.snapshot_through_log_sequence;
         Ok(())
@@ -2047,33 +2090,33 @@ async fn replay_with_snapshots<D: Domain>(
                         );
                         continue;
                     }
-                    let projection = match D::load_snapshot_projection(
-                        store, tenant, shard, &snapshot,
+                    let projection =
+                        match D::load_snapshot_projection(store, tenant, shard, &snapshot).await {
+                            Ok(projection) => projection,
+                            Err(error) => {
+                                corruption_fallbacks = corruption_fallbacks.saturating_add(1);
+                                tracing::warn!(
+                                    shard = %crate::orchestrator::routing::shard_path(shard),
+                                    reference_sequence,
+                                    error = %error,
+                                    "ignored unusable projection snapshot"
+                                );
+                                continue;
+                            }
+                        };
+                    match replay_durable_suffix::<D>(
+                        writer,
+                        shard,
+                        durable_end_exclusive,
+                        projection,
                     )
                     .await
-                    {
-                        Ok(projection) => projection,
-                        Err(error) => {
-                            corruption_fallbacks = corruption_fallbacks.saturating_add(1);
-                            tracing::warn!(
-                                shard = %crate::orchestrator::routing::shard_path(shard),
-                                reference_sequence,
-                                error = %error,
-                                "ignored unusable projection snapshot"
-                            );
-                            continue;
-                        }
-                    };
-                    match replay_durable_suffix::<D>(writer, shard, durable_end_exclusive, projection)
-                        .await
                     {
                         Ok((projection, replayed_events)) => {
                             return Ok(RecoveredProjection {
                                 projection,
                                 snapshot_through_log_sequence: Some(through),
-                                snapshot_created_at: Some(D::snapshot_created_at(
-                                    &snapshot,
-                                )),
+                                snapshot_created_at: Some(D::snapshot_created_at(&snapshot)),
                                 replayed_events,
                                 corruption_fallbacks,
                             });
@@ -2116,7 +2159,13 @@ async fn replay_durable_prefix<D: Domain>(
     shard: crate::orchestrator::routing::Shard,
     durable_end_exclusive: u64,
 ) -> Result<(D::Projection, u64), ShardCommandError> {
-    replay_durable_suffix::<D>(writer, shard, durable_end_exclusive, D::Projection::default()).await
+    replay_durable_suffix::<D>(
+        writer,
+        shard,
+        durable_end_exclusive,
+        D::Projection::default(),
+    )
+    .await
 }
 
 async fn replay_durable_suffix<D: Domain>(
@@ -2569,7 +2618,10 @@ mod tests {
         let reader = ShardLogRecovery::open(&prefix.location)
             .await
             .expect("open recovery reader");
-        let records = reader.scan::<JournalRecord>().await.expect("scan durable records");
+        let records = reader
+            .scan::<JournalRecord>()
+            .await
+            .expect("scan durable records");
         reader.close().await;
         records
     }
@@ -2627,7 +2679,10 @@ mod tests {
             .await
             .expect("empty suffix after inclusive cursor")
             .is_empty());
-        assert!(reader.scan_suffix::<JournalRecord>(Some(1), 1).await.is_err());
+        assert!(reader
+            .scan_suffix::<JournalRecord>(Some(1), 1)
+            .await
+            .is_err());
         reader.close().await;
     }
 

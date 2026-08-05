@@ -11,7 +11,7 @@ use super::ids::TenantNamespace;
 use super::record_io::{self, InspectedRecord};
 use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, PureUpcastRecord, RecordFamily, VersionedRecord,
+    MigrationPolicy, PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 use super::routing::{Keyspace, ROUTING_VERSION, SHARD_COUNT};
 use crate::blob::{ArtifactStore, CasWrite};
@@ -21,7 +21,7 @@ pub const DURABLE_METADATA_BASELINE: u32 = 1;
 pub const EXTERNALLY_PINNED_IDENTITY_CONTRACT: &str = "ts-elixir-rust-v1";
 const MAX_CONTROL_BASELINE_BYTES: usize = 4 * 1024;
 
-pub(crate) static CONTROL_BASELINE_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static CONTROL_BASELINE_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "control_baseline",
     owning_module: "orchestrator::baseline",
     emitted_version: 1,
@@ -83,13 +83,15 @@ impl ControlBaseline {
 impl super::registry::sealed::Sealed for ControlBaseline {}
 
 impl DurableRecord for ControlBaseline {
-    const FAMILY: &'static RecordFamily = &CONTROL_BASELINE_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &CONTROL_BASELINE_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
         validate_shape(self)?;
         serde_json::to_vec(self).map_err(|error| CompatError::Malformed {
-            family: Self::FAMILY.name,
+            name: Self::declaration().name,
             message: error.to_string(),
         })
     }
@@ -97,7 +99,7 @@ impl DurableRecord for ControlBaseline {
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
         if bytes.len() > MAX_CONTROL_BASELINE_BYTES {
             return Err(CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: format!(
                     "record is {} bytes; maximum is {MAX_CONTROL_BASELINE_BYTES}",
                     bytes.len()
@@ -106,29 +108,29 @@ impl DurableRecord for ControlBaseline {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })?;
-        reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
         let version = value
             .get("version")
             .and_then(Value::as_str)
             .ok_or_else(|| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: "version must be a string".to_owned(),
             })?;
         if version != "v1" {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: version.to_owned(),
             });
         }
         let data = value.get("data").ok_or_else(|| CompatError::Malformed {
-            family: Self::FAMILY.name,
+            name: Self::declaration().name,
             message: "data is required".to_owned(),
         })?;
         reject_unknown_fields(
-            Self::FAMILY.name,
+            Self::declaration().name,
             "data",
             data,
             &[
@@ -142,7 +144,7 @@ impl DurableRecord for ControlBaseline {
         )?;
         let baseline: Self =
             serde_json::from_value(value).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })?;
         validate_shape(&baseline)?;
@@ -166,7 +168,7 @@ fn validate_shape(baseline: &ControlBaseline) -> Result<(), CompatError> {
     TenantNamespace::parse(baseline.current().tenant_namespace.clone())
         .map(|_tenant| ())
         .map_err(|error| CompatError::Malformed {
-            family: ControlBaseline::FAMILY.name,
+            name: ControlBaseline::declaration().name,
             message: format!("tenant_namespace is invalid: {error}"),
         })
 }
@@ -488,7 +490,7 @@ async fn read_baseline(
             actual_bytes,
             maximum_bytes,
         } => Ok(Some(Err(CompatError::Malformed {
-            family: ControlBaseline::FAMILY.name,
+            name: ControlBaseline::declaration().name,
             message: format!("record is {actual_bytes} bytes; maximum is {maximum_bytes}"),
         }))),
     }
@@ -550,7 +552,7 @@ mod tests {
         ));
 
         let malformed = CompatError::Malformed {
-            family: "control_baseline",
+            name: "control_baseline",
             message: "bad JSON".to_owned(),
         };
         assert_eq!(
@@ -586,7 +588,7 @@ mod tests {
         assert_eq!(
             ControlBaseline::decode(br#"{"version":"v1","data":{"tenant_namespace":"alice","control_prefix_version":1,"durable_metadata_baseline":1,"routing_version":1,"shard_count":256,"externally_pinned_identity_contract":"ts-elixir-rust-v1","future":true}}"#),
             Err(CompatError::ExtraField {
-                family: "control_baseline",
+                name: "control_baseline",
                 path: "data.future".to_owned(),
             })
         );

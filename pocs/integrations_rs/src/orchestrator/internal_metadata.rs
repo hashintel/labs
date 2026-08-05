@@ -14,7 +14,7 @@ use serde_json::Value;
 use super::ids::{CanonicalIntegrationId, RequestId};
 use super::registry::{
     reject_unknown_fields, CompatError, DurabilityClass, DurableRecord, MigrationPolicy,
-    PureUpcastRecord, RecordFamily, VersionedRecord,
+    PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 
 pub(crate) const MAX_RUN_INPUT_RECORD_BYTES: usize = 1024 * 1024;
@@ -22,13 +22,13 @@ pub(crate) const MAX_RUN_POLICY_RECORD_BYTES: usize = 16 * 1024;
 pub(crate) const MAX_RUN_LOCATOR_RECORD_BYTES: usize = 16 * 1024;
 pub(crate) const MAX_REQUEST_BINDING_RECORD_BYTES: usize = 16 * 1024;
 
-pub(crate) static RUN_INPUT_FAMILY: RecordFamily = family("run_input");
-pub(crate) static RUN_POLICY_FAMILY: RecordFamily = family("run_policy");
-pub(crate) static RUN_LOCATOR_FAMILY: RecordFamily = family("run_locator");
-pub(crate) static REQUEST_BINDING_FAMILY: RecordFamily = family("request_binding");
+pub(crate) static RUN_INPUT_DECLARATION: RecordDeclaration = declaration("run_input");
+pub(crate) static RUN_POLICY_DECLARATION: RecordDeclaration = declaration("run_policy");
+pub(crate) static RUN_LOCATOR_DECLARATION: RecordDeclaration = declaration("run_locator");
+pub(crate) static REQUEST_BINDING_DECLARATION: RecordDeclaration = declaration("request_binding");
 
-const fn family(name: &'static str) -> RecordFamily {
-    RecordFamily {
+const fn declaration(name: &'static str) -> RecordDeclaration {
+    RecordDeclaration {
         name,
         owning_module: "orchestrator::internal_metadata",
         emitted_version: 1,
@@ -248,7 +248,7 @@ impl ValidateInternal for RunInputRecord {
         let Self::V1(value) = self;
         if value.definition.trim().is_empty() {
             return Err(malformed(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "definition must not be empty".to_owned(),
             ));
         }
@@ -257,12 +257,12 @@ impl ValidateInternal for RunInputRecord {
             || value.owner_actor_id.chars().any(char::is_control)
         {
             return Err(malformed(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "owner_actor_id must be 1..=256 bytes without control characters".to_owned(),
             ));
         }
         validate_sha256(
-            Self::FAMILY.name,
+            Self::declaration().name,
             "resolved_definition_digest",
             &value.resolved_definition_digest,
         )?;
@@ -275,7 +275,7 @@ impl ValidateInternal for RunPolicyRecord {
         let Self::V1(value) = self;
         if value.max_handler_failures == 0 {
             return Err(malformed(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "max_handler_failures must be nonzero".to_owned(),
             ));
         }
@@ -299,7 +299,7 @@ impl ValidateInternal for RequestBindingRecord {
                 .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
         {
             return Err(malformed(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "fingerprint must be 64 lowercase hexadecimal characters".to_owned(),
             ));
         }
@@ -308,25 +308,27 @@ impl ValidateInternal for RequestBindingRecord {
 }
 
 macro_rules! durable_record {
-    ($record:ty, $family:ident, $max:ident, [$($field:literal),* $(,)?]) => {
+    ($record:ty, $name:ident, $max:ident, [$($field:literal),* $(,)?]) => {
         impl super::registry::sealed::Sealed for $record {}
 
         impl DurableRecord for $record {
-            const FAMILY: &'static RecordFamily = &$family;
+            fn declaration() -> &'static RecordDeclaration {
+                &$name
+            }
             const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
             fn encode(&self) -> Result<Vec<u8>, CompatError> {
                 self.validate()?;
                 let bytes = serde_json::to_vec(self).map_err(|error| malformed(
-                    Self::FAMILY.name,
+                    Self::declaration().name,
                     error.to_string(),
                 ))?;
-                validate_size(Self::FAMILY.name, bytes.len(), $max)?;
+                validate_size(Self::declaration().name, bytes.len(), $max)?;
                 Ok(bytes)
             }
 
             fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
-                decode_v1(bytes, Self::FAMILY.name, $max, &[$($field),*])
+                decode_v1(bytes, Self::declaration().name, $max, &[$($field),*])
             }
         }
     };
@@ -334,7 +336,7 @@ macro_rules! durable_record {
 
 durable_record!(
     RunInputRecord,
-    RUN_INPUT_FAMILY,
+    RUN_INPUT_DECLARATION,
     MAX_RUN_INPUT_RECORD_BYTES,
     [
         "definition",
@@ -345,69 +347,69 @@ durable_record!(
 );
 durable_record!(
     RunPolicyRecord,
-    RUN_POLICY_FAMILY,
+    RUN_POLICY_DECLARATION,
     MAX_RUN_POLICY_RECORD_BYTES,
     ["max_handler_failures"]
 );
 durable_record!(
     RunLocatorRecord,
-    RUN_LOCATOR_FAMILY,
+    RUN_LOCATOR_DECLARATION,
     MAX_RUN_LOCATOR_RECORD_BYTES,
     ["integration_id"]
 );
 durable_record!(
     RequestBindingRecord,
-    REQUEST_BINDING_FAMILY,
+    REQUEST_BINDING_DECLARATION,
     MAX_REQUEST_BINDING_RECORD_BYTES,
     ["fingerprint", "protocol_request_id"]
 );
 
 fn decode_v1<T: DeserializeOwned + ValidateInternal>(
     bytes: &[u8],
-    family: &'static str,
+    name: &'static str,
     maximum: usize,
     fields: &[&str],
 ) -> Result<T, CompatError> {
-    validate_size(family, bytes.len(), maximum)?;
+    validate_size(name, bytes.len(), maximum)?;
     let value: Value =
-        serde_json::from_slice(bytes).map_err(|error| malformed(family, error.to_string()))?;
-    reject_unknown_fields(family, "", &value, &["version", "data"])?;
+        serde_json::from_slice(bytes).map_err(|error| malformed(name, error.to_string()))?;
+    reject_unknown_fields(name, "", &value, &["version", "data"])?;
     let version = value
         .get("version")
         .and_then(Value::as_str)
-        .ok_or_else(|| malformed(family, "version must be a string".to_owned()))?;
+        .ok_or_else(|| malformed(name, "version must be a string".to_owned()))?;
     if version != "v1" {
         return Err(CompatError::UnsupportedVersion {
-            family,
+            name,
             version: version.to_owned(),
         });
     }
     let data = value
         .get("data")
-        .ok_or_else(|| malformed(family, "data is required".to_owned()))?;
-    reject_unknown_fields(family, "data", data, fields)?;
+        .ok_or_else(|| malformed(name, "data is required".to_owned()))?;
+    reject_unknown_fields(name, "data", data, fields)?;
     let decoded: T =
-        serde_json::from_value(value).map_err(|error| malformed(family, error.to_string()))?;
+        serde_json::from_value(value).map_err(|error| malformed(name, error.to_string()))?;
     decoded.validate()?;
     Ok(decoded)
 }
 
-fn validate_size(family: &'static str, actual: usize, maximum: usize) -> Result<(), CompatError> {
+fn validate_size(name: &'static str, actual: usize, maximum: usize) -> Result<(), CompatError> {
     if actual <= maximum {
         Ok(())
     } else {
         Err(malformed(
-            family,
+            name,
             format!("record is {actual} bytes; maximum is {maximum}"),
         ))
     }
 }
 
-fn malformed(family: &'static str, message: String) -> CompatError {
-    CompatError::Malformed { family, message }
+fn malformed(name: &'static str, message: String) -> CompatError {
+    CompatError::Malformed { name, message }
 }
 
-fn validate_sha256(family: &'static str, field: &str, value: &str) -> Result<(), CompatError> {
+fn validate_sha256(name: &'static str, field: &str, value: &str) -> Result<(), CompatError> {
     if value.len() == 64
         && value
             .bytes()
@@ -416,7 +418,7 @@ fn validate_sha256(family: &'static str, field: &str, value: &str) -> Result<(),
         Ok(())
     } else {
         Err(malformed(
-            family,
+            name,
             format!("{field} must be 64 lowercase hexadecimal characters"),
         ))
     }
@@ -449,7 +451,7 @@ mod tests {
     }
 
     #[test]
-    fn every_internal_family_is_v1_strict_and_explicit() {
+    fn every_internal_declaration_is_v1_strict_and_explicit() {
         assert_v1_strict(&RunInputRecord::V1(RunInputRecordV1 {
             definition: "pipeline: metadata".to_owned(),
             public_variables: BTreeMap::new(),

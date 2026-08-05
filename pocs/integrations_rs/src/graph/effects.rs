@@ -7,7 +7,7 @@ use crate::blob::BlobRef;
 use crate::orchestrator::ids::{canonical_digest, EffectId};
 use crate::orchestrator::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, PureUpcastRecord, RecordFamily, VersionedRecord,
+    MigrationPolicy, PureUpcastRecord, RecordDeclaration, VersionedRecord,
 };
 
 pub const EFFECT_IDENTITY_VERSION: u32 = 1;
@@ -17,7 +17,7 @@ pub const GRAPH_EFFECT_PAYLOAD_MEDIA_TYPE: &str = "application/vnd.hash.graph-ef
 const MAX_GRAPH_EFFECT_BYTES: usize = 64 * 1024;
 const MAX_GRAPH_IDENTITY_BYTES: usize = 8 * 1024;
 
-pub(crate) static GRAPH_EFFECT_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static GRAPH_EFFECT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "graph_effect",
     owning_module: "graph::effects",
     emitted_version: 1,
@@ -119,7 +119,7 @@ impl GraphEffectV1 {
             Ok(())
         } else {
             Err(CompatError::Conflict {
-                family: GraphEffect::FAMILY.name,
+                name: GraphEffect::declaration().name,
                 message: format!(
                     "effect ID mismatch: expected {expected}, found {}",
                     self.effect_id
@@ -256,7 +256,7 @@ fn validate_sha256(path: &str, value: &str) -> Result<(), CompatError> {
 
 fn malformed(message: String) -> CompatError {
     CompatError::Malformed {
-        family: GraphEffect::FAMILY.name,
+        name: GraphEffect::declaration().name,
         message,
     }
 }
@@ -264,7 +264,9 @@ fn malformed(message: String) -> CompatError {
 impl crate::orchestrator::registry::sealed::Sealed for GraphEffect {}
 
 impl DurableRecord for GraphEffect {
-    const FAMILY: &'static RecordFamily = &GRAPH_EFFECT_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &GRAPH_EFFECT_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -288,14 +290,14 @@ impl DurableRecord for GraphEffect {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| malformed(error.to_string()))?;
-        reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
         let version = value
             .get("version")
             .and_then(Value::as_str)
             .ok_or_else(|| malformed("version must be a string".to_owned()))?;
         if version != "v1" {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: version.to_owned(),
             });
         }
@@ -303,7 +305,7 @@ impl DurableRecord for GraphEffect {
             .get("data")
             .ok_or_else(|| malformed("data is required".to_owned()))?;
         reject_unknown_fields(
-            Self::FAMILY.name,
+            Self::declaration().name,
             "data",
             data,
             &[
@@ -319,7 +321,7 @@ impl DurableRecord for GraphEffect {
         )?;
         if let Some(payload) = data.get("payload").filter(|payload| !payload.is_null()) {
             reject_unknown_fields(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "data.payload",
                 payload,
                 &["artifact", "offset", "length"],
@@ -328,7 +330,7 @@ impl DurableRecord for GraphEffect {
                 .get("artifact")
                 .ok_or_else(|| malformed("data.payload.artifact is required".to_owned()))?;
             reject_unknown_fields(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "data.payload.artifact",
                 artifact,
                 &["version", "value"],
@@ -342,7 +344,7 @@ impl DurableRecord for GraphEffect {
                 .get("value")
                 .ok_or_else(|| malformed("data.payload.artifact.value is required".to_owned()))?;
             reject_unknown_fields(
-                Self::FAMILY.name,
+                Self::declaration().name,
                 "data.payload.artifact.value",
                 artifact_value,
                 &[

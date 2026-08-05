@@ -24,7 +24,7 @@ use super::ids::TenantNamespace;
 use super::record_io::{self, InspectedRecord};
 use super::registry::{
     reject_unknown_fields, CompatError, DurabilityClass, DurableRecord, MigrationPolicy,
-    RebuildableRecord, RecordFamily,
+    RebuildableRecord, RecordDeclaration,
 };
 use super::routing::{self, ROUTING_VERSION};
 #[cfg(test)]
@@ -37,7 +37,7 @@ const STATE_VERSION_MEDIA_TYPE: &str = "application/vnd.integrations.state-versi
 const MAX_CURRENT_STATE_HINT_BYTES: usize = 16 * 1024;
 const MAX_HINT_CAS_ATTEMPTS: usize = 8;
 
-pub(crate) static CURRENT_STATE_HINT_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static CURRENT_STATE_HINT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "current_state_hint",
     owning_module: "orchestrator::state",
     emitted_version: 1,
@@ -86,7 +86,9 @@ impl CurrentStateHint {
 impl super::registry::sealed::Sealed for CurrentStateHint {}
 
 impl DurableRecord for CurrentStateHint {
-    const FAMILY: &'static RecordFamily = &CURRENT_STATE_HINT_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &CURRENT_STATE_HINT_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::Rebuild;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
@@ -103,14 +105,14 @@ impl DurableRecord for CurrentStateHint {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| hint_malformed(error.to_string()))?;
-        reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
         let version = value
             .get("version")
             .and_then(Value::as_str)
             .ok_or_else(|| hint_malformed("version must be a string".to_owned()))?;
         if version != "v1" {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: version.to_owned(),
             });
         }
@@ -118,7 +120,7 @@ impl DurableRecord for CurrentStateHint {
             .get("data")
             .ok_or_else(|| hint_malformed("data is required".to_owned()))?;
         reject_unknown_fields(
-            Self::FAMILY.name,
+            Self::declaration().name,
             "data",
             data,
             &[
@@ -143,7 +145,7 @@ impl RebuildableRecord for CurrentStateHint {}
 
 fn reject_state_ref_shape(value: &Value) -> Result<(), CompatError> {
     reject_unknown_fields(
-        CurrentStateHint::FAMILY.name,
+        CurrentStateHint::declaration().name,
         "data.state",
         value,
         &["id", "artifact"],
@@ -152,7 +154,7 @@ fn reject_state_ref_shape(value: &Value) -> Result<(), CompatError> {
         .get("artifact")
         .ok_or_else(|| hint_malformed("data.state.artifact is required".to_owned()))?;
     reject_unknown_fields(
-        CurrentStateHint::FAMILY.name,
+        CurrentStateHint::declaration().name,
         "data.state.artifact",
         artifact,
         &["version", "value"],
@@ -161,7 +163,7 @@ fn reject_state_ref_shape(value: &Value) -> Result<(), CompatError> {
         .get("value")
         .ok_or_else(|| hint_malformed("data.state.artifact.value is required".to_owned()))?;
     reject_unknown_fields(
-        CurrentStateHint::FAMILY.name,
+        CurrentStateHint::declaration().name,
         "data.state.artifact.value",
         artifact_value,
         &[
@@ -233,7 +235,7 @@ fn validate_hint_blob(reference: &BlobRef) -> Result<(), CompatError> {
 
 fn hint_malformed(message: String) -> CompatError {
     CompatError::Malformed {
-        family: CurrentStateHint::FAMILY.name,
+        name: CurrentStateHint::declaration().name,
         message,
     }
 }

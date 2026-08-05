@@ -14,7 +14,7 @@ use serde_json::Value;
 use super::record_io;
 use super::registry::{
     reject_unknown_fields, CompatError, DurabilityClass, DurableRecord, MigrationPolicy,
-    MutableCasRecord, RecordFamily, VersionedRecord,
+    MutableCasRecord, RecordDeclaration, VersionedRecord,
 };
 use crate::blob::{ArtifactStore, CasVersion, CasWrite};
 
@@ -22,7 +22,7 @@ pub(crate) const MAX_SHARD_LEASE_BYTES: usize = 4 * 1024;
 const MAX_OWNER_ID_BYTES: usize = 256;
 const MAX_LEASE_TIMING: Duration = Duration::from_secs(24 * 60 * 60);
 
-pub(crate) static SHARD_LEASE_FAMILY: RecordFamily = RecordFamily {
+pub(crate) static SHARD_LEASE_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "shard_lease",
     owning_module: "orchestrator::lease",
     emitted_version: 1,
@@ -64,13 +64,15 @@ impl ShardLease {
 impl super::registry::sealed::Sealed for ShardLease {}
 
 impl DurableRecord for ShardLease {
-    const FAMILY: &'static RecordFamily = &SHARD_LEASE_FAMILY;
+    fn declaration() -> &'static RecordDeclaration {
+        &SHARD_LEASE_DECLARATION
+    }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::MutableCas;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
         validate_lease(self.current()).map_err(compat_error)?;
         serde_json::to_vec(self).map_err(|error| CompatError::Malformed {
-            family: Self::FAMILY.name,
+            name: Self::declaration().name,
             message: error.to_string(),
         })
     }
@@ -78,7 +80,7 @@ impl DurableRecord for ShardLease {
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
         if bytes.len() > MAX_SHARD_LEASE_BYTES {
             return Err(CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: format!(
                     "record is {} bytes; maximum is {MAX_SHARD_LEASE_BYTES}",
                     bytes.len()
@@ -87,36 +89,36 @@ impl DurableRecord for ShardLease {
         }
         let value: Value =
             serde_json::from_slice(bytes).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })?;
-        reject_unknown_fields(Self::FAMILY.name, "", &value, &["version", "data"])?;
+        reject_unknown_fields(Self::declaration().name, "", &value, &["version", "data"])?;
         let version = value
             .get("version")
             .and_then(Value::as_str)
             .ok_or_else(|| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: "version must be a string".to_owned(),
             })?;
         if version != "v1" {
             return Err(CompatError::UnsupportedVersion {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 version: version.to_owned(),
             });
         }
         let data = value.get("data").ok_or_else(|| CompatError::Malformed {
-            family: Self::FAMILY.name,
+            name: Self::declaration().name,
             message: "data is required".to_owned(),
         })?;
         reject_unknown_fields(
-            Self::FAMILY.name,
+            Self::declaration().name,
             "data",
             data,
             &["owner_id", "lease_epoch", "acquired_at", "expires_at"],
         )?;
         let lease: Self =
             serde_json::from_value(value).map_err(|error| CompatError::Malformed {
-                family: Self::FAMILY.name,
+                name: Self::declaration().name,
                 message: error.to_string(),
             })?;
         validate_lease(lease.current()).map_err(compat_error)?;
@@ -229,7 +231,7 @@ fn validate_lease(lease: &ShardLeaseV1) -> Result<(), InvalidLease> {
 
 fn compat_error(error: InvalidLease) -> CompatError {
     CompatError::Malformed {
-        family: ShardLease::FAMILY.name,
+        name: ShardLease::declaration().name,
         message: error.to_string(),
     }
 }

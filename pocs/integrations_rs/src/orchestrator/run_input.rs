@@ -19,10 +19,10 @@ use super::internal_metadata::{
 };
 use super::metadata::{self, InvocationV1};
 use super::registry::DurableRecord;
-use crate::kernel::keyspace::Keyspace;
 use crate::blob::ArtifactStore;
 use crate::build::Integration;
 use crate::config::Env;
+use crate::kernel::keyspace::Keyspace;
 
 pub(crate) const DEFINITION_DIGEST_ENCODING_VERSION: u32 = 1;
 pub(crate) const PLANNER_VERSION: u32 = 1;
