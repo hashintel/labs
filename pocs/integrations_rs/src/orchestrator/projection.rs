@@ -5,8 +5,8 @@ use std::fmt;
 
 use super::control::{ControlRequestContextV1, ControlRequestTargetV1};
 use super::events::{
-    dlq_entry_id, ControlRejectionReason, JournalEvent, JournalEventV1, JournalRecordV1,
-    SequencedJournalRecord, TerminalOutcome,
+    dlq_entry_id, ControlRejectionReason, IntegrationsEventRefV1, JournalEvent,
+    JournalRecordV1, KernelEventRefV1, SequencedJournalRecord, SplitEventRefV1, TerminalOutcome,
 };
 use super::ids::{CanonicalIntegrationId, EventId, RunId, WorkId};
 pub use super::projection_types::{
@@ -94,8 +94,27 @@ pub fn prepare(
 
     let mut delta = ProjectionDelta::for_record(record, digest);
     let JournalEvent::V1(event) = &record.event;
+    match event.split_ref() {
+        SplitEventRefV1::Kernel(event) => prepare_kernel(state, record, event, &mut delta)?,
+        SplitEventRefV1::Integrations(event) => {
+            prepare_integrations(state, record, event, &mut delta)?;
+        }
+    }
+    Ok(PreparedTransition::Mutation(delta))
+}
+
+/// Kernel half of the fold: run/attempt lifecycle, work cursors, admission
+/// slots, control outcomes, and the DLQ. Reads integration facts only through
+/// shared eligibility helpers (`execution_eligible`, checkpoint lineage) —
+/// the couplings a generic `Domain` projection must expose.
+fn prepare_kernel(
+    state: &Projection,
+    record: &JournalRecordV1,
+    event: KernelEventRefV1<'_>,
+    delta: &mut ProjectionDelta,
+) -> Result<(), InvalidTransition> {
     match event {
-        JournalEventV1::RunAccepted(value) => {
+        KernelEventRefV1::RunAccepted(value) => {
             if state.runs.contains_key(&value.run_id) {
                 return invalid(record, format!("run {} already exists", value.run_id));
             }
@@ -133,7 +152,7 @@ pub fn prepare(
                 .integrations
                 .insert(record.integration_id.clone(), integration);
         }
-        JournalEventV1::AttemptStarted(value) => {
+        KernelEventRefV1::AttemptStarted(value) => {
             let mut run = run_for(state, record, &value.run_id)?;
             let integration = integration_existing(state, record)?;
             let next_attempt = run
@@ -155,7 +174,7 @@ pub fn prepare(
             run.revision = record.event_id.clone();
             delta.runs.insert(value.run_id.clone(), run);
         }
-        JournalEventV1::AttemptFailed(value) => {
+        KernelEventRefV1::AttemptFailed(value) => {
             let mut run = run_for(state, record, &value.run_id)?;
             if run.status != RunStatus::Running
                 || run.attempt != value.attempt
@@ -176,83 +195,7 @@ pub fn prepare(
             run.revision = record.event_id.clone();
             delta.runs.insert(value.run_id.clone(), run);
         }
-        JournalEventV1::ArtifactPublished(value) => {
-            let mut run = run_for(state, record, &value.run_id)?;
-            require_nonterminal(record, &run)?;
-            match run.artifacts.get(&value.role) {
-                Some(existing) if existing == &value.reference => {}
-                Some(_) => return invalid(record, "artifact role already names different content"),
-                None => {
-                    run.artifacts
-                        .insert(value.role.clone(), value.reference.clone());
-                    run.revision = record.event_id.clone();
-                    delta.runs.insert(value.run_id.clone(), run);
-                }
-            }
-        }
-        JournalEventV1::StreamBatchAccepted(_) => {
-            return invalid(
-                record,
-                "continuous stream events are reserved in protocol v1",
-            );
-        }
-        JournalEventV1::StateCheckpointCommitted(value) => {
-            let run = run_for(state, record, &value.run_id)?;
-            require_nonterminal(record, &run)?;
-            let mut integration = integration_existing(state, record)?;
-            if integration.active_run.as_ref() != Some(&value.run_id) {
-                return invalid(record, "checkpoint run is not active");
-            }
-            let state_record = value
-                .state_record
-                .try_current()
-                .map_err(|error| transition_error(record, error.to_string()))?;
-            if state_record.parent != integration.checkpoint_state {
-                return invalid(record, "state checkpoint does not extend checkpoint_state");
-            }
-            integration.checkpoint_state = Some(value.state_version.clone());
-            delta.pending_checkpoint_state_sequence = Some(record.integration_id.clone());
-            delta
-                .integrations
-                .insert(record.integration_id.clone(), integration);
-        }
-        JournalEventV1::StepCommitted(value) => {
-            let mut run = run_for(state, record, &value.run_id)?;
-            require_nonterminal(record, &run)?;
-            match run.steps.get(&value.name) {
-                Some(existing) if existing == &value.checkpoint => {}
-                Some(_) => {
-                    return invalid(record, "step name already names a different checkpoint")
-                }
-                None => {
-                    run.steps
-                        .insert(value.name.clone(), value.checkpoint.clone());
-                    run.revision = record.event_id.clone();
-                    delta.runs.insert(value.run_id.clone(), run);
-                }
-            }
-        }
-        JournalEventV1::IntegrationDesiredStateSet(value) => {
-            if state
-                .control_request_outcomes
-                .contains_key(&value.request.request_id)
-            {
-                return invalid(record, "control request already has an outcome");
-            }
-            let mut integration = integration_for(state, &record.integration_id);
-            if value.request.expected_revision != integration.desired_revision {
-                return invalid(record, "desired-state revision is stale");
-            }
-            integration.desired = Some(value.desired);
-            integration.desired_definition = Some(value.definition_ref.clone());
-            integration.desired_revision = Some(record.event_id.clone());
-            promote_if_eligible(&mut integration);
-            delta
-                .integrations
-                .insert(record.integration_id.clone(), integration);
-            accept_request(&mut delta, &value.request, &record.event_id);
-        }
-        JournalEventV1::WorkPlanned(value) => {
+        KernelEventRefV1::WorkPlanned(value) => {
             if state.work.contains_key(&value.manifest.work_id) {
                 return invalid(
                     record,
@@ -354,7 +297,7 @@ pub fn prepare(
                 .integrations
                 .insert(record.integration_id.clone(), integration);
         }
-        JournalEventV1::WorkChunkCompleted(value) => {
+        KernelEventRefV1::WorkChunkCompleted(value) => {
             let mut work = work_for(state, record, &value.work_id)?;
             // The executor must verify that `last_effect_id` occupies this
             // prefix position in the immutable effects artifact. The pure fold
@@ -374,7 +317,7 @@ pub fn prepare(
             work.revision = record.event_id.clone();
             delta.work.insert(value.work_id.clone(), work);
         }
-        JournalEventV1::WorkCompleted(value) => {
+        KernelEventRefV1::WorkCompleted(value) => {
             let mut work = work_for(state, record, &value.work_id)?;
             if work.status != WorkStatus::Planned
                 || work.manifest.manifest_digest != value.manifest_digest
@@ -398,7 +341,7 @@ pub fn prepare(
                     delta.runs.insert(apply.run_id.clone(), run);
                     // Every successful Apply creates a new state incarnation,
                     // even when its content-addressed state digest recurs.
-                    supersede_old_reconcile(state, &mut delta, &integration, record)?;
+                    supersede_old_reconcile(state, delta, &integration, record)?;
                 }
                 WorkKind::Restore(restore) => {
                     if integration.foreground_work.as_ref() != Some(&value.work_id)
@@ -435,7 +378,7 @@ pub fn prepare(
                 .integrations
                 .insert(record.integration_id.clone(), integration);
         }
-        JournalEventV1::WorkBlocked(value) => {
+        KernelEventRefV1::WorkBlocked(value) => {
             let mut work = work_for(state, record, &value.work_id)?;
             if work.status != WorkStatus::Planned
                 || work.manifest.manifest_digest != value.manifest_digest
@@ -480,7 +423,7 @@ pub fn prepare(
                 .integrations
                 .insert(record.integration_id.clone(), integration);
         }
-        JournalEventV1::RetryRequested(value) => {
+        KernelEventRefV1::RetryRequested(value) => {
             if state
                 .control_request_outcomes
                 .contains_key(&value.request.request_id)
@@ -516,9 +459,9 @@ pub fn prepare(
             delta
                 .integrations
                 .insert(record.integration_id.clone(), integration);
-            accept_request(&mut delta, &value.request, &record.event_id);
+            accept_request(delta, &value.request, &record.event_id);
         }
-        JournalEventV1::RunCompleted(value) => {
+        KernelEventRefV1::RunCompleted(value) => {
             let mut run = run_for(state, record, &value.run_id)?;
             let mut integration = integration_existing(state, record)?;
             if run.status != RunStatus::Running
@@ -540,7 +483,7 @@ pub fn prepare(
                 .integrations
                 .insert(record.integration_id.clone(), integration);
         }
-        JournalEventV1::RunTerminated(value) => {
+        KernelEventRefV1::RunTerminated(value) => {
             let mut run = run_for(state, record, &value.run_id)?;
             require_nonterminal(record, &run)?;
             let mut integration = integration_existing(state, record)?;
@@ -649,14 +592,14 @@ pub fn prepare(
             }
             promote_if_eligible(&mut integration);
             if let Some(request) = &value.request {
-                accept_request(&mut delta, request, &record.event_id);
+                accept_request(delta, request, &record.event_id);
             }
             delta.runs.insert(value.run_id.clone(), run);
             delta
                 .integrations
                 .insert(record.integration_id.clone(), integration);
         }
-        JournalEventV1::ControlRequestRejected(value) => {
+        KernelEventRefV1::ControlRequestRejected(value) => {
             if state
                 .control_request_outcomes
                 .contains_key(&value.request.request_id)
@@ -696,7 +639,7 @@ pub fn prepare(
                 },
             );
         }
-        JournalEventV1::DlqEntryExpired(value) => {
+        KernelEventRefV1::DlqEntryExpired(value) => {
             let mut integration = integration_existing(state, record)?;
             if integration.dlq.remove(&value.entry_id).is_none() {
                 return invalid(record, "DLQ entry is not active");
@@ -706,7 +649,98 @@ pub fn prepare(
                 .insert(record.integration_id.clone(), integration);
         }
     }
-    Ok(PreparedTransition::Mutation(delta))
+    Ok(())
+}
+
+/// Integrations half of the fold: run-scoped facts (artifacts, steps), state
+/// checkpoint lineage, and desired-state control. Touches kernel admission
+/// only through `promote_if_eligible` and `accept_request` — the transitions
+/// the kernel lets a domain trigger.
+fn prepare_integrations(
+    state: &Projection,
+    record: &JournalRecordV1,
+    event: IntegrationsEventRefV1<'_>,
+    delta: &mut ProjectionDelta,
+) -> Result<(), InvalidTransition> {
+    match event {
+        IntegrationsEventRefV1::ArtifactPublished(value) => {
+            let mut run = run_for(state, record, &value.run_id)?;
+            require_nonterminal(record, &run)?;
+            match run.artifacts.get(&value.role) {
+                Some(existing) if existing == &value.reference => {}
+                Some(_) => return invalid(record, "artifact role already names different content"),
+                None => {
+                    run.artifacts
+                        .insert(value.role.clone(), value.reference.clone());
+                    run.revision = record.event_id.clone();
+                    delta.runs.insert(value.run_id.clone(), run);
+                }
+            }
+        }
+        IntegrationsEventRefV1::StreamBatchAccepted(_) => {
+            return invalid(
+                record,
+                "continuous stream events are reserved in protocol v1",
+            );
+        }
+        IntegrationsEventRefV1::StateCheckpointCommitted(value) => {
+            let run = run_for(state, record, &value.run_id)?;
+            require_nonterminal(record, &run)?;
+            let mut integration = integration_existing(state, record)?;
+            if integration.active_run.as_ref() != Some(&value.run_id) {
+                return invalid(record, "checkpoint run is not active");
+            }
+            let state_record = value
+                .state_record
+                .try_current()
+                .map_err(|error| transition_error(record, error.to_string()))?;
+            if state_record.parent != integration.checkpoint_state {
+                return invalid(record, "state checkpoint does not extend checkpoint_state");
+            }
+            integration.checkpoint_state = Some(value.state_version.clone());
+            delta.pending_checkpoint_state_sequence = Some(record.integration_id.clone());
+            delta
+                .integrations
+                .insert(record.integration_id.clone(), integration);
+        }
+        IntegrationsEventRefV1::StepCommitted(value) => {
+            let mut run = run_for(state, record, &value.run_id)?;
+            require_nonterminal(record, &run)?;
+            match run.steps.get(&value.name) {
+                Some(existing) if existing == &value.checkpoint => {}
+                Some(_) => {
+                    return invalid(record, "step name already names a different checkpoint")
+                }
+                None => {
+                    run.steps
+                        .insert(value.name.clone(), value.checkpoint.clone());
+                    run.revision = record.event_id.clone();
+                    delta.runs.insert(value.run_id.clone(), run);
+                }
+            }
+        }
+        IntegrationsEventRefV1::IntegrationDesiredStateSet(value) => {
+            if state
+                .control_request_outcomes
+                .contains_key(&value.request.request_id)
+            {
+                return invalid(record, "control request already has an outcome");
+            }
+            let mut integration = integration_for(state, &record.integration_id);
+            if value.request.expected_revision != integration.desired_revision {
+                return invalid(record, "desired-state revision is stale");
+            }
+            integration.desired = Some(value.desired);
+            integration.desired_definition = Some(value.definition_ref.clone());
+            integration.desired_revision = Some(record.event_id.clone());
+            promote_if_eligible(&mut integration);
+            delta
+                .integrations
+                .insert(record.integration_id.clone(), integration);
+            accept_request(delta, &value.request, &record.event_id);
+        }
+    }
+    Ok(())
 }
 
 pub fn finalize(
@@ -998,6 +1032,7 @@ fn invalid<T>(record: &JournalRecordV1, reason: impl Into<String>) -> Result<T, 
 #[allow(clippy::expect_used)]
 mod tests {
     use super::*;
+    use crate::orchestrator::events::JournalEventV1;
     use sha2::{Digest as _, Sha256};
 
     use crate::blob::{BlobRef, BlobRefV1, StateSnapshot, StateSnapshotV1};
