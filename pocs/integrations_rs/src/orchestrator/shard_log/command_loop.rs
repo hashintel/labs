@@ -768,6 +768,7 @@ impl Domain for IntegrationsDomain {
     type ControlRejection = ControlRejectionReason;
     type Snapshot = ControlProjectionSnapshot;
     type SnapshotCapture = SnapshotCapture;
+    type WorkIntent = WorkRecoveryIntent;
 
     fn record_shard(record: &JournalRecordV1) -> Shard {
         crate::orchestrator::routing::shard(&record.integration_id)
@@ -883,6 +884,84 @@ impl Domain for IntegrationsDomain {
         let shard = projection_snapshot::parse_shard(&value.shard)
             .map_err(|error| format!("validate snapshot shard: {error}"))?;
         Ok((shard, value.through_log_sequence))
+    }
+
+    fn snapshot_created_at(snapshot: &ControlProjectionSnapshot) -> String {
+        snapshot.current().created_at.clone()
+    }
+
+    async fn load_snapshot_projection(
+        store: &ArtifactStore,
+        tenant: &TenantNamespace,
+        shard: Shard,
+        snapshot: &ControlProjectionSnapshot,
+    ) -> Result<Projection, String> {
+        projection_snapshot::load_projection(store, tenant, shard, snapshot)
+            .await
+            .map_err(|error| format!("{error:?}"))
+    }
+
+    fn through_sequence(projection: &Projection) -> Option<u64> {
+        projection.through_log_sequence
+    }
+
+    fn replay(
+        projection: &mut Projection,
+        shard: Shard,
+        sequence: u64,
+        record: JournalRecord,
+    ) -> Result<(), String> {
+        let input = SequencedJournalRecord::try_new(sequence, record)
+            .map_err(|error| format!("validate durable record at sequence {sequence}: {error}"))?;
+        if crate::orchestrator::routing::shard(&input.record().integration_id) != shard {
+            return Err(format!(
+                "durable record at sequence {sequence} routes to a different shard"
+            ));
+        }
+        apply(projection, input)
+            .map(|_outcome| ())
+            .map_err(|error| format!("replay durable record at sequence {sequence}: {error}"))
+    }
+
+    fn validate_recovered_prefix(
+        previous: &Projection,
+        recovered: &Projection,
+    ) -> Result<(), String> {
+        if previous
+            .through_log_sequence
+            .is_some_and(|old| recovered.through_log_sequence.is_none_or(|new| new < old))
+        {
+            return Err(format!(
+                "durable prefix regressed from {:?} to {:?}",
+                previous.through_log_sequence, recovered.through_log_sequence
+            ));
+        }
+        for (event_id, digest) in &previous.seen_event_digests {
+            if recovered.seen_event_digests.get(event_id) != Some(digest) {
+                return Err(format!(
+                    "durable prefix lost or changed acknowledged event {event_id}"
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn live_work(projection: &Projection) -> Vec<WorkRecoveryIntent> {
+        projection
+            .work
+            .iter()
+            .filter(|(_work_id, work)| work.status.is_live())
+            .map(|(work_id, work)| work_intent_from_projection(work_id, work))
+            .collect()
+    }
+
+    fn initial_state_keys(projection: &Projection) -> Vec<CanonicalIntegrationId> {
+        projection
+            .integrations
+            .iter()
+            .filter(|(_integration_id, projection)| projection.checkpoint_state_sequence.is_some())
+            .map(|(integration_id, _projection)| integration_id.clone())
+            .collect()
     }
 }
 
@@ -1036,14 +1115,9 @@ impl OpenedShard {
         let recovery = StartupRecovery {
             durable_end_exclusive,
             snapshot_through_log_sequence: recovered.snapshot_through_log_sequence,
-            live_work: live_work_intents(&projection),
+            live_work: IntegrationsDomain::live_work(&projection),
         };
-        let initial_state_changes = projection
-            .integrations
-            .iter()
-            .filter(|(_integration_id, projection)| projection.checkpoint_state_sequence.is_some())
-            .map(|(integration_id, _projection)| integration_id.clone())
-            .collect();
+        let initial_state_changes = IntegrationsDomain::initial_state_keys(&projection);
         Ok(RecoveredShard {
             location: self.location,
             writer: Some(writer),
@@ -1282,9 +1356,7 @@ impl CommandLoop {
                     minimum_sequence_span,
                     reply,
                 } => {
-                    let capture = self
-                        .projection
-                        .through_log_sequence
+                    let capture = IntegrationsDomain::through_sequence(&self.projection)
                         .filter(|through| {
                             let span = self.last_snapshot_through_log_sequence.map_or_else(
                                 || through.saturating_add(1),
@@ -1496,7 +1568,7 @@ impl CommandLoop {
                 ),
             });
         }
-        let Some(current_sequence) = self.projection.through_log_sequence else {
+        let Some(current_sequence) = IntegrationsDomain::through_sequence(&self.projection) else {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
                 message: "cannot reference a snapshot for an empty projection".to_owned(),
@@ -1602,7 +1674,8 @@ impl CommandLoop {
             snapshots,
         )
         .await?;
-        validate_recovered_prefix(&self.projection, &recovered.projection)?;
+        IntegrationsDomain::validate_recovered_prefix(&self.projection, &recovered.projection)
+            .map_err(recovery)?;
         self.projection = recovered.projection;
         self.last_snapshot_through_log_sequence = recovered.snapshot_through_log_sequence;
         Ok(())
@@ -1930,7 +2003,19 @@ async fn replay_with_snapshots(
                             continue;
                         }
                     };
-                    let through = snapshot.current().through_log_sequence;
+                    let through = match IntegrationsDomain::snapshot_bounds(&snapshot) {
+                        Ok((_shard, through)) => through,
+                        Err(error) => {
+                            corruption_fallbacks = corruption_fallbacks.saturating_add(1);
+                            tracing::warn!(
+                                shard = %crate::orchestrator::routing::shard_path(shard),
+                                reference_sequence,
+                                error = %error,
+                                "ignored projection snapshot with invalid addressing"
+                            );
+                            continue;
+                        }
+                    };
                     if through >= reference_sequence || through >= durable_end_exclusive {
                         corruption_fallbacks = corruption_fallbacks.saturating_add(1);
                         tracing::warn!(
@@ -1942,22 +2027,23 @@ async fn replay_with_snapshots(
                         );
                         continue;
                     }
-                    let projection =
-                        match projection_snapshot::load_projection(store, tenant, shard, &snapshot)
-                            .await
-                        {
-                            Ok(projection) => projection,
-                            Err(error) => {
-                                corruption_fallbacks = corruption_fallbacks.saturating_add(1);
-                                tracing::warn!(
-                                    shard = %crate::orchestrator::routing::shard_path(shard),
-                                    reference_sequence,
-                                    error = ?error,
-                                    "ignored unusable projection snapshot"
-                                );
-                                continue;
-                            }
-                        };
+                    let projection = match IntegrationsDomain::load_snapshot_projection(
+                        store, tenant, shard, &snapshot,
+                    )
+                    .await
+                    {
+                        Ok(projection) => projection,
+                        Err(error) => {
+                            corruption_fallbacks = corruption_fallbacks.saturating_add(1);
+                            tracing::warn!(
+                                shard = %crate::orchestrator::routing::shard_path(shard),
+                                reference_sequence,
+                                error = %error,
+                                "ignored unusable projection snapshot"
+                            );
+                            continue;
+                        }
+                    };
                     match replay_durable_suffix(writer, shard, durable_end_exclusive, projection)
                         .await
                     {
@@ -1965,7 +2051,9 @@ async fn replay_with_snapshots(
                             return Ok(RecoveredProjection {
                                 projection,
                                 snapshot_through_log_sequence: Some(through),
-                                snapshot_created_at: Some(snapshot.current().created_at.clone()),
+                                snapshot_created_at: Some(IntegrationsDomain::snapshot_created_at(
+                                    &snapshot,
+                                )),
                                 replayed_events,
                                 corruption_fallbacks,
                             });
@@ -2020,15 +2108,16 @@ async fn replay_durable_suffix(
     // Scan through the same Remote-visible LogDb whose watermark was captured.
     // A detached or stale reader must never certify prefix completeness.
     let scan_started = std::time::Instant::now();
+    let through_sequence = IntegrationsDomain::through_sequence(&recovered);
     let records = writer
-        .scan_suffix(recovered.through_log_sequence, durable_end_exclusive)
+        .scan_suffix(through_sequence, durable_end_exclusive)
         .await
         .map_err(|error| recovery(format!("scan durable shard prefix: {error:?}")));
     let records = records?;
 
     tracing::info!(
         shard = %crate::orchestrator::routing::shard_path(shard),
-        from_sequence = recovered.through_log_sequence.map_or(0, |sequence| sequence.saturating_add(1)),
+        from_sequence = through_sequence.map_or(0, |sequence| sequence.saturating_add(1)),
         durable_end_exclusive,
         records = records.len(),
         elapsed_ms = u64::try_from(scan_started.elapsed().as_millis()).unwrap_or(u64::MAX),
@@ -2037,32 +2126,9 @@ async fn replay_durable_suffix(
 
     let replayed_events = u64::try_from(records.len()).unwrap_or(u64::MAX);
     for (sequence, record) in records {
-        let input = SequencedJournalRecord::try_new(sequence, record).map_err(|error| {
-            recovery(format!(
-                "validate durable record at sequence {sequence}: {error}"
-            ))
-        })?;
-        if crate::orchestrator::routing::shard(&input.record().integration_id) != shard {
-            return Err(recovery(format!(
-                "durable record at sequence {sequence} routes to a different shard"
-            )));
-        }
-        apply(&mut recovered, input).map_err(|error| {
-            recovery(format!(
-                "replay durable record at sequence {sequence}: {error}"
-            ))
-        })?;
+        IntegrationsDomain::replay(&mut recovered, shard, sequence, record).map_err(recovery)?;
     }
     Ok((recovered, replayed_events))
-}
-
-fn live_work_intents(projection: &Projection) -> Vec<WorkRecoveryIntent> {
-    projection
-        .work
-        .iter()
-        .filter(|(_work_id, work)| work.status.is_live())
-        .map(|(work_id, work)| work_intent_from_projection(work_id, work))
-        .collect()
 }
 
 /// The integration's planned foreground work, when it is runnable.
@@ -2159,29 +2225,6 @@ fn is_terminal(kind: ShardCommandErrorKind) -> bool {
             | ShardCommandErrorKind::Fenced
             | ShardCommandErrorKind::Recovery
     )
-}
-
-fn validate_recovered_prefix(
-    previous: &Projection,
-    recovered: &Projection,
-) -> Result<(), ShardCommandError> {
-    if previous
-        .through_log_sequence
-        .is_some_and(|old| recovered.through_log_sequence.is_none_or(|new| new < old))
-    {
-        return Err(recovery(format!(
-            "durable prefix regressed from {:?} to {:?}",
-            previous.through_log_sequence, recovered.through_log_sequence
-        )));
-    }
-    for (event_id, digest) in &previous.seen_event_digests {
-        if recovered.seen_event_digests.get(event_id) != Some(digest) {
-            return Err(recovery(format!(
-                "durable prefix lost or changed acknowledged event {event_id}"
-            )));
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]
@@ -3665,8 +3708,10 @@ mod tests {
             crate::orchestrator::projection::ApplyOutcome::Applied
         );
 
-        let error = validate_recovered_prefix(&previous, &Projection::default())
-            .expect_err("empty recovery cannot erase an acknowledged record");
+        let error =
+            IntegrationsDomain::validate_recovered_prefix(&previous, &Projection::default())
+                .map_err(recovery)
+                .expect_err("empty recovery cannot erase an acknowledged record");
         assert_eq!(error.kind, ShardCommandErrorKind::Recovery);
     }
 

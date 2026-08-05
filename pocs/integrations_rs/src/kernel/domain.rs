@@ -12,7 +12,8 @@
 //! loop calls through this trait at a concrete type. Stage 2 parameterizes
 //! the loop structs over `D: Domain`.
 
-use crate::orchestrator::ids::EventId;
+use crate::blob::ArtifactStore;
+use crate::orchestrator::ids::{EventId, TenantNamespace};
 use crate::orchestrator::registry::UntrimmedJournalRecord;
 use crate::orchestrator::routing::Shard;
 use crate::orchestrator::shard_log::ShardCommandError;
@@ -53,6 +54,8 @@ pub(crate) trait Domain: Send + Sync + 'static {
     type Snapshot: Send;
     /// In-memory capture handed to the out-of-loop snapshot publisher.
     type SnapshotCapture: Send;
+    /// Recovered live-work descriptor reported to the scheduler at startup.
+    type WorkIntent: Send;
 
     // Records and fold.
 
@@ -113,4 +116,37 @@ pub(crate) trait Domain: Send + Sync + 'static {
     /// Validates a committed snapshot's addressing and returns
     /// `(shard, through_log_sequence)`; `Err` rejects the candidate.
     fn snapshot_bounds(snapshot: &Self::Snapshot) -> Result<(Shard, u64), String>;
+    /// Audit timestamp recorded in the snapshot, for recovery telemetry.
+    fn snapshot_created_at(snapshot: &Self::Snapshot) -> String;
+    /// Materializes the projection a snapshot references. `Err` falls back
+    /// to an older snapshot or full replay; it never fails recovery.
+    fn load_snapshot_projection(
+        store: &ArtifactStore,
+        tenant: &TenantNamespace,
+        shard: Shard,
+        snapshot: &Self::Snapshot,
+    ) -> impl std::future::Future<Output = Result<Self::Projection, String>> + Send;
+
+    // Recovery.
+
+    /// The projection's inclusive durable high-water mark.
+    fn through_sequence(projection: &Self::Projection) -> Option<u64>;
+    /// Validates and folds one scanned record during startup or ambiguity
+    /// recovery. `Err` is recovery-fatal for the shard.
+    fn replay(
+        projection: &mut Self::Projection,
+        shard: Shard,
+        sequence: u64,
+        record: Self::Record,
+    ) -> Result<(), String>;
+    /// Proves a freshly recovered prefix extends what this process already
+    /// acknowledged: no sequence regression, no lost or changed event.
+    fn validate_recovered_prefix(
+        previous: &Self::Projection,
+        recovered: &Self::Projection,
+    ) -> Result<(), String>;
+    /// Live (planned or blocked) work the scheduler must resume.
+    fn live_work(projection: &Self::Projection) -> Vec<Self::WorkIntent>;
+    /// Keys whose state-change signal should fire once at startup.
+    fn initial_state_keys(projection: &Self::Projection) -> Vec<Self::StateKey>;
 }
