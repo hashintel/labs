@@ -22,10 +22,12 @@ use crate::orchestrator::events::{
 };
 use crate::orchestrator::ids::TenantNamespace;
 use crate::orchestrator::ids::{AttemptId, CanonicalIntegrationId, EffectId, EventId, WorkId};
+use crate::kernel::domain::{Domain, Prepared};
 use crate::orchestrator::projection::{
-    apply, finalize, prepare, ControlRequestOutcomeV1, InvalidTransition, PreparedTransition,
-    Projection, WorkStatus,
+    apply, ControlRequestOutcomeV1, InvalidTransition, PreparedTransition, Projection,
+    ProjectionDelta, WorkStatus,
 };
+use crate::orchestrator::routing::Shard;
 use crate::orchestrator::projection_snapshot::{
     self, ControlProjectionSnapshot, SnapshotCapture, SnapshotError,
 };
@@ -704,7 +706,7 @@ enum Command {
     },
 }
 
-enum CommandQuery {
+pub(crate) enum CommandQuery {
     Run(super::super::ids::RunId),
     NextRun,
     NextRestore,
@@ -725,7 +727,7 @@ enum CommandQuery {
     State(CanonicalIntegrationId),
 }
 
-enum QueryResult {
+pub(crate) enum QueryResult {
     Run(Option<RunView>),
     NextRun(Option<RunView>),
     NextRestore(Option<CanonicalIntegrationId>),
@@ -743,6 +745,145 @@ enum QueryResult {
     Checkpoint(Option<crate::blob::BlobRef>),
     AttemptCurrent(bool),
     State(Option<StateCursor>),
+}
+
+/// Protocol V1's implementation of the kernel [`Domain`] contract. It lives
+/// next to its consumer because the query vocabulary is private to this
+/// module; everything here delegates to the existing V1 functions, so the
+/// trait adds a seam, not behavior.
+pub(crate) struct IntegrationsDomain;
+
+impl Domain for IntegrationsDomain {
+    type Record = JournalRecord;
+    type RecordCurrent = JournalRecordV1;
+    type Projection = Projection;
+    type Delta = ProjectionDelta;
+    type FoldError = InvalidTransition;
+    type StateKey = CanonicalIntegrationId;
+    type Query = CommandQuery;
+    type QueryResult = QueryResult;
+    type ControlRequest = ControlRequestV1;
+    type ControlSnapshot = ControlRequestSnapshot;
+    type ControlOutcome = ControlRequestOutcomeV1;
+    type ControlRejection = ControlRejectionReason;
+    type Snapshot = ControlProjectionSnapshot;
+    type SnapshotCapture = SnapshotCapture;
+
+    fn record_shard(record: &JournalRecordV1) -> Shard {
+        crate::orchestrator::routing::shard(&record.integration_id)
+    }
+
+    fn record_event_id(record: &JournalRecordV1) -> EventId {
+        record.event_id.clone()
+    }
+
+    fn record_state_key(record: &JournalRecordV1) -> CanonicalIntegrationId {
+        record.integration_id.clone()
+    }
+
+    fn wire(record: JournalRecordV1) -> JournalRecord {
+        JournalRecord::V1(record)
+    }
+
+    fn prepare(
+        projection: &Projection,
+        record: &JournalRecordV1,
+    ) -> Result<Prepared<ProjectionDelta>, InvalidTransition> {
+        Ok(
+            match crate::orchestrator::projection::prepare(projection, record)? {
+                PreparedTransition::Noop => Prepared::Noop,
+                PreparedTransition::Mutation(delta) => Prepared::Mutation(delta),
+            },
+        )
+    }
+
+    fn finalize(
+        projection: &mut Projection,
+        delta: ProjectionDelta,
+        shard_sequence: u64,
+    ) -> Result<(), InvalidTransition> {
+        crate::orchestrator::projection::finalize(
+            projection,
+            PreparedTransition::Mutation(delta),
+            shard_sequence,
+        )
+        .map(|_outcome| ())
+    }
+
+    fn state_sequence(projection: &Projection, key: &CanonicalIntegrationId) -> Option<u64> {
+        projection
+            .integrations
+            .get(key)
+            .and_then(|integration| integration.checkpoint_state_sequence)
+    }
+
+    fn answer(projection: &Projection, query: CommandQuery) -> QueryResult {
+        query_projection(projection, query)
+    }
+
+    fn control_shard(request: &ControlRequestV1) -> Shard {
+        crate::orchestrator::routing::shard(&request.integration_id)
+    }
+
+    fn inspect_control(
+        projection: &Projection,
+        request: &ControlRequestV1,
+    ) -> Result<ControlRequestSnapshot, ShardCommandError> {
+        crate::orchestrator::inbox::inspect_projection(projection, request)
+    }
+
+    fn control_prior_outcome(snapshot: &ControlRequestSnapshot) -> Option<ControlRequestOutcomeV1> {
+        snapshot.outcome.clone()
+    }
+
+    fn control_event_id(request: &ControlRequestV1) -> EventId {
+        crate::orchestrator::events::control_outcome_event_id(&request.request_id)
+    }
+
+    fn promote_control(
+        projection: &Projection,
+        request: &ControlRequestV1,
+        preflight_rejection: Option<ControlRejectionReason>,
+    ) -> Result<JournalRecordV1, InvalidTransition> {
+        crate::orchestrator::inbox::promote_control_request(projection, request, preflight_rejection)
+    }
+
+    fn control_outcome_after_append(
+        projection: &Projection,
+        request: &ControlRequestV1,
+    ) -> Result<ControlRequestOutcomeV1, String> {
+        let outcome = projection
+            .control_request_outcomes
+            .get(&request.request_id)
+            .cloned()
+            .ok_or_else(|| {
+                format!(
+                    "control outcome {} missing after durable resolution",
+                    request.request_id
+                )
+            })?;
+        let digest = request
+            .digest()
+            .map_err(|error| format!("recompute control request digest after append: {error}"))?;
+        if outcome.request_digest != digest {
+            return Err(format!(
+                "control outcome {} has a conflicting request digest after append",
+                request.request_id
+            ));
+        }
+        Ok(outcome)
+    }
+
+    fn capture_snapshot(shard: Shard, projection: &Projection) -> Option<SnapshotCapture> {
+        SnapshotCapture::new(shard, projection)
+    }
+
+    fn snapshot_bounds(snapshot: &ControlProjectionSnapshot) -> Result<(Shard, u64), String> {
+        let value = snapshot.current();
+        let shard = projection_snapshot::parse_shard(&value.shard)
+            .map_err(|error| format!("validate snapshot shard: {error}"))?;
+        Ok((shard, value.through_log_sequence))
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -1152,7 +1293,10 @@ impl CommandLoop {
                             span >= minimum_sequence_span.max(1)
                         })
                         .and_then(|_through| {
-                            SnapshotCapture::new(self.location.shard, &self.projection)
+                            IntegrationsDomain::capture_snapshot(
+                                self.location.shard,
+                                &self.projection,
+                            )
                         });
                     let _ = reply.send(Ok(capture));
                 }
@@ -1169,7 +1313,7 @@ impl CommandLoop {
                     }
                 }
                 Command::Query { query, reply } => {
-                    let _ = reply.send(Ok(query_projection(&self.projection, query)));
+                    let _ = reply.send(Ok(IntegrationsDomain::answer(&self.projection, query)));
                 }
                 Command::Shutdown { reply } => {
                     self.accepting.store(false, Ordering::Release);
@@ -1210,7 +1354,7 @@ impl CommandLoop {
         &self,
         request: &ControlRequestV1,
     ) -> Result<ControlRequestSnapshot, ShardCommandError> {
-        if crate::orchestrator::routing::shard(&request.integration_id) != self.location.shard {
+        if IntegrationsDomain::control_shard(request) != self.location.shard {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
                 message: format!(
@@ -1219,7 +1363,7 @@ impl CommandLoop {
                 ),
             });
         }
-        crate::orchestrator::inbox::inspect_projection(&self.projection, request)
+        IntegrationsDomain::inspect_control(&self.projection, request)
     }
 
     async fn process_control_request(
@@ -1228,46 +1372,20 @@ impl CommandLoop {
         preflight_rejection: Option<ControlRejectionReason>,
     ) -> Result<ControlResolution, ShardCommandError> {
         let snapshot = self.inspect_control_request(&request)?;
-        if let Some(outcome) = snapshot.outcome {
+        if let Some(outcome) = IntegrationsDomain::control_prior_outcome(&snapshot) {
             return Ok(ControlResolution {
                 append: ShardCommandOutcome::AlreadyDurable {
-                    event_id: crate::orchestrator::events::control_outcome_event_id(
-                        &request.request_id,
-                    ),
+                    event_id: IntegrationsDomain::control_event_id(&request),
                 },
                 outcome,
             });
         }
-        let record = crate::orchestrator::inbox::promote_control_request(
-            &self.projection,
-            &request,
-            preflight_rejection,
-        )
-        .map_err(invalid_candidate)?;
+        let record =
+            IntegrationsDomain::promote_control(&self.projection, &request, preflight_rejection)
+                .map_err(invalid_candidate)?;
         let append = self.process(record).await?;
-        let outcome = self
-            .projection
-            .control_request_outcomes
-            .get(&request.request_id)
-            .cloned()
-            .ok_or_else(|| {
-                recovery(format!(
-                    "control outcome {} missing after durable resolution",
-                    request.request_id
-                ))
-            })?;
-        if outcome.request_digest
-            != request.digest().map_err(|error| {
-                recovery(format!(
-                    "recompute control request digest after append: {error}"
-                ))
-            })?
-        {
-            return Err(recovery(format!(
-                "control outcome {} has a conflicting request digest after append",
-                request.request_id
-            )));
-        }
+        let outcome = IntegrationsDomain::control_outcome_after_append(&self.projection, &request)
+            .map_err(recovery)?;
         Ok(ControlResolution { append, outcome })
     }
 
@@ -1275,7 +1393,7 @@ impl CommandLoop {
         &mut self,
         record: JournalRecordV1,
     ) -> Result<ShardCommandOutcome, ShardCommandError> {
-        if crate::orchestrator::routing::shard(&record.integration_id) != self.location.shard {
+        if IntegrationsDomain::record_shard(&record) != self.location.shard {
             return Err(invalid_candidate(InvalidTransition {
                 event_id: record.event_id.clone(),
                 reason: format!(
@@ -1284,16 +1402,17 @@ impl CommandLoop {
                 ),
             }));
         }
-        let event_id = record.event_id.clone();
-        let integration_id = record.integration_id.clone();
+        let event_id = IntegrationsDomain::record_event_id(&record);
+        let integration_id = IntegrationsDomain::record_state_key(&record);
         let mut safe_failures = 0_u32;
         loop {
             let previous_state_sequence = self.checkpoint_state_sequence(&integration_id);
-            let transition = prepare(&self.projection, &record).map_err(invalid_candidate)?;
-            if transition == PreparedTransition::Noop {
+            let transition =
+                IntegrationsDomain::prepare(&self.projection, &record).map_err(invalid_candidate)?;
+            let Prepared::Mutation(delta) = transition else {
                 self.notify_state_change_if_established(&integration_id);
                 return Ok(ShardCommandOutcome::AlreadyDurable { event_id });
-            }
+            };
 
             self.wait_before_append().await;
             if self.ownership_lost.is_cancelled() {
@@ -1302,10 +1421,14 @@ impl CommandLoop {
                     message: "shard ownership was lost before append".to_owned(),
                 });
             }
-            let append_result = self.append(&JournalRecord::V1(record.clone())).await;
+            let append_result = self
+                .append(&IntegrationsDomain::wire(record.clone()))
+                .await;
             match append_result {
                 Ok(sequence) => {
-                    if let Err(error) = finalize(&mut self.projection, transition, sequence) {
+                    if let Err(error) =
+                        IntegrationsDomain::finalize(&mut self.projection, delta, sequence)
+                    {
                         // The append is already durable. A local finalization
                         // failure is never a candidate rejection: rebuild from
                         // the authoritative prefix and require it to adopt the
@@ -1317,12 +1440,12 @@ impl CommandLoop {
                                 "finalize failed after durable append ({error}); {recovery_error}"
                             ))
                             })?;
-                        return match prepare(&self.projection, &record) {
-                            Ok(PreparedTransition::Noop) => {
+                        return match IntegrationsDomain::prepare(&self.projection, &record) {
+                            Ok(Prepared::Noop) => {
                                 self.notify_state_change_if_established(&integration_id);
                                 Ok(ShardCommandOutcome::AlreadyDurable { event_id })
                             }
-                            Ok(PreparedTransition::Mutation(_)) => Err(recovery(format!(
+                            Ok(Prepared::Mutation(_)) => Err(recovery(format!(
                                 "event {event_id} was acknowledged but is absent after recovery"
                             ))),
                             Err(prepare_error) => Err(recovery(format!(
@@ -1361,15 +1484,14 @@ impl CommandLoop {
         &mut self,
         snapshot: ControlProjectionSnapshot,
     ) -> Result<u64, ShardCommandError> {
-        let value = snapshot.current();
-        let snapshot_shard = projection_snapshot::parse_shard(&value.shard)
-            .map_err(|error| recovery(format!("validate snapshot shard: {error}")))?;
+        let (snapshot_shard, snapshot_through) =
+            IntegrationsDomain::snapshot_bounds(&snapshot).map_err(recovery)?;
         if snapshot_shard != self.location.shard {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
                 message: format!(
                     "projection snapshot for shard {} was proposed to shard {}",
-                    value.shard,
+                    super::super::routing::shard_path(snapshot_shard),
                     super::super::routing::shard_path(self.location.shard)
                 ),
             });
@@ -1380,12 +1502,11 @@ impl CommandLoop {
                 message: "cannot reference a snapshot for an empty projection".to_owned(),
             });
         };
-        if value.through_log_sequence > current_sequence {
+        if snapshot_through > current_sequence {
             return Err(ShardCommandError {
                 kind: ShardCommandErrorKind::InvalidCandidate,
                 message: format!(
-                    "projection snapshot through {} is ahead of current projection {}",
-                    value.through_log_sequence, current_sequence
+                    "projection snapshot through {snapshot_through} is ahead of current projection {current_sequence}"
                 ),
             });
         }
@@ -1405,8 +1526,7 @@ impl CommandLoop {
                 .ok_or_else(|| recovery("shard writer is unavailable"))?;
             match writer.append_projection_snapshot(&snapshot).await {
                 Ok(sequence) => {
-                    self.last_snapshot_through_log_sequence =
-                        Some(snapshot.current().through_log_sequence);
+                    self.last_snapshot_through_log_sequence = Some(snapshot_through);
                     return Ok(sequence);
                 }
                 Err(error) if error.disposition == AppendDisposition::DefinitelyNotCommitted => {
@@ -1421,10 +1541,7 @@ impl CommandLoop {
     }
 
     fn checkpoint_state_sequence(&self, integration_id: &CanonicalIntegrationId) -> Option<u64> {
-        self.projection
-            .integrations
-            .get(integration_id)
-            .and_then(|projection| projection.checkpoint_state_sequence)
+        IntegrationsDomain::state_sequence(&self.projection, integration_id)
     }
 
     fn notify_state_change_if_established(&self, integration_id: &CanonicalIntegrationId) {
