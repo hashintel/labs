@@ -2132,7 +2132,7 @@ mod tests {
     };
     use crate::orchestrator::inbox::{CachePublication, ControlInbox, DiscoveredControlRequest};
     use crate::orchestrator::registry::DurableRecord;
-    use crate::orchestrator::routing::{self, ControlPaths, Shard};
+    use crate::orchestrator::routing::{self, Keyspace, Shard};
     use crate::orchestrator::work::{
         ApplyWorkV1, DesiredProjectionRef, ReconcileWorkV1, StatePhase, StatePhaseV1, StateVersion,
         StateVersionRef, StateVersionV1, WorkKind, WorkManifest, WorkManifestV1,
@@ -2148,7 +2148,7 @@ mod tests {
             let root = tempfile::tempdir().expect("create object-store root");
             let tenant = TenantNamespace::parse("alice").expect("valid tenant");
             let shard = Shard::try_from(shard).expect("valid shard");
-            let path = ControlPaths::new(tenant).shard_log(shard);
+            let path = Keyspace::for_tenant(&tenant).shard_log(shard);
             let location = ShardLogLocation {
                 shard,
                 read_timeout: super::super::DURABILITY_TIMEOUT,
@@ -2631,7 +2631,7 @@ mod tests {
             }),
         )
         .expect("valid cancellation request");
-        let request_key = ControlPaths::new(tenant.clone()).request(
+        let request_key = Keyspace::for_tenant(&tenant).request(
             Shard::try_from(49).expect("valid shard"),
             &request.request_id,
         );
@@ -2682,7 +2682,7 @@ mod tests {
                 .expect("inspect deleted request"),
             BoundedCasDocument::Missing
         ));
-        let result_key = ControlPaths::new(tenant).request_result(
+        let result_key = Keyspace::for_tenant(&tenant).request_result(
             Shard::try_from(49).expect("valid shard"),
             &request.request_id,
         );
@@ -2734,7 +2734,7 @@ mod tests {
         )
         .expect("valid cancellation request");
         let shard = Shard::try_from(50).expect("valid shard");
-        let paths = ControlPaths::new(tenant.clone());
+        let paths = Keyspace::for_tenant(&tenant);
         let request_key = paths.request(shard, &request.request_id);
         store
             .create_cas_document(
@@ -2815,7 +2815,7 @@ mod tests {
             }),
         )
         .expect("valid cancellation request");
-        let request_key = ControlPaths::new(tenant.clone()).request(shard, &request.request_id);
+        let request_key = Keyspace::for_tenant(&tenant).request(shard, &request.request_id);
         store
             .create_cas_document(
                 &request_key,
@@ -2887,7 +2887,7 @@ mod tests {
             }),
         )
         .expect("valid desired-state request envelope");
-        let request_key = ControlPaths::new(tenant.clone()).request(shard, &request.request_id);
+        let request_key = Keyspace::for_tenant(&tenant).request(shard, &request.request_id);
         store
             .create_cas_document(
                 &request_key,

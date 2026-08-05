@@ -21,7 +21,7 @@ use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
     MigrationPolicy, MutableCasRecord, PureUpcastRecord, RecordFamily, VersionedRecord,
 };
-use super::routing::{self, shard_path, ControlPaths, Shard, ROUTING_VERSION};
+use super::routing::{self, shard_path, Keyspace, Shard, ROUTING_VERSION};
 use super::DurableError;
 
 const MAX_KNOWN_SHARD_MARKER_BYTES: usize = 4 * 1024;
@@ -300,7 +300,7 @@ pub(crate) async fn submit_durable_for_run(
         .attach_printable("validate control baseline before submission")?;
     ensure_run_locator(store, tenant, &run_id, &integration_id).await?;
     let routed = routing::route(&integration_id);
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     ensure_known_shard_marker(store, &paths, routed.shard).await?;
 
     let receipt = ReadyReceiptV1::new(
@@ -406,7 +406,7 @@ async fn ensure_run_locator(
     run_id: &RunId,
     integration_id: &CanonicalIntegrationId,
 ) -> Result<(), Report<DurableError>> {
-    let key = ControlPaths::new(tenant.clone()).run_locator(run_id);
+    let key = Keyspace::for_tenant(tenant).run_locator(run_id);
     let proposed = RunLocatorRecord::current(integration_id.clone());
     match create_record(store, &key, &proposed)
         .await
@@ -441,7 +441,7 @@ pub(crate) async fn retire_admission_for_terminal_runs(
     integration_id: &CanonicalIntegrationId,
     terminal_runs: &std::collections::BTreeSet<RunId>,
 ) -> Result<bool, Report<DurableError>> {
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let routed = routing::route(integration_id);
     let admission_key = paths.admission(&routed.integration_path);
     for _attempt in 0..MAX_ADMISSION_ATTEMPTS {
@@ -480,7 +480,7 @@ pub async fn discover_ready_receipts(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
 ) -> Result<Vec<DiscoveredReadyReceipt>, Report<DurableError>> {
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let mut discovered = Vec::new();
     let mut objects = store
         .list(&paths.ready())
@@ -523,7 +523,7 @@ pub async fn discover_known_shards(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
 ) -> Result<Vec<Shard>, Report<DurableError>> {
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let prefix = format!("{}/", paths.known_shards());
     let mut shards = Vec::new();
     let mut objects = store
@@ -589,7 +589,7 @@ pub async fn admitted_run_record(
         return Err(Report::new(DurableError)
             .attach_printable("discovered receipt integration disagrees with its shard"));
     }
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let admission_key = paths.admission(&routing::integration_path(
         &discovered.receipt.integration_id,
     ));
@@ -635,7 +635,7 @@ pub(crate) async fn exact_admitted_ready_receipt(
     run_id: &RunId,
 ) -> Result<Option<DiscoveredReadyReceipt>, Report<DurableError>> {
     let routed = routing::route(integration_id);
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let admission_key = paths.admission(&routed.integration_path);
     let Some((pointer, _version)) =
         read_mutable_record::<AdmissionPointer>(store, &admission_key, MAX_ADMISSION_POINTER_BYTES)
@@ -694,7 +694,7 @@ pub(crate) async fn active_admission_revision(
     run_id: &RunId,
 ) -> Result<Option<EventId>, Report<DurableError>> {
     let routed = routing::route(integration_id);
-    let key = ControlPaths::new(tenant.clone()).admission(&routed.integration_path);
+    let key = Keyspace::for_tenant(tenant).admission(&routed.integration_path);
     let Some((pointer, _version)) =
         read_mutable_record::<AdmissionPointer>(store, &key, MAX_ADMISSION_POINTER_BYTES)
             .await
@@ -719,7 +719,7 @@ pub async fn delete_ready_receipt(
     shard: Shard,
     run_id: &RunId,
 ) -> Result<(), Report<DurableError>> {
-    let key = ControlPaths::new(tenant.clone()).ready_receipt(shard, run_id);
+    let key = Keyspace::for_tenant(tenant).ready_receipt(shard, run_id);
     store
         .delete_control(&key)
         .await
@@ -729,7 +729,7 @@ pub async fn delete_ready_receipt(
 
 pub(crate) async fn ensure_known_shard_marker(
     store: &ArtifactStore,
-    paths: &ControlPaths,
+    paths: &Keyspace,
     shard: Shard,
 ) -> Result<(), Report<DurableError>> {
     let key = paths.known_shard(shard);
@@ -761,7 +761,7 @@ pub(crate) async fn ensure_known_shard_marker(
 }
 
 fn outcome_from_pointer(
-    paths: &ControlPaths,
+    paths: &Keyspace,
     expected_integration: &CanonicalIntegrationId,
     expected_shard: Shard,
     pointer: AdmissionPointer,
@@ -793,7 +793,7 @@ fn outcome_from_pointer(
     })
 }
 
-fn parse_ready_receipt_key(paths: &ControlPaths, key: &str) -> Option<(Shard, RunId)> {
+fn parse_ready_receipt_key(paths: &Keyspace, key: &str) -> Option<(Shard, RunId)> {
     let relative = key.strip_prefix(&format!("{}/", paths.ready()))?;
     let mut components = relative.split('/');
     let shard = components.next()?;
@@ -1191,7 +1191,7 @@ mod tests {
                 .expect("fixture newline")
         );
 
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let pointer = AdmissionPointer::V1(
             AdmissionPointerV1::from_receipt(&receipt, paths.ready_receipt(shard, &receipt.run_id))
                 .expect("valid admission pointer"),
@@ -1219,7 +1219,7 @@ mod tests {
     async fn mutable_record_read_cas_migrates_to_current_canonical_bytes() {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let receipt = fixed_receipt();
         let shard = routing::shard(&receipt.integration_id);
         let pointer = AdmissionPointer::V1(
@@ -1267,7 +1267,7 @@ mod tests {
     async fn mutable_migrator_never_rewrites_an_unknown_future_version() {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
-        let key = ControlPaths::new(tenant()).admission(&routing::integration_path(&integration()));
+        let key = Keyspace::for_tenant(&tenant()).admission(&routing::integration_path(&integration()));
         let future = br#"{"version":"v2","data":{"opaque":true}}"#.to_vec();
         store
             .create_cas_document(&key, future.clone())
@@ -1389,7 +1389,7 @@ mod tests {
                 .expect("retire terminal admission")
         );
 
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let key = paths.admission(&routing::integration_path(&integration()));
         let (retired, retired_version) =
             read_mutable_record::<AdmissionPointer>(&store, &key, MAX_ADMISSION_POINTER_BYTES)
@@ -1447,7 +1447,7 @@ mod tests {
             .await
             .expect("lost-ack retry adopts identical locator");
 
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let (locator, _version) = read_record::<RunLocatorRecord>(
             &store,
             &paths.run_locator(&run_id),
@@ -1502,7 +1502,7 @@ mod tests {
         )
         .await
         .expect("submission");
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let shard = routing::shard(&integration());
         store
             .create_json(
@@ -1531,7 +1531,7 @@ mod tests {
     async fn lost_receipt_ack_adopts_only_the_same_semantic_receipt() {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let first = fixed_receipt();
         let key = paths.ready_receipt(routing::shard(&integration()), &first.run_id);
         create_ready_receipt(&store, &key, &ReadyReceipt::V1(first.clone()))
@@ -1566,7 +1566,7 @@ mod tests {
         ensure_control_baseline(&store, &tenant())
             .await
             .expect("control baseline");
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let shard = routing::shard(&integration());
         let key = paths.ready_receipt(
             shard,
@@ -1586,7 +1586,7 @@ mod tests {
         ensure_control_baseline(&store, &tenant())
             .await
             .expect("control baseline");
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let shard = routing::shard(&integration());
         let noncanonical =
             br#"{ "version": "v1", "data": { "shard": 39, "routing_version": 1 } }"#.to_vec();
@@ -1623,7 +1623,7 @@ mod tests {
         ensure_control_baseline(&marker_store, &tenant())
             .await
             .expect("marker baseline");
-        let marker_paths = ControlPaths::new(tenant());
+        let marker_paths = Keyspace::for_tenant(&tenant());
         let shard = routing::shard(&integration());
         ensure_known_shard_marker(&marker_store, &marker_paths, shard)
             .await
@@ -1648,7 +1648,7 @@ mod tests {
         ensure_control_baseline(&receipt_store, &tenant())
             .await
             .expect("receipt baseline");
-        let receipt_paths = ControlPaths::new(tenant());
+        let receipt_paths = Keyspace::for_tenant(&tenant());
         ensure_known_shard_marker(&receipt_store, &receipt_paths, shard)
             .await
             .expect("receipt marker");
@@ -1704,7 +1704,7 @@ mod tests {
         ensure_control_baseline(&cas_store, &tenant())
             .await
             .expect("CAS baseline");
-        let cas_paths = ControlPaths::new(tenant());
+        let cas_paths = Keyspace::for_tenant(&tenant());
         ensure_known_shard_marker(&cas_store, &cas_paths, shard)
             .await
             .expect("CAS marker");

@@ -19,6 +19,7 @@ use super::internal_metadata::{
 };
 use super::metadata::{self, InvocationV1};
 use super::registry::DurableRecord;
+use crate::kernel::keyspace::Keyspace;
 use crate::blob::ArtifactStore;
 use crate::build::Integration;
 use crate::config::Env;
@@ -70,7 +71,7 @@ pub(crate) async fn load_run_policy(
     reference: &PolicyRef,
 ) -> Result<u32, Report<RunInputError>> {
     let artifact = reference.artifact.current();
-    let expected_prefix = format!("tenants/{tenant}/artifacts/run-policies/sha256/");
+    let expected_prefix = Keyspace::for_tenant(tenant).run_policies_digest_prefix();
     if artifact.size > MAX_RUN_POLICY_RECORD_BYTES as u64
         || artifact.media_type != RUN_INPUT_MEDIA_TYPE
         || !artifact.key.starts_with(&expected_prefix)
@@ -149,7 +150,7 @@ fn validate_reference(
             .attach_printable(format!("planner version: {}", reference.planner_version)));
     }
     let artifact = reference.artifact.current();
-    let expected_prefix = format!("tenants/{tenant}/artifacts/run-inputs/sha256/");
+    let expected_prefix = Keyspace::for_tenant(tenant).run_inputs_digest_prefix();
     if artifact.size > MAX_RUN_INPUT_RECORD_BYTES as u64
         || artifact.media_type != RUN_INPUT_MEDIA_TYPE
         || !artifact.key.starts_with(&expected_prefix)
@@ -310,7 +311,7 @@ mod tests {
             "actor:owner".to_owned(),
             resolved_digest,
         );
-        let prefix = format!("tenants/{tenant}/artifacts/run-inputs");
+        let prefix = Keyspace::for_tenant(&tenant).run_inputs();
         let artifact = store
             .publish_record(
                 &record,

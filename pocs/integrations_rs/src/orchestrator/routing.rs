@@ -4,7 +4,7 @@ use std::fmt;
 
 use sha2::{Digest, Sha256};
 
-use super::ids::{CanonicalIntegrationId, RequestId, RunId, TenantNamespace};
+use super::ids::CanonicalIntegrationId;
 
 pub const ROUTING_VERSION: u32 = 1;
 pub const SHARD_COUNT: u16 = 256;
@@ -95,84 +95,9 @@ pub fn integration_path(id: &CanonicalIntegrationId) -> IntegrationPath {
     route(id).integration_path
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ControlPaths {
-    tenant: TenantNamespace,
-}
-
-impl ControlPaths {
-    pub fn new(tenant: TenantNamespace) -> Self {
-        Self { tenant }
-    }
-
-    pub fn root(&self) -> String {
-        format!("tenants/{}/control/v1", self.tenant)
-    }
-
-    pub fn baseline(&self) -> String {
-        format!("{}/baseline.json", self.root())
-    }
-
-    pub fn known_shards(&self) -> String {
-        format!("{}/known-shards", self.root())
-    }
-
-    pub fn known_shard(&self, shard: Shard) -> String {
-        format!("{}/{}.json", self.known_shards(), shard_path(shard))
-    }
-
-    pub fn ready(&self) -> String {
-        format!("{}/ready", self.root())
-    }
-
-    pub fn ready_shard(&self, shard: Shard) -> String {
-        format!("{}/{}", self.ready(), shard_path(shard))
-    }
-
-    pub fn ready_receipt(&self, shard: Shard, run_id: &RunId) -> String {
-        format!("{}/{}.json", self.ready_shard(shard), run_id)
-    }
-
-    pub fn admission(&self, integration: &IntegrationPath) -> String {
-        format!("{}/admissions/{integration}.json", self.root())
-    }
-
-    pub fn run_locator(&self, run_id: &RunId) -> String {
-        format!("{}/run-locators/{run_id}.json", self.root())
-    }
-
-    pub fn requests(&self, shard: Shard) -> String {
-        format!("{}/requests/{}", self.root(), shard_path(shard))
-    }
-
-    pub fn request(&self, shard: Shard, request_id: &RequestId) -> String {
-        format!("{}/{}.json", self.requests(shard), request_id)
-    }
-
-    pub fn request_results(&self, shard: Shard) -> String {
-        format!("{}/request-results/{}", self.root(), shard_path(shard))
-    }
-
-    pub fn request_result(&self, shard: Shard, request_id: &RequestId) -> String {
-        format!("{}/{}.json", self.request_results(shard), request_id)
-    }
-
-    pub fn lease(&self, shard: Shard) -> String {
-        format!("{}/leases/{}.json", self.root(), shard_path(shard))
-    }
-
-    pub fn shard_root(&self, shard: Shard) -> String {
-        format!("{}/shards/{}", self.root(), shard_path(shard))
-    }
-
-    pub fn shard_log(&self, shard: Shard) -> String {
-        format!("{}/log", self.shard_root(shard))
-    }
-
-    pub fn shard_projection(&self, shard: Shard) -> String {
-        format!("{}/projection", self.shard_root(shard))
-    }
-}
+// Key derivation lives in the kernel keyspace; re-exported here so the
+// orchestrator's `routing::` imports keep resolving until the module moves.
+pub use crate::kernel::keyspace::Keyspace;
 
 #[cfg(test)]
 mod tests {
@@ -203,31 +128,4 @@ mod tests {
         assert_eq!(routed.integration_path.to_hex().len(), 64);
     }
 
-    #[test]
-    fn control_paths_are_tenant_first_and_shard_canonical() {
-        let tenant = TenantNamespace::parse("alice").expect("valid tenant");
-        let paths = ControlPaths::new(tenant);
-        let shard = Shard::try_from(15).expect("valid shard");
-        let id = CanonicalIntegrationId::parse("alice:supply-chain").expect("valid integration ID");
-        let integration = integration_path(&id);
-
-        assert_eq!(paths.baseline(), "tenants/alice/control/v1/baseline.json");
-        assert_eq!(
-            paths.known_shard(shard),
-            "tenants/alice/control/v1/known-shards/00f.json"
-        );
-        assert_eq!(
-            paths.admission(&integration),
-            format!("tenants/alice/control/v1/admissions/{integration}.json")
-        );
-        let run_id = RunId::parse("00000000-0000-4000-8000-000000000001").expect("valid run ID");
-        assert_eq!(
-            paths.run_locator(&run_id),
-            format!("tenants/alice/control/v1/run-locators/{run_id}.json")
-        );
-        assert_eq!(
-            paths.shard_log(shard),
-            "tenants/alice/control/v1/shards/00f/log"
-        );
-    }
 }

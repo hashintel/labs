@@ -31,7 +31,7 @@ use super::registry::{
     reject_unknown_fields, CompatError, DurabilityClass, DurableRecord, MigrationPolicy,
     RebuildableRecord, RecordFamily,
 };
-use super::routing::{self, ControlPaths, Shard};
+use super::routing::{self, Keyspace, Shard};
 use super::shard_log::{
     ControlRequestSnapshot, ShardCommandError, ShardCommandErrorKind, ShardCommandHandle,
 };
@@ -319,7 +319,7 @@ impl ControlInbox {
     }
 
     pub(crate) async fn discover_batch(&mut self) -> InboxResult<Vec<DiscoveredControlRequest>> {
-        let paths = ControlPaths::new(self.tenant.clone());
+        let paths = Keyspace::for_tenant(&self.tenant);
         let prefix = paths.requests(self.shard);
         let mut keys = self
             .store
@@ -378,7 +378,7 @@ impl ControlInbox {
     ) -> InboxResult<ProcessedControlRequest> {
         let request = discovered.request;
         let expected_key =
-            ControlPaths::new(self.tenant.clone()).request(self.shard, &request.request_id);
+            Keyspace::for_tenant(&self.tenant).request(self.shard, &request.request_id);
         if discovered.key != expected_key {
             return Err(Report::new(InboxError::NonCanonicalRequest)
                 .attach_printable(format!("offending object key: {:?}", discovered.key)));
@@ -585,7 +585,7 @@ pub(crate) async fn publish_control_request(
         .await
         .change_context(InboxError::Baseline)?;
     let routed = routing::route(&request.integration_id);
-    let paths = ControlPaths::new(request.tenant.clone());
+    let paths = Keyspace::for_tenant(&request.tenant);
     ensure_known_shard_marker(store, &paths, routed.shard)
         .await
         .change_context(InboxError::KnownShard)?;
@@ -621,7 +621,7 @@ fn wrapping_batch<'a>(
     sorted.iter().skip(start).take(limit).collect()
 }
 
-fn parse_request_key(paths: &ControlPaths, shard: Shard, key: &str) -> Option<RequestId> {
+fn parse_request_key(paths: &Keyspace, shard: Shard, key: &str) -> Option<RequestId> {
     let relative = key.strip_prefix(&format!("{}/", paths.requests(shard)))?;
     if relative.contains('/') {
         return None;
@@ -657,7 +657,7 @@ async fn publish_result(
     expected: &ControlRequestResult,
 ) -> InboxResult<CachePublication> {
     let request_id = &expected.current().request_id;
-    let key = ControlPaths::new(tenant.clone()).request_result(shard, request_id);
+    let key = Keyspace::for_tenant(tenant).request_result(shard, request_id);
     for _attempt in 0..MAX_RESULT_CAS_ATTEMPTS {
         match record_io::create(store, &key, expected)
             .await
@@ -956,7 +956,7 @@ mod tests {
     #[test]
     fn only_direct_canonical_request_children_are_discoverable() {
         let tenant = TenantNamespace::parse("alice").expect("valid tenant");
-        let paths = ControlPaths::new(tenant);
+        let paths = Keyspace::for_tenant(&tenant);
         let shard = Shard::try_from(39).expect("valid shard");
         let request_id = RequestId::parse("1".repeat(64)).expect("valid request ID");
         let canonical = paths.request(shard, &request_id);
@@ -1046,7 +1046,7 @@ mod tests {
                 observed_revision: None,
             },
         });
-        let key = ControlPaths::new(tenant.clone()).request_result(shard, &request_id);
+        let key = Keyspace::for_tenant(&tenant).request_result(shard, &request_id);
         store
             .create_cas_document(&key, conflicting.encode().expect("encode conflict"))
             .await

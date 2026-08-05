@@ -15,7 +15,7 @@ use tokio_util::sync::CancellationToken;
 use super::ids::{CanonicalIntegrationId, TenantNamespace};
 use super::inbox::{AuthorizeControl, ControlInbox};
 use super::lease::{self, AcquireOutcome, AcquiredLease, LeaseTiming, RenewOutcome, ShardLeaseV1};
-use super::routing::ControlPaths;
+use super::routing::Keyspace;
 use super::shard_log::{
     OpenedShard, RunView, ShardCommandConfig, ShardCommandHandle, ShardLogLocation, StartedShard,
     StartupRecovery, StateChangeFeed, WorkRecoveryIntent,
@@ -892,7 +892,7 @@ async fn supervise_renewal(
     guard: LeaseGuard,
     mut command_task: tokio::task::JoinHandle<Result<(), super::shard_log::ShardCommandError>>,
 ) -> Result<LeaseLossReason, Report<RenewalError>> {
-    let lease_key = ControlPaths::new(tenant).lease(location.shard());
+    let lease_key = Keyspace::for_tenant(&tenant).lease(location.shard());
     let reason = loop {
         tokio::select! {
             command_result = &mut command_task => {
@@ -1020,7 +1020,7 @@ pub(crate) async fn acquire_with(
     clock: &dyn HandshakeClock,
     observer: &dyn HandshakeObserver,
 ) -> Result<ShardAcquisition, Report<HandshakeError>> {
-    let lease_key = ControlPaths::new(tenant.clone()).lease(location.shard());
+    let lease_key = Keyspace::for_tenant(tenant).lease(location.shard());
     let acquired = match lease::try_acquire(
         store,
         &lease_key,
@@ -1550,7 +1550,7 @@ mod tests {
         let location = ShardLogLocation::disposable_local(shard(), &tenant, remote.path());
         let clock = Arc::new(FixedClock::new(1_700_000_000));
         let gate = Arc::new(StageGate::new(HandshakeStage::RecoveryComplete));
-        let lease_key = ControlPaths::new(tenant.clone()).lease(shard());
+        let lease_key = Keyspace::for_tenant(&tenant).lease(shard());
 
         let task = {
             let store = store.clone();
@@ -1786,7 +1786,7 @@ mod tests {
             .await
             .expect("acquire shard"),
         );
-        let lease_key = ControlPaths::new(tenant.clone()).lease(shard());
+        let lease_key = Keyspace::for_tenant(&tenant).lease(shard());
         let renewal_clock = Arc::new(ManualRenewalClock::new(1_700_000_020));
         let cleaner = Arc::new(AssertingCleaner::new());
         let renewing = owned.start_renewing_with_clock(
@@ -2163,7 +2163,7 @@ mod tests {
         let current = first_guard.acquired().await;
         let replacement = match lease::renew(
             &store_b,
-            &ControlPaths::new(tenant.clone()).lease(shard()),
+            &Keyspace::for_tenant(&tenant).lease(shard()),
             &current,
             instant(1_700_000_010),
             timing.lease_duration(),

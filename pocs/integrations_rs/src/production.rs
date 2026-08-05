@@ -364,14 +364,14 @@ pub async fn verify_store(
     let known_shards = crate::orchestrator::discover_known_shards(&blobs, &tenant)
         .await
         .change_context(DiagnosticsError)?;
-    let paths = crate::orchestrator::routing::ControlPaths::new(tenant.clone());
+    let paths = crate::orchestrator::routing::Keyspace::for_tenant(&tenant);
     let objects = blobs
-        .list(&paths.root())
+        .list(&paths.control_root())
         .await
         .change_context(DiagnosticsError)?;
     let mut counts = ControlInventoryCounts::default();
     for object in &objects {
-        let class = classify_control_key(&paths.root(), &object.key).ok_or_else(|| {
+        let class = classify_control_key(&paths.control_root(), &object.key).ok_or_else(|| {
             Report::new(DiagnosticsError).attach_printable(format!(
                 "foreign object in canonical control prefix: {:?}",
                 object.key
@@ -656,7 +656,7 @@ mod tests {
             .create_json(
                 &format!(
                     "{}/foreign-pointer.json",
-                    crate::orchestrator::routing::ControlPaths::new(tenant).root()
+                    crate::orchestrator::routing::Keyspace::for_tenant(&tenant).control_root()
                 ),
                 &serde_json::json!({"state": "retired"}),
             )

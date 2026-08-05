@@ -35,7 +35,7 @@ use super::port::{
 };
 use super::projection::{ControlRequestOutcomeKindV1, RunStatus as ProjectedRunStatus};
 use super::registry::{require_registered, DurableRecord};
-use super::routing::{self, ControlPaths, Shard};
+use super::routing::{self, Keyspace, Shard};
 use super::shard_log::{
     start_recovered, RunView, ShardCommandConfig, ShardCommandHandle, ShardLogLocation,
 };
@@ -160,7 +160,7 @@ impl Phase2OpenDataOrchestrator {
     }
 
     async fn ensure_known_shards(&self) -> Result<(), OrchestratorError> {
-        let paths = ControlPaths::new(self.inner.tenant.clone());
+        let paths = Keyspace::for_tenant(&self.inner.tenant);
         let prefix = format!("{}/", paths.known_shards());
         for object in self
             .inner
@@ -741,14 +741,14 @@ fn map_run_state(status: ProjectedRunStatus) -> RunState {
 fn run_locator_key(tenant: &TenantNamespace, run_id: &RunId) -> String {
     format!(
         "{}/port-run-locators/{run_id}.json",
-        ControlPaths::new(tenant.clone()).root()
+        Keyspace::for_tenant(tenant).control_root()
     )
 }
 
 fn port_binding_key(tenant: &TenantNamespace, request_id: &RequestId) -> String {
     format!(
         "{}/port-request-bindings/{request_id}.json",
-        ControlPaths::new(tenant.clone()).root()
+        Keyspace::for_tenant(tenant).control_root()
     )
 }
 

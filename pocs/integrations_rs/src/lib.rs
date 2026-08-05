@@ -59,6 +59,7 @@ pub mod dlq;
 pub mod durable_artifacts;
 pub mod error;
 pub mod identity;
+pub mod kernel;
 pub mod local_disk;
 pub mod orchestrator;
 pub mod production;

@@ -198,6 +198,10 @@ async fn real_s3_artifact_page_throughput() {
     }
 }
 
+#[allow(
+    clippy::too_many_lines,
+    reason = "one linear publish/warm-load/cold-load benchmark reads better unfragmented"
+)]
 async fn exercise_artifact_pages(run_url: &str) -> Result<(), String> {
     use integrations_rs::graph::artifacts::{
         ArtifactEffectRepository, DesiredDispositionV1, DesiredObjectInputDispositionV1,
@@ -318,9 +322,14 @@ async fn exercise_artifact_pages(run_url: &str) -> Result<(), String> {
     let cold_desired_elapsed = started.elapsed();
 
     println!(
-        "artifact page throughput: {ENTITIES} entities, desired publish {desired_elapsed:?}, \
-         effect publish {effects_elapsed:?}, {windows} windows of {WINDOW} loaded warm in \
-         {load_elapsed:?}, cold in {cold_load_elapsed:?}, cold desired load {cold_desired_elapsed:?}"
+        "artifact page throughput: {ENTITIES} entities, desired publish {:.3}s, \
+         effect publish {:.3}s, {windows} windows of {WINDOW} loaded warm in \
+         {:.3}s, cold in {:.3}s, cold desired load {:.3}s",
+        desired_elapsed.as_secs_f64(),
+        effects_elapsed.as_secs_f64(),
+        load_elapsed.as_secs_f64(),
+        cold_load_elapsed.as_secs_f64(),
+        cold_desired_elapsed.as_secs_f64(),
     );
     Ok(())
 }

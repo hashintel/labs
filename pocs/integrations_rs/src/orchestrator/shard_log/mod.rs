@@ -88,7 +88,7 @@ impl ShardLogLocation {
             durability_timeout: Duration::from_millis(crate::config::durability_timeout_ms(env)),
             storage: storage_for_control_path(
                 env,
-                &super::routing::ControlPaths::new(tenant.clone()).shard_log(shard),
+                &super::routing::Keyspace::for_tenant(tenant).shard_log(shard),
             )?,
         })
     }
@@ -108,7 +108,7 @@ impl ShardLogLocation {
             read_timeout: DURABILITY_TIMEOUT,
             durability_timeout: DURABILITY_TIMEOUT,
             storage: StorageConfig::SlateDb(SlateDbStorageConfig {
-                path: super::routing::ControlPaths::new(tenant.clone()).shard_log(shard),
+                path: super::routing::Keyspace::for_tenant(tenant).shard_log(shard),
                 object_store: ObjectStoreConfig::Local(LocalObjectStoreConfig {
                     path: object_store_root.display().to_string(),
                 }),
@@ -734,7 +734,7 @@ mod tests {
     use crate::orchestrator::ids::{
         derive_attempt_id, CanonicalIntegrationId, EventId, RunId, TenantNamespace,
     };
-    use crate::orchestrator::routing::{ControlPaths, Shard};
+    use crate::orchestrator::routing::{Keyspace, Shard};
 
     struct TestPrefixCapability {
         _root: TempDir,
@@ -753,7 +753,7 @@ mod tests {
         }
 
         fn location(&self, shard: Shard) -> ShardLogLocation {
-            let path = ControlPaths::new(self.tenant.clone()).shard_log(shard);
+            let path = Keyspace::for_tenant(&self.tenant).shard_log(shard);
             ShardLogLocation {
                 shard,
                 read_timeout: DURABILITY_TIMEOUT,
@@ -822,11 +822,11 @@ mod tests {
 
         assert!(capability
             .root()
-            .join(ControlPaths::new(capability.tenant.clone()).shard_log(shard_zero))
+            .join(Keyspace::for_tenant(&capability.tenant).shard_log(shard_zero))
             .exists());
         assert!(capability
             .root()
-            .join(ControlPaths::new(capability.tenant.clone()).shard_log(shard_one))
+            .join(Keyspace::for_tenant(&capability.tenant).shard_log(shard_one))
             .exists());
     }
 

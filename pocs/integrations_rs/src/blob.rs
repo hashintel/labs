@@ -404,7 +404,8 @@ impl BlobNamespace {
         integration: &crate::orchestrator::routing::IntegrationPath,
     ) -> Self {
         Self {
-            root: format!("tenants/{tenant}/integrations/{integration}"),
+            root: crate::kernel::keyspace::Keyspace::for_tenant(tenant)
+                .integration_root(integration),
         }
     }
 

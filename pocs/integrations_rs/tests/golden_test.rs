@@ -27,7 +27,7 @@ use integrations_rs::orchestrator::ids::{
     MAX_CANONICAL_INTEGRATION_ID_BYTES,
 };
 use integrations_rs::orchestrator::routing::{
-    route, shard_path, ControlPaths, ROUTING_VERSION, SHARD_COUNT,
+    route, shard_path, Keyspace, ROUTING_VERSION, SHARD_COUNT,
 };
 use integrations_rs::snapshot;
 use integrations_rs::store::{Store, StoreOptions};
@@ -111,9 +111,9 @@ fn routing_matches_the_internal_v1_contract() {
     )
     .expect("valid canonical integration ID");
     let integration = route(&id).integration_path;
-    let control = ControlPaths::new(tenant.clone());
+    let control = Keyspace::for_tenant(&tenant);
     assert_eq!(
-        control.root(),
+        control.control_root(),
         path_case["controlRoot"].as_str().expect("control root")
     );
     assert_eq!(

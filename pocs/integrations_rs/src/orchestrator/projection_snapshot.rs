@@ -18,7 +18,7 @@ use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
     MigrationPolicy, RebuildableRecord, RecordFamily, UntrimmedJournalRecord, VersionedRecord,
 };
-use super::routing::{shard_path, ControlPaths, Shard};
+use super::routing::{shard_path, Keyspace, Shard};
 use crate::blob::{ArtifactStore, BlobRef};
 
 pub(crate) const PROJECTOR_SCHEMA_VERSION: u32 = 1;
@@ -331,7 +331,7 @@ pub(crate) async fn publish_capture(
     capture: SnapshotCapture,
     created_at: DateTime<Utc>,
 ) -> Result<ControlProjectionSnapshot, Report<SnapshotError>> {
-    let prefix = ControlPaths::new(tenant.clone()).shard_projection(shard);
+    let prefix = Keyspace::for_tenant(tenant).shard_projection(shard);
     let reference = store
         .publish_record(
             capture.payload(),
@@ -388,7 +388,7 @@ pub(crate) async fn load_projection(
     }
     let expected_prefix = format!(
         "{}/sha256/",
-        ControlPaths::new(tenant.clone()).shard_projection(shard)
+        Keyspace::for_tenant(tenant).shard_projection(shard)
     );
     if !value.payload.current().key.starts_with(&expected_prefix) {
         return Err(

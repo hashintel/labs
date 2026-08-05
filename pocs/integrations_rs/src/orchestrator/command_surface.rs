@@ -24,7 +24,7 @@ use super::metadata::{CurrentTaskMetadata, CurrentTaskPayload, PreparedTask};
 use super::projection::RunStatus as ProjectedRunStatus;
 use super::record_io::read_strict as read_record;
 use super::registry::{require_registered, DurableRecord};
-use super::routing::ControlPaths;
+use super::routing::Keyspace;
 use super::shard_log::{read_projection, ShardLogLocation};
 use super::submission::{active_admission_revision, submit_durable_for_run};
 use crate::blob::{ArtifactStore, BlobRef};
@@ -214,7 +214,7 @@ impl CommandSurface {
             &self.store,
             &input_bytes,
             ".json",
-            &format!("tenants/{}/artifacts/run-inputs", self.tenant),
+            &Keyspace::for_tenant(&self.tenant).run_inputs(),
             "application/json",
         )
         .await
@@ -232,7 +232,7 @@ impl CommandSurface {
             &self.store,
             &policy_bytes,
             ".json",
-            &format!("tenants/{}/artifacts/run-policies", self.tenant),
+            &Keyspace::for_tenant(&self.tenant).run_policies(),
             "application/json",
         )
         .await
@@ -336,7 +336,7 @@ impl CommandSurface {
         &self,
         run_id: &RunId,
     ) -> Result<Option<CanonicalIntegrationId>, Report<CommandSurfaceError>> {
-        let key = ControlPaths::new(self.tenant.clone()).run_locator(run_id);
+        let key = Keyspace::for_tenant(&self.tenant).run_locator(run_id);
         read_record::<RunLocatorRecord>(&self.store, &key, MAX_RUN_LOCATOR_RECORD_BYTES)
             .await
             .change_context(CommandSurfaceError::Inventory)
@@ -349,7 +349,7 @@ impl CommandSurface {
         expected_integration: &CanonicalIntegrationId,
         shard: super::routing::Shard,
     ) -> Result<Option<CommandRunStatus>, Report<CommandSurfaceError>> {
-        let paths = ControlPaths::new(self.tenant.clone());
+        let paths = Keyspace::for_tenant(&self.tenant);
         if self
             .store
             .list(&paths.shard_log(shard))
@@ -551,7 +551,7 @@ mod tests {
         assert_eq!(first, retry);
         assert_eq!(
             first.request_key,
-            ControlPaths::new(tenant).request(
+            Keyspace::for_tenant(&tenant).request(
                 super::super::routing::shard(&integration),
                 &first.request_id
             )

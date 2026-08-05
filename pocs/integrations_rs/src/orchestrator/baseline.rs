@@ -13,7 +13,7 @@ use super::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
     MigrationPolicy, PureUpcastRecord, RecordFamily, VersionedRecord,
 };
-use super::routing::{ControlPaths, ROUTING_VERSION, SHARD_COUNT};
+use super::routing::{Keyspace, ROUTING_VERSION, SHARD_COUNT};
 use crate::blob::{ArtifactStore, CasWrite};
 
 pub const CONTROL_PREFIX_VERSION: u32 = 1;
@@ -343,7 +343,7 @@ pub(crate) async fn verify_control_baseline(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
 ) -> Result<ControlBaselineV1, Report<BaselineStartupError>> {
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let expected = ControlBaseline::canonical(tenant);
     let observation = match read_baseline(store, &paths.baseline()).await? {
         Some(Ok(baseline)) => BaselineRead::Present(baseline),
@@ -365,7 +365,7 @@ pub(crate) async fn compatible_control_baseline_exists(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
 ) -> Result<bool, Report<BaselineStartupError>> {
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let expected = ControlBaseline::canonical(tenant);
     let Some(observed) = read_baseline(store, &paths.baseline()).await? else {
         return Ok(false);
@@ -401,7 +401,7 @@ where
     F: FnOnce() -> Fut,
     Fut: Future<Output = ()>,
 {
-    let paths = ControlPaths::new(tenant.clone());
+    let paths = Keyspace::for_tenant(tenant);
     let expected = ControlBaseline::canonical(tenant);
     let first_read = read_baseline(store, &paths.baseline()).await?;
     let observation = match first_read {
@@ -412,7 +412,7 @@ where
         None => {
             after_absent_read().await;
             let inventory = store
-                .list(&paths.root())
+                .list(&paths.control_root())
                 .await
                 .change_context(BaselineStartupError::Storage)?
                 .into_iter()
@@ -444,7 +444,7 @@ where
 
 async fn create_and_read_back(
     store: &ArtifactStore,
-    paths: &ControlPaths,
+    paths: &Keyspace,
     expected: &ControlBaseline,
 ) -> Result<BaselineStartup, Report<BaselineStartupError>> {
     let created = record_io::create(store, &paths.baseline(), expected)
@@ -626,7 +626,7 @@ mod tests {
             ensure_control_baseline(&store, &tenant()).await.unwrap(),
             BaselineStartup::Recovered
         );
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         let read_back = store
             .get_cas_document_bounded(&paths.baseline(), MAX_CONTROL_BASELINE_BYTES)
             .await
@@ -648,7 +648,7 @@ mod tests {
         let first = ArtifactStore::local(remote.path(), first_cache.path()).unwrap();
         let second = ArtifactStore::local(remote.path(), second_cache.path()).unwrap();
         let tenant = tenant();
-        let paths = ControlPaths::new(tenant.clone());
+        let paths = Keyspace::for_tenant(&tenant);
         let expected = ControlBaseline::canonical(&tenant);
 
         let (left, right) = tokio::join!(
@@ -673,7 +673,7 @@ mod tests {
         let observer = ArtifactStore::local(remote.path(), first_cache.path()).unwrap();
         let initializer = ArtifactStore::local(remote.path(), second_cache.path()).unwrap();
         let tenant = tenant();
-        let paths = ControlPaths::new(tenant.clone());
+        let paths = Keyspace::for_tenant(&tenant);
         let expected = ControlBaseline::canonical(&tenant);
 
         let outcome = ensure_control_baseline_with(&observer, &tenant, || async {
@@ -703,10 +703,10 @@ mod tests {
         let foreign_remote = tempdir().unwrap();
         let foreign_cache = tempdir().unwrap();
         let foreign = ArtifactStore::local(foreign_remote.path(), foreign_cache.path()).unwrap();
-        let paths = ControlPaths::new(tenant());
+        let paths = Keyspace::for_tenant(&tenant());
         foreign
             .create_json(
-                &format!("{}/foreign.json", paths.root()),
+                &format!("{}/foreign.json", paths.control_root()),
                 &json!({"old": true}),
             )
             .await
@@ -717,7 +717,7 @@ mod tests {
                 .unwrap_err()
                 .current_context(),
             BaselineStartupError::ForeignPrefix(objects)
-                if objects == &vec![format!("{}/foreign.json", paths.root())]
+                if objects == &vec![format!("{}/foreign.json", paths.control_root())]
         ));
 
         let malformed_remote = tempdir().unwrap();
