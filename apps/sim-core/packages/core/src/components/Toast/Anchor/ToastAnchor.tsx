@@ -1,11 +1,11 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 
 import { FancyAnchor } from "../../Fancy";
 import { FancyAnchorProps } from "../../Fancy/Anchor/FancyAnchor";
 
 type ToastAnchorProps = Pick<FancyAnchorProps, "path" | "icon" | "query">;
 
-export const ToastAnchor: FC<ToastAnchorProps> = ({
+export const ToastAnchor: FC<PropsWithChildren<ToastAnchorProps>> = ({
   children,
   icon,
   path,

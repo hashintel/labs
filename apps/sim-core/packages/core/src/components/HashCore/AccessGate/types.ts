@@ -1,7 +1,7 @@
 import { HashCoreAccessGateKind } from "./enums";
 import { HashCoreAccessGateNotFoundProps } from "./NotFound";
 
-export interface HashCoreAccessGateKindWithProps {
+export type HashCoreAccessGateKindWithProps = {
   kind: HashCoreAccessGateKind.NotFound;
   props: HashCoreAccessGateNotFoundProps;
-}
+};

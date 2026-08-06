@@ -1,5 +1,10 @@
+/**
+ * DEPRECATED: This script uploaded builtin behaviors to the HASH Index.
+ * The dev API (devapi.hash.ai) was deprecated in Nov 2022,
+ * and the prod API requires authentication.
+ * Kept for reference only.
+ */
 const fs = require("fs");
-const request = require("request");
 const yargs = require("yargs");
 
 const options = yargs.options({
@@ -15,11 +20,11 @@ const options = yargs.options({
   },
 }).argv;
 
-const uploadBehaviorToHASHIndex = (
+const uploadBehaviorToHASHIndex = async (
   cookie: string,
   behavior_name: string,
   behavior_source: string,
-  behavior_slug: string,
+  behavior_slug: string
 ) => {
   let data = {
     title: behavior_name,
@@ -36,18 +41,18 @@ const uploadBehaviorToHASHIndex = (
 
   if (options.env !== "prod") {
     throw new Error(
-      "There is no dev API to upload to: https://devapi.hash.ai/graphql was deprecated in Nov 2022",
+      "There is no dev API to upload to: https://devapi.hash.ai/graphql was deprecated in Nov 2022"
     );
   }
   const url = "https://api.hash.ai/graphql";
 
   const requestOptions = {
-    url,
     method: "POST",
     headers: {
+      "Content-Type": "application/json",
       Cookie: `connect.sid=${cookie}`,
     },
-    json: {
+    body: JSON.stringify({
       query: `mutation addIndexListing($data: IndexListingCreationInput!) { 
   addIndexListing(data: $data) {
     id
@@ -56,18 +61,34 @@ const uploadBehaviorToHASHIndex = (
       variables: {
         data,
       },
-    },
+    }),
   };
 
   if (options.dryRun) {
     console.log(`Requesting ${JSON.stringify(requestOptions, null, 2)}`);
   } else {
-    request(requestOptions, (err: any, resp: any, body: any) => {
-      if (err) throw err;
-      console.log(behavior_name, resp.statusCode);
-      console.log(body);
-    });
+    const resp = await fetch(url, requestOptions);
+    const body = await resp.text();
+    console.log(behavior_name, resp.status);
+    console.log(body);
   }
+};
+
+const snakeToTitleCase = (input: String) => {
+  let new_str = "";
+  let sw = false;
+  for (let char of input) {
+    if (!sw) {
+      new_str += char.toUpperCase();
+      sw = true;
+    } else if (char !== "_") {
+      new_str += char.toLowerCase();
+    } else {
+      sw = false;
+      new_str += " ";
+    }
+  }
+  return new_str;
 };
 
 fs.readdir("builtin_behaviors", {}, (err: any, files: string[]) => {
@@ -88,25 +109,8 @@ fs.readdir("builtin_behaviors", {}, (err: any, files: string[]) => {
         cookie!,
         snakeToTitleCase(behavior_name),
         data.toString(),
-        behavior_slug,
+        behavior_slug
       );
     });
   }
 });
-
-const snakeToTitleCase = (input: String) => {
-  let new_str = "";
-  let sw = false;
-  for (let char of input) {
-    if (!sw) {
-      new_str += char.toUpperCase();
-      sw = true;
-    } else if (char !== "_") {
-      new_str += char.toLowerCase();
-    } else {
-      sw = false;
-      new_str += " ";
-    }
-  }
-  return new_str;
-};

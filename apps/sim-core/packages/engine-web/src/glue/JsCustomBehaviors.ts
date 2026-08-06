@@ -21,7 +21,7 @@ export class JsCustomBehaviors {
       [cacheStep]: 0,
     };
     this.behaviors = behaviors.map(
-      (b) => new JsCustomBehavior(b, properties, datasets, this.agentCache),
+      (b) => new JsCustomBehavior(b, properties, datasets, this.agentCache)
     );
   }
 
@@ -55,7 +55,7 @@ export class JsCustomBehaviors {
             (typeof msg.to === "string" &&
               msg.to.toLowerCase().includes("hash")))
         ) {
-          agentsToRemove.push(msg.data.agent_id);
+          agentsToRemove.push(msg.data?.agent_id ?? agent.agent_id);
         }
         // Keep only the first stop message, if found. Since any agent can send a "stop",
         // we don't make any guarantees about which message is taken.

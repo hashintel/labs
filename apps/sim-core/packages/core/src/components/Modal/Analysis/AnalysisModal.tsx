@@ -1,4 +1,9 @@
-import React, { FC, FormEventHandler, ReactNode } from "react";
+import React, {
+  FC,
+  FormEventHandler,
+  PropsWithChildren,
+  ReactNode,
+} from "react";
 import classNames from "classnames";
 
 import { IconHelpCircleOutline } from "../../Icon/HelpCircleOutline";
@@ -7,7 +12,7 @@ import { ModalExit } from "../ModalExit";
 
 import "./AnalysisModal.scss";
 
-interface AnalysisModalProps {
+type AnalysisModalProps = {
   onClose?: () => void;
   cancelButton?: boolean;
   className?: string;
@@ -15,9 +20,9 @@ interface AnalysisModalProps {
   footerLegend: ReactNode | string | null;
   submitButtonText: string;
   onSubmit: FormEventHandler<HTMLFormElement>;
-}
+};
 
-export const AnalysisModal: FC<AnalysisModalProps> = ({
+export const AnalysisModal: FC<PropsWithChildren<AnalysisModalProps>> = ({
   onClose,
   cancelButton = true,
   children,

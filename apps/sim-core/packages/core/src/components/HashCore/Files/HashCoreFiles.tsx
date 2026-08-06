@@ -1,8 +1,5 @@
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
-import { PayloadAction } from "@reduxjs/toolkit";
-import { filter } from "rxjs/operators";
 
 import { ExperimentModal } from "../../Modal/Experiments/ExperimentModal";
 import { HashCoreFilesHeaderAction } from "./HashCoreFilesHeaderAction";
@@ -11,19 +8,19 @@ import {
   getDomIdByFileId,
 } from "./ListItemFile";
 import { HashCoreFilesListItemFolder, useNameNewBehaviorModal } from ".";
-import { HcFile } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
 import { IconExperimentsCreate, IconFilePlus, IconMagnify } from "../../Icon";
 import { ModalNewDataset } from "../../Modal/NewDataset/ModalNewDataset";
 import { Scope, useScopes } from "../../../features/scopes";
-import { addPreparedFile } from "../../../features/files/slice";
-import { openSearch } from "../../../features/search";
+import { useSearch } from "../../../features/search/SearchContext";
 import {
   selectCurrentFileRepoPath,
-  selectFolderTree,
   selectPendingDependencies,
 } from "../../../features/files/selectors";
-import { storeActionObservable } from "../../../features/actionObservable";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 
 import "./HashCoreFiles.scss";
@@ -45,14 +42,14 @@ const calculateOpenFoldersForPath = (
     }, {});
 
 export const HashCoreFiles: FC = () => {
-  const pendingFiles = useSelector(selectPendingDependencies);
+  const pendingFiles = useFilesSelector(selectPendingDependencies);
   const { canSave, canEdit } = useScopes(
     Scope.save,
     Scope.uploadDataset,
     Scope.edit,
   );
-  const currentRepoPath = useSelector(selectCurrentFileRepoPath);
-  const dispatch = useDispatch();
+  const currentRepoPath = useFilesSelector(selectCurrentFileRepoPath);
+  const { openSearch } = useSearch();
 
   const showNameBehavior = useNameNewBehaviorModal();
   const [_showNewDatasetModal, hideNewDatasetModal] = useModal(
@@ -74,7 +71,7 @@ export const HashCoreFiles: FC = () => {
     [observerRef],
   );
 
-  const tree = useSelector(selectFolderTree);
+  const { folderTree: tree, allFiles } = useFiles();
 
   const [openPaths, setOpenPaths] = useState<Record<string, boolean>>(() =>
     currentRepoPath ? calculateOpenFoldersForPath(currentRepoPath) : {},
@@ -96,44 +93,38 @@ export const HashCoreFiles: FC = () => {
   }, []);
 
   /**
-   * This ensures the data folder is open when datasets are uploaded.
-   * We purposefully don't open the file because we don't want to download it
-   * if it's not necessary to – but we do want to indicate to the user that
-   * something changed.
-   *
-   * @todo move folder state to Redux so can do this in Redux
+   * Auto-open the data folder when a dataset is uploaded.
+   * Tracks file IDs to detect single-file additions (as opposed to bulk
+   * project loads which replace all files at once).
    */
+  const prevFileIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    const subscription = storeActionObservable
-      .pipe(
-        filter((action): action is PayloadAction<HcFile> =>
-          addPreparedFile.match(action),
-        ),
-      )
-      .subscribe((action) => {
-        const file = action.payload;
+    const currentIds = new Set(allFiles.map((file) => file.id));
+    const prevIds = prevFileIdsRef.current;
 
-        if (file.kind === HcFileKind.Dataset) {
-          setOpenPaths((openPaths) => ({
-            ...openPaths,
-            ...calculateOpenFoldersForPath(file.repoPath, openPaths),
-          }));
+    if (prevIds.size > 0) {
+      const added = allFiles.filter((file) => !prevIds.has(file.id));
 
-          /**
-           * @todo don't rely on querying for ids for this
-           */
-          setTimeout(() => {
-            document
-              .querySelector<HTMLLIElement>(`#${getDomIdByFileId(file.id)}`)
-              ?.scrollIntoView({ block: "center", inline: "center" });
-          });
-        }
-      });
+      if (added.length === 1 && added[0].kind === HcFileKind.Dataset) {
+        const file = added[0];
+        setOpenPaths((openPaths) => ({
+          ...openPaths,
+          ...calculateOpenFoldersForPath(file.repoPath, openPaths),
+        }));
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+        /**
+         * @todo don't rely on querying for ids for this
+         */
+        setImmediate(() => {
+          document
+            .querySelector<HTMLLIElement>(`#${getDomIdByFileId(file.id)}`)
+            ?.scrollIntoView({ block: "center", inline: "center" });
+        });
+      }
+    }
+
+    prevFileIdsRef.current = currentIds;
+  }, [allFiles]);
 
   const [openCreateExperimentModal, hideCreateExperimentModal] = useModal(
     () => <ExperimentModal onClose={hideCreateExperimentModal} />,
@@ -200,7 +191,7 @@ export const HashCoreFiles: FC = () => {
           title={`Search${canEdit ? " & Replace" : ""}`}
           onClick={(evt) => {
             evt.preventDefault();
-            dispatch(openSearch());
+            openSearch();
           }}
         >
           <IconMagnify />
@@ -225,8 +216,3 @@ export const HashCoreFiles: FC = () => {
     </div>
   );
 };
-
-// // @ts-expect-error
-// HashCoreFiles.whyDidYouRender = {
-//   customName: "HashCoreFiles"
-// };

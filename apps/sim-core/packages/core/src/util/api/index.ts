@@ -16,21 +16,15 @@ export {
   bootstrapQuery,
   trackTourProgress,
   // simulations
-  myProjects,
   linkableProjectByLegacyId,
-  exampleSimulations,
   getOnboardingProject,
   // dependencies
   fetchDependencies,
   // simulation listings
   getReleaseMeta,
   getTourShowcase,
-  // behaviors
   // behaviors and datasets
   searchResourceProjects,
-  // HASH versions
-  coreVersions,
-  promoteToLive,
 } from "./queries";
 
 export { QueryError } from "./query";

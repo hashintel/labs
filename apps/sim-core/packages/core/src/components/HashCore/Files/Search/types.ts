@@ -2,19 +2,16 @@ import { Range, editor } from "monaco-editor";
 
 import type { HcFile } from "../../../../features/files/types";
 
-export interface SearchQuery {
+export type SearchQuery = {
   searchTerm: string;
   replacing: boolean;
   replaceTerm: string;
   caseSensitive: boolean;
   regex: boolean;
   preserveCase: boolean;
-}
+};
 
-export interface Replacement {
-  range: Range;
-  replaceTerm: string;
-}
+export type Replacement = { range: Range; replaceTerm: string };
 
 export type SearchMatch = Replacement & {
   id: string;
@@ -23,11 +20,13 @@ export type SearchMatch = Replacement & {
   afterText: string;
 };
 
-export interface SearchFileResult {
+export type SearchFileResult = {
   file: HcFile;
   model: editor.ITextModel;
   matches: SearchMatch[];
   replacing: boolean;
-}
+};
 
-export type SearchResultsDictionary = Record<string, SearchFileResult>;
+export type SearchResultsDictionary = {
+  [index: string]: SearchFileResult;
+};

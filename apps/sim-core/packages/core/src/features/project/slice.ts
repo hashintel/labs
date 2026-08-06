@@ -1,6 +1,7 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import omit from "lodash/omit";
-import { navigate } from "hookrouter";
+
+import { navigate } from "../../util/navigation";
 
 import {
   HashCoreAccessGateKind,
@@ -15,7 +16,8 @@ import {
   RemoteSimulationProject,
 } from "./types";
 import { Scope, batchedScopes, selectScope } from "../scopes";
-import { ToastKind, displayToast } from "../toast";
+import { ToastKind } from "../toast";
+import { displayToast } from "../toast/slice";
 import {
   behaviorKeysFileName,
   globalsFileId,

@@ -1,6 +1,7 @@
 import React, {
   FC,
   HTMLProps,
+  PropsWithChildren,
   useCallback,
   useLayoutEffect,
   useRef,
@@ -12,7 +13,9 @@ import "./ShrinkWrap.css";
 const LINE_COUNT_CLASSNAME = "ShrinkWrap--lineCount";
 
 export const ShrinkWrap: FC<
-  Omit<HTMLProps<HTMLDivElement>, "style"> & { lineCount?: number }
+  PropsWithChildren<
+    Omit<HTMLProps<HTMLDivElement>, "style"> & { lineCount?: number }
+  >
 > = ({ children, lineCount, className = "", ...props }) => {
   const divRef = useRef<HTMLDivElement | null>(null);
 

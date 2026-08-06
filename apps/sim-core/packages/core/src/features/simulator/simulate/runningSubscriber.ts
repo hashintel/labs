@@ -1,20 +1,18 @@
-import { createSelector, Store } from "@reduxjs/toolkit";
+import { createSelector } from "../../reduxCompat";
+import type { Store } from "../../reduxCompat";
 
 import { SimulationData } from "./types";
 import { SimulatorRootState } from "../types";
-import { store as appStore } from "../../store";
 import { runnerMessage } from "./util";
 import {
   selectAllSimulationData,
   selectCurrentSimulationId,
 } from "./selectors";
-import { selectCurrentProject } from "../../project/selectors";
-import { trackEvent } from "../../analytics";
 
-interface RunningState {
+type RunningState = {
   controller: AbortController | null;
   status: SimulationData["status"];
-}
+};
 
 const getDefaultRunningState = (sim: SimulationData): RunningState => ({
   status: sim.status,
@@ -36,15 +34,6 @@ export const runningSubscriber = (store: Store<SimulatorRootState>) => {
     const running = () => selectSimRunning(store.getState());
 
     if (running() && !signal.aborted) {
-      const project = selectCurrentProject(appStore.getState());
-      appStore.dispatch(
-        // @ts-expect-error redux problems
-        trackEvent({
-          action: "Run Simulation",
-          label: `${project!.name} - ${project!.id}`,
-        }),
-      );
-
       await runnerMessage({ type: "play" }, simulationId);
     }
 

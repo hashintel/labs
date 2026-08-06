@@ -1,17 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
-import { Canvas } from "react-three-fiber";
+import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { Json, SerializableAgentState } from "@hashintel/engine-web";
-// import { Stats } from "@react-three/drei";
-import {
-  useRecoilBridgeAcrossReactRoots_UNSTABLE,
-  useRecoilCallback,
-  useRecoilState,
-  useRecoilValue,
-} from "recoil";
+import { Stats } from "@react-three/drei";
 
-import * as SceneState from "./state/SceneState";
+import { useSceneContext } from "./state/SceneContext";
 import { AgentRenderer } from "./components/AgentRenderer";
 import { HoveredAgent } from "./components/HoveredAgent";
 import { NetworkEdges } from "./components/NetworkEdges";
@@ -19,9 +12,7 @@ import { SceneSettings } from "./components/SceneSettings";
 import { SimulationViewerLazyTab } from "../SimulationViewer/LazyTab/SimulationViewerLazyTab";
 import { ViewerControls, orthoCamera } from "./components/Controls";
 import { ViewerStage } from "./components/Stage";
-import { resetViewer } from "./state/resetViewer";
-import { selectEmbedded } from "../../features/viewer/selectors";
-import { updateTransitionMap } from "./state/updateTransitionMap";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
 import "./AgentScene.css";
 
@@ -29,7 +20,7 @@ import "./AgentScene.css";
 // - https://threejs.org/examples/#webgl_trails
 // - https://github.com/mrdoob/three.js/blob/master/examples/webgl_buffergeometry_drawrange.html
 
-export interface SimulationStepProps {
+export type SimulationStepProps = {
   simulationRunId: string | undefined;
   properties: Json;
   simulationStep: SerializableAgentState[] | null;
@@ -37,20 +28,9 @@ export interface SimulationStepProps {
   visible: boolean;
   resetting: boolean;
   errored: boolean;
-}
-
-THREE.Object3D.DefaultUp.set(0, 0, 1);
-
-/**
- * Provide some reducers/callbacks to modify groups of agent state
- */
-const use3DViewer = () => {
-  // No deps forces it to permanently memoize and therefore be free
-  return {
-    updateTransitionMap: useRecoilCallback(updateTransitionMap, []),
-    resetViewer: useRecoilCallback(resetViewer, []),
-  };
 };
+
+THREE.Object3D.DEFAULT_UP.set(0, 0, 1);
 
 export const AgentScene = ({
   simulationStep,
@@ -58,19 +38,20 @@ export const AgentScene = ({
   errored,
   simulationRunId,
 }: SimulationStepProps) => {
-  const [mappedTransitions, setMappedTransitions] = useRecoilState(
-    SceneState.MappedTransitions,
-  );
+  const {
+    mappedTransitions,
+    setMappedTransitions,
+    statsEnabled: showStats,
+    updatesEnabled,
+    edgesEnabled,
+    sampleLevel,
+    updateTransitionMap,
+    resetViewer,
+  } = useSceneContext();
 
-  // Stats element
-  // const showStats = useRecoilValue(SceneState.StatsEnabled);
-  // const statsContainerRef = useRef(null);
+  const statsContainerRef = useRef(null);
 
-  const updatesEnabled = useRecoilValue(SceneState.UpdatesEnabled);
-  const edgesEnabled = useRecoilValue(SceneState.EdgesEnabled);
-  const sampleLevel = useRecoilValue(SceneState.SampleLevel);
-
-  const embedded = useSelector(selectEmbedded);
+  const { embedded } = useViewer();
 
   /**
    * Updating the stage is an async process, but it can only be done on at a
@@ -78,9 +59,11 @@ export const AgentScene = ({
    * whenever you want to schedule an update to the stage, and it'll wait until
    * the last update was done.
    */
-  const stageUpdateChainRef = useRef<Promise<unknown>>(Promise.resolve());
+  const stageUpdateChainRef = useRef<Promise<unknown>>(null as any);
+  if (!stageUpdateChainRef.current) {
+    stageUpdateChainRef.current = Promise.resolve();
+  }
 
-  const { resetViewer, updateTransitionMap } = use3DViewer();
   useEffect(() => {
     if (resetting) {
       stageUpdateChainRef.current = stageUpdateChainRef.current
@@ -117,28 +100,19 @@ export const AgentScene = ({
     }
   }, [resetting, simulationStep, updateTransitionMap]);
 
-  /*
-  # Hold up
-
-  Recoil is *designed* for react-three-fiber, but the context will need to
-  be bridged if it tries to exist in an isolated reconciler (the Canvas object).
-  https://github.com/facebookexperimental/Recoil/commit/2b1cd3a8576b96e15f985ddb729b66b0ea3bace9
-  */
-  const RecoilBridge = useRecoilBridgeAcrossReactRoots_UNSTABLE();
-
   if (simulationRunId && !simulationStep && !errored) {
     return <SimulationViewerLazyTab />;
   }
 
   return (
     <div className="AgentScene">
-      {/* <div
+      <div
         className="StatsContainer"
         hidden={!showStats}
         ref={statsContainerRef}
       >
         <Stats className={"StatsMonitor"} parent={statsContainerRef} />
-      </div> */}
+      </div>
 
       <Canvas
         /**
@@ -160,31 +134,22 @@ export const AgentScene = ({
           precision: getSampleLevel(sampleLevel),
         }}
         camera={orthoCamera}
-        /**
-         * Keeping react-three-fiber's color management on leads to them looking 'washed out' compared to the previous look
-         */
-        colorManagement={false}
+        flat
         onCreated={({ gl }) => gl.setClearColor("#0e0d15")}
-        invalidateFrameloop={!updatesEnabled}
+        frameloop={updatesEnabled ? "always" : "demand"}
       >
-        {/* eslint-disable react/no-unknown-property */}
-
-        <RecoilBridge>
-          <fog args={["white", 50000, 3000000]} attach="fog" />
-          <ViewerControls
-            mappedTransitions={mappedTransitions}
-            resetting={resetting}
-          />
-          {edgesEnabled && (
-            <NetworkEdges mappedTransitions={mappedTransitions} />
-          )}
-          <ambientLight intensity={0.65} />
-          <pointLight position={[0, 0, 30]} up={[0, 0, 1]} intensity={0.8} />
-          <ViewerStage />
-          <AgentRenderer mappedTransitions={mappedTransitions} />
-          <HoveredAgent transitions={mappedTransitions} />
-        </RecoilBridge>
-        {/* eslint-disable react/no-unknown-property */}
+        <fog args={["white", 50000, 3000000]} attach="fog" />
+        <ViewerControls
+          mappedTransitions={mappedTransitions}
+          resetting={resetting}
+        />
+        {edgesEnabled && <NetworkEdges mappedTransitions={mappedTransitions} />}
+        <ambientLight intensity={0.65} />
+        <directionalLight position={[10, 10, 30]} intensity={1.5} />
+        <directionalLight position={[-5, -5, 10]} intensity={0.3} />
+        <ViewerStage />
+        <AgentRenderer mappedTransitions={mappedTransitions} />
+        <HoveredAgent transitions={mappedTransitions} />
       </Canvas>
       {!embedded && <SceneSettings />}
     </div>

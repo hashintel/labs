@@ -9,7 +9,7 @@ import classNames from "classnames";
 
 import "./Modal.css";
 
-export interface ModalProps {
+export type ModalProps = {
   onClose?: () => void;
   modalClassName?: string;
   backdropClassName?: string;
@@ -18,7 +18,7 @@ export interface ModalProps {
   containerClassName?: string;
   children?: ReactNode | null;
   onClick?: HTMLProps<HTMLDivElement>["onClick"];
-}
+};
 
 export const Modal = forwardRef<HTMLDivElement, ModalProps>(
   (
@@ -34,14 +34,15 @@ export const Modal = forwardRef<HTMLDivElement, ModalProps>(
     },
     ref,
   ) => {
-    function handler(evt: KeyboardEvent) {
-      if (evt.key === "Escape") {
-        evt.preventDefault();
-        onClose?.();
-      }
-    }
     useEffect(() => {
       if (esc) {
+        function handler(evt: KeyboardEvent) {
+          if (evt.key === "Escape") {
+            evt.preventDefault();
+            onClose?.();
+          }
+        }
+
         window.addEventListener("keydown", handler);
 
         return () => {

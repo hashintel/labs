@@ -1,11 +1,17 @@
-import React, { FC, useRef, useEffect, Children } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useRef,
+  useEffect,
+  Children,
+} from "react";
 import { VariableSizeList } from "react-window";
 
 import type { ReactSelectOption } from "../types";
 
-interface DropdownMenuListProps {
+type DropdownMenuListProps = {
   options: ReactSelectOption[];
-}
+};
 
 /**
  * these numbers are kinda magic numbers, it's known and tolerated for
@@ -20,7 +26,7 @@ const SUB_LABEL_AVG_SIZE = 46;
 const SUB_LABEL_MAX_SIZE = 60;
 const LIST_HEIGHT = 200;
 
-export const DropdownMenuList: FC<DropdownMenuListProps> = ({
+export const DropdownMenuList: FC<PropsWithChildren<DropdownMenuListProps>> = ({
   options,
   children,
 }) => {

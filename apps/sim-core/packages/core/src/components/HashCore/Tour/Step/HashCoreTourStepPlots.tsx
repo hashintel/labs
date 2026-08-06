@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
 import {
   BackButton,
@@ -11,11 +10,10 @@ import {
   useSimulationPause,
 } from "./util";
 import { TabKind } from "../../../../features/viewer/enums";
-import { addTab, selectCurrentTab } from "../../../../features/viewer";
+import { useViewer } from "../../../../features/viewer/ViewerContext";
 
 const usePlotTab = (): [boolean, HTMLElement | null] => {
-  const dispatch = useDispatch();
-  const currentTab = useSelector(selectCurrentTab);
+  const { currentTab, addTab } = useViewer();
   const currentTabKind = currentTab === TabKind.Analysis;
 
   /**
@@ -26,7 +24,7 @@ const usePlotTab = (): [boolean, HTMLElement | null] => {
 
   // @todo this may call too frequently
   useEffect(() => {
-    dispatch(addTab(TabKind.Analysis));
+    addTab(TabKind.Analysis);
 
     const elem = Array.from(
       document.querySelectorAll<HTMLElement>(

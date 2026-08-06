@@ -3,10 +3,10 @@ import { AnalyzerRunner } from "@hashintel/engine-web";
 
 const runner = new AnalyzerRunner();
 
-RegisterPromiseWorker((message) => {
+RegisterPromiseWorker(async (message) => {
   // Validate the message is something we care about
   if (typeof message === "object") {
-    if (Object.prototype.hasOwnProperty.call(message, "type")) {
+    if ((message as {}).hasOwnProperty("type")) {
       return runner.handleRequest(message);
     }
   }

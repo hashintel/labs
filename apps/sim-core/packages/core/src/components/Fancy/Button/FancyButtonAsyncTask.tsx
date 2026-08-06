@@ -1,4 +1,10 @@
-import React, { FC, useEffect, useRef, useState } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { CSSTransition, TransitionGroup } from "react-transition-group";
 import classNames from "classnames";
 
@@ -11,13 +17,15 @@ import "./FancyButtonAsyncTask.scss";
 const animationMs = 200;
 
 export const FancyButtonAsyncTask: FC<
-  Omit<FancyButtonProps, "onClick"> & {
-    doneText?: string;
-    onTaskBegin: () => Promise<unknown>;
-    onTaskEnd?: () => unknown;
-    labelClassName?: string;
-    once?: boolean;
-  }
+  PropsWithChildren<
+    Omit<FancyButtonProps, "onClick"> & {
+      doneText?: string;
+      onTaskBegin: () => Promise<unknown>;
+      onTaskEnd?: () => unknown;
+      labelClassName?: string;
+      once?: boolean;
+    }
+  >
 > = ({
   doneText = "Done",
   children,
@@ -58,7 +66,7 @@ export const FancyButtonAsyncTask: FC<
         controllerRef.current?.abort();
         controllerRef.current = new AbortController();
 
-        const signal = controllerRef.current.signal;
+        const signal = controllerRef.current!.signal;
         const progressAbortController = new AbortController();
 
         signal.addEventListener("abort", () => progressAbortController.abort());

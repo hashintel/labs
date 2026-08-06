@@ -2,8 +2,7 @@
  * @todo this file should use central mocks for projects
  */
 import React from "react";
-import ReactDOM from "react-dom";
-import { Provider } from "react-redux";
+import { render } from "@testing-library/react";
 
 import { HcFileKind } from "../../../features/files/enums";
 import {
@@ -13,22 +12,10 @@ import {
 import { ResourceListItemPopup } from "./ResourceListItemPopup";
 import { defaultBehaviorKeys } from "../../../features/files/utils";
 import { parse } from "../../../util/files";
-import { store } from "../../../features/store";
-import { noop } from "lodash";
 
 jest.mock("./util", () => ({ scrollBy: jest.fn() }));
 
-const mockRect: ClientRect = {
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
-  width: 0,
-  height: 0,
-  x: 0,
-  y: 0,
-  toJSON: noop,
-};
+const mockRect = { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
 
 const datasetOne: HcSharedDatasetFile = {
   pathWithNamespace: "@publisher/dataset/one.csv",
@@ -76,333 +63,292 @@ const behaviorOne: HcSharedBehaviorFile = {
 };
 
 it("renders without crashing with one dataset with none present", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[]}
-        resource={{
-          name: "",
-          description: "",
-          subject: [{ name: "Thing" }],
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          ownerType: "User",
-          owner: {
-            name: "Publisher",
-          },
-          trusted: false,
-          type: "Dataset",
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[]}
+      resource={{
+        name: "",
+        description: "",
+        subject: [{ name: "Thing" }],
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        ownerType: "User",
+        owner: {
+          name: "Publisher",
+        },
+        trusted: false,
+        type: "Dataset",
+        createdAt: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        files: [datasetOne],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          files: [datasetOne],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
 
 it("renders without crashing with one dataset with it present", () => {
-  const div = document.createElement("div");
-
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[datasetOne.pathWithNamespace]}
-        resource={{
-          name: "",
-          description: "",
-          trusted: false,
-          type: "Dataset",
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[datasetOne.pathWithNamespace]}
+      resource={{
+        name: "",
+        description: "",
+        trusted: false,
+        type: "Dataset",
+        createdAt: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        subject: [{ name: "Thing" }],
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        ownerType: "User",
+        owner: {
+          name: "Publisher",
+        },
+        files: [datasetOne],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          subject: [{ name: "Thing" }],
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          ownerType: "User",
-          owner: {
-            name: "Publisher",
-          },
-          files: [datasetOne],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
 
 it("renders without crashing with one trusted dataset with it present", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[datasetOne.pathWithNamespace]}
-        resource={{
-          name: "",
-          description: "",
-          trusted: true,
-          type: "Dataset",
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[datasetOne.pathWithNamespace]}
+      resource={{
+        name: "",
+        description: "",
+        trusted: true,
+        type: "Dataset",
+        createdAt: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        subject: [{ name: "Thing" }],
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        ownerType: "User",
+        owner: {
+          name: "Publisher",
+        },
+        files: [datasetOne],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          subject: [{ name: "Thing" }],
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          ownerType: "User",
-          owner: {
-            name: "Publisher",
-          },
-          files: [datasetOne],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
 
 it("renders without crashing with two datasets with none present", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[]}
-        resource={{
-          name: "",
-          description: "",
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          ownerType: "User",
-          owner: {
-            name: "Publisher",
-          },
-          trusted: false,
-          type: "Dataset",
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[]}
+      resource={{
+        name: "",
+        description: "",
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        ownerType: "User",
+        owner: {
+          name: "Publisher",
+        },
+        trusted: false,
+        type: "Dataset",
+        createdAt: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        subject: [{ name: "Thing" }],
+        files: [datasetOne, datasetTwo],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          subject: [{ name: "Thing" }],
-          files: [datasetOne, datasetTwo],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
 
 it("renders without crashing with two datasets with one present", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[datasetOne.pathWithNamespace]}
-        resource={{
-          name: "",
-          description: "",
-          subject: [{ name: "Thing" }],
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          ownerType: "User",
-          owner: {
-            name: "Publisher",
-          },
-          trusted: false,
-          type: "Dataset",
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[datasetOne.pathWithNamespace]}
+      resource={{
+        name: "",
+        description: "",
+        subject: [{ name: "Thing" }],
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        ownerType: "User",
+        owner: {
+          name: "Publisher",
+        },
+        trusted: false,
+        type: "Dataset",
+        createdAt: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        files: [datasetOne, datasetTwo],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          files: [datasetOne, datasetTwo],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
 
 it("renders without crashing with two datasets with two present", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[
-          datasetOne.pathWithNamespace,
-          datasetTwo.pathWithNamespace,
-        ]}
-        resource={{
-          name: "",
-          description: "",
-          subject: [{ name: "Thing" }],
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          ownerType: "User",
-          owner: {
-            name: "Publisher",
-          },
-          trusted: false,
-          type: "Dataset",
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[
+        datasetOne.pathWithNamespace,
+        datasetTwo.pathWithNamespace,
+      ]}
+      resource={{
+        name: "",
+        description: "",
+        subject: [{ name: "Thing" }],
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        ownerType: "User",
+        owner: {
+          name: "Publisher",
+        },
+        trusted: false,
+        type: "Dataset",
+        createdAt: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        files: [datasetOne, datasetTwo],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          files: [datasetOne, datasetTwo],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
 
 it("renders without crashing one behavior with none present", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[]}
-        resource={{
-          name: "",
-          description: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          subject: [{ name: "Thing" }],
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          ownerType: "User",
-          owner: {
-            name: "Publisher",
-          },
-          trusted: false,
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[]}
+      resource={{
+        name: "",
+        description: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        subject: [{ name: "Thing" }],
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        ownerType: "User",
+        owner: {
+          name: "Publisher",
+        },
+        trusted: false,
+        createdAt: "",
+        type: "Behavior",
+        files: [behaviorOne],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          type: "Behavior",
-          files: [behaviorOne],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });
 
 it("renders without crashing one behavior with one present", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
-    <Provider store={store}>
-      <ResourceListItemPopup
-        position="right"
-        targetRect={mockRect}
-        popoverRect={mockRect}
-        presentItems={[behaviorOne.pathWithNamespace]}
-        resource={{
-          name: "",
-          description: "",
-          updatedAt: "2019-10-01T13:12:11Z",
-          subject: [{ name: "Thing" }],
-          id: "@publisher/resource",
-          pathWithNamespace: "@publisher/resource",
-          namespace: "publisher",
-          ownerType: "User",
-          keywords: [],
-          license: { id: "", name: "" },
-          visibility: "public",
-          owner: {
-            name: "Publisher",
-          },
-          trusted: false,
+  render(
+    <ResourceListItemPopup
+      position="right"
+      targetRect={mockRect}
+      popoverRect={mockRect}
+      presentItems={[behaviorOne.pathWithNamespace]}
+      resource={{
+        name: "",
+        description: "",
+        updatedAt: "2019-10-01T13:12:11Z",
+        subject: [{ name: "Thing" }],
+        id: "@publisher/resource",
+        pathWithNamespace: "@publisher/resource",
+        namespace: "publisher",
+        ownerType: "User",
+        keywords: [],
+        license: { id: "", name: "" },
+        visibility: "public",
+        owner: {
+          name: "Publisher",
+        },
+        trusted: false,
+        createdAt: "",
+        type: "Behavior",
+        files: [behaviorOne],
+        canUserEdit: true,
+        latestRelease: {
+          tag: "1.0.0",
           createdAt: "",
-          type: "Behavior",
-          files: [behaviorOne],
-          canUserEdit: true,
-          latestRelease: {
-            tag: "1.0.0",
-            createdAt: "",
-          },
-        }}
-      />
-    </Provider>,
-    div,
+        },
+      }}
+    />,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

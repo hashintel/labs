@@ -51,7 +51,6 @@ export const HashCoreTourStepDone: FC = () => {
           <a
             href="https://docs.hash.ai/core/tutorials/hello-hash"
             target="_blank"
-            rel="noreferrer"
           >
             Getting Started tutorial
           </a>{" "}

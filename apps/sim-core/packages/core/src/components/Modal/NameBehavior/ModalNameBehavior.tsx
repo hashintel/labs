@@ -19,7 +19,7 @@ import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObs
 
 import "./ModalNameBehavior.css";
 
-interface ModalNameBehaviorProps {
+type ModalNameBehaviorProps = {
   errorMessage: string | null;
   languageOptions: ReactSelectOption[];
   name: string;
@@ -30,7 +30,7 @@ interface ModalNameBehaviorProps {
   onSelectedLanguageChange: (language: ReactSelectOption) => void;
   action: string;
   placeholder: string;
-}
+};
 
 export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
   onSubmit,
@@ -141,8 +141,3 @@ export const ModalNameBehavior: FC<ModalNameBehaviorProps> = ({
     </Modal>
   );
 };
-
-// // @ts-expect-error
-// ModalNameBehavior.whyDidYouRender = {
-//   customName: "ModalNameBehavior"
-// };

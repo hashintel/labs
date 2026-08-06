@@ -11,6 +11,10 @@ export const BasicUserFragment = /* GraphQL */ `
   }
 `;
 
+export const identifyBasicUser = (_me?: BasicUser | undefined) => {
+  // User identification removed with Sentry/FullStory
+};
+
 export const basicUser = async () => {
   const { me } = await query<{ me?: BasicUser }>(`
     query basicUser {
@@ -19,6 +23,8 @@ export const basicUser = async () => {
     
     ${BasicUserFragment}
   `);
+
+  identifyBasicUser(me);
 
   return me;
 };

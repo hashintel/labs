@@ -1,5 +1,5 @@
 import levenshteinDistance from "js-levenshtein";
-import { difference } from "lodash";
+import { difference } from "lodash-es";
 
 import {
   AggregatorOperator,
@@ -10,7 +10,6 @@ import {
   Output,
   OutputOperation,
   Plot,
-  Timeseries,
 } from "./analysisJsonTypes";
 import { PlotDataIsNotAnArrayWarning } from "./errors";
 
@@ -160,7 +159,7 @@ export const standardizePlot = (input: Plot) => {
     cleanPlot.type = "timeseries";
     const keys = Object.values(cleanPlot.timeseries);
     cleanPlot.data = keys.map((key) => ({ y: key, name: key }));
-    delete cleanPlot.timeseries;
+    delete cleanPlot[`timeseries`];
   }
   // if users provide an object for the data attribute, standardize it as an array
   if (cleanPlot.data && !Array.isArray(cleanPlot.data)) {
@@ -170,13 +169,13 @@ export const standardizePlot = (input: Plot) => {
 };
 
 export const getNonArrayPlotDataWarnings = (
-  plots?: Partial<Plot & (Chart | Timeseries)[]>,
+  plots?: Partial<Plot & Chart>[],
 ) =>
   Array.isArray(plots)
     ? plots
         .map((plot) => {
           if (plot?.data && !Array.isArray(plot?.data)) {
-            return new PlotDataIsNotAnArrayWarning(plots.title, plot.data);
+            return new PlotDataIsNotAnArrayWarning(plot.title, plot.data);
           }
         })
         .filter((item) => item)

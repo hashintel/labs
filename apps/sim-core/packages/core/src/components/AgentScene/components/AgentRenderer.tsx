@@ -1,14 +1,13 @@
 import React, { FC, Suspense, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { useRecoilValue } from "recoil";
 
 import { AgentMesh } from "./AgentMesh";
-import { PositionedMeshes } from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { RenderSummary } from "../util/anim";
 
-interface AgentRendererProps {
+type AgentRendererProps = {
   mappedTransitions: RenderSummary;
-}
+};
 
 export const AgentRenderer: FC<AgentRendererProps> = ({
   mappedTransitions,
@@ -28,8 +27,7 @@ export const AgentRenderer: FC<AgentRendererProps> = ({
   3. On each frame, follow the agenst as they move
   */
 
-  // Group the transition map by mesh
-  const positionedMeshes = useRecoilValue(PositionedMeshes);
+  const { positionedMeshes } = useSceneContext();
 
   const clock = useRef<THREE.Clock>();
   if (!clock.current) {

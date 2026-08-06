@@ -58,7 +58,7 @@ export type FancyIcon =
 
 export type FancySize = "regular" | "compact";
 
-export interface FancyProps<T> {
+export type FancyProps<T> = {
   theme?: FancyTheme;
   icon?: FancyIcon;
   size?: FancySize;
@@ -66,7 +66,7 @@ export interface FancyProps<T> {
   onClick?: (event: MouseEvent<T>) => void;
   target?: string;
   className?: string;
-}
+};
 
 export function getIcon(icon: FancyIcon, size: FancySize): ReactChild {
   return (

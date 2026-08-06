@@ -1,4 +1,4 @@
-use crate::util::err_to_jsvalue;
+use crate::util::to_js_json;
 use hashintel_core::prelude::*;
 use wasm_bindgen::prelude::*;
 
@@ -11,7 +11,8 @@ pub struct ContextWrapper {
 impl ContextWrapper {
     pub fn new(context: &Context) -> SimulationResult<ContextWrapper> {
         // we do not store properties in this wrapper because the JS side already has them
-        let js_messages = JsValue::from_serde(&context.messages)?;
+        let js_messages =
+            to_js_json(&context.messages).map_err(|_| SimulationError::new("messages serialization"))?;
         let neighbor_ids = context
             .neighbors
             .iter()
@@ -26,10 +27,11 @@ impl ContextWrapper {
 }
 
 #[wasm_bindgen]
+#[allow(unused_variables)]
 impl ContextWrapper {
     #[wasm_bindgen(method)]
     pub fn neighbors(&self) -> Result<JsValue, JsValue> {
-        JsValue::from_serde(&self.neighbor_ids).map_err(err_to_jsvalue)
+        serde_wasm_bindgen::to_value(&self.neighbor_ids).map_err(crate::util::serde_wasm_err_to_jsvalue)
     }
 
     #[wasm_bindgen(method)]

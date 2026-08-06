@@ -1,5 +1,4 @@
 import React, { FC, Fragment, useState } from "react";
-import { useDispatch } from "react-redux";
 import { ArrowContainer, Position } from "react-tiny-popover";
 import ReactMarkdown from "react-markdown";
 import classnames from "classnames";
@@ -15,20 +14,20 @@ import {
 } from "../../../features/project/types";
 import { SITE_URL } from "../../../util/api/paths";
 import { ScrollFade } from "../../ScrollFade/ScrollFade";
-import { addDependencies } from "../../../features/files/slice";
 import { scrollBy } from "./util";
-import { trackEvent } from "../../../features/analytics";
+
+import { useFiles } from "../../../features/files/FilesContext";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
 
 import "./ResourceListItemPopup.css";
 
-interface ResourceListItemPopupProps {
+type ResourceListItemPopupProps = {
   position: Position;
   targetRect: ClientRect;
   popoverRect: ClientRect;
   resource: ResourceProject;
   presentItems: string[];
-}
+};
 
 const style = { opacity: "0.95" };
 
@@ -60,7 +59,7 @@ const useRepositionPopoverOnElementResize = () =>
        */
       scrollBy(0, 1);
 
-      setTimeout(() => {
+      setImmediate(() => {
         scrollBy(0, -1);
       });
     },
@@ -106,9 +105,11 @@ const ResourceMarkdownDescription: FC<{
   description: string;
   trusted: boolean;
 }> = ({ description, trusted }) => (
-  <ReactMarkdown skipHtml={!trusted} linkTarget="_blank noreferrer noopener">
-    {linkShortnames(description)}
-  </ReactMarkdown>
+  <ReactMarkdown
+    children={linkShortnames(description)}
+    skipHtml={!trusted}
+    linkTarget="_blank noreferrer noopener"
+  />
 );
 
 export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
@@ -118,7 +119,7 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
   resource,
   presentItems,
 }) => {
-  const dispatch = useDispatch();
+  const { handleAddDependencies } = useFiles();
   const setPopupContainerRef = useRepositionPopoverOnElementResize();
   const [deselectedItems, setDeselectedItems] = useState<string[]>([]);
 
@@ -136,37 +137,15 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
 
     const tag = resource.latestRelease.tag;
 
-    switch (resource.type) {
-      case "Dataset":
-        dispatch(
-          trackEvent({
-            action: "Import Dataset",
-            label: `${resource.name} - ${resource.pathWithNamespace}`,
-          }),
-        );
-
-        break;
-      case "Behavior":
-        dispatch(
-          trackEvent({
-            action: "Import Behavior",
-            label: `${resource.name} - ${resource.pathWithNamespace}`,
-          }),
-        );
-        break;
-    }
-
-    await dispatch(
-      addDependencies(
-        Object.fromEntries(
-          resource.files
-            .filter(
-              (files) =>
-                !deselectedItems.includes(files.path.formatted) &&
-                !presentItems.includes(files.path.formatted),
-            )
-            .map((item) => [item.path.formatted, tag]),
-        ),
+    await handleAddDependencies(
+      Object.fromEntries(
+        resource.files
+          .filter(
+            (files) =>
+              !deselectedItems.includes(files.path.formatted) &&
+              !presentItems.includes(files.path.formatted),
+          )
+          .map((item) => [item.path.formatted, tag]),
       ),
     );
   };
@@ -252,7 +231,6 @@ export const ResourceListItemPopup: FC<ResourceListItemPopupProps> = ({
                         <a
                           href={`${SITE_URL}/schemas/${subject.name}`}
                           target="_blank"
-                          rel="noreferrer"
                         >
                           {subject.name}
                         </a>

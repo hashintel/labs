@@ -1,5 +1,4 @@
-import { Dictionary } from "@reduxjs/toolkit";
-import produce from "immer";
+import { produce } from "immer";
 import { Range, editor } from "monaco-editor";
 import { debounceTime } from "rxjs/operators";
 
@@ -46,7 +45,7 @@ export const getNextContents = (
   return nextContents;
 };
 
-export const replace = (
+export const replace = async (
   model: editor.ITextModel,
   file: HcFile,
   replacements: { range: Range; replaceTerm: string }[],
@@ -79,7 +78,7 @@ export const triggerSearch = async (
   query: SearchQuery,
   filesToSearch: string[],
   manifestId: string | null,
-  allFiles: Dictionary<HcFile>,
+  allFiles: Record<string, HcFile | undefined>,
   pattern: ReplacePattern | null,
   prevResults: SearchResultsDictionary,
   signal: AbortSignal,

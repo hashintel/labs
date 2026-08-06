@@ -1,6 +1,10 @@
-import { useReducer } from "react";
+import { useEffect, useReducer, useRef } from "react";
 
 import type { ResourceProject } from "../../../../features/project/types";
+import { Scope, useScope } from "../../../../features/scopes";
+import { searchResourceProjects } from "../../../../util/api/queries/searchResourceProjects";
+
+import { useProject } from "../../../../features/project/ProjectContext";
 
 export const useSearchIndex = (): {
   loading: boolean;
@@ -8,9 +12,9 @@ export const useSearchIndex = (): {
   onChange: (term: string) => void;
   searchTerm: string;
 } => {
-  // const searchTermSubjectRef = useRef(new Subject<string>());
-  // const appDispatch = useDispatch();
-  // const store = useStore();
+  const { currentProject, projectLoaded } = useProject();
+  const canSave = useScope(Scope.save);
+  const latestReleaseTag = currentProject?.latestRelease?.tag;
 
   const [{ loading, results, searchTerm }, dispatch] = useReducer(
     (
@@ -42,88 +46,49 @@ export const useSearchIndex = (): {
     { loading: true, results: [], searchTerm: "" },
   );
 
-  // migration shim
-  // useEffect(() => {
-  //   const search = async (searchTerm: string, signal: AbortSignal) => {
-  //     try {
-  //       dispatch({ type: "BEGIN_SEARCH" });
+  const searchTermRef = useRef(searchTerm);
+  searchTermRef.current = searchTerm;
 
-  //       const results = await searchResourceProjects(searchTerm, signal);
+  useEffect(() => {
+    if (!projectLoaded || !canSave) {
+      return;
+    }
 
-  //       // Search is triggered on page load - we don't want to track those as events
-  //       if (searchTerm) {
-  //         appDispatch(
-  //           trackEvent({ action: "Index Search: Core", label: searchTerm })
-  //         );
-  //       }
+    let controller: AbortController | null = null;
 
-  //       if (signal.aborted) {
-  //         return;
-  //       }
+    const doSearch = async () => {
+      const term = searchTermRef.current;
 
-  //       dispatch({ type: "FINISHED_SEARCHING", payload: results });
-  //     } catch (err) {
-  //       if (err.name !== "AbortError") {
-  //         console.error("Could not fetch resources", err);
+      controller?.abort();
+      controller = new AbortController();
 
-  //         dispatch({ type: "ERROR" });
-  //       }
-  //     }
-  //   };
+      try {
+        dispatch({ type: "BEGIN_SEARCH" });
+        const searchResults = await searchResourceProjects(
+          term,
+          controller.signal,
+        );
 
-  //   let controller: AbortController | null = null;
+        if (!controller.signal.aborted) {
+          dispatch({ type: "FINISHED_SEARCHING", payload: searchResults });
+        }
+      } catch (err: any) {
+        if (err.name !== "AbortError") {
+          console.error("Could not fetch resources", err);
+          dispatch({ type: "ERROR" });
+        }
+      }
+    };
 
-  //   const storeObs = fromStore(store);
-  //   const subscription = combineLatest([
-  //     merge(
-  //       searchTermSubjectRef.current.pipe(skip(1), debounceTime(500)),
-  //       searchTermSubjectRef.current.pipe(take(1)),
-  //       projectChangeObservable(store).pipe(
-  //         withLatestFrom(searchTermSubjectRef.current),
-  //         map((pair) => pair[1] ?? "")
-  //       ),
-  //       storeObs.pipe(
-  //         filter(selectProjectLoaded),
-  //         map(selectLatestReleaseTag),
-  //         distinctUntilChanged(),
-  //         withLatestFrom(searchTermSubjectRef.current),
-  //         map((pair) => pair[1] ?? "")
-  //       )
-  //     ),
-  //     storeObs.pipe(
-  //       filter(selectProjectLoaded),
-  //       map(selectScope[Scope.save]),
-  //       distinctUntilChanged()
-  //     ),
-  //   ])
-  //     .pipe(debounceTime(0))
-  //     .subscribe(([searchTerm, canSave]) => {
-  //       controller?.abort();
+    doSearch();
 
-  //       if (canSave) {
-  //         controller = new AbortController();
-
-  //         search(searchTerm, controller.signal).catch((err) => {
-  //           if (err.name !== "AbortError") {
-  //             console.error(err);
-  //           }
-  //         });
-  //       }
-  //     });
-
-  //   return () => {
-  //     controller?.abort();
-  //     subscription.unsubscribe();
-  //   };
-  // }, [appDispatch, store]);
-
-  // useEffect(() => {
-  //   searchTermSubjectRef.current.next(searchTerm);
-  // }, [searchTerm]);
+    return () => {
+      controller?.abort();
+    };
+  }, [projectLoaded, canSave, searchTerm, latestReleaseTag]);
 
   return {
-    onChange: (searchTerm: string) =>
-      dispatch({ type: "SEARCH", payload: searchTerm }),
+    onChange: (term: string) => dispatch({ type: "SEARCH", payload: term }),
     loading,
     results,
     searchTerm,

@@ -1,10 +1,13 @@
-// @todo remove ts-expect-error
+// @todo remove ts-ignore
 import React from "react";
 import ReactDOM from "react-dom";
 import { FluentUIComponents } from "@msrvida/fluentui-react-cdn-typings";
 import * as fluentui from "@fluentui/react";
+// @ts-expect-error -- @deck.gl/core has no type declarations in this version
 import * as deck from "@deck.gl/core";
+// @ts-expect-error -- @deck.gl/layers has no type declarations in this version
 import * as layers from "@deck.gl/layers";
+// @ts-expect-error -- @luma.gl/core has no type declarations in this version
 import * as luma from "@luma.gl/core";
 import * as vega from "vega";
 import { AgentState } from "@hashintel/engine-web";
@@ -32,6 +35,7 @@ fluentui.loadTheme({
  * @see: packages/core/site.d.ts
  * @see: https://github.com/microsoft/SandDance/blob/master/packages/common-extensions/src/app.tsx
  */
+// eslint-disable-next-line react-hooks/rules-of-hooks -- not a React hook, it's from sanddance-explorer
 use(
   fluentui as unknown as FluentUIComponents,
   React,
@@ -61,29 +65,29 @@ function getViewerOptions() {
   return viewerOptions;
 }
 
-export interface StepExplorerProps {
+export type StepExplorerProps = {
   data: AgentState[];
   step: number | undefined;
   visible: boolean;
   simId: string;
-}
+};
 
 /**
  * The Microsoft-way of interacting with the explorer is by pulling it out of the mounted closure
  *
  * https://github.com/leozhoujf/Microsoft-OpenSource-SandDance-Visualization-Data-Tool/blob/b4e6bf8016b2c6ea0ef16a0876665d69d7f504d4/packages/sanddance-app/src/index.tsx#L35
  */
-let sanddanceExplorerElement: Explorer_Class | undefined;
+var sanddanceExplorerElement: Explorer_Class | undefined;
 
 /**
  * getPartialInsight (defined below) needs access to the display dataset to determine the columns
  * This is typically not necessary, but is for us because we have to infer all the columns
  * Therefore, we drop displayData into the global scope
  */
-interface InternalState {
+type InternalState = {
   loaded: boolean;
   sandDanceData: AgentState[];
-}
+};
 
 export class StepExplorer extends React.Component<
   StepExplorerProps,
@@ -96,7 +100,6 @@ export class StepExplorer extends React.Component<
       loaded: false,
 
       // This array is passed by reference and needs to be modified in place
-      // (But really should be a hook and a ref instead of a mutable state object)
       sandDanceData: [],
     };
   }
@@ -110,16 +113,15 @@ export class StepExplorer extends React.Component<
 
     // Update the content of the data object is using to display
     if (nextStep) {
-      // eslint-disable-next-line react/no-direct-mutation-state
       this.state.sandDanceData.length = 0;
       // Find all fields of all agents
-      const allFields = new Set<string>();
+      const allFields: Set<string> = new Set();
 
       nextStep.forEach((agent) => {
         const new_agent = Object.assign({}, agent, {
-          pos_y: (agent.position ?? [undefined])[1],
-          pos_x: (agent.position ?? [undefined])[0],
-          pos_z: (agent.position ?? [undefined])[2],
+          pos_x: (agent.position || [undefined])[0],
+          pos_y: (agent.position || [undefined])[1],
+          pos_z: (agent.position || [undefined])[2],
         });
 
         // Save the keys to insert into the first agent later
@@ -127,20 +129,13 @@ export class StepExplorer extends React.Component<
           allFields.add(key);
         });
 
-        // eslint-disable-next-line react/no-direct-mutation-state
         this.state.sandDanceData.push(new_agent);
       });
 
       // Set the unused fields on the first agent to undefined
       // This lets the sanddance recommender recognize that all fields exist
       allFields.forEach((field) => {
-        if (
-          !Object.prototype.hasOwnProperty.call(
-            this.state.sandDanceData[0],
-            field,
-          )
-        ) {
-          // eslint-disable-next-line react/no-direct-mutation-state
+        if (!this.state.sandDanceData[0].hasOwnProperty(field)) {
           this.state.sandDanceData[0][field] = undefined;
         }
       });

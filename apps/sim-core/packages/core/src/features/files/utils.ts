@@ -1,17 +1,17 @@
-import { Draft } from "@reduxjs/toolkit";
-import omit from "lodash/omit";
+import type { Draft } from "immer";
+import omit from "lodash-es/omit";
 import prettyStringify from "json-stringify-pretty-compact";
 import { Json } from "@hashintel/engine-web";
 
 import {
   BehaviorKeysField,
   CommittedBehaviorKeysRoot,
-  DraftBehaviorKeysRoot,
+  defaultBehaviorKeys,
   parseKeys,
   recursiveShouldSaveBehaviorKeysDraft,
   toBehaviorKeysFormat,
-  toRootDraftFormat,
 } from "./behaviorKeys";
+export { defaultBehaviorKeys };
 import { Ext } from "../../util/files/enums";
 import { HcAnyDatasetFile } from "./types";
 import type {
@@ -332,8 +332,7 @@ export const fastPrettyStringify = (json: any) =>
 
 export const isSharedDependency = (
   file: HcFile | HcDependencyFile,
-): file is HcAnyDependencyFile =>
-  Object.prototype.hasOwnProperty.call(file, "pathWithNamespace");
+): file is HcAnyDependencyFile => file.hasOwnProperty("pathWithNamespace");
 
 export const behaviorKeyExtensions = [
   Ext.JsJson,
@@ -371,13 +370,6 @@ export const behaviorKeysTopLevelRowTemplate: BehaviorKeysField = {
   type: "any",
 };
 
-export const defaultBehaviorKeys: DraftBehaviorKeysRoot = {
-  keys: toRootDraftFormat({}),
-  built_in_key_use: null,
-  dynamic_access: false,
-  _trackCreation: false,
-};
-
 /**
  * @todo type this
  * @todo clean up
@@ -385,7 +377,7 @@ export const defaultBehaviorKeys: DraftBehaviorKeysRoot = {
 export const parseRelativePathsAsTree = (
   files: Pick<HcFile, "id" | "name" | "repoPath">[],
 ) => {
-  const result: any[] = [];
+  const result: Array<any> = [];
   const level = { result };
 
   files.forEach((file) => {

@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { maxBy } from "lodash";
+import { maxBy } from "lodash-es";
 
 import { AnalysisObject, Plot } from "../Analysis/types";
 import { HcFile } from "../../features/files/types";
-import {
-  addDependencies,
-  createBehavior,
-  updateFile,
-} from "../../features/files/slice";
 import { parse } from "../../util/files";
 import { pauseAndNew } from "../../features/simulator/simulate/thunks";
-import { selectAllFiles } from "../../features/files/selectors";
-import { selectCurrentProject } from "../../features/project/selectors";
+import { useFiles } from "../../features/files/FilesContext";
+import { useProject } from "../../features/project/ProjectContext";
 import { selectCurrentSimulationData } from "../../features/simulator/simulate/selectors";
 import { toggleCurrentSimulator } from "../../features/simulator/simulate/slice";
 import {
@@ -20,46 +14,37 @@ import {
   useSimulatorStore,
 } from "../../features/simulator/context";
 
-interface InstructionUpdateFile {
+type InstructionUpdateFile = {
   contents: string;
   file: string;
   id: string;
   type: "updateFile";
-}
+};
 
-interface InstructionUpsertCreatorAgent {
+type InstructionUpsertCreatorAgent = {
   contents: string;
   file: string;
   id: string;
   type: "upsertCreatorAgent";
-}
+};
 
-interface InstructionAddDependencies {
-  contents: Record<string, string>;
+type InstructionAddDependencies = {
+  contents: { [key: string]: string };
   id: string;
   type: "addDependencies";
-}
+};
 
-interface InstructionIntialize {
-  id: string;
-  type: "initialize";
-}
+type InstructionIntialize = { id: string; type: "initialize" };
 
-interface InstructionResetAndRun {
-  id: string;
-  type: "resetAndRun";
-}
+type InstructionResetAndRun = { id: string; type: "resetAndRun" };
 
-interface InstructionSendState {
-  id: string;
-  type: "sendState";
-}
+type InstructionSendState = { id: string; type: "sendState" };
 
-interface InstructionUpdateAnalysis {
+type InstructionUpdateAnalysis = {
   contents: AnalysisObject;
   id: string;
   type: "updateAnalysis";
-}
+};
 
 type InstructionData =
   | InstructionAddDependencies
@@ -89,10 +74,14 @@ const isPluginMessage = (
  *  (b) embedding hCore.
  */
 export const useInstructionReceiver = () => {
-  const dispatch = useDispatch();
-  const files = useSelector(selectAllFiles);
+  const {
+    allFiles: files,
+    updateFile,
+    createBehavior,
+    handleAddDependencies,
+  } = useFiles();
   const handledMessages = useRef<string[]>([]);
-  const project = useSelector(selectCurrentProject);
+  const { currentProject: project } = useProject();
 
   const simulatorDispatch = useSimulatorDispatch();
 
@@ -132,7 +121,7 @@ export const useInstructionReceiver = () => {
 
       switch (event.data.type) {
         case "addDependencies":
-          dispatch(addDependencies(event.data.contents));
+          handleAddDependencies(event.data.contents);
           return;
 
         case "resetAndRun":
@@ -140,33 +129,27 @@ export const useInstructionReceiver = () => {
           simulatorDispatch(toggleCurrentSimulator());
           return;
 
-        case "updateFile": {
+        case "updateFile":
           const { file, contents } = event.data;
           const foundFile = Object.values(files)?.find(
             (fileOption) => fileOption?.path.formatted === file,
           );
           if (foundFile) {
-            dispatch(updateFile({ id: foundFile.id, contents }));
+            updateFile(foundFile.id, contents);
           } else {
             console.error(`Could not find file at path ${file} to update`);
           }
           return;
-        }
+
         case "upsertCreatorAgent": {
           const { file, contents } = event.data;
           const foundFile = Object.values(files)?.find(
             (fileOption) => fileOption?.path.formatted === file,
           );
           if (foundFile) {
-            dispatch(updateFile({ id: foundFile.id, contents }));
+            updateFile(foundFile.id, contents);
           } else {
-            dispatch(
-              createBehavior({
-                contents,
-                path: parse(file),
-                project: project!,
-              }),
-            );
+            createBehavior({ contents, path: parse(file), project: project! });
             const initJson = Object.values(files)?.find(
               (file) => file.path.base === "init.json",
             );
@@ -175,13 +158,8 @@ export const useInstructionReceiver = () => {
               initParsed.push({
                 behaviors: [file],
               });
-              dispatch(
-                updateFile({
-                  id: initJson!.id,
-                  contents: JSON.stringify(initParsed, null, 2),
-                }),
-              );
-            } catch (err) {
+              updateFile(initJson!.id, JSON.stringify(initParsed, null, 2));
+            } catch {
               console.error("init.json is not valid JSON - could not update.");
             }
           }
@@ -190,7 +168,7 @@ export const useInstructionReceiver = () => {
 
         // Add supplied outputs and plots to analysis.json
         // Replace if we can find a match for the name / key
-        case "updateAnalysis": {
+        case "updateAnalysis":
           const analysisJson = Object.values(files)?.find(
             (file) => file.path.base === "analysis.json",
           );
@@ -230,19 +208,17 @@ export const useInstructionReceiver = () => {
             )) {
               outputs[title] = data;
             }
-            dispatch(
-              updateFile({
-                id: analysisJson!.id,
-                contents: JSON.stringify(analysisParsed, null, 2),
-              }),
+            updateFile(
+              analysisJson!.id,
+              JSON.stringify(analysisParsed, null, 2),
             );
-          } catch (err) {
+          } catch {
             console.error(
               "analysis.json is not valid JSON - could not update.",
             );
           }
           return;
-        }
+
         // A message to indicate that a plugin is embedding hCore,
         // so that we don't attempt to communicate with one otherwise.
         case "initialize":
@@ -267,7 +243,15 @@ export const useInstructionReceiver = () => {
           return;
       }
     },
-    [dispatch, files, project, sendFiles, simStore],
+    [
+      updateFile,
+      createBehavior,
+      handleAddDependencies,
+      files,
+      project,
+      sendFiles,
+      simStore,
+    ],
   );
 
   useEffect(() => {
