@@ -60,16 +60,5 @@ pub use submission::{
     KnownShardMarkerV1, ReadyReceipt, ReadyReceiptV1, SubmitOutcome as DurableSubmitOutcome,
 };
 
-use std::fmt;
-
-/// Context for database, envelope or durable-worker failures.
-#[derive(Debug)]
-pub struct DurableError;
-
-impl fmt::Display for DurableError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("durable integration runner failed")
-    }
-}
-
-impl std::error::Error for DurableError {}
+// Context for database, envelope or durable-worker failures; kernel-owned.
+pub use durable_kernel::DurableError;

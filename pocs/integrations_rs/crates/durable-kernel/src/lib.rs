@@ -1,7 +1,16 @@
-// The ex-lab cargo config injects the HASH-repo lint list; correctness and
-// suspicious lints stay hot. The allows below are doc-shape and numeric-cast
-// pedantry that adds noise, not safety, here: string indexing operates on
-// regex-validated ASCII, casts are row counts and durations.
+//! Durable-execution kernel: an event-sourced, S3-backed control plane with
+//! content-addressed identities, snapshot-bounded replay, and epoch-fenced
+//! shard logs.
+//!
+//! A domain implements the user-facing traits in [`domain`] (or, for full
+//! control, the internal port in [`port`]) and runs through [`runtime`].
+//! Storage layout is derived in [`keyspace`]; record codecs register through
+//! [`registry`]; the append/recovery machinery lives in [`shard_log`].
+
+// The workspace cargo config injects the HASH-repo lint list; correctness
+// and suspicious lints stay hot. The allows below are doc-shape and
+// numeric-cast pedantry that adds noise, not safety, here: string indexing
+// operates on validated ASCII, casts are counts and durations.
 #![allow(
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
@@ -21,8 +30,7 @@
     clippy::single_match_else,
     clippy::items_after_statements,
     // Deliberate: cheap handle clones (Store, Arc callbacks) read better as
-    // .clone(); Reports render via {:?} on purpose; faithful ports keep the
-    // reference implementation's function shapes; mod.rs is this crate's
+    // .clone(); Reports render via {:?} on purpose; mod.rs is this crate's
     // module layout.
     clippy::clone_on_ref_ptr,
     clippy::needless_pass_by_value,
@@ -50,48 +58,25 @@
     clippy::unwrap_in_result
 )]
 
-pub mod application;
-pub mod blob;
-pub mod build;
-pub mod coerce;
-pub mod config;
-pub mod dlq;
-pub mod durable_artifacts;
-pub mod error;
-pub mod identity;
-pub use durable_kernel as kernel;
-pub mod local_disk;
-pub mod orchestrator;
-pub mod production;
-pub mod progress;
-pub mod run_manifest;
-pub mod run_slots;
-pub mod runtime_settings;
-pub mod secret;
-pub mod snapshot;
-pub mod steps;
-pub mod storage;
-pub mod store;
-pub mod throttle;
-pub mod value;
-pub mod web_api;
-pub mod yaml;
+use std::fmt;
 
-pub mod connectors;
-pub mod graph;
+pub mod domain;
+pub mod ids;
+pub mod keyspace;
+pub mod port;
+pub mod registry;
+pub mod routing;
+pub mod runtime;
+pub mod shard_log;
 
-pub mod engine {
-    pub mod asserts;
-    pub mod batch_sync;
-    pub(crate) mod candidate;
-    pub mod event_store;
-    pub mod event_table;
-    pub(crate) mod source_capture;
-    pub mod topology;
+/// Context for storage, envelope, or durable-worker failures.
+#[derive(Debug)]
+pub struct DurableError;
+
+impl fmt::Display for DurableError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("durable kernel operation failed")
+    }
 }
 
-pub mod http {
-    pub mod egress;
-    pub mod pacer;
-    pub mod retry;
-}
+impl std::error::Error for DurableError {}

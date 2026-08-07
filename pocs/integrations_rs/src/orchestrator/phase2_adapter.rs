@@ -3,6 +3,8 @@
 //! This is intentionally test-only: it independently implements the V1 port
 //! contract for differential conformance.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
+use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::collections::BTreeMap;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -36,9 +38,7 @@ use super::port::{
 use super::projection::{ControlRequestOutcomeKindV1, RunStatus as ProjectedRunStatus};
 use super::registry::{require_registered, DurableRecord};
 use super::routing::{self, Keyspace, Shard};
-use super::shard_log::{
-    start_recovered, RunView, ShardCommandConfig, ShardCommandHandle, ShardLogLocation,
-};
+use super::shard_log::{start_recovered, RunView, ShardCommandConfig, ShardCommandHandle};
 use super::state::{start_state_hint_repairer, JournalStateAuthority, StateAuthority};
 use super::submission::{
     admitted_run_record, delete_ready_receipt, discover_ready_receipts, submit_durable_for_run,
@@ -122,8 +122,11 @@ impl Phase2OpenDataOrchestrator {
         if let Some(runtime) = shards.get(&shard) {
             return Ok(runtime.clone());
         }
-        let location =
-            ShardLogLocation::disposable_local(shard, &self.inner.tenant, &self.inner.remote_root);
+        let location = crate::orchestrator::shard_log::disposable_local(
+            shard,
+            &self.inner.tenant,
+            &self.inner.remote_root,
+        );
         let started = start_recovered(location, ShardCommandConfig::default())
             .await
             .map_err(internal)?;

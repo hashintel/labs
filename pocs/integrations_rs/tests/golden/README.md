@@ -9,7 +9,7 @@ with the TypeScript dump script rather than editing them by hand.
 `routing.json`, `control-baseline-v1.json`, `current-state-hint-v1.json`,
 `graph-effects-v1.json`,
 `internal-metadata-v1.json`, the state/work/control/journal/submission fixtures,
-`protocol-identities-v1.json`, and `expected-record-families-v1.json` are Rust orchestrator
+`protocol-identities-v1.json`, and `expected-record-declarations-v1.json` are Rust orchestrator
 protocol fixtures, not TypeScript parity fixtures. They are independently
 reviewed inputs and must never be generated from the Rust implementation they
-test. `registry-omitted-family.json` is a deliberate negative fixture.
+test. `registry-omitted-declaration.json` is a deliberate negative fixture.

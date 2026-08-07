@@ -4,6 +4,7 @@
 //! `ArtifactPublished` event is durable. Publication before that event is an
 //! orphan-safe content upload. Recovery always adopts the journal binding
 //! before consulting or recapturing a live source.
+use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::path::Path;
 
@@ -232,7 +233,7 @@ mod tests {
     use crate::orchestrator::events::{AttemptStartedV1, InputRef, PolicyRef, RunAcceptedV1};
     use crate::orchestrator::ids::derive_attempt_id;
     use crate::orchestrator::routing;
-    use crate::orchestrator::shard_log::{start_recovered, ShardCommandConfig, ShardLogLocation};
+    use crate::orchestrator::shard_log::{start_recovered, ShardCommandConfig};
 
     fn placeholder(key: &str, digest: char) -> BlobRef {
         BlobRef::V1(BlobRefV1 {
@@ -253,7 +254,7 @@ mod tests {
         let integration = CanonicalIntegrationId::parse("alice:supply-chain").expect("integration");
         let run_id = RunId::parse("00000000-0000-4000-8000-000000000001").expect("run ID");
         let attempt_id = derive_attempt_id(&run_id, 1);
-        let location = ShardLogLocation::disposable_local(
+        let location = crate::orchestrator::shard_log::disposable_local(
             routing::shard(&integration),
             &tenant,
             remote.path(),

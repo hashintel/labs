@@ -561,8 +561,12 @@ impl Runner {
         for shard in candidates {
             locations.push((
                 shard,
-                ShardLogLocation::production(&self.env, shard, &self.readiness.config.tenant)
-                    .change_context(WorkerError::ShardLocation)?,
+                crate::orchestrator::shard_log::production_location(
+                    &self.env,
+                    shard,
+                    &self.readiness.config.tenant,
+                )
+                .change_context(WorkerError::ShardLocation)?,
             ));
         }
         let acquisition_concurrency = crate::config::shard_acquisition_concurrency(&self.env)

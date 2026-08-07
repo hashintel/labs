@@ -27,7 +27,7 @@ use integrations_rs::orchestrator::ids::{
     MAX_CANONICAL_INTEGRATION_ID_BYTES,
 };
 use integrations_rs::orchestrator::routing::{
-    route, shard_path, Keyspace, ROUTING_VERSION, SHARD_COUNT,
+    route, shard_path, Keyspace, TenantKeyspace as _, ROUTING_VERSION, SHARD_COUNT,
 };
 use integrations_rs::snapshot;
 use integrations_rs::store::{Store, StoreOptions};

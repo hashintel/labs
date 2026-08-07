@@ -3,6 +3,7 @@
 //! This module is deliberately not a worker. It never opens a shard writer,
 //! acquires a lease, advances an epoch, or resolves its own control request.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
 use std::fmt;
 
 use error_stack::{Report, ResultExt as _};
@@ -25,7 +26,7 @@ use super::projection::RunStatus as ProjectedRunStatus;
 use super::record_io::read_strict as read_record;
 use super::registry::{require_registered, DurableRecord};
 use super::routing::Keyspace;
-use super::shard_log::{read_projection, ShardLogLocation};
+use super::shard_log::read_projection;
 use super::submission::{active_admission_revision, submit_durable_for_run};
 use crate::blob::{ArtifactStore, BlobRef};
 use crate::config::{self, Env};
@@ -359,8 +360,9 @@ impl CommandSurface {
         {
             return Ok(None);
         }
-        let location = ShardLogLocation::production(&self.env, shard, &self.tenant)
-            .change_context(CommandSurfaceError::Projection)?;
+        let location =
+            crate::orchestrator::shard_log::production_location(&self.env, shard, &self.tenant)
+                .change_context(CommandSurfaceError::Projection)?;
         let projection = read_projection(&location)
             .await
             .change_context(CommandSurfaceError::Projection)?;
@@ -589,9 +591,12 @@ mod tests {
             .await
             .unwrap()
             .unwrap();
-        let location =
-            ShardLogLocation::production(&env, super::super::routing::shard(&integration), &tenant)
-                .unwrap();
+        let location = crate::orchestrator::shard_log::production_location(
+            &env,
+            super::super::routing::shard(&integration),
+            &tenant,
+        )
+        .unwrap();
         let started = start_recovered(location, ShardCommandConfig::default())
             .await
             .unwrap();

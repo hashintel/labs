@@ -5,7 +5,7 @@
 //! `execute` → append the returned events. There is no durable effect
 //! bookkeeping — completion is represented in the domain events an effect
 //! returns, and a per-session executed set prevents hot loops (see the
-//! `Executor` contract in [`crate::kernel::domain`]).
+//! `Executor` contract in [`crate::domain`]).
 //!
 //! Coordination model: run exactly one process per shard set. The SlateDB
 //! writer epoch fences a misdeployment — a second writer makes the first
@@ -15,22 +15,17 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 use std::num::NonZeroUsize;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
-use crate::blob::ArtifactStore;
-use crate::kernel::domain::{
-    self, effect_id, EventRecordV1, Executor, Hosted, PartitionKey, SimpleDomain,
-};
-use crate::kernel::keyspace::{Keyspace, Namespace};
-use crate::orchestrator::ids::TenantNamespace;
-use crate::orchestrator::registry::CompatError;
-use crate::orchestrator::routing::Shard;
-use crate::orchestrator::shard_log::{
+use crate::domain::{self, effect_id, EventRecordV1, Executor, Hosted, PartitionKey, SimpleDomain};
+use crate::keyspace::{Keyspace, Namespace};
+use crate::registry::CompatError;
+use crate::routing::Shard;
+use crate::shard_log::{
     LogStorageOptions, OpenedShard, RecoveredShard, ShardCommandConfig, ShardCommandError,
     ShardCommandErrorKind, ShardCommandHandle, ShardCommandOutcome, ShardLogLocation,
     StateChangeFeed,
@@ -39,7 +34,7 @@ use crate::orchestrator::shard_log::{
 /// Every variant is kernel-owned: no internal error type or identifier
 /// escapes to a library user.
 #[derive(Debug)]
-pub(crate) enum KernelError {
+pub enum KernelError {
     Config(String),
     Registration(String),
     InvalidEvent(String),
@@ -71,37 +66,30 @@ impl fmt::Display for KernelError {
 impl std::error::Error for KernelError {}
 
 #[derive(Debug, Clone)]
-pub(crate) struct KernelConfig {
+pub struct KernelConfig {
     /// Instance namespace: the validated root prefix for every key and log.
-    pub(crate) name: String,
+    pub name: String,
     /// `file:///path` or `s3://bucket/prefix`.
-    pub(crate) blob_url: String,
-    pub(crate) aws_region: Option<String>,
-    /// Local verified-cache directory for the artifact store.
-    pub(crate) cache_dir: PathBuf,
+    pub blob_url: String,
+    pub aws_region: Option<String>,
     /// Shards this process owns; partitions hashing elsewhere are refused.
-    pub(crate) shards: Vec<u16>,
+    pub shards: Vec<u16>,
     /// Commit a snapshot after this many folded events. `0` disables.
-    pub(crate) snapshot_every_events: u64,
+    pub snapshot_every_events: u64,
     /// Driver idle wake-up; also the default effect-retry backoff.
-    pub(crate) poll_interval: Duration,
-    pub(crate) channel_capacity: NonZeroUsize,
-    pub(crate) safe_append_retries: u32,
-    pub(crate) block_cache_bytes: u64,
-    pub(crate) meta_cache_bytes: u64,
+    pub poll_interval: Duration,
+    pub channel_capacity: NonZeroUsize,
+    pub safe_append_retries: u32,
+    pub block_cache_bytes: u64,
+    pub meta_cache_bytes: u64,
 }
 
 impl KernelConfig {
-    pub(crate) fn new(
-        name: impl Into<String>,
-        blob_url: impl Into<String>,
-        cache_dir: impl Into<PathBuf>,
-    ) -> Self {
+    pub fn new(name: impl Into<String>, blob_url: impl Into<String>) -> Self {
         Self {
             name: name.into(),
             blob_url: blob_url.into(),
             aws_region: None,
-            cache_dir: cache_dir.into(),
             shards: Vec::new(),
             snapshot_every_events: 512,
             poll_interval: Duration::from_millis(250),
@@ -115,18 +103,14 @@ impl KernelConfig {
 
 /// An opened kernel instance: storage validated, names registerable,
 /// not yet running.
-pub(crate) struct Kernel {
+pub struct Kernel {
     config: KernelConfig,
-    store: ArtifactStore,
-    tenant: TenantNamespace,
     keyspace: Keyspace,
     shards: Vec<Shard>,
 }
 
 impl Kernel {
-    pub(crate) fn open(config: KernelConfig) -> Result<Self, KernelError> {
-        let tenant = TenantNamespace::parse(&config.name)
-            .map_err(|error| KernelError::Config(error.to_string()))?;
+    pub fn open(config: KernelConfig) -> Result<Self, KernelError> {
         let namespace = Namespace::parse(&config.name)
             .map_err(|error| KernelError::Config(error.to_string()))?;
         if config.shards.is_empty() {
@@ -142,25 +126,21 @@ impl Kernel {
             .map_err(|error| KernelError::Config(error.to_string()))?
             .into_iter()
             .collect();
-        let store = ArtifactStore::from_url(&config.blob_url, config.cache_dir.clone())
-            .map_err(|error| KernelError::Storage(format!("{error:?}")))?;
         Ok(Self {
             keyspace: Keyspace::new(namespace),
             config,
-            store,
-            tenant,
             shards,
         })
     }
 
     /// Registers the domain's wire names; chainable before `start`.
-    pub(crate) fn register<S: SimpleDomain>(self) -> Result<Self, KernelError> {
+    pub fn register<S: SimpleDomain>(self) -> Result<Self, KernelError> {
         domain::register::<S>().map_err(|error| KernelError::Registration(error.to_string()))?;
         Ok(self)
     }
 
     /// Recovers every owned shard and starts one effect driver per shard.
-    pub(crate) async fn start<S, X>(&self, executor: X) -> Result<RunningKernel<S>, KernelError>
+    pub async fn start<S, X>(&self, executor: X) -> Result<RunningKernel<S>, KernelError>
     where
         S: SimpleDomain,
         X: Executor<S>,
@@ -184,7 +164,7 @@ impl Kernel {
                     .map_err(|error| KernelError::Storage(format!("{error:?}")))?;
             let opened = OpenedShard::open(location).await.map_err(command_failure)?;
             let recovered: RecoveredShard<Hosted<S>> = opened
-                .recover_with_snapshots(&self.store, &self.tenant)
+                .recover_with_snapshots(&())
                 .await
                 .map_err(command_failure)?;
             let started = recovered.enable(ShardCommandConfig::new(
@@ -217,12 +197,12 @@ impl Kernel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Submitted {
+pub enum Submitted {
     Applied,
     AlreadyDurable,
 }
 
-pub(crate) struct RunningKernel<S: SimpleDomain> {
+pub struct RunningKernel<S: SimpleDomain> {
     shards: BTreeMap<u8, ShardCommandHandle<Hosted<S>>>,
     recovered_snapshots: BTreeMap<u8, Option<u64>>,
     drivers: Vec<JoinHandle<Result<(), KernelError>>>,
@@ -243,7 +223,7 @@ impl<S: SimpleDomain> RunningKernel<S> {
 
     /// Validates and durably appends one event. Idempotent by content
     /// identity; a rejection carries the fold's reason.
-    pub(crate) async fn submit(&self, event: S::Event) -> Result<Submitted, KernelError> {
+    pub async fn submit(&self, event: S::Event) -> Result<Submitted, KernelError> {
         let record = EventRecordV1::new(event).map_err(invalid_event)?;
         let handle = self.handle_for(&record.partition)?;
         match handle.propose(record).await {
@@ -259,7 +239,7 @@ impl<S: SimpleDomain> RunningKernel<S> {
     }
 
     /// Runs a read-only closure against the partition's fold state.
-    pub(crate) async fn read<R, F>(&self, key: &PartitionKey, read: F) -> Result<R, KernelError>
+    pub async fn read<R, F>(&self, key: &PartitionKey, read: F) -> Result<R, KernelError>
     where
         R: Send + 'static,
         F: FnOnce(&S::Projection) -> R + Send + 'static,
@@ -273,11 +253,11 @@ impl<S: SimpleDomain> RunningKernel<S> {
 
     /// Per shard, the snapshot sequence recovery restored from (`None`
     /// means full journal replay).
-    pub(crate) fn recovery_snapshots(&self) -> &BTreeMap<u8, Option<u64>> {
+    pub fn recovery_snapshots(&self) -> &BTreeMap<u8, Option<u64>> {
         &self.recovered_snapshots
     }
 
-    pub(crate) async fn shutdown(self) -> Result<(), KernelError> {
+    pub async fn shutdown(self) -> Result<(), KernelError> {
         self.shutdown.cancel();
         let mut first_error = None;
         for driver in self.drivers {
@@ -445,7 +425,7 @@ mod tests {
     use serde::{Deserialize, Serialize};
 
     use super::*;
-    use crate::kernel::domain::{DomainEvent, Fold, Rejection, Retry};
+    use crate::domain::{DomainEvent, Fold, Rejection, Retry};
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
     #[serde(tag = "kind", rename_all = "snake_case")]
@@ -561,8 +541,8 @@ mod tests {
         }
     }
 
-    fn config(blob_url: &str, cache: &std::path::Path, shard: u8) -> KernelConfig {
-        let mut config = KernelConfig::new("kernelapp", blob_url, cache);
+    fn config(blob_url: &str, shard: u8) -> KernelConfig {
+        let mut config = KernelConfig::new("kernelapp", blob_url);
         config.shards = vec![u16::from(shard)];
         config.poll_interval = Duration::from_millis(20);
         config.snapshot_every_events = 2;
@@ -598,21 +578,25 @@ mod tests {
     async fn kernel_end_to_end_on_s3() {
         let base_url = std::env::var("INTEGRATIONS_KERNEL_S3_URL")
             .expect("set INTEGRATIONS_KERNEL_S3_URL=s3://bucket/scratch-prefix");
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("clock after epoch")
+            .as_nanos();
         let run_url = format!(
-            "{}/kernel-e2e-{}",
+            "{}/kernel-e2e-{}-{}",
             base_url.trim_end_matches('/'),
-            uuid::Uuid::new_v4()
+            std::process::id(),
+            unique
         );
         exercise_end_to_end(&run_url).await;
     }
 
     async fn exercise_end_to_end(blob_url: &str) {
-        let cache = tempfile::tempdir().expect("cache root");
         let orders = PartitionKey::parse("orders").expect("valid key");
         let shard = domain::shard_of(&orders);
         let external = Arc::new(Mutex::new(Vec::new()));
 
-        let kernel = Kernel::open(config(blob_url, cache.path(), shard.get()))
+        let kernel = Kernel::open(config(blob_url, shard.get()))
             .expect("open kernel")
             .register::<RtDomain>()
             .expect("register domain");
@@ -676,8 +660,7 @@ mod tests {
         // Restart with a fresh executor: state recovers (via snapshot), and
         // the archived counter plans nothing — nothing re-executes.
         let external_after = Arc::new(Mutex::new(Vec::new()));
-        let cache_after = tempfile::tempdir().expect("cache root after restart");
-        let kernel = Kernel::open(config(blob_url, cache_after.path(), shard.get()))
+        let kernel = Kernel::open(config(blob_url, shard.get()))
             .expect("reopen kernel")
             .register::<RtDomain>()
             .expect("re-register domain");
@@ -711,7 +694,6 @@ mod tests {
     async fn foreign_partitions_are_not_owned() {
         let blob = tempfile::tempdir().expect("blob root");
         let blob_url = format!("file://{}", blob.path().display());
-        let cache = tempfile::tempdir().expect("cache root");
         let orders = PartitionKey::parse("orders").expect("valid key");
         let shard = domain::shard_of(&orders);
         let foreign = (0..1024_u32)
@@ -722,7 +704,7 @@ mod tests {
             })
             .expect("some key routes elsewhere");
 
-        let kernel = Kernel::open(config(&blob_url, cache.path(), shard.get()))
+        let kernel = Kernel::open(config(&blob_url, shard.get()))
             .expect("open kernel")
             .register::<RtDomain>()
             .expect("register domain");

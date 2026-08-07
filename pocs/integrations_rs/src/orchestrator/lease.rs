@@ -61,8 +61,6 @@ impl ShardLease {
     }
 }
 
-impl super::registry::sealed::Sealed for ShardLease {}
-
 impl DurableRecord for ShardLease {
     fn declaration() -> &'static RecordDeclaration {
         &SHARD_LEASE_DECLARATION

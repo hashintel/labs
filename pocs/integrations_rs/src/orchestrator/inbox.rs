@@ -3,6 +3,7 @@
 //! Request objects are immutable discovery hints. Only the fenced shard
 //! journal outcome is authoritative; result objects are rebuildable caches.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
 use std::fmt;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -112,8 +113,6 @@ impl ControlRequestResult {
         }
     }
 }
-
-impl super::registry::sealed::Sealed for ControlRequestResult {}
 
 impl DurableRecord for ControlRequestResult {
     fn declaration() -> &'static RecordDeclaration {

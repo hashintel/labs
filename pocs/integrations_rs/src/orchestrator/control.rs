@@ -271,8 +271,6 @@ fn malformed(message: String) -> CompatError {
     }
 }
 
-impl super::registry::sealed::Sealed for ControlRequest {}
-
 impl DurableRecord for ControlRequest {
     fn declaration() -> &'static RecordDeclaration {
         &CONTROL_REQUEST_DECLARATION

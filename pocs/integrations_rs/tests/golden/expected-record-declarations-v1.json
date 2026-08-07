@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "families": [
+  "declarations": [
     {
       "name": "admission_pointer",
       "owningModule": "orchestrator::submission",

@@ -8,6 +8,7 @@ use std::time::Duration;
 use common::{orders_definition, WorkerHarness, WorkerLocal, WEB_ID};
 use integrations_rs::orchestrator::ids::CanonicalIntegrationId;
 use integrations_rs::orchestrator::routing;
+use integrations_rs::orchestrator::routing::TenantKeyspace as _;
 use integrations_rs::orchestrator::CommandRunState;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};

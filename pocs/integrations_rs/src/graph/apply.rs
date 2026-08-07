@@ -4,6 +4,7 @@
 //! Delivery consumes only journal-selected work and advances state only through
 //! `WorkCompleted`. The module owns no append handle outside the serialized
 //! shard command loop.
+use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::sync::Arc;
 
@@ -723,9 +724,7 @@ mod tests {
     use crate::orchestrator::ids::derive_attempt_id;
     use crate::orchestrator::projection::MaintenanceStatus;
     use crate::orchestrator::registry::DurableRecord;
-    use crate::orchestrator::shard_log::{
-        start_recovered, ShardCommandConfig, ShardLogLocation, StartedShard,
-    };
+    use crate::orchestrator::shard_log::{start_recovered, ShardCommandConfig, StartedShard};
     use crate::orchestrator::state::JournalStateAuthority;
     use crate::orchestrator::work::StatePhaseV1;
 
@@ -801,8 +800,11 @@ mod tests {
         let tenant = TenantNamespace::parse("apply-tests").expect("tenant");
         let integration =
             CanonicalIntegrationId::parse("alice:apply-lifecycle").expect("integration");
-        let location =
-            ShardLogLocation::disposable_local(routing::shard(&integration), &tenant, remote);
+        let location = crate::orchestrator::shard_log::disposable_local(
+            routing::shard(&integration),
+            &tenant,
+            remote,
+        );
         let started = start_recovered(location, ShardCommandConfig::default())
             .await
             .expect("start shard");

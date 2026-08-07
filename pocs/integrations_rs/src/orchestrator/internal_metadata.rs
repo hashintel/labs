@@ -309,9 +309,7 @@ impl ValidateInternal for RequestBindingRecord {
 
 macro_rules! durable_record {
     ($record:ty, $name:ident, $max:ident, [$($field:literal),* $(,)?]) => {
-        impl super::registry::sealed::Sealed for $record {}
-
-        impl DurableRecord for $record {
+                impl DurableRecord for $record {
             fn declaration() -> &'static RecordDeclaration {
                 &$name
             }

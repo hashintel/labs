@@ -3,6 +3,7 @@
 //! Slow source, DuckDB, and object-store work stays outside the shard command
 //! loop. The loop is used only for the next `AttemptStarted` and the
 //! source-qualified artifact bindings that make replay exact.
+use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -412,7 +413,7 @@ mod tests {
     use crate::orchestrator::events::{InputRef, PolicyRef, RunAcceptedV1};
     use crate::orchestrator::internal_metadata::{RunInputRecord, MAX_RUN_INPUT_RECORD_BYTES};
     use crate::orchestrator::metadata;
-    use crate::orchestrator::shard_log::{start_recovered, ShardCommandConfig, ShardLogLocation};
+    use crate::orchestrator::shard_log::{start_recovered, ShardCommandConfig};
     use crate::orchestrator::state::JournalStateAuthority;
     use crate::store::StoreOptions;
     use std::collections::{BTreeMap, HashMap};
@@ -549,7 +550,7 @@ mod tests {
             definition_digest_encoding_version: DEFINITION_DIGEST_ENCODING_VERSION,
             planner_version: PLANNER_VERSION,
         };
-        let location = ShardLogLocation::disposable_local(
+        let location = crate::orchestrator::shard_log::disposable_local(
             routing::shard(&integration),
             &tenant,
             remote.path(),

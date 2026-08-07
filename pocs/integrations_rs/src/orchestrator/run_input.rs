@@ -4,6 +4,7 @@
 //! meaning. A worker resolves the definition again using its explicitly
 //! allowed environment, then refuses to plan if either representation or the
 //! canonical integration identity drifted.
+use crate::orchestrator::routing::TenantKeyspace as _;
 use std::collections::BTreeMap;
 use std::fmt;
 

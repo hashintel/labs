@@ -1,5 +1,6 @@
 //! Durable submission receipts and admission pointers.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
 use error_stack::{Report, ResultExt as _};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -988,8 +989,6 @@ fn decode_submission_record<T: for<'de> Deserialize<'de>>(
     serde_json::from_value(value).map_err(|error| malformed(name, error.to_string()))
 }
 
-impl super::registry::sealed::Sealed for KnownShardMarker {}
-
 impl DurableRecord for KnownShardMarker {
     fn declaration() -> &'static RecordDeclaration {
         &KNOWN_SHARD_MARKER_DECLARATION
@@ -1023,8 +1022,6 @@ impl VersionedRecord for KnownShardMarker {
 
 impl PureUpcastRecord for KnownShardMarker {}
 
-impl super::registry::sealed::Sealed for ReadyReceipt {}
-
 impl DurableRecord for ReadyReceipt {
     fn declaration() -> &'static RecordDeclaration {
         &READY_RECEIPT_DECLARATION
@@ -1054,8 +1051,6 @@ impl VersionedRecord for ReadyReceipt {
 }
 
 impl PureUpcastRecord for ReadyReceipt {}
-
-impl super::registry::sealed::Sealed for AdmissionPointer {}
 
 impl DurableRecord for AdmissionPointer {
     fn declaration() -> &'static RecordDeclaration {

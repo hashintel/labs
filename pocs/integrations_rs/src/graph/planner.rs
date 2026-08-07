@@ -925,8 +925,6 @@ fn malformed(message: String) -> CompatError {
     }
 }
 
-impl crate::orchestrator::registry::sealed::Sealed for GraphDeliveryPayload {}
-
 impl DurableRecord for GraphDeliveryPayload {
     fn declaration() -> &'static RecordDeclaration {
         &GRAPH_DELIVERY_PAYLOAD_DECLARATION

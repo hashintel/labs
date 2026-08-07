@@ -3,7 +3,6 @@
 use std::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use sha2::{Digest as _, Sha256};
 use uuid::Uuid;
 
 pub const MAX_CANONICAL_INTEGRATION_ID_BYTES: usize = 1024;
@@ -133,12 +132,10 @@ uuid_id!(RunId, "run ID");
 digest_id!(AttemptId, "attempt ID");
 digest_id!(StateVersionId, "state-version ID");
 digest_id!(WorkId, "work ID");
-digest_id!(EventId, "event ID");
 digest_id!(RequestId, "request ID");
 digest_id!(RequestDigest, "request digest");
 digest_id!(DlqEntryId, "DLQ-entry ID");
 digest_id!(EffectId, "effect ID");
-digest_id!(JournalRecordDigest, "journal-record digest");
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InvalidId {
@@ -160,16 +157,9 @@ impl fmt::Display for InvalidId {
 
 impl std::error::Error for InvalidId {}
 
-pub(crate) fn canonical_digest<T: Serialize>(
-    domain: &str,
-    projection: &T,
-) -> Result<String, serde_json::Error> {
-    let mut digest = Sha256::new();
-    digest.update(domain.as_bytes());
-    digest.update([0]);
-    digest.update(serde_json::to_vec(projection)?);
-    Ok(hex::encode(digest.finalize()))
-}
+// Kernel-owned identities: the canonical digest function and the two
+// digest identities every journal envelope carries.
+pub use durable_kernel::ids::{canonical_digest, EventId, JournalRecordDigest};
 
 pub fn derive_attempt_id(run_id: &RunId, attempt: u64) -> AttemptId {
     #[derive(Serialize)]

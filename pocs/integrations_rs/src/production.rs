@@ -3,6 +3,7 @@
 //! These checks are CLI/operator tools, not health probes: the CAS probe
 //! performs writes and a full store verification may download large objects.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
 use error_stack::{Report, ResultExt as _};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -71,7 +72,7 @@ pub async fn slatedb_fencing_contract(env: &Env) -> Result<(), Report<Diagnostic
         .try_into()
         .map_err(|_probes| Report::new(DiagnosticsError))?;
     let shard = probe_shard.ok_or_else(|| Report::new(DiagnosticsError))?;
-    let location = ShardLogLocation::production(env, shard, &tenant)
+    let location = crate::orchestrator::shard_log::production_location(env, shard, &tenant)
         .change_context(DiagnosticsError)
         .attach_printable("build disposable shard-log location")?;
 
@@ -111,7 +112,12 @@ pub async fn slatedb_fencing_contract(env: &Env) -> Result<(), Report<Diagnostic
             .await
             .map_err(|error| Report::new(DiagnosticsError).attach_printable(error.to_string()))?;
         let recovered: crate::orchestrator::shard_log::RecoveredShard = opened
-            .recover_with_snapshots(&store, &tenant)
+            .recover_with_snapshots(
+                &crate::orchestrator::shard_log::IntegrationsSnapshotContext {
+                    store: store.clone(),
+                    tenant: tenant.clone(),
+                },
+            )
             .await
             .map_err(|error| Report::new(DiagnosticsError).attach_printable(error.to_string()))?;
         // Fail-closed recovery: the probe must never resolve an ambiguous

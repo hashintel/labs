@@ -5,6 +5,7 @@
 //! reference is appended through that same writer. Recovery may ignore every
 //! snapshot and replay the complete events stream without changing semantics.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
 use std::fmt;
 
 use chrono::{DateTime, Utc};
@@ -121,8 +122,6 @@ impl ControlProjectionPayload {
     }
 }
 
-impl super::registry::sealed::Sealed for ControlProjectionPayload {}
-
 impl DurableRecord for ControlProjectionPayload {
     fn declaration() -> &'static RecordDeclaration {
         &CONTROL_PROJECTION_PAYLOAD_DECLARATION
@@ -237,8 +236,6 @@ impl ControlProjectionSnapshot {
                 .is_ok_and(|digest| digest == reference.payload_sha256)
     }
 }
-
-impl super::registry::sealed::Sealed for ControlProjectionSnapshot {}
 
 impl DurableRecord for ControlProjectionSnapshot {
     fn declaration() -> &'static RecordDeclaration {

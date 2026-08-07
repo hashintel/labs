@@ -3,6 +3,7 @@
 //! Reconcile force-applies one immutable desired projection. It shares the
 //! ordinary work manifest, cursor, effect lane, and fenced journal path with
 //! Apply and Restore; no reconciliation-specific checkpoint protocol exists.
+use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::sync::Arc;
 
@@ -604,9 +605,7 @@ mod tests {
     };
     use crate::orchestrator::ids::{derive_attempt_id, AttemptId, EffectId, RunId};
     use crate::orchestrator::registry::DurableRecord;
-    use crate::orchestrator::shard_log::{
-        start_recovered, ShardCommandConfig, ShardLogLocation, StartedShard,
-    };
+    use crate::orchestrator::shard_log::{start_recovered, ShardCommandConfig, StartedShard};
     use crate::orchestrator::state::JournalStateAuthority;
     use crate::orchestrator::work::{StatePhase, StatePhaseV1};
 
@@ -704,7 +703,11 @@ mod tests {
         let integration =
             CanonicalIntegrationId::parse("alice:reconcile-lifecycle").expect("integration");
         let started = start_recovered(
-            ShardLogLocation::disposable_local(routing::shard(&integration), &tenant, remote),
+            crate::orchestrator::shard_log::disposable_local(
+                routing::shard(&integration),
+                &tenant,
+                remote,
+            ),
             ShardCommandConfig::default(),
         )
         .await

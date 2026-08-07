@@ -1230,8 +1230,6 @@ fn effect_malformed(message: String) -> CompatError {
     }
 }
 
-impl crate::orchestrator::registry::sealed::Sealed for DesiredProjectionArtifact {}
-
 impl DurableRecord for DesiredProjectionArtifact {
     fn declaration() -> &'static RecordDeclaration {
         &DESIRED_PROJECTION_ARTIFACT_DECLARATION
@@ -1282,8 +1280,6 @@ impl VersionedRecord for DesiredProjectionArtifact {
 }
 
 impl PureUpcastRecord for DesiredProjectionArtifact {}
-
-impl crate::orchestrator::registry::sealed::Sealed for EffectIndexArtifact {}
 
 impl DurableRecord for EffectIndexArtifact {
     fn declaration() -> &'static RecordDeclaration {

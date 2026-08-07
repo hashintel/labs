@@ -3,29 +3,37 @@
 //! The command loop owns the append-capable writer, retry/ambiguity
 //! discipline, terminal-error handling, and sequencing. Everything it must
 //! know about the records it appends and the state it folds comes through
-//! this trait. Protocol V1's `IntegrationsDomain` (in
-//! `orchestrator::shard_log::command_loop`) is the default type parameter
-//! everywhere, so V1 call sites never name it; any other domain brings its
-//! own vocabulary and reuses `CommandLoop<D>`, `ShardCommandHandle<D>`, and
-//! the recovery path unchanged.
+//! this trait. A domain brings its own vocabulary and reuses
+//! `CommandLoop<D>`, `ShardCommandHandle<D>`, and the recovery path
+//! unchanged.
 
-use crate::blob::ArtifactStore;
-use crate::orchestrator::ids::{EventId, TenantNamespace};
-use crate::orchestrator::registry::{DurableRecord, UntrimmedJournalRecord};
-use crate::orchestrator::routing::Shard;
-use crate::orchestrator::shard_log::ShardCommandError;
+use crate::ids::EventId;
+use crate::registry::{DurableRecord, UntrimmedJournalRecord};
+use crate::routing::Shard;
+use crate::shard_log::ShardCommandError;
 
 /// Kernel-owned outcome of `Domain::prepare`: either the event is already
 /// reflected in the projection (an idempotent duplicate) or it carries a
 /// mutation to finalize after the append is durable.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Prepared<T> {
+pub enum Prepared<T> {
     Noop,
     Mutation(T),
 }
 
-pub(crate) trait Domain: Send + Sync + 'static {
-    /// Journal wire codec: the full versioned enum covering every supported version.
+/// Recovery telemetry handed to `Domain::note_snapshot_recovery` after a
+/// shard's startup or ambiguity replay completes with snapshots enabled.
+#[derive(Debug, Clone)]
+pub struct SnapshotRecoveryStats {
+    pub replayed_events: u64,
+    pub replay_elapsed: std::time::Duration,
+    pub corruption_fallbacks: u64,
+    pub latest_snapshot_created_at: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+pub trait Domain: Send + Sync + 'static {
+    /// Journal wire codec: the full versioned enum covering every supported
+    /// version.
     type Record: UntrimmedJournalRecord + Send + Sync;
     /// Verified current-version record: what producers propose, the loop
     /// appends, and the fold consumes.
@@ -37,8 +45,8 @@ pub(crate) trait Domain: Send + Sync + 'static {
     /// Fold rejection; its `Display` output becomes the candidate-rejection
     /// message, so implementations must keep it self-contained.
     type FoldError: std::fmt::Display + Send;
-    /// Key of the domain's state-change signal (V1: the integration ID whose
-    /// checkpoint state advanced).
+    /// Key of the domain's state-change signal: the aggregate whose
+    /// checkpoint state advanced.
     type StateKey: Clone + Send + std::fmt::Debug;
     type Query: Send;
     type QueryResult: Send;
@@ -53,6 +61,10 @@ pub(crate) trait Domain: Send + Sync + 'static {
     type Snapshot: DurableRecord + Send + Sync;
     /// In-memory capture handed to the out-of-loop snapshot publisher.
     type SnapshotCapture: Send;
+    /// Domain-owned context for materializing snapshot payloads during
+    /// recovery — for example, an artifact store when snapshot payloads
+    /// are indirected. A domain whose snapshots are self-contained uses `()`.
+    type SnapshotContext: Clone + Send + Sync + 'static;
     /// Recovered live-work descriptor reported to the scheduler at startup.
     type WorkIntent: Clone + Send + std::fmt::Debug + PartialEq + Eq;
 
@@ -124,11 +136,18 @@ pub(crate) trait Domain: Send + Sync + 'static {
     /// Materializes the projection a snapshot references. `Err` falls back
     /// to an older snapshot or full replay; it never fails recovery.
     fn load_snapshot_projection(
-        store: &ArtifactStore,
-        tenant: &TenantNamespace,
+        context: &Self::SnapshotContext,
         shard: Shard,
         snapshot: &Self::Snapshot,
     ) -> impl std::future::Future<Output = Result<Self::Projection, String>> + Send;
+
+    // Telemetry. Both hooks default to no-ops; a domain wires them to its
+    // own observability.
+
+    /// Observes one completed snapshot-enabled recovery.
+    fn note_snapshot_recovery(_context: &Self::SnapshotContext, _stats: &SnapshotRecoveryStats) {}
+    /// Observes the loop stopping because its writer was fenced.
+    fn note_fenced(_context: &Self::SnapshotContext) {}
 
     // Recovery.
 

@@ -4,6 +4,7 @@
 //! DuckDB snapshots are immutable evidence named by that projection; no mutable
 //! object-store pointer participates in recovery.
 
+use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::collections::BTreeSet;
 use std::fmt;
 #[cfg(test)]
@@ -82,8 +83,6 @@ impl CurrentStateHint {
         }
     }
 }
-
-impl super::registry::sealed::Sealed for CurrentStateHint {}
 
 impl DurableRecord for CurrentStateHint {
     fn declaration() -> &'static RecordDeclaration {
@@ -1119,7 +1118,7 @@ mod tests {
             let tenant = TenantNamespace::parse("phase3-state").expect("valid tenant");
             let integration =
                 CanonicalIntegrationId::parse(format!("alice:{name}")).expect("valid integration");
-            let location = ShardLogLocation::disposable_local(
+            let location = crate::orchestrator::shard_log::disposable_local(
                 routing::shard(&integration),
                 &tenant,
                 remote.path(),

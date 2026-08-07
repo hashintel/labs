@@ -1062,9 +1062,9 @@ mod tests {
         RunId::parse(format!("{value:08x}-0000-4000-8000-000000000001")).expect("valid run ID")
     }
 
-    fn digest_id<T>(
+    fn digest_id<T, E: std::fmt::Debug>(
         value: char,
-        parse: impl FnOnce(String) -> Result<T, super::super::ids::InvalidId>,
+        parse: impl FnOnce(String) -> Result<T, E>,
     ) -> T {
         parse(value.to_string().repeat(64)).expect("valid digest ID")
     }

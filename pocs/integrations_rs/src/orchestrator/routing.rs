@@ -7,44 +7,10 @@ use sha2::{Digest, Sha256};
 use super::ids::CanonicalIntegrationId;
 
 pub const ROUTING_VERSION: u32 = 1;
-pub const SHARD_COUNT: u16 = 256;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Shard(u8);
-
-impl Shard {
-    pub fn get(self) -> u8 {
-        self.0
-    }
-}
-
-impl TryFrom<u16> for Shard {
-    type Error = InvalidShard;
-
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match u8::try_from(value) {
-            Ok(value) => Ok(Self(value)),
-            Err(_out_of_range) => Err(InvalidShard { value }),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct InvalidShard {
-    pub value: u16,
-}
-
-impl fmt::Display for InvalidShard {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            formatter,
-            "shard {} is outside routing-v1 range 0..{}",
-            self.value, SHARD_COUNT
-        )
-    }
-}
-
-impl std::error::Error for InvalidShard {}
+// Shard identity is kernel-owned; this module owns the placement of
+// integrations onto shards.
+pub use durable_kernel::routing::{shard_path, InvalidShard, Shard, SHARD_COUNT};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct IntegrationPath([u8; 32]);
@@ -75,7 +41,7 @@ pub fn route(id: &CanonicalIntegrationId) -> Route {
             .try_into()
             .expect("a SHA-256 digest always contains eight prefix bytes"),
     );
-    let shard = Shard((routing_value % u64::from(SHARD_COUNT)) as u8);
+    let shard = Shard::from_u8((routing_value % u64::from(SHARD_COUNT)) as u8);
     Route {
         routing_value,
         shard,
@@ -87,10 +53,6 @@ pub fn shard(id: &CanonicalIntegrationId) -> Shard {
     route(id).shard
 }
 
-pub fn shard_path(shard: Shard) -> String {
-    format!("{:03x}", shard.get())
-}
-
 pub fn integration_path(id: &CanonicalIntegrationId) -> IntegrationPath {
     route(id).integration_path
 }
@@ -98,6 +60,72 @@ pub fn integration_path(id: &CanonicalIntegrationId) -> IntegrationPath {
 // Key derivation lives in the kernel keyspace; re-exported for the
 // orchestrator's `routing::` import paths.
 pub use crate::kernel::keyspace::Keyspace;
+
+/// V1's identifier-typed key derivations on top of the kernel [`Keyspace`]:
+/// the `tenants/{tenant}` namespace and every control or artifact key that
+/// embeds a V1 identifier. The layout is frozen; the kernel keyspace owns
+/// the shard, lease, and log roots these compose with.
+pub trait TenantKeyspace: Sized {
+    fn for_tenant(tenant: &super::ids::TenantNamespace) -> Self;
+    fn ready_receipt(&self, shard: Shard, run_id: &super::ids::RunId) -> String;
+    fn admission(&self, integration: &IntegrationPath) -> String;
+    fn run_locator(&self, run_id: &super::ids::RunId) -> String;
+    fn request(&self, shard: Shard, request_id: &super::ids::RequestId) -> String;
+    fn request_result(&self, shard: Shard, request_id: &super::ids::RequestId) -> String;
+    fn integration_root(&self, integration: &IntegrationPath) -> String;
+    fn run_inputs(&self) -> String;
+    fn run_inputs_digest_prefix(&self) -> String;
+    fn run_policies(&self) -> String;
+    fn run_policies_digest_prefix(&self) -> String;
+}
+
+impl TenantKeyspace for Keyspace {
+    fn for_tenant(tenant: &super::ids::TenantNamespace) -> Self {
+        let namespace = crate::kernel::keyspace::Namespace::parse(format!("tenants/{tenant}"))
+            .expect("a validated tenant namespace is a valid keyspace namespace");
+        Self::new(namespace)
+    }
+
+    fn ready_receipt(&self, shard: Shard, run_id: &super::ids::RunId) -> String {
+        format!("{}/{}.json", self.ready_shard(shard), run_id)
+    }
+
+    fn admission(&self, integration: &IntegrationPath) -> String {
+        format!("{}/admissions/{integration}.json", self.control_root())
+    }
+
+    fn run_locator(&self, run_id: &super::ids::RunId) -> String {
+        format!("{}/run-locators/{run_id}.json", self.control_root())
+    }
+
+    fn request(&self, shard: Shard, request_id: &super::ids::RequestId) -> String {
+        format!("{}/{}.json", self.requests(shard), request_id)
+    }
+
+    fn request_result(&self, shard: Shard, request_id: &super::ids::RequestId) -> String {
+        format!("{}/{}.json", self.request_results(shard), request_id)
+    }
+
+    fn integration_root(&self, integration: &IntegrationPath) -> String {
+        format!("{}/integrations/{integration}", self.namespace())
+    }
+
+    fn run_inputs(&self) -> String {
+        format!("{}/artifacts/run-inputs", self.namespace())
+    }
+
+    fn run_inputs_digest_prefix(&self) -> String {
+        format!("{}/sha256/", self.run_inputs())
+    }
+
+    fn run_policies(&self) -> String {
+        format!("{}/artifacts/run-policies", self.namespace())
+    }
+
+    fn run_policies_digest_prefix(&self) -> String {
+        format!("{}/sha256/", self.run_policies())
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -1095,8 +1095,6 @@ fn conflict(message: String) -> CompatError {
     }
 }
 
-impl super::registry::sealed::Sealed for JournalRecord {}
-
 impl DurableRecord for JournalRecord {
     fn declaration() -> &'static RecordDeclaration {
         &JOURNAL_RECORD_DECLARATION

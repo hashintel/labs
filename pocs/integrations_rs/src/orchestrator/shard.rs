@@ -1,5 +1,7 @@
 //! Lease-gated startup for one shard writer and command loop.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
+use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::num::NonZeroUsize;
 use std::sync::Arc;
@@ -1066,7 +1068,12 @@ pub(crate) async fn acquire_with(
     }
 
     let recovered = opened
-        .recover_with_snapshots(store, tenant)
+        .recover_with_snapshots(
+            &crate::orchestrator::shard_log::IntegrationsSnapshotContext {
+                store: store.clone(),
+                tenant: tenant.clone(),
+            },
+        )
         .await
         .change_context(HandshakeError::RecoverPrefix)?;
     observer.reached(HandshakeStage::RecoveryComplete).await;
@@ -1477,7 +1484,8 @@ mod tests {
         let cache = tempdir().expect("create cache directory");
         let store = ArtifactStore::local(remote.path(), cache.path()).expect("open store");
         let tenant = tenant();
-        let location = ShardLogLocation::disposable_local(shard(), &tenant, remote.path());
+        let location =
+            crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let clock = Arc::new(FixedClock::new(1_700_000_000));
         let gate = Arc::new(StageGate::new(HandshakeStage::LeaseAcquired));
 
@@ -1547,7 +1555,8 @@ mod tests {
         let cache = tempdir().expect("create cache directory");
         let store = ArtifactStore::local(remote.path(), cache.path()).expect("open store");
         let tenant = tenant();
-        let location = ShardLogLocation::disposable_local(shard(), &tenant, remote.path());
+        let location =
+            crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let clock = Arc::new(FixedClock::new(1_700_000_000));
         let gate = Arc::new(StageGate::new(HandshakeStage::RecoveryComplete));
         let lease_key = Keyspace::for_tenant(&tenant).lease(shard());
@@ -1608,7 +1617,8 @@ mod tests {
         let store_b =
             ArtifactStore::local(remote.path(), cache_b.path()).expect("open second store");
         let tenant = tenant();
-        let location = ShardLogLocation::disposable_local(shard(), &tenant, remote.path());
+        let location =
+            crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let clock = Arc::new(FixedClock::new(1_700_000_000));
         let gate = Arc::new(StageGate::new(HandshakeStage::LeaseAcquired));
 
@@ -1760,7 +1770,8 @@ mod tests {
         let store_a = ArtifactStore::local(remote.path(), cache_a.path()).expect("store a");
         let store_b = ArtifactStore::local(remote.path(), cache_b.path()).expect("store b");
         let tenant = tenant();
-        let location = ShardLogLocation::disposable_local(shard(), &tenant, remote.path());
+        let location =
+            crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let handshake_clock = FixedClock::new(1_700_000_000);
         let timing = LeaseTiming::new(
             Duration::from_secs(100),
@@ -1868,7 +1879,7 @@ mod tests {
             acquire_with(
                 &store,
                 &tenant,
-                ShardLogLocation::disposable_local(shard(), &tenant, remote.path()),
+                crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path()),
                 "runner-a",
                 timing,
                 ShardCommandConfig::default(),
@@ -1971,7 +1982,7 @@ mod tests {
             acquire_with(
                 &store,
                 &tenant,
-                ShardLogLocation::disposable_local(shard(), &tenant, remote.path()),
+                crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path()),
                 "runner-a",
                 timing,
                 ShardCommandConfig::default(),
@@ -2063,7 +2074,8 @@ mod tests {
             .await
             .expect("initialize baseline");
         let timing = lease_timing(30);
-        let location = ShardLogLocation::disposable_local(shard(), &tenant, remote.path());
+        let location =
+            crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let owner_a = acquisition(
             acquire_with(
                 &store_a,
@@ -2257,7 +2269,7 @@ mod tests {
             acquire_with(
                 &store,
                 &tenant,
-                ShardLogLocation::disposable_local(shard(), &tenant, remote.path()),
+                crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path()),
                 "runner-a",
                 timing,
                 ShardCommandConfig::default(),
@@ -2321,7 +2333,7 @@ mod tests {
             acquire_with(
                 &store,
                 &tenant,
-                ShardLogLocation::disposable_local(shard(), &tenant, remote.path()),
+                crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path()),
                 "runner-a",
                 timing,
                 ShardCommandConfig::default(),

@@ -261,8 +261,6 @@ fn malformed(message: String) -> CompatError {
     }
 }
 
-impl crate::orchestrator::registry::sealed::Sealed for GraphEffect {}
-
 impl DurableRecord for GraphEffect {
     fn declaration() -> &'static RecordDeclaration {
         &GRAPH_EFFECT_DECLARATION

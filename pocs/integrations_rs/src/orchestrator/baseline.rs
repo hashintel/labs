@@ -1,5 +1,6 @@
 //! Immutable identity marker and startup gate for the tenant-first control plane.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
 use std::fmt;
 use std::future::{ready, Future};
 
@@ -79,8 +80,6 @@ impl ControlBaseline {
         }
     }
 }
-
-impl super::registry::sealed::Sealed for ControlBaseline {}
 
 impl DurableRecord for ControlBaseline {
     fn declaration() -> &'static RecordDeclaration {

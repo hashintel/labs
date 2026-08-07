@@ -1,0 +1,29 @@
+[package]
+name = "durable-kernel"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+
+[features]
+# Exposes the fault-injection harness and unleased test constructors to
+# downstream crates' test suites.
+test-util = []
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+tokio-util = "0.7"
+bytes = "1"
+error-stack = "0.5"
+serde = { version = "1", features = ["derive"] }
+# preserve_order is load-bearing: canonical digests hash serialized JSON.
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+hex = "0.4"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+tracing = "0.1"
+opendata_log = { package = "opendata-log", version = "=1.0.0" }
+opendata_common = { package = "opendata-common", version = "=0.1.17" }
+slatedb = "=0.13.1"
+
+[dev-dependencies]
+tempfile = "3"

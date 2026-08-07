@@ -8,49 +8,23 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 
 pub const REGISTRY_MANIFEST_VERSION: u32 = 1;
+
+// The declaration mechanism (declaration and record traits, codec errors,
+// interning) is kernel-owned; this module owns V1 policy on top of it: the
+// reviewed static catalog, the attestation manifest, and the executable
+// migration-capability proofs.
+pub use durable_kernel::registry::{
+    reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
+    MigrationPolicy, MutableCasRecord, PureUpcastRecord, RebuildableRecord, RecordDeclaration,
+    UntrimmedJournalRecord, VersionedRecord,
+};
 
 // Before the first production activation, protocol V1 is one design target:
 // implementation PRs evolve its structs and independent fixtures in place.
 // After V1 is released, a shape change adds a declared version, retains every
 // still-supported decoder, and follows the declaration's migration policy below.
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum DurabilityClass {
-    ImmutableJournal,
-    ImmutableArtifact,
-    MutableCas,
-    Derived,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum MigrationPolicy {
-    NeverRetireWhileUntrimmed,
-    PureUpcast,
-    MutableCas,
-    Rebuild,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AlgorithmVersion {
-    pub name: &'static str,
-    pub version: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RecordDeclaration {
-    pub name: &'static str,
-    pub owning_module: &'static str,
-    pub emitted_version: u32,
-    pub supported_versions: &'static [u32],
-    pub algorithm_versions: &'static [AlgorithmVersion],
-    pub durability: DurabilityClass,
-    pub migration: MigrationPolicy,
-}
 
 /// V1 declarations are added here with the change that introduces their codec.
 static RECORD_DECLARATIONS: &[&RecordDeclaration] = &[
@@ -81,111 +55,10 @@ pub fn record_declarations() -> &'static [&'static RecordDeclaration] {
     RECORD_DECLARATIONS
 }
 
-/// Families registered at runtime by kernel-hosted domains.
-/// Deliberately separate from [`record_declarations`]: the V1 activation
-/// manifest and its golden fixture cover only the static list, so a
-/// dynamically registered declaration never changes what V1 attests.
-static DYNAMIC_DECLARATIONS: std::sync::RwLock<BTreeMap<&'static str, &'static RecordDeclaration>> =
-    std::sync::RwLock::new(BTreeMap::new());
-
-/// Interns a kernel-hosted domain's record declaration, leaking one canonical
-/// copy per name. Idempotent for an identical declaration; a name collision
-/// with a static declaration or a different declaration under the same name is
-/// refused, preserving the property that one name means one codec.
-#[allow(
-    dead_code,
-    reason = "consumed by kernel::domain, which the binary does not reach"
-)]
-pub(crate) fn intern_dynamic_declaration(
-    declaration: RecordDeclaration,
-) -> Result<&'static RecordDeclaration, RegistryError> {
-    if declaration.migration != MigrationPolicy::NeverRetireWhileUntrimmed
-        && declaration.durability == DurabilityClass::ImmutableJournal
-    {
-        return Err(RegistryError::InvalidDeclaration {
-            name: declaration.name.to_owned(),
-            message: "journal records cannot retire decoders while untrimmed".to_owned(),
-        });
-    }
-    if record_declarations()
-        .iter()
-        .any(|known| known.name == declaration.name)
-    {
-        return Err(RegistryError::InvalidDeclaration {
-            name: declaration.name.to_owned(),
-            message: "name collides with a statically registered declaration".to_owned(),
-        });
-    }
-    let mut declarations = DYNAMIC_DECLARATIONS
-        .write()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(existing) = declarations.get(declaration.name) {
-        return if **existing == declaration {
-            Ok(existing)
-        } else {
-            Err(RegistryError::InvalidDeclaration {
-                name: declaration.name.to_owned(),
-                message: "name is already registered with a different declaration".to_owned(),
-            })
-        };
-    }
-    let interned: &'static RecordDeclaration = Box::leak(Box::new(declaration));
-    declarations.insert(interned.name, interned);
-    Ok(interned)
-}
-
-fn dynamic_declaration_matches(declaration: &RecordDeclaration) -> bool {
-    DYNAMIC_DECLARATIONS
-        .read()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .get(declaration.name)
-        .is_some_and(|known| **known == *declaration)
-}
-
-pub(crate) mod sealed {
-    pub trait Sealed {}
-}
-
-pub trait DurableRecord: sealed::Sealed + Sized {
-    fn declaration() -> &'static RecordDeclaration;
-    const MIGRATION_POLICY: MigrationPolicy;
-
-    fn encode(&self) -> Result<Vec<u8>, CompatError>;
-
-    fn decode(bytes: &[u8]) -> Result<Self, CompatError>;
-}
-
-/// A versioned wire record with one validated domain shape used by the engine.
-/// Adding a supported wire variant must extend this normalization boundary.
-pub trait VersionedRecord: DurableRecord {
-    type Current;
-
-    fn normalize(self) -> Result<Self::Current, CompatError>;
-}
-
-/// Immutable records retain old bytes and normalize them while reachable.
-pub trait PureUpcastRecord: VersionedRecord {}
-
-/// Journal history is immutable and its decoders cannot retire while the
-/// corresponding sequence range remains replayable.
-pub trait UntrimmedJournalRecord: VersionedRecord {}
-
-/// Mutable records are upgraded by normalizing observed bytes and conditionally
-/// replacing exactly the observed CAS version with current canonical bytes.
-pub trait MutableCasRecord: VersionedRecord + Send + Sync {
-    fn from_current(current: Self::Current) -> Result<Self, CompatError>;
-
-    fn into_emitted(self) -> Result<Self, CompatError> {
-        Self::from_current(self.normalize()?)
-    }
-}
-
-/// Derived records may be discarded and rebuilt from authoritative state.
-pub trait RebuildableRecord: DurableRecord {}
-
-/// Storage entry points call this before accepting a generic record. The
-/// sealed trait prevents downstream implementations; this check also prevents
-/// an internal test or unfinished declaration from reaching the baseline prefix.
+/// Storage entry points call this before accepting a generic record: its
+/// declaration must be in the reviewed V1 catalog (or interned by a hosted
+/// domain), preventing an internal test or unfinished declaration from
+/// reaching the baseline prefix.
 pub fn require_registered<T: DurableRecord>() -> Result<(), RegistryError> {
     if T::MIGRATION_POLICY != T::declaration().migration {
         return Err(RegistryError::InvalidDeclaration {
@@ -200,7 +73,7 @@ pub fn require_registered<T: DurableRecord>() -> Result<(), RegistryError> {
     if record_declarations()
         .iter()
         .any(|declaration| **declaration == *T::declaration())
-        || dynamic_declaration_matches(T::declaration())
+        || durable_kernel::registry::interned_declaration_matches(T::declaration())
     {
         Ok(())
     } else {
@@ -210,68 +83,10 @@ pub fn require_registered<T: DurableRecord>() -> Result<(), RegistryError> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CompatError {
-    UnsupportedVersion { name: &'static str, version: String },
-    ExtraField { name: &'static str, path: String },
-    Malformed { name: &'static str, message: String },
-    Conflict { name: &'static str, message: String },
-}
-
-impl fmt::Display for CompatError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnsupportedVersion { name, version } => {
-                write!(formatter, "unsupported {name} version {version:?}")
-            }
-            Self::ExtraField { name, path } => {
-                write!(formatter, "{name} contains undeclared field {path:?}")
-            }
-            Self::Malformed { name, message } => {
-                write!(formatter, "malformed {name}: {message}")
-            }
-            Self::Conflict { name, message } => {
-                write!(formatter, "conflicting {name}: {message}")
-            }
-        }
-    }
-}
-
-impl std::error::Error for CompatError {}
-
-/// Rejects undeclared fields without relying on parsing Serde error strings.
-/// Version codecs call this for the envelope and every nested object before
-/// deserializing the validated value.
-pub fn reject_unknown_fields(
-    name: &'static str,
-    path: &str,
-    value: &Value,
-    allowed: &[&str],
-) -> Result<(), CompatError> {
-    let object = value.as_object().ok_or_else(|| CompatError::Malformed {
-        name,
-        message: format!("{path} must be an object"),
-    })?;
-    for key in object.keys() {
-        if !allowed.contains(&key.as_str()) {
-            let path = if path.is_empty() {
-                key.clone()
-            } else {
-                format!("{path}.{key}")
-            };
-            return Err(CompatError::ExtraField { name, path });
-        }
-    }
-    Ok(())
-}
-
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RegistryManifest {
     pub version: u32,
-    /// Wire key stays `families`: the attestation manifest format and its
-    /// golden fixture are frozen from before the declaration rename.
-    #[serde(rename = "families")]
     pub declarations: Vec<RecordDeclarationManifest>,
 }
 
@@ -666,6 +481,7 @@ fn validate_algorithms<'a>(
 #[allow(clippy::unwrap_used, clippy::expect_used)]
 mod tests {
     use super::*;
+    use serde_json::Value;
 
     const TEST_DECLARATION: RecordDeclaration = RecordDeclaration {
         name: "test_record",
@@ -691,8 +507,6 @@ mod tests {
     struct TestRecordV1 {
         value: String,
     }
-
-    impl sealed::Sealed for TestRecord {}
 
     impl DurableRecord for TestRecord {
         fn declaration() -> &'static RecordDeclaration {
@@ -767,8 +581,6 @@ mod tests {
         V2 { value: String, audit: String },
     }
 
-    impl sealed::Sealed for TestMutableRecord {}
-
     impl DurableRecord for TestMutableRecord {
         fn declaration() -> &'static RecordDeclaration {
             &TEST_MUTABLE_DECLARATION
@@ -833,7 +645,7 @@ mod tests {
     #[test]
     fn production_registry_matches_independent_manifest() {
         validate_expected_manifest(include_bytes!(
-            "../../tests/golden/expected-record-families-v1.json"
+            "../../tests/golden/expected-record-declarations-v1.json"
         ))
         .unwrap();
     }
@@ -841,7 +653,7 @@ mod tests {
     #[test]
     fn independent_manifest_detects_an_omitted_declaration() {
         let error = validate_manifest_against(
-            include_bytes!("../../tests/golden/registry-omitted-family.json"),
+            include_bytes!("../../tests/golden/registry-omitted-declaration.json"),
             &[],
         )
         .expect_err("the manifest declaration is deliberately absent from the registry");

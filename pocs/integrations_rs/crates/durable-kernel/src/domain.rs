@@ -1,9 +1,9 @@
 //! User-facing domain layer: the API from `local/docs/domain-api.md`,
-//! mapped onto the internal [`Domain`] port in [`crate::kernel::port`]
+//! mapped onto the internal [`Domain`] port in [`crate::port`]
 //! by one blanket impl. A domain author writes an event type, a fold, and
 //! an effect executor; dedup, sequencing, prefix validation, snapshots, and
 //! recovery are kernel bookkeeping in [`KernelProjection`] and never user
-//! work. The runtime driving all of it is [`crate::kernel::runtime`].
+//! work. The runtime driving all of it is [`crate::runtime`].
 //!
 //! There is no separate signal plane: `submit` is the command path,
 //! validated by the fold and idempotent by content identity; the control
@@ -19,19 +19,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha2::{Digest as _, Sha256};
 
-use crate::blob::ArtifactStore;
-use crate::kernel::port::{Domain, Prepared};
-use crate::orchestrator::ids::{canonical_digest, EventId, JournalRecordDigest, TenantNamespace};
-use crate::orchestrator::registry::{
-    self, reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
-    MigrationPolicy, RecordDeclaration, RegistryError, UntrimmedJournalRecord, VersionedRecord,
+use crate::ids::{canonical_digest, EventId, JournalRecordDigest};
+use crate::port::{Domain, Prepared};
+use crate::registry::{
+    self, reject_unknown_fields, AlgorithmVersion, CompatError, DeclarationError, DurabilityClass,
+    DurableRecord, MigrationPolicy, RecordDeclaration, UntrimmedJournalRecord, VersionedRecord,
 };
-use crate::orchestrator::routing::{Shard, SHARD_COUNT};
-use crate::orchestrator::shard_log::{
-    ShardCommandError, ShardCommandErrorKind, ShardCommandHandle,
-};
+use crate::routing::{Shard, SHARD_COUNT};
+use crate::shard_log::{ShardCommandError, ShardCommandErrorKind, ShardCommandHandle};
 
-pub(crate) const MAX_PARTITION_KEY_BYTES: usize = 1024;
+pub const MAX_PARTITION_KEY_BYTES: usize = 1024;
 const MAX_EVENT_RECORD_BYTES: usize = 1024 * 1024;
 
 /// One event vocabulary, frozen into the wire by name.
@@ -47,9 +44,7 @@ const MAX_EVENT_RECORD_BYTES: usize = 1024 * 1024;
 /// Payload evolution is the author's concern: journal history never
 /// retires, so a type whose shape changes must keep decoding every stored
 /// shape — a versioned serde enum, exactly like the kernel's own envelope.
-pub(crate) trait DomainEvent:
-    Serialize + DeserializeOwned + Clone + Send + Sync + 'static
-{
+pub trait DomainEvent: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {
     /// Frozen wire name. Renaming it orphans stored history.
     fn name() -> &'static str;
 
@@ -69,16 +64,14 @@ pub(crate) trait DomainEvent:
 /// The serde bounds exist for snapshots: the kernel periodically embeds the
 /// fold state in a snapshot record so recovery replays a suffix instead of
 /// the whole journal. Serialization must be deterministic, like events.
-pub(crate) trait Fold<E>:
-    Default + Clone + Send + Sync + Serialize + DeserializeOwned + 'static
-{
+pub trait Fold<E>: Default + Clone + Send + Sync + Serialize + DeserializeOwned + 'static {
     fn validate(&self, event: &E) -> Result<(), Rejection>;
     fn apply(&mut self, event: &E);
 }
 
 /// A domain: its event vocabulary plus its fold state. The effect executor
-/// attaches at [`Kernel::start`](crate::kernel::runtime::Kernel::start).
-pub(crate) trait SimpleDomain: Send + Sync + 'static {
+/// attaches at [`Kernel::start`](crate::runtime::Kernel::start).
+pub trait SimpleDomain: Send + Sync + 'static {
     type Event: DomainEvent;
     type Projection: Fold<Self::Event>;
 }
@@ -91,7 +84,7 @@ pub(crate) trait SimpleDomain: Send + Sync + 'static {
 /// whose events do not change what `plan` returns will re-execute after
 /// every restart). Key external side effects by [`effect_id`] so replayed
 /// executions are absorbed idempotently.
-pub(crate) trait Executor<S: SimpleDomain>: Send + Sync + 'static {
+pub trait Executor<S: SimpleDomain>: Send + Sync + 'static {
     type Effect: Serialize + Clone + Send + Sync + 'static;
 
     fn plan(&self, projection: &S::Projection) -> Vec<Self::Effect>;
@@ -104,22 +97,22 @@ pub(crate) trait Executor<S: SimpleDomain>: Send + Sync + 'static {
 
 /// A transient effect failure: the driver backs off and retries the effect.
 #[derive(Debug, Clone)]
-pub(crate) struct Retry {
-    pub(crate) reason: String,
-    pub(crate) after: Option<std::time::Duration>,
+pub struct Retry {
+    pub reason: String,
+    pub after: Option<std::time::Duration>,
 }
 
 /// Content-derived effect identity, for keying external side effects.
-pub(crate) fn effect_id<T: Serialize>(effect: &T) -> Result<String, serde_json::Error> {
+pub fn effect_id<T: Serialize>(effect: &T) -> Result<String, serde_json::Error> {
     canonical_digest("domain-effect:v1", effect)
 }
 
 /// Why `validate` refused a proposed event. The text reaches the submitter.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct Rejection(String);
+pub struct Rejection(String);
 
 impl Rejection {
-    pub(crate) fn new(reason: impl Into<String>) -> Self {
+    pub fn new(reason: impl Into<String>) -> Self {
         Self(reason.into())
     }
 }
@@ -132,10 +125,10 @@ impl fmt::Display for Rejection {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(try_from = "String", into = "String")]
-pub(crate) struct PartitionKey(String);
+pub struct PartitionKey(String);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum InvalidPartitionKey {
+pub enum InvalidPartitionKey {
     Empty,
     TooLong { actual_bytes: usize },
     UnsafeCharacter,
@@ -158,7 +151,7 @@ impl fmt::Display for InvalidPartitionKey {
 impl std::error::Error for InvalidPartitionKey {}
 
 impl PartitionKey {
-    pub(crate) fn parse(value: impl Into<String>) -> Result<Self, InvalidPartitionKey> {
+    pub fn parse(value: impl Into<String>) -> Result<Self, InvalidPartitionKey> {
         let value = value.into();
         if value.is_empty() {
             return Err(InvalidPartitionKey::Empty);
@@ -177,7 +170,7 @@ impl PartitionKey {
         Ok(Self(value))
     }
 
-    pub(crate) fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 }
@@ -202,9 +195,9 @@ impl fmt::Display for PartitionKey {
     }
 }
 
-/// Same routing discipline as V1: eight big-endian digest bytes modulo the
-/// shard count, so a partition's shard is stable across processes.
-pub(crate) fn shard_of(key: &PartitionKey) -> Shard {
+/// Stable routing: eight big-endian digest bytes modulo the shard count,
+/// so a partition's shard does not depend on the process that computes it.
+pub fn shard_of(key: &PartitionKey) -> Shard {
     let digest: [u8; 32] = Sha256::digest(key.as_str().as_bytes()).into();
     let routing_value = u64::from_be_bytes(
         digest[..8]
@@ -220,16 +213,16 @@ pub(crate) fn shard_of(key: &PartitionKey) -> Shard {
 /// every other.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "version", content = "data", rename_all = "snake_case")]
-pub(crate) enum EventRecord<E> {
+pub enum EventRecord<E> {
     V1(EventRecordV1<E>),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub(crate) struct EventRecordV1<E> {
-    pub(crate) event_id: EventId,
-    pub(crate) partition: PartitionKey,
-    pub(crate) event: E,
+pub struct EventRecordV1<E> {
+    pub event_id: EventId,
+    pub partition: PartitionKey,
+    pub event: E,
 }
 
 fn record_malformed<E: DomainEvent>(message: impl Into<String>) -> CompatError {
@@ -256,7 +249,7 @@ fn derive_event_id<E: DomainEvent>(
 impl<E: DomainEvent> EventRecordV1<E> {
     /// Builds the record with its derived identity. This is the only
     /// constructor: identities are computed, never supplied.
-    pub(crate) fn new(event: E) -> Result<Self, CompatError> {
+    pub fn new(event: E) -> Result<Self, CompatError> {
         let partition = event.partition();
         let event_id = derive_event_id(&partition, &event)?;
         Ok(Self {
@@ -306,8 +299,6 @@ impl<E: DomainEvent> EventRecordV1<E> {
     }
 }
 
-impl<E: DomainEvent> registry::sealed::Sealed for EventRecord<E> {}
-
 /// The registry declaration for one hosted event vocabulary, built at
 /// runtime because its name comes from [`DomainEvent::name`].
 fn event_declaration<E: DomainEvent>() -> RecordDeclaration {
@@ -327,7 +318,7 @@ fn event_declaration<E: DomainEvent>() -> RecordDeclaration {
 
 impl<E: DomainEvent> DurableRecord for EventRecord<E> {
     fn declaration() -> &'static RecordDeclaration {
-        registry::intern_dynamic_declaration(event_declaration::<E>())
+        registry::intern_declaration(event_declaration::<E>())
             .unwrap_or_else(|error| panic!("hosted event name is unusable: {error}"))
     }
 
@@ -384,7 +375,7 @@ impl<E: DomainEvent> UntrimmedJournalRecord for EventRecord<E> {}
 /// here exists so the domain author never implements dedup, sequencing, or
 /// prefix validation.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct KernelProjection<P> {
+pub struct KernelProjection<P> {
     seen: BTreeMap<EventId, JournalRecordDigest>,
     partitions: BTreeMap<PartitionKey, u64>,
     through_log_sequence: Option<u64>,
@@ -392,15 +383,15 @@ pub(crate) struct KernelProjection<P> {
 }
 
 impl<P> KernelProjection<P> {
-    pub(crate) fn domain(&self) -> &P {
+    pub fn domain(&self) -> &P {
         &self.domain
     }
 
-    pub(crate) fn through_log_sequence(&self) -> Option<u64> {
+    pub fn through_log_sequence(&self) -> Option<u64> {
         self.through_log_sequence
     }
 
-    pub(crate) fn partition_sequence(&self, key: &PartitionKey) -> Option<u64> {
+    pub fn partition_sequence(&self, key: &PartitionKey) -> Option<u64> {
         self.partitions.get(key).copied()
     }
 }
@@ -408,7 +399,7 @@ impl<P> KernelProjection<P> {
 /// Fold rejection surfaced to the proposer. Self-contained: `Display`
 /// output becomes the candidate-rejection message.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum FoldError {
+pub enum FoldError {
     Rejected {
         event_id: EventId,
         rejection: Rejection,
@@ -454,15 +445,15 @@ impl std::error::Error for FoldError {}
 
 /// Read-only closure executed against the projection inside the loop; the
 /// projection itself never escapes. Built by [`ShardCommandHandle::read`].
-pub(crate) struct ReadQuery<P>(BoxedRead<P>);
+pub struct ReadQuery<P>(BoxedRead<P>);
 
 type BoxedRead<P> = Box<dyn for<'a> FnOnce(&'a KernelProjection<P>) -> Box<dyn Any + Send> + Send>;
 
-pub(crate) type ReadResult = Box<dyn Any + Send>;
+pub type ReadResult = Box<dyn Any + Send>;
 
 /// Structurally absent capability (no signals, no runtime work yet).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(crate) enum Never {}
+pub enum Never {}
 
 /// One shared registry declaration for every hosted domain's snapshots:
 /// the codec shape is identical and each domain owns its own shard log, so
@@ -489,24 +480,24 @@ const MAX_SNAPSHOT_BYTES: usize = 1024 * 1024;
     rename_all = "snake_case",
     bound = ""
 )]
-pub(crate) enum ProjectionSnapshot<S: SimpleDomain> {
+pub enum ProjectionSnapshot<S: SimpleDomain> {
     V1(ProjectionSnapshotV1<S>),
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields, bound = "")]
-pub(crate) struct ProjectionSnapshotV1<S: SimpleDomain> {
-    pub(crate) shard: String,
-    pub(crate) through_log_sequence: u64,
-    pub(crate) created_at: String,
-    pub(crate) seen: BTreeMap<EventId, JournalRecordDigest>,
-    pub(crate) partitions: BTreeMap<PartitionKey, u64>,
-    pub(crate) domain: S::Projection,
+pub struct ProjectionSnapshotV1<S: SimpleDomain> {
+    pub shard: String,
+    pub through_log_sequence: u64,
+    pub created_at: String,
+    pub seen: BTreeMap<EventId, JournalRecordDigest>,
+    pub partitions: BTreeMap<PartitionKey, u64>,
+    pub domain: S::Projection,
 }
 
 /// In-loop capture of the projection, stamped into a committable record by
 /// the driver. The clock stays outside the loop.
-pub(crate) struct ProjectionSnapshotPayload<S: SimpleDomain> {
+pub struct ProjectionSnapshotPayload<S: SimpleDomain> {
     shard: Shard,
     through_log_sequence: u64,
     seen: BTreeMap<EventId, JournalRecordDigest>,
@@ -515,9 +506,9 @@ pub(crate) struct ProjectionSnapshotPayload<S: SimpleDomain> {
 }
 
 impl<S: SimpleDomain> ProjectionSnapshotPayload<S> {
-    pub(crate) fn into_record(self, created_at: String) -> ProjectionSnapshot<S> {
+    pub fn into_record(self, created_at: String) -> ProjectionSnapshot<S> {
         ProjectionSnapshot::V1(ProjectionSnapshotV1 {
-            shard: crate::orchestrator::routing::shard_path(self.shard),
+            shard: crate::routing::shard_path(self.shard),
             through_log_sequence: self.through_log_sequence,
             created_at,
             seen: self.seen,
@@ -534,7 +525,7 @@ fn parse_snapshot_shard(value: &str) -> Result<Shard, String> {
     let parsed =
         u16::from_str_radix(value, 16).map_err(|error| format!("parse snapshot shard: {error}"))?;
     let shard = Shard::try_from(parsed).map_err(|error| error.to_string())?;
-    if crate::orchestrator::routing::shard_path(shard) != value {
+    if crate::routing::shard_path(shard) != value {
         return Err(format!("snapshot shard {value:?} is not canonical"));
     }
     Ok(shard)
@@ -546,8 +537,6 @@ fn snapshot_malformed(message: impl Into<String>) -> CompatError {
         message: message.into(),
     }
 }
-
-impl<S: SimpleDomain> registry::sealed::Sealed for ProjectionSnapshot<S> {}
 
 impl<S: SimpleDomain> DurableRecord for ProjectionSnapshot<S> {
     fn declaration() -> &'static RecordDeclaration {
@@ -592,8 +581,8 @@ impl<S: SimpleDomain> DurableRecord for ProjectionSnapshot<S> {
                 version: version.to_owned(),
             });
         }
-        // A projection whose shape no longer decodes is treated as
-        // corruption by recovery: older snapshots, then full replay.
+        // A projection payload that fails to decode is corruption to
+        // recovery: it falls back to older snapshots, then to full replay.
         let record: Self =
             serde_json::from_value(value).map_err(|error| snapshot_malformed(error.to_string()))?;
         Ok(record)
@@ -602,7 +591,7 @@ impl<S: SimpleDomain> DurableRecord for ProjectionSnapshot<S> {
 
 /// The blanket adapter: one hosted domain, presented to the kernel loop as a
 /// full [`Domain`]. Users never see this type or the port behind it.
-pub(crate) struct Hosted<S>(PhantomData<fn() -> S>);
+pub struct Hosted<S>(PhantomData<fn() -> S>);
 
 impl<S> fmt::Debug for Hosted<S> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -620,9 +609,9 @@ impl<S> Copy for Hosted<S> {}
 
 /// Registers the domain's wire names (events and snapshots). Must run
 /// before the first append; `Kernel::register` calls this.
-pub(crate) fn register<S: SimpleDomain>() -> Result<(), RegistryError> {
-    registry::intern_dynamic_declaration(event_declaration::<S::Event>())?;
-    registry::intern_dynamic_declaration(DOMAIN_SNAPSHOT_DECLARATION)?;
+pub fn register<S: SimpleDomain>() -> Result<(), DeclarationError> {
+    registry::intern_declaration(event_declaration::<S::Event>())?;
+    registry::intern_declaration(DOMAIN_SNAPSHOT_DECLARATION)?;
     Ok(())
 }
 
@@ -633,6 +622,7 @@ impl<S: SimpleDomain> Domain for Hosted<S> {
     type Delta = EventRecordV1<S::Event>;
     type FoldError = FoldError;
     type StateKey = PartitionKey;
+    type SnapshotContext = ();
     type Query = ReadQuery<S::Projection>;
     type QueryResult = ReadResult;
     type ControlRequest = Never;
@@ -795,8 +785,7 @@ impl<S: SimpleDomain> Domain for Hosted<S> {
     }
 
     async fn load_snapshot_projection(
-        _store: &ArtifactStore,
-        _tenant: &TenantNamespace,
+        _context: &(),
         shard: Shard,
         snapshot: &ProjectionSnapshot<S>,
     ) -> Result<Self::Projection, String> {
@@ -806,7 +795,7 @@ impl<S: SimpleDomain> Domain for Hosted<S> {
             return Err(format!(
                 "snapshot for shard {} was offered to shard {}",
                 record.shard,
-                crate::orchestrator::routing::shard_path(shard)
+                crate::routing::shard_path(shard)
             ));
         }
         Ok(KernelProjection {
@@ -908,7 +897,7 @@ impl<S: SimpleDomain> ShardCommandHandle<Hosted<S>> {
     /// Runs a read-only closure against the projection inside the serialized
     /// loop and returns its result. The projection never escapes; the
     /// closure must not block.
-    pub(crate) async fn read<R, F>(&self, read: F) -> Result<R, ShardCommandError>
+    pub async fn read<R, F>(&self, read: F) -> Result<R, ShardCommandError>
     where
         R: Send + 'static,
         F: for<'a> FnOnce(&'a KernelProjection<S::Projection>) -> R + Send + 'static,
@@ -934,7 +923,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use super::*;
-    use crate::orchestrator::shard_log::{
+    use crate::shard_log::{
         OpenedShard, RecoveredShard, ShardCommandConfig, ShardCommandOutcome, ShardLogLocation,
         StartedShard,
     };
@@ -1017,12 +1006,16 @@ mod tests {
         .expect("valid toy event")
     }
 
+    fn toy_log_path(shard: Shard) -> String {
+        format!(
+            "domain-toy/control/v1/shards/{}/log",
+            crate::routing::shard_path(shard)
+        )
+    }
+
     async fn start(
         location: ShardLogLocation,
-    ) -> (
-        crate::orchestrator::shard_log::ShardCommandHandle<Toy>,
-        StartedShard<Toy>,
-    ) {
+    ) -> (crate::shard_log::ShardCommandHandle<Toy>, StartedShard<Toy>) {
         let opened = OpenedShard::open(location).await.expect("open shard");
         let recovered: RecoveredShard<Toy> = opened.recover().await.expect("recover shard");
         let started = recovered.enable(ShardCommandConfig::default());
@@ -1129,10 +1122,9 @@ mod tests {
     async fn propose_read_dedupe_and_reject_through_the_real_loop() {
         register::<ToyDomain>().expect("register toy name");
         let root = tempfile::tempdir().expect("object store root");
-        let tenant = TenantNamespace::parse("domain-toy").expect("tenant");
         let record = incremented("orders", 5);
         let shard = shard_of(&record.partition);
-        let location = ShardLogLocation::disposable_local(shard, &tenant, root.path());
+        let location = ShardLogLocation::disposable_local(shard, &toy_log_path(shard), root.path());
 
         let (handle, started) = start(location).await;
         assert!(matches!(
@@ -1166,7 +1158,6 @@ mod tests {
     async fn crash_replay_rebuilds_state_and_still_dedupes() {
         register::<ToyDomain>().expect("register toy name");
         let root = tempfile::tempdir().expect("object store root");
-        let tenant = TenantNamespace::parse("domain-toy").expect("tenant");
         // Both counters must route to the same shard for a one-shard rig.
         let first = incremented("orders", 5);
         let shard = shard_of(&first.partition);
@@ -1178,7 +1169,7 @@ mod tests {
 
         let after_reset = incremented("orders", 3);
 
-        let location = ShardLogLocation::disposable_local(shard, &tenant, root.path());
+        let location = ShardLogLocation::disposable_local(shard, &toy_log_path(shard), root.path());
         let (handle, started) = start(location.clone()).await;
         for record in [
             first.clone(),
@@ -1241,7 +1232,6 @@ mod tests {
     async fn foreign_partition_is_rejected() {
         register::<ToyDomain>().expect("register toy name");
         let root = tempfile::tempdir().expect("object store root");
-        let tenant = TenantNamespace::parse("domain-toy").expect("tenant");
         let record = incremented("orders", 5);
         let shard = shard_of(&record.partition);
         let foreign = (0..1024_u32)
@@ -1249,7 +1239,7 @@ mod tests {
             .find(|candidate| shard_of(&candidate.partition) != shard)
             .expect("some key routes elsewhere");
 
-        let location = ShardLogLocation::disposable_local(shard, &tenant, root.path());
+        let location = ShardLogLocation::disposable_local(shard, &toy_log_path(shard), root.path());
         let (handle, started) = start(location).await;
         let error = handle
             .propose(foreign)
@@ -1264,14 +1254,9 @@ mod tests {
     async fn snapshots_bound_recovery_and_roundtrip_state() {
         register::<ToyDomain>().expect("register toy name");
         let root = tempfile::tempdir().expect("object store root");
-        let blob_remote = tempfile::tempdir().expect("blob remote");
-        let blob_cache = tempfile::tempdir().expect("blob cache");
-        let store = crate::blob::ArtifactStore::local(blob_remote.path(), blob_cache.path())
-            .expect("artifact store");
-        let tenant = TenantNamespace::parse("domain-toy").expect("tenant");
         let record = incremented("orders", 5);
         let shard = shard_of(&record.partition);
-        let location = ShardLogLocation::disposable_local(shard, &tenant, root.path());
+        let location = ShardLogLocation::disposable_local(shard, &toy_log_path(shard), root.path());
 
         let (handle, started) = start(location.clone()).await;
         for event in [record.clone(), incremented("orders", 7)] {
@@ -1293,7 +1278,7 @@ mod tests {
 
         let opened = OpenedShard::open(location).await.expect("reopen");
         let recovered: RecoveredShard<Toy> = opened
-            .recover_with_snapshots(&store, &tenant)
+            .recover_with_snapshots(&())
             .await
             .expect("recover with snapshots");
         let restarted = recovered.enable(ShardCommandConfig::default());
@@ -1328,9 +1313,11 @@ mod tests {
     fn dynamic_registration_is_idempotent_and_collision_safe() {
         register::<ToyDomain>().expect("first registration");
         register::<ToyDomain>().expect("repeat registration is idempotent");
-        assert!(registry::intern_dynamic_declaration(
-            *crate::orchestrator::events::JournalRecord::declaration()
-        )
-        .is_err());
+        let conflicting = RecordDeclaration {
+            emitted_version: 2,
+            supported_versions: &[1, 2],
+            ..*EventRecord::<CounterEvent>::declaration()
+        };
+        assert!(registry::intern_declaration(conflicting).is_err());
     }
 }

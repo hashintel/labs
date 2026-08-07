@@ -231,8 +231,6 @@ mod tests {
 
     struct UnregisteredRecord;
 
-    impl super::super::registry::sealed::Sealed for UnregisteredRecord {}
-
     impl DurableRecord for UnregisteredRecord {
         fn declaration() -> &'static RecordDeclaration {
             &UNREGISTERED_DECLARATION

@@ -6,6 +6,7 @@
 //! credentials: callers materialize immutable blobs into a read-only local
 //! cache and create outputs in the separate staging directory.
 
+use crate::orchestrator::routing::TenantKeyspace as _;
 use std::collections::{BTreeMap, VecDeque};
 use std::fmt;
 use std::fs::File;

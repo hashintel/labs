@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "families": [
+  "declarations": [
     {
       "name": "test_record",
       "owningModule": "orchestrator::registry::tests",

@@ -146,7 +146,7 @@ struct ReleaseContractAttestation {
 
 pub(crate) async fn activate(env: &Env) -> Result<ActivationReadiness, Report<ActivationCheck>> {
     super::registry::validate_expected_manifest(include_bytes!(
-        "../../tests/golden/expected-record-families-v1.json"
+        "../../tests/golden/expected-record-declarations-v1.json"
     ))
     .change_context(ActivationCheck::RegistryManifest)?;
     super::registry::validate_migration_capabilities()

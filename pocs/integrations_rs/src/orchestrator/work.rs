@@ -619,8 +619,6 @@ fn decode<T: for<'de> Deserialize<'de>>(
     serde_json::from_value(value).map_err(|error| malformed(name, error.to_string()))
 }
 
-impl super::registry::sealed::Sealed for StateVersion {}
-
 impl DurableRecord for StateVersion {
     fn declaration() -> &'static RecordDeclaration {
         &STATE_VERSION_DECLARATION
@@ -649,8 +647,6 @@ impl VersionedRecord for StateVersion {
 }
 
 impl PureUpcastRecord for StateVersion {}
-
-impl super::registry::sealed::Sealed for WorkManifest {}
 
 impl DurableRecord for WorkManifest {
     fn declaration() -> &'static RecordDeclaration {
