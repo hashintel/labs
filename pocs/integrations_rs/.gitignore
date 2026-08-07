@@ -54,3 +54,6 @@
 /.env.*
 !/.env.example
 local/**
+
+# TLC model-checker scratch (state fingerprints, trace files)
+/specs/states/

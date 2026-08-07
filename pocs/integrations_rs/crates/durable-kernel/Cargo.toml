@@ -26,4 +26,5 @@ opendata_common = { package = "opendata-common", version = "=0.1.17" }
 slatedb = "=0.13.1"
 
 [dev-dependencies]
+proptest = "1"
 tempfile = "3"

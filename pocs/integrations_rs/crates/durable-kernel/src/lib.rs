@@ -64,10 +64,13 @@ pub mod domain;
 pub mod ids;
 pub mod keyspace;
 pub mod port;
+pub mod properties;
 pub mod registry;
 pub mod routing;
 pub mod runtime;
 pub mod shard_log;
+#[cfg(any(test, feature = "test-util"))]
+pub mod sim;
 
 /// Context for storage, envelope, or durable-worker failures.
 #[derive(Debug)]

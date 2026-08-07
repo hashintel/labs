@@ -71,9 +71,29 @@ impl std::error::Error for ShardAppendError {}
 #[derive(Debug, Clone)]
 pub struct ShardLogLocation {
     shard: crate::routing::Shard,
-    storage: StorageConfig,
+    source: LogSource,
     read_timeout: Duration,
     durability_timeout: Duration,
+}
+
+/// Where a shard log lives: a real storage configuration, or a simulated
+/// journal owned by the deterministic-simulation harness.
+#[derive(Debug, Clone)]
+enum LogSource {
+    Storage(StorageConfig),
+    #[cfg(any(test, feature = "test-util"))]
+    Sim(crate::sim::SimLogHandle),
+}
+
+impl LogSource {
+    fn storage(&self) -> Result<&StorageConfig, Report<DurableError>> {
+        match self {
+            Self::Storage(storage) => Ok(storage),
+            #[cfg(any(test, feature = "test-util"))]
+            Self::Sim(_handle) => Err(Report::new(DurableError)
+                .attach_printable("a simulated shard log has no storage configuration")),
+        }
+    }
 }
 
 impl ShardLogLocation {
@@ -88,9 +108,21 @@ impl ShardLogLocation {
     ) -> Self {
         Self {
             shard,
-            storage,
+            source: LogSource::Storage(storage),
             read_timeout,
             durability_timeout,
+        }
+    }
+
+    /// A shard log served by the deterministic-simulation journal. Reads,
+    /// appends, and recovery run against the simulated dispositions.
+    #[cfg(any(test, feature = "test-util"))]
+    pub fn simulated(shard: crate::routing::Shard, journal: crate::sim::SimLogHandle) -> Self {
+        Self {
+            shard,
+            source: LogSource::Sim(journal),
+            read_timeout: DURABILITY_TIMEOUT,
+            durability_timeout: DURABILITY_TIMEOUT,
         }
     }
 
@@ -105,7 +137,7 @@ impl ShardLogLocation {
             shard,
             read_timeout: DURABILITY_TIMEOUT,
             durability_timeout: DURABILITY_TIMEOUT,
-            storage: storage_for_path(options, log_path)?,
+            source: LogSource::Storage(storage_for_path(options, log_path)?),
         })
     }
 
@@ -123,7 +155,7 @@ impl ShardLogLocation {
             shard,
             read_timeout: DURABILITY_TIMEOUT,
             durability_timeout: DURABILITY_TIMEOUT,
-            storage: StorageConfig::SlateDb(SlateDbStorageConfig {
+            source: LogSource::Storage(StorageConfig::SlateDb(SlateDbStorageConfig {
                 path: log_path.to_owned(),
                 object_store: ObjectStoreConfig::Local(LocalObjectStoreConfig {
                     path: object_store_root.display().to_string(),
@@ -131,7 +163,7 @@ impl ShardLogLocation {
                 settings_path: None,
                 block_cache: None,
                 meta_cache: None,
-            }),
+            })),
         }
     }
 }
@@ -221,10 +253,14 @@ pub fn storage_for_path(
 pub async fn read_journal<T: UntrimmedJournalRecord>(
     location: &ShardLogLocation,
 ) -> Result<Vec<(u64, T)>, Report<DurableError>> {
+    #[cfg(any(test, feature = "test-util"))]
+    if let LogSource::Sim(journal) = &location.source {
+        return decode_sim_entries(journal.durable_entries(crate::sim::SimKey::Events));
+    }
     let reader = tokio::time::timeout(
         location.read_timeout,
         LogDbReader::open(ReaderConfig {
-            storage: location.storage.clone(),
+            storage: location.source.storage()?.clone(),
             ..ReaderConfig::default()
         }),
     )
@@ -244,10 +280,36 @@ impl ShardLogLocation {
     }
 }
 
-/// The only type that owns a shard's append-capable `LogDb`.
+/// The only type that owns a shard's append-capable log.
 struct ShardLogWriter {
-    log: LogDb,
+    backend: WriterBackend,
     durability_timeout: Duration,
+}
+
+enum WriterBackend {
+    Real(LogDb),
+    #[cfg(any(test, feature = "test-util"))]
+    Sim(crate::sim::SimWriter),
+}
+
+/// Decodes ground-truth entries from the simulated journal with the same
+/// typed-codec discipline as a real scan.
+#[cfg(any(test, feature = "test-util"))]
+fn decode_sim_entries<T: DurableRecord>(
+    entries: Vec<(u64, Bytes)>,
+) -> Result<Vec<(u64, T)>, Report<DurableError>> {
+    entries
+        .into_iter()
+        .map(|(sequence, bytes)| {
+            T::decode(&bytes)
+                .map(|record| (sequence, record))
+                .change_context(DurableError)
+                .attach_printable(format!(
+                    "decode simulated shard sequence {sequence} as {}",
+                    T::declaration().name
+                ))
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -268,10 +330,17 @@ pub enum AppendFault {
 impl ShardLogWriter {
     async fn open(location: &ShardLogLocation) -> Result<Self, Report<DurableError>> {
         let durability_timeout = location.durability_timeout;
+        #[cfg(any(test, feature = "test-util"))]
+        if let LogSource::Sim(journal) = &location.source {
+            return Ok(Self {
+                backend: WriterBackend::Sim(journal.open_writer()),
+                durability_timeout,
+            });
+        }
         let log = tokio::time::timeout(
             durability_timeout,
             LogDb::open(Config {
-                storage: location.storage.clone(),
+                storage: location.source.storage()?.clone(),
                 read_visibility: ReadVisibility::Remote,
                 // Remote sequential scans are request-bound with SlateDB's
                 // 4 KiB default. Control records are append-only and replayed
@@ -289,7 +358,7 @@ impl ShardLogWriter {
         .change_context(DurableError)
         .attach_printable("open shard log")?;
         Ok(Self {
-            log,
+            backend: WriterBackend::Real(log),
             durability_timeout,
         })
     }
@@ -313,7 +382,11 @@ impl ShardLogWriter {
     /// `ReadVisibility::Remote`. Records below this exclusive end are the
     /// complete startup-recovery window.
     fn durable_end_exclusive(&self) -> u64 {
-        self.log.durable_sequence()
+        match &self.backend {
+            WriterBackend::Real(log) => log.durable_sequence(),
+            #[cfg(any(test, feature = "test-util"))]
+            WriterBackend::Sim(writer) => writer.durable_end_exclusive(),
+        }
     }
 
     async fn scan_suffix<T: UntrimmedJournalRecord>(
@@ -322,19 +395,37 @@ impl ShardLogWriter {
         durable_end_exclusive: u64,
     ) -> Result<Vec<(u64, T)>, Report<DurableError>> {
         let range = recovery_range(through_log_sequence, durable_end_exclusive)?;
-        scan_records(&self.log, range.bounds, Some(range.window)).await
+        match &self.backend {
+            WriterBackend::Real(log) => scan_records(log, range.bounds, Some(range.window)).await,
+            #[cfg(any(test, feature = "test-util"))]
+            WriterBackend::Sim(writer) => decode_sim_entries(writer.scan(
+                crate::sim::SimKey::Events,
+                range.window.0,
+                range.window.1,
+            )),
+        }
     }
 
     async fn scan_projection_snapshots<T: DurableRecord>(
         &self,
         durable_end_exclusive: u64,
     ) -> Result<Vec<(u64, Result<T, crate::registry::CompatError>)>, Report<DurableError>> {
-        scan_snapshot_records(
-            &self.log,
-            (Bound::Unbounded, Bound::Excluded(durable_end_exclusive)),
-            durable_end_exclusive,
-        )
-        .await
+        match &self.backend {
+            WriterBackend::Real(log) => {
+                scan_snapshot_records(
+                    log,
+                    (Bound::Unbounded, Bound::Excluded(durable_end_exclusive)),
+                    durable_end_exclusive,
+                )
+                .await
+            }
+            #[cfg(any(test, feature = "test-util"))]
+            WriterBackend::Sim(writer) => Ok(writer
+                .scan(crate::sim::SimKey::Snapshots, 0, durable_end_exclusive)
+                .into_iter()
+                .map(|(sequence, bytes)| (sequence, T::decode(&bytes)))
+                .collect()),
+        }
     }
 
     async fn append_with_fault<T: UntrimmedJournalRecord + Sync>(
@@ -357,6 +448,35 @@ impl ShardLogWriter {
         let bytes = value
             .encode()
             .map_err(|error| definitely_not_committed("encode durable shard record", error))?;
+        let log = match &self.backend {
+            WriterBackend::Real(log) => log,
+            #[cfg(any(test, feature = "test-util"))]
+            WriterBackend::Sim(writer) => {
+                let sim_key = if key == EVENTS_KEY {
+                    crate::sim::SimKey::Events
+                } else {
+                    crate::sim::SimKey::Snapshots
+                };
+                return match writer.append(sim_key, bytes) {
+                    crate::sim::SimAppendResult::Acked(sequence) => Ok(sequence),
+                    crate::sim::SimAppendResult::DefinitelyNotCommitted => {
+                        Err(definitely_not_committed_message(
+                            "append shard record",
+                            "simulated pre-invocation failure",
+                        ))
+                    }
+                    crate::sim::SimAppendResult::CommitUnknown => Err(post_invocation_message(
+                        "append shard record",
+                        "simulated ambiguous append",
+                    )),
+                    crate::sim::SimAppendResult::Fenced => Err(ShardAppendError {
+                        disposition: AppendDisposition::Fenced,
+                        source: Report::new(DurableError)
+                            .attach_printable("simulated newer writer epoch"),
+                    }),
+                };
+            }
+        };
         let record = Record {
             key: Bytes::from_static(key),
             value: Bytes::from(bytes),
@@ -381,8 +501,7 @@ impl ShardLogWriter {
                 "injected append-return failure",
             ));
         }
-        let output = self
-            .log
+        let output = log
             .append_timeout(vec![record], APPEND_TIMEOUT)
             .await
             .map_err(|error| post_invocation_source("append shard record", error))?;
@@ -393,8 +512,7 @@ impl ShardLogWriter {
                 "injected post-append failure",
             ));
         }
-        self.log
-            .flush()
+        log.flush()
             .await
             .map_err(|error| post_invocation_source("flush shard record", error))?;
         #[cfg(any(test, feature = "test-util"))]
@@ -406,7 +524,7 @@ impl ShardLogWriter {
             ));
         }
         wait_until_durable_with(
-            &self.log,
+            log,
             output.start_sequence + 1,
             self.durability_timeout,
             DURABILITY_WAIT_ATTEMPTS,
@@ -420,9 +538,23 @@ impl ShardLogWriter {
         Ok(output.start_sequence)
     }
 
+    /// The real backing log; the durability-wait tests drive it directly.
+    #[cfg(test)]
+    fn raw_log(&self) -> &LogDb {
+        match &self.backend {
+            WriterBackend::Real(log) => log,
+            WriterBackend::Sim(_writer) => panic!("this test requires a real log"),
+        }
+    }
+
     async fn close(self) -> Result<(), Report<DurableError>> {
         let durability_timeout = self.durability_timeout;
-        tokio::time::timeout(durability_timeout, self.log.close())
+        let log = match self.backend {
+            WriterBackend::Real(log) => log,
+            #[cfg(any(test, feature = "test-util"))]
+            WriterBackend::Sim(_writer) => return Ok(()),
+        };
+        tokio::time::timeout(durability_timeout, log.close())
             .await
             .change_context(DurableError)
             .attach_printable(format!(
@@ -447,7 +579,7 @@ impl ShardLogRecovery {
         let reader = tokio::time::timeout(
             DURABILITY_TIMEOUT,
             LogDbReader::open(ReaderConfig {
-                storage: location.storage.clone(),
+                storage: location.source.storage()?.clone(),
                 ..ReaderConfig::default()
             }),
         )
@@ -992,7 +1124,7 @@ mod tests {
         // rather than convert the stall into ambiguity.
         let required = first + 2;
         let (waited, appended) = tokio::join!(
-            wait_until_durable_with(&writer.log, required, Duration::from_millis(20), 50,),
+            wait_until_durable_with(writer.raw_log(), required, Duration::from_millis(20), 50,),
             async {
                 tokio::time::sleep(Duration::from_millis(150)).await;
                 writer.append(&record("stall-probe-second")).await
@@ -1003,9 +1135,13 @@ mod tests {
 
         // Exhaustion still fails closed, after exactly the bounded attempts.
         let started = std::time::Instant::now();
-        let error =
-            wait_until_durable_with(&writer.log, required + 1_000, Duration::from_millis(10), 3)
-                .await;
+        let error = wait_until_durable_with(
+            writer.raw_log(),
+            required + 1_000,
+            Duration::from_millis(10),
+            3,
+        )
+        .await;
         assert!(error.is_err(), "an unreachable watermark must fail closed");
         assert!(
             started.elapsed() >= Duration::from_millis(30),
