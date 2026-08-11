@@ -1,4 +1,4 @@
-//! Shard identity for the durable control plane. Placement of a key onto a
+//! Shard identity for the durable control layer. Placement of a key onto a
 //! shard is the domain's concern; the kernel only requires that shard values
 //! stay inside the fixed routing range.
 

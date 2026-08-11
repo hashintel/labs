@@ -108,7 +108,6 @@ pub fn interpolate(
 
         match lookup.get(key) {
             Some(value) => out.push_str(value),
-            // Message shape is TS parity; the exception type is the
             // user-fault surface.
             None => {
                 return Err(Report::new(ConfigError::bare(format!(

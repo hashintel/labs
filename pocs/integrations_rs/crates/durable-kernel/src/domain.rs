@@ -5,7 +5,7 @@
 //! recovery are kernel bookkeeping in [`KernelProjection`] and never user
 //! work. The runtime driving all of it is [`crate::runtime`].
 //!
-//! There is no separate signal plane: `submit` is the command path,
+//! There is no separate signal channel: `submit` is the command path,
 //! validated by the fold and idempotent by content identity; the control
 //! types below are therefore uninhabited.
 
@@ -55,7 +55,7 @@ pub trait DomainEvent: Serialize + DeserializeOwned + Clone + Send + Sync + 'sta
 
 /// Pure fold over one partition-keyed history.
 ///
-/// `validate` is the command-time gate: it may reject a proposed event and
+/// `validate` is the command-time check: it may reject a proposed event and
 /// is never consulted again once the event is durable. `apply` is the
 /// event-time fold: recorded events are facts, so it is infallible and is
 /// the only thing replay runs — a validation bug can never poison recovery

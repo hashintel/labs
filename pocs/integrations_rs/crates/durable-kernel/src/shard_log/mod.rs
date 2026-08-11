@@ -31,7 +31,7 @@ pub use command_loop::{
     StateChangeFeed,
 };
 #[cfg(any(test, feature = "test-util"))]
-pub use command_loop::{TestGate, TestHarness};
+pub use command_loop::{TestHarness, TestHold};
 
 const EVENTS_KEY: &[u8] = b"events";
 const PROJECTION_SNAPSHOTS_KEY: &[u8] = b"projection-snapshots";

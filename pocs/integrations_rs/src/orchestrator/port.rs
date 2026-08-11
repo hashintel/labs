@@ -1,6 +1,6 @@
 //! Backend-neutral orchestration capabilities.
 //!
-//! This module is deliberately limited to integration-domain values. Object
+//! This module is limited to integration-domain values. Object
 //! keys, stream names, leases, writer epochs, and storage SDK types belong in
 //! adapters, never in these signatures.
 

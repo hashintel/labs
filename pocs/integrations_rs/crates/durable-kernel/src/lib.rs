@@ -1,4 +1,4 @@
-//! Durable-execution kernel: an event-sourced, S3-backed control plane with
+//! Durable-execution kernel: an event-sourced, S3-backed control layer with
 //! content-addressed identities, snapshot-bounded replay, and epoch-fenced
 //! shard logs.
 //!

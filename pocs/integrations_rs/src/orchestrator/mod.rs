@@ -1,11 +1,10 @@
-//! Transport-neutral durable execution with a blob-backed OpenData control plane.
+//! Transport-neutral durable execution with a blob-backed OpenData control layer.
 //! Pipeline definitions remain domain data; task identity, retry policy and
 //! tracing live in the versioned internal envelope defined here. The runner
 //! depends only on opaque IDs, durable JSON checkpoints, and claim fencing.
 
 pub(crate) mod activation;
 pub mod baseline;
-mod command_surface;
 #[cfg(test)]
 mod conformance;
 pub mod control;
@@ -18,6 +17,7 @@ pub(crate) mod lease;
 pub mod managed;
 mod memory_adapter;
 mod metadata;
+mod operator_commands;
 #[cfg(test)]
 mod phase2_adapter;
 pub(crate) mod planning;
@@ -38,14 +38,14 @@ mod submission;
 pub mod work;
 pub(crate) mod worker_dispatch;
 
-pub use command_surface::{
-    CommandRunState, CommandRunStatus, CommandSubmission, CommandSurface, CommandSurfaceError,
-    PublishedCancellation,
-};
 pub use memory_adapter::InMemoryOrchestrator;
 pub use metadata::{
     prepare_task, prepare_task_for_web, CurrentTaskMetadata, CurrentTaskPayload, InvocationV1,
     PreparedTask, SubmissionTriggerV1, TaskMetadata, TaskMetadataV1, TaskPayload, TaskPayloadV1,
+};
+pub use operator_commands::{
+    CommandRunState, CommandRunStatus, CommandSubmission, OperatorCommandError, OperatorCommands,
+    PublishedCancellation,
 };
 pub use port::{
     CheckpointCommand, CheckpointName, CheckpointValue, ControlCommand, ControlCommandKind,

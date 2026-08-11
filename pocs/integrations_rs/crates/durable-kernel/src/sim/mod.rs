@@ -1,5 +1,5 @@
 //! Deterministic simulation support: an in-memory journal whose append
-//! dispositions come from a schedule plan, behind the same six-method seam
+//! dispositions come from a schedule plan, behind the same six-method boundary
 //! the production writer uses (see `local/docs/deterministic-simulation.md`
 //! and `local/docs/property-catalog.md`).
 //!

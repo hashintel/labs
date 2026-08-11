@@ -1,6 +1,6 @@
 //! Bounded, replay-safe delivery of immutable Graph effects.
 //!
-//! The executor is deliberately split into artifact verification and one
+//! The executor is split into artifact verification and one
 //! bounded delivery turn. It may overlap effects within one dependency class,
 //! advances only a contiguous acknowledged prefix, and holds the integration
 //! lane until that cursor is authoritative in the shard journal.

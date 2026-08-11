@@ -1229,13 +1229,13 @@ mod tests {
         }
     }
 
-    struct StageGate {
+    struct StageHold {
         stage: HandshakeStage,
         entered: Semaphore,
         release: Semaphore,
     }
 
-    impl StageGate {
+    impl StageHold {
         fn new(stage: HandshakeStage) -> Self {
             Self {
                 stage,
@@ -1248,7 +1248,7 @@ mod tests {
             self.entered
                 .acquire()
                 .await
-                .expect("stage gate remains open")
+                .expect("stage hold remains open")
                 .forget();
         }
 
@@ -1258,14 +1258,14 @@ mod tests {
     }
 
     #[async_trait]
-    impl HandshakeObserver for StageGate {
+    impl HandshakeObserver for StageHold {
         async fn reached(&self, stage: HandshakeStage) {
             if stage == self.stage {
                 self.entered.add_permits(1);
                 self.release
                     .acquire()
                     .await
-                    .expect("stage gate remains open")
+                    .expect("stage hold remains open")
                     .forget();
             }
         }
@@ -1487,14 +1487,14 @@ mod tests {
         let location =
             crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let clock = Arc::new(FixedClock::new(1_700_000_000));
-        let gate = Arc::new(StageGate::new(HandshakeStage::LeaseAcquired));
+        let hold = Arc::new(StageHold::new(HandshakeStage::LeaseAcquired));
 
         let task = {
             let store = store.clone();
             let tenant = tenant.clone();
             let location = location.clone();
             let clock = clock.clone();
-            let gate = gate.clone();
+            let hold = hold.clone();
             tokio::spawn(async move {
                 acquire_with(
                     &store,
@@ -1504,12 +1504,12 @@ mod tests {
                     lease_timing(10),
                     ShardCommandConfig::default(),
                     clock.as_ref(),
-                    gate.as_ref(),
+                    hold.as_ref(),
                 )
                 .await
             })
         };
-        gate.wait_until_entered().await;
+        hold.wait_until_entered().await;
 
         let contended = acquire_with(
             &store,
@@ -1558,14 +1558,14 @@ mod tests {
         let location =
             crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let clock = Arc::new(FixedClock::new(1_700_000_000));
-        let gate = Arc::new(StageGate::new(HandshakeStage::RecoveryComplete));
+        let hold = Arc::new(StageHold::new(HandshakeStage::RecoveryComplete));
         let lease_key = Keyspace::for_tenant(&tenant).lease(shard());
 
         let task = {
             let store = store.clone();
             let tenant = tenant.clone();
             let clock = clock.clone();
-            let gate = gate.clone();
+            let hold = hold.clone();
             tokio::spawn(async move {
                 acquire_with(
                     &store,
@@ -1575,12 +1575,12 @@ mod tests {
                     lease_timing(10),
                     ShardCommandConfig::default(),
                     clock.as_ref(),
-                    gate.as_ref(),
+                    hold.as_ref(),
                 )
                 .await
             })
         };
-        gate.wait_until_entered().await;
+        hold.wait_until_entered().await;
 
         let (record, version) =
             record_io::read_strict::<ShardLease>(&store, &lease_key, MAX_SHARD_LEASE_BYTES)
@@ -1595,7 +1595,7 @@ mod tests {
                 .expect("replace lease using exact version"),
             CasWrite::Written(_)
         ));
-        gate.resume();
+        hold.resume();
 
         let result = task
             .await
@@ -1620,14 +1620,14 @@ mod tests {
         let location =
             crate::orchestrator::shard_log::disposable_local(shard(), &tenant, remote.path());
         let clock = Arc::new(FixedClock::new(1_700_000_000));
-        let gate = Arc::new(StageGate::new(HandshakeStage::LeaseAcquired));
+        let hold = Arc::new(StageHold::new(HandshakeStage::LeaseAcquired));
 
         let abandoned = {
             let store = store_a.clone();
             let tenant = tenant.clone();
             let location = location.clone();
             let clock = clock.clone();
-            let gate = gate.clone();
+            let hold = hold.clone();
             tokio::spawn(async move {
                 acquire_with(
                     &store,
@@ -1637,12 +1637,12 @@ mod tests {
                     lease_timing(10),
                     ShardCommandConfig::default(),
                     clock.as_ref(),
-                    gate.as_ref(),
+                    hold.as_ref(),
                 )
                 .await
             })
         };
-        gate.wait_until_entered().await;
+        hold.wait_until_entered().await;
 
         clock.set(1_700_000_010);
         let legitimate = acquisition(
@@ -1661,7 +1661,7 @@ mod tests {
         );
         assert_eq!(legitimate.lease.lease.lease_epoch, 2);
 
-        gate.resume();
+        hold.resume();
         let abandoned_result = abandoned
             .await
             .expect("abandoned handshake task joins")

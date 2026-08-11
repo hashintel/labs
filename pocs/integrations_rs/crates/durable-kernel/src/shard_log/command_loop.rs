@@ -110,7 +110,7 @@ impl<D: Domain> ShardCommandHandle<D> {
         })?
     }
 
-    /// Returns only the bounded control-plane view needed by the inbox. The
+    /// Returns only the bounded control layer view needed by the inbox. The
     /// whole projection and append handle never escape the shard owner loop.
     pub async fn inspect_control(
         &self,
@@ -598,9 +598,9 @@ struct CommandLoop<D: Domain> {
     #[cfg(any(test, feature = "test-util"))]
     faults: VecDeque<super::AppendFault>,
     #[cfg(any(test, feature = "test-util"))]
-    before_append: Option<Arc<TestGate>>,
+    before_append: Option<Arc<TestHold>>,
     #[cfg(any(test, feature = "test-util"))]
-    before_recovery: Option<Arc<TestGate>>,
+    before_recovery: Option<Arc<TestHold>>,
 }
 
 impl<D: Domain> CommandLoop<D> {
@@ -1011,8 +1011,8 @@ impl<D: Domain> CommandLoop<D> {
 
     #[cfg(any(test, feature = "test-util"))]
     async fn wait_before_append(&self) {
-        if let Some(gate) = &self.before_append {
-            gate.wait_once().await;
+        if let Some(hold) = &self.before_append {
+            hold.wait_once().await;
         }
     }
 
@@ -1021,8 +1021,8 @@ impl<D: Domain> CommandLoop<D> {
 
     #[cfg(any(test, feature = "test-util"))]
     async fn wait_before_recovery(&self) {
-        if let Some(gate) = &self.before_recovery {
-            gate.wait_once().await;
+        if let Some(hold) = &self.before_recovery {
+            hold.wait_once().await;
         }
     }
 
@@ -1246,20 +1246,20 @@ fn is_terminal(kind: ShardCommandErrorKind) -> bool {
 #[derive(Default)]
 pub struct TestHarness {
     pub faults: VecDeque<super::AppendFault>,
-    pub before_append: Option<Arc<TestGate>>,
-    pub before_recovery: Option<Arc<TestGate>>,
+    pub before_append: Option<Arc<TestHold>>,
+    pub before_recovery: Option<Arc<TestHold>>,
 }
 
 #[cfg(any(test, feature = "test-util"))]
 #[derive(Default)]
-pub struct TestGate {
+pub struct TestHold {
     armed: AtomicBool,
     entered: Notify,
     release: Notify,
 }
 
 #[cfg(any(test, feature = "test-util"))]
-impl TestGate {
+impl TestHold {
     pub fn armed() -> Arc<Self> {
         Arc::new(Self {
             armed: AtomicBool::new(true),
@@ -1268,12 +1268,12 @@ impl TestGate {
         })
     }
 
-    /// Signalled once when the gated code path first arrives at the gate.
+    /// Signalled once when the held code path first arrives at the hold point.
     pub fn entered(&self) -> &Notify {
         &self.entered
     }
 
-    /// Releases the gated code path to continue.
+    /// Releases the held code path to continue.
     pub fn release(&self) -> &Notify {
         &self.release
     }

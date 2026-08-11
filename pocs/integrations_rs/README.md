@@ -2,7 +2,7 @@
 
 Rust integration engine and durable runner for HASH Graph pipelines.
 
-The control plane is PostgreSQL-free. Blob storage holds immutable inputs,
+The control layer is PostgreSQL-free. Blob storage holds immutable inputs,
 state, desired projections, effects, receipts, leases, and snapshots. One
 OpenData/SlateDB log per used shard is the ordered source of truth. Local DuckDB
 files are disposable workspaces and caches.
@@ -33,7 +33,7 @@ nix develop path:./nix/devshell -c cargo nextest run
 Runtime files belong under `state/`, which is ignored by Git. Set
 `RUNNER_BASE_DIR` to move disposable workspaces and caches elsewhere.
 
-## V1 command surface
+## V1 operator commands
 
 ```text
 integrations_rs submit <definition> [--links-only] [--replay-bronze source[=ts]] [--json]
@@ -97,7 +97,7 @@ step.
 
 The authenticated actor is stored in the immutable run input and carried into
 the state and work manifests. Graph requests—including retries, Restore, and
-Reconcile—therefore use the run owner recorded by durable history rather than
+Reconcile—so use the run owner recorded by durable history rather than
 the actor configured on whichever node executes the work.
 
 Both production modes authorize baseline initialization and leased worker
@@ -127,7 +127,7 @@ activation remains fail-closed until a Vault-backed `SecretStore` is supplied.
 
 ## Required configuration
 
-The durable command surface requires:
+The durable operator commands require:
 
 ```text
 HASH_WEB_ID=<web UUID or validated tenant namespace>

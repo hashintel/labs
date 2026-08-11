@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use integrations_rs::config::Env;
 use integrations_rs::orchestrator::{
-    prepare_task, CommandRunStatus, CommandSubmission, CommandSurface, InvocationV1,
+    prepare_task, CommandRunStatus, CommandSubmission, InvocationV1, OperatorCommands,
     SubmissionTriggerV1,
 };
 use integrations_rs::yaml::Source;
@@ -120,12 +120,12 @@ impl WorkerHarness {
             &env,
         )
         .expect("prepare V1 submission");
-        let surface = CommandSurface::open(&env).expect("open command surface");
+        let surface = OperatorCommands::open(&env).expect("open command surface");
         surface.submit(prepared).await.expect("submit run")
     }
 
-    pub(crate) fn surface(&self) -> CommandSurface {
-        CommandSurface::open(&self.surface_env()).expect("open command surface")
+    pub(crate) fn surface(&self) -> OperatorCommands {
+        OperatorCommands::open(&self.surface_env()).expect("open command surface")
     }
 }
 
@@ -260,7 +260,7 @@ pub(crate) fn resource_bounds_env() -> [(String, String); 6] {
 /// Polls a run's projected status until `accept` holds, panicking loudly on
 /// timeout.
 pub(crate) async fn wait_for(
-    surface: &CommandSurface,
+    surface: &OperatorCommands,
     run_id: &str,
     deadline: Duration,
     accept: impl Fn(&CommandRunStatus) -> bool + Send + Sync,

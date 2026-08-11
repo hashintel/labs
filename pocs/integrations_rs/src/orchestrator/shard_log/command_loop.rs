@@ -1142,8 +1142,8 @@ mod tests {
     use tempfile::TempDir;
 
     use durable_kernel::shard_log::{
-        AppendFault, OpenedShard, RawShardLog, ShardLogLocation, ShardLogRecovery, TestGate,
-        TestHarness,
+        AppendFault, OpenedShard, RawShardLog, ShardLogLocation, ShardLogRecovery, TestHarness,
+        TestHold,
     };
 
     use super::super::{start_recovered, ShardCommandConfig, ShardCommandOutcome, StartedShard};
@@ -1978,7 +1978,7 @@ mod tests {
         writer
             .append(&JournalRecord::V1(accepted(49, "misrouted-durable", 1)))
             .await
-            .expect("seed deliberately corrupt history");
+            .expect("seed corrupt history");
         writer.close().await.expect("close seed writer");
 
         let error = start_recovered(prefix.location.clone(), config(1, 1))
@@ -2180,7 +2180,7 @@ mod tests {
     #[tokio::test]
     async fn commit_unknown_blocks_later_candidates_until_prefix_recovery_finishes() {
         let prefix = TestPrefix::new(36);
-        let recovery = TestGate::armed();
+        let recovery = TestHold::armed();
         let harness = TestHarness {
             faults: VecDeque::from([AppendFault::AfterInvocation]),
             before_recovery: Some(recovery.clone()),
@@ -2220,7 +2220,7 @@ mod tests {
     #[tokio::test]
     async fn ambiguity_recovery_fails_closed_on_same_event_id_with_different_content() {
         let prefix = TestPrefix::new(44);
-        let recovery = TestGate::armed();
+        let recovery = TestHold::armed();
         let harness = TestHarness {
             faults: VecDeque::from([AppendFault::AfterInvocation]),
             before_recovery: Some(recovery.clone()),
@@ -2262,7 +2262,7 @@ mod tests {
     #[tokio::test]
     async fn shutdown_waits_for_ambiguous_append_resolution_and_stops_admission() {
         let prefix = TestPrefix::new(43);
-        let recovery = TestGate::armed();
+        let recovery = TestHold::armed();
         let harness = TestHarness {
             faults: VecDeque::from([AppendFault::AfterInvocation]),
             before_recovery: Some(recovery.clone()),
@@ -2312,7 +2312,7 @@ mod tests {
     #[tokio::test]
     async fn bounded_channel_backpressures_and_dropped_caller_does_not_cancel_append() {
         let prefix = TestPrefix::new(37);
-        let append = TestGate::armed();
+        let append = TestHold::armed();
         let harness = TestHarness {
             before_append: Some(append.clone()),
             ..TestHarness::default()
@@ -2372,7 +2372,7 @@ mod tests {
     #[tokio::test]
     async fn storage_fence_terminates_loop_and_rejects_queued_commands() {
         let prefix = TestPrefix::new(38);
-        let append = TestGate::armed();
+        let append = TestHold::armed();
         let harness = TestHarness {
             before_append: Some(append.clone()),
             ..TestHarness::default()
@@ -2431,7 +2431,7 @@ mod tests {
     #[tokio::test]
     async fn lease_loss_before_append_rejects_the_inflight_and_queued_records() {
         let prefix = TestPrefix::new(54);
-        let append = TestGate::armed();
+        let append = TestHold::armed();
         let harness = TestHarness {
             before_append: Some(append.clone()),
             ..TestHarness::default()

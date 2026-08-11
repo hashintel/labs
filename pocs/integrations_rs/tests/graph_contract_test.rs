@@ -25,7 +25,7 @@ use integrations_rs::config::Env;
 use integrations_rs::graph::client::entity_create_params;
 use integrations_rs::graph::{EntityOp, Provenance};
 use integrations_rs::orchestrator::{
-    prepare_task, CommandRunState, CommandSurface, InvocationV1, SubmissionTriggerV1,
+    prepare_task, CommandRunState, InvocationV1, OperatorCommands, SubmissionTriggerV1,
 };
 use integrations_rs::yaml::Source;
 use sha2::{Digest as _, Sha256};
@@ -286,7 +286,7 @@ async fn real_graph_delivery_contract() {
             &env,
         )
         .expect("prepare contract submission");
-        let surface = CommandSurface::open(&env).expect("open command surface");
+        let surface = OperatorCommands::open(&env).expect("open command surface");
         let started = std::time::Instant::now();
         let submitted = surface.submit(prepared).await.expect("submit contract run");
         let mut worker = Command::new(env!("CARGO_BIN_EXE_integrations_rs"));

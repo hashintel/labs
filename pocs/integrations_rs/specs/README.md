@@ -42,7 +42,7 @@ deadlines) or deployment assumption (clock-skew envelope) that discharges it.
 send/commit window, no *other* worker holds the lease — the claim in the
 `LeaseTiming::new` comment that a fast-clocked competitor cannot overlap an
 admitted chunk. Self-reacquisition (crash + restart of the same runner ID,
-which takes no grace) is deliberately permitted; the module header explains
+which takes no grace) is permitted; the module header explains
 why that overlap is benign.
 
 Deliberately *not* an invariant: "commits only happen while holding the
@@ -58,7 +58,7 @@ permits) backward steps such as NTP corrections — not just fixed offsets.
 
 Timing values are **not fixed**: Init chooses them from configured ranges,
 filtered by the `LeaseTiming::new` chunk-fit inequality (`TimingOK`, the
-`ChunkCannotFit` arm). The sweep config therefore checks that the
+`ChunkCannotFit` arm). The sweep config checks that the
 *validator's inequality* carries the theorem for every configuration it
 admits within the ranges, rather than one sampled configuration. The
 constructor's `RenewalCannotFit` arm bounds renewal pacing — a liveness
@@ -86,10 +86,10 @@ The counterexample: w1 (offset 0) acquires at t=0 (expiry 6), admits a chunk
 at t=1 (window ends t=3); w2 (offset 4) reads `clk = 7 ≥ expiry + grace = 7`
 at real t=3 and replaces the lease while the chunk is still in its window.
 This is the expected outcome, and it earns two conclusions: the declared
-skew envelope is load-bearing (a deployment that violates it loses the
-chunk-overlap guarantee even though every CAS and fence still works), and
-the spec has teeth (it is falsifiable by exactly the fault it exists to
-exclude).
+safety argument needs the skew envelope (a deployment that violates it
+loses the chunk-overlap guarantee even though every CAS and fencing check
+still works), and the spec is falsifiable by exactly the fault it exists
+to exclude.
 
 Model bounds: 2 workers, integer time to 10, ≤ 5 lease writes, ≤ 2 live
 chunk windows per worker, `lease_duration=6, skew=1, chunk deadlines 1+1,

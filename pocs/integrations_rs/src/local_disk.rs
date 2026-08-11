@@ -174,7 +174,7 @@ impl Drop for WorkspaceGuard {
 pub struct WorkspaceBudget {
     root: PathBuf,
     limits: LocalDiskLimits,
-    gate: Mutex<()>,
+    lock: Mutex<()>,
     notify: Notify,
 }
 
@@ -200,7 +200,7 @@ impl WorkspaceBudget {
         Ok(Arc::new(Self {
             root,
             limits,
-            gate: Mutex::new(()),
+            lock: Mutex::new(()),
             notify: Notify::new(),
         }))
     }
@@ -261,7 +261,7 @@ impl WorkspaceBudget {
         workspace: &Path,
         required: u64,
     ) -> Result<Option<WorkspaceGuard>, Report<LocalDiskError>> {
-        let _gate = self.gate.lock().map_err(|_poisoned| {
+        let _lock = self.lock.lock().map_err(|_poisoned| {
             Report::new(LocalDiskError::Claim).attach_printable("workspace budget lock poisoned")
         })?;
         let budget_lock =
@@ -348,7 +348,7 @@ impl WorkspaceBudget {
         reservation_path: &Path,
         checkpoint_bytes: u64,
     ) -> Result<(), Report<LocalDiskError>> {
-        let _gate = self.gate.lock().map_err(|_poisoned| {
+        let _lock = self.lock.lock().map_err(|_poisoned| {
             Report::new(LocalDiskError::Claim).attach_printable("workspace budget lock poisoned")
         })?;
         refresh_checkpoint_reservation(
@@ -361,7 +361,7 @@ impl WorkspaceBudget {
     }
 
     pub fn scavenge_abandoned(&self) -> Result<Vec<PathBuf>, Report<LocalDiskError>> {
-        let _gate = self.gate.lock().map_err(|_poisoned| {
+        let _lock = self.lock.lock().map_err(|_poisoned| {
             Report::new(LocalDiskError::Scavenge).attach_printable("scavenger lock poisoned")
         })?;
         let mut removed = Vec::new();

@@ -1,7 +1,7 @@
 //! Conservative artifact reachability and quarantine reporting.
 //!
-//! Protocol v1 deliberately has no deletion capability. This module takes an
-//! immutable projection snapshot, expands every load-bearing content reference,
+//! Protocol v1 has no deletion capability. This module takes an
+//! immutable projection snapshot, expands every live content reference,
 //! inventories old content-addressed objects, and reports unmarked candidates.
 //! A malformed or unavailable rooted artifact fails the pass closed.
 

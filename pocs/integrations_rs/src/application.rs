@@ -14,8 +14,8 @@ use crate::orchestrator::managed::{
     ProviderBinding, WebhookProvider,
 };
 use crate::orchestrator::{
-    self, CommandRunStatus, CommandSubmission, CommandSurface, CommandSurfaceError, InvocationV1,
-    PublishedCancellation, SubmissionTriggerV1, TaskMetadata,
+    self, CommandRunStatus, CommandSubmission, InvocationV1, OperatorCommandError,
+    OperatorCommands, PublishedCancellation, SubmissionTriggerV1, TaskMetadata,
 };
 use crate::yaml::Source;
 
@@ -77,13 +77,13 @@ impl ApplicationError {
         }
     }
 
-    fn from_command(report: error_stack::Report<CommandSurfaceError>) -> Self {
+    fn from_command(report: error_stack::Report<OperatorCommandError>) -> Self {
         let context = *report.current_context();
         let kind = match context {
-            CommandSurfaceError::InvalidRunId
-            | CommandSurfaceError::InvalidSubmission
-            | CommandSurfaceError::InvalidControlRequest => ApplicationErrorKind::InvalidRequest,
-            CommandSurfaceError::RunNotFound => ApplicationErrorKind::NotFound,
+            OperatorCommandError::InvalidRunId
+            | OperatorCommandError::InvalidSubmission
+            | OperatorCommandError::InvalidControlRequest => ApplicationErrorKind::InvalidRequest,
+            OperatorCommandError::RunNotFound => ApplicationErrorKind::NotFound,
             _ => ApplicationErrorKind::Unavailable,
         };
         tracing::warn!(error = ?report, "durable application command failed");
@@ -198,7 +198,7 @@ impl DurableIntegrationService {
         Self { env }
     }
 
-    fn surface(&self, context: &RequestContext) -> Result<CommandSurface, ApplicationError> {
+    fn surface(&self, context: &RequestContext) -> Result<OperatorCommands, ApplicationError> {
         if let Some(configured_web) = self
             .env
             .get("HASH_WEB_ID")
@@ -211,7 +211,7 @@ impl DurableIntegrationService {
                 ));
             }
         }
-        CommandSurface::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
+        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
             .map_err(ApplicationError::from_command)
     }
 

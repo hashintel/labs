@@ -627,7 +627,7 @@ pub async fn admitted_run_record(
 }
 
 /// Resolves cancellation-before-acceptance by following the integration's
-/// admission pointer to its exact immutable receipt. This deliberately avoids
+/// admission pointer to its exact immutable receipt. This avoids
 /// LIST: object discovery order must never decide whether a run exists.
 pub(crate) async fn exact_admitted_ready_receipt(
     store: &ArtifactStore,

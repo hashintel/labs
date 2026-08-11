@@ -11,7 +11,8 @@
 //!
 //! The oracles are independent of the transition logic under test: state
 //! ground truth is read from the simulated journal, never from the loop,
-//! and effect ground truth is a deliberately non-idempotent external
+//! and effect ground truth is an external ledger that records every
+//! execution, repeats included; nothing here
 //! ledger. Every property evaluated here is in [`crate::properties`]; a
 //! violation panics with the property ID.
 
@@ -40,7 +41,7 @@ const FIXPOINT_TURN_BOUND: u32 = 8;
 
 /// The event vocabulary the simulation drives. Increments carry a request
 /// number so a repeated action is a distinct event (an amount of zero is
-/// the deliberately invalid submission); archives are effect completions,
+/// the always-rejected submission); archives are effect completions,
 /// distinguished across cycles by the archive count they extend.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -582,7 +583,7 @@ impl Driver<'_> {
 
     /// Crashes inside the durable-but-unacknowledged window: forces an
     /// ambiguous durable append, gates the loop's ambiguity recovery, and
-    /// kills the loop while the gate holds it — so the journal holds an
+    /// kills the loop at that pause — so the journal holds an
     /// event no caller ever saw acknowledged. The next recovery must adopt
     /// it, and the reference fold proves it counts exactly once.
     async fn crash_mid_ambiguity(
@@ -592,9 +593,9 @@ impl Driver<'_> {
         coverage: &mut CoverageLedger,
     ) {
         self.started.task.abort();
-        let gate = crate::shard_log::TestGate::armed();
+        let hold = crate::shard_log::TestHold::armed();
         let harness = crate::shard_log::TestHarness {
-            before_recovery: Some(gate.clone()),
+            before_recovery: Some(hold.clone()),
             ..crate::shard_log::TestHarness::default()
         };
         self.started = Self::open_loop_with_harness(&self.journal, self.shard, harness).await;
@@ -607,7 +608,7 @@ impl Driver<'_> {
         let handle = self.handle();
         let gated_record = record.clone();
         let in_flight = tokio::spawn(async move { handle.propose(gated_record).await });
-        gate.entered().notified().await;
+        hold.entered().notified().await;
         self.started.task.abort();
         let ack = in_flight.await;
         assert!(
@@ -995,8 +996,8 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(
             missing.is_empty(),
-            "{schedules} schedules never produced: {missing:?} — the campaign is too weak, not \
-             the system correct"
+            "{schedules} schedules never produced: {missing:?} — the campaign needs a richer \
+             schedule vocabulary"
         );
     }
 

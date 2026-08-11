@@ -3,8 +3,7 @@
 //! Each property is a stable, named claim about the kernel. Safety
 //! properties must hold at every evaluation point; coverage properties
 //! name the failure windows a test campaign must actually produce for the
-//! safety checks to have been tested — a campaign that never produces one
-//! is too weak, not evidence of correctness.
+//! safety checks to have been tested.
 //!
 //! The deterministic-simulation harness evaluates the catalog two ways:
 //! property-based tests (proptest-generated schedules, shrinking a failure
@@ -80,14 +79,12 @@ pub const REJECTED_NEVER_DURABLE: Property = Property {
 };
 
 // Effect-execution safety: the at-least-once contract of the hosted
-// executor, checked against a deliberately non-idempotent external ledger.
+// executor, checked against an external ledger that records every execution, repeats included.
 
 pub const EFFECT_REPLAYS_ARE_IDENTICAL: Property = Property {
     id: "KRN-A7-EFFECT-REPLAY-IDENTICAL",
     class: PropertyClass::Safety,
-    statement:
-        "every execution of one effect identity carries byte-identical payload — at-least-once is \
-         legal, divergent replays are not",
+    statement: "every execution of one effect identity carries a byte-identical payload",
 };
 
 pub const DURABLE_COMPLETION_IMPLIES_EXECUTED: Property = Property {
@@ -103,7 +100,7 @@ pub const PLAN_REACHES_FIXPOINT: Property = Property {
     class: PropertyClass::Safety,
     statement:
         "executing planned effects and folding their completions drains plan to empty in bounded \
-         turns — an executor that cannot quiesce is a livelock, not progress",
+         turns",
 };
 
 pub const DURABLE_EVENTS_HAVE_PROVENANCE: Property = Property {
@@ -173,8 +170,7 @@ pub const CORRUPT_SNAPSHOT_FELL_BACK: Property = Property {
 pub const EFFECT_EXECUTED_MORE_THAN_ONCE: Property = Property {
     id: "KRN-S9-EFFECT-REEXECUTED",
     class: PropertyClass::Coverage,
-    statement: "one effect identity executes more than once because its completion was lost — the \
-         at-least-once window is real, not theoretical",
+    statement: "one effect identity executes more than once because its completion was lost",
 };
 
 /// Every catalogued property, for exhaustive coverage accounting.

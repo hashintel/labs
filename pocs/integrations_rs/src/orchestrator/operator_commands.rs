@@ -1,6 +1,6 @@
 //! Read-only operator queries and immutable control-inbox publication.
 //!
-//! This module is deliberately not a worker. It never opens a shard writer,
+//! This module is not a worker. It never opens a shard writer,
 //! acquires a lease, advances an epoch, or resolves its own control request.
 
 use crate::orchestrator::routing::TenantKeyspace as _;
@@ -84,7 +84,7 @@ pub struct CommandSubmission {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CommandSurfaceError {
+pub enum OperatorCommandError {
     Configuration,
     Storage,
     Baseline,
@@ -99,7 +99,7 @@ pub enum CommandSurfaceError {
     PublishControlRequest,
 }
 
-impl fmt::Display for CommandSurfaceError {
+impl fmt::Display for OperatorCommandError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
             Self::Configuration => "command-surface configuration is invalid",
@@ -111,27 +111,27 @@ impl fmt::Display for CommandSurfaceError {
             Self::InvalidSubmission => "prepared submission is invalid",
             Self::PublishSubmissionArtifacts => "publish immutable submission artifacts failed",
             Self::SubmitRun => "submit run through the V1 admission protocol failed",
-            Self::RunNotFound => "run was not found in the tenant control plane",
+            Self::RunNotFound => "run was not found in the tenant control layer",
             Self::InvalidControlRequest => "construct cancellation request failed",
             Self::PublishControlRequest => "publish cancellation request failed",
         })
     }
 }
 
-impl std::error::Error for CommandSurfaceError {}
+impl std::error::Error for OperatorCommandError {}
 
 #[derive(Clone)]
-pub struct CommandSurface {
+pub struct OperatorCommands {
     env: Env,
     store: ArtifactStore,
     tenant: TenantNamespace,
     actor: Option<String>,
 }
 
-impl CommandSurface {
-    pub fn open(env: &Env) -> Result<Self, Report<CommandSurfaceError>> {
+impl OperatorCommands {
+    pub fn open(env: &Env) -> Result<Self, Report<OperatorCommandError>> {
         let web_id = env.get("HASH_WEB_ID").ok_or_else(|| {
-            Report::new(CommandSurfaceError::Configuration)
+            Report::new(OperatorCommandError::Configuration)
                 .attach_printable("HASH_WEB_ID is required")
         })?;
         Self::open_for(env, web_id, env.get("HASH_ACTOR_ID"))
@@ -144,12 +144,12 @@ impl CommandSurface {
         env: &Env,
         web_id: &str,
         actor: Option<&str>,
-    ) -> Result<Self, Report<CommandSurfaceError>> {
+    ) -> Result<Self, Report<OperatorCommandError>> {
         let tenant = TenantNamespace::parse(web_id.to_owned())
-            .change_context(CommandSurfaceError::Configuration)?;
+            .change_context(OperatorCommandError::Configuration)?;
         let store =
             ArtifactStore::from_url(&config::blob_store_url(env), config::blob_cache_dir(env))
-                .change_context(CommandSurfaceError::Storage)?;
+                .change_context(OperatorCommandError::Storage)?;
         Ok(Self {
             env: env.clone(),
             store,
@@ -161,25 +161,25 @@ impl CommandSurface {
     pub async fn status(
         &self,
         run_id: &str,
-    ) -> Result<CommandRunStatus, Report<CommandSurfaceError>> {
+    ) -> Result<CommandRunStatus, Report<OperatorCommandError>> {
         let run_id =
-            RunId::parse(run_id.to_owned()).change_context(CommandSurfaceError::InvalidRunId)?;
+            RunId::parse(run_id.to_owned()).change_context(OperatorCommandError::InvalidRunId)?;
         self.status_for_run(&run_id)
             .await?
-            .ok_or_else(|| Report::new(CommandSurfaceError::RunNotFound))
+            .ok_or_else(|| Report::new(OperatorCommandError::RunNotFound))
     }
 
     pub async fn submit(
         &self,
         prepared: PreparedTask,
-    ) -> Result<CommandSubmission, Report<CommandSurfaceError>> {
+    ) -> Result<CommandSubmission, Report<OperatorCommandError>> {
         let payload = CurrentTaskPayload::from(prepared.payload);
         let metadata = CurrentTaskMetadata::from(prepared.metadata);
         let integration_id = CanonicalIntegrationId::parse(metadata.canonical_integration_id)
-            .change_context(CommandSurfaceError::InvalidSubmission)?;
+            .change_context(OperatorCommandError::InvalidSubmission)?;
         if metadata.web_id != self.tenant.as_str() {
             return Err(
-                Report::new(CommandSurfaceError::InvalidSubmission).attach_printable(
+                Report::new(OperatorCommandError::InvalidSubmission).attach_printable(
                     "prepared submission web identity disagrees with request tenant",
                 ),
             );
@@ -192,12 +192,12 @@ impl CommandSurface {
         variables.insert(
             "integrations.invocation.replay.v1".to_owned(),
             serde_json::to_string(&payload.invocation.replay)
-                .change_context(CommandSurfaceError::InvalidSubmission)?,
+                .change_context(OperatorCommandError::InvalidSubmission)?,
         );
         let definition = serde_json::to_string(&payload.definition)
-            .change_context(CommandSurfaceError::InvalidSubmission)?;
+            .change_context(OperatorCommandError::InvalidSubmission)?;
         let owner_actor_id = self.actor.clone().ok_or_else(|| {
-            Report::new(CommandSurfaceError::Configuration)
+            Report::new(OperatorCommandError::Configuration)
                 .attach_printable("an authenticated actor is required to submit a run")
         })?;
         let input_record = RunInputRecord::current(
@@ -207,10 +207,10 @@ impl CommandSurface {
             metadata.resolved_definition_digest,
         );
         require_registered::<RunInputRecord>()
-            .change_context(CommandSurfaceError::InvalidSubmission)?;
+            .change_context(OperatorCommandError::InvalidSubmission)?;
         let input_bytes = input_record
             .encode()
-            .change_context(CommandSurfaceError::InvalidSubmission)?;
+            .change_context(OperatorCommandError::InvalidSubmission)?;
         let input_artifact = publish_bytes(
             &self.store,
             &input_bytes,
@@ -219,16 +219,16 @@ impl CommandSurface {
             "application/json",
         )
         .await
-        .change_context(CommandSurfaceError::PublishSubmissionArtifacts)?;
+        .change_context(OperatorCommandError::PublishSubmissionArtifacts)?;
 
         // V1 retains the established five-attempt default as five durable
         // handler failures. Process interruption remains outside this budget.
         let policy_record = RunPolicyRecord::current(5);
         require_registered::<RunPolicyRecord>()
-            .change_context(CommandSurfaceError::InvalidSubmission)?;
+            .change_context(OperatorCommandError::InvalidSubmission)?;
         let policy_bytes = policy_record
             .encode()
-            .change_context(CommandSurfaceError::InvalidSubmission)?;
+            .change_context(OperatorCommandError::InvalidSubmission)?;
         let policy_artifact = publish_bytes(
             &self.store,
             &policy_bytes,
@@ -237,7 +237,7 @@ impl CommandSurface {
             "application/json",
         )
         .await
-        .change_context(CommandSurfaceError::PublishSubmissionArtifacts)?;
+        .change_context(OperatorCommandError::PublishSubmissionArtifacts)?;
         let run_id = RunId::generate();
         let outcome = submit_durable_for_run(
             &self.store,
@@ -257,7 +257,7 @@ impl CommandSurface {
             metadata.submitted_at,
         )
         .await
-        .change_context(CommandSurfaceError::SubmitRun)?;
+        .change_context(OperatorCommandError::SubmitRun)?;
         Ok(CommandSubmission {
             run_id: outcome.run_id,
             initial_revision: outcome.initial_revision,
@@ -265,19 +265,19 @@ impl CommandSurface {
         })
     }
 
-    pub async fn baseline_active(&self) -> Result<bool, Report<CommandSurfaceError>> {
+    pub async fn baseline_active(&self) -> Result<bool, Report<OperatorCommandError>> {
         compatible_control_baseline_exists(&self.store, &self.tenant)
             .await
-            .change_context(CommandSurfaceError::Baseline)
+            .change_context(OperatorCommandError::Baseline)
     }
 
     pub async fn cancel(
         &self,
         run_id: &str,
-    ) -> Result<PublishedCancellation, Report<CommandSurfaceError>> {
+    ) -> Result<PublishedCancellation, Report<OperatorCommandError>> {
         let status = self.status(run_id).await?;
         let actor = self.actor.as_deref().ok_or_else(|| {
-            Report::new(CommandSurfaceError::Configuration)
+            Report::new(OperatorCommandError::Configuration)
                 .attach_printable("an authenticated actor is required to publish a control request")
         })?;
         let request = ControlRequestV1::new(
@@ -290,10 +290,10 @@ impl CommandSurface {
                 expected_failed_work: status.active_work_id,
             }),
         )
-        .change_context(CommandSurfaceError::InvalidControlRequest)?;
+        .change_context(OperatorCommandError::InvalidControlRequest)?;
         let request_key = publish_control_request(&self.store, &request)
             .await
-            .change_context(CommandSurfaceError::PublishControlRequest)?;
+            .change_context(OperatorCommandError::PublishControlRequest)?;
         Ok(PublishedCancellation {
             run_id: status.run_id,
             request_id: request.request_id,
@@ -305,10 +305,10 @@ impl CommandSurface {
     async fn status_for_run(
         &self,
         run_id: &RunId,
-    ) -> Result<Option<CommandRunStatus>, Report<CommandSurfaceError>> {
+    ) -> Result<Option<CommandRunStatus>, Report<OperatorCommandError>> {
         verify_control_baseline(&self.store, &self.tenant)
             .await
-            .change_context(CommandSurfaceError::Baseline)?;
+            .change_context(OperatorCommandError::Baseline)?;
         if let Some(integration_id) = self.run_locator(run_id).await? {
             let shard = super::routing::shard(&integration_id);
             if let Some(status) = self
@@ -320,7 +320,7 @@ impl CommandSurface {
             if let Some(revision) =
                 active_admission_revision(&self.store, &self.tenant, &integration_id, run_id)
                     .await
-                    .change_context(CommandSurfaceError::Inventory)?
+                    .change_context(OperatorCommandError::Inventory)?
             {
                 return Ok(Some(pending_status(
                     run_id.clone(),
@@ -336,11 +336,11 @@ impl CommandSurface {
     async fn run_locator(
         &self,
         run_id: &RunId,
-    ) -> Result<Option<CanonicalIntegrationId>, Report<CommandSurfaceError>> {
+    ) -> Result<Option<CanonicalIntegrationId>, Report<OperatorCommandError>> {
         let key = Keyspace::for_tenant(&self.tenant).run_locator(run_id);
         read_record::<RunLocatorRecord>(&self.store, &key, MAX_RUN_LOCATOR_RECORD_BYTES)
             .await
-            .change_context(CommandSurfaceError::Inventory)
+            .change_context(OperatorCommandError::Inventory)
             .map(|record| record.map(|(record, _version)| record.into_current()))
     }
 
@@ -349,35 +349,35 @@ impl CommandSurface {
         run_id: &RunId,
         expected_integration: &CanonicalIntegrationId,
         shard: super::routing::Shard,
-    ) -> Result<Option<CommandRunStatus>, Report<CommandSurfaceError>> {
+    ) -> Result<Option<CommandRunStatus>, Report<OperatorCommandError>> {
         let paths = Keyspace::for_tenant(&self.tenant);
         if self
             .store
             .list(&paths.shard_log(shard))
             .await
-            .change_context(CommandSurfaceError::Inventory)?
+            .change_context(OperatorCommandError::Inventory)?
             .is_empty()
         {
             return Ok(None);
         }
         let location =
             crate::orchestrator::shard_log::production_location(&self.env, shard, &self.tenant)
-                .change_context(CommandSurfaceError::Projection)?;
+                .change_context(OperatorCommandError::Projection)?;
         let projection = read_projection(&location)
             .await
-            .change_context(CommandSurfaceError::Projection)?;
+            .change_context(OperatorCommandError::Projection)?;
         let Some(run) = projection.runs.get(run_id) else {
             return Ok(None);
         };
         if expected_integration != &run.integration_id {
-            return Err(Report::new(CommandSurfaceError::Projection)
+            return Err(Report::new(OperatorCommandError::Projection)
                 .attach_printable("run locator disagrees with the projected integration"));
         }
         let integration = projection
             .integrations
             .get(&run.integration_id)
             .ok_or_else(|| {
-                Report::new(CommandSurfaceError::Projection)
+                Report::new(OperatorCommandError::Projection)
                     .attach_printable(format!("run {run_id} has no integration projection"))
             })?;
         let active_work = integration
@@ -532,7 +532,7 @@ mod tests {
         )
         .await
         .unwrap();
-        let surface = CommandSurface::open(&env).unwrap();
+        let surface = OperatorCommands::open(&env).unwrap();
         delete_ready_receipt(
             &store,
             &tenant,
@@ -605,7 +605,7 @@ mod tests {
             .await
             .unwrap();
 
-        let surface = CommandSurface::open(&env).unwrap();
+        let surface = OperatorCommands::open(&env).unwrap();
         let status = surface.status(run_id.as_str()).await.unwrap();
         assert_eq!(status.state, CommandRunState::Accepted);
         let attempt_id = derive_attempt_id(&run_id, 1);

@@ -57,3 +57,7 @@ local/**
 
 # TLC model-checker scratch (state fingerprints, trace files)
 /specs/states/
+
+# Vale prose linter — personal tooling, not part of the repo contract
+/.vale.ini
+/.vale/

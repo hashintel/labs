@@ -1,7 +1,7 @@
 //! In-memory reference implementation of the typed orchestration capabilities.
 //!
 //! This is an executable model, not a production durability claim. It is
-//! deliberately independent of the projection fold so the shared conformance
+//! independent of the projection fold on purpose, so the shared conformance
 //! suite can expose semantic drift instead of reproducing shared bugs. Clones
 //! share state so worker-process loss can be simulated without backend concepts.
 

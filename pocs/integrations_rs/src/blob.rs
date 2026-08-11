@@ -42,7 +42,7 @@ const UPLOAD_CHUNK_SIZE: usize = 8 * 1024 * 1024;
 const VERIFIED_MATERIALIZATION_CACHE_ENTRIES: usize = 8;
 const VERIFIED_MATERIALIZATION_CACHE_MAX_BYTES: u64 = 1024 * 1024 * 1024;
 
-/// Instruments the provider-neutral storage boundary. This counts calls the
+/// Counts calls at the provider-neutral storage boundary. This counts calls the
 /// engine makes through `object_store`, including individual multipart parts,
 /// without issuing any observation-only request.
 #[derive(Debug)]
@@ -909,7 +909,7 @@ impl ArtifactStore {
         // during upload. Retain those exact bytes in the disposable cache so
         // the execution phase does not immediately download its own output.
         // S3 remains authoritative; a cache-admission failure is therefore
-        // deliberately non-fatal and materialization will fetch it normally.
+        // non-fatal by design; materialization will fetch it normally.
         self.seed_cache_best_effort(&reference, &source).await;
         Ok(reference)
     }
@@ -992,7 +992,7 @@ impl ArtifactStore {
         validate_blob_reference(value)?;
         let destination = self.cached_path(reference)?;
 
-        // A verified materialization deliberately holds this object's lock
+        // A verified materialization holds this object's lock
         // for the guard's lifetime. Republishing identical content must not
         // wait for that guard (the small process cache may retain it for an
         // arbitrarily long time). A lock-free valid hit needs no mutation;
@@ -1107,7 +1107,7 @@ impl ArtifactStore {
         Ok(())
     }
 
-    /// Convenience for bounded control-plane and test artifacts that already
+    /// Convenience for bounded control layer and test artifacts that already
     /// exist in memory. Bytes still pass through the ordinary staged-file,
     /// fsync, content-addressed upload, and read-back verification path.
     #[cfg(test)]
@@ -1517,7 +1517,7 @@ impl ArtifactStore {
     }
 
     /// Reads the bytes and provider version of a small CAS document. This is
-    /// crate-private so versioned control-plane caches can recover from an
+    /// crate-private so versioned control layer caches can recover from an
     /// invalid payload without discarding the version required to repair it.
     pub(crate) async fn get_cas_document(
         &self,
@@ -1903,7 +1903,7 @@ struct CacheCandidate {
 
 #[allow(
     clippy::filetype_is_file,
-    reason = "cache traversal deliberately rejects symlinks and special files"
+    reason = "cache traversal rejects symlinks and special files"
 )]
 fn cache_files(root: &FsPath) -> Result<Vec<CacheCandidate>, Report<BlobError>> {
     let mut pending = vec![root.to_owned()];

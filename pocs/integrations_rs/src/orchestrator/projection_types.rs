@@ -25,7 +25,7 @@ pub struct Projection {
     pub control_request_outcomes: BTreeMap<RequestId, ControlRequestOutcomeV1>,
     pub seen_event_digests: BTreeMap<EventId, JournalRecordDigest>,
     pub through_log_sequence: Option<u64>,
-    /// Protocol v1 deliberately quarantines the whole shard: event identity and
+    /// Protocol v1 quarantines the whole shard: event identity and
     /// log order are shard-scoped, so continuing past invalid durable history
     /// would require a separately specified per-integration skip protocol.
     pub poisoned: Option<PoisonedProjection>,
@@ -61,7 +61,7 @@ pub struct RunProjection {
     pub status: RunStatus,
     pub attempt: u64,
     /// Handler-reported retryable failures only. Attempt numbers also advance
-    /// after process interruption, which deliberately does not change this.
+    /// after process interruption, which does not change this.
     pub handler_failures: u32,
     pub attempt_id: Option<AttemptId>,
     pub immutable_input: InputRef,
@@ -255,7 +255,7 @@ impl IntegrationProjection {
 
     /// One shared definition of "background delivery may proceed": no
     /// foreground slot in use, healthy maintenance, and execution eligible.
-    /// Every scheduler query that gates reconciliation or maintenance work
+    /// Every scheduler query that admits reconciliation or maintenance work
     /// consults this, so a new eligibility input lands in one place.
     pub fn background_delivery_eligible(&self) -> bool {
         self.foreground_work.is_none()

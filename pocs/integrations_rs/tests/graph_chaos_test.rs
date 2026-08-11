@@ -27,7 +27,7 @@ use axum::routing::any;
 use axum::Router;
 use integrations_rs::config::Env;
 use integrations_rs::orchestrator::{
-    prepare_task, CommandRunState, CommandSurface, InvocationV1, SubmissionTriggerV1,
+    prepare_task, CommandRunState, InvocationV1, OperatorCommands, SubmissionTriggerV1,
 };
 use integrations_rs::yaml::Source;
 
@@ -268,7 +268,7 @@ async fn real_graph_delivery_converges_under_injected_throttling_and_failures() 
             &env,
         )
         .expect("prepare chaos submission");
-        let surface = CommandSurface::open(&env).expect("open command surface");
+        let surface = OperatorCommands::open(&env).expect("open command surface");
         let submitted = surface.submit(prepared).await.expect("submit chaos run");
         tracing::info!(round, run_id = %submitted.run_id, "chaos round submitted; spawning worker");
         let mut worker = Command::new(env!("CARGO_BIN_EXE_integrations_rs"));

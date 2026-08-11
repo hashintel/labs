@@ -1,7 +1,7 @@
 //! Kernel-owned S3 key derivation.
 //!
 //! Every durable key is derived here from one validated [`Namespace`]:
-//! the control plane under `{namespace}/control/v1/...` and content-addressed
+//! the control layer under `{namespace}/control/v1/...` and content-addressed
 //! artifact prefixes under `{namespace}/artifacts/{kind}/sha256/...`. Call
 //! sites must not format keys ad hoc — a writer and its validator drifting
 //! apart on layout is exactly the bug this type exists to prevent.
@@ -95,7 +95,7 @@ impl Keyspace {
         &self.namespace
     }
 
-    // Control plane. The kernel owns everything under this root; domains
+    // Control layer. The kernel owns everything under this root; domains
     // must not mint keys here.
 
     pub fn control_root(&self) -> String {

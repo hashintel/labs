@@ -443,7 +443,7 @@ struct IntegrationAgeAnchors {
     last_reconciliation_completed_at: Option<DateTime<Utc>>,
 }
 
-/// Cloneable process-local instrumentation handle. Counters saturate rather
+/// Cloneable process-local counter handle. Counters saturate rather
 /// than wrap and poisoned gauge locks recover their last value. Neither
 /// recording nor rendering can stop durable execution.
 #[derive(Debug, Clone, Default)]
@@ -662,7 +662,7 @@ impl OperationalTelemetry {
     }
 
     /// Sets utilization measured by the rate owner's reporting window. It is
-    /// deliberately separate from chunk settlement: used/max-chunk is budget
+    /// separate from chunk settlement: used/max-chunk is budget
     /// efficiency, not rate utilization.
     pub fn set_lane_rate_utilization(
         &self,

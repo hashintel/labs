@@ -2,7 +2,7 @@
 //!
 //! A record cannot enter protocol storage unless it implements [`DurableRecord`] and
 //! points at one of the declarations in [`record_declarations`]. The independently
-//! maintained manifest is checked again by the production activation gate.
+//! maintained manifest is checked again at production activation.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -656,7 +656,7 @@ mod tests {
             include_bytes!("../../tests/golden/registry-omitted-declaration.json"),
             &[],
         )
-        .expect_err("the manifest declaration is deliberately absent from the registry");
+        .expect_err("the manifest declaration is absent from the registry by construction");
         assert_eq!(
             error,
             RegistryError::Mismatch {

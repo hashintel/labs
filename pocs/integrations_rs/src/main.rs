@@ -6,7 +6,7 @@
     clippy::use_debug
 )]
 
-//! CLI for the V1 durable integration control plane.
+//! CLI for the V1 durable integration control layer.
 
 use integrations_rs::application::{
     DurableIntegrationService, IntegrationService as _, RequestContext, SubmitIntegration,
@@ -615,7 +615,7 @@ mod tests {
     fn run_commands_defer_typed_id_validation_and_reject_extra_arguments() {
         assert_eq!(
             parse_task_command("status", &["redis-stream:1712-0".to_owned()])
-                .expect("syntax parsing leaves typed validation to the command surface")
+                .expect("syntax parsing leaves typed validation to the operator commands")
                 .0,
             "redis-stream:1712-0"
         );

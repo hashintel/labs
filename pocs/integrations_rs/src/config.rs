@@ -1,6 +1,6 @@
 //! Single resolution point for runtime settings: an explicit environment map
 //! (process env by default; tests pass their own), safe or derived defaults
-//! everywhere. The knob surface stays deliberately small; an empty
+//! everywhere. The set of knobs stays small; an empty
 //! environment "just works" on one node.
 
 use std::collections::HashMap;
@@ -78,7 +78,7 @@ pub fn graph_timeout_ms(env: &Env) -> u64 {
     env.int("HASH_GRAPH_TIMEOUT_MS", 120_000).max(1000)
 }
 
-/// Deadline for opening or reading the durable control journal. Control-plane
+/// Deadline for opening or reading the durable control journal. Control-layer
 /// commands must fail closed rather than hang indefinitely on broken storage.
 pub fn control_read_timeout_ms(env: &Env) -> u64 {
     env.int("INTEGRATIONS_CONTROL_READ_TIMEOUT_MS", 10_000)
@@ -297,8 +297,8 @@ pub fn implicitly_exposed_integration_env(name: &str) -> bool {
 
 /// The environment visible to `${KEY}` interpolation. Direct operator runs
 /// remain TS-compatible when no allowlist is set. Durable entry points install
-/// an empty allowlist first, exposing only the small framework-owned public
-/// surface below plus names explicitly selected by the operator.
+/// an empty allowlist first, exposing only the small framework-owned set of names
+/// below plus names explicitly selected by the operator.
 pub fn interpolation_env(env: &Env) -> HashMap<String, String> {
     match env.get("INTEGRATIONS_ENV_ALLOWLIST") {
         None => env.vars.clone(),

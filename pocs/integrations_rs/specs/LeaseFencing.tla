@@ -62,7 +62,7 @@
 (* comment: a foreign competitor can never hold the lease while another    *)
 (* worker's admitted chunk is still inside its send/commit window. The     *)
 (* SAME worker reacquiring (crash + restart; no takeover grace applies)    *)
-(* is deliberately allowed: the new incarnation's handshake fences the     *)
+(* is allowed: the new incarnation's handshake fences the     *)
 (* old writer (A2) and external sends are convergent, so self-overlap of   *)
 (* the send window is benign.                                              *)
 (***************************************************************************)
@@ -283,7 +283,7 @@ TypeOK ==
 ChunkExclusion ==
   \A w \in Workers : LiveWindows(w) # {} => lease.owner = w
 
-\* NOTE deliberately absent: "commits only happen while holding the lease"
+\* NOTE absent on purpose: "commits only happen while holding the lease"
 \* is NOT a property of this protocol. A stale owner may commit until the
 \* successor OPENS the writer (A2 is the fence boundary, not lease
 \* replacement); the successor then recovers the committed prefix. Encoding

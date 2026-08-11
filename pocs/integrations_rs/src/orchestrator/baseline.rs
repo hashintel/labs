@@ -1,4 +1,4 @@
-//! Immutable identity marker and startup gate for the tenant-first control plane.
+//! Immutable identity marker and startup check for the tenant-first control layer.
 
 use crate::orchestrator::routing::TenantKeyspace as _;
 use std::fmt;
