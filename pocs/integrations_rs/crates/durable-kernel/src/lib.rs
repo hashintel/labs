@@ -29,9 +29,9 @@
     clippy::cast_possible_truncation,
     clippy::single_match_else,
     clippy::items_after_statements,
-    // Deliberate: cheap handle clones (Store, Arc callbacks) read better as
-    // .clone(); Reports render via {:?} on purpose; mod.rs is this crate's
-    // module layout.
+    // On purpose: cheap handle clones (Store, Arc callbacks) read better as
+    // .clone(); Reports render via {:?}; mod.rs is this crate's module
+    // layout.
     clippy::clone_on_ref_ptr,
     clippy::needless_pass_by_value,
     clippy::significant_drop_tightening,
