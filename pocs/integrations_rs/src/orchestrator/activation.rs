@@ -211,16 +211,19 @@ fn activation_config(env: &Env) -> Result<ActivationConfig, Report<ActivationChe
     // The declared inter-runner wall-clock skew envelope. Zero is a valid
     // explicit assertion of synchronized clocks; the default assumes ordinary
     // NTP drift. Takeover waits this long past observed expiry, and the owner
-    // stops admitting chunks this long early.
+    // stops admitting chunks this long early. Not derived from the lease
+    // duration: skew describes the clocks, not the pacing.
     let clock_skew =
         Duration::from_secs(non_negative_u64(env, "INTEGRATIONS_CLOCK_SKEW_SECONDS", 5)?);
+    let lease_seconds = positive_u64(env, "INTEGRATIONS_LEASE_SECONDS", 60)?;
+    let fraction = |divisor: u64| (lease_seconds / divisor).max(1);
     let lease_timing = LeaseTiming::new(
-        seconds("INTEGRATIONS_LEASE_SECONDS", 60)?,
-        seconds("INTEGRATIONS_LEASE_RENEW_SECONDS", 15)?,
-        seconds("INTEGRATIONS_LEASE_RENEW_TIMEOUT_SECONDS", 5)?,
-        seconds("INTEGRATIONS_GRAPH_CHUNK_DEADLINE_SECONDS", 20)?,
-        seconds("INTEGRATIONS_CURSOR_COMMIT_DEADLINE_SECONDS", 10)?,
-        seconds("INTEGRATIONS_LEASE_SAFETY_SECONDS", 5)?,
+        Duration::from_secs(lease_seconds),
+        seconds("INTEGRATIONS_LEASE_RENEW_SECONDS", fraction(4))?,
+        seconds("INTEGRATIONS_LEASE_RENEW_TIMEOUT_SECONDS", fraction(12))?,
+        seconds("INTEGRATIONS_GRAPH_CHUNK_DEADLINE_SECONDS", fraction(3))?,
+        seconds("INTEGRATIONS_CURSOR_COMMIT_DEADLINE_SECONDS", fraction(6))?,
+        seconds("INTEGRATIONS_LEASE_SAFETY_SECONDS", fraction(12))?,
         clock_skew,
     )
     .change_context(ActivationCheck::Configuration)?;
@@ -409,6 +412,28 @@ mod tests {
             activation_config(&env)
                 .expect_err("one request cannot cover create then patch")
                 .current_context(),
+            &ActivationCheck::Configuration
+        );
+    }
+
+    #[test]
+    fn one_lease_knob_scales_the_whole_timing_family() {
+        let env_with = |pairs: &[(&str, &str)]| {
+            let mut map = HashMap::from([("HASH_WEB_ID".to_owned(), "alice".to_owned())]);
+            for (name, value) in pairs {
+                map.insert((*name).to_owned(), (*value).to_owned());
+            }
+            Env::from_map(map)
+        };
+        activation_config(&env_with(&[("INTEGRATIONS_LEASE_SECONDS", "24")]))
+            .expect("scaled family validates");
+        assert_eq!(
+            activation_config(&env_with(&[
+                ("INTEGRATIONS_LEASE_SECONDS", "24"),
+                ("INTEGRATIONS_GRAPH_CHUNK_DEADLINE_SECONDS", "20"),
+            ]))
+            .expect_err("an overridden chunk deadline no longer fits the lease")
+            .current_context(),
             &ActivationCheck::Configuration
         );
     }

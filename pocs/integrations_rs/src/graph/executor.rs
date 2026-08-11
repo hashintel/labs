@@ -915,7 +915,13 @@ impl BoundedEffectExecutor {
                 {
                     return false;
                 }
-                let Some(next) = reserved.checked_add(effect.request_cost()) else {
+                // A proven conflict costs exactly one PATCH this turn.
+                let cost = if self.conflict_proven(&work.work_id, &effect.effect.effect_id) {
+                    1
+                } else {
+                    effect.request_cost()
+                };
+                let Some(next) = reserved.checked_add(cost) else {
                     return false;
                 };
                 if next > maximum_requests {
@@ -1058,6 +1064,13 @@ impl BoundedEffectExecutor {
             },
             classification @ (Classified::Conflict | Classified::Permanent { .. }) => {
                 let patch_first = matches!(classification, Classified::Conflict);
+                if patch_first {
+                    // One duplicate rejects the whole bulk request, so the
+                    // rejection proves the batch as a unit.
+                    for effect in selected {
+                        self.record_proven_conflict(&work.work_id, &effect.effect.effect_id);
+                    }
+                }
                 let mut completed = 0;
                 let mut terminal = None;
                 for effect in selected {
@@ -1409,7 +1422,8 @@ impl BoundedEffectExecutor {
                 // PATCH-first once a conflict is proven: re-proving it every
                 // retry would waste charged requests and can phase-lock with
                 // a periodic provider throttle.
-                if !self.conflict_proven(&work.work_id, effect_id) {
+                let proven_at_entry = self.conflict_proven(&work.work_id, effect_id);
+                if !proven_at_entry {
                     let Some(classified) = self
                         .charged_send(
                             &work.owner_actor_id,
@@ -1462,6 +1476,14 @@ impl BoundedEffectExecutor {
                             diagnostic: "PATCH returned conflict; only create 409 is authoritative"
                                 .to_owned(),
                         }
+                    }
+                    // A batch-proven mark may be wrong for this member; a
+                    // miss after its own create conflicted stays permanent.
+                    Classified::Permanent {
+                        status: Some(404), ..
+                    } if proven_at_entry => {
+                        self.forget_proven_conflict(&work.work_id, effect_id);
+                        DeliveryAttempt::Retryable { retry_after: None }
                     }
                     Classified::Permanent { status, diagnostic } => {
                         self.forget_proven_conflict(&work.work_id, effect_id);
@@ -1873,6 +1895,7 @@ mod tests {
         batch_response: EffectResponseV1,
         batch_requests: AtomicUsize,
         individual_requests: AtomicUsize,
+        patch_requests: AtomicUsize,
     }
 
     struct ParallelBatchTransport {
@@ -1888,20 +1911,72 @@ mod tests {
         creates: AtomicUsize,
     }
 
+    struct MisproofBatchTransport {
+        batches: AtomicUsize,
+        patches: AtomicUsize,
+        creates: AtomicUsize,
+    }
+
+    #[async_trait]
+    impl GraphEffectTransport for MisproofBatchTransport {
+        async fn send(&self, request: EffectRequestV1) -> EffectResponseV1 {
+            match request {
+                EffectRequestV1::Patch(patch) => {
+                    self.patches.fetch_add(1, Ordering::SeqCst);
+                    if patch.get("identity").and_then(Value::as_str) == Some("entity:2") {
+                        EffectResponseV1::Http {
+                            status: 404,
+                            retry_after: None,
+                            diagnostic: "not found".to_owned(),
+                        }
+                    } else {
+                        EffectResponseV1::Success
+                    }
+                }
+                EffectRequestV1::Create(_) => {
+                    self.creates.fetch_add(1, Ordering::SeqCst);
+                    EffectResponseV1::Success
+                }
+                EffectRequestV1::Archive(_) => EffectResponseV1::Success,
+            }
+        }
+
+        async fn send_create_batch(&self, _requests: Vec<Value>) -> Option<EffectResponseV1> {
+            self.batches.fetch_add(1, Ordering::SeqCst);
+            Some(EffectResponseV1::Http {
+                status: 409,
+                retry_after: None,
+                diagnostic: "conflict".to_owned(),
+            })
+        }
+
+        fn max_create_batch_size(&self) -> usize {
+            128
+        }
+
+        fn max_in_flight(&self) -> usize {
+            4
+        }
+    }
+
     impl BatchTransport {
         fn new(batch_response: EffectResponseV1) -> Self {
             Self {
                 batch_response,
                 batch_requests: AtomicUsize::new(0),
                 individual_requests: AtomicUsize::new(0),
+                patch_requests: AtomicUsize::new(0),
             }
         }
     }
 
     #[async_trait]
     impl GraphEffectTransport for BatchTransport {
-        async fn send(&self, _request: EffectRequestV1) -> EffectResponseV1 {
+        async fn send(&self, request: EffectRequestV1) -> EffectResponseV1 {
             self.individual_requests.fetch_add(1, Ordering::SeqCst);
+            if matches!(request, EffectRequestV1::Patch(_)) {
+                self.patch_requests.fetch_add(1, Ordering::SeqCst);
+            }
             EffectResponseV1::Success
         }
 
@@ -3164,6 +3239,123 @@ mod tests {
         assert_eq!(transport.patches.load(Ordering::SeqCst), 2);
         assert_eq!(transport.creates.load(Ordering::SeqCst), 2);
         assert_eq!(committer.cursors().await[0].completed_effect_count, 2);
+    }
+
+    #[tokio::test]
+    async fn a_rejected_bulk_proves_its_whole_batch_so_later_turns_send_only_patches() {
+        let transport = Arc::new(BatchTransport::new(EffectResponseV1::Http {
+            status: 409,
+            retry_after: None,
+            diagnostic: "conflict".to_owned(),
+        }));
+        let committer = Arc::new(RecordingCommitter::default());
+        let executor = BoundedEffectExecutor::new(
+            transport.clone(),
+            committer.clone(),
+            Arc::new(RecordingDelay::default()),
+            Arc::new(EffectLaneRegistry::default()),
+        );
+        let budget = ChunkBudget::new(4).expect("one batch plus one worst-case fallback");
+
+        let first = executor
+            .execute_turn(&work(vec![upsert(1), upsert(2), upsert(3)], 0), budget)
+            .await
+            .expect("conflicted bulk turn");
+        assert_eq!(
+            first,
+            TurnOutcomeV1::Yielded {
+                completed_effect_count: 1,
+                requests_used: 2,
+                retry_after: None,
+            }
+        );
+
+        let second = executor
+            .execute_turn(&work(vec![upsert(1), upsert(2), upsert(3)], 1), budget)
+            .await
+            .expect("proven-conflict patch turn");
+        assert_eq!(
+            second,
+            TurnOutcomeV1::Progressed {
+                completed_effect_count: 3,
+                work_exhausted: true,
+                requests_used: 2,
+            }
+        );
+
+        assert_eq!(transport.batch_requests.load(Ordering::SeqCst), 1);
+        assert_eq!(transport.individual_requests.load(Ordering::SeqCst), 3);
+        assert_eq!(transport.patch_requests.load(Ordering::SeqCst), 3);
+        assert_eq!(
+            committer
+                .cursors()
+                .await
+                .last()
+                .expect("final cursor")
+                .completed_effect_count,
+            3
+        );
+    }
+
+    #[tokio::test]
+    async fn a_marked_member_that_was_not_the_duplicate_self_heals_through_the_patch_miss() {
+        let transport = Arc::new(MisproofBatchTransport {
+            batches: AtomicUsize::new(0),
+            patches: AtomicUsize::new(0),
+            creates: AtomicUsize::new(0),
+        });
+        let committer = Arc::new(RecordingCommitter::default());
+        let executor = BoundedEffectExecutor::new(
+            transport.clone(),
+            committer.clone(),
+            Arc::new(RecordingDelay::default()),
+            Arc::new(EffectLaneRegistry::default()),
+        );
+        let budget = ChunkBudget::new(4).expect("one batch plus one worst-case fallback");
+
+        let first = executor
+            .execute_turn(&work(vec![upsert(1), upsert(2)], 0), budget)
+            .await
+            .expect("conflicted bulk turn");
+        assert_eq!(
+            first,
+            TurnOutcomeV1::Yielded {
+                completed_effect_count: 1,
+                requests_used: 2,
+                retry_after: None,
+            }
+        );
+
+        let second = executor
+            .execute_turn(&work(vec![upsert(1), upsert(2)], 1), budget)
+            .await
+            .expect("patch-miss turn");
+        assert_eq!(
+            second,
+            TurnOutcomeV1::Yielded {
+                completed_effect_count: 1,
+                requests_used: 1,
+                retry_after: None,
+            }
+        );
+
+        let third = executor
+            .execute_turn(&work(vec![upsert(1), upsert(2)], 1), budget)
+            .await
+            .expect("create turn");
+        assert_eq!(
+            third,
+            TurnOutcomeV1::Progressed {
+                completed_effect_count: 2,
+                work_exhausted: true,
+                requests_used: 1,
+            }
+        );
+
+        // A single-effect remainder takes the parallel path; no second bulk.
+        assert_eq!(transport.batches.load(Ordering::SeqCst), 1);
+        assert_eq!(transport.patches.load(Ordering::SeqCst), 2);
+        assert_eq!(transport.creates.load(Ordering::SeqCst), 1);
     }
 
     #[tokio::test]
