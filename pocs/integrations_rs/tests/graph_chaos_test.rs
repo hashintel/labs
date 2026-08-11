@@ -32,6 +32,7 @@ use integrations_rs::orchestrator::{
 use integrations_rs::yaml::Source;
 
 const FORWARDED: &[&str] = &["HASH_WEB_ID", "HASH_ACTOR_ID", "INTEGRATIONS_BLOB_URL"];
+const OPTIONAL_BLOB_PROVIDER: &[&str] = &["AWS_REGION", "AWS_DEFAULT_REGION"];
 const ENTITY_TYPE_VAR: &str = "INTEGRATIONS_GRAPH_CONTRACT_ENTITY_TYPE";
 const NAME_PROPERTY_VAR: &str = "INTEGRATIONS_GRAPH_CONTRACT_NAME_PROPERTY";
 
@@ -155,6 +156,11 @@ async fn real_graph_delivery_converges_under_injected_throttling_and_failures() 
         let value = std::env::var(name)
             .unwrap_or_else(|_missing| panic!("{name} is required for the chaos contract"));
         variables.insert((*name).to_owned(), value);
+    }
+    for name in OPTIONAL_BLOB_PROVIDER {
+        if let Ok(value) = std::env::var(name) {
+            variables.insert((*name).to_owned(), value);
+        }
     }
     let web_id = variables["HASH_WEB_ID"].clone();
     let entity_type = std::env::var(ENTITY_TYPE_VAR)

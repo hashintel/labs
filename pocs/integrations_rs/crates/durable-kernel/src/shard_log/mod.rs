@@ -201,10 +201,10 @@ pub fn storage_for_path(
                 Report::new(DurableError).attach_printable("blob URL has an empty S3 bucket")
             );
         }
-        let region = options
-            .aws_region
-            .clone()
-            .unwrap_or_else(|| "us-east-1".to_owned());
+        let Some(region) = options.aws_region.clone() else {
+            return Err(Report::new(DurableError)
+                .attach_printable("S3 shard-log storage requires an explicit AWS region"));
+        };
         (
             ObjectStoreConfig::Aws(AwsObjectStoreConfig {
                 region,

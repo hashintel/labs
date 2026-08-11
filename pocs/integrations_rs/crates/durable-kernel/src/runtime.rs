@@ -543,6 +543,9 @@ mod tests {
 
     fn config(blob_url: &str, shard: u8) -> KernelConfig {
         let mut config = KernelConfig::new("kernelapp", blob_url);
+        config.aws_region = std::env::var("AWS_REGION")
+            .or_else(|_missing| std::env::var("AWS_DEFAULT_REGION"))
+            .ok();
         config.shards = vec![u16::from(shard)];
         config.poll_interval = Duration::from_millis(20);
         config.snapshot_every_events = 2;
