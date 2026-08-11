@@ -2,22 +2,21 @@ name: Preflight
 
 on:
   pull_request:
-    paths:
-      - ".github/workflows/preflight.yml"
-  pull_request_target:
+    # `edited` matters: the todo-comments scan derives its ticket IDs from the PR title.
     types: [opened, synchronize, reopened, edited]
   merge_group:
 
-jobs:
-  dependencies:
-    name: Dependencies
-    permissions:
-      contents: read
-      pull-requests: write
-    uses: hashintel/.github/.github/workflows/preflight-dependencies.yml@b7a5d7f651c1d6a862d5dd97aa6164125bedb6c5 # main
+permissions: {}
 
-  pr-title:
-    name: PR title
+jobs:
+  todo-comments:
+    name: Todo comments
     permissions:
       contents: read
-    uses: hashintel/.github/.github/workflows/preflight-pr-title.yml@b7a5d7f651c1d6a862d5dd97aa6164125bedb6c5 # main
+    uses: hashintel/.github/.github/workflows/preflight-todo-comments.yml@69449a772a55c55a101d4fefdceb4024b6bc3107 # main
+
+  lint:
+    name: Lint
+    permissions:
+      contents: read
+    uses: hashintel/.github/.github/workflows/preflight-actionlint.yml@69449a772a55c55a101d4fefdceb4024b6bc3107 # main
