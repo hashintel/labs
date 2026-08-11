@@ -34,9 +34,10 @@ pub struct Property {
     pub statement: &'static str,
 }
 
-// Safety properties. KRN-A1 and KRN-A4 are the executable image of the
-// log/cursor model planned in `specs/README.md`; the statements here
-// and the spec invariants must remain the same sentence in two languages.
+// Safety properties. KRN-A1 through KRN-A5 are the executable image of
+// the `specs/LogCursor.tla` invariants (TLC-checked; see `specs/README.md`
+// for the axiom-to-contract mapping); the statements here and the spec
+// invariants must remain the same sentence in two languages.
 
 /// See also `validate_recovered_prefix`, which enforces the same claim
 /// inside the production loop; this property checks it from outside.

@@ -45,7 +45,7 @@
 (*   A3  Chunk deadlines are enforced: an admitted chunk's Graph send and  *)
 (*       cursor commit cannot occur after                                  *)
 (*       admit + graph_chunk_deadline + cursor_commit_deadline. Modeled by *)
-(*       the "now <= ChunkDeadline" guard on CommitChunk. Code: the        *)
+(*       the WindowDeadline guard on CommitChunk. Code: the                *)
 (*       LeaseChunkPermit deadlines minted in admit_chunk (monotonic       *)
 (*       clock, so no skew term applies to the deadlines themselves).      *)
 (*                                                                         *)
@@ -62,9 +62,9 @@
 (* comment: a foreign competitor can never hold the lease while another    *)
 (* worker's admitted chunk is still inside its send/commit window. The     *)
 (* SAME worker reacquiring (crash + restart; no takeover grace applies)    *)
-(* is allowed: the new incarnation's handshake fences the     *)
-(* old writer (A2) and external sends are convergent, so self-overlap of   *)
-(* the send window is benign.                                              *)
+(* is allowed: the new incarnation's handshake fences the old writer (A2)  *)
+(* and external sends are convergent, so self-overlap of the send window   *)
+(* is benign.                                                              *)
 (***************************************************************************)
 EXTENDS Integers, FiniteSets, TLC
 
