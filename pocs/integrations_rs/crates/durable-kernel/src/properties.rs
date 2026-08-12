@@ -36,8 +36,8 @@ pub struct Property {
 
 // Safety properties. KRN-A1 through KRN-A5 are the executable image of
 // the `specs/LogCursor.tla` invariants (TLC-checked; see `specs/README.md`
-// for the axiom-to-contract mapping); the statements here and the spec
-// invariants must remain the same sentence in two languages.
+// for the axiom-to-contract mapping); each statement here and its spec
+// invariant must remain word-for-word identical.
 
 /// See also `validate_recovered_prefix`, which enforces the same claim
 /// inside the production loop; this property checks it from outside.
@@ -107,9 +107,7 @@ pub const PLAN_REACHES_FIXPOINT: Property = Property {
 pub const DURABLE_EVENTS_HAVE_PROVENANCE: Property = Property {
     id: "KRN-A10-DURABLE-HAS-PROVENANCE",
     class: PropertyClass::Safety,
-    statement:
-        "every event in the durable prefix was proposed by a client of the loop — the journal \
-         invents nothing",
+    statement: "every event in the durable prefix was proposed by a client of the loop",
 };
 
 // Coverage properties: the failure windows a schedule campaign must

@@ -1,10 +1,10 @@
 //! Per-source event log for stream syncs: append assigns sequence numbers,
 //! read replays from a sequence, trim drops what a completed batch no longer
 //! needs. A plain data structure owned by the stream sync task; durability
-//! comes from the source's own cursor, persisted separately. The log only
+//! comes from the source's own cursor, persisted separately. The log
 //! buffers only the batch between receipt and materialization. A failed batch
-//! is rolled back and negatively acknowledged, so source redelivery—not an
-//! unbounded in-process vector—is the retry buffer.
+//! is rolled back and negatively acknowledged, so source redelivery is the
+//! retry buffer and no unbounded in-process vector accumulates.
 
 use std::collections::HashMap;
 

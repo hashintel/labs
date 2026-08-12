@@ -815,7 +815,7 @@ fn post_invocation_disposition(message: &str) -> AppendDisposition {
 
 /// An ambiguous append is shard-fatal under a lease, and the append is
 /// usually already durable when this wait stalls: the watermark subscription
-/// lagged, not the write. Re-check and re-subscribe a bounded number of times
+/// lagged while the write landed. Re-check and re-subscribe a bounded number of times
 /// before converting a transient stall into ambiguity. The timeout and
 /// attempt bound are parameters so the retry semantics are testable without
 /// production-length waits; production always uses the pinned constants.

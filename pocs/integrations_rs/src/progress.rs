@@ -663,7 +663,7 @@ impl OperationalTelemetry {
 
     /// Sets utilization measured by the rate owner's reporting window. It is
     /// separate from chunk settlement: used/max-chunk is budget
-    /// efficiency, not rate utilization.
+    /// efficiency rather than rate utilization.
     pub fn set_lane_rate_utilization(
         &self,
         integration_path: &str,

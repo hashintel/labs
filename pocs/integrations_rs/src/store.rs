@@ -342,7 +342,7 @@ fn enforce_disk_bounds(
 
     // A meaningful DuckDB boundary can fold WAL pages back into the database
     // and release temp spill. It is attempted exactly once before the hard
-    // resource failure is surfaced; work is never allowed to grow past the
+    // resource failure is returned; work is never allowed to grow past the
     // boundary indefinitely.
     connection.execute_batch("CHECKPOINT").map_err(|error| {
         format!("local disk limit reached and DuckDB CHECKPOINT failed: {error}")
@@ -482,7 +482,7 @@ fn snapshot_database(
 
     // No command can race this block: it runs on the sole connection thread.
     // CHECKPOINT folds the WAL into the database before the byte copy. This
-    // also works with the hardened store, where ATTACH is intentionally
+    // also works with the hardened store, where ATTACH is
     // unavailable after external access and configuration are locked.
     connection
         .execute_batch("CHECKPOINT")

@@ -933,8 +933,8 @@ mod tests {
         started: StartedShard,
     }
 
-    /// Deliberately independent state-machine implementation used to keep the
-    /// state capability contract from self-certifying through the journal fold.
+    /// Independent state-machine implementation that keeps the state
+    /// capability contract from self-certifying through the journal fold.
     struct ReferenceStateAuthority {
         store: ArtifactStore,
         tenant: TenantNamespace,

@@ -44,7 +44,7 @@ impl Fixture {
 
     fn write_attestation(&self, shape: &AttestationShape) {
         // Every shape is the canonical document with exactly one field
-        // deliberately wrong.
+        // made invalid.
         let (blob_url, binary_version, valid_until) = match shape {
             AttestationShape::Valid => (
                 self.blob_url(),

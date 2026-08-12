@@ -21,11 +21,11 @@ const PROBE_SAMPLE: usize = 3;
 
 /// The two ways a coherence check can fail, kept distinct because they demand
 /// opposite handling: a `Mismatch` is deterministic (wrong state dir, or the
-/// graph really was wiped) and must NOT be retried; an `Unreachable` means the
-/// graph could not be reached during the sentinel probe and MUST be retried
-/// with state intact, never mistaken for "graph wiped". Folding a transport
+/// graph really was wiped) and must not be retried; an `Unreachable` means the
+/// graph could not be reached during the sentinel probe and must be retried
+/// with state intact. It must not be treated as "graph wiped". Folding a transport
 /// error into `Mismatch` would steer the operator toward the state-dropping
-/// remedy over a transient blip.
+/// remedy over a transient failure.
 #[derive(Debug)]
 pub enum CheckError {
     Mismatch(Report<CoherenceError>),
@@ -265,7 +265,7 @@ async fn sentinel_probe(
                 &Value::String((*id).to_owned()),
             ),
         );
-        // A transport error here is NOT "entity absent": propagate it as
+        // A transport error here is not "entity absent": propagate it as
         // Unreachable so the run retries with state intact, rather than
         // reading a graph outage as "wiped" and steering toward the
         // state-dropping remedy.

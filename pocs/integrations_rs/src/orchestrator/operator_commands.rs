@@ -137,7 +137,7 @@ impl OperatorCommands {
         Self::open_for(env, web_id, env.get("HASH_ACTOR_ID"))
     }
 
-    /// Open a request-scoped surface without changing process-global
+    /// Opens request-scoped operator commands without changing process-global
     /// configuration. HTTP authentication remains outside this boundary; the
     /// already-authenticated tenant and actor are explicit inputs.
     pub fn open_for(

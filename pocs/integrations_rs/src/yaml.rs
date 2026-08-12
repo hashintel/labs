@@ -1,7 +1,7 @@
 //! Integration definitions: loading, and `${KEY}` interpolation. Precedence
 //! matches the TS runner: the `vars:` block supplies defaults, a same-named
 //! env var overrides each, and `vars` values are themselves interpolated
-//! against the environment. Interpolation applies to every string value AND
+//! against the environment. interpolation applies to every string value and
 //! every map key, and sees only the allowlisted environment
 //! (`config::interpolation_env`): definitions are user-authorable, and
 //! unrestricted `${}` would exfiltrate node secrets. A placeholder with no
@@ -19,7 +19,7 @@ use crate::error::ConfigError;
 /// An integration definition from any of its shapes: an already-decoded map
 /// (definitions arrive over requests), inline YAML content, or a path to a
 /// file (dev/CLI convenience; a string is a path iff a regular file exists
-/// there). Returns the resolved definition; [`raw`] returns it UNRESOLVED,
+/// there). Returns the resolved definition; [`raw`] returns it unresolved,
 /// which is what gets persisted or enqueued: placeholders remain unresolved.
 /// Literal values remain literal, so persistence boundaries must validate
 /// their own secret policy.
@@ -108,7 +108,7 @@ pub fn interpolate(
 
         match lookup.get(key) {
             Some(value) => out.push_str(value),
-            // user-fault surface.
+            // user-fault error path.
             None => {
                 return Err(Report::new(ConfigError::bare(format!(
                     "Missing env var: {key}"

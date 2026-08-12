@@ -1,6 +1,6 @@
 //! HTTP adapter for the transport-neutral application service.
 //!
-//! Authentication is intentionally not implemented here. The deployment
+//! The deployment
 //! boundary must authenticate requests and supply the trusted actor header;
 //! this module validates shape and forwards explicit context only.
 

@@ -1,4 +1,4 @@
-//! Lease-gated startup for one shard writer and command loop.
+//! Lease-guarded startup for one shard writer and command loop.
 
 use crate::orchestrator::routing::TenantKeyspace as _;
 use crate::orchestrator::shard_log::IntegrationsCommandExt as _;

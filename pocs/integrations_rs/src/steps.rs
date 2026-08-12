@@ -226,8 +226,9 @@ async fn exec_transform(
         .await
         .change_context(SourceError)?;
 
-    // Transforms see the FULL rowset (they may aggregate across rows, TS
-    // parity), so this materializes in memory; loud when that gets big.
+    // Transforms see the full rowset (they may aggregate across rows, TS
+    // parity), so this materializes in memory and warns when the rowset
+    // is large.
     if result.rows.len() as u64 > crate::config::sync_window(&crate::config::Env::process()) {
         tracing::warn!(
             "fn step materializes {} rows in memory; prefer a sql step for tables this size",

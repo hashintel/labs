@@ -1,6 +1,7 @@
 //! One-shot production diagnostics and authoritative-store verification.
 //!
-//! These checks are CLI/operator tools, not health probes: the CAS probe
+//! These checks are CLI/operator tools and are unsuitable as health
+//! probes: the CAS probe
 //! performs writes and a full store verification may download large objects.
 
 use crate::orchestrator::routing::TenantKeyspace as _;

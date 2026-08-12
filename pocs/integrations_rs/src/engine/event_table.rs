@@ -1,6 +1,6 @@
 //! Append-path materialize for stream events: builds/evolves the staging
 //! table and inserts one row per event with the envelope rendered host-side.
-//! `_key` is JSON in PRIMARY-KEY DECLARED ORDER (TS `JSON.stringify(ev.key)`
+//! `_key` is JSON in primary-key declared order (TS `JSON.stringify(ev.key)`
 //! parity), `_before` is the JSON'd before-image, cells render like the TS
 //! event path (JS `String()` scalars, JSON columns for structured values).
 //! This is the documented event-path adoption caveat: these bytes are

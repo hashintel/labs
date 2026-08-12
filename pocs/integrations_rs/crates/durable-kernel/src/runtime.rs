@@ -3,14 +3,14 @@
 //!
 //! The driver per shard is small: recover → read → `plan` →
 //! `execute` → append the returned events. There is no durable effect
-//! bookkeeping — completion is represented in the domain events an effect
+//! bookkeeping. Completion is represented in the domain events an effect
 //! returns, and a per-session executed set prevents hot loops (see the
 //! `Executor` contract in [`crate::domain`]).
 //!
 //! Coordination model: run exactly one process per shard set. The SlateDB
-//! writer epoch fences a misdeployment — a second writer makes the first
-//! fail closed — but there is no lease arbitration, so two processes on one
-//! shard fence each other rather than take turns.
+//! writer epoch fences a misdeployment: a second writer makes the first
+//! fail closed. There is no lease arbitration, so two processes on one
+//! shard fence each other instead of taking turns.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -298,7 +298,7 @@ struct DriverSettings {
     snapshot_every_events: u64,
 }
 
-/// Ends the driver cleanly when an error is only the echo of shutdown.
+/// Converts an error into a normal exit when it only reflects shutdown.
 fn command_failure(error: ShardCommandError) -> KernelError {
     KernelError::Internal(error.to_string())
 }
@@ -574,7 +574,7 @@ mod tests {
         exercise_end_to_end(&format!("file://{}", blob.path().display())).await;
     }
 
-    /// Same journey over an S3-compatible endpoint (SlateDB shard log,
+    /// The same sequence over an S3-compatible endpoint (SlateDB shard log,
     /// snapshots, and artifact store all on object storage).
     #[tokio::test]
     #[ignore = "requires an S3-compatible endpoint and INTEGRATIONS_KERNEL_S3_URL=s3://bucket/scratch-prefix"]
@@ -661,7 +661,7 @@ mod tests {
         running.shutdown().await.expect("shutdown");
 
         // Restart with a fresh executor: state recovers (via snapshot), and
-        // the archived counter plans nothing — nothing re-executes.
+        // the archived counter plans nothing, and nothing re-executes.
         let external_after = Arc::new(Mutex::new(Vec::new()));
         let kernel = Kernel::open(config(blob_url, shard.get()))
             .expect("reopen kernel")

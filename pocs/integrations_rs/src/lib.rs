@@ -1,6 +1,6 @@
 // The ex-lab cargo config injects the HASH-repo lint list; correctness and
 // suspicious lints stay hot. The allows below are doc-shape and numeric-cast
-// pedantry that adds noise, not safety, here: string indexing operates on
+// pedantry that adds noise without adding safety here: string indexing operates on
 // regex-validated ASCII, casts are row counts and durations.
 #![allow(
     clippy::missing_errors_doc,
@@ -20,8 +20,8 @@
     clippy::cast_possible_truncation,
     clippy::single_match_else,
     clippy::items_after_statements,
-    // Deliberate: cheap handle clones (Store, Arc callbacks) read better as
-    // .clone(); Reports render via {:?} on purpose; faithful ports keep the
+    // By design: cheap handle clones (Store, Arc callbacks) read better as
+    // .clone(); Reports render via {:?}; faithful ports keep the
     // reference implementation's function shapes; mod.rs is this crate's
     // module layout.
     clippy::clone_on_ref_ptr,

@@ -940,8 +940,9 @@ impl BoundedEffectExecutor {
         maximum_requests: u32,
     ) -> Vec<&'a PreparedEffectV1> {
         let batch_size = self.transport.max_create_batch_size();
-        // Each concurrent batch owns at least four request slots: its bulk
-        // request plus enough room for one worst-case PATCH-first fallback.
+        // Each concurrent batch owns at least four requests of the turn
+        // budget: its bulk request plus enough room for one worst-case
+        // PATCH-first fallback.
         // Dividing the turn budget between groups keeps aggregate fallback
         // charges within the DRR admission even when every batch is rejected.
         let batch_count = usize::try_from(maximum_requests / 4)
@@ -955,8 +956,8 @@ impl BoundedEffectExecutor {
                 effect.effect.operation == dependency_class
                     && !self.conflict_proven(&work.work_id, &effect.effect.effect_id)
             })
-            // Admission charges each optimistic bulk request, not every
-            // hypothetical per-effect fallback.
+            // Admission charges each optimistic bulk request and does not count
+            // hypothetical per-effect fallbacks.
             .take(effect_limit)
             .collect()
     }
@@ -1514,7 +1515,7 @@ impl BoundedEffectExecutor {
                     // state, exactly the situation an at-least-once replay of
                     // an acknowledged-but-uncursored archive produces. It
                     // converges like create-conflict; treating it as a
-                    // permanent failure would wedge Restore behind its own
+                    // permanent failure would block Restore behind its own
                     // successful first delivery.
                     Classified::Conflict => DeliveryAttempt::Acknowledged,
                     Classified::Permanent { status, diagnostic } => {
@@ -2816,7 +2817,7 @@ mod tests {
         // At-least-once redelivery: the first delivery archived the object,
         // the process died before the cursor, and the replay's archive now
         // conflicts. Archived is a terminal state, so the conflict is
-        // convergence, not failure.
+        // convergence rather than failure.
         let transport = Arc::new(ScriptedTransport::with(vec![EffectResponseV1::Http {
             status: 409,
             retry_after: None,

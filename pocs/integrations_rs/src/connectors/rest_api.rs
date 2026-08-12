@@ -409,7 +409,7 @@ fn headers(
 }
 
 fn default_fetcher(env: Env) -> Fetcher {
-    // Build the client (connection pool + TLS config) ONCE, not per page: a
+    // Build the client (connection pool + TLS config) once for the whole fetch: a
     // paginated fetch reuses one pool across all its requests. Redirects stay
     // disabled (a redirect is an unvalidated URL).
     let client = reqwest::Client::builder()

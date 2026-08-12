@@ -28,7 +28,7 @@ const CRASH_HELPER_URL: &str = "INTEGRATIONS_S3_CRASH_HELPER_URL";
 const CRASH_HELPER_EXIT: i32 = 86;
 const EVIDENCE_PREFIX: &str = "INTEGRATIONS_CONTRACT_EVIDENCE ";
 
-/// Bounded end-to-end S3 transfer probe for roles that intentionally lack
+/// Bounded end-to-end S3 transfer probe for roles without
 /// bucket listing. It touches one exact key, verifies the downloaded bytes,
 /// and deletes that key before returning.
 #[tokio::test]
@@ -612,7 +612,7 @@ async fn multipart_process_crash_contract(
     }
 }
 
-/// Subprocess-only helper. `process::exit` intentionally skips `BufWriter`'s
+/// Subprocess-only helper. `process::exit` skips `BufWriter`'s
 /// destructor so the provider sees a real abandoned multipart upload rather
 /// than the graceful abort exercised above.
 #[test]

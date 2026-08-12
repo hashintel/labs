@@ -192,7 +192,7 @@ impl Dispatch for WorkerDispatcher {
                     }
                     // The projection can move between candidate selection and
                     // planning; a no-longer-eligible integration is an idle
-                    // turn, not a dispatch failure.
+                    // turn rather than a dispatch failure.
                     Err(error)
                         if matches!(
                             error.current_context(),

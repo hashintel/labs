@@ -202,7 +202,7 @@ struct Runner {
     /// Whether the previous delivery pass declared a non-empty lane set, so
     /// an idle worker skips redundant empty synchronizations.
     lanes_declared: bool,
-    /// When each currently unowned known shard was first observed unowned,
+    /// When each unowned known shard was first observed unowned,
     /// for the oldest-unowned coverage lower bound.
     unowned_since: BTreeMap<Shard, tokio::time::Instant>,
 }
@@ -643,7 +643,7 @@ impl Runner {
     }
 
     /// Aggregate coverage health: known against owned shards, with the oldest
-    /// unowned age as a lower bound. Pod readiness stays separate by design:
+    /// unowned age as a lower bound. Pod readiness stays separate:
     /// an unowned known shard degrades fleet health without making this
     /// otherwise healthy runner report itself broken.
     fn observe_coverage(&mut self, discovered: &[Shard]) {

@@ -1,7 +1,7 @@
 //! Single resolution point for runtime settings: an explicit environment map
 //! (process env by default; tests pass their own), safe or derived defaults
-//! everywhere. The set of knobs stays small; an empty
-//! environment "just works" on one node.
+//! everywhere. The set of settings stays small; an empty
+//! environment produces a working single-node configuration.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -144,7 +144,7 @@ pub fn sync_window(env: &Env) -> u64 {
 }
 
 /// Successful stream batches between remote DuckDB snapshots. The durable
-/// cursor may intentionally lag: crash recovery replays from the older cursor
+/// cursor may lag: crash recovery replays from the older cursor
 /// for at-least-once delivery without one large object PUT per source batch.
 pub fn stream_state_snapshot_batches(env: &Env) -> u64 {
     env.int("STREAM_STATE_SNAPSHOT_BATCHES", 100)
@@ -245,7 +245,7 @@ pub fn blob_cache_dir(env: &Env) -> std::path::PathBuf {
 }
 
 /// Bounds for disposable local state. The aggregate workspace default is a
-/// node-wide ceiling, not an up-front reservation per run; admission reserves
+/// node-wide ceiling rather than an up-front reservation per run; admission reserves
 /// only the exact restored state plus one checkpoint copy.
 pub fn local_disk_limits(env: &Env) -> Result<crate::local_disk::LocalDiskLimits, String> {
     let database_bytes = duckdb_max_database_bytes(env)?;

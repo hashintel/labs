@@ -1,8 +1,8 @@
 //! Live, operational-only controls backed by the durable blob store.
 //!
 //! These values may change while a run is active because they only affect
-//! pacing and admission, never its definition, pinned inputs, retry policy or
-//! checkpoints. The versioned CAS document is shared by all worker processes.
+//! pacing and admission. The run's definition, pinned inputs, retry
+//! policy, and checkpoints are immutable. The versioned CAS document is shared by all worker processes.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

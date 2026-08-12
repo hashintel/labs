@@ -170,8 +170,8 @@ async fn a_restarted_owner_reclaims_its_unexpired_lease_in_seconds_not_a_lease_d
         .await;
     let surface = harness.surface();
 
-    // Default lease timing: sixty seconds. The whole point of the proof is
-    // that recovery does NOT wait it out.
+    // Default lease timing: sixty seconds. The proof requires that recovery
+    // does not wait it out.
     let owner = &[
         ("INTEGRATIONS_RUNNER_ID", "runner-fixed"),
         ("INTEGRATIONS_MAX_GRAPH_REQUESTS_PER_CHUNK", "2"),

@@ -1,6 +1,6 @@
 //! Disposable OpenData-backed composition for the Phase-2 integration check.
 //!
-//! This is intentionally test-only: it independently implements the V1 port
+//! This is test-only: it independently implements the V1 port
 //! contract for differential conformance.
 
 use crate::orchestrator::routing::TenantKeyspace as _;

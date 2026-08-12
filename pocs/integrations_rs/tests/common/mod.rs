@@ -57,8 +57,8 @@ impl WorkerHarness {
         format!("file://{}", self.remote.path().display())
     }
 
-    /// Environment for in-test command-surface use (submission, status). The
-    /// surface only reads and writes the shared remote prefix.
+    /// Environment for in-test operator-command use (submission, status).
+    /// These commands only read and write the shared remote prefix.
     pub(crate) fn surface_env(&self) -> Env {
         Env::from_map(self.env_map(
             &self.surface_local.path().join("runner"),
@@ -120,12 +120,12 @@ impl WorkerHarness {
             &env,
         )
         .expect("prepare V1 submission");
-        let surface = OperatorCommands::open(&env).expect("open command surface");
+        let surface = OperatorCommands::open(&env).expect("open operator commands");
         surface.submit(prepared).await.expect("submit run")
     }
 
     pub(crate) fn surface(&self) -> OperatorCommands {
-        OperatorCommands::open(&self.surface_env()).expect("open command surface")
+        OperatorCommands::open(&self.surface_env()).expect("open operator commands")
     }
 }
 

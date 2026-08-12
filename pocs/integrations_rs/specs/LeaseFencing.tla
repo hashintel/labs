@@ -10,14 +10,14 @@
 (*                      -> revalidate -> recover -> revalidate -> enable)  *)
 (*   admit_chunk        src/orchestrator/shard.rs                          *)
 (*                                                                         *)
-(* Timing values are NOT fixed constants: Init chooses them from the       *)
-(* configured ranges, filtered by the LeaseTiming::new chunk-fit           *)
-(* inequality (the ChunkCannotFit arm). A passing run therefore checks     *)
-(* every configuration the validator admits within the ranges, not one     *)
-(* sample point. The constructor's second arm, RenewalCannotFit, bounds    *)
-(* renewal PACING (interval + timeout + margin < duration) and is a        *)
-(* liveness concern; this model lets Renew fire at any moment before       *)
-(* expiry, which covers every pacing the arm admits and more.              *)
+(* Timing values are chosen by Init from the configured ranges, filtered   *)
+(* by the LeaseTiming::new chunk-fit inequality (the ChunkCannotFit arm).  *)
+(* A passing run therefore checks every configuration the validator        *)
+(* admits within the ranges. The constructor's second arm,                  *)
+(* RenewalCannotFit, bounds renewal pacing (interval + timeout + margin    *)
+(* < duration) and is a liveness concern; this model lets Renew fire at    *)
+(* any moment before expiry, which covers every pacing the arm admits      *)
+(* and more.                                                                *)
 (*                                                                         *)
 (* Environment axioms (each must stay mapped to an executable contract):   *)
 (*                                                                         *)
@@ -33,9 +33,9 @@
 (*       which the code guarantees structurally: acquisition strictly      *)
 (*       increments lease_epoch and renewal strictly extends expires_at    *)
 (*       (RenewalDoesNotExtend). The model's monotonic ver counter encodes *)
-(*       this consequence rather than re-deriving it; if either structural *)
+(*       this consequence instead of re-deriving it; if either structural  *)
 (*       guarantee is ever weakened, this axiom is the one that breaks     *)
-(*       (classic ABA on content-equal ETags).                             *)
+(*       (ABA on content-equal ETags).                                     *)
 (*                                                                         *)
 (*   A2  SlateDB writer fencing: opening a writer advances a monotonic     *)
 (*       storage epoch and only the holder of the newest epoch can append. *)
@@ -50,8 +50,8 @@
 (*       clock, so no skew term applies to the deadlines themselves).      *)
 (*                                                                         *)
 (*   A4  Wall-clock disagreement between any two runners is bounded by     *)
-(*       the declared clock_skew. Worker clocks DRIFT: each tick redraws   *)
-(*       every offset from 0..ActualSkewBound, so clocks wobble, step      *)
+(*       the declared clock_skew. Worker clocks drift: each tick redraws   *)
+(*       every offset from 0..ActualSkewBound, so clocks vary, step        *)
 (*       forward, and (when the bound permits) step backward, as long as   *)
 (*       pairwise disagreement stays within ActualSkewBound. A deployment  *)
 (*       honors the envelope iff ActualSkewBound <= ClockSkew; running     *)
@@ -61,10 +61,10 @@
 (* The checked property, ChunkExclusion, is the claim in the LeaseTiming   *)
 (* comment: a foreign competitor can never hold the lease while another    *)
 (* worker's admitted chunk is still inside its send/commit window. The     *)
-(* SAME worker reacquiring (crash + restart; no takeover grace applies)    *)
+(* same worker reacquiring (crash + restart; no takeover grace applies)    *)
 (* is allowed: the new incarnation's handshake fences the old writer (A2)  *)
 (* and external sends are convergent, so self-overlap of the send window   *)
-(* is benign.                                                              *)
+(* is safe.                                                                *)
 (***************************************************************************)
 EXTENDS Integers, FiniteSets, TLC
 
@@ -283,13 +283,14 @@ TypeOK ==
 ChunkExclusion ==
   \A w \in Workers : LiveWindows(w) # {} => lease.owner = w
 
-\* NOTE absent on purpose: "commits only happen while holding the lease"
-\* is NOT a property of this protocol. A stale owner may commit until the
-\* successor OPENS the writer (A2 is the fence boundary, not lease
-\* replacement); the successor then recovers the committed prefix. Encoding
-\* that as an invariant would be a specification bug.
+\* "Commits only happen while holding the lease" is false for this
+\* protocol: a stale owner may commit until the successor opens the
+\* writer, because A2 is the fence boundary; the successor then recovers
+\* the committed prefix. Encoding that claim as an invariant would be a
+\* specification bug.
 
-\* Model bound, not a protocol property.
+\* Bounds the model's state space. This is a search bound, without any
+\* protocol meaning.
 StateBound == lease.ver <= MaxVer
 
 ==============================================================================

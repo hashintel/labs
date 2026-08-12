@@ -1,4 +1,4 @@
-//! Registry-gated I/O for versioned records stored at stable CAS keys.
+//! Registry-checked I/O for versioned records stored at stable CAS keys.
 //!
 //! Content-addressed immutable artifacts use [`ArtifactStore::publish_record`].
 //! Every typed record stored at a stable key goes through this module so the

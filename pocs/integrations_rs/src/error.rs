@@ -8,7 +8,7 @@ use core::fmt;
 /// A user fault in integration configuration: YAML shape, missing fields,
 /// broken references, unresolved env vars. Carries every issue found so an
 /// author fixes the config in one pass instead of raise-by-raise.
-/// Deterministic by definition: orchestrators cancel on it, never retry.
+/// Deterministic by definition: orchestrators cancel on it and never retry.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[must_use]
 pub struct ConfigError {

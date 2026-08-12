@@ -7,8 +7,8 @@
 //! forwarding everything else untouched. Delivery must absorb every injected
 //! fault and still converge on the real Graph.
 //!
-//! This is fault injection against running services, not deterministic
-//! simulation: the schedule is scripted and reproducible, but wall-clock
+//! This is fault injection against running services rather than
+//! deterministic simulation: the schedule is scripted and reproducible, but wall-clock
 //! interleaving is real. Deterministic coverage of the same faults lives in
 //! the hermetic crash-replay suite.
 
@@ -215,7 +215,7 @@ async fn real_graph_delivery_converges_under_injected_throttling_and_failures() 
         ),
     ]);
     variables.extend(common::resource_bounds_env());
-    // The surface must not share local state with the workers; see the
+    // The operator commands must not share local state with the workers; see the
     // graph contract test for why.
     let surface_cache = tempfile::tempdir().expect("surface cache");
     let surface_local = tempfile::tempdir().expect("surface local state");
@@ -274,7 +274,7 @@ async fn real_graph_delivery_converges_under_injected_throttling_and_failures() 
             &env,
         )
         .expect("prepare chaos submission");
-        let surface = OperatorCommands::open(&env).expect("open command surface");
+        let surface = OperatorCommands::open(&env).expect("open operator commands");
         let submitted = surface.submit(prepared).await.expect("submit chaos run");
         tracing::info!(round, run_id = %submitted.run_id, "chaos round submitted; spawning worker");
         let mut worker = Command::new(env!("CARGO_BIN_EXE_integrations_rs"));

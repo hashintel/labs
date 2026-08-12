@@ -1,4 +1,4 @@
-//! Protocol V1's shard-log surface over the kernel machinery.
+//! Protocol V1's shard-log layer over the kernel machinery.
 //!
 //! The append handle, retry/ambiguity discipline, and recovery live in
 //! `durable_kernel::shard_log`; this module pins that machinery to

@@ -3,11 +3,12 @@
 //! Every durable key is derived here from one validated [`Namespace`]:
 //! the control layer under `{namespace}/control/v1/...` and content-addressed
 //! artifact prefixes under `{namespace}/artifacts/{kind}/sha256/...`. Call
-//! sites must not format keys ad hoc — a writer and its validator drifting
-//! apart on layout is exactly the bug this type exists to prevent.
+//! sites must not format keys ad hoc. This type exists to prevent a writer
+//! and its validator from disagreeing on layout.
 //!
 //! The layout under a namespace is frozen. A consuming domain derives its
-//! own record-typed keys on top of these methods, never beside them.
+//! own record-typed keys on top of these methods and does not define
+//! parallel layouts.
 
 use std::fmt;
 

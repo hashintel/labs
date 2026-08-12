@@ -1,7 +1,7 @@
 //! Wrapper whose Debug/Display never print the value. Wrap anything
 //! credential-bearing that travels through task state or error reports, so
-//! redaction holds by construction, not by remembering to redact at every
-//! print site. `expose` is the single deliberate way in.
+//! redaction holds by construction and no print site needs to remember to
+//! redact. `expose` is the single intentional way in.
 
 #[derive(Clone, PartialEq, Eq)]
 pub struct Secret<T>(T);

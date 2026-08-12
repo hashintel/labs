@@ -274,7 +274,7 @@ impl RunPlanner {
             path: Some(database),
             allowed_directories: Some(vec![
                 // DuckDB's external-access allowlist is process-global once
-                // locked. Pin the stable disposable root, not one attempt
+                // locked. Pin the stable disposable root instead of one attempt
                 // directory, so a recovered attempt can open its sibling.
                 aggregate_workspace_root.clone(),
                 self.storage.root().to_owned(),

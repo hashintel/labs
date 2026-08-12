@@ -1,9 +1,9 @@
 //! Protocol V1's domain behind the kernel command loop: the
 //! [`IntegrationsDomain`] port implementation, its query vocabulary, and the
-//! V1-typed convenience surface on the kernel's shard command handle.
+//! V1-typed convenience methods on the kernel's shard command handle.
 //!
-//! The loop itself — writer ownership, retry/ambiguity discipline,
-//! sequencing, recovery — is kernel machinery in `durable_kernel::shard_log`;
+//! The loop itself (writer ownership, retry/ambiguity discipline,
+//! sequencing, recovery) is kernel machinery in `durable_kernel::shard_log`;
 //! nothing here can access the append-capable log or clone the projection.
 
 use error_stack::Report;
@@ -92,7 +92,7 @@ pub(crate) struct IntegrationDeliveryView {
     pub(crate) maintenance: super::super::projection::MaintenanceStatus,
     pub(crate) restore_evidence: Option<super::super::projection::RestoreEvidence>,
 }
-/// V1-typed convenience surface on the kernel's shard command handle: the
+/// V1-typed convenience methods on the kernel's shard command handle: the
 /// snapshot publisher and one wrapper per projection query, so callers never
 /// see the raw query enums. Import as `IntegrationsCommandExt as _`.
 pub(crate) trait IntegrationsCommandExt {
@@ -397,8 +397,7 @@ impl IntegrationsCommandExt for ShardCommandHandle {
     }
 
     /// Named-step checkpoint lookup for the backend-neutral orchestration
-    /// port. The production V1 surface reads steps from `RunView`; the
-    /// `cfg(test)` port adapter is the only current caller.
+    /// port. The production V1 path reads steps from `RunView`.
     async fn checkpoint(
         &self,
         run_id: super::super::ids::RunId,

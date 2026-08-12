@@ -25,7 +25,7 @@ fn main() {
         )
         .init();
 
-    // Load .env BEFORE the tokio runtime spawns worker threads: set_var while
+    // Load .env before the tokio runtime spawns worker threads: set_var while
     // other threads may getenv is undefined behavior on POSIX (and a hard
     // error in edition 2024). Doing it here keeps it single-threaded.
     load_dotenv(".env");

@@ -402,7 +402,7 @@ impl ApplyLifecycle {
 
     /// Executes from the latest serialized cursor, never from a caller-held
     /// snapshot. Cancellation or another terminal transition therefore wins
-    /// cleanly before any new Graph request is admitted.
+    /// before any new Graph request is admitted.
     ///
     /// Permit-free entry point for lifecycle reference tests. Production
     /// dispatch always executes through a lease chunk permit.

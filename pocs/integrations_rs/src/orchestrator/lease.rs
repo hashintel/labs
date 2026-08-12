@@ -295,7 +295,7 @@ fn plan_acquisition(
         .ok_or(InvalidLease::EpochOverflow)?;
     // Contention applies only to a foreign owner. The lease's own holder
     // reacquires immediately after a self-inflicted stop (ambiguous append,
-    // renewal wobble): the epoch still advances and the full handshake still
+    // a missed renewal): the epoch still advances and the full handshake still
     // runs, fencing its own stale writer exactly like a foreign one. Runner
     // IDs are unique per process by deployment contract; duplicated IDs make
     // two runners fence each other's epochs, a loud misconfiguration, never

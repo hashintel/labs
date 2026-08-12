@@ -62,7 +62,7 @@ pub trait Domain: Send + Sync + 'static {
     /// In-memory capture handed to the out-of-loop snapshot publisher.
     type SnapshotCapture: Send;
     /// Domain-owned context for materializing snapshot payloads during
-    /// recovery — for example, an artifact store when snapshot payloads
+    /// recovery, for example an artifact store when snapshot payloads
     /// are indirected. A domain whose snapshots are self-contained uses `()`.
     type SnapshotContext: Clone + Send + Sync + 'static;
     /// Recovered live-work descriptor reported to the scheduler at startup.

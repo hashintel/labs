@@ -36,14 +36,15 @@ const MAX_EVENT_RECORD_BYTES: usize = 1024 * 1024;
 /// Serialization must be deterministic (field order fixed, no `HashMap`):
 /// the event's canonical JSON bytes are its durable identity, so a
 /// nondeterministic encoding would make retries look like new events.
-/// The inverse also holds: two byte-identical events are ONE event, and the
+/// The inverse also holds: two byte-identical events are one event, and the
 /// second is deduplicated. An action that can legitimately happen twice
 /// (two equal payments, two equal increments) must carry a distinguishing
 /// field such as a request ID.
 ///
 /// Payload evolution is the author's concern: journal history never
 /// retires, so a type whose shape changes must keep decoding every stored
-/// shape — a versioned serde enum, exactly like the kernel's own envelope.
+/// shape, for example a versioned serde enum like the kernel's own
+/// envelope.
 pub trait DomainEvent: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {
     /// Frozen wire name. Renaming it orphans stored history.
     fn name() -> &'static str;
@@ -58,8 +59,8 @@ pub trait DomainEvent: Serialize + DeserializeOwned + Clone + Send + Sync + 'sta
 /// `validate` is the command-time check: it may reject a proposed event and
 /// is never consulted again once the event is durable. `apply` is the
 /// event-time fold: recorded events are facts, so it is infallible and is
-/// the only thing replay runs — a validation bug can never poison recovery
-/// of history that was already accepted.
+/// the only thing replay runs. A validation bug therefore cannot affect
+/// replay of history that was already accepted.
 ///
 /// The serde bounds exist for snapshots: the kernel periodically embeds the
 /// fold state in a snapshot record so recovery replays a suffix instead of
@@ -80,7 +81,7 @@ pub trait SimpleDomain: Send + Sync + 'static {
 ///
 /// `plan` is a pure function of the fold state. The events `execute`
 /// returns are the effect's durable completion: once they are folded,
-/// `plan` must stop emitting that effect (a fixpoint contract — an effect
+/// `plan` must stop emitting that effect (a fixpoint contract: an effect
 /// whose events do not change what `plan` returns will re-execute after
 /// every restart). Key external side effects by [`effect_id`] so replayed
 /// executions are absorbed idempotently.
@@ -248,7 +249,7 @@ fn derive_event_id<E: DomainEvent>(
 
 impl<E: DomainEvent> EventRecordV1<E> {
     /// Builds the record with its derived identity. This is the only
-    /// constructor: identities are computed, never supplied.
+    /// constructor: identities are always computed. Callers cannot supply them.
     pub fn new(event: E) -> Result<Self, CompatError> {
         let partition = event.partition();
         let event_id = derive_event_id(&partition, &event)?;
@@ -470,7 +471,7 @@ static DOMAIN_SNAPSHOT_DECLARATION: RecordDeclaration = RecordDeclaration {
 
 const MAX_SNAPSHOT_BYTES: usize = 1024 * 1024;
 
-/// Committed snapshot record. The projection is embedded INLINE in the log
+/// Committed snapshot record. The projection is embedded inline in the log
 /// (bounded by [`MAX_SNAPSHOT_BYTES`]); an over-limit projection skips
 /// snapshotting and recovery replays the full journal instead.
 #[derive(Serialize, Deserialize)]

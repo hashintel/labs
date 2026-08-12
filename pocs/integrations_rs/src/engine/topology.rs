@@ -1,6 +1,6 @@
 //! Stable Kahn topological sort of pipelines by declared `dependsOn`,
 //! checkpoint `inputs`, and cross-pipeline step deps, ported with the same
-//! error surface as the TS/Elixir engines.
+//! errors as the TS/Elixir engines.
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 

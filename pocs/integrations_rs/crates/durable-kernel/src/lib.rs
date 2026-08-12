@@ -9,7 +9,7 @@
 
 // The workspace cargo config injects the HASH-repo lint list; correctness
 // and suspicious lints stay hot. The allows below are doc-shape and
-// numeric-cast pedantry that adds noise, not safety, here: string indexing
+// numeric-cast pedantry that adds noise without adding safety here: string indexing
 // operates on validated ASCII, casts are counts and durations.
 #![allow(
     clippy::missing_errors_doc,

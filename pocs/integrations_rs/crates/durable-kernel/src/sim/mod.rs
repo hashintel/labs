@@ -143,11 +143,11 @@ struct SimLogState {
     entries: Vec<SimEntry>,
     next_sequence: u64,
     durable_end_exclusive: u64,
-    /// The epoch of the writer that currently owns the log. A writer whose
+    /// The epoch of the writer that owns the log. A writer whose
     /// epoch is older is fenced, exactly like a superseded SlateDB client.
     writer_epoch: u64,
     /// Sequence gaps only: the real log's sequences are sparse, and the
-    /// dispositions themselves come from the plan, not from this state.
+    /// dispositions come from the plan; this state does not affect them.
     gap_rng: SplitMix64,
     /// The plan's disposition stream, consumed one append at a time. An
     /// exhausted stream serves `AckDurable`, so every plan terminates.
@@ -333,7 +333,7 @@ impl SimWriter {
 
 impl SimLogState {
     fn store(&mut self, key: SimKey, bytes: Vec<u8>) -> u64 {
-        // Sparse on purpose: real log sequences are ordered, not dense.
+        // Real log sequences are ordered and can have gaps.
         let gap = self.gap_rng.between(1, 3);
         let sequence = self.next_sequence;
         self.next_sequence += gap;

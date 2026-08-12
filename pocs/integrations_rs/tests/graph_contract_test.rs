@@ -54,8 +54,8 @@ impl Drop for WorkerGuard {
     }
 }
 
-/// Measures the Graph HTTP write surface without the journal, S3, planning,
-/// or worker lease lifecycle. This is intentionally separate from the
+/// Measures the Graph HTTP write path without the journal, S3, planning,
+/// or worker lease lifecycle. This is separate from the
 /// end-to-end contract below so the two numbers identify where time is spent.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[ignore = "performs real entity writes against an explicitly approved Graph web"]
@@ -217,7 +217,7 @@ async fn real_graph_delivery_contract() {
         ),
     ]);
     variables.extend(common::resource_bounds_env());
-    // The in-test command surface (submit and status polling) must not share
+    // The in-test operator commands (submit and status polling) must not share
     // local state with the workers: only the remote prefix is common, exactly
     // like WorkerHarness. A shared RUNNER_BASE_DIR lets the surface's
     // read-only projection opens collide with the worker's shard-log writer.
@@ -286,7 +286,7 @@ async fn real_graph_delivery_contract() {
             &env,
         )
         .expect("prepare contract submission");
-        let surface = OperatorCommands::open(&env).expect("open command surface");
+        let surface = OperatorCommands::open(&env).expect("open operator commands");
         let started = std::time::Instant::now();
         let submitted = surface.submit(prepared).await.expect("submit contract run");
         let mut worker = Command::new(env!("CARGO_BIN_EXE_integrations_rs"));

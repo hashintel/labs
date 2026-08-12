@@ -577,7 +577,7 @@ async fn migrate_meta(
                 meta.as_ref().and_then(|meta| meta.hash_version).map(|version| version.to_string()).unwrap_or_else(|| "?".to_owned()),
             );
 
-            // The config hash is not part of each row's content hash. Poison
+            // The config hash is not part of each row's content hash. Invalidate
             // the previous hashes before diffing so every current row is
             // retried and only acknowledged slices restore canonical hashes.
             let state_table = format!("_state/sync/{connector_id}/{sink_id}");
@@ -636,7 +636,7 @@ async fn stream_upserts(
     // Per-slice state commit: acked ids replace their state rows, so a crash
     // resumes from committed work. A commit failure is recorded (not
     // swallowed): the graph write already landed, so we do not abort, but the
-    // resume anchor did not advance and that must surface in the result so the
+    // resume anchor did not advance and that must appear in the result so the
     // run is marked failed and the operator sees a non-converging sync.
     let commit_failed = Arc::new(AtomicBool::new(false));
     let commit_store = store.clone();
@@ -789,7 +789,7 @@ pub async fn upsert_staged(
             }
         }
 
-        // Quarantine BEFORE sending: state commits inside the client call, so
+        // Quarantine before sending: state commits inside the client call, so
         // a crash after commit but before recording would freeze rows as
         // unchanged with a stale DLQ. Clear-then-record-then-send is
         // idempotent under any crash.

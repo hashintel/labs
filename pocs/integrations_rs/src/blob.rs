@@ -140,7 +140,7 @@ impl ObjectStore for ObservedObjectStore {
         &self,
         prefix: Option<&ObjectPath>,
     ) -> BoxStream<'static, object_store::Result<ObjectMeta>> {
-        // Provider pagination is intentionally opaque at this boundary. One
+        // Provider pagination is opaque at this boundary. One
         // counter value is one engine LIST scan, while returned object bytes
         // are not charged as payload bytes.
         self.telemetry.record_object_store_operation(
@@ -426,7 +426,7 @@ pub struct ArtifactStore {
     telemetry: OperationalTelemetry,
     prefix: String,
     /// Filesystem backend root, used to emulate conditional update because
-    /// object_store's LocalFileSystem intentionally returns NotImplemented.
+    /// object_store's LocalFileSystem returns NotImplemented.
     local_root: Option<PathBuf>,
     cache_root: PathBuf,
     staging_root: PathBuf,
@@ -644,7 +644,7 @@ impl ArtifactStore {
     }
 
     /// Checks that an immutable reference resolves to an object with the
-    /// expected content-addressed key and size. This is intentionally a HEAD
+    /// expected content-addressed key and size. This is a HEAD
     /// check; callers requiring byte-level integrity use [`Self::materialize`].
     pub async fn inspect(&self, reference: &BlobRef) -> Result<ListedObject, Report<BlobError>> {
         let value = reference.current();
@@ -909,7 +909,7 @@ impl ArtifactStore {
         // during upload. Retain those exact bytes in the disposable cache so
         // the execution phase does not immediately download its own output.
         // S3 remains authoritative; a cache-admission failure is therefore
-        // non-fatal by design; materialization will fetch it normally.
+        // non-fatal; materialization fetches the object normally.
         self.seed_cache_best_effort(&reference, &source).await;
         Ok(reference)
     }
@@ -2509,8 +2509,8 @@ mod tests {
         aborted.abort().await.unwrap();
 
         let observed = store.telemetry().snapshot(chrono::Utc::now()).object_store;
-        // A new bounded immutable object uses atomic create + one confirming
-        // HEAD; it no longer needs a speculative existence HEAD.
+        // A new bounded immutable object uses atomic create plus one
+        // confirming HEAD.
         assert_eq!(observed.head_operations_total, 1);
         assert!(observed.get_operations_total >= 1);
         assert!(observed.put_operations_total >= 1);

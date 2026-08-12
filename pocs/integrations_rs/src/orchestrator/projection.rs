@@ -654,8 +654,8 @@ fn prepare_kernel(
 
 /// Integrations half of the fold: run-scoped facts (artifacts, steps), state
 /// checkpoint lineage, and desired-state control. Touches kernel admission
-/// only through `promote_if_eligible` and `accept_request` — the transitions
-/// the kernel lets a domain trigger.
+/// only through `promote_if_eligible` and `accept_request`, which are the
+/// transitions the kernel lets a domain trigger.
 fn prepare_integrations(
     state: &Projection,
     record: &JournalRecordV1,

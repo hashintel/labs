@@ -10,11 +10,10 @@
 //! violates a property.
 //!
 //! The oracles are independent of the transition logic under test: state
-//! ground truth is read from the simulated journal, never from the loop,
+//! ground truth is read only from the simulated journal,
 //! and effect ground truth is an external ledger that records every
-//! execution, repeats included; nothing here
-//! ledger. Every property evaluated here is in [`crate::properties`]; a
-//! violation panics with the property ID.
+//! execution, repeats included. Every property evaluated here is in
+//! [`crate::properties`]; a violation panics with the property ID.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -151,7 +150,7 @@ pub struct DstEffect {
 
 /// The executor contract's pure half: archive every counter at or past the
 /// threshold. Folding the completion resets the total, so the same effect
-/// leaves the plan — the fixpoint the harness checks as `KRN-A9`.
+/// leaves the plan. This is the fixpoint the harness checks as `KRN-A9`.
 fn plan_effects(projection: &DstCounters) -> Vec<DstEffect> {
     projection
         .totals
@@ -369,7 +368,7 @@ impl Driver<'_> {
                 .snapshot_through_log_sequence
                 .is_some(),
         );
-        // Grounded in the journal, not driver bookkeeping: the newest
+        // Grounded in the journal instead of driver bookkeeping: the newest
         // stored snapshot is unreadable, and recovery completed anyway.
         properties::covered(
             coverage,
@@ -576,14 +575,14 @@ impl Driver<'_> {
                 self.crash_and_recover(coverage).await;
             }
             Err(_not_committed) => {
-                // A lost snapshot commit costs replay length, never state.
+                // A lost snapshot commit costs replay length. State is unaffected.
             }
         }
     }
 
     /// Crashes inside the durable-but-unacknowledged window: forces an
     /// ambiguous durable append, gates the loop's ambiguity recovery, and
-    /// kills the loop at that pause — so the journal holds an
+    /// kills the loop at that pause, so the journal holds an
     /// event no caller ever saw acknowledged. The next recovery must adopt
     /// it, and the reference fold proves it counts exactly once.
     async fn crash_mid_ambiguity(
@@ -996,7 +995,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert!(
             missing.is_empty(),
-            "{schedules} schedules never produced: {missing:?} — the campaign needs a richer \
+            "{schedules} schedules never produced: {missing:?}; the campaign needs a richer \
              schedule vocabulary"
         );
     }

@@ -310,7 +310,7 @@ mod tests {
             coerce_number(&json!("1.234.567,89")),
             Some(json!(1_234_567.89))
         );
-        // US thousands separators are NOT handled: comma before the last dot
+        // US thousands separators are not handled: comma before the last dot
         // means not-EU, and JS Number("1,234.56") is NaN (TS parity).
         assert_eq!(coerce_number(&json!("1,234.56")), None);
         assert_eq!(coerce_number(&json!("42")), Some(json!(42)));

@@ -387,8 +387,9 @@ impl ControlInbox {
 
         // Normative recovery order: durable outcome lookup comes before
         // authorization, artifact validation, target validation, or admission
-        // promotion. A post-append restart must recover success, not invent a
-        // stale-revision rejection against success's new revision.
+        // promotion. A post-append restart must recover the recorded success
+        // instead of creating a stale-revision rejection against that
+        // success's new revision.
         let snapshot = self
             .command
             .inspect_control(request.clone())

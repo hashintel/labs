@@ -1,8 +1,8 @@
 //! Definition (YAML/JSON) to engine structures, ported from the TS/Elixir
 //! builders. Accessors become columns or tagged transforms; tagged accessors
 //! count as non-column for hash-path selection, exactly like TS function
-//! accessors. `build` runs `validate` first and returns ONE `ConfigError`
-//! carrying EVERY issue found (paths included), so an author fixes a config
+//! accessors. `build` runs `validate` first and returns one `ConfigError`
+//! carrying every issue found (paths included), so an author fixes a config
 //! in a single pass; lints (TRY_CAST, unknown keys) warn without failing.
 
 use std::collections::HashMap;

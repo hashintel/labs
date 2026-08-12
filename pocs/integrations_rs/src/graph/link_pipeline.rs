@@ -193,7 +193,7 @@ pub async fn process(
         progress::duration(t0.elapsed().as_millis() as i64)
     );
 
-    // Delivery counts surface at flush; unchanged and quarantine are
+    // Delivery counts are reported at flush; unchanged and quarantine are
     // process-time facts and must still reach the durable run result.
     Ok(SyncResult {
         unchanged,
@@ -803,7 +803,7 @@ pub async fn flush(
 }
 
 // Finalize `_state/links` from the staged next state: keep upserts whose op
-// left pending (they flushed) and archives that did NOT leave pending (still
+// left pending (they flushed) and archives that did not leave pending (still
 // exist, retry recorded); then drop the staging table.
 async fn commit_link_state(
     store: &Store,

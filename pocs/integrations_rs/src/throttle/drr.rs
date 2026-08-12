@@ -405,7 +405,7 @@ impl DrrScheduler {
         }
         // From here the admission owns the in-flight ticket, so every error
         // exit must still consume it and leave the lane schedulable:
-        // a rejected settlement that strands `in_flight` would wedge the lane
+        // a rejected settlement that strands `in_flight` would stall the lane
         // forever (admit skips in-flight lanes and synchronize cannot remove
         // them). `park_lane` is that single error tail.
         let used = charge.graph_requests_used();
@@ -446,7 +446,7 @@ impl DrrScheduler {
 
     /// The single error tail for a settlement whose admission owned the
     /// in-flight ticket: consume the ticket, reset accumulated credit, and
-    /// requeue the lane so a rejected settlement can never wedge it.
+    /// requeue the lane so a rejected settlement cannot stall it.
     fn park_lane(
         &mut self,
         key: (LaneClass, String),

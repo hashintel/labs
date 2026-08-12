@@ -1,7 +1,7 @@
 //! Deterministic UUID v5 scheme shared with the TS/Elixir engines: sha1 over
 //! a fixed 16-byte namespace and `"{ns}::{entityType}::{entityId}"`, with RFC
 //! 4122 version/variant bits. Entity ids render through JS `String()`
-//! semantics (1.0 -> "1"); this byte sequence is the linchpin of convergence
+//! semantics (1.0 -> "1"); this byte sequence is the basis of convergence
 //! and must never drift (pinned by golden vectors).
 
 use serde_json::Value;

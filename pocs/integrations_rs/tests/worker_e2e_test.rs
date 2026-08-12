@@ -1,4 +1,4 @@
-//! One complete V1 submission through the public command surface, the real
+//! One complete V1 submission through the public operator commands, the real
 //! activation boundary, and the production runner, in process: submit before
 //! the worker exists, activate, recover the admission, plan, deliver one
 //! Graph request, and observe a terminal run on attempt one.

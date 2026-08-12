@@ -36,8 +36,6 @@ use tokio::net::{TcpListener, TcpStream};
 const ENDPOINT: &str = "127.0.0.1:8929";
 const MAX_ATTEMPTS: u32 = 4;
 
-// --- domain ----------------------------------------------------------------
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum RelayEvent {
@@ -124,8 +122,6 @@ impl SimpleDomain for RelayDomain {
     type Projection = RelayQueue;
 }
 
-// --- executor ---------------------------------------------------------------
-
 #[derive(Debug, Clone, Serialize)]
 struct DeliveryAttempt {
     delivery: String,
@@ -135,7 +131,7 @@ struct DeliveryAttempt {
 
 struct HttpDeliverer {
     /// Exit after the endpoint accepts a webhook but before its completion
-    /// event reaches the journal — the at-least-once window.
+    /// event reaches the journal. This is the at-least-once window.
     crash_on_delivery: bool,
 }
 
@@ -217,8 +213,6 @@ async fn http_post(body: &str, idempotency_key: &str) -> std::io::Result<u16> {
         .ok_or_else(|| std::io::Error::other("malformed response"))
 }
 
-// --- demo endpoint: the external world, persisted across the relay's crash --
-
 #[derive(Default, Serialize, Deserialize)]
 struct EndpointState {
     attempts: BTreeMap<String, u32>,
@@ -281,8 +275,6 @@ async fn run_endpoint(listener: TcpListener) {
         });
     }
 }
-
-// --- demo driver -------------------------------------------------------------
 
 fn state_dir() -> std::path::PathBuf {
     std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/webhook_relay_demo")

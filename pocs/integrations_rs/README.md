@@ -62,8 +62,8 @@ the serialized command loop.
 
 `verify-store` validates the V1 baseline and canonical tenant inventory.
 
-The production worker remains fail-closed until the explicit activation gate is
-complete. The only accepted activation form is:
+The production worker remains fail-closed until explicit activation
+completes. The only accepted activation form is:
 
 ```text
 integrations_rs serve --activate-baseline
@@ -91,14 +91,14 @@ The deployment boundary authenticates requests and supplies the trusted
 `x-hash-actor-id` header. The HTTP module contains only strict transport DTOs,
 error/status mapping, and OpenAPI generation; durable orchestration is behind a
 framework-independent service interface. The current worker is configured for
-one `HASH_WEB_ID`, so the API rejects another web rather than accepting work no
-local worker can consume. Fleet-wide multi-web discovery is a separate rollout
+one `HASH_WEB_ID`. The API rejects requests for other webs because no local
+worker can consume them. Fleet-wide multi-web discovery is a separate rollout
 step.
 
 The authenticated actor is stored in the immutable run input and carried into
-the state and work manifests. Graph requests—including retries, Restore, and
-Reconcile—so use the run owner recorded by durable history rather than
-the actor configured on whichever node executes the work.
+the state and work manifests. Graph requests, including retries, Restore, and
+Reconcile, use the run owner recorded in durable history instead of the actor
+configured on the node that executes the work.
 
 Both production modes authorize baseline initialization and leased worker
 construction only after registry, migration-capability, configuration,
