@@ -61,15 +61,25 @@ mod tests {
 
     #[test]
     fn shard_range_is_closed_and_path_is_fixed_width() {
-        assert_eq!(Shard::try_from(0).expect("minimum shard").get(), 0);
-        assert_eq!(Shard::try_from(255).expect("maximum shard").get(), 255);
+        assert_eq!(
+            Shard::try_from(0)
+                .expect("minimum shard should be valid")
+                .get(),
+            0
+        );
+        assert_eq!(
+            Shard::try_from(255)
+                .expect("maximum shard should be valid")
+                .get(),
+            255
+        );
         assert_eq!(Shard::try_from(256), Err(InvalidShard { value: 256 }));
         assert_eq!(
-            shard_path(Shard::try_from(0).expect("minimum shard")),
+            shard_path(Shard::try_from(0).expect("minimum shard should be valid")),
             "000"
         );
         assert_eq!(
-            shard_path(Shard::try_from(255).expect("maximum shard")),
+            shard_path(Shard::try_from(255).expect("maximum shard should be valid")),
             "0ff"
         );
     }

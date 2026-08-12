@@ -13,7 +13,9 @@
 //!
 //! The demo endpoint refuses every webhook twice before accepting it, never
 //! accepts the poison one, and persists its own state: like a real external
-//! service, it outlives the relay's crash.
+//! service, it outlives the relay's crash. For the same program written
+//! for Temporal, with a row-by-row mapping of the guarantees, see
+//! `local/docs/webhook-relay-vs-temporal.md`.
 
 #![allow(
     clippy::expect_used,
@@ -51,7 +53,7 @@ impl DomainEvent for RelayEvent {
     }
 
     fn partition(&self) -> PartitionKey {
-        PartitionKey::parse("relay").expect("static key")
+        PartitionKey::parse("relay").expect("static key should parse")
     }
 }
 
@@ -151,7 +153,7 @@ impl Executor<RelayDomain> for HttpDeliverer {
     }
 
     async fn execute(&self, effect: &DeliveryAttempt) -> Result<Vec<RelayEvent>, Retry> {
-        let key = effect_id(effect).expect("effect serializes");
+        let key = effect_id(effect).expect("effect should serialize");
         let delivery = effect.delivery.clone();
         match http_post(&effect.body, &key).await {
             Ok(status) if (200..300).contains(&status) => {
@@ -245,7 +247,7 @@ async fn run_endpoint(listener: TcpListener) {
                 .to_owned();
             let body = text.split("\r\n\r\n").nth(1).unwrap_or("").to_owned();
             let status = {
-                let mut state = state.lock().expect("endpoint mutex");
+                let mut state = state.lock().expect("endpoint mutex should not be poisoned");
                 let status = if state.accepted_keys.contains(&key) {
                     println!("  {body} → duplicate absorbed (idempotency key already accepted)");
                     200
@@ -261,7 +263,10 @@ async fn run_endpoint(listener: TcpListener) {
                         503
                     }
                 };
-                let _ = std::fs::write(&path, serde_json::to_vec(&*state).expect("serializes"));
+                let _ = std::fs::write(
+                    &path,
+                    serde_json::to_vec(&*state).expect("state should serialize"),
+                );
                 status
             };
             let _ = socket
@@ -292,7 +297,7 @@ async fn report_recovery(running: &RunningKernel<RelayDomain>, key: &PartitionKe
             )
         })
         .await
-        .expect("read queue");
+        .expect("queue read should succeed");
     let snapshot = running
         .recovery_snapshots()
         .values()
@@ -349,25 +354,25 @@ async fn main() {
     println!("── durable webhook relay ── journal at target/webhook_relay_demo ──");
     let listener = TcpListener::bind(ENDPOINT)
         .await
-        .expect("bind demo endpoint");
+        .expect("demo endpoint should bind");
     tokio::spawn(run_endpoint(listener));
 
-    let key = PartitionKey::parse("relay").expect("static key");
+    let key = PartitionKey::parse("relay").expect("static key should parse");
     let mut config = KernelConfig::new("webhookrelay", format!("file://{}", state_dir().display()));
     config.shards = vec![u16::from(shard_of(&key).get())];
     config.snapshot_every_events = 8;
     config.poll_interval = Duration::from_millis(50);
 
     let kernel = Kernel::open(config)
-        .expect("open kernel")
+        .expect("kernel should open")
         .register::<RelayDomain>()
-        .expect("register relay domain");
+        .expect("relay domain should register");
     let running = kernel
         .start(HttpDeliverer {
             crash_on_delivery: mode == "crash",
         })
         .await
-        .expect("start kernel");
+        .expect("kernel should start");
 
     report_recovery(&running, &key).await;
     submit_demo_webhooks(&running).await;
@@ -377,7 +382,7 @@ async fn main() {
         let pending = running
             .read(&key, |queue: &RelayQueue| queue.pending.len())
             .await
-            .expect("read queue");
+            .expect("queue read should succeed");
         if pending == 0 {
             break;
         }
@@ -401,7 +406,7 @@ async fn main() {
             lines
         })
         .await
-        .expect("read summary");
+        .expect("summary read should succeed");
     println!("\n── settled ── every outcome below survives restarts ──");
     for line in settled {
         println!("{line}");
@@ -410,5 +415,5 @@ async fn main() {
         println!("\n  next: rerun with `-- crash` to kill the relay mid-delivery, then");
         println!("  plain to watch recovery finish the interrupted work. `-- reset` wipes.");
     }
-    running.shutdown().await.expect("clean shutdown");
+    running.shutdown().await.expect("shutdown should be clean");
 }

@@ -538,12 +538,13 @@ impl ShardLogWriter {
         Ok(output.start_sequence)
     }
 
-    /// The real backing log; the durability-wait tests drive it directly.
+    /// The real backing log; the durability-wait tests poll its watermark
+    /// directly instead of going through a command handle.
     #[cfg(test)]
     fn raw_log(&self) -> &LogDb {
         match &self.backend {
             WriterBackend::Real(log) => log,
-            WriterBackend::Sim(_writer) => panic!("this test requires a real log"),
+            WriterBackend::Sim(_writer) => panic!("a real log should be configured for this test"),
         }
     }
 
@@ -978,8 +979,8 @@ mod tests {
 
     impl TestPrefixCapability {
         fn new() -> Self {
-            intern_declaration(TEST_RECORD_DECLARATION).expect("test declaration interns");
-            let root = tempfile::tempdir().expect("create test object-store root");
+            intern_declaration(TEST_RECORD_DECLARATION).expect("test declaration should intern");
+            let root = tempfile::tempdir().expect("test object-store root should be created");
             Self {
                 object_store_root: root.path().to_path_buf(),
                 _root: root,
@@ -1131,7 +1132,7 @@ mod tests {
             }
         );
         appended.unwrap();
-        waited.expect("a stalled attempt retries until the watermark advances");
+        waited.expect("a stalled attempt should retry until the watermark advances");
 
         // Exhaustion still fails closed, after exactly the bounded attempts.
         let started = std::time::Instant::now();

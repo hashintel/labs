@@ -38,7 +38,7 @@ const ARCHIVE_THRESHOLD: u64 = 10;
 /// Effect turns one quiescence may need before `plan` must drain to empty.
 const FIXPOINT_TURN_BOUND: u32 = 8;
 
-/// The event vocabulary the simulation drives. Increments carry a request
+/// The event vocabulary the simulation submits. Increments carry a request
 /// number so a repeated action is a distinct event (an amount of zero is
 /// the always-rejected submission); archives are effect completions,
 /// distinguished across cycles by the archive count they extend.
@@ -71,7 +71,8 @@ impl DomainEvent for DstEvent {
     }
 
     fn partition(&self) -> PartitionKey {
-        PartitionKey::parse(self.counter()).expect("simulation counters are valid partition keys")
+        PartitionKey::parse(self.counter())
+            .expect("simulation counters should be valid partition keys")
     }
 }
 
@@ -263,7 +264,8 @@ pub fn derive_plan(seed: u64, weights: DispositionWeights) -> SchedulePlan {
 /// it. Deterministically picks the anchor counter's shard and the first
 /// three candidate names that hash there.
 fn shared_shard_counters() -> (crate::routing::Shard, Vec<String>) {
-    let anchor = PartitionKey::parse("alpha").expect("anchor counter is a valid partition key");
+    let anchor =
+        PartitionKey::parse("alpha").expect("anchor counter should be a valid partition key");
     let shard = domain::shard_of(&anchor);
     let mut counters = vec!["alpha".to_owned()];
     for candidate in 0_u32.. {
@@ -271,7 +273,8 @@ fn shared_shard_counters() -> (crate::routing::Shard, Vec<String>) {
             break;
         }
         let name = format!("counter-{candidate}");
-        let key = PartitionKey::parse(&name).expect("candidate counter is a valid partition key");
+        let key =
+            PartitionKey::parse(&name).expect("candidate counter should be a valid partition key");
         if domain::shard_of(&key) == shard {
             counters.push(name);
         }
@@ -345,11 +348,11 @@ impl Driver<'_> {
         let location = ShardLogLocation::simulated(shard, journal.clone());
         let opened = OpenedShard::open(location)
             .await
-            .expect("open simulated shard");
+            .expect("simulated shard should open");
         let recovered = opened
             .recover_with_snapshots::<Hosted<DstDomain>>(&())
             .await
-            .expect("recover simulated shard");
+            .expect("simulated shard should recover");
         recovered.enable_with_harness(ShardCommandConfig::default().allow_local_reopen(), harness)
     }
 
@@ -470,7 +473,7 @@ impl Driver<'_> {
             amount: 0,
             request: self.next_request,
         };
-        let record = EventRecordV1::new(event).expect("encode invalid-amount event");
+        let record = EventRecordV1::new(event).expect("invalid-amount event should encode");
         let event_id = record.event_id.clone();
         self.proposed.insert(event_id.clone());
         match self.handle().propose(record).await {
@@ -481,7 +484,7 @@ impl Driver<'_> {
                 self.trace.push("invalid submit hit terminal loop".into());
                 self.crash_and_recover(coverage).await;
             }
-            Ok(outcome) => panic!("fold must reject a zero amount, got {outcome:?}"),
+            Ok(outcome) => panic!("fold should reject a zero amount, got {outcome:?}"),
         }
     }
 
@@ -501,7 +504,7 @@ impl Driver<'_> {
         self.handle()
             .read(|projection| projection.domain().clone())
             .await
-            .expect("freshly recovered loop serves reads")
+            .expect("freshly recovered loop should serve reads")
     }
 
     /// One executor turn: plan against the live projection, execute every
@@ -511,8 +514,8 @@ impl Driver<'_> {
         let projection = self.read_projection(coverage).await;
         let effects = plan_effects(&projection);
         for effect in &effects {
-            let identity = effect_id(effect).expect("effect serializes");
-            let payload = serde_json::to_vec(effect).expect("effect serializes");
+            let identity = effect_id(effect).expect("effect should serialize");
+            let payload = serde_json::to_vec(effect).expect("effect should serialize");
             let executions = self.executions.entry(identity.clone()).or_default();
             if let Some(previous) = executions.first() {
                 properties::check(
@@ -533,7 +536,7 @@ impl Driver<'_> {
                 upto: effect.upto,
                 cycle: effect.cycle,
             };
-            let record = EventRecordV1::new(completion).expect("encode completion event");
+            let record = EventRecordV1::new(completion).expect("completion event should encode");
             self.trace.push(format!(
                 "execute archive {}@{}",
                 effect.counter, effect.upto
@@ -602,7 +605,7 @@ impl Driver<'_> {
             .force_outcomes([SimAppendOutcome::CommitUnknownDurable]);
 
         let event = self.fresh_event(counter, amount);
-        let record = EventRecordV1::new(event).expect("encode ambiguous event");
+        let record = EventRecordV1::new(event).expect("ambiguous event should encode");
         self.proposed.insert(record.event_id.clone());
         let handle = self.handle();
         let gated_record = record.clone();
@@ -652,9 +655,9 @@ impl Driver<'_> {
         let mut reference = ReferenceState::default();
         for (_sequence, bytes) in self.journal.durable_entries(SimKey::Events) {
             let record = EventRecord::<DstEvent>::decode(&bytes)
-                .expect("durable simulation entries decode")
+                .expect("durable simulation entries should decode")
                 .normalize()
-                .expect("durable simulation entries normalize");
+                .expect("durable simulation entries should normalize");
             if !reference.event_ids.insert(record.event_id.clone()) {
                 continue;
             }
@@ -733,7 +736,7 @@ impl Driver<'_> {
             );
         }
         for archive in &reference.archive_events {
-            let identity = effect_id(archive).expect("effect serializes");
+            let identity = effect_id(archive).expect("effect should serialize");
             properties::check(
                 &properties::DURABLE_COMPLETION_IMPLIES_EXECUTED,
                 self.executions.contains_key(&identity),
@@ -769,7 +772,7 @@ pub async fn run_plan(
     coverage: &mut CoverageLedger,
     trace: &mut Vec<String>,
 ) -> ScheduleReport {
-    domain::register::<DstDomain>().expect("register simulation domain");
+    domain::register::<DstDomain>().expect("simulation domain should register");
     let journal = SimLogHandle::new(plan.gap_seed, plan.dispositions.clone());
     let (shard, counters) = shared_shard_counters();
 
@@ -795,7 +798,7 @@ pub async fn run_plan(
             PlannedAction::SubmitFresh { counter, amount } => {
                 let event = driver.fresh_event(*counter, *amount);
                 driver.trace.push(format!("{step}: submit {event:?}"));
-                let record = EventRecordV1::new(event).expect("encode fresh event");
+                let record = EventRecordV1::new(event).expect("fresh event should encode");
                 driver.submit(record, SubmitKind::Fresh, coverage).await;
             }
             PlannedAction::SubmitDuplicate { index } => {
@@ -884,7 +887,7 @@ mod tests {
         let runtime = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .expect("build current-thread runtime");
+            .expect("current-thread runtime should build");
         let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
             runtime.block_on(run_plan(plan, coverage, &mut trace))
         }));
@@ -943,7 +946,7 @@ mod tests {
             let runtime = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
-                .expect("build current-thread runtime");
+                .expect("current-thread runtime should build");
             runtime.block_on(run_plan(&plan, &mut coverage, &mut trace));
         }
     }
@@ -957,7 +960,7 @@ mod tests {
         if let Ok(replay) = std::env::var("INTEGRATIONS_DST_SEED") {
             let seed = replay
                 .parse::<u64>()
-                .expect("INTEGRATIONS_DST_SEED is a u64");
+                .expect("INTEGRATIONS_DST_SEED should be a u64");
             let plan = derive_plan(seed, DispositionWeights::DEFAULT);
             let mut coverage = CoverageLedger::new();
             let (trace, result) = run_one(&plan, &mut coverage);
@@ -1007,8 +1010,8 @@ mod tests {
         let mut second_coverage = CoverageLedger::new();
         let (first_trace, first) = run_one(&plan, &mut first_coverage);
         let (second_trace, second) = run_one(&plan, &mut second_coverage);
-        let first = first.expect("plan 42 completes");
-        let second = second.expect("plan 42 completes");
+        let first = first.expect("plan 42 should complete");
+        let second = second.expect("plan 42 should complete");
         assert_eq!(first_trace, second_trace);
         assert_eq!(first.steps, second.steps);
         assert_eq!(first.acknowledged_events, second.acknowledged_events);

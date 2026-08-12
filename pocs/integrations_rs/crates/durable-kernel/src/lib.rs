@@ -5,7 +5,7 @@
 //! A domain implements the user-facing traits in [`domain`] (or, for full
 //! control, the internal port in [`port`]) and runs through [`runtime`].
 //! Storage layout is derived in [`keyspace`]; record codecs register through
-//! [`registry`]; the append/recovery machinery lives in [`shard_log`].
+//! [`registry`]; append and recovery are implemented in [`shard_log`].
 
 // The workspace cargo config injects the HASH-repo lint list; correctness
 // and suspicious lints stay hot. The allows below are doc-shape and

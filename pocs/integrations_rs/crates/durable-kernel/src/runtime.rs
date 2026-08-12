@@ -450,7 +450,7 @@ mod tests {
             let counter = match self {
                 Self::Incremented { counter, .. } | Self::Archived { counter, .. } => counter,
             };
-            PartitionKey::parse(counter.as_str()).expect("test counters are valid keys")
+            PartitionKey::parse(counter.as_str()).expect("test counters should be valid keys")
         }
     }
 
@@ -524,7 +524,7 @@ mod tests {
         async fn execute(&self, effect: &ArchiveEffect) -> Result<Vec<RtEvent>, Retry> {
             self.external
                 .lock()
-                .expect("test mutex")
+                .expect("test mutex should not be poisoned")
                 .push((effect.counter.clone(), effect.total));
             Ok(vec![RtEvent::Archived {
                 counter: effect.counter.clone(),
@@ -565,12 +565,12 @@ mod tests {
             }
         })
         .await
-        .expect("condition within timeout");
+        .expect("condition should hold within the timeout");
     }
 
     #[tokio::test]
     async fn kernel_end_to_end_executes_effects_once_and_recovers() {
-        let blob = tempfile::tempdir().expect("blob root");
+        let blob = tempfile::tempdir().expect("blob root tempdir should be created");
         exercise_end_to_end(&format!("file://{}", blob.path().display())).await;
     }
 
@@ -580,10 +580,10 @@ mod tests {
     #[ignore = "requires an S3-compatible endpoint and INTEGRATIONS_KERNEL_S3_URL=s3://bucket/scratch-prefix"]
     async fn kernel_end_to_end_on_s3() {
         let base_url = std::env::var("INTEGRATIONS_KERNEL_S3_URL")
-            .expect("set INTEGRATIONS_KERNEL_S3_URL=s3://bucket/scratch-prefix");
+            .expect("INTEGRATIONS_KERNEL_S3_URL should be set to s3://bucket/scratch-prefix");
         let unique = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .expect("clock after epoch")
+            .expect("clock should be after the epoch")
             .as_nanos();
         let run_url = format!(
             "{}/kernel-e2e-{}-{}",
@@ -595,46 +595,46 @@ mod tests {
     }
 
     async fn exercise_end_to_end(blob_url: &str) {
-        let orders = PartitionKey::parse("orders").expect("valid key");
+        let orders = PartitionKey::parse("orders").expect("key should be valid");
         let shard = domain::shard_of(&orders);
         let external = Arc::new(Mutex::new(Vec::new()));
 
         let kernel = Kernel::open(config(blob_url, shard.get()))
-            .expect("open kernel")
+            .expect("kernel should open")
             .register::<RtDomain>()
-            .expect("register domain");
+            .expect("domain should register");
         let running = kernel
             .start(ArchiveExecutor {
                 threshold: 10,
                 external: Arc::clone(&external),
             })
             .await
-            .expect("start kernel");
+            .expect("kernel should start");
 
         assert_eq!(
             running
                 .submit(increment("orders", 1, 6))
                 .await
-                .expect("submit"),
+                .expect("submit should succeed"),
             Submitted::Applied
         );
         assert_eq!(
             running
                 .submit(increment("orders", 2, 5))
                 .await
-                .expect("submit"),
+                .expect("submit should succeed"),
             Submitted::Applied
         );
         wait_until(async || {
             running
                 .read(&orders, |projection| projection.archived.clone())
                 .await
-                .expect("read")
+                .expect("read should succeed")
                 == vec![11]
         })
         .await;
         assert_eq!(
-            *external.lock().expect("test mutex"),
+            *external.lock().expect("test mutex should not be poisoned"),
             vec![("orders".to_owned(), 11)],
             "the effect must execute exactly once in this session"
         );
@@ -642,7 +642,7 @@ mod tests {
             running
                 .read(&orders, |projection| projection.totals.clone())
                 .await
-                .expect("read"),
+                .expect("read should succeed"),
             BTreeMap::new(),
             "archiving resets the counter"
         );
@@ -650,30 +650,30 @@ mod tests {
             running
                 .submit(increment("orders", 1, 6))
                 .await
-                .expect("resubmit"),
+                .expect("resubmit should succeed"),
             Submitted::AlreadyDurable
         );
         let rejection = running
             .submit(increment("orders", 9, 0))
             .await
-            .expect_err("zero increment must be rejected");
+            .expect_err("zero increment should be rejected");
         assert!(rejection.to_string().contains("increment must be nonzero"));
-        running.shutdown().await.expect("shutdown");
+        running.shutdown().await.expect("shutdown should succeed");
 
         // Restart with a fresh executor: state recovers (via snapshot), and
         // the archived counter plans nothing, and nothing re-executes.
         let external_after = Arc::new(Mutex::new(Vec::new()));
         let kernel = Kernel::open(config(blob_url, shard.get()))
-            .expect("reopen kernel")
+            .expect("kernel should reopen")
             .register::<RtDomain>()
-            .expect("re-register domain");
+            .expect("domain should re-register");
         let running = kernel
             .start(ArchiveExecutor {
                 threshold: 10,
                 external: Arc::clone(&external_after),
             })
             .await
-            .expect("restart kernel");
+            .expect("kernel should restart");
         assert!(
             running.recovery_snapshots()[&shard.get()].is_some(),
             "recovery must adopt a committed snapshot"
@@ -682,47 +682,54 @@ mod tests {
             running
                 .read(&orders, |projection| projection.archived.clone())
                 .await
-                .expect("read after restart"),
+                .expect("read after restart should succeed"),
             vec![11]
         );
         tokio::time::sleep(Duration::from_millis(100)).await;
         assert!(
-            external_after.lock().expect("test mutex").is_empty(),
+            external_after
+                .lock()
+                .expect("test mutex should not be poisoned")
+                .is_empty(),
             "a folded completion must not re-execute after restart"
         );
-        running.shutdown().await.expect("shutdown after restart");
+        running
+            .shutdown()
+            .await
+            .expect("shutdown after restart should succeed");
     }
 
     #[tokio::test]
     async fn foreign_partitions_are_not_owned() {
-        let blob = tempfile::tempdir().expect("blob root");
+        let blob = tempfile::tempdir().expect("blob root tempdir should be created");
         let blob_url = format!("file://{}", blob.path().display());
-        let orders = PartitionKey::parse("orders").expect("valid key");
+        let orders = PartitionKey::parse("orders").expect("key should be valid");
         let shard = domain::shard_of(&orders);
         let foreign = (0..1024_u32)
             .map(|attempt| format!("other-{attempt}"))
             .find(|candidate| {
-                domain::shard_of(&PartitionKey::parse(candidate.as_str()).expect("valid key"))
-                    != shard
+                domain::shard_of(
+                    &PartitionKey::parse(candidate.as_str()).expect("key should be valid"),
+                ) != shard
             })
-            .expect("some key routes elsewhere");
+            .expect("some key should route elsewhere");
 
         let kernel = Kernel::open(config(&blob_url, shard.get()))
-            .expect("open kernel")
+            .expect("kernel should open")
             .register::<RtDomain>()
-            .expect("register domain");
+            .expect("domain should register");
         let running = kernel
             .start(ArchiveExecutor {
                 threshold: u64::MAX,
                 external: Arc::new(Mutex::new(Vec::new())),
             })
             .await
-            .expect("start kernel");
+            .expect("kernel should start");
         let error = running
             .submit(increment(&foreign, 1, 1))
             .await
-            .expect_err("foreign partition must be refused");
+            .expect_err("foreign partition should be refused");
         assert!(matches!(error, KernelError::NotOwned { .. }));
-        running.shutdown().await.expect("shutdown");
+        running.shutdown().await.expect("shutdown should succeed");
     }
 }

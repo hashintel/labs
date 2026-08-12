@@ -172,7 +172,7 @@ mod tests {
     use super::*;
 
     fn keyspace() -> Keyspace {
-        Keyspace::new(Namespace::parse("tenants/alice").expect("valid namespace"))
+        Keyspace::new(Namespace::parse("tenants/alice").expect("namespace should be valid"))
     }
 
     #[test]
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn control_keys_match_the_frozen_layout() {
         let keyspace = keyspace();
-        let shard = Shard::try_from(15).expect("valid shard");
+        let shard = Shard::try_from(15).expect("shard should be valid");
         assert_eq!(keyspace.control_root(), "tenants/alice/control/v1");
         assert_eq!(
             keyspace.baseline(),
@@ -231,13 +231,15 @@ mod tests {
     fn artifact_keys_match_the_frozen_layout() {
         let keyspace = keyspace();
         assert_eq!(
-            keyspace.artifact_prefix("run-inputs").expect("valid kind"),
+            keyspace
+                .artifact_prefix("run-inputs")
+                .expect("kind should be valid"),
             "tenants/alice/artifacts/run-inputs"
         );
         assert_eq!(
             keyspace
                 .artifact_digest_prefix("run-inputs")
-                .expect("valid kind"),
+                .expect("kind should be valid"),
             "tenants/alice/artifacts/run-inputs/sha256/"
         );
         assert!(keyspace.artifact_prefix("no/slash").is_err());

@@ -3,7 +3,8 @@
 //! by one blanket impl. A domain author writes an event type, a fold, and
 //! an effect executor; dedup, sequencing, prefix validation, snapshots, and
 //! recovery are kernel bookkeeping in [`KernelProjection`] and never user
-//! work. The runtime driving all of it is [`crate::runtime`].
+//! work. The loop that folds events and executes effects is
+//! [`crate::runtime`].
 //!
 //! There is no separate signal channel: `submit` is the command path,
 //! validated by the fold and idempotent by content identity; the control
@@ -203,10 +204,10 @@ pub fn shard_of(key: &PartitionKey) -> Shard {
     let routing_value = u64::from_be_bytes(
         digest[..8]
             .try_into()
-            .expect("a SHA-256 digest always contains eight prefix bytes"),
+            .expect("a SHA-256 digest should contain eight prefix bytes"),
     );
     Shard::try_from((routing_value % u64::from(SHARD_COUNT)) as u16)
-        .expect("a value reduced modulo the shard count is a valid shard")
+        .expect("a value reduced modulo the shard count should be a valid shard")
 }
 
 /// Kernel-owned wire envelope for one hosted domain's journal. Each event
@@ -320,7 +321,7 @@ fn event_declaration<E: DomainEvent>() -> RecordDeclaration {
 impl<E: DomainEvent> DurableRecord for EventRecord<E> {
     fn declaration() -> &'static RecordDeclaration {
         registry::intern_declaration(event_declaration::<E>())
-            .unwrap_or_else(|error| panic!("hosted event name is unusable: {error}"))
+            .unwrap_or_else(|error| panic!("hosted event name should be usable: {error}"))
     }
 
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::NeverRetireWhileUntrimmed;
@@ -950,7 +951,7 @@ mod tests {
         }
 
         fn partition(&self) -> PartitionKey {
-            PartitionKey::parse(self.counter()).expect("test counters are valid keys")
+            PartitionKey::parse(self.counter()).expect("test counters should be valid keys")
         }
     }
 
@@ -1004,7 +1005,7 @@ mod tests {
             counter: counter.to_owned(),
             amount,
         })
-        .expect("valid toy event")
+        .expect("toy event should be valid")
     }
 
     fn toy_log_path(shard: Shard) -> String {
@@ -1017,8 +1018,10 @@ mod tests {
     async fn start(
         location: ShardLogLocation,
     ) -> (crate::shard_log::ShardCommandHandle<Toy>, StartedShard<Toy>) {
-        let opened = OpenedShard::open(location).await.expect("open shard");
-        let recovered: RecoveredShard<Toy> = opened.recover().await.expect("recover shard");
+        let opened = OpenedShard::open(location)
+            .await
+            .expect("shard should open");
+        let recovered: RecoveredShard<Toy> = opened.recover().await.expect("shard should recover");
         let started = recovered.enable(ShardCommandConfig::default());
         (started.handle.clone(), started)
     }
@@ -1026,15 +1029,23 @@ mod tests {
     #[test]
     fn wire_shape_is_frozen() {
         let record = incremented("orders", 5);
-        let encoded = EventRecord::V1(record.clone()).encode().expect("encode");
+        let encoded = EventRecord::V1(record.clone())
+            .encode()
+            .expect("record should encode");
         let expected = format!(
             r#"{{"version":"v1","data":{{"event_id":"{}","partition":"orders","event":{{"kind":"incremented","counter":"orders","amount":5}}}}}}"#,
             record.event_id
         );
-        assert_eq!(String::from_utf8(encoded.clone()).expect("utf8"), expected);
-        let decoded = EventRecord::<CounterEvent>::decode(&encoded).expect("decode");
         assert_eq!(
-            decoded.normalize().expect("normalize").event_id,
+            String::from_utf8(encoded.clone()).expect("encoded record should be valid UTF-8"),
+            expected
+        );
+        let decoded = EventRecord::<CounterEvent>::decode(&encoded).expect("record should decode");
+        assert_eq!(
+            decoded
+                .normalize()
+                .expect("record should normalize")
+                .event_id,
             record.event_id
         );
     }
@@ -1048,7 +1059,7 @@ mod tests {
         assert!(EventRecord::V1(forged).encode().is_err());
 
         let mut moved = record;
-        moved.partition = PartitionKey::parse("payments").expect("valid key");
+        moved.partition = PartitionKey::parse("payments").expect("key should be valid");
         assert!(moved.verify().is_err());
     }
 
@@ -1058,11 +1069,11 @@ mod tests {
         let record = incremented("orders", 5);
 
         let Prepared::Mutation(delta) =
-            Toy::prepare(&projection, &record).expect("fresh event is admitted")
+            Toy::prepare(&projection, &record).expect("fresh event should be admitted")
         else {
-            panic!("fresh event must be a mutation");
+            panic!("fresh event should be a mutation");
         };
-        Toy::finalize(&mut projection, delta, 0).expect("finalize at sequence zero");
+        Toy::finalize(&mut projection, delta, 0).expect("finalize at sequence zero should succeed");
         assert_eq!(projection.domain().totals["orders"], 5);
         assert_eq!(projection.partition_sequence(&record.partition), Some(0));
 
@@ -1073,11 +1084,13 @@ mod tests {
 
         let mut forged = incremented("orders", 6);
         forged.event_id = record.event_id.clone();
-        // Forged identity fails verification before the reuse check.
-        assert!(Toy::prepare(&projection, &forged).is_err());
+        assert!(
+            Toy::prepare(&projection, &forged).is_err(),
+            "forged identity should fail verification before the reuse check"
+        );
 
         let rejected = incremented("orders", 0);
-        let error = Toy::prepare(&projection, &rejected).expect_err("validation must reject");
+        let error = Toy::prepare(&projection, &rejected).expect_err("validation should reject");
         assert!(error.to_string().contains("increment must be nonzero"));
     }
 
@@ -1088,10 +1101,10 @@ mod tests {
         let mut projection = KernelProjection::<Counters>::default();
 
         Toy::replay(&mut projection, shard, 0, EventRecord::V1(record.clone()))
-            .expect("first replay applies");
+            .expect("first replay should apply");
         // A lost-ack retry can durably append the same record twice.
         Toy::replay(&mut projection, shard, 1, EventRecord::V1(record.clone()))
-            .expect("duplicate replay is a no-op");
+            .expect("duplicate replay should be a no-op");
         assert_eq!(projection.domain().totals["orders"], 5);
         assert_eq!(projection.through_log_sequence(), Some(1));
 
@@ -1101,7 +1114,7 @@ mod tests {
             1,
             EventRecord::V1(incremented("orders", 7)),
         )
-        .expect_err("sequence must advance");
+        .expect_err("a non-advancing sequence should be rejected");
         assert!(error.contains("does not advance"));
     }
 
@@ -1111,7 +1124,7 @@ mod tests {
         let shard = shard_of(&record.partition);
         let mut acknowledged = KernelProjection::<Counters>::default();
         Toy::replay(&mut acknowledged, shard, 0, EventRecord::V1(record))
-            .expect("replay acknowledged record");
+            .expect("acknowledged record should replay");
 
         let empty = KernelProjection::<Counters>::default();
         assert!(Toy::validate_recovered_prefix(&acknowledged, &empty).is_err());
@@ -1121,44 +1134,51 @@ mod tests {
 
     #[tokio::test]
     async fn propose_read_dedupe_and_reject_through_the_real_loop() {
-        register::<ToyDomain>().expect("register toy name");
-        let root = tempfile::tempdir().expect("object store root");
+        register::<ToyDomain>().expect("toy name should register");
+        let root = tempfile::tempdir().expect("object store root tempdir should be created");
         let record = incremented("orders", 5);
         let shard = shard_of(&record.partition);
         let location = ShardLogLocation::disposable_local(shard, &toy_log_path(shard), root.path());
 
         let (handle, started) = start(location).await;
         assert!(matches!(
-            handle.propose(record.clone()).await.expect("propose"),
+            handle
+                .propose(record.clone())
+                .await
+                .expect("propose should succeed"),
             ShardCommandOutcome::Applied { .. }
         ));
         assert!(matches!(
             handle
                 .propose(record.clone())
                 .await
-                .expect("duplicate propose"),
+                .expect("duplicate propose should succeed"),
             ShardCommandOutcome::AlreadyDurable { .. }
         ));
         let totals = handle
             .read(|projection| projection.domain().totals.clone())
             .await
-            .expect("read");
+            .expect("read should succeed");
         assert_eq!(totals["orders"], 5);
 
         let rejection = handle
             .propose(incremented("orders", 0))
             .await
-            .expect_err("validation rejection");
+            .expect_err("validation should reject the record");
         assert!(rejection.message.contains("increment must be nonzero"));
 
-        handle.shutdown().await.expect("shutdown");
-        started.task.await.expect("join loop").expect("clean stop");
+        handle.shutdown().await.expect("shutdown should succeed");
+        started
+            .task
+            .await
+            .expect("loop task should join")
+            .expect("loop should stop cleanly");
     }
 
     #[tokio::test]
     async fn crash_replay_rebuilds_state_and_still_dedupes() {
-        register::<ToyDomain>().expect("register toy name");
-        let root = tempfile::tempdir().expect("object store root");
+        register::<ToyDomain>().expect("toy name should register");
+        let root = tempfile::tempdir().expect("object store root tempdir should be created");
         // Both counters must route to the same shard for a one-shard rig.
         let first = incremented("orders", 5);
         let shard = shard_of(&first.partition);
@@ -1166,7 +1186,7 @@ mod tests {
         let reset = EventRecordV1::new(CounterEvent::Reset {
             counter: "orders".to_owned(),
         })
-        .expect("valid reset");
+        .expect("reset event should be valid");
 
         let after_reset = incremented("orders", 3);
 
@@ -1179,17 +1199,24 @@ mod tests {
             after_reset.clone(),
         ] {
             assert!(matches!(
-                handle.propose(record).await.expect("propose"),
+                handle
+                    .propose(record)
+                    .await
+                    .expect("propose should succeed"),
                 ShardCommandOutcome::Applied { .. }
             ));
         }
         let totals = handle
             .read(|projection| projection.domain().totals.clone())
             .await
-            .expect("read");
+            .expect("read should succeed");
         assert_eq!(totals["orders"], 3);
-        handle.shutdown().await.expect("shutdown");
-        started.task.await.expect("join loop").expect("clean stop");
+        handle.shutdown().await.expect("shutdown should succeed");
+        started
+            .task
+            .await
+            .expect("loop task should join")
+            .expect("loop should stop cleanly");
 
         let (handle, started) = start(location).await;
         // Log sequences are not dense per record; only their ordering is
@@ -1197,91 +1224,113 @@ mod tests {
         let through = handle
             .read(KernelProjection::through_log_sequence)
             .await
-            .expect("read recovered sequence")
-            .expect("recovered projection has a durable sequence");
+            .expect("recovered sequence read should succeed")
+            .expect("recovered projection should have a durable sequence");
         assert!(through < started.recovery.durable_end_exclusive);
         assert!(started.recovery.live_work.is_empty());
         assert_eq!(started.state_changes.initial, vec![first.partition.clone()]);
         let totals = handle
             .read(|projection| projection.domain().totals.clone())
             .await
-            .expect("read after recovery");
+            .expect("read after recovery should succeed");
         assert_eq!(totals["orders"], 3);
-        // Identity is content-derived: an event already durable before the
-        // crash is a duplicate after it, and folds nothing.
-        assert!(matches!(
-            handle.propose(second).await.expect("replayed duplicate"),
-            ShardCommandOutcome::AlreadyDurable { .. }
-        ));
+        assert!(
+            matches!(
+                handle
+                    .propose(second)
+                    .await
+                    .expect("replayed duplicate should be acknowledged"),
+                ShardCommandOutcome::AlreadyDurable { .. }
+            ),
+            "identity is content-derived, so an event durable before the crash \
+             should be a duplicate after it and fold nothing"
+        );
         assert!(matches!(
             handle
                 .propose(incremented("orders", 2))
                 .await
-                .expect("fresh event after recovery"),
+                .expect("fresh event after recovery should be accepted"),
             ShardCommandOutcome::Applied { .. }
         ));
         let totals = handle
             .read(|projection| projection.domain().totals.clone())
             .await
-            .expect("read after new appends");
+            .expect("read after new appends should succeed");
         assert_eq!(totals["orders"], 5);
-        handle.shutdown().await.expect("shutdown");
-        started.task.await.expect("join loop").expect("clean stop");
+        handle.shutdown().await.expect("shutdown should succeed");
+        started
+            .task
+            .await
+            .expect("loop task should join")
+            .expect("loop should stop cleanly");
     }
 
     #[tokio::test]
     async fn foreign_partition_is_rejected() {
-        register::<ToyDomain>().expect("register toy name");
-        let root = tempfile::tempdir().expect("object store root");
+        register::<ToyDomain>().expect("toy name should register");
+        let root = tempfile::tempdir().expect("object store root tempdir should be created");
         let record = incremented("orders", 5);
         let shard = shard_of(&record.partition);
         let foreign = (0..1024_u32)
             .map(|attempt| incremented(&format!("other-{attempt}"), 1))
             .find(|candidate| shard_of(&candidate.partition) != shard)
-            .expect("some key routes elsewhere");
+            .expect("some key should route elsewhere");
 
         let location = ShardLogLocation::disposable_local(shard, &toy_log_path(shard), root.path());
         let (handle, started) = start(location).await;
         let error = handle
             .propose(foreign)
             .await
-            .expect_err("foreign partition must be refused");
+            .expect_err("foreign partition should be refused");
         assert!(error.message.contains("routes to a different shard"));
-        handle.shutdown().await.expect("shutdown");
-        started.task.await.expect("join loop").expect("clean stop");
+        handle.shutdown().await.expect("shutdown should succeed");
+        started
+            .task
+            .await
+            .expect("loop task should join")
+            .expect("loop should stop cleanly");
     }
 
     #[tokio::test]
     async fn snapshots_bound_recovery_and_roundtrip_state() {
-        register::<ToyDomain>().expect("register toy name");
-        let root = tempfile::tempdir().expect("object store root");
+        register::<ToyDomain>().expect("toy name should register");
+        let root = tempfile::tempdir().expect("object store root tempdir should be created");
         let record = incremented("orders", 5);
         let shard = shard_of(&record.partition);
         let location = ShardLogLocation::disposable_local(shard, &toy_log_path(shard), root.path());
 
         let (handle, started) = start(location.clone()).await;
         for event in [record.clone(), incremented("orders", 7)] {
-            handle.propose(event).await.expect("propose");
+            handle.propose(event).await.expect("propose should succeed");
         }
         let payload = handle
             .capture_snapshot(1)
             .await
-            .expect("capture")
-            .expect("span of two events is snapshot-worthy");
+            .expect("snapshot capture should succeed")
+            .expect("a span of two events should be snapshot-worthy");
         let snapshot = payload.into_record(chrono::Utc::now().to_rfc3339());
-        handle.commit_snapshot(snapshot).await.expect("commit");
+        handle
+            .commit_snapshot(snapshot)
+            .await
+            .expect("snapshot commit should succeed");
         handle
             .propose(incremented("orders", 3))
             .await
-            .expect("post-snapshot event");
-        handle.shutdown().await.expect("shutdown");
-        started.task.await.expect("join loop").expect("clean stop");
+            .expect("post-snapshot event should be accepted");
+        handle.shutdown().await.expect("shutdown should succeed");
+        started
+            .task
+            .await
+            .expect("loop task should join")
+            .expect("loop should stop cleanly");
 
-        let opened = OpenedShard::open(location).await.expect("reopen");
+        let opened = OpenedShard::open(location)
+            .await
+            .expect("shard should reopen");
         let recovered: RecoveredShard<Toy> = opened
             .recover_with_snapshots(&())
             .await
-            .expect("recover with snapshots");
+            .expect("recovery with snapshots should succeed");
         let restarted = recovered.enable(ShardCommandConfig::default());
         assert!(
             restarted.recovery.snapshot_through_log_sequence.is_some(),
@@ -1291,14 +1340,18 @@ mod tests {
             .handle
             .read(|projection| projection.domain().totals.clone())
             .await
-            .expect("read after snapshot recovery");
+            .expect("read after snapshot recovery should succeed");
         assert_eq!(totals["orders"], 15);
-        restarted.handle.shutdown().await.expect("shutdown");
+        restarted
+            .handle
+            .shutdown()
+            .await
+            .expect("shutdown should succeed");
         restarted
             .task
             .await
-            .expect("join loop")
-            .expect("clean stop");
+            .expect("loop task should join")
+            .expect("loop should stop cleanly");
     }
 
     #[test]
@@ -1312,8 +1365,8 @@ mod tests {
 
     #[test]
     fn dynamic_registration_is_idempotent_and_collision_safe() {
-        register::<ToyDomain>().expect("first registration");
-        register::<ToyDomain>().expect("repeat registration is idempotent");
+        register::<ToyDomain>().expect("first registration should succeed");
+        register::<ToyDomain>().expect("repeat registration should be idempotent");
         let conflicting = RecordDeclaration {
             emitted_version: 2,
             supported_versions: &[1, 2],

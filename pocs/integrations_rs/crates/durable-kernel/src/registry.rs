@@ -254,9 +254,9 @@ mod tests {
     #[test]
     fn interning_is_idempotent_and_refuses_conflicting_redeclaration() {
         let first = intern_declaration(declaration("kernel_registry_test_record"))
-            .expect("fresh declaration interns");
+            .expect("fresh declaration should intern");
         let second = intern_declaration(declaration("kernel_registry_test_record"))
-            .expect("identical declaration re-interns");
+            .expect("identical declaration should re-intern");
         assert!(std::ptr::eq(first, second));
 
         let conflicting = RecordDeclaration {
