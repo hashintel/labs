@@ -1,0 +1,2923 @@
+# =============================================================================
+# SAP MOCK DATA SCHEMA DOCUMENTATION
+# =============================================================================
+# This file is the source of truth for table and column descriptions.
+# It includes primary keys, foreign keys, and standardized field descriptions.
+#
+# Structure:
+#   tables:
+#     table_name:
+#       description: Table description
+#       primary_key: [list of PK columns]
+#       foreign_keys:
+#         - columns: [FK columns]
+#           references: {table: ref_table, columns: [ref_columns]}
+#       columns:
+#         column_name:
+#           description: Column description
+#           data_type: Data type
+#           nullable: true/false
+# =============================================================================
+
+_metadata:
+  catalog: sample_synthetic_sap
+  schema: sap
+  exported_at: '2026-02-26'
+  exported_by: Schema Documentation System
+  description: >
+    SAP Mock Data schema documentation. This file is the source of truth for
+    table and column descriptions, primary keys, and foreign key relationships.
+
+# =============================================================================
+# CANONICAL FIELD DEFINITIONS
+# =============================================================================
+# Common SAP fields used consistently across tables:
+#
+#   MANDT    - Client (SAP system identifier)
+#   MATNR    - Material Number
+#   WERKS    - Plant
+#   LGORT    - Storage Location
+#   CHARG    - Batch Number
+#   KUNNR    - Customer Number
+#   LIFNR    - Vendor Number
+#   AUFNR    - Production Order Number
+#   VBELN    - Document Number (Sales/Delivery/Shipment)
+#   POSNR    - Item Number
+#   ERDAT    - Created Date
+#   AEDAT    - Changed Date
+#   MEINS    - Base Unit of Measure
+#   WAERS    - Currency
+#   MENGE    - Quantity
+#   BUDAT    - Posting Date
+#   NETWR    - Net Value
+#   NETPR    - Net Price
+# =============================================================================
+
+tables:
+
+  # ===========================================================================
+  # MATERIAL MASTER DATA
+  # ===========================================================================
+
+  mara:
+    description: |
+      **SAP Table MARA - General Material Data**
+
+      Contains basic material master data applicable across all organizational levels.
+      This is the central material master table in SAP.
+    primary_key: [MANDT, MATNR]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      MTART:
+        description: Material Type (FERT=Finished Good, ROH=Raw Material)
+        data_type: STRING
+        nullable: true
+      MATKL:
+        description: Material Group
+        data_type: STRING
+        nullable: true
+      MEINS:
+        description: Base Unit of Measure
+        data_type: STRING
+        nullable: true
+      BRGEW:
+        description: Gross Weight
+        data_type: DOUBLE
+        nullable: true
+
+  makt:
+    description: |
+      **SAP Table MAKT - Material Descriptions**
+
+      Contains material description texts in multiple languages.
+    primary_key: [MANDT, MATNR, SPRAS]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      SPRAS:
+        description: Language Key
+        data_type: STRING
+        nullable: false
+      MAKTX:
+        description: Material Description Text
+        data_type: STRING
+        nullable: true
+
+  marc:
+    description: |
+      **SAP Table MARC - Plant Data for Material**
+
+      Contains material master data specific to a plant, including MRP and
+      procurement settings.
+    primary_key: [MANDT, MATNR, WERKS]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      BESKZ:
+        description: Procurement Type (E=In-house Production, F=External Procurement)
+        data_type: STRING
+        nullable: true
+      BSTMI:
+        description: Minimum Order Quantity
+        data_type: LONG
+        nullable: true
+      BSTMA:
+        description: Maximum Order Quantity
+        data_type: LONG
+        nullable: true
+      BSTFE:
+        description: Fixed Lot Size
+        data_type: LONG
+        nullable: true
+      BSTRF:
+        description: Rounding Value for Order Quantity
+        data_type: LONG
+        nullable: true
+      LGPRO:
+        description: Production Storage Location
+        data_type: STRING
+        nullable: true
+      DISPO:
+        description: MRP Controller
+        data_type: STRING
+        nullable: true
+      EISBE:
+        description: Safety Stock Quantity
+        data_type: LONG
+        nullable: true
+
+  mard:
+    description: |
+      **SAP Table MARD - Storage Location Data for Material**
+
+      Contains inventory data at the storage location level. This is where
+      current stock quantities are maintained.
+    primary_key: [MANDT, MATNR, WERKS, LGORT]
+    foreign_keys:
+      - columns: [MANDT, MATNR, WERKS]
+        references: {table: marc, columns: [MANDT, MATNR, WERKS]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      LGORT:
+        description: Storage Location
+        data_type: STRING
+        nullable: false
+      CHARG:
+        description: Batch Number
+        data_type: STRING
+        nullable: true
+      LABST:
+        description: Unrestricted Stock Quantity
+        data_type: DOUBLE
+        nullable: true
+
+  mardh:
+    description: |
+      **SAP Table MARDH - Historical Storage Location Data**
+
+      Contains historical inventory snapshots by fiscal period (year/month)
+      for tracking stock level changes over time.
+    primary_key: [MANDT, MATNR, WERKS, LGORT, CHARG, LFGJA, LFMON]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      LGORT:
+        description: Storage Location
+        data_type: STRING
+        nullable: false
+      CHARG:
+        description: Batch Number
+        data_type: STRING
+        nullable: true
+      LFGJA:
+        description: Fiscal Year
+        data_type: STRING
+        nullable: false
+      LFMON:
+        description: Fiscal Period (Month)
+        data_type: STRING
+        nullable: false
+      LABST:
+        description: Unrestricted Stock Quantity
+        data_type: DOUBLE
+        nullable: true
+      UMLME:
+        description: Stock in Transfer
+        data_type: LONG
+        nullable: true
+      INSME:
+        description: Quality Inspection Stock
+        data_type: LONG
+        nullable: true
+      EINME:
+        description: Restricted Stock
+        data_type: LONG
+        nullable: true
+      SPEME:
+        description: Blocked Stock
+        data_type: LONG
+        nullable: true
+      RETME:
+        description: Returns Stock
+        data_type: LONG
+        nullable: true
+      VKLAB:
+        description: Consignment Stock from Vendor
+        data_type: DOUBLE
+        nullable: true
+      VKUML:
+        description: Consignment Stock in Transfer
+        data_type: DOUBLE
+        nullable: true
+
+  marm:
+    description: |
+      **SAP Table MARM - Units of Measure for Material**
+
+      Contains alternative units of measure and conversion factors for materials.
+    primary_key: [MANDT, MATNR, MEINH]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      MEINH:
+        description: Alternative Unit of Measure
+        data_type: STRING
+        nullable: false
+      UMREZ:
+        description: Numerator for Conversion to Base UoM
+        data_type: LONG
+        nullable: true
+      UMREN:
+        description: Denominator for Conversion to Base UoM
+        data_type: DOUBLE
+        nullable: true
+      LAENG:
+        description: Length
+        data_type: LONG
+        nullable: true
+      BREIT:
+        description: Width
+        data_type: LONG
+        nullable: true
+      HOEHE:
+        description: Height
+        data_type: LONG
+        nullable: true
+      VOLUM:
+        description: Volume
+        data_type: DOUBLE
+        nullable: true
+      VOLEH:
+        description: Volume Unit
+        data_type: STRING
+        nullable: true
+      BRGEW:
+        description: Gross Weight
+        data_type: DOUBLE
+        nullable: true
+      GEWEI:
+        description: Weight Unit
+        data_type: STRING
+        nullable: true
+
+  mbew:
+    description: |
+      **SAP Table MBEW - Material Valuation**
+
+      Contains material valuation data including prices and stock values
+      at the valuation area (typically plant) level.
+    primary_key: [MANDT, MATNR, BWKEY]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      BWKEY:
+        description: Valuation Area (Plant)
+        data_type: STRING
+        nullable: false
+      WAERS:
+        description: Currency
+        data_type: STRING
+        nullable: true
+      VPRSV:
+        description: Price Control (S=Standard, V=Moving Average)
+        data_type: STRING
+        nullable: true
+      VERPR:
+        description: Moving Average Price
+        data_type: DOUBLE
+        nullable: true
+      STPRS:
+        description: Standard Price
+        data_type: DOUBLE
+        nullable: true
+      PEINH:
+        description: Price Unit
+        data_type: LONG
+        nullable: true
+      LBKUM:
+        description: Total Valuated Stock Quantity
+        data_type: DOUBLE
+        nullable: true
+      SALK3:
+        description: Total Stock Value
+        data_type: DOUBLE
+        nullable: true
+      ZKPRS:
+        description: Future Price
+        data_type: DOUBLE
+        nullable: true
+      ZKDAT:
+        description: Future Price Valid From Date
+        data_type: STRING
+        nullable: true
+      BKLAS:
+        description: Valuation Class
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # BATCH MASTER DATA
+  # ===========================================================================
+
+  mch1:
+    description: |
+      **SAP Table MCH1 - Batch Master (Client Level)**
+
+      Contains batch master data at the client level, applicable across all plants.
+    primary_key: [MANDT, MATNR, CHARG]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      CHARG:
+        description: Batch Number
+        data_type: STRING
+        nullable: false
+      VEESSION:
+        description: Batch Status
+        data_type: STRING
+        nullable: true
+      HSDAT:
+        description: Production Date
+        data_type: STRING
+        nullable: true
+      VFDAT:
+        description: Shelf Life Expiration Date
+        data_type: STRING
+        nullable: true
+      LAESSION:
+        description: Last Status Change Date
+        data_type: STRING
+        nullable: true
+      LWEESSION:
+        description: Last Goods Movement Date
+        data_type: STRING
+        nullable: true
+      ZUESSION:
+        description: Batch Status Code
+        data_type: STRING
+        nullable: true
+      ZESSION:
+        description: Batch Restriction
+        data_type: STRING
+        nullable: true
+      HESSION:
+        description: Origin
+        data_type: STRING
+        nullable: true
+      LOBM_LIFNR:
+        description: Vendor Number for Batch
+        data_type: STRING
+        nullable: true
+
+  mcha:
+    description: |
+      **SAP Table MCHA - Batch Master (Plant Level)**
+
+      Contains batch master data at the plant level with stock quantities.
+    primary_key: [MANDT, MATNR, WERKS, CHARG]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      CHARG:
+        description: Batch Number
+        data_type: STRING
+        nullable: false
+      LVORM:
+        description: Deletion Flag
+        data_type: STRING
+        nullable: true
+      ERSDA:
+        description: Created Date
+        data_type: STRING
+        nullable: true
+      ERNAM:
+        description: Created By
+        data_type: STRING
+        nullable: true
+      VFDAT:
+        description: Shelf Life Expiration Date
+        data_type: STRING
+        nullable: true
+      ZUESSION:
+        description: Batch Status Code
+        data_type: STRING
+        nullable: true
+      CLABS:
+        description: Unrestricted Batch Stock
+        data_type: DOUBLE
+        nullable: true
+      CUMLM:
+        description: Batch Stock in Transfer
+        data_type: LONG
+        nullable: true
+      CINSM:
+        description: Batch Stock in Quality Inspection
+        data_type: LONG
+        nullable: true
+      CEINM:
+        description: Restricted Batch Stock
+        data_type: LONG
+        nullable: true
+      CSPEM:
+        description: Blocked Batch Stock
+        data_type: LONG
+        nullable: true
+
+  # ===========================================================================
+  # BILL OF MATERIALS (BOM)
+  # ===========================================================================
+
+  mast:
+    description: |
+      **SAP Table MAST - Material to BOM Link**
+
+      Links materials to their bill of materials. The parent material (finished
+      good) is stored here, linking to BOM header in STKO.
+    primary_key: [MANDT, MATNR, WERKS, STLAN]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+      - columns: [MANDT, MATNR, WERKS]
+        references: {table: marc, columns: [MANDT, MATNR, WERKS]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number (Parent/Finished Good)
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      STLAN:
+        description: BOM Usage (1=Production)
+        data_type: STRING
+        nullable: false
+      STLNR:
+        description: BOM Number
+        data_type: STRING
+        nullable: false
+      STLAL:
+        description: Alternative BOM
+        data_type: STRING
+        nullable: true
+
+  stko:
+    description: |
+      **SAP Table STKO - BOM Header**
+
+      Contains bill of materials header data including base quantity and validity.
+    primary_key: [MANDT, STLTY, STLNR, STLAL]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      STLTY:
+        description: BOM Category (M=Material BOM)
+        data_type: STRING
+        nullable: false
+      STLNR:
+        description: BOM Number
+        data_type: STRING
+        nullable: false
+      STLAL:
+        description: Alternative BOM
+        data_type: STRING
+        nullable: false
+      BMENG:
+        description: Base Quantity
+        data_type: LONG
+        nullable: true
+      BMEIN:
+        description: Base Unit of Measure
+        data_type: STRING
+        nullable: true
+      DATUV:
+        description: Valid From Date
+        data_type: STRING
+        nullable: true
+
+  stpo:
+    description: |
+      **SAP Table STPO - BOM Item**
+
+      Contains bill of materials component items. The finished good (parent)
+      is NOT in this table - it is found in MAST. This table contains the
+      raw material components.
+    primary_key: [MANDT, STLTY, STLNR, STLAL, STLKN]
+    foreign_keys:
+      - columns: [MANDT, IDNRK]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      STLTY:
+        description: BOM Category
+        data_type: STRING
+        nullable: false
+      STLNR:
+        description: BOM Number
+        data_type: STRING
+        nullable: false
+      STLAL:
+        description: Alternative BOM
+        data_type: STRING
+        nullable: false
+      STLKN:
+        description: BOM Item Counter
+        data_type: LONG
+        nullable: false
+      IDNRK:
+        description: Component Material Number
+        data_type: STRING
+        nullable: true
+      MENGE:
+        description: Component Quantity
+        data_type: LONG
+        nullable: true
+      MEINS:
+        description: Component Unit of Measure
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # CUSTOMER MASTER DATA
+  # ===========================================================================
+
+  kna1:
+    description: |
+      **SAP Table KNA1 - General Data in Customer Master**
+
+      Contains customer master data including name, address, and account group.
+    primary_key: [MANDT, KUNNR]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      KUNNR:
+        description: Customer Number
+        data_type: STRING
+        nullable: false
+      NAME1:
+        description: Customer Name
+        data_type: STRING
+        nullable: true
+      ORT01:
+        description: City
+        data_type: STRING
+        nullable: true
+      PSTLZ:
+        description: Postal Code
+        data_type: STRING
+        nullable: true
+      LAND1:
+        description: Country Code
+        data_type: STRING
+        nullable: true
+      KTGRD:
+        description: Account Group
+        data_type: STRING
+        nullable: true
+      ERDAT:
+        description: Created Date
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # VENDOR MASTER DATA
+  # ===========================================================================
+
+  lfa1:
+    description: |
+      **SAP Table LFA1 - Vendor Master (General Section)**
+
+      Contains general vendor master data including name and address information.
+    primary_key: [MANDT, LIFNR]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      LIFNR:
+        description: Vendor Number
+        data_type: STRING
+        nullable: false
+      NAME1:
+        description: Vendor Name
+        data_type: STRING
+        nullable: true
+      NAME2:
+        description: Vendor Name 2
+        data_type: STRING
+        nullable: true
+      LAND1:
+        description: Country Code
+        data_type: STRING
+        nullable: true
+      ORT01:
+        description: City
+        data_type: STRING
+        nullable: true
+      PSTLZ:
+        description: Postal Code
+        data_type: STRING
+        nullable: true
+      STRAS:
+        description: Street Address
+        data_type: STRING
+        nullable: true
+      TELF1:
+        description: Telephone Number
+        data_type: STRING
+        nullable: true
+      KTOKK:
+        description: Vendor Account Group
+        data_type: STRING
+        nullable: true
+      ERDAT:
+        description: Created Date
+        data_type: STRING
+        nullable: true
+      ERNAM:
+        description: Created By
+        data_type: STRING
+        nullable: true
+      LOEVM:
+        description: Central Deletion Flag
+        data_type: STRING
+        nullable: true
+      SPERR:
+        description: Central Posting Block
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # PURCHASING INFO RECORDS
+  # ===========================================================================
+
+  eina:
+    description: |
+      **SAP Table EINA - Purchasing Info Record (General Data)**
+
+      Contains general purchasing information for material-vendor combinations.
+    primary_key: [MANDT, INFNR]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+      - columns: [MANDT, LIFNR]
+        references: {table: lfa1, columns: [MANDT, LIFNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      INFNR:
+        description: Purchasing Info Record Number
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      LIFNR:
+        description: Vendor Number
+        data_type: STRING
+        nullable: true
+      LOEKZ:
+        description: Deletion Indicator
+        data_type: STRING
+        nullable: true
+      ERDAT:
+        description: Created Date
+        data_type: STRING
+        nullable: true
+      ERNAM:
+        description: Created By
+        data_type: STRING
+        nullable: true
+
+  eine:
+    description: |
+      **SAP Table EINE - Purchasing Info Record (Org Data)**
+
+      Contains purchasing organization specific data including pricing and conditions.
+    primary_key: [MANDT, INFNR, EKORG, ESOKZ, WERKS]
+    foreign_keys:
+      - columns: [MANDT, INFNR]
+        references: {table: eina, columns: [MANDT, INFNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      INFNR:
+        description: Purchasing Info Record Number
+        data_type: STRING
+        nullable: false
+      EKORG:
+        description: Purchasing Organization
+        data_type: STRING
+        nullable: false
+      ESOKZ:
+        description: Purchasing Info Record Category
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      LOEKZ:
+        description: Deletion Indicator
+        data_type: STRING
+        nullable: true
+      APLFZ:
+        description: Planned Delivery Time (Days)
+        data_type: LONG
+        nullable: true
+      NETPR:
+        description: Net Price
+        data_type: DOUBLE
+        nullable: true
+      WAERS:
+        description: Currency
+        data_type: STRING
+        nullable: true
+      PEINH:
+        description: Price Unit
+        data_type: LONG
+        nullable: true
+      BPRME:
+        description: Order Price Unit
+        data_type: STRING
+        nullable: true
+      MINBM:
+        description: Minimum Order Quantity
+        data_type: LONG
+        nullable: true
+      NORBM:
+        description: Standard Order Quantity
+        data_type: LONG
+        nullable: true
+      MWSKZ:
+        description: Tax Code
+        data_type: STRING
+        nullable: true
+      INCO1:
+        description: Incoterms Part 1
+        data_type: STRING
+        nullable: true
+      INCO2:
+        description: Incoterms Part 2
+        data_type: STRING
+        nullable: true
+      WEBRE:
+        description: GR-Based Invoice Verification
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # PURCHASE ORDERS
+  # ===========================================================================
+
+  ekko:
+    description: |
+      **SAP Table EKKO - Purchasing Document Header**
+
+      Contains purchase order header data including vendor, dates, and status information.
+    primary_key: [MANDT, EBELN]
+    foreign_keys:
+      - columns: [MANDT, LIFNR]
+        references: {table: lfa1, columns: [MANDT, LIFNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      EBELN:
+        description: Purchasing Document Number
+        data_type: STRING
+        nullable: false
+      BUKRS:
+        description: Company Code
+        data_type: STRING
+        nullable: true
+      BSTYP:
+        description: Purchasing Document Category (F=Standard PO)
+        data_type: STRING
+        nullable: true
+      BSART:
+        description: Purchasing Document Type (NB=Standard PO)
+        data_type: STRING
+        nullable: true
+      LIFNR:
+        description: Vendor Number
+        data_type: STRING
+        nullable: true
+      EKORG:
+        description: Purchasing Organization
+        data_type: STRING
+        nullable: true
+      EKGRP:
+        description: Purchasing Group
+        data_type: STRING
+        nullable: true
+      WAERS:
+        description: Currency
+        data_type: STRING
+        nullable: true
+      BEDAT:
+        description: Purchasing Document Date
+        data_type: STRING
+        nullable: true
+      AEDAT:
+        description: Changed Date
+        data_type: STRING
+        nullable: true
+      ERNAM:
+        description: Created By
+        data_type: STRING
+        nullable: true
+      KONNR:
+        description: Contract Number
+        data_type: STRING
+        nullable: true
+      FRGKE:
+        description: Release Status (2=Released)
+        data_type: STRING
+        nullable: true
+      FRGZU:
+        description: Release Indicator
+        data_type: STRING
+        nullable: true
+      PROCSTAT:
+        description: Processing Status (05=Released)
+        data_type: STRING
+        nullable: true
+
+  ekpo:
+    description: |
+      **SAP Table EKPO - Purchasing Document Item**
+
+      Contains purchase order line item details including material, quantity, and pricing.
+    primary_key: [MANDT, EBELN, EBELP]
+    foreign_keys:
+      - columns: [MANDT, EBELN]
+        references: {table: ekko, columns: [MANDT, EBELN]}
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+      - columns: [MANDT, INFNR]
+        references: {table: eina, columns: [MANDT, INFNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      EBELN:
+        description: Purchasing Document Number
+        data_type: STRING
+        nullable: false
+      EBELP:
+        description: Item Number
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      TXZ01:
+        description: Item Short Text
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      LGORT:
+        description: Storage Location
+        data_type: STRING
+        nullable: true
+      MENGE:
+        description: Order Quantity
+        data_type: DOUBLE
+        nullable: true
+      MEINS:
+        description: Base Unit of Measure
+        data_type: STRING
+        nullable: true
+      NETPR:
+        description: Net Price
+        data_type: DOUBLE
+        nullable: true
+      PEINH:
+        description: Price Unit
+        data_type: LONG
+        nullable: true
+      NETWR:
+        description: Net Value
+        data_type: DOUBLE
+        nullable: true
+      BPRME:
+        description: Order Price Unit
+        data_type: STRING
+        nullable: true
+      INFNR:
+        description: Purchasing Info Record Number
+        data_type: STRING
+        nullable: true
+      ELIKZ:
+        description: Delivery Completed Indicator
+        data_type: STRING
+        nullable: true
+      LOEKZ:
+        description: Deletion Indicator
+        data_type: STRING
+        nullable: true
+      EINDT:
+        description: Delivery Date
+        data_type: STRING
+        nullable: true
+
+  ekbe:
+    description: |
+      **SAP Table EKBE - Purchasing Document History**
+
+      Contains goods receipt and invoice history for purchase orders. Used for
+      tracking delivery performance (OTIF - On Time In Full).
+    primary_key: [MANDT, EBELN, EBELP, ZEESSION, VGABE]
+    foreign_keys:
+      - columns: [MANDT, EBELN, EBELP]
+        references: {table: ekpo, columns: [MANDT, EBELN, EBELP]}
+      - columns: [MANDT, LIFNR]
+        references: {table: lfa1, columns: [MANDT, LIFNR]}
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      EBELN:
+        description: Purchasing Document Number
+        data_type: STRING
+        nullable: false
+      EBELP:
+        description: Item Number
+        data_type: STRING
+        nullable: false
+      ZEESSION:
+        description: Sequential Number
+        data_type: STRING
+        nullable: false
+      VGABE:
+        description: Transaction Type (1=Goods Receipt, 2=Invoice)
+        data_type: STRING
+        nullable: false
+      BEWTP:
+        description: History Category (E=Goods Receipt, Q=Invoice)
+        data_type: STRING
+        nullable: true
+      BWART:
+        description: Movement Type
+        data_type: STRING
+        nullable: true
+      BUDAT:
+        description: Posting Date
+        data_type: STRING
+        nullable: true
+      MENGE:
+        description: Quantity
+        data_type: DOUBLE
+        nullable: true
+      BPMNG:
+        description: Quantity in Purchase Order Unit
+        data_type: DOUBLE
+        nullable: true
+      DMBTR:
+        description: Amount in Local Currency
+        data_type: DOUBLE
+        nullable: true
+      WRBTR:
+        description: Amount in Document Currency
+        data_type: DOUBLE
+        nullable: true
+      WAERS:
+        description: Currency
+        data_type: STRING
+        nullable: true
+      SHKZG:
+        description: Debit/Credit Indicator (S=Debit/Increase, H=Credit/Decrease)
+        data_type: STRING
+        nullable: true
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      LIFNR:
+        description: Vendor Number
+        data_type: STRING
+        nullable: true
+      XBLNR:
+        description: Reference Document Number
+        data_type: STRING
+        nullable: true
+      LFBNR:
+        description: Delivery Note Number
+        data_type: STRING
+        nullable: true
+      CPUDT:
+        description: Entry Date (CPU Date)
+        data_type: STRING
+        nullable: true
+      CPUTM:
+        description: Entry Time (CPU Time)
+        data_type: STRING
+        nullable: true
+      ERNAM:
+        description: Created By
+        data_type: STRING
+        nullable: true
+      EINDT_PLAN:
+        description: Planned Delivery Date
+        data_type: STRING
+        nullable: true
+      OTIF_ONTIME:
+        description: On-Time Delivery Flag (X=On Time)
+        data_type: STRING
+        nullable: true
+      OTIF_INFULL:
+        description: In-Full Delivery Flag (X=Full Quantity)
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # PLANT MASTER DATA
+  # ===========================================================================
+
+  t001w:
+    description: |
+      **SAP Table T001W - Plants/Branches**
+
+      Contains plant master data including name, address, and organizational assignments.
+    primary_key: [MANDT, WERKS]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      NAME1:
+        description: Plant Name
+        data_type: STRING
+        nullable: true
+      NAME2:
+        description: Plant Name 2
+        data_type: STRING
+        nullable: true
+      LAND1:
+        description: Country Code
+        data_type: STRING
+        nullable: true
+      REGIO:
+        description: Region Code
+        data_type: STRING
+        nullable: true
+      ORT01:
+        description: City
+        data_type: STRING
+        nullable: true
+      STRAS:
+        description: Street Address
+        data_type: STRING
+        nullable: true
+      PSTLZ:
+        description: Postal Code
+        data_type: STRING
+        nullable: true
+      SPRAS:
+        description: Language Key
+        data_type: STRING
+        nullable: true
+      FABKL:
+        description: Factory Calendar
+        data_type: STRING
+        nullable: true
+      TXJCD:
+        description: Tax Jurisdiction
+        data_type: STRING
+        nullable: true
+      BEDPL:
+        description: Requirements Planning Active
+        data_type: STRING
+        nullable: true
+      LIFNR:
+        description: Vendor Number (Intercompany)
+        data_type: STRING
+        nullable: true
+      KUNNR:
+        description: Customer Number (Intercompany)
+        data_type: STRING
+        nullable: true
+      IWERK:
+        description: Maintenance Planning Plant
+        data_type: STRING
+        nullable: true
+      EKORG:
+        description: Purchasing Organization
+        data_type: STRING
+        nullable: true
+      VKORG:
+        description: Sales Organization
+        data_type: STRING
+        nullable: true
+      VTWEG:
+        description: Distribution Channel
+        data_type: STRING
+        nullable: true
+      SPART:
+        description: Division
+        data_type: STRING
+        nullable: true
+      AWSLS:
+        description: Variance Key
+        data_type: STRING
+        nullable: true
+      CHAZV:
+        description: Batch Status Management Active
+        data_type: STRING
+        nullable: true
+      KKOWK:
+        description: Condition Pricing Active
+        data_type: STRING
+        nullable: true
+      KORDB:
+        description: Conditions at Plant Level
+        data_type: STRING
+        nullable: true
+      VLFKZ:
+        description: Plant Category
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # WORK CENTER / CAPACITY
+  # ===========================================================================
+
+  crhd:
+    description: |
+      **SAP Table CRHD - Work Center Header**
+
+      Contains master data for work centers used in production planning and scheduling.
+    primary_key: [MANDT, OBJID]
+    foreign_keys:
+      - columns: [MANDT, WERKS]
+        references: {table: t001w, columns: [MANDT, WERKS]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      OBJID:
+        description: Object ID
+        data_type: STRING
+        nullable: false
+      OBJTY:
+        description: Object Type
+        data_type: STRING
+        nullable: true
+      ARBPL:
+        description: Work Center
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      KTEXT:
+        description: Work Center Description
+        data_type: STRING
+        nullable: true
+      VERWE:
+        description: Usage
+        data_type: STRING
+        nullable: true
+      PLANV:
+        description: Planning Version
+        data_type: STRING
+        nullable: true
+      KAPESSION:
+        description: Capacity Category
+        data_type: STRING
+        nullable: true
+      VEESSION:
+        description: Person Responsible
+        data_type: STRING
+        nullable: true
+      STESSION:
+        description: Standard Value Key
+        data_type: STRING
+        nullable: true
+      KAPESSION_ANZ:
+        description: Number of Capacities
+        data_type: LONG
+        nullable: true
+      KAPESSION_ARBZW:
+        description: Working Hours per Capacity
+        data_type: LONG
+        nullable: true
+      KAPESSION_ARBTA:
+        description: Working Days per Week
+        data_type: LONG
+        nullable: true
+      KAPESSION_NESSION:
+        description: Capacity Utilization Rate
+        data_type: DOUBLE
+        nullable: true
+      KAPESSION_AE:
+        description: Capacity Unit
+        data_type: LONG
+        nullable: true
+      KOSTL:
+        description: Cost Center
+        data_type: STRING
+        nullable: true
+      LOESSION:
+        description: Deletion Flag
+        data_type: STRING
+        nullable: true
+      SESSION:
+        description: Session ID
+        data_type: STRING
+        nullable: true
+      ERDAT:
+        description: Created Date
+        data_type: STRING
+        nullable: true
+      AEDAT:
+        description: Changed Date
+        data_type: STRING
+        nullable: true
+
+  kako:
+    description: |
+      **SAP Table KAKO - Capacity Header**
+
+      Contains capacity header data for production planning.
+    primary_key: [MANDT, OBJID, KAPESSION_NR]
+    foreign_keys:
+      - columns: [MANDT, OBJID]
+        references: {table: crhd, columns: [MANDT, OBJID]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      OBJID:
+        description: Object ID
+        data_type: STRING
+        nullable: false
+      OBJTY:
+        description: Object Type
+        data_type: STRING
+        nullable: true
+      KAPESSION_NR:
+        description: Capacity Number
+        data_type: STRING
+        nullable: false
+      KAPESSION_ART:
+        description: Capacity Type
+        data_type: STRING
+        nullable: true
+      KAPESSION_BEZ:
+        description: Capacity Description
+        data_type: STRING
+        nullable: true
+      BEGDA:
+        description: Valid From Date
+        data_type: STRING
+        nullable: true
+      ENDDA:
+        description: Valid To Date
+        data_type: STRING
+        nullable: true
+      WERK:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      ARBPL:
+        description: Work Center
+        data_type: STRING
+        nullable: true
+      ESSION_ANESSION_ZT:
+        description: Available Time
+        data_type: LONG
+        nullable: true
+      ESSION_ANESSION_TA:
+        description: Available Days
+        data_type: LONG
+        nullable: true
+      ESSION_NUTZ:
+        description: Utilization Rate
+        data_type: DOUBLE
+        nullable: true
+      ESSION_PESSION_UFF:
+        description: Buffer
+        data_type: LONG
+        nullable: true
+      ESSION_SHMESSION:
+        description: Shift Model
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # ROUTING
+  # ===========================================================================
+
+  plko:
+    description: |
+      **SAP Table PLKO - Routing Header**
+
+      Contains routing/task list header data for production operations.
+    primary_key: [MANDT, PLNTY, PLNNR, PLNAL, WERKS]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      PLNTY:
+        description: Task List Type
+        data_type: STRING
+        nullable: false
+      PLNNR:
+        description: Routing Number
+        data_type: STRING
+        nullable: false
+      PLNAL:
+        description: Alternative Routing
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      VERWE:
+        description: Usage
+        data_type: STRING
+        nullable: true
+      STATU:
+        description: Status
+        data_type: STRING
+        nullable: true
+      LOESSION:
+        description: Deletion Flag
+        data_type: STRING
+        nullable: true
+      DAESSION_TUV:
+        description: Valid From Date
+        data_type: STRING
+        nullable: true
+      DAESSION_TB:
+        description: Valid To Date
+        data_type: STRING
+        nullable: true
+      PLESSION_NME:
+        description: Planner Name
+        data_type: STRING
+        nullable: true
+      LOESSION_GR:
+        description: Lot Size From
+        data_type: STRING
+        nullable: true
+      LOESSION_GR_TO:
+        description: Lot Size To
+        data_type: STRING
+        nullable: true
+      PESSION_LNOR:
+        description: Production Scheduler
+        data_type: STRING
+        nullable: true
+      KTEXT:
+        description: Routing Description
+        data_type: STRING
+        nullable: true
+      ROUTING_TYPE:
+        description: Routing Type
+        data_type: STRING
+        nullable: true
+
+  plpo:
+    description: |
+      **SAP Table PLPO - Routing Operations**
+
+      Contains routing operation details including work center assignments
+      and standard times.
+    primary_key: [MANDT, PLNTY, PLNNR, PLNAL, PLNKN]
+    foreign_keys:
+      - columns: [MANDT, OBJID]
+        references: {table: crhd, columns: [MANDT, OBJID]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      PLNTY:
+        description: Task List Type
+        data_type: STRING
+        nullable: false
+      PLNNR:
+        description: Routing Number
+        data_type: STRING
+        nullable: false
+      PLNAL:
+        description: Alternative Routing
+        data_type: STRING
+        nullable: false
+      PLNKN:
+        description: Operation Counter
+        data_type: STRING
+        nullable: false
+      VORNR:
+        description: Operation Number
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      ARBPL:
+        description: Work Center
+        data_type: STRING
+        nullable: true
+      OBJID:
+        description: Object ID (Work Center)
+        data_type: STRING
+        nullable: true
+      LTXA1:
+        description: Operation Description
+        data_type: STRING
+        nullable: true
+      STESSION:
+        description: Control Key
+        data_type: STRING
+        nullable: true
+      LOESSION:
+        description: Deletion Flag
+        data_type: STRING
+        nullable: true
+      RUESSION:
+        description: Setup Time
+        data_type: DOUBLE
+        nullable: true
+      RUESSION_E:
+        description: Setup Time Unit
+        data_type: STRING
+        nullable: true
+      VGW01:
+        description: Standard Value 1 (Machine Time)
+        data_type: DOUBLE
+        nullable: true
+      VGE01:
+        description: Standard Value Unit 1
+        data_type: STRING
+        nullable: true
+      VGW02:
+        description: Standard Value 2 (Labor Time)
+        data_type: DOUBLE
+        nullable: true
+      VGE02:
+        description: Standard Value Unit 2
+        data_type: STRING
+        nullable: true
+      BMSCH:
+        description: Base Quantity
+        data_type: LONG
+        nullable: true
+      MESSION:
+        description: Unit of Measure
+        data_type: STRING
+        nullable: true
+      PRZESSION:
+        description: Process Time
+        data_type: LONG
+        nullable: true
+      PESSION_RMIN:
+        description: Minimum Process Time
+        data_type: LONG
+        nullable: true
+      PESSION_RMAX:
+        description: Maximum Process Time
+        data_type: LONG
+        nullable: true
+      LAESSION:
+        description: Last Changed Date
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # SALES DOCUMENTS
+  # ===========================================================================
+
+  vbak:
+    description: |
+      **SAP Table VBAK - Sales Document Header Data**
+
+      Contains sales order header information including customer, dates, and values.
+    primary_key: [MANDT, VBELN]
+    foreign_keys:
+      - columns: [MANDT, KUNNR]
+        references: {table: kna1, columns: [MANDT, KUNNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      VBELN:
+        description: Sales Document Number
+        data_type: STRING
+        nullable: false
+      AUART:
+        description: Sales Document Type
+        data_type: STRING
+        nullable: true
+      KUNNR:
+        description: Sold-to Customer Number
+        data_type: STRING
+        nullable: true
+      ERDAT:
+        description: Created Date
+        data_type: STRING
+        nullable: true
+      NETWR:
+        description: Net Value
+        data_type: DOUBLE
+        nullable: true
+      VDATU:
+        description: Requested Delivery Date
+        data_type: STRING
+        nullable: true
+      WAERK:
+        description: Document Currency
+        data_type: STRING
+        nullable: true
+
+  vbap:
+    description: |
+      **SAP Table VBAP - Sales Document Item Data**
+
+      Contains sales order line item details including material, quantity, and pricing.
+    primary_key: [MANDT, VBELN, POSNR]
+    foreign_keys:
+      - columns: [MANDT, VBELN]
+        references: {table: vbak, columns: [MANDT, VBELN]}
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      VBELN:
+        description: Sales Document Number
+        data_type: STRING
+        nullable: false
+      POSNR:
+        description: Item Number
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      LGORT:
+        description: Storage Location
+        data_type: STRING
+        nullable: true
+      KWMENG:
+        description: Order Quantity
+        data_type: LONG
+        nullable: true
+      MEINS:
+        description: Unit of Measure
+        data_type: STRING
+        nullable: true
+      NETPR:
+        description: Net Price
+        data_type: DOUBLE
+        nullable: true
+      NETWR:
+        description: Net Value
+        data_type: DOUBLE
+        nullable: true
+      WAERK:
+        description: Currency
+        data_type: STRING
+        nullable: true
+
+  vbep:
+    description: |
+      **SAP Table VBEP - Sales Document Schedule Line Data**
+
+      Contains delivery schedule lines for sales order items.
+    primary_key: [MANDT, VBELN, POSNR, ETENR]
+    foreign_keys:
+      - columns: [MANDT, VBELN, POSNR]
+        references: {table: vbap, columns: [MANDT, VBELN, POSNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      VBELN:
+        description: Sales Document Number
+        data_type: STRING
+        nullable: false
+      POSNR:
+        description: Item Number
+        data_type: STRING
+        nullable: false
+      ETENR:
+        description: Schedule Line Number
+        data_type: STRING
+        nullable: false
+      EDATU:
+        description: Schedule Line Date
+        data_type: STRING
+        nullable: true
+      WMENG:
+        description: Order Quantity
+        data_type: LONG
+        nullable: true
+      BMENG:
+        description: Confirmed Quantity
+        data_type: LONG
+        nullable: true
+
+  vbfa:
+    description: |
+      **SAP Table VBFA - Sales Document Flow**
+
+      Contains document flow relationships linking sales orders to deliveries,
+      invoices, and other subsequent documents.
+    primary_key: [MANDT, VBELN, POSNN, VBELN_N, POSNN_N]
+    foreign_keys:
+      - columns: [MANDT, VBELN]
+        references: {table: vbak, columns: [MANDT, VBELN]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      VBELN:
+        description: Preceding Document Number
+        data_type: STRING
+        nullable: false
+      POSNN:
+        description: Preceding Item Number
+        data_type: STRING
+        nullable: false
+      VBELN_N:
+        description: Subsequent Document Number
+        data_type: STRING
+        nullable: false
+      POSNN_N:
+        description: Subsequent Item Number
+        data_type: STRING
+        nullable: false
+      VBTYP_V:
+        description: Preceding Document Category
+        data_type: STRING
+        nullable: true
+      VBTYP_N:
+        description: Subsequent Document Category
+        data_type: STRING
+        nullable: true
+      RFMNG:
+        description: Referenced Quantity
+        data_type: LONG
+        nullable: true
+
+  # ===========================================================================
+  # DELIVERY DOCUMENTS
+  # ===========================================================================
+
+  likp:
+    description: |
+      **SAP Table LIKP - Delivery Header Data**
+
+      Contains outbound delivery header information.
+    primary_key: [MANDT, VBELN]
+    foreign_keys:
+      - columns: [MANDT, KUNNR]
+        references: {table: kna1, columns: [MANDT, KUNNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      VBELN:
+        description: Delivery Document Number
+        data_type: STRING
+        nullable: false
+      KUNNR:
+        description: Ship-to Customer Number
+        data_type: STRING
+        nullable: true
+      LFDAT:
+        description: Delivery Date
+        data_type: STRING
+        nullable: true
+      LFART:
+        description: Delivery Type
+        data_type: STRING
+        nullable: true
+
+  lips:
+    description: |
+      **SAP Table LIPS - Delivery Item Data**
+
+      Contains outbound delivery line item details.
+    primary_key: [MANDT, VBELN, POSNR]
+    foreign_keys:
+      - columns: [MANDT, VBELN]
+        references: {table: likp, columns: [MANDT, VBELN]}
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      VBELN:
+        description: Delivery Document Number
+        data_type: STRING
+        nullable: false
+      POSNR:
+        description: Delivery Item Number
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      LFIMG:
+        description: Delivered Quantity
+        data_type: LONG
+        nullable: true
+
+  # ===========================================================================
+  # SHIPMENT
+  # ===========================================================================
+
+  vttk:
+    description: |
+      **SAP Table VTTK - Shipment Header**
+
+      Contains shipment header data for logistics transportation.
+    primary_key: [MANDT, TKNUM]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      TKNUM:
+        description: Shipment Number
+        data_type: STRING
+        nullable: false
+      SHTYP:
+        description: Shipment Type
+        data_type: STRING
+        nullable: true
+      VSART:
+        description: Shipping Type
+        data_type: STRING
+        nullable: true
+      ROUTE:
+        description: Route
+        data_type: STRING
+        nullable: true
+      TDLNR:
+        description: Forwarding Agent
+        data_type: STRING
+        nullable: true
+      ERDAT:
+        description: Created Date
+        data_type: STRING
+        nullable: true
+      DISTZ:
+        description: Distance
+        data_type: DOUBLE
+        nullable: true
+      FAHZT:
+        description: Travel Time
+        data_type: DOUBLE
+        nullable: true
+      DTTRG:
+        description: Planned Delivery Date
+        data_type: STRING
+        nullable: true
+      DTDIS:
+        description: Planned Shipment Start Date
+        data_type: STRING
+        nullable: true
+
+  vttp:
+    description: |
+      **SAP Table VTTP - Shipment Items**
+
+      Links shipments to delivery documents.
+    primary_key: [MANDT, TKNUM, TPNUM]
+    foreign_keys:
+      - columns: [MANDT, TKNUM]
+        references: {table: vttk, columns: [MANDT, TKNUM]}
+      - columns: [MANDT, VBELN]
+        references: {table: likp, columns: [MANDT, VBELN]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      TKNUM:
+        description: Shipment Number
+        data_type: STRING
+        nullable: false
+      TPNUM:
+        description: Shipment Item Number
+        data_type: STRING
+        nullable: false
+      VBELN:
+        description: Delivery Document Number
+        data_type: STRING
+        nullable: true
+      LAUFK:
+        description: Leg Indicator
+        data_type: STRING
+        nullable: true
+
+  vtts:
+    description: |
+      **SAP Table VTTS - Shipment Stages**
+
+      Contains shipment leg/stage data for multi-leg shipments.
+    primary_key: [MANDT, TKNUM, TSNUM]
+    foreign_keys:
+      - columns: [MANDT, TKNUM]
+        references: {table: vttk, columns: [MANDT, TKNUM]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      TKNUM:
+        description: Shipment Number
+        data_type: STRING
+        nullable: false
+      TSNUM:
+        description: Stage Number
+        data_type: STRING
+        nullable: false
+      TSRFO:
+        description: Stage Sequence
+        data_type: STRING
+        nullable: true
+      ROUTE:
+        description: Route
+        data_type: STRING
+        nullable: true
+      VSART:
+        description: Shipping Type
+        data_type: STRING
+        nullable: true
+      KNOTA:
+        description: Departure Point
+        data_type: STRING
+        nullable: true
+      KNOTB:
+        description: Destination Point
+        data_type: STRING
+        nullable: true
+      DISTZ:
+        description: Distance
+        data_type: DOUBLE
+        nullable: true
+      FAHZTD:
+        description: Travel Time (Days)
+        data_type: DOUBLE
+        nullable: true
+
+  # ===========================================================================
+  # ROUTES
+  # ===========================================================================
+
+  tvro:
+    description: |
+      **SAP Table TVRO - Routes**
+
+      Contains route master data for shipping and transportation.
+    primary_key: [MANDT, ROUTE]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      ROUTE:
+        description: Route Code
+        data_type: STRING
+        nullable: false
+      TRAZTD:
+        description: Transit Time (Days)
+        data_type: DOUBLE
+        nullable: true
+      TDVZTD:
+        description: Total Duration (Days)
+        data_type: DOUBLE
+        nullable: true
+      FAHZTD:
+        description: Travel Time (Days)
+        data_type: DOUBLE
+        nullable: true
+      DISTZ:
+        description: Distance
+        data_type: DOUBLE
+        nullable: true
+      MEDST:
+        description: Distance Unit
+        data_type: STRING
+        nullable: true
+      VSART:
+        description: Shipping Type
+        data_type: STRING
+        nullable: true
+      TDLNR:
+        description: Forwarding Agent
+        data_type: STRING
+        nullable: true
+
+  tvrot:
+    description: |
+      **SAP Table TVROT - Route Descriptions**
+
+      Contains route description texts in various languages.
+    primary_key: [MANDT, ROUTE, SPRAS]
+    foreign_keys:
+      - columns: [MANDT, ROUTE]
+        references: {table: tvro, columns: [MANDT, ROUTE]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      SPRAS:
+        description: Language Key
+        data_type: STRING
+        nullable: false
+      ROUTE:
+        description: Route Code
+        data_type: STRING
+        nullable: false
+      BEZEI:
+        description: Route Description
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # PRODUCTION ORDERS
+  # ===========================================================================
+
+  afko:
+    description: |
+      **SAP Table AFKO - Production Order Header**
+
+      Contains production order header data for manufacturing.
+    primary_key: [MANDT, AUFNR]
+    foreign_keys:
+      - columns: [MANDT, PLNBEZ]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      AUFNR:
+        description: Production Order Number
+        data_type: STRING
+        nullable: false
+      PLNBEZ:
+        description: Material Number (Being Produced)
+        data_type: STRING
+        nullable: true
+      GAMNG:
+        description: Total Order Quantity
+        data_type: DOUBLE
+        nullable: true
+      IGMNG:
+        description: Confirmed Quantity
+        data_type: LONG
+        nullable: true
+      GSTRP:
+        description: Scheduled Start Date
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      STAT:
+        description: Order Status
+        data_type: STRING
+        nullable: true
+      RUESSION:
+        description: Status Reason
+        data_type: STRING
+        nullable: true
+
+  resb:
+    description: |
+      **SAP Table RESB - Reservation/Dependent Requirements**
+
+      Contains the component requirements (shopping list) for production orders.
+    primary_key: [MANDT, RSNUM, RSPOS]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      RSNUM:
+        description: Reservation Number
+        data_type: STRING
+        nullable: false
+      RSPOS:
+        description: Reservation Item
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      BDMNG:
+        description: Required Quantity
+        data_type: DOUBLE
+        nullable: true
+      ENMNG:
+        description: Withdrawn Quantity
+        data_type: LONG
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      LGORT:
+        description: Storage Location
+        data_type: STRING
+        nullable: true
+
+  plaf:
+    description: |
+      **SAP Table PLAF - Planned Orders**
+
+      Contains planned orders generated by MRP for production or procurement.
+    primary_key: [MANDT, PLNUM]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      PLNUM:
+        description: Planned Order Number
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Planning Plant
+        data_type: STRING
+        nullable: true
+      LWERK:
+        description: Supply Plant (for Stock Transfers)
+        data_type: STRING
+        nullable: true
+      GSMNG:
+        description: Total Planned Quantity
+        data_type: DOUBLE
+        nullable: true
+      MEINS:
+        description: Unit of Measure
+        data_type: STRING
+        nullable: true
+      PEDTR:
+        description: Planned Finish Date
+        data_type: STRING
+        nullable: true
+      PSTTR:
+        description: Planned Start Date
+        data_type: STRING
+        nullable: true
+      BESKZ:
+        description: Procurement Type (E=In-house, F=External, U=Transfer)
+        data_type: STRING
+        nullable: true
+      PLSCN:
+        description: Planning Scenario
+        data_type: STRING
+        nullable: true
+      DISPO:
+        description: MRP Controller
+        data_type: STRING
+        nullable: true
+      SOBSL:
+        description: Special Procurement Type
+        data_type: STRING
+        nullable: true
+      ID_REF:
+        description: Reference ID
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # MATERIAL DOCUMENTS
+  # ===========================================================================
+
+  matdoc:
+    description: |
+      **SAP Table MATDOC - Material Documents**
+
+      Contains material document data for all inventory movements. This is the
+      main transaction table for goods movements in SAP.
+
+      Movement Types:
+      - 101: Goods Receipt
+      - 102: Goods Receipt Reversal
+      - 261: Goods Issue to Production
+      - 262: Goods Issue Reversal
+      - 311: Transfer Posting
+      - 344: Inventory Adjustment
+      - 551: Scrapping
+      - 601: Goods Issue to Customer
+      - 641: Transfer Posting (Outbound)
+    primary_key: [MANDT, MBLNR, MJAHR, ZEILE]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+      - columns: [MANDT, MATNR, WERKS]
+        references: {table: marc, columns: [MANDT, MATNR, WERKS]}
+      - columns: [MANDT, AUFNR]
+        references: {table: afko, columns: [MANDT, AUFNR]}
+      - columns: [MANDT, KUNNR]
+        references: {table: kna1, columns: [MANDT, KUNNR]}
+      - columns: [MANDT, KDAUF]
+        references: {table: vbak, columns: [MANDT, VBELN]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MBLNR:
+        description: Material Document Number
+        data_type: STRING
+        nullable: false
+      MJAHR:
+        description: Material Document Year
+        data_type: STRING
+        nullable: false
+      ZEILE:
+        description: Line Item Number in Material Document
+        data_type: STRING
+        nullable: false
+      BWART:
+        description: Movement Type
+        data_type: STRING
+        nullable: true
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: true
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: true
+      LGORT:
+        description: Storage Location
+        data_type: STRING
+        nullable: true
+      CHARG:
+        description: Batch Number
+        data_type: STRING
+        nullable: true
+      SHKZG:
+        description: Debit/Credit Indicator (S=Debit/Increase, H=Credit/Decrease)
+        data_type: STRING
+        nullable: true
+      MENGE:
+        description: Quantity
+        data_type: DOUBLE
+        nullable: true
+      MEINS:
+        description: Base Unit of Measure
+        data_type: STRING
+        nullable: true
+      BUDAT:
+        description: Posting Date
+        data_type: STRING
+        nullable: true
+      CPUDT:
+        description: Entry Date (CPU Date)
+        data_type: STRING
+        nullable: true
+      CPUTM:
+        description: Entry Time (CPU Time)
+        data_type: STRING
+        nullable: true
+      AUFNR:
+        description: Production Order Number
+        data_type: STRING
+        nullable: true
+      KDAUF:
+        description: Sales Order Number
+        data_type: STRING
+        nullable: true
+      KDPOS:
+        description: Sales Order Item Number
+        data_type: STRING
+        nullable: true
+      KUNNR:
+        description: Customer Number
+        data_type: STRING
+        nullable: true
+      XBLNR:
+        description: Reference Document Number
+        data_type: STRING
+        nullable: true
+      BKTXT:
+        description: Document Header Text
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # APO / SUPPLY CHAIN
+  # ===========================================================================
+
+  sapapo_loc:
+    description: |
+      **SAP APO Location Master**
+
+      Contains location master data for supply chain planning including
+      geographic coordinates.
+    primary_key: [MANDT, LOCNO]
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      LOCNO:
+        description: Location Number
+        data_type: STRING
+        nullable: false
+      LOCTYPE:
+        description: Location Type (DC=Distribution Center, Plant, Customer)
+        data_type: STRING
+        nullable: true
+      XPOS:
+        description: Longitude
+        data_type: DOUBLE
+        nullable: true
+      YPOS:
+        description: Latitude
+        data_type: DOUBLE
+        nullable: true
+      COUNTRY:
+        description: Country Code
+        data_type: STRING
+        nullable: true
+      CITY:
+        description: City Name
+        data_type: STRING
+        nullable: true
+
+  sapapo_tr:
+    description: |
+      **SAP APO Transportation Lane**
+
+      Contains transportation lane definitions between locations.
+    primary_key: [MANDT, TRLID]
+    foreign_keys:
+      - columns: [MANDT, LOCFR]
+        references: {table: sapapo_loc, columns: [MANDT, LOCNO]}
+      - columns: [MANDT, LOCTO]
+        references: {table: sapapo_loc, columns: [MANDT, LOCNO]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      TRLID:
+        description: Transportation Lane ID
+        data_type: STRING
+        nullable: false
+      LOCFR:
+        description: Source Location
+        data_type: STRING
+        nullable: true
+      LOCTO:
+        description: Destination Location
+        data_type: STRING
+        nullable: true
+      TRNAME:
+        description: Transportation Lane Name
+        data_type: STRING
+        nullable: true
+      MODEL:
+        description: Transportation Model
+        data_type: STRING
+        nullable: true
+
+  sapapo_trm:
+    description: |
+      **SAP APO Transportation Lane Mode**
+
+      Contains transportation mode details for lanes including duration and cost.
+    primary_key: [MANDT, TRLID, TRMID]
+    foreign_keys:
+      - columns: [MANDT, TRLID]
+        references: {table: sapapo_tr, columns: [MANDT, TRLID]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      TRLID:
+        description: Transportation Lane ID
+        data_type: STRING
+        nullable: false
+      TRMID:
+        description: Transportation Mode ID
+        data_type: STRING
+        nullable: false
+      TRAESSION:
+        description: Transit Duration (Days)
+        data_type: DOUBLE
+        nullable: true
+      TRACOST:
+        description: Transportation Cost per Unit
+        data_type: DOUBLE
+        nullable: true
+      TRACOSTCUR:
+        description: Cost Currency
+        data_type: STRING
+        nullable: true
+      PRIFLAG:
+        description: Primary Route Flag (X=Primary)
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # DEMAND PLANNING
+  # ===========================================================================
+
+  pbed_sim:
+    description: |
+      **Demand Planning Simulation**
+
+      Contains demand planning and forecasting data.
+    primary_key: [MANDT, MATNR, WERKS, VERSB, BDDAT]
+    foreign_keys:
+      - columns: [MANDT, MATNR]
+        references: {table: mara, columns: [MANDT, MATNR]}
+    columns:
+      MANDT:
+        description: Client
+        data_type: STRING
+        nullable: false
+      MATNR:
+        description: Material Number
+        data_type: STRING
+        nullable: false
+      WERKS:
+        description: Plant
+        data_type: STRING
+        nullable: false
+      VERSB:
+        description: Version
+        data_type: STRING
+        nullable: false
+      BDDAT:
+        description: Requirements Date
+        data_type: STRING
+        nullable: false
+      PLNMG:
+        description: Planned Quantity
+        data_type: LONG
+        nullable: true
+      PBDNR:
+        description: Requirements Plan Number
+        data_type: STRING
+        nullable: true
+      PDDAT:
+        description: Planning Date
+        data_type: STRING
+        nullable: true
+      Z_IS_HISTORICAL:
+        description: Historical Data Flag
+        data_type: STRING
+        nullable: true
+
+  # ===========================================================================
+  # CONFIGURATION / METADATA TABLES
+  # ===========================================================================
+
+  generation_config:
+    description: |
+      **Pipeline Configuration**
+
+      Stores configuration parameters used for each data generation run.
+      Used for audit trail and reproducibility.
+    primary_key: [generation_timestamp]
+    columns:
+      catalog:
+        description: Target Catalog Name
+        data_type: STRING
+        nullable: true
+      delivery_fill_rate:
+        description: Percentage of Orders Resulting in Deliveries
+        data_type: DOUBLE
+        nullable: true
+      dirty_data_rate:
+        description: Percentage of Records with Data Quality Issues
+        data_type: DOUBLE
+        nullable: true
+      generate_dirty_data:
+        description: Flag to Enable Dirty Data Generation
+        data_type: BOOLEAN
+        nullable: true
+      generation_timestamp:
+        description: When the Data was Generated
+        data_type: TIMESTAMP
+        nullable: false
+      hub_plant:
+        description: Central Hub Plant for Production
+        data_type: STRING
+        nullable: true
+      moq_finished_max:
+        description: Maximum MOQ for Finished Goods
+        data_type: LONG
+        nullable: true
+      moq_finished_min:
+        description: Minimum MOQ for Finished Goods
+        data_type: LONG
+        nullable: true
+      moq_raw_max:
+        description: Maximum MOQ for Raw Materials
+        data_type: LONG
+        nullable: true
+      moq_raw_min:
+        description: Minimum MOQ for Raw Materials
+        data_type: LONG
+        nullable: true
+      num_customers:
+        description: Number of Customers Generated
+        data_type: LONG
+        nullable: true
+      num_finished_goods:
+        description: Number of Finished Goods Generated
+        data_type: LONG
+        nullable: true
+      num_orders:
+        description: Number of Sales Orders Generated
+        data_type: LONG
+        nullable: true
+      num_raw_materials:
+        description: Number of Raw Materials Generated
+        data_type: LONG
+        nullable: true
+      random_seed:
+        description: Random Seed for Reproducibility
+        data_type: LONG
+        nullable: true
+      rows_afko:
+        description: Row Count in AFKO Table
+        data_type: LONG
+        nullable: true
+      rows_kna1:
+        description: Row Count in KNA1 Table
+        data_type: LONG
+        nullable: true
+      rows_likp:
+        description: Row Count in LIKP Table
+        data_type: LONG
+        nullable: true
+      rows_lips:
+        description: Row Count in LIPS Table
+        data_type: LONG
+        nullable: true
+      rows_mara:
+        description: Row Count in MARA Table
+        data_type: LONG
+        nullable: true
+      rows_matdoc:
+        description: Row Count in MATDOC Table
+        data_type: LONG
+        nullable: true
+      rows_vbak:
+        description: Row Count in VBAK Table
+        data_type: LONG
+        nullable: true
+      rows_vbap:
+        description: Row Count in VBAP Table
+        data_type: LONG
+        nullable: true
+      safety_stock_weeks:
+        description: Weeks of Safety Stock Coverage
+        data_type: LONG
+        nullable: true
+      schema:
+        description: Target Schema Name
+        data_type: STRING
+        nullable: true
+      supplier_reliability_rate:
+        description: Probability of Supplier Reliability
+        data_type: DOUBLE
+        nullable: true
+      total_master_rows:
+        description: Total Rows in Master Data Tables
+        data_type: LONG
+        nullable: true
+      total_transaction_rows:
+        description: Total Rows in Transaction Tables
+        data_type: LONG
+        nullable: true
+      unreliable_materials:
+        description: List of Unreliable Materials
+        data_type: STRING
+        nullable: true
+      scenarios_injected:
+        description: Number of Scenarios Injected
+        data_type: LONG
+        nullable: true
+
+  scenario_config:
+    description: |
+      **Scenario Configuration**
+
+      Contains configuration parameters for supply chain disruption scenarios
+      used in AI/ML analysis.
+    primary_key: [SCENARIO_ID]
+    columns:
+      SCENARIO_ID:
+        description: Scenario Identifier (SCN001, SCN002, etc.)
+        data_type: STRING
+        nullable: false
+      SCENARIO_NAME:
+        description: Scenario Name
+        data_type: STRING
+        nullable: true
+      SCENARIO_TYPE:
+        description: Scenario Type (INVENTORY, PRODUCTION, SUPPLIER)
+        data_type: STRING
+        nullable: true
+      DESCRIPTION:
+        description: Detailed Description
+        data_type: STRING
+        nullable: true
+      IMPACTED_NODE:
+        description: Impacted Plant/Location
+        data_type: STRING
+        nullable: true
+      IMPACTED_PRODUCTS:
+        description: Impacted Materials (comma-separated or ALL)
+        data_type: STRING
+        nullable: true
+      IMPACTED_BATCH:
+        description: Impacted Batch Number
+        data_type: STRING
+        nullable: true
+      NODE_OFFLINE:
+        description: Is Node Completely Offline
+        data_type: BOOLEAN
+        nullable: true
+      NODE_CAPACITY_PCT:
+        description: Remaining Capacity Percentage
+        data_type: LONG
+        nullable: true
+      INVENTORY_IMPACT:
+        description: Type of Inventory Impact
+        data_type: STRING
+        nullable: true
+      INVENTORY_QTY:
+        description: Quantity Impacted
+        data_type: STRING
+        nullable: true
+      QUARANTINE_SLOC:
+        description: Quarantine Storage Location
+        data_type: STRING
+        nullable: true
+      IMPACT_PERMANENT:
+        description: Is Impact Permanent
+        data_type: BOOLEAN
+        nullable: true
+      IMPACT_DATE:
+        description: Impact Start Date (YYYYMMDD)
+        data_type: STRING
+        nullable: true
+      IMPACT_DURATION_DAYS:
+        description: Duration of Impact in Days
+        data_type: LONG
+        nullable: true
+      TLANES_AFFECTED:
+        description: Transportation Lanes Affected
+        data_type: BOOLEAN
+        nullable: true
+      ALT_LINE_SAME_LOCATION:
+        description: Alternative Line at Same Location
+        data_type: BOOLEAN
+        nullable: true
+      IMPACTED_SUPPLIER:
+        description: Impacted Vendor Number
+        data_type: STRING
+        nullable: true
+      SUPPLIER_ISSUE:
+        description: Type of Supplier Issue
+        data_type: STRING
+        nullable: true
+      METRIC_TREND:
+        description: Performance Metric Trend
+        data_type: STRING
+        nullable: true
+      CURRENT_RELIABILITY:
+        description: Current Reliability Percentage
+        data_type: STRING
+        nullable: true
+      ALTERNATE_SUPPLIERS_AVAILABLE:
+        description: Alternative Suppliers Available
+        data_type: BOOLEAN
+        nullable: true
+      REVIEW_REQUIRED:
+        description: Manual Review Required
+        data_type: BOOLEAN
+        nullable: true
+      DEMAND_CHANGE_PCT:
+        description: Demand Change Percentage
+        data_type: LONG
+        nullable: true
+      DEMAND_CHANGE_TYPE:
+        description: Type of Demand Change
+        data_type: STRING
+        nullable: true
+      NEW_PRODUCT_ID:
+        description: New Product Material Number
+        data_type: STRING
+        nullable: true
+      CAPACITY_CONSTRAINT:
+        description: Capacity Constraint Description
+        data_type: STRING
+        nullable: true
+      COMPETING_PRODUCTS:
+        description: Competing Products on Same Line
+        data_type: STRING
+        nullable: true
+      REGULATORY_EVENT:
+        description: Regulatory Event Type
+        data_type: STRING
+        nullable: true
+      NEW_FACILITY:
+        description: New Facility Details
+        data_type: STRING
+        nullable: true
+      NETWORK_VOLATILITY:
+        description: Network Volatility Level
+        data_type: STRING
+        nullable: true
+      AI_DECISION_OPTIONS:
+        description: AI Decision Options (JSON)
+        data_type: STRING
+        nullable: true
+
+  scenario_metadata:
+    description: |
+      **Scenario Injection Metadata**
+
+      Tracks which scenarios have been injected into the data and their parameters.
+    primary_key: [scenario_id, injected_at]
+    columns:
+      scenario_id:
+        description: Scenario Identifier
+        data_type: STRING
+        nullable: false
+      scenario_type:
+        description: Scenario Type
+        data_type: STRING
+        nullable: true
+      description:
+        description: Scenario Description
+        data_type: STRING
+        nullable: true
+      mvmt_type:
+        description: SAP Movement Type Used
+        data_type: STRING
+        nullable: true
+      material:
+        description: Affected Material
+        data_type: STRING
+        nullable: true
+      plant:
+        description: Affected Plant
+        data_type: STRING
+        nullable: true
+      storage_loc:
+        description: Affected Storage Location
+        data_type: STRING
+        nullable: true
+      dest_loc:
+        description: Destination Location (for Transfers)
+        data_type: STRING
+        nullable: true
+      quantity:
+        description: Quantity Affected
+        data_type: DOUBLE
+        nullable: true
+      downtime_days:
+        description: Downtime Duration
+        data_type: INT
+        nullable: true
+      recovery_date:
+        description: Expected Recovery Date
+        data_type: STRING
+        nullable: true
+      vendor:
+        description: Affected Vendor
+        data_type: STRING
+        nullable: true
+      target_otif:
+        description: Target OTIF Rate
+        data_type: DOUBLE
+        nullable: true
+      injected_at:
+        description: Injection Timestamp
+        data_type: TIMESTAMP
+        nullable: false
+
+  smoke_test_config:
+    description: |
+      **Smoke Test Configuration**
+
+      Stores configuration for data validation smoke tests.
+    primary_key: [config_name]
+    columns:
+      config_name:
+        description: Configuration Name
+        data_type: STRING
+        nullable: false
+      config_json:
+        description: Configuration JSON
+        data_type: STRING
+        nullable: true
+      updated_at:
+        description: Last Updated Timestamp
+        data_type: TIMESTAMP
+        nullable: true

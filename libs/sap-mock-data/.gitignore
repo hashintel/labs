@@ -1,0 +1,62 @@
+# Local project files
+/local/
+
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.pyright/
+.ruff_cache/
+.hypothesis/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Packaging and test output
+build/
+dist/
+*.egg-info/
+.eggs/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Generated SAP data and reports
+/.mock-warehouse/
+/manifest.json
+
+# Local Spark and Databricks state
+spark-warehouse/
+metastore_db/
+derby.log
+.databricks/
+
+# Nix and direnv
+.direnv/
+result
+result-*
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+!.env.sample
+
+# Editors and operating systems
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
