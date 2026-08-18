@@ -1051,6 +1051,90 @@ mod tests {
     }
 
     #[test]
+    fn partition_keys_parse_at_the_length_boundary() {
+        assert!(
+            PartitionKey::parse("x".repeat(MAX_PARTITION_KEY_BYTES)).is_ok(),
+            "a key of exactly {MAX_PARTITION_KEY_BYTES} bytes should parse"
+        );
+        assert!(matches!(
+            PartitionKey::parse("x".repeat(MAX_PARTITION_KEY_BYTES + 1)),
+            Err(InvalidPartitionKey::TooLong { .. })
+        ));
+    }
+
+    #[test]
+    fn event_records_decode_at_the_size_boundary() {
+        // The limit is wire contract. A test written against the constant
+        // would follow a drifted value, so this pins the literal.
+        assert_eq!(MAX_EVENT_RECORD_BYTES, 1_048_576);
+        let encoded = EventRecord::V1(incremented("orders", 5))
+            .encode()
+            .expect("record should encode");
+        // serde_json accepts trailing whitespace, so padding with spaces
+        // changes the record's length and nothing else.
+        let mut at_limit = encoded.clone();
+        at_limit.resize(MAX_EVENT_RECORD_BYTES, b' ');
+        assert!(
+            EventRecord::<CounterEvent>::decode(&at_limit).is_ok(),
+            "a record of exactly {MAX_EVENT_RECORD_BYTES} bytes should decode"
+        );
+        let mut over_limit = encoded;
+        over_limit.resize(MAX_EVENT_RECORD_BYTES + 1, b' ');
+        let error = EventRecord::<CounterEvent>::decode(&over_limit)
+            .expect_err("an oversized record should be refused");
+        assert!(format!("{error:?}").contains("maximum"));
+    }
+
+    fn toy_snapshot(shard: &str, created_at: String) -> ProjectionSnapshot<ToyDomain> {
+        ProjectionSnapshot::V1(ProjectionSnapshotV1 {
+            shard: shard.to_owned(),
+            through_log_sequence: 0,
+            created_at,
+            seen: BTreeMap::new(),
+            partitions: BTreeMap::new(),
+            domain: Counters::default(),
+        })
+    }
+
+    #[test]
+    fn snapshots_encode_and_decode_at_the_size_boundary() {
+        assert_eq!(MAX_SNAPSHOT_BYTES, 1_048_576);
+        let base = toy_snapshot("00f", String::new())
+            .encode()
+            .expect("empty snapshot should encode")
+            .len();
+
+        let encoded = toy_snapshot("00f", "x".repeat(MAX_SNAPSHOT_BYTES - base))
+            .encode()
+            .expect("a snapshot of exactly the maximum should encode");
+        assert_eq!(encoded.len(), MAX_SNAPSHOT_BYTES);
+        assert!(ProjectionSnapshot::<ToyDomain>::decode(&encoded).is_ok());
+
+        let error = toy_snapshot("00f", "x".repeat(MAX_SNAPSHOT_BYTES - base + 1))
+            .encode()
+            .expect_err("an oversized snapshot should be refused at encode");
+        assert!(format!("{error:?}").contains("maximum"));
+
+        let mut padded = encoded;
+        padded.push(b' ');
+        assert!(
+            ProjectionSnapshot::<ToyDomain>::decode(&padded).is_err(),
+            "an oversized snapshot should be refused at decode"
+        );
+    }
+
+    #[test]
+    fn snapshot_shard_strings_are_validated() {
+        assert!(Toy::snapshot_bounds(&toy_snapshot("00f", String::new())).is_ok());
+        for invalid in ["0f", "00f1", "xyz", ""] {
+            assert!(
+                Toy::snapshot_bounds(&toy_snapshot(invalid, String::new())).is_err(),
+                "shard {invalid:?} should be refused"
+            );
+        }
+    }
+
+    #[test]
     fn identities_are_computed_and_forgeries_are_refused() {
         let record = incremented("orders", 5);
         let mut forged = incremented("orders", 6);
@@ -1116,6 +1200,19 @@ mod tests {
         )
         .expect_err("a non-advancing sequence should be rejected");
         assert!(error.contains("does not advance"));
+
+        // `normalize` blocks identity forgeries, so the reuse arm can fire
+        // only when a stored digest no longer matches the record's bytes;
+        // rewriting the stored digest stands in for that.
+        let other_digest = incremented("orders", 7)
+            .digest()
+            .expect("digest should compute");
+        projection
+            .seen
+            .insert(record.event_id.clone(), other_digest);
+        let error = Toy::replay(&mut projection, shard, 2, EventRecord::V1(record))
+            .expect_err("an event ID stored with different content should be refused");
+        assert!(error.contains("reused with different content"));
     }
 
     #[test]
@@ -1130,6 +1227,17 @@ mod tests {
         assert!(Toy::validate_recovered_prefix(&acknowledged, &empty).is_err());
         assert!(Toy::validate_recovered_prefix(&acknowledged, &acknowledged.clone()).is_ok());
         assert!(Toy::validate_recovered_prefix(&empty, &acknowledged).is_ok());
+
+        // A duplicate replay advances the sequence without new events, so
+        // `advanced` and `acknowledged` differ only in through_log_sequence.
+        let mut advanced = acknowledged.clone();
+        let record = incremented("orders", 5);
+        Toy::replay(&mut advanced, shard, 1, EventRecord::V1(record))
+            .expect("duplicate replay should advance the sequence");
+        let error = Toy::validate_recovered_prefix(&advanced, &acknowledged)
+            .expect_err("a lower recovered sequence should be a regression");
+        assert!(error.contains("regressed"));
+        assert!(Toy::validate_recovered_prefix(&acknowledged, &advanced).is_ok());
     }
 
     #[tokio::test]

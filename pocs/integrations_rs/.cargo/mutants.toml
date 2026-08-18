@@ -1,0 +1,3 @@
+# Display/Debug formatting mutants always survive 
+# so they are excluded to keep a run's missed list meaningful.
+exclude_re = ["::fmt -> fmt::Result"]

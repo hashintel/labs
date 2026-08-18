@@ -61,3 +61,7 @@ local/**
 # Vale prose linter — personal tooling, not part of the repo contract
 /.vale.ini
 /.vale/
+
+# cargo-mutants output
+/mutants.out/
+/mutants.out.old/

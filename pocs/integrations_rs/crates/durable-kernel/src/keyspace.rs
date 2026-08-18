@@ -194,6 +194,10 @@ mod tests {
                 "{invalid:?}"
             );
         }
+        assert!(
+            Namespace::parse("x".repeat(MAX_NAMESPACE_BYTES)).is_ok(),
+            "a namespace of exactly {MAX_NAMESPACE_BYTES} bytes should parse"
+        );
         assert!(matches!(
             Namespace::parse("x".repeat(MAX_NAMESPACE_BYTES + 1)),
             Err(InvalidNamespace::TooLong { .. })
@@ -224,6 +228,19 @@ mod tests {
         assert_eq!(
             keyspace.shard_projection(shard),
             "tenants/alice/control/v1/shards/00f/projection"
+        );
+        assert_eq!(keyspace.ready(), "tenants/alice/control/v1/ready");
+        assert_eq!(
+            keyspace.ready_shard(shard),
+            "tenants/alice/control/v1/ready/00f"
+        );
+        assert_eq!(
+            keyspace.requests(shard),
+            "tenants/alice/control/v1/requests/00f"
+        );
+        assert_eq!(
+            keyspace.request_results(shard),
+            "tenants/alice/control/v1/request-results/00f"
         );
     }
 
