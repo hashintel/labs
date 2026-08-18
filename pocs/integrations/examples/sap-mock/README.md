@@ -10,10 +10,10 @@ batches -- plus demo disruption scenarios) and runs the full pipeline over it:
 ./seed-mock.sh                      # dry run: stub graph, writes nothing
 ```
 
-Setup (python deps, runner `npm install`): see the [package README](../../README.md)
+Setup (runner `npm install`): see the [package README](../../README.md)
 one level up -- devs typically run from there. The script uses whatever
-toolchain it finds: an activated venv / system python and node on PATH,
-falling back to nix for either half.
+toolchain it finds: uv and node on PATH, falling back to nix for either
+half.
 
 ## Sizing
 
@@ -30,11 +30,11 @@ for reproducible data (same seed, same bytes, within a day):
 
 ## Just the data
 
-To use the generator without the pipeline:
+To use the generator without the pipeline, from the repo root:
 
 ```sh
-python3 generator/generate.py /tmp/sap-data          # 44 Delta tables
-SCALE_FACTOR=5 python3 generator/generate.py /tmp/sap-data
+uv run --project libs/sap-mock-data sap-mock generate /tmp/sap-data   # 44 Delta tables
+uv run --project libs/sap-mock-data sap-mock generate /tmp/sap-data --scale-factor 5
 ```
 
 One Delta directory per SAP table (`makt`, `vbak`, `matdoc`, ...), readable by
@@ -51,7 +51,7 @@ INSTALL delta; LOAD delta;
 SELECT * FROM delta_scan('/tmp/sap-data/vbak');
 ```
 
-`generator/generate.py -h` lists the knobs (volumes, seed, scenarios). Unlike
+`sap-mock generate -h` lists the knobs (volumes, seed, scenarios). Unlike
 `seed-mock.sh`, standalone generation defaults to the fixed seed 42.
 
 ## Writing to a real graph
@@ -113,7 +113,7 @@ default (`--scenarios demo`).
 - `./seed-mock.sh --scenarios none` -- base data only
 - `./seed-mock.sh --scenarios SCN003,SCN011` -- specific scenarios; each also
   needs its `SCNxxx_CONFIG` env string (upstream skips configless scenarios
-  silently -- config shapes are listed at the top of `generator/scenarios.py`,
+  silently -- config shapes are documented in the `sap-mock-data` package,
   and some reference generated batch ids, which change with the seed)
 
 ## Layout
@@ -122,18 +122,18 @@ default (`--scenarios demo`).
 |---|---|
 | `seed-mock.sh` | generate + run, one command |
 | `resolve-web.mjs` | web shortname -> ids + ontology preflight (used by `--web`) |
-| `generator/` | the data generator (pandas + deltalake, no Spark; deps in the package-root `requirements.txt`/flake) |
+| `libs/sap-mock-data` *(repo root)* | the data generator (pandas + deltalake, no Spark; a uv project with its own flake) |
 | `sap-mock.yaml` | the integration: DuckDB `delta_scan` sources + pipelines |
 | `.mock-warehouse/` | generated Delta tables (gitignored) |
 | `.mock-state/` | pipeline diff state per web (gitignored) |
 
 ## Provenance & quirks
 
-`generator/` is a faithful pandas port of the private hashintel/SAP_Mock_Data
-notebooks (Masterdata, Transactions, Setup Scenario Config, Inject Scenarios):
-logic verbatim, Databricks/pyspark shell replaced with pandas + Delta io;
-byte-verified against the original at identical seeds. Upstream behaviors
-preserved as-is:
+`libs/sap-mock-data` is a faithful pandas port of the private
+hashintel/SAP_Mock_Data notebooks (Masterdata, Transactions, Setup Scenario
+Config, Inject Scenarios): logic verbatim, Databricks/pyspark shell replaced
+with pandas + Delta io; byte-verified against the original at identical
+seeds. Upstream behaviors preserved as-is:
 
 - RESB / movement-type-261 consumption is always empty (upstream never stocks
   RM01); an empty `resb` table is seeded so the pipeline contract holds.

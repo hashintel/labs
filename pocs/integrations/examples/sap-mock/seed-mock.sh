@@ -17,8 +17,8 @@
 #                   entities  ~18k   ~175k  ~0.9M  ~1.8M
 #                   orders     500    5k     25k    50k
 #
-# Toolchain: python (venv with the package-root requirements.txt) + node 20+,
-# or nix for either half -- whatever is on PATH is used. Setup: ../../README.md.
+# Toolchain: uv (runs libs/sap-mock-data at the repo root) + node 20+, or nix
+# for either half -- whatever is on PATH is used. Setup: ../../README.md.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -33,26 +33,25 @@ while [ $# -gt 0 ]; do
     --web) WEB="$2"; shift 2;;
     --scale-factor|--sf) SF="$2"; shift 2;;
     --seed) SEED="$2"; shift 2;;
-    --scenarios) export SCENARIOS="$2"; shift 2;;
+    --scenarios) SCENARIOS="$2"; shift 2;;
     -*) echo "unknown option: $1 (see --help)" >&2; exit 2;;
     *) SF="$1"; shift;;
   esac
 done
 [ -n "$SEED" ] || SEED=$(( (RANDOM << 15) | RANDOM ))
-export RANDOM_SEED="$SEED"
 
 RUNNER_DIR="${RUNNER_DIR:-$PKG_ROOT/../integration-runner}"
+SAPLIB="${SAPLIB:-$PKG_ROOT/../../libs/sap-mock-data}"
 WAREHOUSE="${MOCK_WAREHOUSE:-$HERE/.mock-warehouse}"
 
-# Generator python: a python that already has the deps (venv or system), else nix.
-if python3 -c "import deltalake, pandas, faker" 2>/dev/null; then
-  PY=(python3)
+# Generator: the sap-mock-data uv project, via uv on PATH or its nix shell.
+if command -v uv >/dev/null 2>&1; then
+  SAPMOCK=(uv run --project "$SAPLIB" sap-mock)
 elif command -v nix >/dev/null 2>&1; then
-  PY=(nix develop "path:$PKG_ROOT" -c python3)  # path: works regardless of git tracking
+  # path: works regardless of git tracking
+  SAPMOCK=(nix develop "path:$SAPLIB" -c uv run --project "$SAPLIB" sap-mock)
 else
-  echo "no python with the generator deps and no nix. Either:" >&2
-  echo "  (cd $PKG_ROOT && python3 -m venv .venv && . .venv/bin/activate && pip install -r requirements.txt)" >&2
-  echo "or install nix." >&2
+  echo "generating data needs uv or nix; the generator is the uv project at $SAPLIB." >&2
   exit 1
 fi
 
@@ -83,7 +82,13 @@ if [ -n "$WEB" ]; then
 fi
 
 echo "[seed-mock 1/2] generating synthetic SAP data (SF=$SF, seed $SEED -- reproduce with --seed $SEED) -> $WAREHOUSE"
-SCALE_FACTOR="$SF" "${PY[@]}" "$HERE/generator/generate.py" "$WAREHOUSE"
+# SCNxxx_CONFIG env vars pass through as --scenario-config flags.
+SCENARIO_FLAGS=()
+for var in $(env | grep -oE '^SCN[0-9]{3}_CONFIG'); do
+  SCENARIO_FLAGS+=(--scenario-config "${var%_CONFIG}=${!var}")
+done
+"${SAPMOCK[@]}" generate "$WAREHOUSE" --seed "$SEED" --scale-factor "$SF" \
+  --scenarios "${SCENARIOS:-demo}" ${SCENARIO_FLAGS[@]+"${SCENARIO_FLAGS[@]}"}
 
 TARGET="stub graph (dry run -- pass --web <shortname> to write for real)"
 [ -n "${HASH_GRAPH_URL:-}" ] && TARGET="graph at $HASH_GRAPH_URL (web ${HASH_WEB_ID:-?})"

@@ -6,22 +6,13 @@ YAML runner and orchestration live in `../integration-runner`.
 
 ## Seed a web with synthetic SAP data
 
-Three steps; the first two only once.
-
-**1. Python deps** (or skip -- `nix develop` covers python and node):
-
-```sh
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-**2. Runner deps** (node 20+):
+**1. Runner deps** (node 20+, once):
 
 ```sh
 (cd ../integration-runner && npm install)
 ```
 
-**3. Seed:**
+**2. Seed:**
 
 ```sh
 ./examples/sap-mock/seed-mock.sh --web <shortname>                   # seed that web
