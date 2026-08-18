@@ -76,15 +76,23 @@ print(f"Foreign keys defined: {fk_count}")
 # =============================================================================
 # HELPER FUNCTIONS
 # =============================================================================
+def escape_sql_string(value):
+    """Escape a value for a regular Spark SQL string literal."""
+    return str(value).replace("\\", "\\\\").replace("'", "\\'")
+
 def escape_comment(comment):
-    """Escape single quotes and clean up comment for SQL."""
+    """Escape a comment and collapse its whitespace for SQL."""
     if not comment:
         return ''
-    # Replace single quotes with escaped single quotes
-    comment = comment.replace("'", "\\'")
-    # Remove newlines and extra whitespace
-    comment = ' '.join(comment.split())
-    return comment
+    return escape_sql_string(' '.join(comment.split()))
+
+def quote_identifier(identifier):
+    """Quote one Spark SQL identifier, including embedded backticks."""
+    return f"`{str(identifier).replace('`', '``')}`"
+
+def qualified_table_name(table_name):
+    """Build a quoted three-part Unity Catalog table name."""
+    return ".".join(quote_identifier(part) for part in (CATALOG, SCHEMA, table_name))
 
 def table_exists(full_table_name):
     """Check if a table exists in the catalog."""
@@ -94,16 +102,22 @@ def table_exists(full_table_name):
     except:
         return False
 
-def get_existing_constraints(full_table_name, constraint_type):
+def get_existing_constraints(table_name, constraint_type):
     """Get existing constraints of a specific type for a table."""
-    table_name = full_table_name.split('.')[-1]
+    constraints_table = ".".join(
+        quote_identifier(part)
+        for part in (CATALOG, "information_schema", "table_constraints")
+    )
+    schema_value = escape_sql_string(SCHEMA)
+    table_value = escape_sql_string(table_name)
+    constraint_type_value = escape_sql_string(constraint_type)
     try:
         df = spark.sql(f"""
             SELECT constraint_name
-            FROM {CATALOG}.information_schema.table_constraints
-            WHERE table_schema = '{SCHEMA}'
-              AND table_name = '{table_name}'
-              AND constraint_type = '{constraint_type}'
+            FROM {constraints_table}
+            WHERE table_schema = '{schema_value}'
+              AND table_name = '{table_value}'
+              AND constraint_type = '{constraint_type_value}'
         """)
         return [row['constraint_name'] for row in df.collect()]
     except:
@@ -123,26 +137,29 @@ if APPLY_CONSTRAINTS and DROP_EXISTING_CONSTRAINTS:
     pk_dropped = 0
 
     for table_name in tables.keys():
-        full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
+        full_table_name = qualified_table_name(table_name)
 
         if not table_exists(full_table_name):
             continue
 
         # Drop Foreign Keys first (to avoid dependency errors)
-        for constraint_name in get_existing_constraints(full_table_name, 'FOREIGN KEY'):
+        for constraint_name in get_existing_constraints(table_name, 'FOREIGN KEY'):
             if DRY_RUN:
                 print(f"  [DRY RUN] Would drop FK: {table_name}.{constraint_name}")
                 fk_dropped += 1
             else:
                 try:
-                    spark.sql(f"ALTER TABLE {full_table_name} DROP CONSTRAINT {constraint_name}")
+                    spark.sql(
+                        f"ALTER TABLE {full_table_name} "
+                        f"DROP CONSTRAINT {quote_identifier(constraint_name)}"
+                    )
                     print(f"  Dropped FK: {table_name}.{constraint_name}")
                     fk_dropped += 1
                 except Exception as e:
                     print(f"  Skip FK {constraint_name}: {str(e)[:50]}")
 
         # Drop Primary Keys
-        for constraint_name in get_existing_constraints(full_table_name, 'PRIMARY KEY'):
+        for constraint_name in get_existing_constraints(table_name, 'PRIMARY KEY'):
             if DRY_RUN:
                 print(f"  [DRY RUN] Would drop PK: {table_name}.{constraint_name}")
                 pk_dropped += 1
@@ -175,7 +192,7 @@ for table_name, table_doc in tables.items():
         continue
 
     escaped_desc = escape_comment(description)
-    full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
+    full_table_name = qualified_table_name(table_name)
 
     if not table_exists(full_table_name):
         print(f"  SKIP: {table_name} (table not found)")
@@ -212,7 +229,7 @@ column_errors = 0
 
 for table_name, table_doc in tables.items():
     columns = table_doc.get('columns', {})
-    full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
+    full_table_name = qualified_table_name(table_name)
 
     if not table_exists(full_table_name):
         continue
@@ -225,7 +242,10 @@ for table_name, table_doc in tables.items():
             continue
 
         escaped_desc = escape_comment(description)
-        sql = f"ALTER TABLE {full_table_name} ALTER COLUMN {col_name} COMMENT '{escaped_desc}'"
+        sql = (
+            f"ALTER TABLE {full_table_name} "
+            f"ALTER COLUMN {quote_identifier(col_name)} COMMENT '{escaped_desc}'"
+        )
 
         if DRY_RUN:
             # Only print first few for preview
@@ -268,7 +288,7 @@ if APPLY_CONSTRAINTS:
         if not primary_key:
             continue
 
-        full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
+        full_table_name = qualified_table_name(table_name)
 
         if not table_exists(full_table_name):
             print(f"  SKIP: {table_name} (table not found)")
@@ -276,7 +296,10 @@ if APPLY_CONSTRAINTS:
 
         # First, set NOT NULL on PK columns
         for col in primary_key:
-            not_null_sql = f"ALTER TABLE {full_table_name} ALTER COLUMN {col} SET NOT NULL"
+            not_null_sql = (
+                f"ALTER TABLE {full_table_name} "
+                f"ALTER COLUMN {quote_identifier(col)} SET NOT NULL"
+            )
             if not DRY_RUN:
                 try:
                     spark.sql(not_null_sql)
@@ -287,8 +310,13 @@ if APPLY_CONSTRAINTS:
 
         # Create the PK constraint
         pk_cols = ", ".join(primary_key)
+        pk_cols_sql = ", ".join(quote_identifier(col) for col in primary_key)
         constraint_name = f"pk_{table_name}"
-        pk_sql = f"ALTER TABLE {full_table_name} ADD CONSTRAINT {constraint_name} PRIMARY KEY ({pk_cols})"
+        pk_sql = (
+            f"ALTER TABLE {full_table_name} "
+            f"ADD CONSTRAINT {quote_identifier(constraint_name)} "
+            f"PRIMARY KEY ({pk_cols_sql})"
+        )
 
         if DRY_RUN:
             print(f"  [DRY RUN] {table_name}: PK ({pk_cols})")
@@ -328,7 +356,7 @@ if APPLY_CONSTRAINTS:
         if not foreign_keys:
             continue
 
-        full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
+        full_table_name = qualified_table_name(table_name)
 
         if not table_exists(full_table_name):
             print(f"  SKIP: {table_name} (table not found)")
@@ -345,7 +373,7 @@ if APPLY_CONSTRAINTS:
                 continue
 
             # Check if referenced table exists
-            ref_full_table = f"{CATALOG}.{SCHEMA}.{ref_table}"
+            ref_full_table = qualified_table_name(ref_table)
             if not table_exists(ref_full_table):
                 print(f"  SKIP: {table_name} FK to {ref_table} (ref table not found)")
                 fk_skipped += 1
@@ -354,14 +382,16 @@ if APPLY_CONSTRAINTS:
             # Build the constraint
             fk_cols_str = ", ".join(fk_columns)
             ref_cols_str = ", ".join(ref_columns)
+            fk_cols_sql = ", ".join(quote_identifier(col) for col in fk_columns)
+            ref_cols_sql = ", ".join(quote_identifier(col) for col in ref_columns)
 
             # Create a unique constraint name
             constraint_name = f"fk_{table_name}_{ref_table}_{i+1}"
 
             fk_sql = f"""ALTER TABLE {full_table_name}
-                ADD CONSTRAINT {constraint_name}
-                FOREIGN KEY ({fk_cols_str})
-                REFERENCES {ref_full_table} ({ref_cols_str})"""
+                ADD CONSTRAINT {quote_identifier(constraint_name)}
+                FOREIGN KEY ({fk_cols_sql})
+                REFERENCES {ref_full_table} ({ref_cols_sql})"""
 
             if DRY_RUN:
                 print(f"  [DRY RUN] {table_name}({fk_cols_str}) -> {ref_table}({ref_cols_str})")

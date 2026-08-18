@@ -23,6 +23,24 @@ def integrity_report(store: TableStore) -> dict[str, Any]:
             continue
         child = store.read(child_table)
         parent = store.read(parent_table)
+        missing_columns = [
+            qualified_column
+            for qualified_column, frame, column in (
+                (f"{child_table}.{child_key}", child, child_key),
+                (f"{parent_table}.{parent_key}", parent, parent_key),
+            )
+            if column not in frame.columns
+        ]
+        if missing_columns:
+            checks.append(
+                {
+                    "child": f"{child_table}.{child_key}",
+                    "parent": f"{parent_table}.{parent_key}",
+                    "missing_keys": None,
+                    "missing_columns": missing_columns,
+                }
+            )
+            continue
         missing = set(child[child_key].dropna()) - set(parent[parent_key].dropna())
         checks.append(
             {
@@ -32,4 +50,3 @@ def integrity_report(store: TableStore) -> dict[str, Any]:
             }
         )
     return {"ok": all(check["missing_keys"] == 0 for check in checks), "checks": checks}
-
