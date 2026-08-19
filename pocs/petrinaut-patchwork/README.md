@@ -1,7 +1,14 @@
 # Petrinaut x Patchwork
 
 Packages the [Petrinaut](https://www.npmjs.com/package/@hashintel/petrinaut) Petri
-net editor as a Patchwork tool, datatype and skill.
+net editor as a Patchwork tool and datatype, plus two skills:
+
+- **`patchwork:skill`** — `SKILL.md` and the typed API in `skill-api.ts`, for
+  agents that can call a real API.
+- **`llm:skill`** — `llm-skill.ts`, an instruction pack for Patchwork's chat
+  computer, which has only generic `read_doc` / `automerge_op` tools and so
+  needs the net's schema spelled out. It activates automatically when a
+  Petrinaut document is focused.
 
 ## Installation
 
