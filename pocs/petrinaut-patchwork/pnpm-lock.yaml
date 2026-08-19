@@ -11,6 +11,9 @@ importers:
 
   .:
     dependencies:
+      '@automerge/automerge':
+        specifier: 3.3.2
+        version: 3.3.2
       '@automerge/automerge-repo':
         specifier: ^2.5.4
         version: 2.5.4
@@ -29,6 +32,9 @@ importers:
       '@hashintel/petrinaut-core':
         specifier: ^0.0.2
         version: 0.0.2
+      '@inkandswitch/patchwork-providers-react':
+        specifier: ^0.2.5
+        version: 0.2.5(@automerge/automerge-repo-react-hooks@2.5.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@automerge/automerge-repo@2.5.4)(react@19.2.0)
       react:
         specifier: 19.2.0
         version: 19.2.0
@@ -173,12 +179,6 @@ packages:
 
   '@automerge/automerge-subduction@0.16.1':
     resolution: {integrity: sha512-alH7U4eYn0O7sT6hNLv7CJhNODJi+QD6qfRQTNfZCxL3Q5JZdJ8lFpdvXUkBf+I3bu0GLvVlTaYPWGrBihjpIw==}
-
-  '@automerge/automerge@2.2.9':
-    resolution: {integrity: sha512-6HM52Ops79hAQBWMg/t0MNfGOdEiXyenQjO9F1hKZq0RWDsMLpPa1SzRy/C4/4UyX67sTHuA5CwBpH34SpfZlA==}
-
-  '@automerge/automerge@3.2.1':
-    resolution: {integrity: sha512-xsEZlZe8lWyVCbD7Z7roH4X6ZKlRxMmmumb0M5CuxJWptUEfYsf+1z9lFEJh4aDBbWTLAgxsXd+TBi6jKTj0+g==}
 
   '@automerge/automerge@3.3.0-fragments.2':
     resolution: {integrity: sha512-F5KL+YXD0GMFH/as0/kJ3+lotpuJsH1SSrhhKdYSGtR+S9ytBNTw+s3pAjF2Vr0+ZdTMHxsGjqj5SRkJiSNokQ==}
@@ -830,6 +830,13 @@ packages:
       '@automerge/automerge': '*'
       '@automerge/automerge-repo': '*'
       '@inkandswitch/patchwork-filesystem': ^0.2.7
+
+  '@inkandswitch/patchwork-providers-react@0.2.5':
+    resolution: {integrity: sha512-eMHTXH9R75TJl7ealNYJMJzR7+DaqwLIVzir/7mMAzocRBBvcsXf1D+oJCoyBu/2c26LHgUHb9twoV65hWk0iw==}
+    peerDependencies:
+      '@automerge/automerge-repo': '*'
+      '@automerge/automerge-repo-react-hooks': '*'
+      react: ^18.0.0
 
   '@inkandswitch/patchwork-providers@0.5.1':
     resolution: {integrity: sha512-KOZghTF4CVSK0jH9F/4JHtiACJsyQRluVCtfKrbwQPxQKhnuHIsbQHyBQu/Bsx9QMDFGdGcX7rs9jBj7qiQ6WQ==}
@@ -3870,7 +3877,7 @@ snapshots:
 
   '@automerge/automerge-repo-react-hooks@2.5.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)':
     dependencies:
-      '@automerge/automerge': 2.2.9
+      '@automerge/automerge': 3.3.2
       '@automerge/automerge-repo': 2.5.4
       eventemitter3: 5.0.1
       react: 19.2.0
@@ -3906,7 +3913,7 @@ snapshots:
 
   '@automerge/automerge-repo@2.5.4':
     dependencies:
-      '@automerge/automerge': 3.2.1
+      '@automerge/automerge': 3.3.2
       bs58check: 3.0.1
       cbor-x: 1.6.0
       debug: 4.4.3
@@ -3956,12 +3963,6 @@ snapshots:
   '@automerge/automerge-subduction@0.16.0': {}
 
   '@automerge/automerge-subduction@0.16.1': {}
-
-  '@automerge/automerge@2.2.9':
-    dependencies:
-      uuid: 9.0.1
-
-  '@automerge/automerge@3.2.1': {}
 
   '@automerge/automerge@3.3.0-fragments.2': {}
 
@@ -4559,6 +4560,13 @@ snapshots:
       resolve.exports: 2.0.3
     transitivePeerDependencies:
       - supports-color
+
+  '@inkandswitch/patchwork-providers-react@0.2.5(@automerge/automerge-repo-react-hooks@2.5.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(@automerge/automerge-repo@2.5.4)(react@19.2.0)':
+    dependencies:
+      '@automerge/automerge-repo': 2.5.4
+      '@automerge/automerge-repo-react-hooks': 2.5.4(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@inkandswitch/patchwork-providers': 0.5.1(@automerge/automerge-repo@2.5.4)
+      react: 19.2.0
 
   '@inkandswitch/patchwork-providers@0.5.1(@automerge/automerge-repo@2.5.4)':
     dependencies:

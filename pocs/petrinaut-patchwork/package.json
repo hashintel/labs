@@ -20,12 +20,14 @@
 		}
 	},
 	"dependencies": {
+		"@automerge/automerge": "3.3.2",
 		"@automerge/automerge-repo": "^2.5.4",
 		"@automerge/automerge-repo-react-hooks": "2.5.4",
 		"@hashintel/ds-components": "^0.2.2",
 		"@hashintel/ds-helpers": "0.1.2",
 		"@hashintel/petrinaut": "0.0.16",
 		"@hashintel/petrinaut-core": "^0.0.2",
+		"@inkandswitch/patchwork-providers-react": "^0.2.5",
 		"react": "19.2.0",
 		"react-dom": "19.2.0",
 		"uuid": "11.1.0",

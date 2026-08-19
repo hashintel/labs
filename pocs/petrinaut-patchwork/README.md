@@ -47,6 +47,17 @@ own fallback workers are only reliable for source builds. Those exports are
 factory functions, not worker entry scripts — importing them with Vite's
 `?worker` suffix silently produces empty 1-byte workers.
 
+Diffs come from Patchwork's draft overlay, which serves a document's fork-point
+heads under `draft:baseline`. `diff.ts` compares the net at those heads against
+the live one; `diff-overlay.tsx` draws the result. Petrinaut has no diff API, so
+neither goes through it: added and edited places, transitions and arcs are
+glowed by a stylesheet keyed on the ids React Flow stamps onto its nodes and
+edges, and removed ones are redrawn as ghosts inside React Flow's viewport
+portal, which pans and zooms with the canvas. Nothing is written back into the
+net — a removed place must not reappear in the sidebar, the compiler or a
+simulation. Without a baseline (on main, or with the diff overlay off) the
+editor renders undecorated.
+
 `@hashintel/ds-helpers` is pinned to `0.1.2`, the only version published with
 its `styled-system` directory intact. Newer releases, `0.2.1` included, ship
 only the README and `package.json`, so `@hashintel/ds-helpers/css` fails to

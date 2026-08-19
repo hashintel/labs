@@ -13,9 +13,10 @@ import { createLanguageServerWorker } from "@hashintel/petrinaut-core/workers/ls
 import { createMonteCarloWorker } from "@hashintel/petrinaut-core/workers/monte-carlo";
 import { createSimulationWorker } from "@hashintel/petrinaut-core/workers/simulation";
 import type { ToolImplementation } from "@inkandswitch/patchwork-plugins";
-import { createElement, useMemo } from "react";
+import { createElement, Fragment, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import type { Doc } from "./datatype";
+import { NetDiffOverlay, useNetDiff } from "./diff-overlay";
 
 export const renderPetrinautEditor: ToolImplementation<Doc> = (
 	handle,
@@ -23,25 +24,36 @@ export const renderPetrinautEditor: ToolImplementation<Doc> = (
 ) => {
 	const root = createRoot(element);
 
-	root.render(createElement(PetrinautEditor, { handle }));
+	root.render(createElement(PetrinautEditor, { handle, element }));
 
 	return () => {
 		root.unmount();
 	};
 };
 
-export const PetrinautEditor = ({ handle }: { handle: DocHandle<Doc> }) => {
+export const PetrinautEditor = ({
+	handle,
+	element,
+}: {
+	handle: DocHandle<Doc>;
+	element: HTMLElement;
+}) => {
 	const netHandle = useMemo(() => toPetrinautHandle(handle), [handle]);
+	const diff = useNetDiff(handle, element);
 
+	// The overlay decorates Petrinaut's canvas from the outside, so it has to
+	// be thrown away with it when a new document swaps the whole editor out.
 	return (
-		<Petrinaut
-			key={handle.url}
-			handle={netHandle}
-			hideNetManagementControls="all"
-			simulationWorkerFactory={createSimulationWorker}
-			monteCarloWorkerFactory={createMonteCarloWorker}
-			lspWorkerFactory={createLanguageServerWorker}
-		/>
+		<Fragment key={handle.url}>
+			<Petrinaut
+				handle={netHandle}
+				hideNetManagementControls="all"
+				simulationWorkerFactory={createSimulationWorker}
+				monteCarloWorkerFactory={createMonteCarloWorker}
+				lspWorkerFactory={createLanguageServerWorker}
+			/>
+			<NetDiffOverlay diff={diff} element={element} />
+		</Fragment>
 	);
 };
 
