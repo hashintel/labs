@@ -9,16 +9,21 @@
 	},
 	"scripts": {
 		"build": "vite build",
-		"push": "pnpm build && patchwork push",
+		"push": "pnpm build && pushwork sync",
 		"watch": "nodemon --watch src -e js,tsx,ts,tsx,css,json --exec 'pnpm build && pnpm push'"
 	},
 	"keywords": [],
 	"author": "HASH",
+	"pnpm": {
+		"overrides": {
+			"@hashintel/ds-helpers": "0.1.2"
+		}
+	},
 	"dependencies": {
 		"@automerge/automerge-repo": "^2.5.4",
 		"@automerge/automerge-repo-react-hooks": "2.5.4",
+		"@hashintel/ds-helpers": "0.1.2",
 		"@hashintel/petrinaut": "0.0.11",
-		"@inkandswitch/patchwork-bootloader": "^0.0.4",
 		"@inkandswitch/patchwork-plugins": "^0.0.5",
 		"react": "19.2.0",
 		"react-dom": "19.2.0",
@@ -27,6 +32,7 @@
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {
+		"@inkandswitch/patchwork-bootloader": "^0.6.2",
 		"@types/react": "19.2.2",
 		"@types/react-dom": "19.2.2",
 		"@vitejs/plugin-react": "5.0.4",
@@ -35,6 +41,7 @@
 		"eslint-plugin-react-hooks": "4.6.0",
 		"eslint-plugin-react-refresh": "0.4.3",
 		"nodemon": "^3.1.9",
+		"pushwork": "^2.2.3",
 		"typescript": "5.7.3",
 		"typescript-eslint": "7.3.1",
 		"vite": "5",
