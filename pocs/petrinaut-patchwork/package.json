@@ -22,9 +22,10 @@
 	"dependencies": {
 		"@automerge/automerge-repo": "^2.5.4",
 		"@automerge/automerge-repo-react-hooks": "2.5.4",
+		"@hashintel/ds-components": "^0.2.2",
 		"@hashintel/ds-helpers": "0.1.2",
-		"@hashintel/petrinaut": "0.0.11",
-		"@inkandswitch/patchwork-plugins": "^0.0.5",
+		"@hashintel/petrinaut": "0.0.16",
+		"@hashintel/petrinaut-core": "^0.0.2",
 		"react": "19.2.0",
 		"react-dom": "19.2.0",
 		"uuid": "11.1.0",
@@ -33,6 +34,7 @@
 	},
 	"devDependencies": {
 		"@inkandswitch/patchwork-bootloader": "^0.6.2",
+		"@inkandswitch/patchwork-plugins": "^1.2.2",
 		"@types/react": "19.2.2",
 		"@types/react-dom": "19.2.2",
 		"@vitejs/plugin-react": "5.0.4",

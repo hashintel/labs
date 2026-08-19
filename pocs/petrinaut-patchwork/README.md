@@ -31,9 +31,23 @@ in step with the host: a stale list bundles a second copy of a module the host
 already provides. React is deliberately not on that list, so this tool ships
 its own.
 
+The editor renders through Petrinaut's handle-driven API: `tool.tsx` adapts the
+Automerge handle Patchwork supplies into a `PetrinautDocHandle` over the
+`petriNetDefinition` field, leaving `title` and `@patchwork` untouched around
+it. The three worker factories come from `@hashintel/petrinaut-core/workers/*`,
+which is what a consumer of the published dist is meant to pass; Petrinaut's
+own fallback workers are only reliable for source builds. Those exports are
+factory functions, not worker entry scripts — importing them with Vite's
+`?worker` suffix silently produces empty 1-byte workers.
+
 `@hashintel/ds-helpers` is pinned to `0.1.2`, the only version published with
 its `styled-system` directory intact. Newer releases, `0.2.1` included, ship
 only the README and `package.json`, so `@hashintel/ds-helpers/css` fails to
-resolve at build time. The pin is both a direct dependency and a `pnpm.overrides`
-entry: the override alone does not bite, because `ds-helpers` reaches this
-package as an auto-installed peer of `@hashintel/ds-components`.
+resolve at build time. `@hashintel/ds-components` is likewise pinned forward to
+`^0.2.2`, which is what `@hashintel/petrinaut` 0.0.16 expects.
+
+Both pins are direct dependencies rather than just `pnpm.overrides` entries. An
+override alone does not bite here, because each package reaches this one as an
+auto-installed peer, and pnpm resolves those before overrides apply. This is
+also why `@hashintel/petrinaut` cannot move past 0.0.16 on its own: its peer
+range wants a `ds-helpers` release that has not been published intact.

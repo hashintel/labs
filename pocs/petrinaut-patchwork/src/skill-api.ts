@@ -9,6 +9,9 @@ import type {
 	Transition,
 } from "@hashintel/petrinaut";
 
+/** "standard" or "inhibitor" — an inhibitor arc blocks its transition while the place holds tokens. */
+type ArcType = Transition["inputArcs"][number]["type"];
+
 type PetriNetDoc = {
 	"@patchwork": { type: "petrinaut-petrinet" };
 	title: string;
@@ -124,8 +127,8 @@ function deleteItemsFromSdcpn(sdcpn: SDCPN, items: RemoveItem[]) {
 			}
 		}
 		for (const eq of sdcpn.differentialEquations) {
-			if (typeIds.has(eq.colorId)) {
-				eq.colorId = "";
+			if (eq.colorId && typeIds.has(eq.colorId)) {
+				eq.colorId = null;
 			}
 		}
 	}
@@ -164,6 +167,7 @@ type PlaceToTransitionArc = {
 	source_place: string;
 	target_transition: string;
 	weight?: number;
+	type?: ArcType;
 };
 
 type TransitionToPlaceArc = {
@@ -248,6 +252,7 @@ export default function (workspace: Workspace) {
 						placeId: string;
 						transitionId: string;
 						weight: number;
+						type?: ArcType;
 					}> = [];
 					for (const t of def.transitions) {
 						for (const ia of t.inputArcs) {
@@ -257,6 +262,7 @@ export default function (workspace: Workspace) {
 								placeId: ia.placeId,
 								transitionId: t.id,
 								weight: ia.weight,
+								type: ia.type,
 							});
 						}
 						for (const oa of t.outputArcs) {
@@ -364,6 +370,7 @@ export default function (workspace: Workspace) {
 							transition.inputArcs.push({
 								placeId: place.id,
 								weight: args.weight ?? 1,
+								type: args.type ?? "standard",
 							});
 						} else {
 							const transition = findTransition(
@@ -562,6 +569,7 @@ export default function (workspace: Workspace) {
 										transition.inputArcs.push({
 											placeId,
 											weight: arcArgs.weight ?? 1,
+											type: arcArgs.type ?? "standard",
 										});
 									}
 								} else {
