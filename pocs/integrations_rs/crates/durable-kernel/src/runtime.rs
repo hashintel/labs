@@ -1,14 +1,15 @@
-//! Kernel runtime: `Kernel::open(config)` → `register::<S>()` →
-//! `start(executor)` → [`RunningKernel`] with `submit`, `read`, `shutdown`.
+//! The kernel runtime opens a configured [`Kernel`], registers a domain, and
+//! starts its executor. The resulting [`RunningKernel`] accepts submissions,
+//! serves reads, and supports an orderly shutdown.
 //!
-//! The driver per shard is small: recover → read → `plan` →
-//! `execute` → append the returned events. There is no durable effect
-//! bookkeeping. Completion is represented in the domain events an effect
-//! returns, and a per-session executed set prevents hot loops (see the
-//! `Executor` contract in [`crate::domain`]).
+//! Each shard driver recovers its projection, reads that state, plans work,
+//! executes the work, and appends the returned events. There is no durable
+//! effect bookkeeping. Completion is represented in the domain events an effect
+//! returns, and a per-session executed set prevents hot loops. The
+//! `Executor` contract in [`crate::domain`] describes this requirement.
 //!
-//! Coordination model: run exactly one process per shard set. The SlateDB
-//! writer epoch fences a misdeployment: a second writer makes the first
+//! The coordination model runs exactly one process per shard set. The SlateDB
+//! writer epoch fences a misdeployment because a second writer makes the first
 //! fail closed. There is no lease arbitration, so two processes on one
 //! shard fence each other instead of taking turns.
 
@@ -31,7 +32,7 @@ use crate::shard_log::{
     StateChangeFeed,
 };
 
-/// Every variant is kernel-owned: no internal error type or identifier
+/// Every variant is kernel-owned, so no internal error type or identifier
 /// escapes to a library user.
 #[derive(Debug)]
 pub enum KernelError {
@@ -67,16 +68,17 @@ impl std::error::Error for KernelError {}
 
 #[derive(Debug, Clone)]
 pub struct KernelConfig {
-    /// Instance namespace: the validated root prefix for every key and log.
+    /// Instance namespace that provides the validated root prefix for every
+    /// key and log.
     pub name: String,
-    /// `file:///path` or `s3://bucket/prefix`.
+    /// Storage location expressed as a local file URL or an S3 URL.
     pub blob_url: String,
     pub aws_region: Option<String>,
-    /// Shards this process owns; partitions hashing elsewhere are refused.
+    /// Shards this process owns. Partitions hashing elsewhere are refused.
     pub shards: Vec<u16>,
     /// Commit a snapshot after this many folded events. `0` disables.
     pub snapshot_every_events: u64,
-    /// Driver idle wake-up; also the default effect-retry backoff.
+    /// Driver idle wake-up that also provides the default effect retry backoff.
     pub poll_interval: Duration,
     pub channel_capacity: NonZeroUsize,
     pub safe_append_retries: u32,
@@ -101,8 +103,8 @@ impl KernelConfig {
     }
 }
 
-/// An opened kernel instance: storage validated, names registerable,
-/// not yet running.
+/// An opened kernel instance whose storage is validated and whose names can
+/// be registered before execution starts.
 pub struct Kernel {
     config: KernelConfig,
     keyspace: Keyspace,
@@ -133,7 +135,7 @@ impl Kernel {
         })
     }
 
-    /// Registers the domain's wire names; chainable before `start`.
+    /// Registers the domain's wire names and remains chainable before `start`.
     pub fn register<S: SimpleDomain>(self) -> Result<Self, KernelError> {
         domain::register::<S>().map_err(|error| KernelError::Registration(error.to_string()))?;
         Ok(self)
@@ -222,7 +224,7 @@ impl<S: SimpleDomain> RunningKernel<S> {
     }
 
     /// Validates and durably appends one event. Idempotent by content
-    /// identity; a rejection carries the fold's reason.
+    /// identity. A rejection carries the fold's reason.
     pub async fn submit(&self, event: S::Event) -> Result<Submitted, KernelError> {
         let record = EventRecordV1::new(event).map_err(invalid_event)?;
         let handle = self.handle_for(&record.partition)?;
@@ -251,8 +253,8 @@ impl<S: SimpleDomain> RunningKernel<S> {
             .map_err(command_failure)
     }
 
-    /// Per shard, the snapshot sequence recovery restored from (`None`
-    /// means full journal replay).
+    /// Snapshot sequence restored during recovery for each shard. A value of
+    /// `None` means recovery replayed the full journal.
     pub fn recovery_snapshots(&self) -> &BTreeMap<u8, Option<u64>> {
         &self.recovered_snapshots
     }
@@ -272,7 +274,8 @@ impl<S: SimpleDomain> RunningKernel<S> {
             }
         }
         for handle in self.shards.values() {
-            // A loop that already stopped reports Closed here; that is fine.
+            // A loop that already stopped reports Closed here, which is an
+            // expected outcome.
             let _ = handle.shutdown().await;
         }
         for task in self.loops {
@@ -361,9 +364,9 @@ where
                         match handle.propose(record).await {
                             Ok(_outcome) => {}
                             Err(error) if error.kind == ShardCommandErrorKind::InvalidCandidate => {
-                                // Contract violation: completion events must
-                                // validate. The session set stops hot
-                                // re-execution until the next restart.
+                                // Completion events must validate as part of
+                                // the executor contract.
+                                // The session set stops hot re-execution until the next restart.
                                 tracing::warn!(
                                     error = %error,
                                     "effect completion event was rejected"
@@ -395,7 +398,8 @@ where
     }
 }
 
-/// Best effort: a failed or skipped snapshot only means longer replay.
+/// Snapshotting is best effort because a failed or skipped snapshot only
+/// means longer replay.
 async fn maybe_snapshot<S: SimpleDomain>(
     handle: &ShardCommandHandle<Hosted<S>>,
     every_events: u64,
@@ -499,7 +503,7 @@ mod tests {
         total: u64,
     }
 
-    /// Archives any counter at or over the threshold; the returned
+    /// Archives any counter at or over the threshold. The returned
     /// `Archived` event removes the counter, so `plan` reaches a fixpoint.
     struct ArchiveExecutor {
         threshold: u64,
@@ -574,8 +578,8 @@ mod tests {
         exercise_end_to_end(&format!("file://{}", blob.path().display())).await;
     }
 
-    /// The same sequence over an S3-compatible endpoint (SlateDB shard log,
-    /// snapshots, and artifact store all on object storage).
+    /// Runs the same sequence over an S3-compatible endpoint. The SlateDB shard
+    /// log, snapshots, and artifact store all use object storage.
     #[tokio::test]
     #[ignore = "requires an S3-compatible endpoint and INTEGRATIONS_KERNEL_S3_URL=s3://bucket/scratch-prefix"]
     async fn kernel_end_to_end_on_s3() {
@@ -660,8 +664,8 @@ mod tests {
         assert!(rejection.to_string().contains("increment must be nonzero"));
         running.shutdown().await.expect("shutdown should succeed");
 
-        // Restart with a fresh executor: state recovers (via snapshot), and
-        // the archived counter plans nothing, and nothing re-executes.
+        // A fresh executor starts with state recovered through the snapshot.
+        // The archived counter plans no work, so nothing executes again.
         let external_after = Arc::new(Mutex::new(Vec::new()));
         let kernel = Kernel::open(config(blob_url, shard.get()))
             .expect("kernel should reopen")

@@ -1,25 +1,21 @@
-//! A staged workflow (order fulfillment) as a state machine over the kernel.
+//! A staged order fulfillment workflow expressed as a state machine over the kernel.
 //!
-//! Each order moves through Placed → Reserved → Charged → Shipped, with a
-//! compensation path Reserved → Releasing → Cancelled when payment is
-//! declined. The example demonstrates the staged-workflow patterns from
-//! `local/docs/staged-workflow-patterns.md`:
-//!
-//! - each state is its own struct carrying only the data valid in that state;
-//! - every legal transition is a method that consumes the source state and
-//!   returns the target state, so transitions that were never written do not
-//!   compile;
-//! - one transition table serves both `validate` (checked at command time)
-//!   and `apply` (replayed as fact);
-//! - compensation is a forward path through ordinary states and events.
+//! Each order advances from placement through reservation and payment to
+//! shipment. A declined payment instead advances through stock release to
+//! cancellation. Each state has its own struct and carries only the data that
+//! is valid at that stage. Every legal transition consumes its source state
+//! and returns the target state, so an unwritten transition does not compile.
+//! One transition table supports both command validation and replay.
+//! Compensation remains a forward path through ordinary states and events.
 //!
 //! Run with `cargo run -p durable-kernel --example order_saga`. One order
-//! ships; one is declined at payment and compensates back to cancelled.
+//! ships, while the other is declined at payment and completes its
+//! compensation path in the cancelled state.
 
 #![allow(
     clippy::expect_used,
     clippy::print_stdout,
-    // Transitions consume self so a stale state cannot be reused; that
+    // Transitions consume self so a stale state cannot be reused. That
     // signature is the pattern under demonstration.
     clippy::missing_const_for_fn,
     clippy::unused_self
@@ -106,7 +102,7 @@ struct Cancelled {
 }
 
 // The legal transitions, one method each. A transition that is not written
-// here cannot be expressed anywhere else: `apply` and `validate` both go
+// here cannot be expressed anywhere else. `apply` and `validate` both go
 // through these methods, and each consumes its source state.
 
 impl Placed {
@@ -183,8 +179,8 @@ impl OrderState {
 /// `apply` replays it as fact, so a guard and its transition can never
 /// disagree. `state` is `None` for an order with no history.
 ///
-/// Takes the state by value: each legal arm consumes it through a
-/// transition method. Callers clone once at the map lookup, because the
+/// The function takes the state by value, and each legal arm consumes it
+/// through a transition method. Callers clone once at the map lookup, because the
 /// map keeps the old state until the transition succeeds.
 #[allow(
     // The rejection arms stay separate instead of collapsing into a
@@ -238,7 +234,7 @@ impl Fold<OrderEvent> for OrderBook {
     }
 
     fn apply(&mut self, event: &OrderEvent) {
-        // History was validated when it was recorded; a mismatch here can
+        // History was validated when it was recorded. A mismatch here can
         // only mean the fold itself changed, and keeping the prior state is
         // the total, replay-safe behavior.
         if let Ok(next) = transition(self.orders.get(event.order()).cloned(), event) {
@@ -256,7 +252,7 @@ impl SimpleDomain for OrderDomain {
 
 /// One effect per non-terminal stage. Folding a stage's completion event
 /// changes the order's state, so the next `plan` call emits the following
-/// stage's effect instead of repeating this one (the fixpoint contract).
+/// stage's effect instead of repeating this one. This is the fixpoint contract.
 #[derive(Debug, Clone, Serialize)]
 enum SagaEffect {
     Reserve { order: String, items: u32 },
@@ -271,7 +267,7 @@ struct SagaExecutor;
 
 impl SagaExecutor {
     fn act(&self, line: String) {
-        println!("  [world] {line}");
+        println!("{line}");
     }
 }
 
@@ -307,7 +303,7 @@ impl Executor<OrderDomain> for SagaExecutor {
             SagaEffect::Reserve { order, items } => {
                 let reservation = format!("resv-{order}");
                 self.act(format!(
-                    "reserved {items} items for {order} ({reservation})"
+                    "Reserved {items} items for {order} as {reservation}."
                 ));
                 Ok(vec![OrderEvent::StockReserved {
                     order: order.clone(),
@@ -315,28 +311,28 @@ impl Executor<OrderDomain> for SagaExecutor {
                 }])
             }
             SagaEffect::Charge { order, .. } if order.contains("declined") => {
-                self.act(format!("payment DECLINED for {order}"));
+                self.act(format!("Payment was declined for {order}."));
                 Ok(vec![OrderEvent::PaymentDeclined {
                     order: order.clone(),
                 }])
             }
             SagaEffect::Charge { order, .. } => {
                 let receipt_id = format!("pay-{order}");
-                self.act(format!("captured payment for {order} ({receipt_id})"));
+                self.act(format!("Captured payment for {order} as {receipt_id}."));
                 Ok(vec![OrderEvent::PaymentCaptured {
                     order: order.clone(),
                     receipt_id,
                 }])
             }
             SagaEffect::Release { order, reservation } => {
-                self.act(format!("released {reservation} for {order}"));
+                self.act(format!("Released {reservation} for {order}."));
                 Ok(vec![OrderEvent::StockReleased {
                     order: order.clone(),
                 }])
             }
             SagaEffect::Ship { order } => {
                 let tracking = format!("track-{order}");
-                self.act(format!("shipped {order} ({tracking})"));
+                self.act(format!("Shipped {order} with tracking ID {tracking}."));
                 Ok(vec![OrderEvent::OrderShipped {
                     order: order.clone(),
                     tracking,
@@ -354,7 +350,7 @@ fn state_dir() -> std::path::PathBuf {
 async fn main() {
     if std::env::args().nth(1).as_deref() == Some("reset") {
         let _ = std::fs::remove_dir_all(state_dir());
-        println!("state wiped");
+        println!("The example state was removed.");
         return;
     }
     let key = PartitionKey::parse("orders").expect("static key should parse");
@@ -378,10 +374,10 @@ async fn main() {
             })
             .await
             .expect("place order should succeed");
-        println!("  [submit] {order} placed");
+        println!("Placed {order}.");
     }
 
-    // `validate` finds no (Placed, OrderShipped) arm in `transition`, so
+    // `validate` finds no transition that ships a placed order, so
     // `submit` returns the rejection and nothing is recorded.
     let premature = running
         .submit(OrderEvent::OrderShipped {
@@ -390,7 +386,7 @@ async fn main() {
         })
         .await;
     println!(
-        "  [submit] premature ship rejected: {}",
+        "The premature shipment was rejected with {}.",
         premature.expect_err("shipping an unpaid order should fail")
     );
 
@@ -413,12 +409,12 @@ async fn main() {
         .read(&key, |book: &OrderBook| {
             book.orders
                 .iter()
-                .map(|(order, state)| format!("  {order:<22} {}", state.label()))
+                .map(|(order, state)| format!("{order} completed in the {} state.", state.label()))
                 .collect::<Vec<_>>()
         })
         .await
         .expect("summary read should succeed");
-    println!("── settled ──");
+    println!("Order processing completed.");
     for line in summary {
         println!("{line}");
     }

@@ -1,6 +1,6 @@
 //! One canonical OpenData log per stable routing shard.
 //!
-//! The append-capable handle stays private to this module: appends go
+//! The append-capable handle stays private to this module. Appends go
 //! through the command loop, and read-only access goes through the scan
 //! functions and the recovery reader.
 use std::fmt;
@@ -76,8 +76,8 @@ pub struct ShardLogLocation {
     durability_timeout: Duration,
 }
 
-/// Where a shard log lives: a real storage configuration, or a simulated
-/// journal owned by the deterministic-simulation harness.
+/// Describes where a shard log lives. It can use a real storage configuration
+/// or a simulated journal owned by the deterministic simulation harness.
 #[derive(Debug, Clone)]
 enum LogSource {
     Storage(StorageConfig),
@@ -98,7 +98,7 @@ impl LogSource {
 
 impl ShardLogLocation {
     /// A shard log at an explicit storage configuration. `read_timeout`
-    /// bounds read-only opens; `durability_timeout` bounds writer opens,
+    /// bounds read-only opens. `durability_timeout` bounds writer opens,
     /// closes, and each durable-watermark wait attempt.
     pub fn new(
         shard: crate::routing::Shard,
@@ -126,7 +126,7 @@ impl ShardLogLocation {
         }
     }
 
-    /// Location for a kernel-hosted shard log with explicit storage inputs;
+    /// Location for a kernel-hosted shard log with explicit storage inputs and
     /// no environment coupling.
     pub fn for_kernel(
         shard: crate::routing::Shard,
@@ -538,7 +538,7 @@ impl ShardLogWriter {
         Ok(output.start_sequence)
     }
 
-    /// The real backing log; the durability-wait tests poll its watermark
+    /// The real backing log whose watermark the durability wait tests poll
     /// directly instead of going through a command handle.
     #[cfg(test)]
     fn raw_log(&self) -> &LogDb {
@@ -568,7 +568,7 @@ impl ShardLogWriter {
 
 /// Read-only recovery handle. It cannot advance the writer epoch or append.
 /// Tests use it to inspect durable history without competing for the writer
-/// epoch; production recovery reads through its fenced writer.
+/// epoch. Production recovery reads through its fenced writer.
 #[cfg(any(test, feature = "test-util"))]
 pub struct ShardLogRecovery {
     reader: LogDbReader,
@@ -656,7 +656,7 @@ where
     T: UntrimmedJournalRecord,
     R: LogRead + Sync,
 {
-    // A typed scan declares its codec: intern it so the one-name-one-codec
+    // A typed scan declares its codec. Intern it so the one-name-one-codec
     // property holds for everything this process decodes, and a conflicting
     // redeclaration is refused here rather than misdecoding history.
     crate::registry::intern_declaration(*T::declaration())
@@ -815,11 +815,11 @@ fn post_invocation_disposition(message: &str) -> AppendDisposition {
 }
 
 /// An ambiguous append is shard-fatal under a lease, and the append is
-/// usually already durable when this wait stalls: the watermark subscription
-/// lagged while the write landed. Re-check and re-subscribe a bounded number of times
-/// before converting a transient stall into ambiguity. The timeout and
+/// usually already durable when this wait stalls. The watermark subscription
+/// lagged while the write landed. Check and subscribe again a bounded number
+/// of times before converting a transient stall into ambiguity. The timeout and
 /// attempt bound are parameters so the retry semantics are testable without
-/// production-length waits; production always uses the pinned constants.
+/// production-length waits. Production always uses the pinned constants.
 async fn wait_until_durable_with(
     log: &LogDb,
     required: Sequence,
@@ -861,8 +861,8 @@ async fn wait_until_durable_with(
 }
 
 /// Test-only raw append access to one shard log, bypassing the command loop.
-/// Downstream test suites seed journals and stage competing writers with it;
-/// production appends go exclusively through the command loop.
+/// Downstream test suites seed journals and stage competing writers with it.
+/// Production appends go exclusively through the command loop.
 #[cfg(any(test, feature = "test-util"))]
 pub struct RawShardLog(ShardLogWriter);
 
@@ -1121,7 +1121,7 @@ mod tests {
         let first = writer.append(&record("stall-probe")).await.unwrap();
 
         // The next append's durable end. Several 20ms attempts stall before
-        // the delayed append lands; the wait must keep retrying and succeed
+        // the delayed append lands. The wait must keep retrying and succeed
         // rather than convert the stall into ambiguity.
         let required = first + 2;
         let (waited, appended) = tokio::join!(

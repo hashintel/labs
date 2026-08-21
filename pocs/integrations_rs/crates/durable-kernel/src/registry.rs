@@ -1,9 +1,9 @@
 //! Declaration mechanism for durable records.
 //!
 //! Every record that reaches durable storage implements [`DurableRecord`] and
-//! carries a [`RecordDeclaration`]: its frozen wire name, version envelope,
-//! identity-algorithm versions, and migration policy. The kernel maintains a
-//! process-wide interning table; a domain's declarations are interned before
+//! carries a [`RecordDeclaration`] that defines its frozen wire name, version
+//! envelope, identity algorithm versions, and migration policy. The kernel maintains a
+//! process-wide interning table. A domain's declarations are interned before
 //! its shard logs are scanned or appended, preserving the property that one
 //! name means one codec. A consuming crate may additionally maintain its own
 //! reviewed static catalog and attestation manifest on top of this mechanism.
@@ -78,9 +78,9 @@ static DECLARATIONS: std::sync::RwLock<BTreeMap<&'static str, &'static RecordDec
     std::sync::RwLock::new(BTreeMap::new());
 
 /// Interns a domain's record declaration, leaking one canonical copy per
-/// name. Idempotent for an identical declaration; a different declaration
-/// under an interned name is refused, preserving the property that one name
-/// means one codec.
+/// name. The operation is idempotent for an identical declaration. A different
+/// declaration under an interned name is refused, preserving the property that
+/// one name means one codec.
 pub fn intern_declaration(
     declaration: RecordDeclaration,
 ) -> Result<&'static RecordDeclaration, DeclarationError> {
@@ -157,8 +157,8 @@ pub trait MutableCasRecord: VersionedRecord + Send + Sync {
 pub trait RebuildableRecord: DurableRecord {}
 
 /// Shard-log storage paths call this before scanning or appending a generic
-/// record: the record's declaration must be interned (a domain's declarations
-/// are interned when its shard recovers) and consistent with the type's
+/// record. The record's declaration must be interned when its shard recovers
+/// and must remain consistent with the type's
 /// declared migration policy.
 pub fn require_interned<T: DurableRecord>() -> Result<(), DeclarationError> {
     if T::MIGRATION_POLICY != T::declaration().migration {

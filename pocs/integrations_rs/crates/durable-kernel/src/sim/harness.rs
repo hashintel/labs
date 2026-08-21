@@ -1,19 +1,20 @@
 //! The schedule driver and its oracles.
 //!
-//! One schedule is a [`SchedulePlan`]: a sequence of drawn actions (submit
-//! fresh/duplicate/invalid, effect turns, snapshot commit and corruption,
-//! crash and recover, crash mid-ambiguity, quiesce-and-check) plus the
-//! journal's disposition stream, run against the real command loop over a
-//! simulated journal, then a final quiescence check. Because the plan is
-//! plain data, the property-based tests generate and shrink it directly: a
-//! failing schedule minimizes to the shortest action sequence that still
+//! One schedule is a [`SchedulePlan`] containing a sequence of drawn actions.
+//! Those actions submit fresh, duplicate, or invalid events, run effect turns,
+//! commit or corrupt snapshots, crash and recover, exercise ambiguity, and
+//! reach quiescence. The plan also contains the journal's disposition stream.
+//! It runs against the real command loop over a simulated journal and ends
+//! with a final quiescence check. Because the plan is plain data, the
+//! property-based tests generate and shrink it directly. A failing schedule
+//! minimizes to the shortest action sequence that still
 //! violates a property.
 //!
-//! The oracles are independent of the transition logic under test: state
+//! The oracles are independent of the transition logic under test. State
 //! ground truth is read only from the simulated journal,
 //! and effect ground truth is an external ledger that records every
 //! execution, repeats included. Every property evaluated here is in
-//! [`crate::properties`]; a violation panics with the property ID.
+//! [`crate::properties`]. A violation panics with the property ID.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -39,8 +40,8 @@ const ARCHIVE_THRESHOLD: u64 = 10;
 const FIXPOINT_TURN_BOUND: u32 = 8;
 
 /// The event vocabulary the simulation submits. Increments carry a request
-/// number so a repeated action is a distinct event (an amount of zero is
-/// the always-rejected submission); archives are effect completions,
+/// number so a repeated action is a distinct event. An amount of zero is the
+/// submission that is always rejected. Archives are effect completions
 /// distinguished across cycles by the archive count they extend.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
@@ -76,7 +77,7 @@ impl DomainEvent for DstEvent {
     }
 }
 
-/// Bounded counters with an archive cycle per counter: an archive resets
+/// Bounded counters have an archive cycle per counter. An archive resets
 /// the total and increments the cycle, so the same total re-accumulated
 /// later completes as a distinct event identity.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -140,7 +141,7 @@ impl SimpleDomain for DstDomain {
     type Projection = DstCounters;
 }
 
-/// The executor's effect: archive one counter at an exact total and cycle.
+/// The executor effect archives one counter at an exact total and cycle.
 /// Identity is the content digest, like every hosted-domain effect.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct DstEffect {
@@ -149,7 +150,7 @@ pub struct DstEffect {
     pub cycle: u64,
 }
 
-/// The executor contract's pure half: archive every counter at or past the
+/// The pure half of the executor contract archives every counter at or past the
 /// threshold. Folding the completion resets the total, so the same effect
 /// leaves the plan. This is the fixpoint the harness checks as `KRN-A9`.
 fn plan_effects(projection: &DstCounters) -> Vec<DstEffect> {
@@ -196,7 +197,7 @@ impl CoverageSink for CoverageLedger {
     }
 }
 
-/// One planned step. Indices are raw draws; the driver reduces them modulo
+/// One planned step. Indices are raw draws, and the driver reduces them modulo
 /// the live pool at execution time, so plans stay valid under shrinking.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PlannedAction {
@@ -211,8 +212,8 @@ pub enum PlannedAction {
     QuiesceAndCheck,
 }
 
-/// A complete schedule as plain data: what the driver does, what the
-/// journal answers, and the seed for sequence-gap sparseness.
+/// A complete schedule is plain data that describes what the driver does,
+/// what the journal answers, and which seed controls sequence gap sparseness.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SchedulePlan {
     pub actions: Vec<PlannedAction>,
@@ -248,7 +249,7 @@ pub fn derive_plan(seed: u64, weights: DispositionWeights) -> SchedulePlan {
         });
     }
     // Ambiguity recovery, bounded retries, effect turns, and the fixpoint
-    // drain consume several dispositions per action; an exhausted stream
+    // drain consume several dispositions per action. An exhausted stream
     // serves AckDurable, so short streams stay valid.
     let dispositions = (0..actions.len() * 8)
         .map(|_draw| weights.draw(&mut rng))
@@ -282,9 +283,9 @@ fn shared_shard_counters() -> (crate::routing::Shard, Vec<String>) {
     (shard, counters)
 }
 
-/// What a submission is, for acknowledgement classification: fresh and
-/// duplicate submissions must never be rejected; an effect completion may
-/// be (its state basis can go stale between planning and folding).
+/// Describes a submission for acknowledgement classification. Fresh and
+/// duplicate submissions must never be rejected. An effect completion may
+/// be rejected because its state basis can go stale between planning and folding.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum SubmitKind {
     Fresh,
@@ -292,7 +293,7 @@ enum SubmitKind {
     Completion,
 }
 
-/// The independent state oracle: the durable events, decoded and
+/// The independent state oracle contains the durable events, decoded and
 /// deduplicated by event identity, folded on plain maps with the domain's
 /// documented semantics. Shares no code with the production fold.
 #[derive(Debug, Default)]
@@ -308,25 +309,25 @@ struct ReferenceState {
 struct Driver<'a> {
     journal: SimLogHandle,
     shard: crate::routing::Shard,
-    /// Counter names that all route to `shard`: one journal is one shard,
-    /// so every simulated partition must live there.
+    /// Counter names that all route to `shard`. One journal represents one
+    /// shard, so every simulated partition must live there.
     counters: Vec<String>,
     started: DstStarted,
-    /// Every record acknowledged (Applied or AlreadyDurable), for duplicate
-    /// replay and for the acknowledged-implies-durable check.
+    /// Every record acknowledged as Applied or AlreadyDurable. This history
+    /// supports duplicate replay and the acknowledged-implies-durable check.
     acknowledged: Vec<EventRecordV1<DstEvent>>,
     /// Event identities acknowledged `Applied`, to prove at-most-once.
     applied: BTreeSet<EventId>,
-    /// Event identities the fold rejected; they must never become durable.
+    /// Event identities the fold rejected. They must never become durable.
     rejected: BTreeSet<EventId>,
-    /// The non-idempotent external world: every `execute` invocation is
-    /// recorded under its effect identity, repeats and all.
+    /// The non-idempotent external world records every `execute` invocation
+    /// under its effect identity, including repeats.
     executions: BTreeMap<String, Vec<Vec<u8>>>,
     /// Every event identity ever proposed to the loop, for the
     /// durable-events-have-provenance check.
     proposed: BTreeSet<EventId>,
-    /// Effect turns one quiescence may take: the fixpoint bound plus one
-    /// turn per planned disposition, because a finite adversarial stream
+    /// Effect turns that one quiescence may take. This is the fixpoint bound
+    /// plus one turn per planned disposition, because a finite adversarial stream
     /// may burn that many turns before appends succeed again.
     fixpoint_turn_bound: u32,
     last_durable_end: u64,
@@ -360,7 +361,7 @@ impl Driver<'_> {
         self.started.handle.clone()
     }
 
-    /// Coverage bookkeeping every reopen shares: whether recovery was
+    /// Coverage bookkeeping shared by every reopen records whether recovery was
     /// snapshot-bounded, and whether it completed past a corrupted one.
     fn observe_recovery(&self, coverage: &mut CoverageLedger) {
         properties::covered(
@@ -371,7 +372,8 @@ impl Driver<'_> {
                 .snapshot_through_log_sequence
                 .is_some(),
         );
-        // Grounded in the journal instead of driver bookkeeping: the newest
+        // This evidence comes from the journal instead of driver bookkeeping.
+        // The newest
         // stored snapshot is unreadable, and recovery completed anyway.
         properties::covered(
             coverage,
@@ -391,8 +393,8 @@ impl Driver<'_> {
     }
 
     /// Submits one record and classifies the acknowledgement. Terminal loop
-    /// errors (fenced, unresolved ambiguity) crash-and-recover in place, so
-    /// a schedule keeps running after the journal misbehaves.
+    /// errors such as fencing or unresolved ambiguity cause an in-place crash
+    /// and recovery, so a schedule keeps running after the journal misbehaves.
     async fn submit(
         &mut self,
         record: EventRecordV1<DstEvent>,
@@ -447,7 +449,7 @@ impl Driver<'_> {
                     self.rejected.insert(record.event_id);
                 }
                 ShardCommandErrorKind::DefinitelyNotCommitted => {
-                    // Safe failure: nothing stored, nothing acknowledged.
+                    // This failure is safe because nothing was stored or acknowledged.
                 }
                 ShardCommandErrorKind::Fenced
                 | ShardCommandErrorKind::CommitUnknown
@@ -507,9 +509,9 @@ impl Driver<'_> {
             .expect("freshly recovered loop should serve reads")
     }
 
-    /// One executor turn: plan against the live projection, execute every
-    /// planned effect against the non-idempotent ledger, submit the
-    /// completions. Returns the number of effects planned.
+    /// One executor turn plans against the live projection, executes every
+    /// planned effect against the non-idempotent ledger, and submits the
+    /// completions. It returns the number of effects planned.
     async fn effect_turn(&mut self, coverage: &mut CoverageLedger) -> usize {
         let projection = self.read_projection(coverage).await;
         let effects = plan_effects(&projection);
@@ -547,7 +549,7 @@ impl Driver<'_> {
     }
 
     /// Captures and commits a snapshot through the loop. The commit is an
-    /// append: the journal's dispositions apply to it like any other.
+    /// append, so the journal's dispositions apply to it like any other.
     async fn snapshot_commit(&mut self, step: usize, coverage: &mut CoverageLedger) {
         let capture = match self.handle().capture_snapshot(1).await {
             Ok(capture) => capture,
@@ -583,7 +585,7 @@ impl Driver<'_> {
         }
     }
 
-    /// Crashes inside the durable-but-unacknowledged window: forces an
+    /// Crashes inside the durable but unacknowledged window. This forces an
     /// ambiguous durable append, gates the loop's ambiguity recovery, and
     /// kills the loop at that pause, so the journal holds an
     /// event no caller ever saw acknowledged. The next recovery must adopt
@@ -764,9 +766,10 @@ pub struct ScheduleReport {
     pub effect_executions: usize,
 }
 
-/// Runs one plan to completion. Panics (with a property ID) on any violated
-/// safety property; the caller owns replay reporting (the shrunk plan for
-/// property-based tests, the seed plus trace for the campaign).
+/// Runs one plan to completion and panics with a property ID when a safety
+/// property is violated. The caller owns replay reporting through the shrunk
+/// plan for property-based tests or through the seed and action trace for the
+/// campaign.
 pub async fn run_plan(
     plan: &SchedulePlan,
     coverage: &mut CoverageLedger,
@@ -951,9 +954,9 @@ mod tests {
         }
     }
 
-    /// The seeded campaign: safety on every schedule, and the campaign as
+    /// The seeded campaign checks safety on every schedule, and the campaign as
     /// a whole must produce every catalogued coverage property.
-    /// `INTEGRATIONS_DST_SEED` replays one schedule with its trace;
+    /// `INTEGRATIONS_DST_SEED` replays one schedule with its trace, while
     /// `INTEGRATIONS_DST_SCHEDULES` scales the campaign.
     #[test]
     fn seeded_campaign_covers_every_failure_window() {

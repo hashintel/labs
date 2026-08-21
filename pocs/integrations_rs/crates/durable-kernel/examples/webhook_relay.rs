@@ -1,8 +1,8 @@
 //! A durable webhook relay in one file.
 //!
-//! Accepted webhooks live in a crash-safe journal; an executor delivers
+//! Accepted webhooks live in a crash-safe journal, and an executor delivers
 //! them over HTTP with bounded retries and dead-letters a delivery the
-//! endpoint keeps refusing. The journal is the source of truth; the
+//! endpoint keeps refusing. The journal is the source of truth, and the
 //! process is disposable.
 //!
 //! ```sh
@@ -12,10 +12,8 @@
 //! ```
 //!
 //! The demo endpoint refuses every webhook twice before accepting it, never
-//! accepts the poison one, and persists its own state: like a real external
-//! service, it outlives the relay's crash. For the same program written
-//! for Temporal, with a row-by-row mapping of the guarantees, see
-//! `local/docs/webhook-relay-vs-temporal.md`.
+//! accepts the poison one, and persists its own state. Like a real external
+//! service, it outlives the relay's crash.
 
 #![allow(
     clippy::expect_used,
@@ -158,13 +156,15 @@ impl Executor<RelayDomain> for HttpDeliverer {
         match http_post(&effect.body, &key).await {
             Ok(status) if (200..300).contains(&status) => {
                 if self.crash_on_delivery {
-                    println!("\n  ✂ crash: the endpoint accepted {delivery}, but its completion");
-                    println!("    never reached the journal. Run again to watch recovery.\n");
+                    println!(
+                        "\nThe endpoint accepted {delivery}, but its completion did not reach the journal."
+                    );
+                    println!("Run the example again to recover.\n");
                     std::process::exit(1);
                 }
                 println!(
-                    "  {delivery:<11} attempt {}/{MAX_ATTEMPTS} → delivered",
-                    effect.attempt
+                    "{delivery} was delivered on attempt {} of {}.",
+                    effect.attempt, MAX_ATTEMPTS
                 );
                 Ok(vec![RelayEvent::Delivered {
                     delivery,
@@ -173,7 +173,7 @@ impl Executor<RelayDomain> for HttpDeliverer {
             }
             Ok(_status) if effect.attempt >= MAX_ATTEMPTS => {
                 println!(
-                    "  {delivery:<11} attempt {}/{MAX_ATTEMPTS} → dead-lettered",
+                    "{delivery} was dead-lettered after {} attempts.",
                     effect.attempt
                 );
                 Ok(vec![RelayEvent::Abandoned {
@@ -183,7 +183,7 @@ impl Executor<RelayDomain> for HttpDeliverer {
             }
             Ok(status) => {
                 println!(
-                    "  {delivery:<11} attempt {}/{MAX_ATTEMPTS} → {status}, retrying",
+                    "{delivery} returned HTTP {status} on attempt {} and will retry.",
                     effect.attempt
                 );
                 Ok(vec![RelayEvent::AttemptFailed {
@@ -249,7 +249,7 @@ async fn run_endpoint(listener: TcpListener) {
             let status = {
                 let mut state = state.lock().expect("endpoint mutex should not be poisoned");
                 let status = if state.accepted_keys.contains(&key) {
-                    println!("  {body} → duplicate absorbed (idempotency key already accepted)");
+                    println!("The endpoint reused the accepted result for {body}.");
                     200
                 } else if body.contains("poison") {
                     503
@@ -305,12 +305,12 @@ async fn report_recovery(running: &RunningKernel<RelayDomain>, key: &PartitionKe
         .copied()
         .flatten();
     match recovered {
-        (0, 0, 0, _) => println!("  fresh journal — nothing to recover"),
+        (0, 0, 0, _) => println!("No journal state was recovered."),
         (pending, delivered, abandoned, failed) => println!(
-            "  recovered: {pending} pending ({failed} failed attempts on record), \
-             {delivered} delivered, {abandoned} dead-lettered{}",
+            "Recovered {pending} pending deliveries with {failed} failed attempts. \
+             {delivered} were delivered and {abandoned} were dead-lettered{}.",
             snapshot.map_or_else(String::new, |sequence| format!(
-                " — replayed from snapshot at sequence {sequence}"
+                " Recovery used snapshot sequence {sequence}"
             )),
         ),
     }
@@ -336,10 +336,10 @@ async fn submit_demo_webhooks(running: &RunningKernel<RelayDomain>) {
         match running.submit(event).await {
             Ok(Submitted::Applied) => accepted += 1,
             Ok(Submitted::AlreadyDurable) => deduplicated += 1,
-            Err(error) => println!("  rejected: {error}"),
+            Err(error) => println!("The webhook was rejected with {error}."),
         }
     }
-    println!("  intake: {accepted} accepted, {deduplicated} deduplicated against the journal\n");
+    println!("Accepted {accepted} new webhooks. {deduplicated} were already durable.\n");
 }
 
 #[tokio::main]
@@ -347,11 +347,12 @@ async fn main() {
     let mode = std::env::args().nth(1).unwrap_or_default();
     if mode == "reset" {
         let _ = std::fs::remove_dir_all(state_dir());
-        println!("state wiped");
+        println!("The example state was removed.");
         return;
     }
 
-    println!("── durable webhook relay ── journal at target/webhook_relay_demo ──");
+    println!("Durable webhook relay");
+    println!("The journal is stored at target/webhook_relay_demo.");
     let listener = TcpListener::bind(ENDPOINT)
         .await
         .expect("demo endpoint should bind");
@@ -398,22 +399,23 @@ async fn main() {
             let mut lines: Vec<String> = queue
                 .delivered
                 .iter()
-                .map(|(id, attempts)| format!("  ✔ {id:<11} delivered on attempt {attempts}"))
+                .map(|(id, attempts)| format!("{id} was delivered on attempt {attempts}."))
                 .collect();
             lines.extend(queue.abandoned.iter().map(|(id, attempts)| {
-                format!("  ✘ {id:<11} dead-lettered after {attempts} attempts")
+                format!("{id} was dead-lettered after {attempts} attempts.")
             }));
             lines
         })
         .await
         .expect("summary read should succeed");
-    println!("\n── settled ── every outcome below survives restarts ──");
+    println!("\nFinal delivery outcomes");
     for line in settled {
         println!("{line}");
     }
     if mode.is_empty() {
-        println!("\n  next: rerun with `-- crash` to kill the relay mid-delivery, then");
-        println!("  plain to watch recovery finish the interrupted work. `-- reset` wipes.");
+        println!("\nRun with `-- crash` to stop the relay during delivery.");
+        println!("Run it again without an argument to finish the interrupted work.");
+        println!("Run with `-- reset` to remove the example state.");
     }
     running.shutdown().await.expect("shutdown should be clean");
 }

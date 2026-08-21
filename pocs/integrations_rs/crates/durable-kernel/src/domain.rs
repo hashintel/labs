@@ -1,14 +1,15 @@
-//! User-facing domain layer: the API from `local/docs/domain-api.md`,
-//! mapped onto the internal [`Domain`] port in [`crate::port`]
-//! by one blanket impl. A domain author writes an event type, a fold, and
-//! an effect executor; dedup, sequencing, prefix validation, snapshots, and
-//! recovery are kernel bookkeeping in [`KernelProjection`] and never user
-//! work. The loop that folds events and executes effects is
-//! [`crate::runtime`].
+//! This module defines the user-facing domain layer.
 //!
-//! There is no separate signal channel: `submit` is the command path,
-//! validated by the fold and idempotent by content identity; the control
-//! types below are therefore uninhabited.
+//! The types in this module map onto the internal [`Domain`] port in
+//! [`crate::port`] through one blanket implementation. A domain author writes
+//! an event type, a fold, and an effect executor. The kernel takes care of
+//! deduplication, sequencing, prefix validation, snapshots, and recovery in
+//! [`KernelProjection`].
+//! The loop that folds events and executes effects is [`crate::runtime`].
+//!
+//! There is no separate signal channel. A caller publishes through `submit`,
+//! which validates the event and either writes it durably to the journal or
+//! rejects it.
 
 use std::any::Any;
 use std::collections::BTreeMap;
@@ -32,47 +33,44 @@ use crate::shard_log::{ShardCommandError, ShardCommandErrorKind, ShardCommandHan
 pub const MAX_PARTITION_KEY_BYTES: usize = 1024;
 const MAX_EVENT_RECORD_BYTES: usize = 1024 * 1024;
 
-/// One event vocabulary, frozen into the wire by name.
+/// Serialization must be deterministic because a nondeterministic encoding
+/// would make retries look like new events. Two byte-identical events are one
+/// event, and the second is deduplicated. An action that can happen twice,
+/// such as two equal payments or two equal increments, must carry a
+/// distinguishing field such as a request ID.
 ///
-/// Serialization must be deterministic (field order fixed, no `HashMap`):
-/// the event's canonical JSON bytes are its durable identity, so a
-/// nondeterministic encoding would make retries look like new events.
-/// The inverse also holds: two byte-identical events are one event, and the
-/// second is deduplicated. An action that can legitimately happen twice
-/// (two equal payments, two equal increments) must carry a distinguishing
-/// field such as a request ID.
-///
-/// Payload evolution is the author's concern: journal history never
-/// retires, so a type whose shape changes must keep decoding every stored
+/// Payload evolution is the consumer's concern because journal history never
+/// retires. A type whose shape changes must keep decoding every stored
 /// shape, for example a versioned serde enum like the kernel's own
 /// envelope.
 pub trait DomainEvent: Serialize + DeserializeOwned + Clone + Send + Sync + 'static {
     /// Frozen wire name. Renaming it orphans stored history.
     fn name() -> &'static str;
 
-    /// The aggregate this event belongs to: shard routing, the per-key
-    /// state-change signal, and startup key discovery all derive from it.
+    /// The aggregate this event belongs to. Shard routing, per-key
+    /// state-changes, and startup key discovery all derive from it.
     fn partition(&self) -> PartitionKey;
 }
 
 /// Pure fold over one partition-keyed history.
 ///
-/// `validate` is the command-time check: it may reject a proposed event and
-/// is never consulted again once the event is durable. `apply` is the
-/// event-time fold: recorded events are facts, so it is infallible and is
+/// `validate` performs command-time checking. It may reject a proposed event and
+/// is never consulted again once the event is durable. `apply` performs the
+/// event-time fold. Recorded events are facts, so it is infallible and is
 /// the only thing replay runs. A validation bug therefore cannot affect
 /// replay of history that was already accepted.
 ///
-/// The serde bounds exist for snapshots: the kernel periodically embeds the
-/// fold state in a snapshot record so recovery replays a suffix instead of
-/// the whole journal. Serialization must be deterministic, like events.
+/// The serde bounds exist for snapshots because the kernel periodically
+/// embeds the fold state in a snapshot record. Recovery can then replay a
+/// suffix instead of the whole journal. Serialization must be deterministic,
+/// like event serialization.
 pub trait Fold<E>: Default + Clone + Send + Sync + Serialize + DeserializeOwned + 'static {
     fn validate(&self, event: &E) -> Result<(), Rejection>;
     fn apply(&mut self, event: &E);
 }
 
-/// A domain: its event vocabulary plus its fold state. The effect executor
-/// attaches at [`Kernel::start`](crate::runtime::Kernel::start).
+/// A domain consists of its event vocabulary and its folded state. The effect
+/// executor attaches at [`Kernel::start`](crate::runtime::Kernel::start).
 pub trait SimpleDomain: Send + Sync + 'static {
     type Event: DomainEvent;
     type Projection: Fold<Self::Event>;
@@ -80,12 +78,10 @@ pub trait SimpleDomain: Send + Sync + 'static {
 
 /// At-least-once effect execution against external systems.
 ///
-/// `plan` is a pure function of the fold state. The events `execute`
-/// returns are the effect's durable completion: once they are folded,
-/// `plan` must stop emitting that effect (a fixpoint contract: an effect
-/// whose events do not change what `plan` returns will re-execute after
-/// every restart). Key external side effects by [`effect_id`] so replayed
-/// executions are absorbed idempotently.
+/// `plan` is a pure function of the fold state. The events returned by
+/// `execute` are the effect's durable completion. Once they are folded,
+/// `plan` must stop emitting that effect. External side effects are named by
+/// [`effect_id`] so replayed executions are absorbed idempotently.
 pub trait Executor<S: SimpleDomain>: Send + Sync + 'static {
     type Effect: Serialize + Clone + Send + Sync + 'static;
 
@@ -97,19 +93,19 @@ pub trait Executor<S: SimpleDomain>: Send + Sync + 'static {
     ) -> impl std::future::Future<Output = Result<Vec<S::Event>, Retry>> + Send;
 }
 
-/// A transient effect failure: the driver backs off and retries the effect.
+/// A transient effect failure causes the driver to back off and retry the effect.
 #[derive(Debug, Clone)]
 pub struct Retry {
     pub reason: String,
     pub after: Option<std::time::Duration>,
 }
 
-/// Content-derived effect identity, for keying external side effects.
+/// Computes the content-derived identity used to identify an external side effect.
 pub fn effect_id<T: Serialize>(effect: &T) -> Result<String, serde_json::Error> {
     canonical_digest("domain-effect:v1", effect)
 }
 
-/// Why `validate` refused a proposed event. The text reaches the submitter.
+/// Explains why `validate` refused a proposed event. The text reaches the submitter.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Rejection(String);
 
@@ -197,8 +193,9 @@ impl fmt::Display for PartitionKey {
     }
 }
 
-/// Stable routing: eight big-endian digest bytes modulo the shard count,
-/// so a partition's shard does not depend on the process that computes it.
+/// Routes a partition to a stable shard by interpreting eight digest bytes as
+/// a big-endian integer and reducing it by the shard count. The result does
+/// not depend on the process that computes it.
 pub fn shard_of(key: &PartitionKey) -> Shard {
     let digest: [u8; 32] = Sha256::digest(key.as_str().as_bytes()).into();
     let routing_value = u64::from_be_bytes(
@@ -210,7 +207,7 @@ pub fn shard_of(key: &PartitionKey) -> Shard {
         .expect("a value reduced modulo the shard count should be a valid shard")
 }
 
-/// Kernel-owned wire envelope for one hosted domain's journal. Each event
+/// The kernel-owned wire envelope for one hosted domain's journal. Each event
 /// vocabulary is stored under its own `DomainEvent::name`, disjoint from
 /// every other.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -250,7 +247,7 @@ fn derive_event_id<E: DomainEvent>(
 
 impl<E: DomainEvent> EventRecordV1<E> {
     /// Builds the record with its derived identity. This is the only
-    /// constructor: identities are always computed. Callers cannot supply them.
+    /// constructor because identities are always computed. Callers cannot supply them.
     pub fn new(event: E) -> Result<Self, CompatError> {
         let partition = event.partition();
         let event_id = derive_event_id(&partition, &event)?;
@@ -301,7 +298,7 @@ impl<E: DomainEvent> EventRecordV1<E> {
     }
 }
 
-/// The registry declaration for one hosted event vocabulary, built at
+/// Builds the registry declaration for one hosted event vocabulary at
 /// runtime because its name comes from [`DomainEvent::name`].
 fn event_declaration<E: DomainEvent>() -> RecordDeclaration {
     RecordDeclaration {
@@ -372,10 +369,10 @@ impl<E: DomainEvent> VersionedRecord for EventRecord<E> {
 
 impl<E: DomainEvent> UntrimmedJournalRecord for EventRecord<E> {}
 
-/// Kernel bookkeeping wrapped around the user's fold state: duplicate
-/// detection, the durable sequence, and per-partition progress. Everything
-/// here exists so the domain author never implements dedup, sequencing, or
-/// prefix validation.
+/// Kernel bookkeeping wrapped around the user's fold state.
+/// It includes duplicate detection, the durable sequence, and per-partition progress.
+/// Everything here exists so the domain author never implements duplicate
+/// detection, sequencing, or prefix validation.
 #[derive(Debug, Clone, Default)]
 pub struct KernelProjection<P> {
     seen: BTreeMap<EventId, JournalRecordDigest>,
@@ -398,8 +395,8 @@ impl<P> KernelProjection<P> {
     }
 }
 
-/// Fold rejection surfaced to the proposer. Self-contained: `Display`
-/// output becomes the candidate-rejection message.
+/// A fold rejection surfaced to the proposer.
+/// `Display` output becomes the candidate-rejection message.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FoldError {
     Rejected {
@@ -445,20 +442,20 @@ impl fmt::Display for FoldError {
 
 impl std::error::Error for FoldError {}
 
-/// Read-only closure executed against the projection inside the loop; the
-/// projection itself never escapes. Built by [`ShardCommandHandle::read`].
+/// A read-only closure executed against the projection inside the loop. It is
+/// built by [`ShardCommandHandle::read`].
 pub struct ReadQuery<P>(BoxedRead<P>);
 
 type BoxedRead<P> = Box<dyn for<'a> FnOnce(&'a KernelProjection<P>) -> Box<dyn Any + Send> + Send>;
 
 pub type ReadResult = Box<dyn Any + Send>;
 
-/// Structurally absent capability (no signals, no runtime work yet).
+/// Structurally absent capability for a domain without signals or runtime work.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Never {}
 
-/// One shared registry declaration for every hosted domain's snapshots:
-/// the codec shape is identical and each domain owns its own shard log, so
+/// One shared registry declaration for every hosted domain's snapshots.
+/// The codec shape is identical and each domain owns its own shard log, so
 /// the name never collides across domains.
 static DOMAIN_SNAPSHOT_DECLARATION: RecordDeclaration = RecordDeclaration {
     name: "domain_projection_snapshot",
@@ -473,7 +470,7 @@ static DOMAIN_SNAPSHOT_DECLARATION: RecordDeclaration = RecordDeclaration {
 const MAX_SNAPSHOT_BYTES: usize = 1024 * 1024;
 
 /// Committed snapshot record. The projection is embedded inline in the log
-/// (bounded by [`MAX_SNAPSHOT_BYTES`]); an over-limit projection skips
+/// and is bounded by `MAX_SNAPSHOT_BYTES`. A projection over that limit skips
 /// snapshotting and recovery replays the full journal instead.
 #[derive(Serialize, Deserialize)]
 #[serde(
@@ -497,8 +494,8 @@ pub struct ProjectionSnapshotV1<S: SimpleDomain> {
     pub domain: S::Projection,
 }
 
-/// In-loop capture of the projection, stamped into a committable record by
-/// the driver. The clock stays outside the loop.
+/// A projection captured inside the loop and stamped into a committable record
+/// by the driver. The clock stays outside the loop.
 pub struct ProjectionSnapshotPayload<S: SimpleDomain> {
     shard: Shard,
     through_log_sequence: u64,
@@ -583,16 +580,16 @@ impl<S: SimpleDomain> DurableRecord for ProjectionSnapshot<S> {
                 version: version.to_owned(),
             });
         }
-        // A projection payload that fails to decode is corruption to
-        // recovery: it falls back to older snapshots, then to full replay.
+        // A projection payload that fails to decode is treated as corruption.
+        // Recovery falls back to older snapshots and then to full replay.
         let record: Self =
             serde_json::from_value(value).map_err(|error| snapshot_malformed(error.to_string()))?;
         Ok(record)
     }
 }
 
-/// The blanket adapter: one hosted domain, presented to the kernel loop as a
-/// full [`Domain`]. Users never see this type or the port behind it.
+/// The blanket adapter presents one hosted domain to the kernel loop as a full
+/// [`Domain`]. Users never see this type or the port behind it.
 pub struct Hosted<S>(PhantomData<fn() -> S>);
 
 impl<S> fmt::Debug for Hosted<S> {
@@ -609,8 +606,8 @@ impl<S> Clone for Hosted<S> {
 
 impl<S> Copy for Hosted<S> {}
 
-/// Registers the domain's wire names (events and snapshots). Must run
-/// before the first append; `Kernel::register` calls this.
+/// Registers the domain's event and snapshot wire names. This must run
+/// before the first append. `Kernel::register` calls this.
 pub fn register<S: SimpleDomain>() -> Result<(), DeclarationError> {
     registry::intern_declaration(event_declaration::<S::Event>())?;
     registry::intern_declaration(DOMAIN_SNAPSHOT_DECLARATION)?;
@@ -839,7 +836,7 @@ impl<S: SimpleDomain> Domain for Hosted<S> {
             .digest()
             .map_err(|error| format!("digest domain record at sequence {sequence}: {error}"))?;
         match projection.seen.get(&record.event_id) {
-            // A lost-ack retry may durably append the same record twice; the
+            // A lost acknowledgement retry may durably append the same record twice. The
             // second copy advances the sequence and folds nothing.
             Some(seen) if *seen == digest => {
                 projection.through_log_sequence = Some(sequence);
@@ -855,7 +852,7 @@ impl<S: SimpleDomain> Domain for Hosted<S> {
                     .partitions
                     .insert(record.partition.clone(), sequence);
                 projection.through_log_sequence = Some(sequence);
-                // Recorded events are facts: replay never re-validates, so a
+                // Recorded events are facts. Replay never validates them again, so a
                 // validation change cannot poison accepted history.
                 projection.domain.apply(&record.event);
                 Ok(())
@@ -897,7 +894,7 @@ impl<S: SimpleDomain> Domain for Hosted<S> {
 
 impl<S: SimpleDomain> ShardCommandHandle<Hosted<S>> {
     /// Runs a read-only closure against the projection inside the serialized
-    /// loop and returns its result. The projection never escapes; the
+    /// loop and returns its result. The projection never escapes, and the
     /// closure must not block.
     pub async fn read<R, F>(&self, read: F) -> Result<R, ShardCommandError>
     where
@@ -1186,7 +1183,7 @@ mod tests {
 
         Toy::replay(&mut projection, shard, 0, EventRecord::V1(record.clone()))
             .expect("first replay should apply");
-        // A lost-ack retry can durably append the same record twice.
+        // A retry after a lost acknowledgement can append the same record twice.
         Toy::replay(&mut projection, shard, 1, EventRecord::V1(record.clone()))
             .expect("duplicate replay should be a no-op");
         assert_eq!(projection.domain().totals["orders"], 5);
@@ -1202,8 +1199,8 @@ mod tests {
         assert!(error.contains("does not advance"));
 
         // `normalize` blocks identity forgeries, so the reuse arm can fire
-        // only when a stored digest no longer matches the record's bytes;
-        // rewriting the stored digest stands in for that.
+        // only when a stored digest no longer matches the record's bytes.
+        // Rewriting the stored digest stands in for that condition.
         let other_digest = incremented("orders", 7)
             .digest()
             .expect("digest should compute");
@@ -1287,7 +1284,7 @@ mod tests {
     async fn crash_replay_rebuilds_state_and_still_dedupes() {
         register::<ToyDomain>().expect("toy name should register");
         let root = tempfile::tempdir().expect("object store root tempdir should be created");
-        // Both counters must route to the same shard for a one-shard rig.
+        // Both counters must route to the same shard for a test with one shard.
         let first = incremented("orders", 5);
         let shard = shard_of(&first.partition);
         let second = incremented("orders", 7);
@@ -1327,7 +1324,7 @@ mod tests {
             .expect("loop should stop cleanly");
 
         let (handle, started) = start(location).await;
-        // Log sequences are not dense per record; only their ordering is
+        // Log sequences are not dense per record. Only their ordering is
         // contractual. The recovered fold must sit below the durable end.
         let through = handle
             .read(KernelProjection::through_log_sequence)

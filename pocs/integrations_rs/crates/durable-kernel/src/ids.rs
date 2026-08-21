@@ -1,5 +1,5 @@
-//! Kernel identity vocabulary: SHA-256 digest identities and the canonical
-//! digest function every content-derived identity is computed with.
+//! The kernel identity vocabulary contains SHA-256 digest identities and the
+//! canonical digest function used to compute every content-derived identity.
 
 use std::fmt;
 
@@ -96,7 +96,8 @@ macro_rules! digest_id {
 digest_id!(EventId, "event ID");
 digest_id!(JournalRecordDigest, "journal-record digest");
 
-/// Domain-separated canonical content digest: `sha256(label || 0x00 || json)`.
+/// Computes a domain-separated canonical content digest by hashing the label,
+/// a zero byte, and the canonical JSON in that order.
 /// The serialized-JSON bytes are the identity, so field order and formatting
 /// of the serialized value are part of the wire contract.
 pub fn canonical_digest<T: Serialize>(

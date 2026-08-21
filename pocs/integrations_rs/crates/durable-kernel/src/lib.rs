@@ -1,16 +1,16 @@
-//! Durable-execution kernel: an event-sourced, S3-backed control layer with
+//! The durable execution kernel is an event-sourced, S3-backed control layer with
 //! content-addressed identities, snapshot-bounded replay, and epoch-fenced
 //! shard logs.
 //!
-//! A domain implements the user-facing traits in [`domain`] (or, for full
-//! control, the internal port in [`port`]) and runs through [`runtime`].
-//! Storage layout is derived in [`keyspace`]; record codecs register through
-//! [`registry`]; append and recovery are implemented in [`shard_log`].
+//! A domain implements the user-facing traits in [`domain`]. Domains that need
+//! full control implement the internal port in [`port`]. Both run through [`runtime`].
+//! Storage layout is derived in [`keyspace`]. Record codecs register through
+//! [`registry`]. Append and recovery are implemented in [`shard_log`].
 
-// The workspace cargo config injects the HASH-repo lint list; correctness
+// The workspace cargo config injects the HASH-repo lint list. Correctness
 // and suspicious lints stay hot. The allows below are doc-shape and
-// numeric-cast pedantry that adds noise without adding safety here: string indexing
-// operates on validated ASCII, casts are counts and durations.
+// numeric-cast pedantry that adds noise without adding safety here. String indexing
+// operates on validated ASCII, while casts represent counts and durations.
 #![allow(
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
@@ -29,9 +29,9 @@
     clippy::cast_possible_truncation,
     clippy::single_match_else,
     clippy::items_after_statements,
-    // On purpose: cheap handle clones (Store, Arc callbacks) read better as
-    // .clone(); Reports render via {:?}; mod.rs is this crate's module
-    // layout.
+    // Cheap handle clones for Store and Arc callbacks read better as calls to
+    // clone. Reports render through their debug representation. This crate
+    // also uses mod.rs for its module layout.
     clippy::clone_on_ref_ptr,
     clippy::needless_pass_by_value,
     clippy::significant_drop_tightening,

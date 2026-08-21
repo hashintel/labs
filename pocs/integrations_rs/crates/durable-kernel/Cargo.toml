@@ -15,7 +15,7 @@ tokio-util = "0.7"
 bytes = "1"
 error-stack = "0.5"
 serde = { version = "1", features = ["derive"] }
-# preserve_order is required for correctness: canonical digests hash
+# preserve_order is required for correctness because canonical digests hash
 # serialized JSON.
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"

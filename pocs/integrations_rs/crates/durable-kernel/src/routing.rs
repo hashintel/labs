@@ -1,5 +1,5 @@
 //! Shard identity for the durable control layer. Placement of a key onto a
-//! shard is the domain's concern; the kernel only requires that shard values
+//! shard is the domain's concern. The kernel only requires that shard values
 //! stay inside the fixed routing range.
 
 use std::fmt;
@@ -16,7 +16,7 @@ impl Shard {
 }
 
 impl Shard {
-    /// Every `u8` is a valid shard: the routing range is exactly `0..256`.
+    /// Every `u8` is a valid shard because the routing range is exactly `0..256`.
     pub const fn from_u8(value: u8) -> Self {
         Self(value)
     }

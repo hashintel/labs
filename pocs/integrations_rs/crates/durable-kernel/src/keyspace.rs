@@ -1,7 +1,7 @@
 //! Kernel-owned S3 key derivation.
 //!
-//! Every durable key is derived here from one validated [`Namespace`]:
-//! the control layer under `{namespace}/control/v1/...` and content-addressed
+//! Every durable key is derived here from one validated [`Namespace`]. The
+//! control layer lives under `{namespace}/control/v1/...`, while content-addressed
 //! artifact prefixes under `{namespace}/artifacts/{kind}/sha256/...`. Call
 //! sites must not format keys ad hoc. This type exists to prevent a writer
 //! and its validator from disagreeing on layout.
@@ -17,7 +17,7 @@ use crate::routing::{shard_path, Shard};
 pub const MAX_NAMESPACE_BYTES: usize = 256;
 
 /// Validated root prefix for one kernel instance. Segments use tenant-safe
-/// characters; `/` separates segments.
+/// characters, and `/` separates segments.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Namespace(String);
 
@@ -96,7 +96,7 @@ impl Keyspace {
         &self.namespace
     }
 
-    // Control layer. The kernel owns everything under this root; domains
+    // The kernel owns everything under the control root. Domains
     // must not mint keys here.
 
     pub fn control_root(&self) -> String {
@@ -152,7 +152,7 @@ impl Keyspace {
     }
 
     // Content-addressed artifacts. Publishers append
-    // `/sha256/{digest[..2]}/{digest}{ext}` under these prefixes;
+    // `/sha256/{digest[..2]}/{digest}{ext}` under these prefixes. The
     // `artifact_digest_prefix` is the matching validation boundary.
 
     pub fn artifact_prefix(&self, kind: &str) -> Result<String, InvalidNamespace> {

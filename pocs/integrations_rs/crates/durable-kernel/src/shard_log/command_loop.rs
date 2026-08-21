@@ -132,7 +132,7 @@ impl<D: Domain> ShardCommandHandle<D> {
     }
 
     /// Atomically re-checks the request against the current projection, builds
-    /// its pure promoted event (or durable rejection), and appends it through
+    /// its pure promoted event or durable rejection and appends it through
     /// the sole fenced writer.
     pub async fn resolve_control(
         &self,
@@ -162,7 +162,7 @@ impl<D: Domain> ShardCommandHandle<D> {
 
     /// Captures the loop's snapshot payload once at least
     /// `minimum_sequence_span` events landed since the last committed
-    /// snapshot; `None` means the span is not yet worth snapshotting.
+    /// snapshot. `None` means the span is not yet worth snapshotting.
     pub async fn capture_snapshot(
         &self,
         minimum_sequence_span: u64,
@@ -308,7 +308,7 @@ enum RecoveryMode {
 /// The `Default` configuration keeps `LocalReopen` recovery for unleased test
 /// rigs and reference embeddings, where reopening the writer locally is the
 /// intended ambiguity resolution. Production construction goes through
-/// [`ShardCommandConfig::new`], which is fail-closed by default: an ambiguous
+/// [`ShardCommandConfig::new`], which fails closed by default. An ambiguous
 /// append requires a fresh lease acquisition handshake.
 impl Default for ShardCommandConfig {
     fn default() -> Self {
@@ -322,8 +322,8 @@ impl Default for ShardCommandConfig {
 }
 
 impl ShardCommandConfig {
-    /// Production constructor: fail-closed recovery by default, so exclusivity
-    /// never depends on a later call site remembering to flip the mode.
+    /// The production constructor makes recovery fail closed by default, so
+    /// exclusivity never depends on a later call site remembering to change the mode.
     pub fn new(channel_capacity: NonZeroUsize, safe_append_retries: u32) -> Self {
         Self {
             channel_capacity,
@@ -397,8 +397,8 @@ impl OpenedShard {
         mut self,
         context: Option<&D::SnapshotContext>,
     ) -> Result<RecoveredShard<D>, ShardCommandError> {
-        // Recovering a shard is where a domain's codecs enter the process:
-        // interning here covers every subsequent scan and append, and a
+        // A domain's codecs enter the process while its shard recovers.
+        // Interning here covers every subsequent scan and append, and a
         // conflicting redeclaration of an interned name fails the shard
         // instead of decoding history with the wrong codec.
         crate::registry::intern_declaration(*<D::Record as DurableRecord>::declaration())
@@ -801,7 +801,7 @@ impl<D: Domain> CommandLoop<D> {
                 Ok(sequence) => {
                     if let Err(error) = D::finalize(&mut self.projection, delta, sequence) {
                         // The append is already durable. A local finalization
-                        // failure is never a candidate rejection: rebuild from
+                        // failure is never a candidate rejection. Rebuild from
                         // the authoritative prefix and require it to adopt the
                         // exact event before serving another command.
                         self.recover_durable_prefix()
@@ -913,7 +913,7 @@ impl<D: Domain> CommandLoop<D> {
 
     fn notify_state_change_if_established(&self, integration_id: &D::StateKey) {
         if self.checkpoint_state_sequence(integration_id).is_some() {
-            // Hints are derived. A full channel may drop this notification;
+            // Hints are derived. A full channel may drop this notification, while
             // startup replay and later state events deterministically repair it.
             let _ = self.state_change_sender.try_send(integration_id.clone());
         }

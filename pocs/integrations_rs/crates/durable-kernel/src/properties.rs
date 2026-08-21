@@ -1,18 +1,17 @@
 //! The checkable-property catalog.
 //!
 //! Each property is a stable, named claim about the kernel. Safety
-//! properties must hold at every evaluation point; coverage properties
+//! properties must hold at every evaluation point. Coverage properties
 //! name the failure windows a test campaign must actually produce for the
 //! safety checks to have been tested.
 //!
-//! The deterministic-simulation harness evaluates the catalog two ways:
-//! property-based tests (proptest-generated schedules, shrinking a failure
-//! to a minimal action sequence) check every safety property, and the
-//! seeded campaign additionally accounts for coverage. See
-//! `local/docs/property-catalog.md`.
+//! The deterministic-simulation harness evaluates the catalog in two ways.
+//! Property-based tests use generated schedules and shrink a failure to a
+//! minimal action sequence while checking every safety property. The seeded
+//! campaign additionally accounts for coverage.
 //!
-//! IDs are frozen: docs, TLA+ cross-references, and triage notes key on
-//! them. Retire a property instead of renaming it.
+//! IDs are frozen because documentation, TLA+ cross-references, and triage
+//! notes use them as keys. Retire a property instead of renaming it.
 
 use std::fmt;
 
@@ -29,18 +28,18 @@ pub struct Property {
     pub id: &'static str,
     pub class: PropertyClass,
     /// One sentence, present tense, checkable. For a `Safety` property
-    /// this is the invariant; for a `Coverage` property, the situation a
-    /// campaign must produce.
+    /// this is the invariant. For a `Coverage` property, this is the situation
+    /// a campaign must produce.
     pub statement: &'static str,
 }
 
 // Safety properties. KRN-A1 through KRN-A5 are the executable image of
-// the `specs/LogCursor.tla` invariants (TLC-checked; see `specs/README.md`
-// for the axiom-to-contract mapping); each statement here and its spec
-// invariant must remain word-for-word identical.
+// the `specs/LogCursor.tla` invariants, which are checked by TLC. The
+// axiom-to-contract mapping appears in `specs/README.md`. Each statement here
+// and its specification invariant must remain word-for-word identical.
 
 /// See also `validate_recovered_prefix`, which enforces the same claim
-/// inside the production loop; this property checks it from outside.
+/// inside the production loop. This property checks it from outside.
 pub const ACK_IMPLIES_DURABLE: Property = Property {
     id: "KRN-A1-ACK-IMPLIES-DURABLE",
     class: PropertyClass::Safety,
@@ -79,8 +78,9 @@ pub const REJECTED_NEVER_DURABLE: Property = Property {
     statement: "an event the fold rejected never appears in the durable prefix",
 };
 
-// Effect-execution safety: the at-least-once contract of the hosted
-// executor, checked against an external ledger that records every execution, repeats included.
+// Effect execution has an at-least-once safety contract. An external ledger
+// records every execution, including repeats, so the hosted executor can be
+// checked.
 
 pub const EFFECT_REPLAYS_ARE_IDENTICAL: Property = Property {
     id: "KRN-A7-EFFECT-REPLAY-IDENTICAL",
@@ -110,8 +110,8 @@ pub const DURABLE_EVENTS_HAVE_PROVENANCE: Property = Property {
     statement: "every event in the durable prefix was proposed by a client of the loop",
 };
 
-// Coverage properties: the failure windows a schedule campaign must
-// actually produce for the safety properties to have been tested.
+// Coverage properties name the failure windows that a schedule campaign must
+// produce before the safety properties have been exercised.
 
 pub const ADOPTED_AMBIGUOUS_DURABLE_APPEND: Property = Property {
     id: "KRN-S1-AMBIGUOUS-DURABLE-ADOPTED",
@@ -202,9 +202,9 @@ pub trait CoverageSink {
 }
 
 /// Asserts a safety property at one evaluation point. A violation panics
-/// with the property ID, statement, and caller-supplied detail; the
-/// harness attaches whatever replays the run (a shrunk schedule or a
-/// seed plus action trace).
+/// with the property ID, statement, and caller-supplied detail. The
+/// harness attaches either a shrunk schedule or a seed and action trace so
+/// the run can be replayed.
 #[track_caller]
 pub fn check(property: &Property, condition: bool, detail: impl fmt::Display) {
     debug_assert_eq!(property.class, PropertyClass::Safety);
@@ -216,7 +216,7 @@ pub fn check(property: &Property, condition: bool, detail: impl fmt::Display) {
 }
 
 /// Records that a coverage property occurred here. Never fails a single
-/// run; the campaign fails if the property never occurs.
+/// run. The campaign fails if the property never occurs.
 pub fn covered(sink: &mut dyn CoverageSink, property: &Property, condition: bool) {
     debug_assert_eq!(property.class, PropertyClass::Coverage);
     if condition {
