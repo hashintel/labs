@@ -207,7 +207,8 @@ def generate_marc_data():
                 'BSTMA': max_lot,  # Maximum Lot Size
                 'BSTFE': min_lot,  # Fixed Lot Size
                 'BSTRF': rounding, # Rounding Value
-                'LGPRO': 'FG01', 'DISPO': 'D01'
+                'LGPRO': 'RM01' if matnr in RAW_MATERIALS else 'FG01',
+                'DISPO': 'D01'
             })
     return pd.DataFrame(data)
 
@@ -296,6 +297,7 @@ def generate_mard_data():
 
     for matnr in PREDEFINED_MATERIALS:
         for werks in PREDEFINED_PLANTS:
+            lgort = 'RM01' if matnr in RAW_MATERIALS else 'FG01'
             if matnr == MAT_VEGGIE_CAPS:
                 total_stock = 0.0
                 num_batches = 0

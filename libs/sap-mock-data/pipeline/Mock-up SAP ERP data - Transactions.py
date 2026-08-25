@@ -1000,46 +1000,44 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
             })
             matdoc_id += 1
 
-        # C. Component Consumption (261) - Only for actual production
         if matnr in bom_map:
             bom = bom_map[matnr]
             for i, comp in enumerate(bom['components']):
                 # Calculate actual consumption based on actual production
                 actual_consumption = comp['qty'] * actual_qty
 
-                if actual_consumption > 0:
-                    # Goods Issue Consumption (261) - select batch, limited to available stock
-                    comp_batch, consumed_qty = select_batch_for_issue(comp['child_mat'], plant, 'RM01', actual_consumption)[0]
+                comp_batch, consumed_qty = select_batch_for_issue(
+                    comp['child_mat'], plant, 'RM01', actual_consumption
+                )[0]
+                resb.append({
+                    'MANDT': '800', 'RSNUM': aufnr, 'RSPOS': f"{i+1:04d}",
+                    'MATNR': comp['child_mat'],
+                    'BDMNG': comp['qty'] * planned_qty,
+                    'ENMNG': consumed_qty,
+                    'WERKS': plant, 'LGORT': 'RM01'
+                })
 
-                    if consumed_qty > 0:
-                        # Reservation (RESB) - for planned qty
-                        resb.append({
-                            'MANDT': '800', 'RSNUM': aufnr, 'RSPOS': f"{i+1:04d}",
-                            'MATNR': comp['child_mat'],
-                            'BDMNG': comp['qty'] * planned_qty,  # Planned requirement
-                            'ENMNG': consumed_qty,                # Actual withdrawal (limited to stock)
-                            'WERKS': plant, 'LGORT': 'RM01'
-                        })
-                        matdoc.append({
-                            'MANDT': '800',
-                            'MBLNR': str(matdoc_id),
-                            'MJAHR': '2025',
-                            'ZEILE': '0001',
-                            'BWART': '261',
-                            'MATNR': comp['child_mat'],
-                            'WERKS': plant,
-                            'LGORT': 'RM01',
-                            'CHARG': comp_batch,
-                            'SHKZG': 'H',
-                            'MENGE': consumed_qty,  # Use actual consumed (limited to stock)
-                            'MEINS': 'PC',
-                            'BUDAT': date,
-                            'CPUDT': date,
-                            'CPUTM': '070000',
-                            'AUFNR': aufnr,
-                            'BKTXT': 'GI for Production',
-                        })
-                        matdoc_id += 1
+                if consumed_qty > 0:
+                    matdoc.append({
+                        'MANDT': '800',
+                        'MBLNR': str(matdoc_id),
+                        'MJAHR': '2025',
+                        'ZEILE': '0001',
+                        'BWART': '261',
+                        'MATNR': comp['child_mat'],
+                        'WERKS': plant,
+                        'LGORT': 'RM01',
+                        'CHARG': comp_batch,
+                        'SHKZG': 'H',
+                        'MENGE': consumed_qty,
+                        'MEINS': 'PC',
+                        'BUDAT': date,
+                        'CPUDT': date,
+                        'CPUTM': '070000',
+                        'AUFNR': aufnr,
+                        'BKTXT': 'GI for Production',
+                    })
+                    matdoc_id += 1
 
         # D. Create shortage documentation (102 movements) for failed deliveries
         for shortage in shortage_components:
@@ -1449,7 +1447,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
             'MANDT': '800',
             'EBELN': ebeln,
             'EBELP': po['EBELP'],
-            'ZEESSION': '0001',  # Sequential number
+            'ZEKKN': '0001',  # Sequential number
             'VGABE': '1',  # Transaction type (1 = GR)
             'BEWTP': 'E',  # History category (E = Goods receipt)
             'BWART': '101',  # Movement type

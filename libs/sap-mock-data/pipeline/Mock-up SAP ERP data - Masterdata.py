@@ -302,6 +302,7 @@ def generate_marc_data():
 
     for matnr in PREDEFINED_MATERIALS:
         for werks in PREDEFINED_PLANTS:
+            lgort = 'RM01' if matnr in RAW_MATERIALS else 'FG01'
             # MOQ varies by material type - using parameterized values
             if matnr in FINISHED_GOODS:
                 min_lot = random.choice(fg_moq_options)
@@ -324,7 +325,8 @@ def generate_marc_data():
                 'BSTMA': max_lot,  # Maximum Lot Size
                 'BSTFE': min_lot,  # Fixed Lot Size
                 'BSTRF': rounding, # Rounding Value
-                'LGPRO': 'FG01', 'DISPO': 'D01'
+                'LGPRO': 'RM01' if matnr in RAW_MATERIALS else 'FG01',
+                'DISPO': 'D01'
             })
     return pd.DataFrame(data)
 
