@@ -239,14 +239,14 @@ def generate_mch1_data(batch_records):
             'MANDT': '800',
             'MATNR': rec['MATNR'],
             'CHARG': rec['CHARG'],
-            'VEESSION': str(random.randint(1, 5)),  # Batch version
+            'ZZ_BATCH_VERSION': str(random.randint(1, 5)),
             'HSDAT': prod_date.strftime('%Y%m%d'),  # Production date
             'VFDAT': expiry_date.strftime('%Y%m%d'),  # Expiry date
-            'LAESSION': prod_date.strftime('%Y%m%d'),  # Last goods receipt
-            'LWEESSION': '',  # Last goods issue
-            'ZUESSION': 'A',  # Batch status (A=Active, L=Locked, R=Restricted)
-            'ZESSION': '',   # Batch restriction reason
-            'HESSION': rec['WERKS'],  # Plant of origin
+            'LWEDT': prod_date.strftime('%Y%m%d'),
+            'ZZ_LAST_GI_DATE': '',
+            'ZUSTD': '',
+            'ZZ_RESTRICTION_REASON': '',
+            'ZZ_ORIGIN_PLANT': rec['WERKS'],
             'LOBM_LIFNR': '',  # Vendor (if externally sourced)
         })
 
@@ -744,38 +744,64 @@ def generate_eina_data(df_mara, df_lfa1):
     raw_materials = df_mara[df_mara['MTART'] == 'ROH']['MATNR'].tolist()
     vendors = df_lfa1['LIFNR'].tolist()
 
-    api_vendors = [v for v in vendors if int(v.split('-')[1]) <= 5]
-    excipient_vendors = [v for v in vendors if 6 <= int(v.split('-')[1]) <= 10]
-    packaging_vendors = [v for v in vendors if 11 <= int(v.split('-')[1]) <= 15]
+    vendor_pools = {
+        'API': [v for v in vendors if int(v.split('-')[1]) <= 5],
+        'EXCIPIENT': [v for v in vendors if 6 <= int(v.split('-')[1]) <= 10],
+        'PACKAGING': [v for v in vendors if 11 <= int(v.split('-')[1]) <= 15],
+        'OTHER': [v for v in vendors if int(v.split('-')[1]) >= 16],
+    }
+
+    materials_by_category = {category: [] for category in vendor_pools}
+    for matnr in raw_materials:
+        if matnr == 'API1':
+            category = 'API'
+        elif matnr == 'EXC1':
+            category = 'EXCIPIENT'
+        else:
+            material_number = int(matnr.removeprefix('MAT-R'))
+            if material_number <= 8:
+                category = 'API'
+            elif material_number <= 16:
+                category = 'EXCIPIENT'
+            elif material_number <= 24:
+                category = 'PACKAGING'
+            else:
+                category = 'OTHER'
+        materials_by_category[category].append(matnr)
 
     infnr_counter = 5300000000
 
-    for matnr in raw_materials:
-        if 'API' in matnr or matnr.startswith('MAT-R00'):  # First raw materials are API
-            primary_vendors = api_vendors
-            secondary_vendors = api_vendors  # API typically single-sourced
-        elif 'EXC' in matnr or (matnr.startswith('MAT-R') and int(matnr.split('R')[1][:2]) <= 15):
-            primary_vendors = excipient_vendors
-            secondary_vendors = excipient_vendors
-        else:
-            primary_vendors = packaging_vendors
-            secondary_vendors = packaging_vendors
+    def append_info_record(matnr, lifnr):
+        nonlocal infnr_counter
+        infnr_counter += 1
+        data.append({
+            'MANDT': '800',
+            'INFNR': str(infnr_counter),
+            'MATNR': matnr,
+            'LIFNR': lifnr,
+            'LOEKZ': '',
+            'ERDAT': (datetime.now() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
+            'ERNAM': random.choice(PREDEFINED_USERS),
+        })
 
-        num_vendors = random.randint(1, 3)
-        assigned_vendors = random.sample(primary_vendors, min(num_vendors, len(primary_vendors)))
+    for category, materials in materials_by_category.items():
+        vendor_pool = vendor_pools[category]
+        for material_index, matnr in enumerate(materials):
+            primary_vendor = vendor_pool[material_index % len(vendor_pool)]
+            additional_count = random.randint(0, min(2, len(vendor_pool) - 1))
+            additional_vendors = random.sample(
+                [vendor for vendor in vendor_pool if vendor != primary_vendor],
+                additional_count,
+            )
+            assigned_vendors = [primary_vendor, *additional_vendors]
 
-        for idx, lifnr in enumerate(assigned_vendors):
-            infnr_counter += 1
+            for lifnr in assigned_vendors:
+                append_info_record(matnr, lifnr)
 
-            data.append({
-                'MANDT': '800',
-                'INFNR': str(infnr_counter),  # Info record number
-                'MATNR': matnr,
-                'LIFNR': lifnr,
-                'LOEKZ': '',  # Deletion indicator
-                'ERDAT': (datetime.now() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
-                'ERNAM': random.choice(PREDEFINED_USERS),
-            })
+    assigned_vendors = {record['LIFNR'] for record in data}
+    for vendor_index, lifnr in enumerate(vendors):
+        if lifnr not in assigned_vendors:
+            append_info_record(raw_materials[vendor_index % len(raw_materials)], lifnr)
 
     return pd.DataFrame(data)
 

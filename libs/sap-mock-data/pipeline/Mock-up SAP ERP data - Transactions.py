@@ -28,6 +28,7 @@ dbutils.widgets.text("GENERATE_DIRTY_DATA", "false", "Generate Dirty Data (true/
 dbutils.widgets.text("DIRTY_DATA_RATE", "0.05", "Dirty Data Rate (0.0-1.0)")
 dbutils.widgets.text("SUPPLIER_RELIABILITY_RATE", "1.0", "Supplier Reliability (0.0-1.0)")
 dbutils.widgets.text("UNRELIABLE_MATERIALS", "", "Specific unreliable materials (comma-separated)")
+dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
 
 CATALOG = dbutils.widgets.get("CATALOG")
 SCHEMA = dbutils.widgets.get("SCHEMA")
@@ -40,6 +41,7 @@ GENERATE_DIRTY_DATA = dbutils.widgets.get("GENERATE_DIRTY_DATA").lower() == "tru
 DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
 SUPPLIER_RELIABILITY_RATE = float(dbutils.widgets.get("SUPPLIER_RELIABILITY_RATE"))
 UNRELIABLE_MATERIALS_STR = dbutils.widgets.get("UNRELIABLE_MATERIALS")
+DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
 # --- FIXED SEEDING ---
 Faker.seed(RANDOM_SEED)
@@ -1336,7 +1338,7 @@ def generate_purchase_orders(df_eina, df_eine, df_matdoc, num_months=12):
                 'LIFNR': lifnr,
                 'EKORG': '1000',  # Purchasing org
                 'EKGRP': 'P01',  # Purchasing group
-                'WAERS': 'USD',  # Currency
+                'WAERS': DATASET_CURRENCY,
                 'BEDAT': po_date.strftime('%Y%m%d'),  # PO date
                 'AEDAT': po_date.strftime('%Y%m%d'),  # Creation date
                 'ERNAM': random.choice(PREDEFINED_USERS),

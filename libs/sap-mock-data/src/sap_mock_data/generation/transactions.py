@@ -1039,7 +1039,7 @@ def generate_purchase_orders(df_eina, df_eine, df_matdoc, num_months=12):
                 'LIFNR': lifnr,
                 'EKORG': '1000',  # Purchasing org
                 'EKGRP': 'P01',  # Purchasing group
-                'WAERS': 'USD',  # Currency
+                'WAERS': param('DATASET_CURRENCY'),
                 'BEDAT': po_date.strftime('%Y%m%d'),  # PO date
                 'AEDAT': po_date.strftime('%Y%m%d'),  # Creation date
                 'ERNAM': random.choice(PREDEFINED_USERS),
