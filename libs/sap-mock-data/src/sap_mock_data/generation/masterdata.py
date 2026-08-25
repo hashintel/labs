@@ -7,7 +7,7 @@ import uuid
 from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
 
-from .common import param, seed_all
+from .common import PLANT_CONFIG, param, seed_all
 
 
 def dirty_key(value, dirty_rate=0.05):
@@ -449,22 +449,15 @@ def generate_marm_data():
 
 
 
-PLANT_LOCATIONS = {
-    '1000': {'name': 'London', 'country': 'GB', 'xpos': -0.1278, 'ypos': 51.5074},
-    '2000': {'name': 'Rotterdam', 'country': 'NL', 'xpos': 4.4777, 'ypos': 51.9244},
-    '3000': {'name': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
-    '4000': {'name': 'Warsaw', 'country': 'PL', 'xpos': 21.0122, 'ypos': 52.2297},
-}
-
 EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
 
 TRANSPORT_MODES = {
-    'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'currency': 'EUR'},
-    'SEA': {'speed_kmh': 25, 'cost_per_km': 0.15, 'currency': 'EUR'},
-    'AIR': {'speed_kmh': 800, 'cost_per_km': 3.00, 'currency': 'EUR'},
+    'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50},
+    'SEA': {'speed_kmh': 25, 'cost_per_km': 0.15},
+    'AIR': {'speed_kmh': 800, 'cost_per_km': 3.00},
 }
 
-PORT_PLANTS = {'1000', '2000'}  # London (Thames) and Rotterdam
+PORT_PLANTS = {'3000', '4000'}
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """Calculate the great circle distance in kilometers between two points on Earth."""
@@ -491,7 +484,7 @@ def generate_sapapo_loc_data():
     Extends location data with geographical coordinates for distance calculation.
     """
     data = []
-    for locno, loc_info in PLANT_LOCATIONS.items():
+    for locno, loc_info in PLANT_CONFIG.items():
         data.append({
             'MANDT': '800',
             'LOCNO': locno,
@@ -499,7 +492,7 @@ def generate_sapapo_loc_data():
             'XPOS': loc_info['xpos'],
             'YPOS': loc_info['ypos'],
             'COUNTRY': loc_info['country'],
-            'CITY': loc_info['name'],
+            'CITY': loc_info['city'],
         })
     return pd.DataFrame(data)
 
@@ -509,18 +502,18 @@ def generate_sapapo_tr_data():
     Creates all plant-to-plant combinations excluding self-loops.
     """
     data = []
-    plants = list(PLANT_LOCATIONS.keys())
+    plants = list(PLANT_CONFIG)
 
     for loc_from in plants:
         for loc_to in plants:
             if loc_from == loc_to:
                 continue  # Skip self-loops
 
-            from_info = PLANT_LOCATIONS[loc_from]
-            to_info = PLANT_LOCATIONS[loc_to]
+            from_info = PLANT_CONFIG[loc_from]
+            to_info = PLANT_CONFIG[loc_to]
 
             trlid = str(uuid.uuid4()).replace('-', '').upper()[:32]
-            lane_name = f"{from_info['name']} -> {to_info['name']}"
+            lane_name = f"{from_info['city']} -> {to_info['city']}"
 
             data.append({
                 'MANDT': '800',
@@ -545,8 +538,8 @@ def generate_sapapo_trm_data(df_tr):
         loc_from = lane['LOCFR']
         loc_to = lane['LOCTO']
 
-        from_info = PLANT_LOCATIONS[loc_from]
-        to_info = PLANT_LOCATIONS[loc_to]
+        from_info = PLANT_CONFIG[loc_from]
+        to_info = PLANT_CONFIG[loc_to]
 
         distance_km = haversine_km(
             from_info['ypos'], from_info['xpos'],
@@ -599,7 +592,7 @@ def generate_tvro_data():
     Route naming: R{FROM}{TO} e.g., R1020 = Route from 1000 to 2000
     """
     data = []
-    plants = list(PLANT_LOCATIONS.keys())
+    plants = list(PLANT_CONFIG)
 
     shipping_types = {'ROAD': '01', 'RAIL': '02', 'SEA': '03', 'AIR': '04'}
     forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
@@ -609,8 +602,8 @@ def generate_tvro_data():
             if loc_from == loc_to:
                 continue
 
-            from_info = PLANT_LOCATIONS[loc_from]
-            to_info = PLANT_LOCATIONS[loc_to]
+            from_info = PLANT_CONFIG[loc_from]
+            to_info = PLANT_CONFIG[loc_to]
 
             route = f"R{loc_from[:2]}{loc_to[:2]}"
 
@@ -656,7 +649,7 @@ def generate_tvrot_data(df_tvro):
     Provides descriptions for routes in multiple languages.
     """
     data = []
-    plants = list(PLANT_LOCATIONS.keys())
+    plants = list(PLANT_CONFIG)
     languages = ['E', 'D', 'F']  # English, German, French
 
     for _, route in df_tvro.iterrows():
@@ -665,8 +658,8 @@ def generate_tvrot_data(df_tvro):
         from_plant = route_code[1:3] + '00'
         to_plant = route_code[3:5] + '00'
 
-        from_name = PLANT_LOCATIONS.get(from_plant, {}).get('name', from_plant)
-        to_name = PLANT_LOCATIONS.get(to_plant, {}).get('name', to_plant)
+        from_name = PLANT_CONFIG.get(from_plant, {}).get('city', from_plant)
+        to_name = PLANT_CONFIG.get(to_plant, {}).get('city', to_plant)
 
         for lang in languages:
             if lang == 'E':
@@ -836,65 +829,7 @@ def generate_t001w_data():
     """
     data = []
 
-    plant_config = {
-        '1000': {
-            'name': 'Manufacturing Hub',
-            'name2': 'Primary Production',
-            'country': 'DE',
-            'region': 'BW',
-            'city': 'Stuttgart',
-            'street': 'Pharmastrasse 100',
-            'postal': '70173',
-            'plant_type': 'PROD',  # Production
-            'calendar': 'DE',
-        },
-        '2000': {
-            'name': 'Regional DC Europe',
-            'name2': 'Distribution Center',
-            'country': 'DE',
-            'region': 'HE',
-            'city': 'Frankfurt',
-            'street': 'Logistikweg 50',
-            'postal': '60313',
-            'plant_type': 'DC',  # Distribution Center
-            'calendar': 'DE',
-        },
-        '3000': {
-            'name': 'Regional DC Americas',
-            'name2': 'Distribution Center',
-            'country': 'US',
-            'region': 'NJ',
-            'city': 'Newark',
-            'street': '500 Distribution Blvd',
-            'postal': '07102',
-            'plant_type': 'DC',
-            'calendar': 'US',
-        },
-        '4000': {
-            'name': 'Regional DC Asia Pacific',
-            'name2': 'Distribution Center',
-            'country': 'SG',
-            'region': '',
-            'city': 'Singapore',
-            'street': '10 Changi Business Park',
-            'postal': '486030',
-            'plant_type': 'DC',
-            'calendar': 'SG',
-        },
-        '5000': {
-            'name': 'Secondary Manufacturing',
-            'name2': 'Backup Production Site',
-            'country': 'IE',
-            'region': 'CO',
-            'city': 'Cork',
-            'street': 'Pharma Park 25',
-            'postal': 'T12 ABC1',
-            'plant_type': 'PROD',
-            'calendar': 'IE',
-        },
-    }
-
-    for werks, config in plant_config.items():
+    for werks, config in PLANT_CONFIG.items():
         data.append({
             'MANDT': '800',
             'WERKS': werks,
@@ -1239,7 +1174,7 @@ def generate(wh):
     print(f"Universe: {NUM_CUSTOMERS} customers, {NUM_FINISHED_GOODS} finished goods, {NUM_RAW_MATERIALS} raw materials")
     print(f"Dirty Data: {'ENABLED' if GENERATE_DIRTY_DATA else 'disabled'} (rate={DIRTY_DATA_RATE})")
 
-    PREDEFINED_PLANTS = ['1000', '2000', '3000', '4000']
+    PREDEFINED_PLANTS = list(PLANT_CONFIG)
     PREDEFINED_STORAGE_LOCATIONS = ['0001', 'FG01', 'RM01', 'WH01', 'QA01', 'ALT1']
     PREDEFINED_CUSTOMERS = [f'CUST{i:05d}' for i in range(1, NUM_CUSTOMERS + 1)]
     PREDEFINED_USERS = ['USER_A', 'USER_B', 'ADMIN', 'JOHNDOE', 'AUTO_JOB']

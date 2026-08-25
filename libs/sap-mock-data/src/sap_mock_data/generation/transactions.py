@@ -8,7 +8,7 @@ from faker import Faker
 import random
 from datetime import datetime, timedelta
 
-from .common import param, seed_all
+from .common import PLANT_CONFIG, param, seed_all
 
 PREDEFINED_USERS = ['USER_A', 'USER_B', 'ADMIN', 'JOHNDOE', 'AUTO_JOB']
 
@@ -373,15 +373,8 @@ def generate_logistics(df_vbak, df_vbap, df_vbep):
     return likp, lips, matdoc, vbfa, actual_delivered_vbelns
 
 
-PLANT_LOCATIONS = {
-    '1000': {'name': 'London', 'country': 'GB', 'xpos': -0.1278, 'ypos': 51.5074},
-    '2000': {'name': 'Rotterdam', 'country': 'NL', 'xpos': 4.4777, 'ypos': 51.9244},
-    '3000': {'name': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
-    '4000': {'name': 'Warsaw', 'country': 'PL', 'xpos': 21.0122, 'ypos': 52.2297},
-}
-
 EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
-PORT_PLANTS = {'1000', '2000'}
+PORT_PLANTS = {'3000', '4000'}
 
 TRANSPORT_MODES = {
     'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'vsart': '01'},
@@ -470,11 +463,11 @@ def generate_shipments(df_likp, df_lips, df_vbap):
 
         delivery_date_str = first_item.get('LFDAT', datetime.now().strftime('%Y%m%d'))
 
-        dest_plants = [p for p in PLANT_LOCATIONS.keys() if p != source_plant]
+        dest_plants = [p for p in PLANT_CONFIG if p != source_plant]
         dest_plant = random.choice(dest_plants) if dest_plants else '2000'
 
-        from_info = PLANT_LOCATIONS.get(source_plant, PLANT_LOCATIONS['1000'])
-        to_info = PLANT_LOCATIONS.get(dest_plant, PLANT_LOCATIONS['2000'])
+        from_info = PLANT_CONFIG.get(source_plant, PLANT_CONFIG['1000'])
+        to_info = PLANT_CONFIG.get(dest_plant, PLANT_CONFIG['2000'])
 
         distance_km = haversine_km(
             from_info['ypos'], from_info['xpos'],
@@ -1267,7 +1260,7 @@ def generate(wh):
 
     FINISHED_PRODUCTS = [row['MATNR'] for row in df_mara[df_mara["MTART"] == "FERT"][['MATNR']].drop_duplicates().to_dict("records")]
     ALL_CUSTOMERS = [row['KUNNR'] for row in wh.read("kna1")[['KUNNR']].drop_duplicates().to_dict("records")]
-    PLANTS = ['1000', '2000', '3000', '4000']
+    PLANTS = list(PLANT_CONFIG)
 
     SALES_MARKUP = 0.35  # 35% markup on cost for selling price
     price_rows = df_mbew[['MATNR', 'BWKEY', 'STPRS']].to_dict("records")

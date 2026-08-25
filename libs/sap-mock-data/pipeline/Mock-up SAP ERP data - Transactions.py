@@ -68,7 +68,14 @@ df_mbew = spark.table(f"{CATALOG}.{SCHEMA}.mbew")
 
 FINISHED_PRODUCTS = [row['MATNR'] for row in df_mara.filter("MTART = 'FERT'").select('MATNR').distinct().collect()]
 ALL_CUSTOMERS = [row['KUNNR'] for row in spark.table(f"{CATALOG}.{SCHEMA}.kna1").select('KUNNR').distinct().collect()]
-PLANTS = ['1000', '2000', '3000', '4000']
+PLANT_CONFIG = {
+    '1000': {'city': 'Stuttgart', 'country': 'DE', 'xpos': 9.1829, 'ypos': 48.7758},
+    '2000': {'city': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
+    '3000': {'city': 'Newark', 'country': 'US', 'xpos': -74.1724, 'ypos': 40.7357},
+    '4000': {'city': 'Singapore', 'country': 'SG', 'xpos': 103.8198, 'ypos': 1.3521},
+    '5000': {'city': 'Cork', 'country': 'IE', 'xpos': -8.4756, 'ypos': 51.8985},
+}
+PLANTS = list(PLANT_CONFIG)
 
 # --- PRICING CONFIG ---
 # Build pricing lookup from MBEW (standard cost) with sales markup
@@ -577,15 +584,8 @@ def generate_logistics(df_vbak, df_vbap, df_vbep):
 # Step 2b: Shipment Generation (VTTK, VTTP, VTTS)
 
 # Plant location master data with geo coordinates (mirrors Masterdata)
-PLANT_LOCATIONS = {
-    '1000': {'name': 'London', 'country': 'GB', 'xpos': -0.1278, 'ypos': 51.5074},
-    '2000': {'name': 'Rotterdam', 'country': 'NL', 'xpos': 4.4777, 'ypos': 51.9244},
-    '3000': {'name': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
-    '4000': {'name': 'Warsaw', 'country': 'PL', 'xpos': 21.0122, 'ypos': 52.2297},
-}
-
 EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
-PORT_PLANTS = {'1000', '2000'}
+PORT_PLANTS = {'3000', '4000'}
 
 TRANSPORT_MODES = {
     'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'vsart': '01'},
@@ -683,12 +683,12 @@ def generate_shipments(df_likp, df_lips, df_vbap):
 
         # For simplicity, assume customer is in a different location (random destination plant)
         # In reality this would be determined by customer address
-        dest_plants = [p for p in PLANT_LOCATIONS.keys() if p != source_plant]
+        dest_plants = [p for p in PLANT_CONFIG if p != source_plant]
         dest_plant = random.choice(dest_plants) if dest_plants else '2000'
 
         # Calculate route
-        from_info = PLANT_LOCATIONS.get(source_plant, PLANT_LOCATIONS['1000'])
-        to_info = PLANT_LOCATIONS.get(dest_plant, PLANT_LOCATIONS['2000'])
+        from_info = PLANT_CONFIG.get(source_plant, PLANT_CONFIG['1000'])
+        to_info = PLANT_CONFIG.get(dest_plant, PLANT_CONFIG['2000'])
 
         distance_km = haversine_km(
             from_info['ypos'], from_info['xpos'],
