@@ -479,7 +479,9 @@ def generate_sales_orders(finished_goods, all_customers):
 
         vbak.append({
             'MANDT': '800', 'VBELN': vbeln, 'AUART': 'OR', 'KUNNR': kunnr,
-            'ERDAT': order_date, 'NETWR': round(order_total, 2), 'VDATU': req_date, 'WAERK': 'GBP'
+            'ERDAT': order_date, 'NETWR': round(order_total, 2), 'VDATU': req_date,
+            'WAERK': DATASET_CURRENCY, 'ERNAM': random.choice(PREDEFINED_USERS),
+            'BSTNK': f'PO-{vbeln}'
         })
         vbap.extend(order_lines)
 
@@ -919,7 +921,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
         # Check component availability if BOM exists
         actual_qty = planned_qty
         shortage_components = []
-        status = 'COMP'  # Default: Complete
+        status = 'CNF'
         shortage_reason = ''
 
         if matnr in bom_map and unreliable_materials:
@@ -951,12 +953,12 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
 
         # Determine status
         if actual_qty <= 0:
-            status = 'BLCK'  # Blocked - no production possible
+            status = 'CRTD'
             actual_qty = 0
             shortage_reason = f"Blocked: insufficient {', '.join(s['material'] for s in shortage_components)}"
             stats['blocked'] += 1
         elif actual_qty < planned_qty:
-            status = 'PART'  # Partial production
+            status = 'PCNF'
             shortage_parts = [s['material'] + '(' + str(int(s['delivery_rate']*100)) + '%)' for s in shortage_components]
             shortage_reason = 'Partial: ' + ', '.join(shortage_parts)
             stats['partial'] += 1
@@ -972,8 +974,8 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
             'IGMNG': actual_qty,       # Actual produced quantity
             'GSTRP': date,
             'WERKS': plant,
-            'STAT': status,            # Status: COMP/PART/BLCK
-            'RUESSION': shortage_reason  # Reason for shortage/block
+            'STAT': status,
+            'ZZ_SHORTAGE_REASON': shortage_reason  # Reason for shortage/block
         })
 
         # B. Create Goods Receipt (101) only for actual production - creates new batch

@@ -479,7 +479,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "HIGH",
         "AI_DECISION_OPTIONS": "Expedite production run|Pull forward scheduled batches|Use safety stock|Negotiate delivery timeline with customer",
-        "DATA_EVIDENCE": "vbak table: Emergency order with BSTNK='SCN013-URGENT', AUART='SO' (rush order), ERNAM=EMERGENCY | vbap table: MATNR=MAT-A0010, WERKS=1000 emergency qty | vbep table: Tight delivery window (3-7 days) | scenario_metadata table: SCN013 demand_type=EMERGENCY"
+        "DATA_EVIDENCE": "vbak table: Emergency order with BSTNK='SCN013-URGENT', AUART='OR' (standard order), ERNAM=EMERGENCY | vbap table: MATNR=MAT-A0010, WERKS=1000 emergency qty | vbep table: Tight delivery window (3-7 days) | scenario_metadata table: SCN013 demand_type=EMERGENCY"
     },
     {
         "SCENARIO_ID": "SCN014",
@@ -689,7 +689,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "HIGH",
         "AI_DECISION_OPTIONS": "Emergency production campaign|Reallocate from other markets|Expedite API supply|FDA notification and controlled distribution",
-        "DATA_EVIDENCE": "vbak table: CRITICAL orders with BSTNK like 'SCN019-CRITICAL-%', AUART='SO' (rush), ERNAM=CRITICAL | vbap table: MATNR=MAT-A0020, WERKS=1000 showing +100% demand spike | vbep table: Very tight delivery windows (3-7 days) over 30-day period | scenario_metadata table: SCN019 demand_type=EMERGENCY, duration_days=30"
+        "DATA_EVIDENCE": "vbak table: CRITICAL orders with BSTNK like 'SCN019-CRITICAL-%', AUART='OR' (standard order), ERNAM=CRITICAL | vbap table: MATNR=MAT-A0020, WERKS=1000 showing +100% demand spike | vbep table: Very tight delivery windows (3-7 days) over 30-day period | scenario_metadata table: SCN019 demand_type=EMERGENCY, duration_days=30"
     },
     {
         "SCENARIO_ID": "SCN020",
