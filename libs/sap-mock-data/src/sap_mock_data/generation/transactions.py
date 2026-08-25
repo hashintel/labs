@@ -8,7 +8,13 @@ from faker import Faker
 import random
 from datetime import datetime, timedelta
 
-from .common import PLANT_CONFIG, param, seed_all
+from .common import (
+    PLANT_CONFIG,
+    customs_days,
+    param,
+    seed_all,
+    transport_modes_for_lane,
+)
 
 PREDEFINED_USERS = ['USER_A', 'USER_B', 'ADMIN', 'JOHNDOE', 'AUTO_JOB']
 
@@ -376,9 +382,6 @@ def generate_logistics(df_vbak, df_vbap, df_vbep):
     return likp, lips, matdoc, vbfa, actual_delivered_vbelns
 
 
-EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
-PORT_PLANTS = {'3000', '4000'}
-
 TRANSPORT_MODES = {
     'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'vsart': '01'},
     'SEA': {'speed_kmh': 25, 'cost_per_km': 0.15, 'vsart': '03'},
@@ -393,34 +396,17 @@ def haversine_km(lat1, lon1, lat2, lon2):
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
     return R * 2 * asin(sqrt(a))
 
-def customs_days(country_from, country_to):
-    """Calculate customs delay days based on border crossing."""
-    from_eu = country_from in EU_COUNTRIES
-    to_eu = country_to in EU_COUNTRIES
-    from_gb = country_from == 'GB'
-    to_gb = country_to == 'GB'
-    if (from_gb and to_eu) or (from_eu and to_gb):
-        return 1
-    return 0
-
 def get_route_code(from_plant, to_plant):
     """Generate route code in format R{FROM}{TO}."""
     return f"R{from_plant[:2]}{to_plant[:2]}"
 
 def get_best_transport_mode(from_plant, to_plant, distance_km):
     """Determine the best transport mode based on cost."""
-    available_modes = ['ROAD', 'AIR']
-    if from_plant in PORT_PLANTS and to_plant in PORT_PLANTS and distance_km > 200:
-        available_modes.append('SEA')
-
-    min_cost = float('inf')
-    best_mode = 'ROAD'
-    for mode in available_modes:
-        cost = distance_km * TRANSPORT_MODES[mode]['cost_per_km']
-        if cost < min_cost:
-            min_cost = cost
-            best_mode = mode
-    return best_mode
+    available_modes = transport_modes_for_lane(from_plant, to_plant, distance_km)
+    return min(
+        available_modes,
+        key=lambda mode: TRANSPORT_MODES[mode]['cost_per_km'],
+    )
 
 def generate_shipments(df_likp, df_lips, df_vbap):
     """

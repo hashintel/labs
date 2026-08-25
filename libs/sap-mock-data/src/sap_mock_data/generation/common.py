@@ -95,6 +95,39 @@ PLANT_CONFIG = {
     },
 }
 
+EU_COUNTRIES = frozenset(
+    {
+        "AT",
+        "BE",
+        "BG",
+        "CY",
+        "CZ",
+        "DE",
+        "DK",
+        "EE",
+        "ES",
+        "FI",
+        "FR",
+        "GR",
+        "HR",
+        "HU",
+        "IE",
+        "IT",
+        "LT",
+        "LU",
+        "LV",
+        "MT",
+        "NL",
+        "PL",
+        "PT",
+        "RO",
+        "SE",
+        "SI",
+        "SK",
+    }
+)
+PORT_PLANTS = frozenset({"3000", "4000", "5000"})
+
 SCALED_KNOBS = {
     "NUM_ORDERS",
     "NUM_CUSTOMERS",
@@ -116,6 +149,29 @@ def param(name: str) -> str:
 
 def widget(name: str, default: str) -> str:
     return current_parameters().get(name, default)
+
+
+def customs_days(country_from: str, country_to: str) -> int:
+    if country_from == country_to:
+        return 0
+    if country_from in EU_COUNTRIES and country_to in EU_COUNTRIES:
+        return 0
+    return 1
+
+
+def transport_modes_for_lane(
+    loc_from: str, loc_to: str, distance_km: float
+) -> tuple[str, ...]:
+    country_from = PLANT_CONFIG[loc_from]["country"]
+    country_to = PLANT_CONFIG[loc_to]["country"]
+    modes = ["AIR"]
+    if country_from == country_to or (
+        country_from in EU_COUNTRIES and country_to in EU_COUNTRIES
+    ):
+        modes.insert(0, "ROAD")
+    if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
+        modes.append("SEA")
+    return tuple(modes)
 
 
 def seed_all(seed: int) -> None:

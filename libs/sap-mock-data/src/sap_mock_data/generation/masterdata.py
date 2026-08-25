@@ -7,7 +7,13 @@ import uuid
 from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
 
-from .common import PLANT_CONFIG, param, seed_all
+from .common import (
+    PLANT_CONFIG,
+    customs_days,
+    param,
+    seed_all,
+    transport_modes_for_lane,
+)
 
 
 def dirty_key(value, dirty_rate=0.05):
@@ -449,15 +455,11 @@ def generate_marm_data():
 
 
 
-EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
-
 TRANSPORT_MODES = {
     'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50},
     'SEA': {'speed_kmh': 25, 'cost_per_km': 0.15},
     'AIR': {'speed_kmh': 800, 'cost_per_km': 3.00},
 }
-
-PORT_PLANTS = {'3000', '4000'}
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """Calculate the great circle distance in kilometers between two points on Earth."""
@@ -466,17 +468,6 @@ def haversine_km(lat1, lon1, lat2, lon2):
     dlon = radians(lon2 - lon1)
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
     return R * 2 * asin(sqrt(a))
-
-def customs_days(country_from, country_to):
-    """Calculate customs delay days based on border crossing."""
-    from_eu = country_from in EU_COUNTRIES
-    to_eu = country_to in EU_COUNTRIES
-    from_gb = country_from == 'GB'
-    to_gb = country_to == 'GB'
-
-    if (from_gb and to_eu) or (from_eu and to_gb):
-        return 1
-    return 0
 
 def generate_sapapo_loc_data():
     """
@@ -549,10 +540,7 @@ def generate_sapapo_trm_data(df_tr):
         customs_delay_days = customs_days(from_info['country'], to_info['country'])
         customs_delay_hours = customs_delay_days * 24
 
-        available_modes = ['ROAD', 'AIR']
-
-        if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
-            available_modes.append('SEA')
+        available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
 
         mode_costs = {}
         mode_records = []
@@ -614,17 +602,18 @@ def generate_tvro_data():
 
             customs_delay = customs_days(from_info['country'], to_info['country'])
 
-            if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
-                vsart = '03'  # Sea (cheapest for port-to-port)
-                travel_hours = distance_km / TRANSPORT_MODES['SEA']['speed_kmh']
+            available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
+            mode = min(
+                available_modes,
+                key=lambda candidate: TRANSPORT_MODES[candidate]['cost_per_km'],
+            )
+            vsart = shipping_types[mode]
+            travel_hours = distance_km / TRANSPORT_MODES[mode]['speed_kmh']
+            if mode == 'SEA':
                 agent = 'MAERSK'
-            elif distance_km > 1000:
-                vsart = '04'  # Air for very long distances
-                travel_hours = distance_km / TRANSPORT_MODES['AIR']['speed_kmh']
+            elif mode == 'AIR':
                 agent = 'FEDEX'
             else:
-                vsart = '01'  # Road
-                travel_hours = distance_km / TRANSPORT_MODES['ROAD']['speed_kmh']
                 agent = random.choice(['DHL', 'KUEHNE', 'DBSCHENK'])
 
             transit_days = round((travel_hours / 24) + customs_delay, 2)

@@ -3,6 +3,12 @@ from contextlib import redirect_stdout
 from io import StringIO
 
 from sap_mock_data import GenerationConfig, generate_dataset
+from sap_mock_data.generation.common import (
+    EU_COUNTRIES,
+    PLANT_CONFIG,
+    PORT_PLANTS,
+    customs_days,
+)
 from sap_mock_data.storage import MemoryTableStore
 
 
@@ -70,6 +76,37 @@ class GenerationQualityTests(unittest.TestCase):
             right_on="LOCNO",
         )
         self.assertTrue(cities["ORT01"].eq(cities["CITY"]).all())
+
+    def test_transport_lanes_use_valid_modes_and_customs_delays(self) -> None:
+        lanes = self.store.read("sapapo_tr")
+        modes = self.store.read("sapapo_trm")
+        preferred = lanes.merge(
+            modes.loc[modes["PRIFLAG"].eq("X")],
+            on="TRLID",
+            validate="one_to_one",
+        )
+
+        self.assertEqual(set(preferred["TRMID"]), {"ROAD", "SEA", "AIR"})
+        for lane in preferred.itertuples():
+            country_from = PLANT_CONFIG[lane.LOCFR]["country"]
+            country_to = PLANT_CONFIG[lane.LOCTO]["country"]
+            if lane.TRMID == "ROAD":
+                self.assertTrue(
+                    country_from == country_to
+                    or {country_from, country_to}.issubset(EU_COUNTRIES)
+                )
+            if lane.TRMID == "SEA":
+                self.assertTrue({lane.LOCFR, lane.LOCTO}.issubset(PORT_PLANTS))
+
+        self.assertEqual(customs_days("DE", "DE"), 0)
+        self.assertEqual(customs_days("DE", "IE"), 0)
+        self.assertEqual(customs_days("DE", "US"), 1)
+        self.assertEqual(customs_days("US", "SG"), 1)
+
+    def test_batch_statuses_use_sap_values(self) -> None:
+        for table in ("mch1", "mcha"):
+            with self.subTest(table=table):
+                self.assertLessEqual(set(self.store.read(table)["ZUSTD"]), {"", "X"})
 
     def test_sales_orders_have_consistent_type_currency_and_dates(self) -> None:
         vbak = self.store.read("vbak")

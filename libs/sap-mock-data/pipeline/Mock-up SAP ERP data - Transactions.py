@@ -588,8 +588,8 @@ def generate_logistics(df_vbak, df_vbap, df_vbep):
 # Step 2b: Shipment Generation (VTTK, VTTP, VTTS)
 
 # Plant location master data with geo coordinates (mirrors Masterdata)
-EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
-PORT_PLANTS = {'3000', '4000'}
+EU_COUNTRIES = {'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'}
+PORT_PLANTS = {'3000', '4000', '5000'}
 
 TRANSPORT_MODES = {
     'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'vsart': '01'},
@@ -607,13 +607,23 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 def customs_days(country_from, country_to):
     """Calculate customs delay days based on border crossing."""
-    from_eu = country_from in EU_COUNTRIES
-    to_eu = country_to in EU_COUNTRIES
-    from_gb = country_from == 'GB'
-    to_gb = country_to == 'GB'
-    if (from_gb and to_eu) or (from_eu and to_gb):
-        return 1
-    return 0
+    if country_from == country_to:
+        return 0
+    if country_from in EU_COUNTRIES and country_to in EU_COUNTRIES:
+        return 0
+    return 1
+
+def transport_modes_for_lane(loc_from, loc_to, distance_km):
+    country_from = PLANT_CONFIG[loc_from]['country']
+    country_to = PLANT_CONFIG[loc_to]['country']
+    modes = ['AIR']
+    if country_from == country_to or (
+        country_from in EU_COUNTRIES and country_to in EU_COUNTRIES
+    ):
+        modes.insert(0, 'ROAD')
+    if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
+        modes.append('SEA')
+    return modes
 
 def get_route_code(from_plant, to_plant):
     """Generate route code in format R{FROM}{TO}."""
@@ -621,19 +631,11 @@ def get_route_code(from_plant, to_plant):
 
 def get_best_transport_mode(from_plant, to_plant, distance_km):
     """Determine the best transport mode based on cost."""
-    available_modes = ['ROAD', 'AIR']
-    if from_plant in PORT_PLANTS and to_plant in PORT_PLANTS and distance_km > 200:
-        available_modes.append('SEA')
-
-    # Calculate costs and return cheapest
-    min_cost = float('inf')
-    best_mode = 'ROAD'
-    for mode in available_modes:
-        cost = distance_km * TRANSPORT_MODES[mode]['cost_per_km']
-        if cost < min_cost:
-            min_cost = cost
-            best_mode = mode
-    return best_mode
+    available_modes = transport_modes_for_lane(from_plant, to_plant, distance_km)
+    return min(
+        available_modes,
+        key=lambda mode: TRANSPORT_MODES[mode]['cost_per_km'],
+    )
 
 def generate_shipments(df_likp, df_lips, df_vbap):
     """
