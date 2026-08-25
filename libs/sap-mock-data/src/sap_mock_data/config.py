@@ -39,6 +39,7 @@ class GenerationConfig:
     safety_stock_weeks: int = 6
     supplier_reliability_rate: float = 1.0
     unreliable_materials: Sequence[str] = ()
+    currency: str = "EUR"
     generate_dirty_data: bool = False
     dirty_data_rate: float = 0.05
     scenarios: str | Sequence[str] = "demo"
@@ -58,6 +59,10 @@ class GenerationConfig:
             raise ValueError(
                 "supplier_reliability_rate must be between zero and one; "
                 f"got {self.supplier_reliability_rate}"
+            )
+        if len(self.currency) != 3 or not self.currency.isalpha():
+            raise ValueError(
+                f"currency must be a three-letter code; got {self.currency!r}"
             )
         if not 0 <= self.dirty_data_rate <= 1:
             raise ValueError(
@@ -110,6 +115,7 @@ class GenerationConfig:
             "SAFETY_STOCK_WEEKS": str(self.safety_stock_weeks),
             "SUPPLIER_RELIABILITY_RATE": str(self.supplier_reliability_rate),
             "UNRELIABLE_MATERIALS": ",".join(self.unreliable_materials),
+            "DATASET_CURRENCY": self.currency.upper(),
             "GENERATE_DIRTY_DATA": str(self.generate_dirty_data).lower(),
             "DIRTY_DATA_RATE": str(self.dirty_data_rate),
         }

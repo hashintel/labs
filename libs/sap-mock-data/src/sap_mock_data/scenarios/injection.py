@@ -1376,7 +1376,7 @@ def inject_demand_increase(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': param('DATASET_CURRENCY'),
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -1474,7 +1474,7 @@ def inject_emergency_order(scenario_id, config, df_vbak, df_kna1):
         'KWMENG': qty,
         'MEINS': 'PC',
         'NETWR': net_value,
-        'WAERK': 'USD',
+        'WAERK': param('DATASET_CURRENCY'),
         'ABGRU': '',
         'PSTYV': 'TAN'
     }]
@@ -1601,7 +1601,7 @@ def inject_shortage_demand(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': param('DATASET_CURRENCY'),
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -1765,7 +1765,7 @@ def inject_new_product(scenario_id, config, df_mara, df_makt, df_marc, df_mast, 
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': param('DATASET_CURRENCY'),
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -2145,7 +2145,7 @@ def inject_competing_production(scenario_id, config, df_afko, df_vbak, df_kna1):
                     'MEINS': 'PC',
                     'NETPR': round(random.uniform(50, 150), 2),
                     'NETWR': round(qty * random.uniform(50, 150), 2),
-                    'WAERK': 'GBP'
+                    'WAERK': param('DATASET_CURRENCY')
                 })
 
                 new_vbep.append({
@@ -2239,7 +2239,7 @@ def inject_high_volatility(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'MEINS': 'PC',
             'NETPR': round(random.uniform(50, 200), 2),
             'NETWR': round(qty * random.uniform(50, 200), 2),
-            'WAERK': 'GBP'
+            'WAERK': param('DATASET_CURRENCY')
         })
 
         new_vbep.append({

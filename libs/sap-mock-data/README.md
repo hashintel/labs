@@ -79,7 +79,12 @@ from sap_mock_data import GenerationConfig, generate_dataset
 from sap_mock_data.storage import DeltaTableStore
 
 result = generate_dataset(
-    GenerationConfig(random_seed=42, scale_factor=1, scenarios="demo"),
+    GenerationConfig(
+        random_seed=42,
+        scale_factor=1,
+        scenarios="demo",
+        currency="EUR",
+    ),
     DeltaTableStore(".mock-warehouse"),
 )
 print(result.table_count, result.row_counts)

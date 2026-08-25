@@ -28,6 +28,7 @@ dbutils.widgets.text("MOQ_RAW_MIN", "1000", "MOQ Raw Materials (Min)")
 dbutils.widgets.text("MOQ_RAW_MAX", "10000", "MOQ Raw Materials (Max)")
 dbutils.widgets.text("GENERATE_DIRTY_DATA", "false", "Generate Dirty Data (true/false)")
 dbutils.widgets.text("DIRTY_DATA_RATE", "0.05", "Dirty Data Rate (0.0-1.0)")
+dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
 
 CATALOG = dbutils.widgets.get("CATALOG")
 SCHEMA = dbutils.widgets.get("SCHEMA")
@@ -41,6 +42,7 @@ MOQ_RAW_MIN = int(dbutils.widgets.get("MOQ_RAW_MIN"))
 MOQ_RAW_MAX = int(dbutils.widgets.get("MOQ_RAW_MAX"))
 GENERATE_DIRTY_DATA = dbutils.widgets.get("GENERATE_DIRTY_DATA").lower() == "true"
 DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
+DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
 # --- FIXED SEEDING ---
 Faker.seed(RANDOM_SEED)
@@ -497,7 +499,7 @@ def generate_mbew_data():
                 'MANDT': '800',
                 'MATNR': matnr,
                 'BWKEY': werks,
-                'WAERS': 'GBP',           # Currency
+                'WAERS': DATASET_CURRENCY,
                 'VPRSV': 'S',             # Price Control (S=Standard, V=Moving Avg)
                 'VERPR': mov_avg_price,   # Moving Average Price
                 'STPRS': std_price,       # Standard Price
@@ -725,9 +727,9 @@ def generate_sapapo_trm_data(df_tr):
                 'MANDT': '800',
                 'TRLID': trlid,
                 'TRMID': mode,
-                'TRAESSION': round(total_hours, 2),
+                'TRATIME': round(total_hours, 2),
                 'TRACOST': transport_cost,
-                'TRACOSTCUR': mode_info['currency'],
+                'TRACOSTCUR': DATASET_CURRENCY,
                 'PRIFLAG': '',  # Will be set below
             })
 
@@ -1003,7 +1005,7 @@ def generate_eine_data(df_eina):
                 'LOEKZ': '',   # Deletion indicator
                 'APLFZ': lead_time,  # Planned delivery time (days)
                 'NETPR': round(base_price, 2),  # Net price
-                'WAERS': 'USD',  # Currency
+                'WAERS': DATASET_CURRENCY,
                 'PEINH': 1,  # Price unit
                 'BPRME': 'PC',  # Order price unit
                 'MINBM': min_qty,  # Minimum order qty

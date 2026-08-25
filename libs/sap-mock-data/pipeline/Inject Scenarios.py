@@ -15,6 +15,7 @@ from pyspark.sql.types import *
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("RANDOM_SEED", "42", "Random Seed")
+dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
 
 # Inventory scenario toggles (true/false)
 dbutils.widgets.text("SCN001_ENABLED", "false", "SCN001: Stock Deviation")
@@ -83,6 +84,7 @@ dbutils.widgets.text("SCN020_CONFIG", "", "SCN020 Config: volatility_pct,duratio
 CATALOG = dbutils.widgets.get("CATALOG")
 SCHEMA = dbutils.widgets.get("SCHEMA")
 RANDOM_SEED = int(dbutils.widgets.get("RANDOM_SEED"))
+DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
 # Parse inventory scenario toggles
 SCN001_ENABLED = dbutils.widgets.get("SCN001_ENABLED").lower() == "true"
@@ -1658,7 +1660,7 @@ def inject_demand_increase(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': DATASET_CURRENCY,
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -1761,7 +1763,7 @@ def inject_emergency_order(scenario_id, config, df_vbak, df_kna1):
         'KWMENG': qty,
         'MEINS': 'PC',
         'NETWR': net_value,
-        'WAERK': 'USD',
+        'WAERK': DATASET_CURRENCY,
         'ABGRU': '',
         'PSTYV': 'TAN'
     }]
@@ -1895,7 +1897,7 @@ def inject_shortage_demand(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': DATASET_CURRENCY,
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -2068,7 +2070,7 @@ def inject_new_product(scenario_id, config, df_mara, df_makt, df_marc, df_mast, 
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': DATASET_CURRENCY,
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -2474,7 +2476,7 @@ def inject_competing_production(scenario_id, config, df_afko, df_vbak, df_kna1):
                     'MEINS': 'PC',
                     'NETPR': round(random.uniform(50, 150), 2),
                     'NETWR': round(qty * random.uniform(50, 150), 2),
-                    'WAERK': 'GBP'
+                    'WAERK': DATASET_CURRENCY
                 })
 
                 new_vbep.append({
@@ -2574,7 +2576,7 @@ def inject_high_volatility(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'MEINS': 'PC',
             'NETPR': round(random.uniform(50, 200), 2),
             'NETWR': round(qty * random.uniform(50, 200), 2),
-            'WAERK': 'GBP'
+            'WAERK': DATASET_CURRENCY
         })
 
         new_vbep.append({

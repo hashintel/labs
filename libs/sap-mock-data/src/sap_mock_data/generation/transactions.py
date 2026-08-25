@@ -278,7 +278,8 @@ def generate_sales_orders(finished_goods, all_customers):
             order_lines.append({
                 'MANDT': '800', 'VBELN': vbeln, 'POSNR': posnr, 'MATNR': matnr,
                 'WERKS': werks, 'LGORT': 'FG01', 'KWMENG': qty, 'MEINS': 'PC',
-                'NETPR': round(unit_price, 2), 'NETWR': line_value, 'WAERK': 'GBP'
+                'NETPR': round(unit_price, 2), 'NETWR': line_value,
+                'WAERK': param('DATASET_CURRENCY')
             })
             vbep.append({
                 'MANDT': '800', 'VBELN': vbeln, 'POSNR': posnr, 'ETENR': '0001',
@@ -1149,7 +1150,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
             'BPMNG': actual_qty,  # Quantity in PO unit
             'DMBTR': round(actual_qty * po['NETPR'], 2),  # Amount in local currency
             'WRBTR': round(actual_qty * po['NETPR'], 2),  # Amount in doc currency
-            'WAERS': 'USD',
+            'WAERS': param('DATASET_CURRENCY'),
             'SHKZG': 'S',  # Debit/Credit (S = credit/increase)
             'MATNR': matnr,
             'WERKS': po['WERKS'],

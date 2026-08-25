@@ -360,7 +360,7 @@ def generate_mbew_data():
                 'MANDT': '800',
                 'MATNR': matnr,
                 'BWKEY': werks,
-                'WAERS': 'GBP',           # Currency
+                'WAERS': param('DATASET_CURRENCY'),
                 'VPRSV': 'S',             # Price Control (S=Standard, V=Moving Avg)
                 'VERPR': mov_avg_price,   # Moving Average Price
                 'STPRS': std_price,       # Standard Price
@@ -570,9 +570,9 @@ def generate_sapapo_trm_data(df_tr):
                 'MANDT': '800',
                 'TRLID': trlid,
                 'TRMID': mode,
-                'TRAESSION': round(total_hours, 2),
+                'TRATIME': round(total_hours, 2),
                 'TRACOST': transport_cost,
-                'TRACOSTCUR': mode_info['currency'],
+                'TRACOSTCUR': param('DATASET_CURRENCY'),
                 'PRIFLAG': '',  # Will be set below
             })
 
@@ -834,7 +834,7 @@ def generate_eine_data(df_eina):
                 'LOEKZ': '',   # Deletion indicator
                 'APLFZ': lead_time,  # Planned delivery time (days)
                 'NETPR': round(base_price, 2),  # Net price
-                'WAERS': 'USD',  # Currency
+                'WAERS': param('DATASET_CURRENCY'),
                 'PEINH': 1,  # Price unit
                 'BPRME': 'PC',  # Order price unit
                 'MINBM': min_qty,  # Minimum order qty

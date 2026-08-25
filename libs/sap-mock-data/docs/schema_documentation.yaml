@@ -1700,6 +1700,14 @@ tables:
         description: Document Currency
         data_type: STRING
         nullable: true
+      ERNAM:
+        description: Created By
+        data_type: STRING
+        nullable: true
+      BSTNK:
+        description: Customer Purchase Order Number
+        data_type: STRING
+        nullable: true
 
   vbap:
     description: |
