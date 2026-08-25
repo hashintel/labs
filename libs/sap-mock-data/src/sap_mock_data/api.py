@@ -25,6 +25,7 @@ def _seed_empty_resb(store: TableStore) -> None:
             "MANDT": pd.Series(dtype="string"),
             "RSNUM": pd.Series(dtype="string"),
             "RSPOS": pd.Series(dtype="string"),
+            "AUFNR": pd.Series(dtype="string"),
             "MATNR": pd.Series(dtype="string"),
             "BDMNG": pd.Series(dtype="float64"),
             "ENMNG": pd.Series(dtype="float64"),

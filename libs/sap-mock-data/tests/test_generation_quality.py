@@ -27,11 +27,25 @@ class GenerationQualityTests(unittest.TestCase):
 
     def test_component_reservations_and_goods_issues_are_generated(self) -> None:
         resb = self.store.read("resb")
+        afko = self.store.read("afko")
         matdoc = self.store.read("matdoc")
 
         self.assertGreater(len(resb), 0)
         self.assertTrue(resb["BDMNG"].gt(0).all())
         self.assertTrue(matdoc["BWART"].eq("261").any())
+        self.assertTrue(resb["RSNUM"].str.fullmatch(r"\d{10}").all())
+        reservations = resb[["AUFNR", "RSNUM"]].drop_duplicates()
+        orders = afko[["AUFNR", "RSNUM"]]
+        reservation_links = reservations.merge(
+            orders,
+            on="AUFNR",
+            how="left",
+            suffixes=("_resb", "_afko"),
+            validate="one_to_one",
+        )
+        self.assertTrue(
+            reservation_links["RSNUM_resb"].eq(reservation_links["RSNUM_afko"]).all()
+        )
 
     def test_raw_material_stock_uses_rm01(self) -> None:
         mara = self.store.read("mara")

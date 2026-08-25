@@ -897,6 +897,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
     afko, resb, matdoc = [], [], []
     matdoc_id = 9000000000
     shortage_doc_id = 7000000000  # Separate counter for shortage docs
+    reservation_number_counter = 5000000000
 
     # Use a deterministic RNG for supplier delivery rates
     supplier_rng = random.Random(RANDOM_SEED + 999)
@@ -919,6 +920,10 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
 
         # Generate Order ID
         aufnr = f"ORD{random.randint(1000000,9999999)}"
+        reservation_number = ''
+        if matnr in bom_map:
+            reservation_number_counter += 1
+            reservation_number = str(reservation_number_counter)
 
         # Check component availability if BOM exists
         actual_qty = planned_qty
@@ -976,6 +981,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
             'IGMNG': actual_qty,       # Actual produced quantity
             'GSTRP': date,
             'WERKS': plant,
+            'RSNUM': reservation_number,
             'STAT': status,
             'ZZ_SHORTAGE_REASON': shortage_reason  # Reason for shortage/block
         })
@@ -1014,7 +1020,8 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
                     comp['child_mat'], plant, 'RM01', actual_consumption
                 )[0]
                 resb.append({
-                    'MANDT': '800', 'RSNUM': aufnr, 'RSPOS': f"{i+1:04d}",
+                    'MANDT': '800', 'RSNUM': reservation_number, 'RSPOS': f"{i+1:04d}",
+                    'AUFNR': aufnr,
                     'MATNR': comp['child_mat'],
                     'BDMNG': comp['qty'] * planned_qty,
                     'ENMNG': consumed_qty,

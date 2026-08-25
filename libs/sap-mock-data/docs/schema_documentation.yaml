@@ -2158,6 +2158,10 @@ tables:
         description: Production Order Number
         data_type: STRING
         nullable: false
+      RSNUM:
+        description: Reservation Number
+        data_type: STRING
+        nullable: true
       PLNBEZ:
         description: Material Number (Being Produced)
         data_type: STRING
@@ -2196,6 +2200,8 @@ tables:
     foreign_keys:
       - columns: [MANDT, MATNR]
         references: {table: mara, columns: [MANDT, MATNR]}
+      - columns: [MANDT, AUFNR]
+        references: {table: afko, columns: [MANDT, AUFNR]}
     columns:
       MANDT:
         description: Client
@@ -2207,6 +2213,10 @@ tables:
         nullable: false
       RSPOS:
         description: Reservation Item
+        data_type: STRING
+        nullable: false
+      AUFNR:
+        description: Production Order Number
         data_type: STRING
         nullable: false
       MATNR:
