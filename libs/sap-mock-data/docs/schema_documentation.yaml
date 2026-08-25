@@ -432,7 +432,7 @@ tables:
         description: Batch Number
         data_type: STRING
         nullable: false
-      VEESSION:
+      ZZ_BATCH_VERSION:
         description: Batch Status
         data_type: STRING
         nullable: true
@@ -444,23 +444,23 @@ tables:
         description: Shelf Life Expiration Date
         data_type: STRING
         nullable: true
-      LAESSION:
+      LWEDT:
         description: Last Status Change Date
         data_type: STRING
         nullable: true
-      LWEESSION:
+      ZZ_LAST_GI_DATE:
         description: Last Goods Movement Date
         data_type: STRING
         nullable: true
-      ZUESSION:
+      ZUSTD:
         description: Batch Status Code
         data_type: STRING
         nullable: true
-      ZESSION:
+      ZZ_RESTRICTION_REASON:
         description: Batch Restriction
         data_type: STRING
         nullable: true
-      HESSION:
+      ZZ_ORIGIN_PLANT:
         description: Origin
         data_type: STRING
         nullable: true
@@ -511,7 +511,7 @@ tables:
         description: Shelf Life Expiration Date
         data_type: STRING
         nullable: true
-      ZUESSION:
+      ZUSTD:
         description: Batch Status Code
         data_type: STRING
         nullable: true
@@ -1063,7 +1063,7 @@ tables:
 
       Contains goods receipt and invoice history for purchase orders. Used for
       tracking delivery performance (OTIF - On Time In Full).
-    primary_key: [MANDT, EBELN, EBELP, ZEESSION, VGABE]
+    primary_key: [MANDT, EBELN, EBELP, ZEKKN, VGABE]
     foreign_keys:
       - columns: [MANDT, EBELN, EBELP]
         references: {table: ekpo, columns: [MANDT, EBELN, EBELP]}
@@ -1084,7 +1084,7 @@ tables:
         description: Item Number
         data_type: STRING
         nullable: false
-      ZEESSION:
+      ZEKKN:
         description: Sequential Number
         data_type: STRING
         nullable: false
@@ -1331,35 +1331,39 @@ tables:
         description: Planning Version
         data_type: STRING
         nullable: true
-      KAPESSION:
+      KAPID:
+        description: Capacity ID
+        data_type: STRING
+        nullable: true
+      ZZ_CAPACITY_CATEGORY:
         description: Capacity Category
         data_type: STRING
         nullable: true
-      VEESSION:
+      VERAN:
         description: Person Responsible
         data_type: STRING
         nullable: true
-      STESSION:
+      VGWTS:
         description: Standard Value Key
         data_type: STRING
         nullable: true
-      KAPESSION_ANZ:
+      ZZ_CAPACITY_COUNT:
         description: Number of Capacities
         data_type: LONG
         nullable: true
-      KAPESSION_ARBZW:
+      ZZ_WORK_HOURS_PER_DAY:
         description: Working Hours per Capacity
         data_type: LONG
         nullable: true
-      KAPESSION_ARBTA:
+      ZZ_WORK_DAYS_PER_WEEK:
         description: Working Days per Week
         data_type: LONG
         nullable: true
-      KAPESSION_NESSION:
+      ZZ_UTILIZATION_RATE:
         description: Capacity Utilization Rate
         data_type: DOUBLE
         nullable: true
-      KAPESSION_AE:
+      ZZ_AVAILABLE_HOURS:
         description: Capacity Unit
         data_type: LONG
         nullable: true
@@ -1367,12 +1371,12 @@ tables:
         description: Cost Center
         data_type: STRING
         nullable: true
-      LOESSION:
+      LVORM:
         description: Deletion Flag
         data_type: STRING
         nullable: true
-      SESSION:
-        description: Session ID
+      OBJST:
+        description: Object Status
         data_type: STRING
         nullable: true
       ERDAT:
@@ -1389,7 +1393,7 @@ tables:
       **SAP Table KAKO - Capacity Header**
 
       Contains capacity header data for production planning.
-    primary_key: [MANDT, OBJID, KAPESSION_NR]
+    primary_key: [MANDT, OBJID, KAPID]
     foreign_keys:
       - columns: [MANDT, OBJID]
         references: {table: crhd, columns: [MANDT, OBJID]}
@@ -1406,15 +1410,15 @@ tables:
         description: Object Type
         data_type: STRING
         nullable: true
-      KAPESSION_NR:
+      KAPID:
         description: Capacity Number
         data_type: STRING
         nullable: false
-      KAPESSION_ART:
+      KAPAR:
         description: Capacity Type
         data_type: STRING
         nullable: true
-      KAPESSION_BEZ:
+      NAME:
         description: Capacity Description
         data_type: STRING
         nullable: true
@@ -1434,23 +1438,27 @@ tables:
         description: Work Center
         data_type: STRING
         nullable: true
-      ESSION_ANESSION_ZT:
-        description: Available Time
+      BEGZT:
+        description: Capacity Start Time in Seconds
         data_type: LONG
         nullable: true
-      ESSION_ANESSION_TA:
+      ENDZT:
+        description: Capacity End Time in Seconds
+        data_type: LONG
+        nullable: true
+      ZZ_WORK_DAYS_PER_WEEK:
         description: Available Days
         data_type: LONG
         nullable: true
-      ESSION_NUTZ:
-        description: Utilization Rate
-        data_type: DOUBLE
+      NGRAD:
+        description: Utilization Rate in Percent
+        data_type: LONG
         nullable: true
-      ESSION_PESSION_UFF:
+      PAUSE:
         description: Buffer
         data_type: LONG
         nullable: true
-      ESSION_SHMESSION:
+      MOSID:
         description: Shift Model
         data_type: STRING
         nullable: true
@@ -1501,32 +1509,32 @@ tables:
         description: Status
         data_type: STRING
         nullable: true
-      LOESSION:
+      LOEKZ:
         description: Deletion Flag
         data_type: STRING
         nullable: true
-      DAESSION_TUV:
+      DATUV:
         description: Valid From Date
         data_type: STRING
         nullable: true
-      DAESSION_TB:
+      DATUB:
         description: Valid To Date
         data_type: STRING
         nullable: true
-      PLESSION_NME:
-        description: Planner Name
+      VAGRP:
+        description: Planner Group
         data_type: STRING
         nullable: true
-      LOESSION_GR:
+      LOSVN:
         description: Lot Size From
         data_type: STRING
         nullable: true
-      LOESSION_GR_TO:
+      LOSBS:
         description: Lot Size To
         data_type: STRING
         nullable: true
-      PESSION_LNOR:
-        description: Production Scheduler
+      ZZ_STANDARD_LOT_SIZE:
+        description: Standard Lot Size
         data_type: STRING
         nullable: true
       KTEXT:
@@ -1589,19 +1597,19 @@ tables:
         description: Operation Description
         data_type: STRING
         nullable: true
-      STESSION:
+      STEUS:
         description: Control Key
         data_type: STRING
         nullable: true
-      LOESSION:
+      LOEKZ:
         description: Deletion Flag
         data_type: STRING
         nullable: true
-      RUESSION:
+      RUEST:
         description: Setup Time
         data_type: DOUBLE
         nullable: true
-      RUESSION_E:
+      RUESTE:
         description: Setup Time Unit
         data_type: STRING
         nullable: true
@@ -1625,24 +1633,24 @@ tables:
         description: Base Quantity
         data_type: LONG
         nullable: true
-      MESSION:
+      MEINH:
         description: Unit of Measure
         data_type: STRING
         nullable: true
-      PRZESSION:
-        description: Process Time
+      ZZ_OVERLAP_HOURS:
+        description: Processing Overlap in Hours
         data_type: LONG
         nullable: true
-      PESSION_RMIN:
-        description: Minimum Process Time
+      MINWE:
+        description: Minimum Wait Time in Hours
         data_type: LONG
         nullable: true
-      PESSION_RMAX:
-        description: Maximum Process Time
+      MAXWE:
+        description: Maximum Wait Time in Hours
         data_type: LONG
         nullable: true
-      LAESSION:
-        description: Last Changed Date
+      LAR01:
+        description: Activity Type
         data_type: STRING
         nullable: true
 
@@ -2166,7 +2174,7 @@ tables:
         description: Order Status
         data_type: STRING
         nullable: true
-      RUESSION:
+      ZZ_SHORTAGE_REASON:
         description: Status Reason
         data_type: STRING
         nullable: true
@@ -2500,7 +2508,7 @@ tables:
         description: Transportation Mode ID
         data_type: STRING
         nullable: false
-      TRAESSION:
+      TRATIME:
         description: Transit Duration (Days)
         data_type: DOUBLE
         nullable: true

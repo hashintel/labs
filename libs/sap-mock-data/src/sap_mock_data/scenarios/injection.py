@@ -3342,7 +3342,7 @@ def generate(wh):
                 df_afko = wh.read("afko")
 
                 if changes.get('cancelled'):
-                    df_afko.loc[df_afko['AUFNR'].isin(changes['cancelled']), 'STAT'] = 'CANC'
+                    df_afko.loc[df_afko['AUFNR'].isin(changes['cancelled']), 'STAT'] = 'DLFL'
                     print(f"  Cancelled {len(changes['cancelled'])} AFKO orders (SCN015)")
 
                 if changes.get('rescheduled'):

@@ -277,7 +277,7 @@ def generate_mcha_data(batch_records):
             'ERSDA': prod_date.strftime('%Y%m%d'),  # Created on
             'ERNAM': 'SYSTEM',  # Created by
             'VFDAT': expiry_date.strftime('%Y%m%d'),  # Expiry date
-            'ZUESSION': 'A',  # Status
+            'ZUSTD': '',
             'CLABS': rec['LABST'],  # Valuated unrestricted stock
             'CUMLM': 0,  # Stock in transfer
             'CINSM': 0,  # Stock in quality inspection
@@ -308,7 +308,7 @@ def generate_mard_data():
                     'MANDT': '800',
                     'MATNR': matnr,
                     'WERKS': werks,
-                    'LGORT': 'FG01',
+                    'LGORT': lgort,
                     'CHARG': '',  # No batch for zero stock
                     'LABST': 0.0
                 })
@@ -327,7 +327,7 @@ def generate_mard_data():
                         'MANDT': '800',
                         'MATNR': matnr,
                         'WERKS': werks,
-                        'LGORT': 'FG01',
+                        'LGORT': lgort,
                         'CHARG': batch_id,
                         'LABST': round(batch_stock, 2)
                     })
@@ -971,7 +971,7 @@ def generate_crhd_data():
 
     objid_counter = 1000
 
-    for arbpl, ktext, kapession, hours_day, days_week, efficiency, plants in work_centers:
+    for arbpl, ktext, capacity_category, hours_day, days_week, efficiency, plants in work_centers:
         for werks in plants:
             objid_counter += 1
 
@@ -986,17 +986,18 @@ def generate_crhd_data():
                 'KTEXT': ktext,  # Short text
                 'VERWE': '001',  # Usage (001 = Production)
                 'PLANV': 'SAP1',  # Planner group
-                'KAPESSION': kapession,  # Capacity category
-                'VEESSION': 'PROD_MGR',  # Person responsible
-                'STESSION': '0001',  # Standard value key
-                'KAPESSION_ANZ': 1,  # Number of individual capacities
-                'KAPESSION_ARBZW': hours_day,  # Working hours per day
-                'KAPESSION_ARBTA': days_week,  # Working days per week
-                'KAPESSION_NESSION': efficiency / 100,  # Utilization rate (efficiency)
-                'KAPESSION_AE': available_hours,  # Available capacity (hours)
+                'KAPID': str(objid_counter).zfill(8),
+                'VERAN': 'PROD_MGR',
+                'VGWTS': '0001',
+                'ZZ_CAPACITY_CATEGORY': capacity_category,
+                'ZZ_CAPACITY_COUNT': 1,
+                'ZZ_WORK_HOURS_PER_DAY': hours_day,
+                'ZZ_WORK_DAYS_PER_WEEK': days_week,
+                'ZZ_UTILIZATION_RATE': efficiency / 100,
+                'ZZ_AVAILABLE_HOURS': available_hours,
                 'KOSTL': f"CC-{werks}",  # Cost center
-                'LOESSION': '',  # Deletion flag
-                'SESSION': '',  # Status
+                'LVORM': '',
+                'OBJST': '',
                 'ERDAT': '20200101',  # Created on
                 'AEDAT': '20240101',  # Changed on
             })
@@ -1016,18 +1017,19 @@ def generate_kako_data(df_crhd):
             'MANDT': '800',
             'OBJID': wc['OBJID'],
             'OBJTY': wc['OBJTY'],
-            'KAPESSION_NR': '001',  # Capacity number
-            'KAPESSION_ART': wc['KAPESSION'],  # Capacity category
-            'KAPESSION_BEZ': wc['KTEXT'],  # Capacity description
+            'KAPID': wc['KAPID'],
+            'KAPAR': wc['ZZ_CAPACITY_CATEGORY'],
+            'NAME': wc['KTEXT'],
             'BEGDA': '20200101',  # Valid from
             'ENDDA': '99991231',  # Valid to
             'WERK': wc['WERKS'],
             'ARBPL': wc['ARBPL'],
-            'ESSION_ANESSION_ZT': wc['KAPESSION_ARBZW'],  # Operating time (hours/day)
-            'ESSION_ANESSION_TA': wc['KAPESSION_ARBTA'],  # Working days/week
-            'ESSION_NUTZ': wc['KAPESSION_NESSION'],  # Utilization
-            'ESSION_PESSION_UFF': 0,  # Capacity buffer
-            'ESSION_SHMESSION': '1',  # Shift definition
+            'BEGZT': 0,
+            'ENDZT': wc['ZZ_WORK_HOURS_PER_DAY'] * 3600,
+            'ZZ_WORK_DAYS_PER_WEEK': wc['ZZ_WORK_DAYS_PER_WEEK'],
+            'NGRAD': round(wc['ZZ_UTILIZATION_RATE'] * 100),
+            'PAUSE': 0,
+            'MOSID': '01',
         })
 
     return pd.DataFrame(data)
@@ -1069,13 +1071,13 @@ def generate_plko_data(df_mara, df_crhd):
                 'MATNR': matnr,  # Material
                 'VERWE': '1',  # Usage (1 = Production)
                 'STATU': '4',  # Status (4 = Released)
-                'LOESSION': '',  # Deletion flag
-                'DAESSION_TUV': '20200101',  # Valid from
-                'DAESSION_TB': '99991231',  # Valid to
-                'PLESSION_NME': 'PROD_MGR',  # Planner group
-                'LOESSION_GR': str(random.randint(100, 500)),  # Lot size from
-                'LOESSION_GR_TO': str(random.randint(5000, 20000)),  # Lot size to
-                'PESSION_LNOR': str(random.randint(500, 2000)),  # Standard lot size
+                'LOEKZ': '',
+                'DATUV': '20200101',
+                'DATUB': '99991231',
+                'VAGRP': 'PROD_MGR',
+                'LOSVN': str(random.randint(100, 500)),
+                'LOSBS': str(random.randint(5000, 20000)),
+                'ZZ_STANDARD_LOT_SIZE': str(random.randint(500, 2000)),
                 'KTEXT': f"Routing for {matnr}",  # Description
                 'ROUTING_TYPE': routing_type,  # Custom field for routing category
             })
@@ -1138,7 +1140,7 @@ def generate_plpo_data(df_plko, df_crhd):
 
         template = routing_templates.get(routing_type, routing_templates['STANDARD'])
 
-        for vornr, wc_prefix, setup_min, run_min, stession_S in template:
+        for vornr, wc_prefix, setup_min, run_min, control_key in template:
             matching_wcs = [k for k in plant_wcs.keys() if k.startswith(wc_prefix)]
             if not matching_wcs:
                 continue
@@ -1160,20 +1162,20 @@ def generate_plpo_data(df_plko, df_crhd):
                 'ARBPL': arbpl,  # Work center
                 'OBJID': wc_data['OBJID'],  # Work center object ID
                 'LTXA1': f"Operation {vornr}: {wc_data['KTEXT']}",  # Operation text
-                'STESSION': stession_S,  # Control key
-                'LOESSION': '',  # Deletion flag
-                'RUESSION': round(setup_time, 2),  # Setup time (base)
-                'RUESSION_E': 'MIN',  # Setup time unit
+                'STEUS': control_key,
+                'LOEKZ': '',
+                'RUEST': round(setup_time, 2),
+                'RUESTE': 'MIN',
                 'VGW01': round(run_time, 4),  # Standard value 1 (machine time)
                 'VGE01': 'MIN',  # Unit for standard value 1
                 'VGW02': round(run_time * 0.8, 4),  # Standard value 2 (labor)
                 'VGE02': 'MIN',
                 'BMSCH': 1,  # Base quantity for times
-                'MESSION': 'PC',  # Base quantity unit
-                'PRZESSION': random.randint(0, 2),  # Processing time overlap
-                'PESSION_RMIN': random.choice([0, 1, 2]),  # Min wait time (hours)
-                'PESSION_RMAX': random.choice([0, 4, 8, 24]),  # Max wait time (hours)
-                'LAESSION': random.choice(['0001', '0002', '0003']),  # Activity type
+                'MEINH': 'PC',
+                'ZZ_OVERLAP_HOURS': random.randint(0, 2),
+                'MINWE': random.choice([0, 1, 2]),
+                'MAXWE': random.choice([0, 4, 8, 24]),
+                'LAR01': random.choice(['0001', '0002', '0003']),
             })
 
     return pd.DataFrame(data)

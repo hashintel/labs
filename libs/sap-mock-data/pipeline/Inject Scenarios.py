@@ -3698,7 +3698,7 @@ if inventory_changes or supplier_changes or production_changes:
 
             # Mark cancelled orders
             if changes.get('cancelled'):
-                df_afko.loc[df_afko['AUFNR'].isin(changes['cancelled']), 'STAT'] = 'CANC'
+                df_afko.loc[df_afko['AUFNR'].isin(changes['cancelled']), 'STAT'] = 'DLFL'
                 print(f"  Cancelled {len(changes['cancelled'])} AFKO orders (SCN015)")
 
             # Update rescheduled orders
