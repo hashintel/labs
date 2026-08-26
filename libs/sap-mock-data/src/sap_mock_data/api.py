@@ -9,7 +9,7 @@ import pandas as pd
 
 from .config import GenerationConfig
 from .context import GenerationContext
-from .generation import masterdata, transactions
+from .generation import dirty, masterdata, transactions
 from .result import GenerationResult
 from .scenarios import definitions, injection
 from .storage import TableStore
@@ -58,6 +58,7 @@ def generate_dataset(config: GenerationConfig, store: TableStore) -> GenerationR
                 )
             definitions.generate(store)
             injection.generate(store)
+        dirty.generate(store)
         _seed_empty_resb(store)
 
     tables = tuple(store.tables())

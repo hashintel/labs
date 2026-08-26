@@ -24,8 +24,6 @@ dbutils.widgets.text("NUM_ORDERS", "5000", "Number of Sales Orders")
 dbutils.widgets.text("HUB_PLANT", "1000", "Hub Plant (Production)")
 dbutils.widgets.text("DELIVERY_FILL_RATE", "0.8", "Delivery Fill Rate (0-1)")
 dbutils.widgets.text("SAFETY_STOCK_WEEKS", "6", "Safety Stock Weeks Coverage")
-dbutils.widgets.text("GENERATE_DIRTY_DATA", "false", "Generate Dirty Data (true/false)")
-dbutils.widgets.text("DIRTY_DATA_RATE", "0.05", "Dirty Data Rate (0.0-1.0)")
 dbutils.widgets.text("SUPPLIER_RELIABILITY_RATE", "1.0", "Supplier Reliability (0.0-1.0)")
 dbutils.widgets.text("UNRELIABLE_MATERIALS", "", "Specific unreliable materials (comma-separated)")
 dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
@@ -37,8 +35,6 @@ NUMBER_OF_ORDERS = int(dbutils.widgets.get("NUM_ORDERS"))
 HUB_PLANT = dbutils.widgets.get("HUB_PLANT")
 DELIVERY_FILL_RATE = float(dbutils.widgets.get("DELIVERY_FILL_RATE"))
 SAFETY_STOCK_WEEKS = int(dbutils.widgets.get("SAFETY_STOCK_WEEKS"))
-GENERATE_DIRTY_DATA = dbutils.widgets.get("GENERATE_DIRTY_DATA").lower() == "true"
-DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
 SUPPLIER_RELIABILITY_RATE = float(dbutils.widgets.get("SUPPLIER_RELIABILITY_RATE"))
 UNRELIABLE_MATERIALS_STR = dbutils.widgets.get("UNRELIABLE_MATERIALS")
 DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
@@ -54,7 +50,6 @@ print(f"Target: {CATALOG}.{SCHEMA} | Seed: {RANDOM_SEED}")
 # Predefined users for document creation
 PREDEFINED_USERS = ['USER_A', 'USER_B', 'ADMIN', 'JOHNDOE', 'AUTO_JOB']
 print(f"Config: {NUMBER_OF_ORDERS} orders, Hub={HUB_PLANT}, Fill Rate={DELIVERY_FILL_RATE}, Safety Stock={SAFETY_STOCK_WEEKS} weeks")
-print(f"Dirty Data: {'ENABLED' if GENERATE_DIRTY_DATA else 'disabled'} (rate={DIRTY_DATA_RATE})")
 print(f"Supplier Reliability: {SUPPLIER_RELIABILITY_RATE} (unreliable materials: {UNRELIABLE_MATERIALS_STR or 'random selection'})")
 
 # --- VARIABLES ---
@@ -254,155 +249,6 @@ def select_batch_for_issue(matnr, werks, lgort, qty_needed):
             return [(batch_info['batch'], actual_qty)]
 
     return [('', actual_qty)]  # Fallback
-
-# COMMAND ----------
-
-# --- DIRTY DATA HELPER FUNCTIONS ---
-def dirty_key(value, dirty_rate=0.05):
-    """Apply random dirty transformation to a key value."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate:
-        return value  # Keep clean
-
-    transformations = [
-        lambda v: '0' + str(v),           # Add leading zero
-        lambda v: ' ' + str(v),           # Add leading space
-        lambda v: str(v) + ' ',           # Add trailing space
-        lambda v: str(v).lower(),         # Lowercase
-        lambda v: str(v).lstrip('0'),     # Strip leading zeros
-        lambda v: '  ' + str(v) + '  ',   # Multiple spaces
-    ]
-    return random.choice(transformations)(str(value))
-
-def create_orphan_key(prefix='ORPHAN'):
-    """Create a key that doesn't exist in the reference set."""
-    return f"{prefix}_{random.randint(100000, 999999)}"
-
-def dirty_date(date_str, dirty_rate=0.05):
-    """Convert date from YYYYMMDD to random dirty format."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate or not date_str:
-        return date_str
-
-    try:
-        # Parse YYYYMMDD format
-        date_str = str(date_str)
-        year = date_str[:4]
-        month = date_str[4:6]
-        day = date_str[6:8]
-
-        formats = [
-            f"{day}/{month}/{year}",      # DD/MM/YYYY
-            f"{month}-{day}-{year}",      # MM-DD-YYYY
-            f"{year}-{month}-{day}",      # YYYY-MM-DD (ISO)
-            f"{day}.{month}.{year}",      # DD.MM.YYYY (European)
-        ]
-        return random.choice(formats)
-    except:
-        return date_str
-
-def dirty_dataframe(df, key_columns, dirty_rate=0.05):
-    """Apply dirty transformations to specified columns in a DataFrame."""
-    if not GENERATE_DIRTY_DATA or dirty_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in key_columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < dirty_rate
-            df_dirty.loc[mask, col] = df_dirty.loc[mask, col].apply(
-                lambda x: dirty_key(x, dirty_rate=1.0)  # Already selected, always dirty
-            )
-    return df_dirty
-
-def dirty_date_column(df, date_columns, dirty_rate=0.05):
-    """Apply dirty date transformations to specified date columns."""
-    if not GENERATE_DIRTY_DATA or dirty_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in date_columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < dirty_rate
-            df_dirty.loc[mask, col] = df_dirty.loc[mask, col].apply(
-                lambda x: dirty_date(x, dirty_rate=1.0)  # Already selected, always dirty
-            )
-    return df_dirty
-
-def inject_orphan_records(df, fk_column, orphan_rate=0.03, prefix='ORPHAN'):
-    """Replace some foreign keys with non-existent values."""
-    if not GENERATE_DIRTY_DATA or orphan_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    mask = np.random.random(len(df_dirty)) < orphan_rate
-    n_orphans = mask.sum()
-
-    if n_orphans > 0:
-        # Create orphan keys that definitely don't exist
-        orphan_keys = [f"{prefix}_{i:06d}" for i in range(n_orphans)]
-        df_dirty.loc[mask, fk_column] = orphan_keys
-
-    return df_dirty
-
-def inject_duplicates(df, key_column, dup_rate=0.01):
-    """Duplicate some rows to create duplicate key issues."""
-    if not GENERATE_DIRTY_DATA or dup_rate <= 0:
-        return df
-
-    n_dups = max(1, int(len(df) * dup_rate))
-    dup_indices = np.random.choice(df.index, size=min(n_dups, len(df)), replace=False)
-    duplicates = df.loc[dup_indices].copy()
-
-    return pd.concat([df, duplicates], ignore_index=True)
-
-def inject_nulls(df, columns, null_rate=0.02):
-    """Inject NULL values into specified columns."""
-    if not GENERATE_DIRTY_DATA or null_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < null_rate
-            df_dirty.loc[mask, col] = None
-
-    return df_dirty
-
-def apply_dirty_data_transactions(df, table_name, config):
-    """
-    Apply all dirty transformations to a transaction DataFrame.
-    Uses deterministic seed for reproducibility.
-    """
-    if not GENERATE_DIRTY_DATA:
-        return df
-
-    # Set seed for reproducibility within this table
-    np.random.seed(RANDOM_SEED + hash(table_name) % 1000)
-    random.seed(RANDOM_SEED + hash(table_name) % 1000)
-
-    df_dirty = df.copy()
-
-    # Apply key format issues
-    if 'key_columns' in config:
-        df_dirty = dirty_dataframe(df_dirty, config['key_columns'], DIRTY_DATA_RATE)
-
-    # Apply date format issues
-    if 'date_columns' in config:
-        df_dirty = dirty_date_column(df_dirty, config['date_columns'], DIRTY_DATA_RATE)
-
-    # Apply orphan records
-    if 'orphan_config' in config:
-        for fk_col, rate, prefix in config['orphan_config']:
-            df_dirty = inject_orphan_records(df_dirty, fk_col, rate, prefix)
-
-    # Apply duplicates
-    if 'pk_column' in config and 'dup_rate' in config:
-        df_dirty = inject_duplicates(df_dirty, config['pk_column'], config['dup_rate'])
-
-    # Apply nulls
-    if 'null_columns' in config:
-        df_dirty = inject_nulls(df_dirty, config['null_columns'], config.get('null_rate', 0.02))
-
-    return df_dirty
 
 # COMMAND ----------
 

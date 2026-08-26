@@ -1,10 +1,13 @@
 # Databricks notebook source
 # Apply Dirty Data Notebook
-# Applies dirty data transformations to transaction tables
+# Applies dirty data transformations to master data and transaction tables.
+# Run this notebook last, after Inject Scenarios: the generation and scenario
+# notebooks read clean tables.
 
 import pandas as pd
 import numpy as np
 import random
+import zlib
 import pyspark.sql.functions as F
 from pyspark.sql.types import *
 
@@ -149,14 +152,14 @@ def inject_nulls(df, columns, null_rate=0.02):
     return df_dirty
 
 
-def apply_dirty_data_transactions(df, table_name, config, dirty_rate, seed):
+def apply_dirty_data(df, table_name, config, dirty_rate, seed):
     """
-    Apply all dirty transformations to a transaction DataFrame.
+    Apply all dirty transformations to a DataFrame.
     Uses deterministic seed for reproducibility.
     """
     # Set seed for reproducibility within this table
-    np.random.seed(seed + hash(table_name) % 1000)
-    random.seed(seed + hash(table_name) % 1000)
+    np.random.seed(seed + zlib.crc32(table_name.encode()) % 1000)
+    random.seed(seed + zlib.crc32(table_name.encode()) % 1000)
 
     df_dirty = df.copy()
 
@@ -229,6 +232,40 @@ print(f"{'='*60}")
 
 # Define dirty data configurations for each table
 dirty_configs = {
+    "kna1": {
+        'key_columns': ['KUNNR'],
+        'pk_column': 'KUNNR',
+        'dup_rate': 0.01,
+        'null_columns': ['NAME1'],
+        'null_rate': 0.02
+    },
+    "mara": {
+        'key_columns': ['MATNR'],
+        'pk_column': 'MATNR',
+        'dup_rate': 0.01,
+        'null_columns': ['MTART'],
+        'null_rate': 0.02
+    },
+    "makt": {
+        'key_columns': ['MATNR'],
+        'orphan_config': [('MATNR', 0.03, 'ORPHAN_MAT')]
+    },
+    "marc": {
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "mard": {
+        'key_columns': ['LGORT'],
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "mbew": {
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "marm": {
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "stpo": {
+        'orphan_config': [('IDNRK', 0.02, 'ORPHAN_COMP')]
+    },
     "vbak": {
         'key_columns': ['VBELN', 'KUNNR'],
         'orphan_config': [('KUNNR', 0.02, 'ORPHAN_CUST')],
@@ -267,7 +304,10 @@ dirty_configs = {
         'orphan_config': [('VBELN', 0.02, 'ORPHAN_DEL')]
     },
     "matdoc": {
-        'key_columns': ['MBLNR', 'WERKS']
+        'key_columns': ['MBLNR', 'WERKS'],
+        # Scenario records are identified by the 'SCN' prefix on MBLNR,
+        # so they are left clean.
+        'protect': ('MBLNR', 'SCN')
     }
 }
 
@@ -281,7 +321,15 @@ for table_name, config in dirty_configs.items():
         df = spark.table(f"{CATALOG}.{SCHEMA}.{table_name}").toPandas()
 
         # Apply dirty transformations
-        df_dirty = apply_dirty_data_transactions(df, table_name, config, DIRTY_DATA_RATE, RANDOM_SEED)
+        protect = config.get('protect')
+        if protect:
+            protect_col, protect_prefix = protect
+            protected_mask = df[protect_col].astype(str).str.startswith(protect_prefix)
+            table_config = {key: value for key, value in config.items() if key != 'protect'}
+            df_dirty = apply_dirty_data(df[~protected_mask], table_name, table_config, DIRTY_DATA_RATE, RANDOM_SEED)
+            df_dirty = pd.concat([df_dirty, df[protected_mask]], ignore_index=True)
+        else:
+            df_dirty = apply_dirty_data(df, table_name, config, DIRTY_DATA_RATE, RANDOM_SEED)
 
         # Save back
         save_sap_table(spark.createDataFrame(df_dirty), table_name, CATALOG, SCHEMA)
@@ -291,7 +339,7 @@ for table_name, config in dirty_configs.items():
         print(f"Warning: Could not process {table_name}: {str(e)}")
 
 print(f"\n{'='*60}")
-print(f"Dirty data applied to {tables_processed} transaction tables")
+print(f"Dirty data applied to {tables_processed} tables")
 print(f"{'='*60}")
 
 dbutils.notebook.exit(f"SUCCESS: {tables_processed} tables dirtied")
