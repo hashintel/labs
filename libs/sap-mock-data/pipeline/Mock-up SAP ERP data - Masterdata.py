@@ -1,5 +1,4 @@
 # Databricks notebook source
-#INITIAL LIBRARIES
 !pip install faker
 
 import pandas as pd
@@ -15,7 +14,6 @@ from pyspark.sql.types import *
 # COMMAND ----------
 
 # Configuration & Seeding
-# --- WIDGETS ---
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("RANDOM_SEED", "42", "Random Seed")
@@ -26,8 +24,6 @@ dbutils.widgets.text("MOQ_FINISHED_MIN", "250", "MOQ Finished Goods (Min)")
 dbutils.widgets.text("MOQ_FINISHED_MAX", "1000", "MOQ Finished Goods (Max)")
 dbutils.widgets.text("MOQ_RAW_MIN", "1000", "MOQ Raw Materials (Min)")
 dbutils.widgets.text("MOQ_RAW_MAX", "10000", "MOQ Raw Materials (Max)")
-dbutils.widgets.text("GENERATE_DIRTY_DATA", "false", "Generate Dirty Data (true/false)")
-dbutils.widgets.text("DIRTY_DATA_RATE", "0.05", "Dirty Data Rate (0.0-1.0)")
 dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
 
 CATALOG = dbutils.widgets.get("CATALOG")
@@ -40,11 +36,8 @@ MOQ_FINISHED_MIN = int(dbutils.widgets.get("MOQ_FINISHED_MIN"))
 MOQ_FINISHED_MAX = int(dbutils.widgets.get("MOQ_FINISHED_MAX"))
 MOQ_RAW_MIN = int(dbutils.widgets.get("MOQ_RAW_MIN"))
 MOQ_RAW_MAX = int(dbutils.widgets.get("MOQ_RAW_MAX"))
-GENERATE_DIRTY_DATA = dbutils.widgets.get("GENERATE_DIRTY_DATA").lower() == "true"
-DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
 DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
-# --- FIXED SEEDING ---
 Faker.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -53,7 +46,6 @@ fake_US = Faker('en-US')
 
 print(f"Target: {CATALOG}.{SCHEMA} | Seed: {RANDOM_SEED}")
 print(f"Universe: {NUM_CUSTOMERS} customers, {NUM_FINISHED_GOODS} finished goods, {NUM_RAW_MATERIALS} raw materials")
-print(f"Dirty Data: {'ENABLED' if GENERATE_DIRTY_DATA else 'disabled'} (rate={DIRTY_DATA_RATE})")
 
 PLANT_CONFIG = {
     '1000': {'name': 'Manufacturing Hub', 'name2': 'Primary Production', 'country': 'DE', 'region': 'BW', 'city': 'Stuttgart', 'street': 'Pharmastrasse 100', 'postal': '70173', 'plant_type': 'PROD', 'calendar': 'DE', 'xpos': 9.1829, 'ypos': 48.7758},
@@ -73,11 +65,11 @@ MAT_VEGGIE_CAPS = "MAT-R0025"
 MAT_INDIA_PRODUCT = "MAT-A0020"
 CUST_INDIA = "CUST00020"
 
-# --- NAMING LISTS ---
+# NAMING LISTS
 PRODUCT_ADJECTIVES = ['Active', 'Smart', 'Turbo', 'Quick', 'Fast', 'Power', 'Hyper', 'Stealth', 'Sonic', 'Aero', 'Fusion', 'Digital', 'Core', 'Quantum', 'Rapid', 'Dynamic']
 PRODUCT_NOUNS = ['Drive', 'Flow', 'Spark', 'Link', 'Core', 'Max', 'Pro', 'Genius', 'Master', 'Stream', 'Shift', 'Bolt', 'Edge', 'Connect', 'Sync']
 
-# --- BOM CONFIGURATION ---
+# BOM CONFIGURATION
 BOM_CONFIG = [
     {'parent': 'B1_TAB1', 'child': 'API1', 'qty': 500, 'uom': 'GRM', 'scrap': 0.5, 'type': 'API'},
     {'parent': 'B1_TAB1', 'child': 'EXC1', 'qty': 300, 'uom': 'GRM', 'scrap': 2.0, 'type': 'Excipient'},
@@ -104,7 +96,6 @@ def save_to_catalog(df_spark, table_name):
     """
     full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
 
-    # Standardize cols to uppercase
     for col_name in df_spark.columns:
         df_spark = df_spark.withColumnRenamed(col_name, col_name.upper())
 
@@ -118,134 +109,8 @@ def save_to_catalog(df_spark, table_name):
 
 # COMMAND ----------
 
-# --- DIRTY DATA HELPER FUNCTIONS ---
-def dirty_key(value, dirty_rate=0.05):
-    """Apply random dirty transformation to a key value."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate:
-        return value  # Keep clean
-
-    transformations = [
-        lambda v: '0' + str(v),           # Add leading zero
-        lambda v: ' ' + str(v),           # Add leading space
-        lambda v: str(v) + ' ',           # Add trailing space
-        lambda v: str(v).lower(),         # Lowercase
-        lambda v: str(v).lstrip('0'),     # Strip leading zeros
-        lambda v: '  ' + str(v) + '  ',   # Multiple spaces
-    ]
-    return random.choice(transformations)(str(value))
-
-def create_orphan_key(prefix='ORPHAN'):
-    """Create a key that doesn't exist in the reference set."""
-    return f"{prefix}_{random.randint(100000, 999999)}"
-
-def dirty_date(date_str, dirty_rate=0.05):
-    """Convert date from YYYYMMDD to random dirty format."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate or not date_str:
-        return date_str
-
-    try:
-        # Parse YYYYMMDD format
-        date_str = str(date_str)
-        year = date_str[:4]
-        month = date_str[4:6]
-        day = date_str[6:8]
-
-        formats = [
-            f"{day}/{month}/{year}",      # DD/MM/YYYY
-            f"{month}-{day}-{year}",      # MM-DD-YYYY
-            f"{year}-{month}-{day}",      # YYYY-MM-DD (ISO)
-            f"{day}.{month}.{year}",      # DD.MM.YYYY (European)
-        ]
-        return random.choice(formats)
-    except:
-        return date_str
-
-def dirty_dataframe(df, key_columns, dirty_rate=0.05):
-    """Apply dirty transformations to specified columns in a DataFrame."""
-    if not GENERATE_DIRTY_DATA or dirty_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in key_columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < dirty_rate
-            df_dirty.loc[mask, col] = df_dirty.loc[mask, col].apply(
-                lambda x: dirty_key(x, dirty_rate=1.0)  # Already selected, always dirty
-            )
-    return df_dirty
-
-def inject_orphan_records(df, fk_column, orphan_rate=0.03, prefix='ORPHAN'):
-    """Replace some foreign keys with non-existent values."""
-    if not GENERATE_DIRTY_DATA or orphan_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    mask = np.random.random(len(df_dirty)) < orphan_rate
-    n_orphans = mask.sum()
-
-    if n_orphans > 0:
-        # Create orphan keys that definitely don't exist
-        orphan_keys = [f"{prefix}_{i:06d}" for i in range(n_orphans)]
-        df_dirty.loc[mask, fk_column] = orphan_keys
-
-    return df_dirty
-
-def inject_duplicates(df, key_column, dup_rate=0.01):
-    """Duplicate some rows to create duplicate key issues."""
-    if not GENERATE_DIRTY_DATA or dup_rate <= 0:
-        return df
-
-    n_dups = max(1, int(len(df) * dup_rate))
-    dup_indices = np.random.choice(df.index, size=min(n_dups, len(df)), replace=False)
-    duplicates = df.loc[dup_indices].copy()
-
-    return pd.concat([df, duplicates], ignore_index=True)
-
-def inject_nulls(df, columns, null_rate=0.02):
-    """Inject NULL values into specified columns."""
-    if not GENERATE_DIRTY_DATA or null_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < null_rate
-            df_dirty.loc[mask, col] = None
-
-    return df_dirty
-
-def apply_dirty_data_masterdata(df, table_name, config):
-    """
-    Apply all dirty transformations to a master data DataFrame.
-    Uses deterministic seed for reproducibility.
-    """
-    if not GENERATE_DIRTY_DATA:
-        return df
-
-    # Set seed for reproducibility within this table
-    np.random.seed(RANDOM_SEED + hash(table_name) % 1000)
-    random.seed(RANDOM_SEED + hash(table_name) % 1000)
-
-    df_dirty = df.copy()
-
-    # Apply key format issues
-    if 'key_columns' in config:
-        df_dirty = dirty_dataframe(df_dirty, config['key_columns'], DIRTY_DATA_RATE)
-
-    # Apply orphan records
-    if 'orphan_config' in config:
-        for fk_col, rate, prefix in config['orphan_config']:
-            df_dirty = inject_orphan_records(df_dirty, fk_col, rate, prefix)
-
-    # Apply duplicates
-    if 'pk_column' in config and 'dup_rate' in config:
-        df_dirty = inject_duplicates(df_dirty, config['pk_column'], config['dup_rate'])
-
-    # Apply nulls
-    if 'null_columns' in config:
-        df_dirty = inject_nulls(df_dirty, config['null_columns'], config.get('null_rate', 0.02))
-
-    return df_dirty
+# Dirty data is applied by the 'Apply Dirty Data' notebook after generation;
+# the generators below read and write clean data.
 
 # COMMAND ----------
 
@@ -273,12 +138,11 @@ def generate_mara_data():
         })
     return pd.DataFrame(data)
 
-def generate_makt_data(): # FIXED: Restored Creative Naming
+def generate_makt_data():
     data = []
     languages = ['EN', 'DE', 'FR']
     
     for matnr in PREDEFINED_MATERIALS:
-        # LOGIC RESTORED: Creative names for Finished Goods, Functional for Raws
         if matnr in PARENT_MATERIALS:
             base_name = f"{random.choice(PRODUCT_ADJECTIVES)} {random.choice(PRODUCT_NOUNS)}"
         else:
@@ -593,8 +457,7 @@ def generate_marm_data():
     return pd.DataFrame(data)
 
 
-# --- TRANSPORTATION LANE DATA GENERATORS ---
-
+# TRANSPORTATION LANE DATA GENERATORS
 # EU countries for customs logic
 EU_COUNTRIES = {'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'}
 
@@ -1347,12 +1210,9 @@ def generate_bom_structure():
     for idx, matnr in enumerate(PARENT_MATERIALS):
         bom_id = f"BOM{idx+10000}"
         
-        # MAST
         for werks in PREDEFINED_PLANTS:
             mast.append({'MANDT': '800', 'MATNR': matnr, 'WERKS': werks, 'STLAN': '1', 'STLNR': bom_id, 'STLAL': '01'})
-        # STKO
         stko.append({'MANDT': '800', 'STLTY': 'M', 'STLNR': bom_id, 'STLAL': '01', 'BMENG': 1, 'BMEIN': 'PC', 'DATUV': '20230101'})
-        # STPO
         comps = bom_map.get(matnr, [])
         if not comps: 
             for i in range(2):
@@ -1368,7 +1228,7 @@ def generate_bom_structure():
 
 # COMMAND ----------
 
-# --- SMART CATALOG SETUP ---
+# SMART CATALOG SETUP
 # 1. Try to use the catalog. 2. If missing, try to create. 3. If that fails, fallback to hive_metastore.
 target_catalog = CATALOG # From widget
 setup_done = False
@@ -1394,59 +1254,29 @@ if not setup_done:
         CATALOG = "hive_metastore"
         spark.sql(f"USE CATALOG {CATALOG}")
 
-# Now create the Schema (Database) inside whichever Catalog we selected
+# Create the schema inside whichever catalog was selected
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
 print(f"Active Target: {CATALOG}.{SCHEMA}")
 
-# --- EXECUTE GENERATORS ---
-# Store valid keys for orphan record injection
-valid_matnr_set = set(PREDEFINED_MATERIALS)
-valid_kunnr_set = set(PREDEFINED_CUSTOMERS)
-
+# EXECUTE GENERATORS
 print("Generating KNA1...")
 df_kna1 = generate_kna1_data()
-df_kna1 = apply_dirty_data_masterdata(df_kna1, "kna1", {
-    'key_columns': ['KUNNR'],
-    'pk_column': 'KUNNR',
-    'dup_rate': 0.01,
-    'null_columns': ['NAME1'],
-    'null_rate': 0.02
-})
 save_to_catalog(spark.createDataFrame(df_kna1), "kna1")
 
 print("Generating MARA...")
 df_mara = generate_mara_data()
-df_mara = apply_dirty_data_masterdata(df_mara, "mara", {
-    'key_columns': ['MATNR'],
-    'pk_column': 'MATNR',
-    'dup_rate': 0.01,
-    'null_columns': ['MTART'],
-    'null_rate': 0.02
-})
 save_to_catalog(spark.createDataFrame(df_mara), "mara")
 
 print("Generating MAKT...")
 df_makt = generate_makt_data()
-df_makt = apply_dirty_data_masterdata(df_makt, "makt", {
-    'key_columns': ['MATNR'],
-    'orphan_config': [('MATNR', 0.03, 'ORPHAN_MAT')]
-})
 save_to_catalog(spark.createDataFrame(df_makt), "makt")
 
 print("Generating MARC...")
 df_marc = generate_marc_data()
-df_marc = apply_dirty_data_masterdata(df_marc, "marc", {
-    # Note: Don't dirty WERKS or MATNR - used for joins in Transaction simulation
-    'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-})
 save_to_catalog(spark.createDataFrame(df_marc), "marc")
 
 print("Generating MARD (with batch tracking)...")
 df_mard = generate_mard_data()
-df_mard = apply_dirty_data_masterdata(df_mard, "mard", {
-    'key_columns': ['LGORT'],
-    'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-})
 save_to_catalog(spark.createDataFrame(df_mard), "mard")
 
 # Generate batch master tables from MARD batch records
@@ -1462,28 +1292,14 @@ save_to_catalog(spark.createDataFrame(df_mcha), "mcha")
 
 print("Generating MBEW...")
 df_mbew = generate_mbew_data()
-df_mbew = apply_dirty_data_masterdata(df_mbew, "mbew", {
-    'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-})
 save_to_catalog(spark.createDataFrame(df_mbew), "mbew")
 
 print("Generating MARM (Unit Conversions)...")
 df_marm = generate_marm_data()
-df_marm = apply_dirty_data_masterdata(df_marm, "marm", {
-    'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-})
 save_to_catalog(spark.createDataFrame(df_marm), "marm")
 
 print("Generating BOM Structures...")
 df_mast, df_stko, df_stpo = generate_bom_structure()
-
-# Apply dirty data to BOM tables
-# Note: Don't dirty WERKS - used for joins in Transaction simulation
-df_mast = apply_dirty_data_masterdata(df_mast, "mast", {})
-df_stko = apply_dirty_data_masterdata(df_stko, "stko", {})
-df_stpo = apply_dirty_data_masterdata(df_stpo, "stpo", {
-    'orphan_config': [('IDNRK', 0.02, 'ORPHAN_COMP')]
-})
 
 save_to_catalog(spark.createDataFrame(df_mast), "mast")
 save_to_catalog(spark.createDataFrame(df_stko), "stko")
@@ -1491,12 +1307,10 @@ save_to_catalog(spark.createDataFrame(df_stpo), "stpo")
 
 print("Generating APO Location Master (/SAPAPO/LOC)...")
 df_sapapo_loc = generate_sapapo_loc_data()
-# APO location data generally stays clean (reference data)
 save_to_catalog(spark.createDataFrame(df_sapapo_loc), "sapapo_loc")
 
 print("Generating APO Transportation Lanes (/SAPAPO/TR)...")
 df_sapapo_tr = generate_sapapo_tr_data()
-# Note: Don't dirty LOCFR/LOCTO - they're used as lookup keys for TRM generation
 save_to_catalog(spark.createDataFrame(df_sapapo_tr), "sapapo_tr")
 
 print("Generating APO Means of Transport (/SAPAPO/TRM)...")
@@ -1543,6 +1357,4 @@ print("Generating Routing Operations (PLPO)...")
 df_plpo = generate_plpo_data(df_plko, df_crhd)
 save_to_catalog(spark.createDataFrame(df_plpo), "plpo")
 
-if GENERATE_DIRTY_DATA:
-    print(f"Dirty data applied at rate {DIRTY_DATA_RATE} (seed={RANDOM_SEED})")
 print("Full Master Data Generated & Saved.")

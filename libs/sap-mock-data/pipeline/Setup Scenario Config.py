@@ -19,9 +19,7 @@ from datetime import datetime
 # Each row defines the parameters for a specific supply chain disruption scenario
 
 scenarios = [
-    # ==========================================================================
-    # INVENTORY/NODE SCENARIOS (SCN001-SCN010)
-    # ==========================================================================
+    # Inventory/node scenarios (scn001-scn010)
     {
         "SCENARIO_ID": "SCN001",
         "SCENARIO_NAME": "Stock Deviation",
@@ -373,9 +371,7 @@ scenarios = [
         "AI_DECISION_OPTIONS": "Prioritize critical products|Use safety stock|Delay non-critical production|Overtime on remaining line",
         "DATA_EVIDENCE": "supply_network.csv: Location_ID=1000 shows Node_Status=DEGRADED, Node_Capacity_Pct=50 | production_orders.csv: Orders at Plant=1000 may be delayed | No inventory impact - stock remains accessible"
     },
-    # ==========================================================================
-    # PRODUCTION/PLANNING SCENARIOS (SCN011-SCN020)
-    # ==========================================================================
+    # Production/planning scenarios (scn011-scn020)
     {
         "SCENARIO_ID": "SCN011",
         "SCENARIO_NAME": "Demand Increase",
@@ -726,9 +722,7 @@ scenarios = [
         "AI_DECISION_OPTIONS": "Increase safety stock globally|Invest in capacity expansion|Qualify backup suppliers|Implement demand smoothing",
         "DATA_EVIDENCE": "CONFIG ONLY - No transactional injection | NETWORK_VOLATILITY=HIGH, NODE_CAPACITY_PCT=85 | TLANES_AFFECTED=True | supply_network.csv: All nodes showing stress | transportation_lanes.csv: Lane reliability concerns"
     },
-    # ==========================================================================
-    # SUPPLIER SCENARIOS (SCN021-SCN026)
-    # ==========================================================================
+    # Supplier scenarios (scn021-scn026)
     {
         "SCENARIO_ID": "SCN021",
         "SCENARIO_NAME": "Supplier Drift",
@@ -943,12 +937,10 @@ scenarios = [
 
 # COMMAND ----------
 
-# Create DataFrame
 from pyspark.sql import Row
 
 df_scenarios = spark.createDataFrame([Row(**s) for s in scenarios])
 
-# Save to table
 table_name = f"{CATALOG}.{SCHEMA}.scenario_config"
 df_scenarios.write.mode("overwrite").saveAsTable(table_name)
 

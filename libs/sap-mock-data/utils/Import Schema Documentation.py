@@ -1,7 +1,5 @@
 # Databricks notebook source
-# =============================================================================
-# IMPORT SCHEMA DOCUMENTATION TO UNITY CATALOG
-# =============================================================================
+# Import schema documentation to unity catalog
 # This notebook reads table and column descriptions from a YAML file
 # and applies them to Unity Catalog tables.
 #
@@ -25,9 +23,7 @@
 
 # COMMAND ----------
 
-# =============================================================================
-# PARAMETERS
-# =============================================================================
+# Parameters
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("INPUT_PATH", "/Volumes/sample_synthetic_sap/sap/exports/schema_documentation.yaml", "Input YAML Path")
@@ -54,9 +50,7 @@ print("=" * 70)
 
 # COMMAND ----------
 
-# =============================================================================
-# LOAD YAML DOCUMENTATION
-# =============================================================================
+# Load yaml documentation
 import yaml
 
 with open(INPUT_PATH, 'r') as f:
@@ -73,9 +67,7 @@ print(f"Foreign keys defined: {fk_count}")
 
 # COMMAND ----------
 
-# =============================================================================
-# HELPER FUNCTIONS
-# =============================================================================
+# Helper functions
 def escape_sql_string(value):
     """Escape a value for a regular Spark SQL string literal."""
     return str(value).replace("\\", "\\\\").replace("'", "\\'")
@@ -125,9 +117,7 @@ def get_existing_constraints(table_name, constraint_type):
 
 # COMMAND ----------
 
-# =============================================================================
-# DROP EXISTING CONSTRAINTS (if requested)
-# =============================================================================
+# Drop existing constraints (if requested)
 if APPLY_CONSTRAINTS and DROP_EXISTING_CONSTRAINTS:
     print("\n" + "=" * 70)
     print("DROPPING EXISTING CONSTRAINTS")
@@ -175,9 +165,7 @@ if APPLY_CONSTRAINTS and DROP_EXISTING_CONSTRAINTS:
 
 # COMMAND ----------
 
-# =============================================================================
-# APPLY TABLE DESCRIPTIONS
-# =============================================================================
+# Apply table descriptions
 print("\n" + "=" * 70)
 print("APPLYING TABLE DESCRIPTIONS")
 print("=" * 70)
@@ -216,9 +204,7 @@ print(f"\nTable descriptions: {table_updates} updated, {table_errors} errors")
 
 # COMMAND ----------
 
-# =============================================================================
-# APPLY COLUMN DESCRIPTIONS
-# =============================================================================
+# Apply column descriptions
 print("\n" + "=" * 70)
 print("APPLYING COLUMN DESCRIPTIONS")
 print("=" * 70)
@@ -271,9 +257,7 @@ else:
 
 # COMMAND ----------
 
-# =============================================================================
-# APPLY PRIMARY KEY CONSTRAINTS
-# =============================================================================
+# Apply primary key constraints
 if APPLY_CONSTRAINTS:
     print("\n" + "=" * 70)
     print("APPLYING PRIMARY KEY CONSTRAINTS")
@@ -338,9 +322,7 @@ if APPLY_CONSTRAINTS:
 
 # COMMAND ----------
 
-# =============================================================================
-# APPLY FOREIGN KEY CONSTRAINTS
-# =============================================================================
+# Apply foreign key constraints
 if APPLY_CONSTRAINTS:
     print("\n" + "=" * 70)
     print("APPLYING FOREIGN KEY CONSTRAINTS")
@@ -414,9 +396,7 @@ if APPLY_CONSTRAINTS:
 
 # COMMAND ----------
 
-# =============================================================================
-# SUMMARY
-# =============================================================================
+# Summary
 print("\n" + "=" * 70)
 print("IMPORT SUMMARY")
 print("=" * 70)

@@ -16,124 +16,6 @@ from .common import (
 )
 
 
-def dirty_key(value, dirty_rate=0.05):
-    """Apply random dirty transformation to a key value."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate:
-        return value  # Keep clean
-
-    transformations = [
-        lambda v: '0' + str(v),           # Add leading zero
-        lambda v: ' ' + str(v),           # Add leading space
-        lambda v: str(v) + ' ',           # Add trailing space
-        lambda v: str(v).lower(),         # Lowercase
-        lambda v: str(v).lstrip('0'),     # Strip leading zeros
-        lambda v: '  ' + str(v) + '  ',   # Multiple spaces
-    ]
-    return random.choice(transformations)(str(value))
-
-def create_orphan_key(prefix='ORPHAN'):
-    """Create a key that doesn't exist in the reference set."""
-    return f"{prefix}_{random.randint(100000, 999999)}"
-
-def dirty_date(date_str, dirty_rate=0.05):
-    """Convert date from YYYYMMDD to random dirty format."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate or not date_str:
-        return date_str
-
-    try:
-        date_str = str(date_str)
-        year = date_str[:4]
-        month = date_str[4:6]
-        day = date_str[6:8]
-
-        formats = [
-            f"{day}/{month}/{year}",      # DD/MM/YYYY
-            f"{month}-{day}-{year}",      # MM-DD-YYYY
-            f"{year}-{month}-{day}",      # YYYY-MM-DD (ISO)
-            f"{day}.{month}.{year}",      # DD.MM.YYYY (European)
-        ]
-        return random.choice(formats)
-    except:
-        return date_str
-
-def dirty_dataframe(df, key_columns, dirty_rate=0.05):
-    """Apply dirty transformations to specified columns in a DataFrame."""
-    if not GENERATE_DIRTY_DATA or dirty_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in key_columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < dirty_rate
-            df_dirty.loc[mask, col] = df_dirty.loc[mask, col].apply(
-                lambda x: dirty_key(x, dirty_rate=1.0)  # Already selected, always dirty
-            )
-    return df_dirty
-
-def inject_orphan_records(df, fk_column, orphan_rate=0.03, prefix='ORPHAN'):
-    """Replace some foreign keys with non-existent values."""
-    if not GENERATE_DIRTY_DATA or orphan_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    mask = np.random.random(len(df_dirty)) < orphan_rate
-    n_orphans = mask.sum()
-
-    if n_orphans > 0:
-        orphan_keys = [f"{prefix}_{i:06d}" for i in range(n_orphans)]
-        df_dirty.loc[mask, fk_column] = orphan_keys
-
-    return df_dirty
-
-def inject_duplicates(df, key_column, dup_rate=0.01):
-    """Duplicate some rows to create duplicate key issues."""
-    if not GENERATE_DIRTY_DATA or dup_rate <= 0:
-        return df
-
-    n_dups = max(1, int(len(df) * dup_rate))
-    dup_indices = np.random.choice(df.index, size=min(n_dups, len(df)), replace=False)
-    duplicates = df.loc[dup_indices].copy()
-
-    return pd.concat([df, duplicates], ignore_index=True)
-
-def inject_nulls(df, columns, null_rate=0.02):
-    """Inject NULL values into specified columns."""
-    if not GENERATE_DIRTY_DATA or null_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < null_rate
-            df_dirty.loc[mask, col] = None
-
-    return df_dirty
-
-def apply_dirty_data_masterdata(df, table_name, config):
-    """Apply configured dirty-data transformations."""
-    if not GENERATE_DIRTY_DATA:
-        return df
-
-    np.random.seed(RANDOM_SEED + hash(table_name) % 1000)
-    random.seed(RANDOM_SEED + hash(table_name) % 1000)
-
-    df_dirty = df.copy()
-
-    if 'key_columns' in config:
-        df_dirty = dirty_dataframe(df_dirty, config['key_columns'], DIRTY_DATA_RATE)
-
-    if 'orphan_config' in config:
-        for fk_col, rate, prefix in config['orphan_config']:
-            df_dirty = inject_orphan_records(df_dirty, fk_col, rate, prefix)
-
-    if 'pk_column' in config and 'dup_rate' in config:
-        df_dirty = inject_duplicates(df_dirty, config['pk_column'], config['dup_rate'])
-
-    if 'null_columns' in config:
-        df_dirty = inject_nulls(df_dirty, config['null_columns'], config.get('null_rate', 0.02))
-
-    return df_dirty
-
 def generate_kna1_data():
     data = []
     for kunnr in PREDEFINED_CUSTOMERS:
@@ -1163,7 +1045,6 @@ def generate_bom_structure():
 def generate(wh):
     global RANDOM_SEED, NUM_CUSTOMERS, NUM_FINISHED_GOODS, NUM_RAW_MATERIALS
     global MOQ_FINISHED_MIN, MOQ_FINISHED_MAX, MOQ_RAW_MIN, MOQ_RAW_MAX
-    global GENERATE_DIRTY_DATA, DIRTY_DATA_RATE
     global fake, fake_US
     global PREDEFINED_PLANTS, PREDEFINED_STORAGE_LOCATIONS, PREDEFINED_CUSTOMERS, PREDEFINED_USERS
     global MAT_VEGGIE_CAPS, MAT_INDIA_PRODUCT, CUST_INDIA
@@ -1178,8 +1059,6 @@ def generate(wh):
     MOQ_FINISHED_MAX = int(param("MOQ_FINISHED_MAX"))
     MOQ_RAW_MIN = int(param("MOQ_RAW_MIN"))
     MOQ_RAW_MAX = int(param("MOQ_RAW_MAX"))
-    GENERATE_DIRTY_DATA = param("GENERATE_DIRTY_DATA").lower() == "true"
-    DIRTY_DATA_RATE = float(param("DIRTY_DATA_RATE"))
 
     seed_all(RANDOM_SEED)
     fake = Faker('en_GB')
@@ -1187,7 +1066,6 @@ def generate(wh):
 
     print(f"Seed: {RANDOM_SEED}")
     print(f"Universe: {NUM_CUSTOMERS} customers, {NUM_FINISHED_GOODS} finished goods, {NUM_RAW_MATERIALS} raw materials")
-    print(f"Dirty Data: {'ENABLED' if GENERATE_DIRTY_DATA else 'disabled'} (rate={DIRTY_DATA_RATE})")
 
     PREDEFINED_PLANTS = list(PLANT_CONFIG)
     PREDEFINED_STORAGE_LOCATIONS = ['0001', 'FG01', 'RM01', 'WH01', 'QA01', 'ALT1']
@@ -1216,52 +1094,25 @@ def generate(wh):
     PREDEFINED_MATERIALS = sorted(list(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS)))
     PARENT_MATERIALS = FINISHED_GOODS + INTERMEDIATE_GOODS
 
-    valid_matnr_set = set(PREDEFINED_MATERIALS)
-    valid_kunnr_set = set(PREDEFINED_CUSTOMERS)
 
     print("Generating KNA1...")
     df_kna1 = generate_kna1_data()
-    df_kna1 = apply_dirty_data_masterdata(df_kna1, "kna1", {
-        'key_columns': ['KUNNR'],
-        'pk_column': 'KUNNR',
-        'dup_rate': 0.01,
-        'null_columns': ['NAME1'],
-        'null_rate': 0.02
-    })
     wh.save("kna1", df_kna1)
 
     print("Generating MARA...")
     df_mara = generate_mara_data()
-    df_mara = apply_dirty_data_masterdata(df_mara, "mara", {
-        'key_columns': ['MATNR'],
-        'pk_column': 'MATNR',
-        'dup_rate': 0.01,
-        'null_columns': ['MTART'],
-        'null_rate': 0.02
-    })
     wh.save("mara", df_mara)
 
     print("Generating MAKT...")
     df_makt = generate_makt_data()
-    df_makt = apply_dirty_data_masterdata(df_makt, "makt", {
-        'key_columns': ['MATNR'],
-        'orphan_config': [('MATNR', 0.03, 'ORPHAN_MAT')]
-    })
     wh.save("makt", df_makt)
 
     print("Generating MARC...")
     df_marc = generate_marc_data()
-    df_marc = apply_dirty_data_masterdata(df_marc, "marc", {
-        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-    })
     wh.save("marc", df_marc)
 
     print("Generating MARD (with batch tracking)...")
     df_mard = generate_mard_data()
-    df_mard = apply_dirty_data_masterdata(df_mard, "mard", {
-        'key_columns': ['LGORT'],
-        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-    })
     wh.save("mard", df_mard)
 
     batch_records = df_mard[df_mard['CHARG'] != ''].to_dict('records')
@@ -1276,26 +1127,14 @@ def generate(wh):
 
     print("Generating MBEW...")
     df_mbew = generate_mbew_data()
-    df_mbew = apply_dirty_data_masterdata(df_mbew, "mbew", {
-        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-    })
     wh.save("mbew", df_mbew)
 
     print("Generating MARM (Unit Conversions)...")
     df_marm = generate_marm_data()
-    df_marm = apply_dirty_data_masterdata(df_marm, "marm", {
-        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
-    })
     wh.save("marm", df_marm)
 
     print("Generating BOM Structures...")
     df_mast, df_stko, df_stpo = generate_bom_structure()
-
-    df_mast = apply_dirty_data_masterdata(df_mast, "mast", {})
-    df_stko = apply_dirty_data_masterdata(df_stko, "stko", {})
-    df_stpo = apply_dirty_data_masterdata(df_stpo, "stpo", {
-        'orphan_config': [('IDNRK', 0.02, 'ORPHAN_COMP')]
-    })
 
     wh.save("mast", df_mast)
     wh.save("stko", df_stko)
@@ -1353,6 +1192,4 @@ def generate(wh):
     df_plpo = generate_plpo_data(df_plko, df_crhd)
     wh.save("plpo", df_plpo)
 
-    if GENERATE_DIRTY_DATA:
-        print(f"Dirty data applied at rate {DIRTY_DATA_RATE} (seed={RANDOM_SEED})")
     print("Full Master Data Generated & Saved.")

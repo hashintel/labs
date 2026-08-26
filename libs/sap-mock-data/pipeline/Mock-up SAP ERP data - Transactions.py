@@ -1,5 +1,4 @@
 # Databricks notebook source
-#INITIAL LIBRARIES
 !pip install faker
 
 import pandas as pd
@@ -16,7 +15,6 @@ from pyspark.sql.types import *
 # COMMAND ----------
 
 # Configuration & Seeding
-# --- WIDGETS ---
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("RANDOM_SEED", "42", "Random Seed")
@@ -24,8 +22,6 @@ dbutils.widgets.text("NUM_ORDERS", "5000", "Number of Sales Orders")
 dbutils.widgets.text("HUB_PLANT", "1000", "Hub Plant (Production)")
 dbutils.widgets.text("DELIVERY_FILL_RATE", "0.8", "Delivery Fill Rate (0-1)")
 dbutils.widgets.text("SAFETY_STOCK_WEEKS", "6", "Safety Stock Weeks Coverage")
-dbutils.widgets.text("GENERATE_DIRTY_DATA", "false", "Generate Dirty Data (true/false)")
-dbutils.widgets.text("DIRTY_DATA_RATE", "0.05", "Dirty Data Rate (0.0-1.0)")
 dbutils.widgets.text("SUPPLIER_RELIABILITY_RATE", "1.0", "Supplier Reliability (0.0-1.0)")
 dbutils.widgets.text("UNRELIABLE_MATERIALS", "", "Specific unreliable materials (comma-separated)")
 dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
@@ -37,13 +33,10 @@ NUMBER_OF_ORDERS = int(dbutils.widgets.get("NUM_ORDERS"))
 HUB_PLANT = dbutils.widgets.get("HUB_PLANT")
 DELIVERY_FILL_RATE = float(dbutils.widgets.get("DELIVERY_FILL_RATE"))
 SAFETY_STOCK_WEEKS = int(dbutils.widgets.get("SAFETY_STOCK_WEEKS"))
-GENERATE_DIRTY_DATA = dbutils.widgets.get("GENERATE_DIRTY_DATA").lower() == "true"
-DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
 SUPPLIER_RELIABILITY_RATE = float(dbutils.widgets.get("SUPPLIER_RELIABILITY_RATE"))
 UNRELIABLE_MATERIALS_STR = dbutils.widgets.get("UNRELIABLE_MATERIALS")
 DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
-# --- FIXED SEEDING ---
 Faker.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -54,14 +47,12 @@ print(f"Target: {CATALOG}.{SCHEMA} | Seed: {RANDOM_SEED}")
 # Predefined users for document creation
 PREDEFINED_USERS = ['USER_A', 'USER_B', 'ADMIN', 'JOHNDOE', 'AUTO_JOB']
 print(f"Config: {NUMBER_OF_ORDERS} orders, Hub={HUB_PLANT}, Fill Rate={DELIVERY_FILL_RATE}, Safety Stock={SAFETY_STOCK_WEEKS} weeks")
-print(f"Dirty Data: {'ENABLED' if GENERATE_DIRTY_DATA else 'disabled'} (rate={DIRTY_DATA_RATE})")
 print(f"Supplier Reliability: {SUPPLIER_RELIABILITY_RATE} (unreliable materials: {UNRELIABLE_MATERIALS_STR or 'random selection'})")
 
-# --- VARIABLES ---
 START_STOCK_MULTI = 1.2
 
 
-# --- READ MASTER DATA ---
+# READ MASTER DATA
 # (Necessary for the Simulation to know what materials exist)
 df_mara = spark.table(f"{CATALOG}.{SCHEMA}.mara")
 df_stpo = spark.table(f"{CATALOG}.{SCHEMA}.stpo")
@@ -79,7 +70,7 @@ PLANT_CONFIG = {
 }
 PLANTS = list(PLANT_CONFIG)
 
-# --- PRICING CONFIG ---
+# PRICING CONFIG
 # Build pricing lookup from MBEW (standard cost) with sales markup
 SALES_MARKUP = 0.35  # 35% markup on cost for selling price
 price_rows = df_mbew.select('MATNR', 'BWKEY', 'STPRS').collect()
@@ -97,7 +88,7 @@ for (matnr, _), price in PRICE_LOOKUP.items():
 PRICE_FALLBACK = {m: sum(p)/len(p) for m, p in material_prices.items()} if material_prices else {}
 print(f"Pricing loaded: {len(PRICE_LOOKUP)} plant-specific prices, {len(PRICE_FALLBACK)} material averages")
 
-# Build BOM Lookup (Restored for Production Sim)
+# Build BOM Lookup
 print("Building BOM Lookup...")
 bom_map = {}
 mast_dict = {row['MATNR']: row['STLNR'] for row in df_mast.select('MATNR', 'STLNR').collect()} 
@@ -122,7 +113,6 @@ CUST_INDIA = "CUST00020"
 def save_sap_table(df_spark, table_name):
     full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
 
-    # Uppercase columns
     for col in df_spark.columns: df_spark = df_spark.withColumnRenamed(col, col.upper())
 
     if not spark.catalog.tableExists(full_table_name):
@@ -135,7 +125,7 @@ def save_sap_table(df_spark, table_name):
 
 # COMMAND ----------
 
-# --- BATCH TRACKING ---
+# BATCH TRACKING
 # Global batch counter for production-created batches
 BATCH_COUNTER = 1000000
 
@@ -150,7 +140,6 @@ def generate_production_batch(matnr, werks, year=2025):
 print("Loading batch inventory from MARD...")
 df_mard = spark.table(f"{CATALOG}.{SCHEMA}.mard")
 
-# Check if CHARG column exists (for backwards compatibility)
 mard_columns = df_mard.columns
 if 'CHARG' in mard_columns:
     mard_rows = df_mard.select('MATNR', 'WERKS', 'LGORT', 'CHARG', 'LABST').collect()
@@ -176,7 +165,7 @@ for key in BATCH_INVENTORY:
 
 print(f"Batch inventory loaded: {len(BATCH_INVENTORY)} location combinations with batches")
 
-# --- INVENTORY TRACKING ---
+# INVENTORY TRACKING
 # Track total available stock by material/plant/location (aggregated across batches)
 # This is used to prevent goods issues from exceeding available stock
 # NOTE: Include ALL stock from MARD, not just batched stock (raw materials may not have batches)
@@ -253,161 +242,11 @@ def select_batch_for_issue(matnr, werks, lgort, qty_needed):
             batch_info['qty'] -= deduct
             return [(batch_info['batch'], actual_qty)]
 
-    return [('', actual_qty)]  # Fallback
+    return [('', actual_qty)]
 
 # COMMAND ----------
 
-# --- DIRTY DATA HELPER FUNCTIONS ---
-def dirty_key(value, dirty_rate=0.05):
-    """Apply random dirty transformation to a key value."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate:
-        return value  # Keep clean
-
-    transformations = [
-        lambda v: '0' + str(v),           # Add leading zero
-        lambda v: ' ' + str(v),           # Add leading space
-        lambda v: str(v) + ' ',           # Add trailing space
-        lambda v: str(v).lower(),         # Lowercase
-        lambda v: str(v).lstrip('0'),     # Strip leading zeros
-        lambda v: '  ' + str(v) + '  ',   # Multiple spaces
-    ]
-    return random.choice(transformations)(str(value))
-
-def create_orphan_key(prefix='ORPHAN'):
-    """Create a key that doesn't exist in the reference set."""
-    return f"{prefix}_{random.randint(100000, 999999)}"
-
-def dirty_date(date_str, dirty_rate=0.05):
-    """Convert date from YYYYMMDD to random dirty format."""
-    if not GENERATE_DIRTY_DATA or random.random() > dirty_rate or not date_str:
-        return date_str
-
-    try:
-        # Parse YYYYMMDD format
-        date_str = str(date_str)
-        year = date_str[:4]
-        month = date_str[4:6]
-        day = date_str[6:8]
-
-        formats = [
-            f"{day}/{month}/{year}",      # DD/MM/YYYY
-            f"{month}-{day}-{year}",      # MM-DD-YYYY
-            f"{year}-{month}-{day}",      # YYYY-MM-DD (ISO)
-            f"{day}.{month}.{year}",      # DD.MM.YYYY (European)
-        ]
-        return random.choice(formats)
-    except:
-        return date_str
-
-def dirty_dataframe(df, key_columns, dirty_rate=0.05):
-    """Apply dirty transformations to specified columns in a DataFrame."""
-    if not GENERATE_DIRTY_DATA or dirty_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in key_columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < dirty_rate
-            df_dirty.loc[mask, col] = df_dirty.loc[mask, col].apply(
-                lambda x: dirty_key(x, dirty_rate=1.0)  # Already selected, always dirty
-            )
-    return df_dirty
-
-def dirty_date_column(df, date_columns, dirty_rate=0.05):
-    """Apply dirty date transformations to specified date columns."""
-    if not GENERATE_DIRTY_DATA or dirty_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in date_columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < dirty_rate
-            df_dirty.loc[mask, col] = df_dirty.loc[mask, col].apply(
-                lambda x: dirty_date(x, dirty_rate=1.0)  # Already selected, always dirty
-            )
-    return df_dirty
-
-def inject_orphan_records(df, fk_column, orphan_rate=0.03, prefix='ORPHAN'):
-    """Replace some foreign keys with non-existent values."""
-    if not GENERATE_DIRTY_DATA or orphan_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    mask = np.random.random(len(df_dirty)) < orphan_rate
-    n_orphans = mask.sum()
-
-    if n_orphans > 0:
-        # Create orphan keys that definitely don't exist
-        orphan_keys = [f"{prefix}_{i:06d}" for i in range(n_orphans)]
-        df_dirty.loc[mask, fk_column] = orphan_keys
-
-    return df_dirty
-
-def inject_duplicates(df, key_column, dup_rate=0.01):
-    """Duplicate some rows to create duplicate key issues."""
-    if not GENERATE_DIRTY_DATA or dup_rate <= 0:
-        return df
-
-    n_dups = max(1, int(len(df) * dup_rate))
-    dup_indices = np.random.choice(df.index, size=min(n_dups, len(df)), replace=False)
-    duplicates = df.loc[dup_indices].copy()
-
-    return pd.concat([df, duplicates], ignore_index=True)
-
-def inject_nulls(df, columns, null_rate=0.02):
-    """Inject NULL values into specified columns."""
-    if not GENERATE_DIRTY_DATA or null_rate <= 0:
-        return df
-
-    df_dirty = df.copy()
-    for col in columns:
-        if col in df_dirty.columns:
-            mask = np.random.random(len(df_dirty)) < null_rate
-            df_dirty.loc[mask, col] = None
-
-    return df_dirty
-
-def apply_dirty_data_transactions(df, table_name, config):
-    """
-    Apply all dirty transformations to a transaction DataFrame.
-    Uses deterministic seed for reproducibility.
-    """
-    if not GENERATE_DIRTY_DATA:
-        return df
-
-    # Set seed for reproducibility within this table
-    np.random.seed(RANDOM_SEED + hash(table_name) % 1000)
-    random.seed(RANDOM_SEED + hash(table_name) % 1000)
-
-    df_dirty = df.copy()
-
-    # Apply key format issues
-    if 'key_columns' in config:
-        df_dirty = dirty_dataframe(df_dirty, config['key_columns'], DIRTY_DATA_RATE)
-
-    # Apply date format issues
-    if 'date_columns' in config:
-        df_dirty = dirty_date_column(df_dirty, config['date_columns'], DIRTY_DATA_RATE)
-
-    # Apply orphan records
-    if 'orphan_config' in config:
-        for fk_col, rate, prefix in config['orphan_config']:
-            df_dirty = inject_orphan_records(df_dirty, fk_col, rate, prefix)
-
-    # Apply duplicates
-    if 'pk_column' in config and 'dup_rate' in config:
-        df_dirty = inject_duplicates(df_dirty, config['pk_column'], config['dup_rate'])
-
-    # Apply nulls
-    if 'null_columns' in config:
-        df_dirty = inject_nulls(df_dirty, config['null_columns'], config.get('null_rate', 0.02))
-
-    return df_dirty
-
-# COMMAND ----------
-
-# --- SUPPLIER RELIABILITY HELPER FUNCTIONS ---
-
+# SUPPLIER RELIABILITY HELPER FUNCTIONS
 def get_unreliable_materials(all_raw_materials, reliability_rate, specific_materials=""):
     """
     Determine which raw materials have unreliable suppliers.
@@ -510,7 +349,6 @@ def generate_logistics(df_vbak, df_vbap, df_vbep):
     del_ids = np.random.randint(8000000000, 8999999999, size=len(header_groups))
     header_groups['VBELN_DELIVERY'] = [f'{x:010d}' for x in del_ids]
     
-    # LIKP
     likp = pd.DataFrame({
         'MANDT': '800', 'VBELN': header_groups['VBELN_DELIVERY'], 'KUNNR': header_groups['KUNNR'],
         'LFDAT': header_groups['EDATU'], 'LFART': 'LF'
@@ -683,7 +521,7 @@ def generate_shipments(df_likp, df_lips, df_vbap):
         first_item = del_items.iloc[0]
         source_plant = first_item.get('WERKS', '1000')
         if pd.isna(source_plant) or source_plant == '':
-            source_plant = '1000'  # Default to hub
+            source_plant = '1000'  # Hub plant
 
         delivery_date_str = first_item.get('LFDAT', datetime.now().strftime('%Y%m%d'))
 
@@ -782,7 +620,7 @@ network_schema = StructType([
 
 # COMMAND ----------
 
-# Hub & Spoke Simulation Function (Updated)
+# Hub & Spoke Simulation Function
 def simulate_hub_spoke_v2(pdf: pd.DataFrame) -> pd.DataFrame:
     if pdf.empty:
         return pd.DataFrame(columns=['TYPE', 'MATNR', 'SUPPLY_PLANT', 'RECEIVE_PLANT', 'QUANTITY', 'DATE', 'ID_REF'])
@@ -800,7 +638,7 @@ def simulate_hub_spoke_v2(pdf: pd.DataFrame) -> pd.DataFrame:
         moq = hub_rows['MOQ'].iloc[0]
         moq = int(moq) if pd.notna(moq) and moq > 0 else 500
     else:
-        moq = 500  # Default MOQ
+        moq = 500
 
     # Initialize Stock (Default to enough coverage to start)
     for _, row in plant_groups.iterrows():
@@ -907,7 +745,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
     # Track statistics
     stats = {'complete': 0, 'partial': 0, 'blocked': 0, 'shortage_docs': 0}
 
-    # --- 1. PROCESS PRODUCTION (Hub 1000) ---
+    # 1. PROCESS PRODUCTION (Hub 1000)
     # NOTE: Only FERT (finished goods) materials reach this point because:
     # 1. Sales orders only contain FINISHED_PRODUCTS (MTART='FERT')
     # 2. Hub & Spoke simulation only runs for those sold materials
@@ -917,10 +755,9 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
     for _, row in df_prod.iterrows():
         matnr = row['MATNR']
         planned_qty = row['QUANTITY']
-        plant = row['SUPPLY_PLANT']  # Should be 1000
+        plant = row['SUPPLY_PLANT']
         date = row['DATE']
 
-        # Generate Order ID
         aufnr = f"ORD{random.randint(1000000,9999999)}"
         reservation_number = ''
         if matnr in bom_map:
@@ -957,10 +794,8 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
                         'delivery_rate': delivery_rate
                     })
 
-        # Round down to integer quantity
         actual_qty = int(actual_qty)
 
-        # Determine status
         if actual_qty <= 0:
             status = 'CRTD'
             actual_qty = 0
@@ -1078,11 +913,9 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
                 stats['shortage_docs'] += 1
 
         if matnr not in bom_map and actual_qty > 0:
-            # Debug: If you see this in logs, you know Master Data is slightly out of sync,
-            # but the Transaction Flow is preserved.
             print(f"(!) Notice: Produced {matnr} at {plant} without BOM. 101 created, consumption skipped.")
 
-    # --- 2. PROCESS TRANSFERS (Hub -> Spoke) ---
+    # 2. PROCESS TRANSFERS (Hub -> Spoke)
     print(f"Processing {len(df_trans)} Stock Transport Orders...")
     
     for _, row in df_trans.iterrows():
@@ -1148,7 +981,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
 # COMMAND ----------
 
 # Step 4: Generate MARDH (Historical Stock)
-# Note: Scenario injection is now handled by the separate 'Inject Scenarios.py' notebook
+# Scenario injection runs in the 'Inject Scenarios' notebook.
 
 def generate_mardh(df_matdoc, df_mard_initial):
     """
@@ -1168,7 +1001,6 @@ def generate_mardh(df_matdoc, df_mard_initial):
     """
     print("Generating MARDH (Historical Stock with batch tracking)...")
 
-    # Convert to pandas if needed
     if hasattr(df_matdoc, 'toPandas'):
         df_matdoc = df_matdoc.toPandas()
     if hasattr(df_mard_initial, 'toPandas'):
@@ -1202,7 +1034,7 @@ def generate_mardh(df_matdoc, df_mard_initial):
         ['MATNR', 'WERKS', 'LGORT', 'CHARG', 'LFGJA', 'LFMON']
     )['STOCK_CHANGE'].sum().reset_index()
 
-    # Get initial stock from MARD (now includes CHARG)
+    # Get initial stock from MARD
     mard_cols = ['MATNR', 'WERKS', 'LGORT', 'LABST']
     if 'CHARG' in df_mard_initial.columns:
         mard_cols.insert(3, 'CHARG')
@@ -1414,7 +1246,6 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
     supplier_scenarios = supplier_scenarios or {}
     ekbe_records = []
 
-    # Merge PO header with items
     df_po = df_ekpo.merge(df_ekko[['EBELN', 'LIFNR', 'BEDAT']], on='EBELN')
 
     for _, po in df_po.iterrows():
@@ -1504,7 +1335,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
 # COMMAND ----------
 
 # Main Execution
-# --- SMART CATALOG SETUP ---
+# SMART CATALOG SETUP
 target_catalog = CATALOG 
 setup_done = False
 print(f"Setup: Checking catalog '{target_catalog}'...")
@@ -1527,7 +1358,7 @@ if not setup_done:
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
 print(f"Active Target: {CATALOG}.{SCHEMA}")
 
-# --- READ MASTER DATA (Dynamically) ---
+# READ MASTER DATA (Dynamically)
 # Ensure we have the lists for generation
 df_mara = spark.table(f"{CATALOG}.{SCHEMA}.mara")
 df_kna1 = spark.table(f"{CATALOG}.{SCHEMA}.kna1")
@@ -1535,15 +1366,14 @@ df_kna1 = spark.table(f"{CATALOG}.{SCHEMA}.kna1")
 FINISHED_PRODUCTS = [row['MATNR'] for row in df_mara.filter("MTART = 'FERT'").select('MATNR').distinct().collect()]
 ALL_CUSTOMERS = [row['KUNNR'] for row in df_kna1.select('KUNNR').distinct().collect()]
 
-# --- 1. SALES ---
+# 1. SALES
 df_vbak, df_vbap, df_vbep = generate_sales_orders(FINISHED_PRODUCTS, ALL_CUSTOMERS)
 
-# Save clean versions
 save_sap_table(spark.createDataFrame(df_vbak), "vbak")
 save_sap_table(spark.createDataFrame(df_vbap), "vbap")
 save_sap_table(spark.createDataFrame(df_vbep), "vbep")
 
-# --- 2. PRE-SIMULATION TO DETERMINE PRODUCTION (for inventory constraints) ---
+# 2. PRE-SIMULATION TO DETERMINE PRODUCTION (for inventory constraints)
 # We need to know what will be produced BEFORE generating deliveries
 # This ensures deliveries don't exceed available stock
 print("Running pre-simulation to determine production quantities...")
@@ -1568,23 +1398,21 @@ for _, row in df_trans_presim.iterrows():
 
 print(f"Pre-populated {len(df_prod_presim)} production orders and {len(df_trans_presim)} transfers")
 
-# --- 2b. LOGISTICS (now constrained by available stock) ---
+# 2b. LOGISTICS (constrained by available stock)
 df_likp, df_lips, df_matdoc_sales, df_vbfa, delivered_vbelns = generate_logistics(df_vbak, df_vbap, df_vbep)
 
-# Save clean versions
 save_sap_table(spark.createDataFrame(df_likp), "likp")
 save_sap_table(spark.createDataFrame(df_lips), "lips")
 save_sap_table(spark.createDataFrame(df_vbfa), "vbfa")
 
-# --- 2c. SHIPMENTS ---
+# 2c. SHIPMENTS
 df_vttk, df_vttp, df_vtts = generate_shipments(df_likp, df_lips, df_vbap)
 
-# Save clean versions
 save_sap_table(spark.createDataFrame(df_vttk), "vttk")
 save_sap_table(spark.createDataFrame(df_vttp), "vttp")
 save_sap_table(spark.createDataFrame(df_vtts), "vtts")
 
-# --- 3. MARC SYNC (Fixed GroupBy) ---
+# 3. MARC SYNC
 print("Syncing Safety Stock to MARC...")
 # Merge VBEP with VBAP to get MATNR/WERKS - ONLY for delivered orders
 # This ensures production matches actual sales, not planned orders
@@ -1595,7 +1423,6 @@ df_demand_agg = df_demand_source.groupby(['MATNR', 'WERKS'])['BMENG'].sum().rese
 df_demand_agg['EISBE'] = (df_demand_agg['BMENG'] / 52 * SAFETY_STOCK_WEEKS).astype(int)
 df_demand_spark = spark.createDataFrame(df_demand_agg)
 
-# Sync to Table
 df_marc_current = spark.table(f"{CATALOG}.{SCHEMA}.marc").alias("m")
 df_marc_updated = (
     df_marc_current.join(df_demand_spark.alias("d"), ["MATNR", "WERKS"], "left")
@@ -1604,7 +1431,7 @@ df_marc_updated = (
 )
 save_sap_table(df_marc_updated, "marc")
 
-# --- 4. HUB & SPOKE SIM ---
+# 4. HUB & SPOKE SIM
 # Prepare Input (Rename BMENG -> PLNMG)
 df_sim_input_spark = spark.createDataFrame(
     df_demand_source[['MATNR', 'WERKS', 'BMENG', 'EDATU']]
@@ -1612,7 +1439,7 @@ df_sim_input_spark = spark.createDataFrame(
 )
 df_sim_results = run_network_simulation(df_sim_input_spark)
 
-# --- 4b. GENERATE PLAF (Planned Orders) ---
+# 4b. GENERATE PLAF (Planned Orders)
 # PLAF captures the MRP output BEFORE execution - both production and transfer plans
 print("Generating PLAF (Planned Orders)...")
 
@@ -1627,7 +1454,6 @@ def generate_plaf(df_sim_results):
     plaf_records = []
     plnum_counter = 1000000
 
-    # Convert to pandas for iteration
     sim_df = df_sim_results.toPandas()
 
     for _, row in sim_df.iterrows():
@@ -1678,7 +1504,7 @@ print(f"  Created {len(df_plaf)} planned orders")
 print(f"    - Production (BESKZ=E): {len(df_plaf[df_plaf['BESKZ']=='E'])}")
 print(f"    - Transfers (BESKZ=U):  {len(df_plaf[df_plaf['BESKZ']=='U'])}")
 
-# --- 5. PROD EXECUTION (Rebuild BOM Map HERE) ---
+# 5. PROD EXECUTION (Rebuild BOM Map HERE)
 print("Building BOM Map for Execution...")
 df_mast = spark.table(f"{CATALOG}.{SCHEMA}.mast")
 df_stpo = spark.table(f"{CATALOG}.{SCHEMA}.stpo")
@@ -1695,7 +1521,7 @@ for parent, stlnr in mast_dict.items():
     if stlnr in stpo_dict:
         bom_map[parent] = {'stlnr': stlnr, 'components': stpo_dict[stlnr]}
 
-# --- 5b. SUPPLIER RELIABILITY ---
+# 5b. SUPPLIER RELIABILITY
 # Get all raw materials and determine which have unreliable suppliers
 ALL_RAW_MATERIALS = [row['MATNR'] for row in df_mara.filter("MTART = 'ROH'").select('MATNR').distinct().collect()]
 unreliable_materials = get_unreliable_materials(ALL_RAW_MATERIALS, SUPPLIER_RELIABILITY_RATE, UNRELIABLE_MATERIALS_STR)
@@ -1719,18 +1545,17 @@ if len(df_resb) > 0:
 else:
     print("  Warning: No RESB records created (no raw material consumption)")
 
-# --- 5. FINAL MERGE ---
+# 5. FINAL MERGE
 df_matdoc_final = pd.concat([df_matdoc_sales, df_matdoc_prod], ignore_index=True)
 
-# Save clean version (scenarios injected via separate notebook)
 save_sap_table(spark.createDataFrame(df_matdoc_final), "matdoc")
 
-# --- 6. GENERATE MARDH (Historical Stock) ---
+# 6. GENERATE MARDH (Historical Stock)
 df_mard_initial = spark.table(f"{CATALOG}.{SCHEMA}.mard")
 df_mardh = generate_mardh(df_matdoc_final, df_mard_initial)
 save_sap_table(spark.createDataFrame(df_mardh), "mardh")
 
-# --- 7. GENERATE PURCHASE ORDERS (for supplier scenarios) ---
+# 7. GENERATE PURCHASE ORDERS (for supplier scenarios)
 print("\n--- Generating Purchase Order Data ---")
 
 # Check if prerequisite tables exist
@@ -1778,8 +1603,7 @@ print("Clean data generation complete.")
 
 # COMMAND ----------
 
-# Note: Dirty data is now applied via the separate 'Apply Dirty Data.py' notebook
-# This allows scenario injection to happen on clean data before dirtying
+# Dirty data is applied by the 'Apply Dirty Data' notebook, after scenario injection.
 
 print("\nTransaction Generation Complete.")
 print("Next steps: Scenario Injection (optional) -> Dirty Data (optional) -> Smoke Tests")

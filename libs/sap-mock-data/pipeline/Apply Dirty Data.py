@@ -1,16 +1,18 @@
 # Databricks notebook source
 # Apply Dirty Data Notebook
-# Applies dirty data transformations to transaction tables
+# Applies dirty data transformations to master data and transaction tables.
+# Run this notebook last, after Inject Scenarios: the generation and scenario
+# notebooks read clean tables.
 
 import pandas as pd
 import numpy as np
 import random
+import zlib
 import pyspark.sql.functions as F
 from pyspark.sql.types import *
 
 # COMMAND ----------
 
-# --- WIDGETS ---
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("RANDOM_SEED", "42", "Random Seed")
@@ -21,7 +23,6 @@ SCHEMA = dbutils.widgets.get("SCHEMA")
 RANDOM_SEED = int(dbutils.widgets.get("RANDOM_SEED"))
 DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
 
-# Set random seed
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 
@@ -30,8 +31,7 @@ print(f"Dirty Data Rate: {DIRTY_DATA_RATE}")
 
 # COMMAND ----------
 
-# --- DIRTY DATA HELPER FUNCTIONS ---
-
+# DIRTY DATA HELPER FUNCTIONS
 def dirty_key(value, dirty_rate=0.05):
     """Apply random dirty transformation to a key value."""
     if random.random() > dirty_rate:
@@ -59,7 +59,6 @@ def dirty_date(date_str, dirty_rate=0.05):
         return date_str
 
     try:
-        # Parse YYYYMMDD format
         date_str = str(date_str)
         year = date_str[:4]
         month = date_str[4:6]
@@ -149,35 +148,30 @@ def inject_nulls(df, columns, null_rate=0.02):
     return df_dirty
 
 
-def apply_dirty_data_transactions(df, table_name, config, dirty_rate, seed):
+def apply_dirty_data(df, table_name, config, dirty_rate, seed):
     """
-    Apply all dirty transformations to a transaction DataFrame.
+    Apply all dirty transformations to a DataFrame.
     Uses deterministic seed for reproducibility.
     """
     # Set seed for reproducibility within this table
-    np.random.seed(seed + hash(table_name) % 1000)
-    random.seed(seed + hash(table_name) % 1000)
+    np.random.seed(seed + zlib.crc32(table_name.encode()) % 1000)
+    random.seed(seed + zlib.crc32(table_name.encode()) % 1000)
 
     df_dirty = df.copy()
 
-    # Apply key format issues
     if 'key_columns' in config:
         df_dirty = dirty_dataframe(df_dirty, config['key_columns'], dirty_rate)
 
-    # Apply date format issues
     if 'date_columns' in config:
         df_dirty = dirty_date_column(df_dirty, config['date_columns'], dirty_rate)
 
-    # Apply orphan records
     if 'orphan_config' in config:
         for fk_col, rate, prefix in config['orphan_config']:
             df_dirty = inject_orphan_records(df_dirty, fk_col, rate, prefix)
 
-    # Apply duplicates
     if 'pk_column' in config and 'dup_rate' in config:
         df_dirty = inject_duplicates(df_dirty, config['pk_column'], config['dup_rate'])
 
-    # Apply nulls
     if 'null_columns' in config:
         df_dirty = inject_nulls(df_dirty, config['null_columns'], config.get('null_rate', 0.02))
 
@@ -191,7 +185,6 @@ def save_sap_table(df_spark, table_name, catalog, schema):
     """Save DataFrame to Delta table with schema alignment."""
     full_table_name = f"{catalog}.{schema}.{table_name}"
 
-    # Uppercase columns
     for col in df_spark.columns:
         df_spark = df_spark.withColumnRenamed(col, col.upper())
 
@@ -209,7 +202,6 @@ def save_sap_table(df_spark, table_name, catalog, schema):
             if col in df_spark.columns:
                 select_exprs.append(F.col(col).cast(field.dataType))
             else:
-                # Defaults
                 if isinstance(field.dataType, StringType):
                     select_exprs.append(F.lit("").cast(field.dataType).alias(col))
                 elif isinstance(field.dataType, (DoubleType, LongType, IntegerType)):
@@ -227,8 +219,41 @@ print(f"\n{'='*60}")
 print(f"APPLYING DIRTY DATA (rate={DIRTY_DATA_RATE}, seed={RANDOM_SEED})")
 print(f"{'='*60}")
 
-# Define dirty data configurations for each table
 dirty_configs = {
+    "kna1": {
+        'key_columns': ['KUNNR'],
+        'pk_column': 'KUNNR',
+        'dup_rate': 0.01,
+        'null_columns': ['NAME1'],
+        'null_rate': 0.02
+    },
+    "mara": {
+        'key_columns': ['MATNR'],
+        'pk_column': 'MATNR',
+        'dup_rate': 0.01,
+        'null_columns': ['MTART'],
+        'null_rate': 0.02
+    },
+    "makt": {
+        'key_columns': ['MATNR'],
+        'orphan_config': [('MATNR', 0.03, 'ORPHAN_MAT')]
+    },
+    "marc": {
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "mard": {
+        'key_columns': ['LGORT'],
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "mbew": {
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "marm": {
+        'orphan_config': [('MATNR', 0.02, 'ORPHAN_MAT')]
+    },
+    "stpo": {
+        'orphan_config': [('IDNRK', 0.02, 'ORPHAN_COMP')]
+    },
     "vbak": {
         'key_columns': ['VBELN', 'KUNNR'],
         'orphan_config': [('KUNNR', 0.02, 'ORPHAN_CUST')],
@@ -267,23 +292,44 @@ dirty_configs = {
         'orphan_config': [('VBELN', 0.02, 'ORPHAN_DEL')]
     },
     "matdoc": {
-        'key_columns': ['MBLNR', 'WERKS']
+        'key_columns': ['MBLNR', 'WERKS'],
+        # Scenario documents (MBLNR prefix 'SCN') stay clean.
+        'protect': ('MBLNR', 'SCN')
     }
 }
 
-# Process each table
+# Rows appended by Inject Scenarios stay clean; it records their keys in scenario_protection.
+protected_keys = {}
+if spark.catalog.tableExists(f"{CATALOG}.{SCHEMA}.scenario_protection"):
+    df_protection = spark.table(f"{CATALOG}.{SCHEMA}.scenario_protection").toPandas()
+    for row in df_protection.itertuples(index=False):
+        protected_keys.setdefault(row.TABLE_NAME, {}).setdefault(row.KEY_COLUMN, set()).add(str(row.KEY_VALUE))
+    print(f"Scenario protection: {len(df_protection)} keys loaded")
+else:
+    print("No scenario_protection table found")
+
 tables_processed = 0
 for table_name, config in dirty_configs.items():
     try:
         print(f"Dirtying {table_name.upper()}...")
 
-        # Read table
         df = spark.table(f"{CATALOG}.{SCHEMA}.{table_name}").toPandas()
 
-        # Apply dirty transformations
-        df_dirty = apply_dirty_data_transactions(df, table_name, config, DIRTY_DATA_RATE, RANDOM_SEED)
+        exempt = pd.Series(False, index=df.index)
+        if 'protect' in config:
+            protect_col, protect_prefix = config['protect']
+            exempt |= df[protect_col].astype(str).str.startswith(protect_prefix)
+        for key_column, key_values in protected_keys.get(table_name, {}).items():
+            if key_column in df.columns:
+                exempt |= df[key_column].astype(str).isin(key_values)
 
-        # Save back
+        table_config = {key: value for key, value in config.items() if key != 'protect'}
+        if exempt.any():
+            df_dirty = apply_dirty_data(df[~exempt], table_name, table_config, DIRTY_DATA_RATE, RANDOM_SEED)
+            df_dirty = pd.concat([df_dirty, df[exempt]], ignore_index=True)
+        else:
+            df_dirty = apply_dirty_data(df, table_name, table_config, DIRTY_DATA_RATE, RANDOM_SEED)
+
         save_sap_table(spark.createDataFrame(df_dirty), table_name, CATALOG, SCHEMA)
         tables_processed += 1
 
@@ -291,7 +337,7 @@ for table_name, config in dirty_configs.items():
         print(f"Warning: Could not process {table_name}: {str(e)}")
 
 print(f"\n{'='*60}")
-print(f"Dirty data applied to {tables_processed} transaction tables")
+print(f"Dirty data applied to {tables_processed} tables")
 print(f"{'='*60}")
 
 dbutils.notebook.exit(f"SUCCESS: {tables_processed} tables dirtied")
