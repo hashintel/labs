@@ -14,6 +14,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use sha2::{Digest as _, Sha256};
+use uuid::Uuid;
 
 use crate::blob::{ArtifactStore, BlobRef, CasVersion, CasWrite};
 use crate::secret::Secret;
@@ -202,11 +203,62 @@ pub struct ManagedDefinition {
     pub failure: Option<String>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SecretRef {
-    pub backend: String,
-    pub path: String,
+    pub entity_uuid: Uuid,
+}
+
+impl<'de> Deserialize<'de> for SecretRef {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase", deny_unknown_fields)]
+        struct Current {
+            entity_uuid: Uuid,
+        }
+
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Legacy {
+            backend: String,
+            path: String,
+        }
+
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Representation {
+            Current(Current),
+            Legacy(Legacy),
+        }
+
+        match Representation::deserialize(deserializer)? {
+            Representation::Current(Current { entity_uuid }) => Ok(Self { entity_uuid }),
+            Representation::Legacy(Legacy { backend, path }) => {
+                if backend != "hash-graph-vault" {
+                    return Err(serde::de::Error::custom(
+                        "legacy secret reference backend must be hash-graph-vault",
+                    ));
+                }
+                let mut parts = path.split('~');
+                let web_id = parts.next().unwrap_or_default();
+                let entity_uuid = parts.next().unwrap_or_default();
+                if parts.next().is_some() || Uuid::parse_str(web_id).is_err() {
+                    return Err(serde::de::Error::custom(
+                        "legacy secret reference path must be a HASH entity ID",
+                    ));
+                }
+                let entity_uuid = Uuid::parse_str(entity_uuid).map_err(|_error| {
+                    serde::de::Error::custom(
+                        "legacy secret reference path must be a HASH entity ID",
+                    )
+                })?;
+                Ok(Self { entity_uuid })
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -428,9 +480,14 @@ impl std::error::Error for ManagedError {}
 
 #[async_trait]
 pub trait SecretStore: Send + Sync {
-    async fn read(&self, reference: &SecretRef) -> Result<Secret<Vec<u8>>, ManagedError>;
+    async fn read(
+        &self,
+        web_id: &str,
+        reference: &SecretRef,
+    ) -> Result<Secret<Vec<u8>>, ManagedError>;
     async fn write_once(
         &self,
+        web_id: &str,
         reference: &SecretRef,
         value: Secret<Vec<u8>>,
     ) -> Result<(), ManagedError>;
@@ -441,21 +498,26 @@ pub struct InMemorySecretStore {
     values: RwLock<HashMap<SecretRefKey, Secret<Vec<u8>>>>,
 }
 
-type SecretRefKey = (String, String);
+type SecretRefKey = (String, Uuid);
 
 #[async_trait]
 impl SecretStore for InMemorySecretStore {
-    async fn read(&self, reference: &SecretRef) -> Result<Secret<Vec<u8>>, ManagedError> {
+    async fn read(
+        &self,
+        web_id: &str,
+        reference: &SecretRef,
+    ) -> Result<Secret<Vec<u8>>, ManagedError> {
         self.values
             .read()
             .map_err(|_poisoned| ManagedError::SecretUnavailable)?
-            .get(&(reference.backend.clone(), reference.path.clone()))
+            .get(&(web_id.to_owned(), reference.entity_uuid))
             .cloned()
             .ok_or(ManagedError::SecretUnavailable)
     }
 
     async fn write_once(
         &self,
+        web_id: &str,
         reference: &SecretRef,
         value: Secret<Vec<u8>>,
     ) -> Result<(), ManagedError> {
@@ -463,7 +525,7 @@ impl SecretStore for InMemorySecretStore {
             .values
             .write()
             .map_err(|_poisoned| ManagedError::SecretUnavailable)?;
-        let key = (reference.backend.clone(), reference.path.clone());
+        let key = (web_id.to_owned(), reference.entity_uuid);
         if values.contains_key(&key) {
             return Err(ManagedError::Conflict {
                 current_revision: None,
@@ -474,17 +536,21 @@ impl SecretStore for InMemorySecretStore {
     }
 }
 
-/// Fail-closed placeholder used until the platform supplies its Vault client.
 pub struct UnavailableVaultSecretStore;
 
 #[async_trait]
 impl SecretStore for UnavailableVaultSecretStore {
-    async fn read(&self, _reference: &SecretRef) -> Result<Secret<Vec<u8>>, ManagedError> {
+    async fn read(
+        &self,
+        _web_id: &str,
+        _reference: &SecretRef,
+    ) -> Result<Secret<Vec<u8>>, ManagedError> {
         Err(ManagedError::SecretUnavailable)
     }
 
     async fn write_once(
         &self,
+        _web_id: &str,
         _reference: &SecretRef,
         _value: Secret<Vec<u8>>,
     ) -> Result<(), ManagedError> {
@@ -699,7 +765,13 @@ impl ManagedStore {
             ));
         }
         if let Some(secret) = secret {
-            self.secrets.write_once(&binding.secret_ref, secret).await?;
+            self.secrets
+                .write_once(&binding.web_id, &binding.secret_ref, secret)
+                .await?;
+        } else {
+            self.secrets
+                .read(&binding.web_id, &binding.secret_ref)
+                .await?;
         }
         let key = binding_key(&binding.web_id, &binding.connector_id, &binding.binding_id);
         match self
@@ -786,6 +858,7 @@ impl ManagedStore {
                 match self
                     .secrets
                     .write_once(
+                        &target.web_id,
                         &target.secret_ref,
                         Secret::new(challenge.as_bytes().to_vec()),
                     )
@@ -793,7 +866,10 @@ impl ManagedStore {
                 {
                     Ok(()) => {}
                     Err(ManagedError::Conflict { .. }) => {
-                        let existing = self.secrets.read(&target.secret_ref).await?;
+                        let existing = self
+                            .secrets
+                            .read(&target.web_id, &target.secret_ref)
+                            .await?;
                         if existing.expose() != challenge.as_bytes() {
                             return Err(ManagedError::DeliveryCollision);
                         }
@@ -809,7 +885,10 @@ impl ManagedStore {
                 .get_definition(&target.web_id, &target.connector_id)
                 .await?;
             if provider == WebhookProvider::Slack && envelope.challenge.is_some() {
-                let secret = self.secrets.read(&target.secret_ref).await?;
+                let secret = self
+                    .secrets
+                    .read(&target.web_id, &target.secret_ref)
+                    .await?;
                 verify(provider, headers, body, secret.expose(), now_unix_seconds)?;
                 enabled.push((target, definition));
                 continue;
@@ -823,7 +902,10 @@ impl ManagedStore {
             {
                 return Err(ManagedError::BacklogFull);
             }
-            let secret = self.secrets.read(&target.secret_ref).await?;
+            let secret = self
+                .secrets
+                .read(&target.web_id, &target.secret_ref)
+                .await?;
             verify(provider, headers, body, secret.expose(), now_unix_seconds)?;
             enabled.push((target, definition));
         }
@@ -1572,6 +1654,52 @@ mod tests {
     use serde_json::json;
     use tempfile::tempdir;
 
+    const SECRET_UUID: &str = "22222222-2222-4222-8222-222222222222";
+
+    #[test]
+    fn secret_reference_serializes_as_an_entity_uuid() {
+        let reference = SecretRef {
+            entity_uuid: Uuid::parse_str(SECRET_UUID).expect("fixture secret UUID should be valid"),
+        };
+
+        let value =
+            serde_json::to_value(reference).expect("secret reference should serialize as JSON");
+
+        assert_eq!(
+            value,
+            json!({ "entityUuid": SECRET_UUID }),
+            "secret reference should serialize only its entity UUID"
+        );
+    }
+
+    #[test]
+    fn legacy_hash_graph_vault_reference_keeps_its_entity_uuid() {
+        let reference: SecretRef = serde_json::from_value(json!({
+            "backend": "hash-graph-vault",
+            "path": format!("11111111-1111-4111-8111-111111111111~{SECRET_UUID}")
+        }))
+        .expect("legacy HASH Graph Vault reference should deserialize");
+
+        assert_eq!(
+            reference.entity_uuid.to_string(),
+            SECRET_UUID,
+            "legacy HASH Graph Vault reference should keep its entity UUID"
+        );
+    }
+
+    #[test]
+    fn rejects_a_legacy_memory_reference() {
+        let result = serde_json::from_value::<SecretRef>(json!({
+            "backend": "memory",
+            "path": "github/7"
+        }));
+
+        assert!(
+            result.is_err(),
+            "legacy memory reference should fail deserialization"
+        );
+    }
+
     fn definition(entity_type: &str) -> Value {
         json!({
             "connector": {
@@ -1666,8 +1794,7 @@ mod tests {
             .await
             .expect("enable");
         let secret_ref = SecretRef {
-            backend: "memory".to_owned(),
-            path: "github/7".to_owned(),
+            entity_uuid: Uuid::new_v4(),
         };
         store
             .bind(
@@ -1683,7 +1810,14 @@ mod tests {
             )
             .await
             .expect("bind");
-        assert!(secrets.read(&secret_ref).await.is_ok());
+        assert!(
+            secrets.read("web", &secret_ref).await.is_ok(),
+            "secret reference should resolve in its binding web"
+        );
+        assert!(
+            secrets.read("other-web", &secret_ref).await.is_err(),
+            "in-memory secret store should isolate values by web"
+        );
         let body = br#"{"installation":{"id":7},"action":"opened","future":{"kept":true}}"#;
         let headers = BTreeMap::from([
             ("x-github-delivery".to_owned(), "delivery-1".to_owned()),

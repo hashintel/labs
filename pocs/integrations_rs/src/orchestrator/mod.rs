@@ -10,6 +10,7 @@ mod conformance;
 pub mod control;
 pub mod events;
 pub mod gc;
+pub mod hash_graph_vault;
 pub mod ids;
 mod inbox;
 mod internal_metadata;

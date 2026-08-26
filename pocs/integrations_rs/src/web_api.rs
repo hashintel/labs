@@ -24,6 +24,7 @@ use axum::Json;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
+use uuid::Uuid;
 
 use crate::application::{
     ApplicationError, ApplicationErrorKind, IntegrationService, RequestContext, SubmitIntegration,
@@ -183,10 +184,10 @@ pub struct BindManagedRequest {
     pub binding_id: String,
     pub provider: String,
     pub external_id: String,
-    pub secret_backend: String,
-    pub secret_path: String,
-    /// Optional write-once bootstrap value. It is never returned or persisted
-    /// in object storage; production rejects it until Vault is available.
+    #[schemars(with = "String")]
+    pub secret_entity_uuid: Uuid,
+    /// A write-once value for secret stores that support bootstrap writes.
+    /// The value is never returned or stored in object storage.
     pub secret: Option<String>,
 }
 
@@ -403,8 +404,7 @@ async fn bind_managed(
         web_id,
         connector_id,
         secret_ref: SecretRef {
-            backend: request.secret_backend,
-            path: request.secret_path,
+            entity_uuid: request.secret_entity_uuid,
         },
     };
     let secret = request
@@ -967,8 +967,7 @@ mod tests {
                             "bindingId": "github-7",
                             "provider": "github",
                             "externalId": "7",
-                            "secretBackend": "memory",
-                            "secretPath": "github/7",
+                            "secretEntityUuid": "22222222-2222-4222-8222-222222222222",
                             "secret": "secret"
                         })
                         .to_string(),

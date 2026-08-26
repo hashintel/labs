@@ -122,8 +122,13 @@ POST   /v1/hooks/notion/{binding_id}
 Webhook payloads are signature-checked as exact raw bytes, stored
 content-addressed, and then create-written as tenant receipts. Only after both
 objects are durable is the request acknowledged. Delivery-ID redelivery is
-idempotent; reusing an ID with different bytes is rejected. Production webhook
-activation remains fail-closed until a Vault-backed `SecretStore` is supplied.
+idempotent; reusing an ID with different bytes is rejected.
+
+Production bindings use secrets created by HASH. Set `secretEntityUuid` to the
+User Secret entity UUID and leave the `secret` field out. The worker queries
+Graph with the binding web ID and entity UUID, then reads Vault directly. The
+bind request succeeds only when Graph returns one active User Secret and Vault
+returns its value. The stored binding contains only the entity UUID.
 
 ## Required configuration
 
@@ -148,7 +153,21 @@ Graph delivery requires:
 ```text
 HASH_GRAPH_URL=<Graph base URL>
 HASH_ACTOR_ID=<node actor UUID used for activation and direct CLI submissions>
+HASH_GRAPH_SERVICE_SECRET=<service credential sent with delegated Graph requests>
 ```
+
+Reading HASH User Secrets requires these settings:
+
+```text
+HASH_VAULT_HOST=<Vault URL without its port>
+HASH_VAULT_PORT=<Vault port>
+HASH_VAULT_MOUNT_PATH=<KV v2 mount path>
+HASH_VAULT_TOKEN=<read-only Vault token>
+```
+
+Local environments may set `HASH_VAULT_ROOT_TOKEN` to the Vault development
+root token used by the HASH API. Deployments should use a service token with
+read access to the User Secret paths assigned to the integration worker.
 
 Graph authorization is enforced at the trusted submission boundary and by the
 Graph on each delivery. The engine does not use managed entities to probe an

@@ -224,10 +224,20 @@ impl DurableIntegrationService {
             kind: ApplicationErrorKind::Unavailable,
             message: format!("open managed integration storage failed: {error:?}"),
         })?;
-        Ok(ManagedStore::new(
-            blobs,
-            std::sync::Arc::new(crate::orchestrator::managed::UnavailableVaultSecretStore),
-        ))
+        let secrets: std::sync::Arc<dyn crate::orchestrator::managed::SecretStore> =
+            match crate::orchestrator::hash_graph_vault::HashGraphVaultSecretStore::from_env(
+                &self.env,
+            )
+            .map_err(|message| ApplicationError {
+                kind: ApplicationErrorKind::Unavailable,
+                message,
+            })? {
+                Some(store) => std::sync::Arc::new(store),
+                None => {
+                    std::sync::Arc::new(crate::orchestrator::managed::UnavailableVaultSecretStore)
+                }
+            };
+        Ok(ManagedStore::new(blobs, secrets))
     }
 }
 
