@@ -1353,13 +1353,14 @@ def inject_demand_increase(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'ERNAM': 'SCENARIO',
             'AUDAT': order_date.strftime('%Y%m%d'),
             'VBTYP': 'C',
-            'AUART': 'TA',
+            'AUART': 'OR',
             'VKORG': '1000',
             'VTWEG': '10',
             'SPART': '00',
             'KUNNR': customer,
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'VDATU': delivery_date.strftime('%Y%m%d'),
+            'WAERK': param('DATASET_CURRENCY'),
             'BSTNK': f'{scenario_id}-{i+1:03d}',
             'LIFSK': '',
             'FAKSK': ''
@@ -1375,7 +1376,7 @@ def inject_demand_increase(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': param('DATASET_CURRENCY'),
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -1450,13 +1451,14 @@ def inject_emergency_order(scenario_id, config, df_vbak, df_kna1):
         'ERNAM': 'EMERGENCY',
         'AUDAT': order_date.strftime('%Y%m%d'),
         'VBTYP': 'C',
-        'AUART': 'SO',  # Rush order type
+        'AUART': 'OR',
         'VKORG': '1000',
         'VTWEG': '10',
         'SPART': '00',
         'KUNNR': customer,
         'NETWR': net_value,
-        'WAERK': 'USD',
+        'VDATU': due_date.strftime('%Y%m%d'),
+        'WAERK': param('DATASET_CURRENCY'),
         'BSTNK': f'{scenario_id}-URGENT',
         'LIFSK': '',
         'FAKSK': ''
@@ -1472,7 +1474,7 @@ def inject_emergency_order(scenario_id, config, df_vbak, df_kna1):
         'KWMENG': qty,
         'MEINS': 'PC',
         'NETWR': net_value,
-        'WAERK': 'USD',
+        'WAERK': param('DATASET_CURRENCY'),
         'ABGRU': '',
         'PSTYV': 'TAN'
     }]
@@ -1576,13 +1578,14 @@ def inject_shortage_demand(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'ERNAM': 'CRITICAL',
             'AUDAT': order_date.strftime('%Y%m%d'),
             'VBTYP': 'C',
-            'AUART': 'SO',  # Rush order
+            'AUART': 'OR',
             'VKORG': '1000',
             'VTWEG': '10',
             'SPART': '00',
             'KUNNR': customer,
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'VDATU': delivery_date.strftime('%Y%m%d'),
+            'WAERK': param('DATASET_CURRENCY'),
             'BSTNK': f'{scenario_id}-CRITICAL-{i+1:03d}',
             'LIFSK': '',
             'FAKSK': ''
@@ -1598,7 +1601,7 @@ def inject_shortage_demand(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': param('DATASET_CURRENCY'),
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -1739,13 +1742,14 @@ def inject_new_product(scenario_id, config, df_mara, df_makt, df_marc, df_mast, 
             'ERNAM': 'NPI_LAUNCH',
             'AUDAT': order_date.strftime('%Y%m%d'),
             'VBTYP': 'C',
-            'AUART': 'TA',
+            'AUART': 'OR',
             'VKORG': '1000',
             'VTWEG': '10',
             'SPART': '00',
             'KUNNR': customer,
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'VDATU': delivery_date.strftime('%Y%m%d'),
+            'WAERK': param('DATASET_CURRENCY'),
             'BSTNK': f'{scenario_id}-NPI-{i+1:03d}',
             'LIFSK': '',
             'FAKSK': ''
@@ -1761,7 +1765,7 @@ def inject_new_product(scenario_id, config, df_mara, df_makt, df_marc, df_mast, 
             'KWMENG': qty,
             'MEINS': 'PC',
             'NETWR': net_value,
-            'WAERK': 'USD',
+            'WAERK': param('DATASET_CURRENCY'),
             'ABGRU': '',
             'PSTYV': 'TAN'
         })
@@ -1843,7 +1847,7 @@ def inject_equipment_failure(scenario_id, config, df_afko):
             new_finish = new_start + timedelta(days=random.randint(3, 10))
             new_record['GSTRP'] = new_start.strftime('%Y%m%d')
             new_record['GLTRP'] = new_finish.strftime('%Y%m%d')
-            new_record['STAT'] = 'RSCH'  # Rescheduled status
+            new_record['STAT'] = 'REL'
             rescheduled_orders.append(new_record)
 
     print(f"    Affected: {len(affected_orders)} production orders")
@@ -2125,7 +2129,9 @@ def inject_competing_production(scenario_id, config, df_afko, df_vbak, df_kna1):
                     'ERDAT': order_start.strftime('%Y%m%d'),
                     'NETWR': round(qty * random.uniform(50, 150), 2),
                     'VDATU': req_date,
-                    'WAERK': 'GBP'
+                    'WAERK': param('DATASET_CURRENCY'),
+                    'ERNAM': 'COMPETING',
+                    'BSTNK': f'{scenario_id}-COMPETING-{week:02d}-{i:02d}-{j:02d}'
                 })
 
                 new_vbap.append({
@@ -2139,7 +2145,7 @@ def inject_competing_production(scenario_id, config, df_afko, df_vbak, df_kna1):
                     'MEINS': 'PC',
                     'NETPR': round(random.uniform(50, 150), 2),
                     'NETWR': round(qty * random.uniform(50, 150), 2),
-                    'WAERK': 'GBP'
+                    'WAERK': param('DATASET_CURRENCY')
                 })
 
                 new_vbep.append({
@@ -2209,17 +2215,17 @@ def inject_high_volatility(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
         lead_time = random.choice([3, 5, 7, 10, 14, 21])  # Highly variable
         req_date = (order_date + timedelta(days=lead_time)).strftime('%Y%m%d')
 
-        order_type = random.choice(['OR', 'OR', 'OR', 'SO'])  # 25% rush orders
-
         new_vbak.append({
             'MANDT': '800',
             'VBELN': vbeln,
-            'AUART': order_type,
+            'AUART': 'OR',
             'KUNNR': customer,
             'ERDAT': order_date.strftime('%Y%m%d'),
             'NETWR': round(qty * random.uniform(50, 200), 2),
             'VDATU': req_date,
-            'WAERK': 'GBP'
+            'WAERK': param('DATASET_CURRENCY'),
+            'ERNAM': 'VOLATILITY',
+            'BSTNK': f'{scenario_id}-VOLATILITY-{i+1:03d}'
         })
 
         new_vbap.append({
@@ -2233,7 +2239,7 @@ def inject_high_volatility(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
             'MEINS': 'PC',
             'NETPR': round(random.uniform(50, 200), 2),
             'NETWR': round(qty * random.uniform(50, 200), 2),
-            'WAERK': 'GBP'
+            'WAERK': param('DATASET_CURRENCY')
         })
 
         new_vbep.append({
@@ -3342,7 +3348,7 @@ def generate(wh):
                 df_afko = wh.read("afko")
 
                 if changes.get('cancelled'):
-                    df_afko.loc[df_afko['AUFNR'].isin(changes['cancelled']), 'STAT'] = 'CANC'
+                    df_afko.loc[df_afko['AUFNR'].isin(changes['cancelled']), 'STAT'] = 'DLFL'
                     print(f"  Cancelled {len(changes['cancelled'])} AFKO orders (SCN015)")
 
                 if changes.get('rescheduled'):

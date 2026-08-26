@@ -51,8 +51,8 @@ with `JAVA_HOME` configured. Databricks supplies its own Spark and Java runtime.
 
 ### With Nix
 
-The default Nix shell provides pinned Python and uv executables. It deliberately
-keeps the same uv-managed Python dependency workflow as the non-Nix setup:
+The default Nix shell provides pinned Python and uv executables. It uses the
+same uv-managed Python dependency workflow as the non-Nix setup:
 
 ```console
 nix develop
@@ -79,7 +79,12 @@ from sap_mock_data import GenerationConfig, generate_dataset
 from sap_mock_data.storage import DeltaTableStore
 
 result = generate_dataset(
-    GenerationConfig(random_seed=42, scale_factor=1, scenarios="demo"),
+    GenerationConfig(
+        random_seed=42,
+        scale_factor=1,
+        scenarios="demo",
+        currency="EUR",
+    ),
     DeltaTableStore(".mock-warehouse"),
 )
 print(result.table_count, result.row_counts)
@@ -102,10 +107,16 @@ GenerationConfig(
 )
 ```
 
+### Currency
+
+`GenerationConfig.currency` sets the three-letter currency code used by all
+monetary tables. It defaults to `EUR` and stores the code in uppercase. The CLI
+accepts the same setting through `--currency`.
+
 ## CLI
 
 ```console
-uv run sap-mock generate .mock-warehouse --scale-factor 0.1 --scenarios none
+uv run sap-mock generate .mock-warehouse --scale-factor 0.1 --scenarios none --currency EUR
 uv run sap-mock manifest .mock-warehouse --integrity --output manifest.json
 uv run sap-mock --help
 ```

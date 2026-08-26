@@ -8,7 +8,13 @@ from faker import Faker
 import random
 from datetime import datetime, timedelta
 
-from .common import param, seed_all
+from .common import (
+    PLANT_CONFIG,
+    customs_days,
+    param,
+    seed_all,
+    transport_modes_for_lane,
+)
 
 PREDEFINED_USERS = ['USER_A', 'USER_B', 'ADMIN', 'JOHNDOE', 'AUTO_JOB']
 
@@ -278,7 +284,8 @@ def generate_sales_orders(finished_goods, all_customers):
             order_lines.append({
                 'MANDT': '800', 'VBELN': vbeln, 'POSNR': posnr, 'MATNR': matnr,
                 'WERKS': werks, 'LGORT': 'FG01', 'KWMENG': qty, 'MEINS': 'PC',
-                'NETPR': round(unit_price, 2), 'NETWR': line_value, 'WAERK': 'GBP'
+                'NETPR': round(unit_price, 2), 'NETWR': line_value,
+                'WAERK': param('DATASET_CURRENCY')
             })
             vbep.append({
                 'MANDT': '800', 'VBELN': vbeln, 'POSNR': posnr, 'ETENR': '0001',
@@ -287,7 +294,9 @@ def generate_sales_orders(finished_goods, all_customers):
 
         vbak.append({
             'MANDT': '800', 'VBELN': vbeln, 'AUART': 'OR', 'KUNNR': kunnr,
-            'ERDAT': order_date, 'NETWR': round(order_total, 2), 'VDATU': req_date, 'WAERK': 'GBP'
+            'ERDAT': order_date, 'NETWR': round(order_total, 2),
+            'VDATU': req_date, 'WAERK': param('DATASET_CURRENCY'),
+            'ERNAM': random.choice(PREDEFINED_USERS), 'BSTNK': f'PO-{vbeln}'
         })
         vbap.extend(order_lines)
 
@@ -373,16 +382,6 @@ def generate_logistics(df_vbak, df_vbap, df_vbep):
     return likp, lips, matdoc, vbfa, actual_delivered_vbelns
 
 
-PLANT_LOCATIONS = {
-    '1000': {'name': 'London', 'country': 'GB', 'xpos': -0.1278, 'ypos': 51.5074},
-    '2000': {'name': 'Rotterdam', 'country': 'NL', 'xpos': 4.4777, 'ypos': 51.9244},
-    '3000': {'name': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
-    '4000': {'name': 'Warsaw', 'country': 'PL', 'xpos': 21.0122, 'ypos': 52.2297},
-}
-
-EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
-PORT_PLANTS = {'1000', '2000'}
-
 TRANSPORT_MODES = {
     'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'vsart': '01'},
     'SEA': {'speed_kmh': 25, 'cost_per_km': 0.15, 'vsart': '03'},
@@ -397,34 +396,17 @@ def haversine_km(lat1, lon1, lat2, lon2):
     a = sin(dlat/2)**2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon/2)**2
     return R * 2 * asin(sqrt(a))
 
-def customs_days(country_from, country_to):
-    """Calculate customs delay days based on border crossing."""
-    from_eu = country_from in EU_COUNTRIES
-    to_eu = country_to in EU_COUNTRIES
-    from_gb = country_from == 'GB'
-    to_gb = country_to == 'GB'
-    if (from_gb and to_eu) or (from_eu and to_gb):
-        return 1
-    return 0
-
 def get_route_code(from_plant, to_plant):
     """Generate route code in format R{FROM}{TO}."""
     return f"R{from_plant[:2]}{to_plant[:2]}"
 
 def get_best_transport_mode(from_plant, to_plant, distance_km):
     """Determine the best transport mode based on cost."""
-    available_modes = ['ROAD', 'AIR']
-    if from_plant in PORT_PLANTS and to_plant in PORT_PLANTS and distance_km > 200:
-        available_modes.append('SEA')
-
-    min_cost = float('inf')
-    best_mode = 'ROAD'
-    for mode in available_modes:
-        cost = distance_km * TRANSPORT_MODES[mode]['cost_per_km']
-        if cost < min_cost:
-            min_cost = cost
-            best_mode = mode
-    return best_mode
+    available_modes = transport_modes_for_lane(from_plant, to_plant, distance_km)
+    return min(
+        available_modes,
+        key=lambda mode: TRANSPORT_MODES[mode]['cost_per_km'],
+    )
 
 def generate_shipments(df_likp, df_lips, df_vbap):
     """
@@ -470,11 +452,11 @@ def generate_shipments(df_likp, df_lips, df_vbap):
 
         delivery_date_str = first_item.get('LFDAT', datetime.now().strftime('%Y%m%d'))
 
-        dest_plants = [p for p in PLANT_LOCATIONS.keys() if p != source_plant]
+        dest_plants = [p for p in PLANT_CONFIG if p != source_plant]
         dest_plant = random.choice(dest_plants) if dest_plants else '2000'
 
-        from_info = PLANT_LOCATIONS.get(source_plant, PLANT_LOCATIONS['1000'])
-        to_info = PLANT_LOCATIONS.get(dest_plant, PLANT_LOCATIONS['2000'])
+        from_info = PLANT_CONFIG.get(source_plant, PLANT_CONFIG['1000'])
+        to_info = PLANT_CONFIG.get(dest_plant, PLANT_CONFIG['2000'])
 
         distance_km = haversine_km(
             from_info['ypos'], from_info['xpos'],
@@ -650,6 +632,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
     afko, resb, matdoc = [], [], []
     matdoc_id = 9000000000
     shortage_doc_id = 7000000000  # Separate counter for shortage docs
+    reservation_number_counter = 5000000000
 
     # A separate stream keeps supplier outcomes independent of production draws.
     supplier_rng = random.Random(RANDOM_SEED + 999)
@@ -667,10 +650,14 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
         date = row['DATE']
 
         aufnr = f"ORD{random.randint(1000000,9999999)}"
+        reservation_number = ''
+        if matnr in bom_map:
+            reservation_number_counter += 1
+            reservation_number = str(reservation_number_counter)
 
         actual_qty = planned_qty
         shortage_components = []
-        status = 'COMP'  # Default: Complete
+        status = 'CNF'
         shortage_reason = ''
 
         if matnr in bom_map and unreliable_materials:
@@ -697,12 +684,12 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
         actual_qty = int(actual_qty)
 
         if actual_qty <= 0:
-            status = 'BLCK'  # Blocked - no production possible
+            status = 'CRTD'
             actual_qty = 0
             shortage_reason = f"Blocked: insufficient {', '.join(s['material'] for s in shortage_components)}"
             stats['blocked'] += 1
         elif actual_qty < planned_qty:
-            status = 'PART'  # Partial production
+            status = 'PCNF'
             shortage_parts = [s['material'] + '(' + str(int(s['delivery_rate']*100)) + '%)' for s in shortage_components]
             shortage_reason = 'Partial: ' + ', '.join(shortage_parts)
             stats['partial'] += 1
@@ -717,8 +704,9 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
             'IGMNG': actual_qty,       # Actual produced quantity
             'GSTRP': date,
             'WERKS': plant,
-            'STAT': status,            # Status: COMP/PART/BLCK
-            'RUESSION': shortage_reason  # Reason for shortage/block
+            'RSNUM': reservation_number,
+            'STAT': status,
+            'ZZ_SHORTAGE_REASON': shortage_reason
         })
 
         if actual_qty > 0:
@@ -749,37 +737,39 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
             for i, comp in enumerate(bom['components']):
                 actual_consumption = comp['qty'] * actual_qty
 
-                if actual_consumption > 0:
-                    comp_batch, consumed_qty = select_batch_for_issue(comp['child_mat'], plant, 'RM01', actual_consumption)[0]
+                comp_batch, consumed_qty = select_batch_for_issue(
+                    comp['child_mat'], plant, 'RM01', actual_consumption
+                )[0]
+                resb.append({
+                    'MANDT': '800', 'RSNUM': reservation_number, 'RSPOS': f"{i+1:04d}",
+                    'AUFNR': aufnr,
+                    'MATNR': comp['child_mat'],
+                    'BDMNG': comp['qty'] * planned_qty,
+                    'ENMNG': consumed_qty,
+                    'WERKS': plant, 'LGORT': 'RM01'
+                })
 
-                    if consumed_qty > 0:
-                        resb.append({
-                            'MANDT': '800', 'RSNUM': aufnr, 'RSPOS': f"{i+1:04d}",
-                            'MATNR': comp['child_mat'],
-                            'BDMNG': comp['qty'] * planned_qty,  # Planned requirement
-                            'ENMNG': consumed_qty,                # Actual withdrawal (limited to stock)
-                            'WERKS': plant, 'LGORT': 'RM01'
-                        })
-                        matdoc.append({
-                            'MANDT': '800',
-                            'MBLNR': str(matdoc_id),
-                            'MJAHR': '2025',
-                            'ZEILE': '0001',
-                            'BWART': '261',
-                            'MATNR': comp['child_mat'],
-                            'WERKS': plant,
-                            'LGORT': 'RM01',
-                            'CHARG': comp_batch,
-                            'SHKZG': 'H',
-                            'MENGE': consumed_qty,  # Use actual consumed (limited to stock)
-                            'MEINS': 'PC',
-                            'BUDAT': date,
-                            'CPUDT': date,
-                            'CPUTM': '070000',
-                            'AUFNR': aufnr,
-                            'BKTXT': 'GI for Production',
-                        })
-                        matdoc_id += 1
+                if consumed_qty > 0:
+                    matdoc.append({
+                        'MANDT': '800',
+                        'MBLNR': str(matdoc_id),
+                        'MJAHR': '2025',
+                        'ZEILE': '0001',
+                        'BWART': '261',
+                        'MATNR': comp['child_mat'],
+                        'WERKS': plant,
+                        'LGORT': 'RM01',
+                        'CHARG': comp_batch,
+                        'SHKZG': 'H',
+                        'MENGE': consumed_qty,
+                        'MEINS': 'PC',
+                        'BUDAT': date,
+                        'CPUDT': date,
+                        'CPUTM': '070000',
+                        'AUFNR': aufnr,
+                        'BKTXT': 'GI for Production',
+                    })
+                    matdoc_id += 1
 
         for shortage in shortage_components:
             if shortage['shortage'] > 0:
@@ -1043,7 +1033,7 @@ def generate_purchase_orders(df_eina, df_eine, df_matdoc, num_months=12):
                 'LIFNR': lifnr,
                 'EKORG': '1000',  # Purchasing org
                 'EKGRP': 'P01',  # Purchasing group
-                'WAERS': 'USD',  # Currency
+                'WAERS': param('DATASET_CURRENCY'),
                 'BEDAT': po_date.strftime('%Y%m%d'),  # PO date
                 'AEDAT': po_date.strftime('%Y%m%d'),  # Creation date
                 'ERNAM': random.choice(PREDEFINED_USERS),
@@ -1144,7 +1134,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
             'MANDT': '800',
             'EBELN': ebeln,
             'EBELP': po['EBELP'],
-            'ZEESSION': '0001',  # Sequential number
+            'ZEKKN': '0001',
             'VGABE': '1',  # Transaction type (1 = GR)
             'BEWTP': 'E',  # History category (E = Goods receipt)
             'BWART': '101',  # Movement type
@@ -1153,7 +1143,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
             'BPMNG': actual_qty,  # Quantity in PO unit
             'DMBTR': round(actual_qty * po['NETPR'], 2),  # Amount in local currency
             'WRBTR': round(actual_qty * po['NETPR'], 2),  # Amount in doc currency
-            'WAERS': 'USD',
+            'WAERS': param('DATASET_CURRENCY'),
             'SHKZG': 'S',  # Debit/Credit (S = credit/increase)
             'MATNR': matnr,
             'WERKS': po['WERKS'],
@@ -1266,7 +1256,7 @@ def generate(wh):
 
     FINISHED_PRODUCTS = [row['MATNR'] for row in df_mara[df_mara["MTART"] == "FERT"][['MATNR']].drop_duplicates().to_dict("records")]
     ALL_CUSTOMERS = [row['KUNNR'] for row in wh.read("kna1")[['KUNNR']].drop_duplicates().to_dict("records")]
-    PLANTS = ['1000', '2000', '3000', '4000']
+    PLANTS = list(PLANT_CONFIG)
 
     SALES_MARKUP = 0.35  # 35% markup on cost for selling price
     price_rows = df_mbew[['MATNR', 'BWKEY', 'STPRS']].to_dict("records")

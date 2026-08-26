@@ -28,6 +28,7 @@ dbutils.widgets.text("MOQ_RAW_MIN", "1000", "MOQ Raw Materials (Min)")
 dbutils.widgets.text("MOQ_RAW_MAX", "10000", "MOQ Raw Materials (Max)")
 dbutils.widgets.text("GENERATE_DIRTY_DATA", "false", "Generate Dirty Data (true/false)")
 dbutils.widgets.text("DIRTY_DATA_RATE", "0.05", "Dirty Data Rate (0.0-1.0)")
+dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
 
 CATALOG = dbutils.widgets.get("CATALOG")
 SCHEMA = dbutils.widgets.get("SCHEMA")
@@ -41,6 +42,7 @@ MOQ_RAW_MIN = int(dbutils.widgets.get("MOQ_RAW_MIN"))
 MOQ_RAW_MAX = int(dbutils.widgets.get("MOQ_RAW_MAX"))
 GENERATE_DIRTY_DATA = dbutils.widgets.get("GENERATE_DIRTY_DATA").lower() == "true"
 DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
+DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
 # --- FIXED SEEDING ---
 Faker.seed(RANDOM_SEED)
@@ -53,8 +55,15 @@ print(f"Target: {CATALOG}.{SCHEMA} | Seed: {RANDOM_SEED}")
 print(f"Universe: {NUM_CUSTOMERS} customers, {NUM_FINISHED_GOODS} finished goods, {NUM_RAW_MATERIALS} raw materials")
 print(f"Dirty Data: {'ENABLED' if GENERATE_DIRTY_DATA else 'disabled'} (rate={DIRTY_DATA_RATE})")
 
-# --- UNIVERSE DEFINITION ---
-PREDEFINED_PLANTS = ['1000', '2000', '3000', '4000']
+PLANT_CONFIG = {
+    '1000': {'name': 'Manufacturing Hub', 'name2': 'Primary Production', 'country': 'DE', 'region': 'BW', 'city': 'Stuttgart', 'street': 'Pharmastrasse 100', 'postal': '70173', 'plant_type': 'PROD', 'calendar': 'DE', 'xpos': 9.1829, 'ypos': 48.7758},
+    '2000': {'name': 'Regional DC Europe', 'name2': 'Distribution Center', 'country': 'DE', 'region': 'HE', 'city': 'Frankfurt', 'street': 'Logistikweg 50', 'postal': '60313', 'plant_type': 'DC', 'calendar': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
+    '3000': {'name': 'Regional DC Americas', 'name2': 'Distribution Center', 'country': 'US', 'region': 'NJ', 'city': 'Newark', 'street': '500 Distribution Blvd', 'postal': '07102', 'plant_type': 'DC', 'calendar': 'US', 'xpos': -74.1724, 'ypos': 40.7357},
+    '4000': {'name': 'Regional DC Asia Pacific', 'name2': 'Distribution Center', 'country': 'SG', 'region': '', 'city': 'Singapore', 'street': '10 Changi Business Park', 'postal': '486030', 'plant_type': 'DC', 'calendar': 'SG', 'xpos': 103.8198, 'ypos': 1.3521},
+    '5000': {'name': 'Secondary Manufacturing', 'name2': 'Backup Production Site', 'country': 'IE', 'region': 'CO', 'city': 'Cork', 'street': 'Pharma Park 25', 'postal': 'T12 ABC1', 'plant_type': 'PROD', 'calendar': 'IE', 'xpos': -8.4756, 'ypos': 51.8985},
+}
+
+PREDEFINED_PLANTS = list(PLANT_CONFIG)
 PREDEFINED_STORAGE_LOCATIONS = ['0001', 'FG01', 'RM01', 'WH01', 'QA01', 'ALT1']
 PREDEFINED_CUSTOMERS = [f'CUST{i:05d}' for i in range(1, NUM_CUSTOMERS + 1)]
 PREDEFINED_USERS = ['USER_A', 'USER_B', 'ADMIN', 'JOHNDOE', 'AUTO_JOB'] 
@@ -302,6 +311,7 @@ def generate_marc_data():
 
     for matnr in PREDEFINED_MATERIALS:
         for werks in PREDEFINED_PLANTS:
+            lgort = 'RM01' if matnr in RAW_MATERIALS else 'FG01'
             # MOQ varies by material type - using parameterized values
             if matnr in FINISHED_GOODS:
                 min_lot = random.choice(fg_moq_options)
@@ -324,7 +334,8 @@ def generate_marc_data():
                 'BSTMA': max_lot,  # Maximum Lot Size
                 'BSTFE': min_lot,  # Fixed Lot Size
                 'BSTRF': rounding, # Rounding Value
-                'LGPRO': 'FG01', 'DISPO': 'D01'
+                'LGPRO': 'RM01' if matnr in RAW_MATERIALS else 'FG01',
+                'DISPO': 'D01'
             })
     return pd.DataFrame(data)
 
@@ -357,14 +368,14 @@ def generate_mch1_data(batch_records):
             'MANDT': '800',
             'MATNR': rec['MATNR'],
             'CHARG': rec['CHARG'],
-            'VEESSION': str(random.randint(1, 5)),  # Batch version
+            'ZZ_BATCH_VERSION': str(random.randint(1, 5)),  # Batch version
             'HSDAT': prod_date.strftime('%Y%m%d'),  # Production date
             'VFDAT': expiry_date.strftime('%Y%m%d'),  # Expiry date
-            'LAESSION': prod_date.strftime('%Y%m%d'),  # Last goods receipt
-            'LWEESSION': '',  # Last goods issue
-            'ZUESSION': 'A',  # Batch status (A=Active, L=Locked, R=Restricted)
-            'ZESSION': '',   # Batch restriction reason
-            'HESSION': rec['WERKS'],  # Plant of origin
+            'LWEDT': prod_date.strftime('%Y%m%d'),  # Last goods receipt
+            'ZZ_LAST_GI_DATE': '',  # Last goods issue
+            'ZUSTD': '',
+            'ZZ_RESTRICTION_REASON': '',   # Batch restriction reason
+            'ZZ_ORIGIN_PLANT': rec['WERKS'],  # Plant of origin
             'LOBM_LIFNR': '',  # Vendor (if externally sourced)
         })
 
@@ -397,7 +408,7 @@ def generate_mcha_data(batch_records):
             'ERSDA': prod_date.strftime('%Y%m%d'),  # Created on
             'ERNAM': 'SYSTEM',  # Created by
             'VFDAT': expiry_date.strftime('%Y%m%d'),  # Expiry date
-            'ZUESSION': 'A',  # Status
+            'ZUSTD': '',
             'CLABS': rec['LABST'],  # Valuated unrestricted stock
             'CUMLM': 0,  # Stock in transfer
             'CINSM': 0,  # Stock in quality inspection
@@ -431,7 +442,7 @@ def generate_mard_data():
                     'MANDT': '800',
                     'MATNR': matnr,
                     'WERKS': werks,
-                    'LGORT': 'FG01',
+                    'LGORT': lgort,
                     'CHARG': '',  # No batch for zero stock
                     'LABST': 0.0
                 })
@@ -453,7 +464,7 @@ def generate_mard_data():
                         'MANDT': '800',
                         'MATNR': matnr,
                         'WERKS': werks,
-                        'LGORT': 'FG01',
+                        'LGORT': lgort,
                         'CHARG': batch_id,
                         'LABST': round(batch_stock, 2)
                     })
@@ -488,7 +499,7 @@ def generate_mbew_data():
                 'MANDT': '800',
                 'MATNR': matnr,
                 'BWKEY': werks,
-                'WAERS': 'GBP',           # Currency
+                'WAERS': DATASET_CURRENCY,
                 'VPRSV': 'S',             # Price Control (S=Standard, V=Moving Avg)
                 'VERPR': mov_avg_price,   # Moving Average Price
                 'STPRS': std_price,       # Standard Price
@@ -584,26 +595,17 @@ def generate_marm_data():
 
 # --- TRANSPORTATION LANE DATA GENERATORS ---
 
-# Plant location master data with geo coordinates
-PLANT_LOCATIONS = {
-    '1000': {'name': 'London', 'country': 'GB', 'xpos': -0.1278, 'ypos': 51.5074},
-    '2000': {'name': 'Rotterdam', 'country': 'NL', 'xpos': 4.4777, 'ypos': 51.9244},
-    '3000': {'name': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
-    '4000': {'name': 'Warsaw', 'country': 'PL', 'xpos': 21.0122, 'ypos': 52.2297},
-}
-
 # EU countries for customs logic
-EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
+EU_COUNTRIES = {'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'}
 
 # Transport modes with characteristics
 TRANSPORT_MODES = {
-    'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'currency': 'EUR'},
-    'SEA': {'speed_kmh': 25, 'cost_per_km': 0.15, 'currency': 'EUR'},
-    'AIR': {'speed_kmh': 800, 'cost_per_km': 3.00, 'currency': 'EUR'},
+    'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50},
+    'SEA': {'speed_kmh': 25, 'cost_per_km': 0.15},
+    'AIR': {'speed_kmh': 800, 'cost_per_km': 3.00},
 }
 
-# Plants with port access (for sea transport)
-PORT_PLANTS = {'1000', '2000'}  # London (Thames) and Rotterdam
+PORT_PLANTS = {'3000', '4000', '5000'}
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """Calculate the great circle distance in kilometers between two points on Earth."""
@@ -615,15 +617,23 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 def customs_days(country_from, country_to):
     """Calculate customs delay days based on border crossing."""
-    # UK <-> EU = 1 day customs delay
-    from_eu = country_from in EU_COUNTRIES
-    to_eu = country_to in EU_COUNTRIES
-    from_gb = country_from == 'GB'
-    to_gb = country_to == 'GB'
+    if country_from == country_to:
+        return 0
+    if country_from in EU_COUNTRIES and country_to in EU_COUNTRIES:
+        return 0
+    return 1
 
-    if (from_gb and to_eu) or (from_eu and to_gb):
-        return 1
-    return 0
+def transport_modes_for_lane(loc_from, loc_to, distance_km):
+    country_from = PLANT_CONFIG[loc_from]['country']
+    country_to = PLANT_CONFIG[loc_to]['country']
+    modes = ['AIR']
+    if country_from == country_to or (
+        country_from in EU_COUNTRIES and country_to in EU_COUNTRIES
+    ):
+        modes.insert(0, 'ROAD')
+    if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
+        modes.append('SEA')
+    return modes
 
 def generate_sapapo_loc_data():
     """
@@ -631,7 +641,7 @@ def generate_sapapo_loc_data():
     Extends location data with geographical coordinates for distance calculation.
     """
     data = []
-    for locno, loc_info in PLANT_LOCATIONS.items():
+    for locno, loc_info in PLANT_CONFIG.items():
         data.append({
             'MANDT': '800',
             'LOCNO': locno,
@@ -639,7 +649,7 @@ def generate_sapapo_loc_data():
             'XPOS': loc_info['xpos'],
             'YPOS': loc_info['ypos'],
             'COUNTRY': loc_info['country'],
-            'CITY': loc_info['name'],
+            'CITY': loc_info['city'],
         })
     return pd.DataFrame(data)
 
@@ -649,18 +659,18 @@ def generate_sapapo_tr_data():
     Creates all plant-to-plant combinations excluding self-loops.
     """
     data = []
-    plants = list(PLANT_LOCATIONS.keys())
+    plants = list(PLANT_CONFIG)
 
     for loc_from in plants:
         for loc_to in plants:
             if loc_from == loc_to:
                 continue  # Skip self-loops
 
-            from_info = PLANT_LOCATIONS[loc_from]
-            to_info = PLANT_LOCATIONS[loc_to]
+            from_info = PLANT_CONFIG[loc_from]
+            to_info = PLANT_CONFIG[loc_to]
 
             trlid = str(uuid.uuid4()).replace('-', '').upper()[:32]
-            lane_name = f"{from_info['name']} -> {to_info['name']}"
+            lane_name = f"{from_info['city']} -> {to_info['city']}"
 
             data.append({
                 'MANDT': '800',
@@ -685,38 +695,28 @@ def generate_sapapo_trm_data(df_tr):
         loc_from = lane['LOCFR']
         loc_to = lane['LOCTO']
 
-        from_info = PLANT_LOCATIONS[loc_from]
-        to_info = PLANT_LOCATIONS[loc_to]
+        from_info = PLANT_CONFIG[loc_from]
+        to_info = PLANT_CONFIG[loc_to]
 
-        # Calculate distance
         distance_km = haversine_km(
             from_info['ypos'], from_info['xpos'],
             to_info['ypos'], to_info['xpos']
         )
 
-        # Calculate customs delay
         customs_delay_days = customs_days(from_info['country'], to_info['country'])
         customs_delay_hours = customs_delay_days * 24
 
-        # Determine available transport modes for this lane
-        available_modes = ['ROAD', 'AIR']
+        available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
 
-        # Sea transport only available when both plants have port access and distance > 200km
-        if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
-            available_modes.append('SEA')
-
-        # Calculate cost for each mode to determine preferred
         mode_costs = {}
         mode_records = []
 
         for mode in available_modes:
             mode_info = TRANSPORT_MODES[mode]
 
-            # Transit time in hours (travel time + customs)
             travel_hours = distance_km / mode_info['speed_kmh']
             total_hours = travel_hours + customs_delay_hours
 
-            # Transport cost
             transport_cost = round(distance_km * mode_info['cost_per_km'], 2)
 
             mode_costs[mode] = transport_cost
@@ -724,13 +724,12 @@ def generate_sapapo_trm_data(df_tr):
                 'MANDT': '800',
                 'TRLID': trlid,
                 'TRMID': mode,
-                'TRAESSION': round(total_hours, 2),
+                'TRATIME': round(total_hours, 2),
                 'TRACOST': transport_cost,
-                'TRACOSTCUR': mode_info['currency'],
+                'TRACOSTCUR': DATASET_CURRENCY,
                 'PRIFLAG': '',  # Will be set below
             })
 
-        # Mark the cheapest mode as preferred
         if mode_costs:
             preferred_mode = min(mode_costs, key=mode_costs.get)
             for record in mode_records:
@@ -747,7 +746,7 @@ def generate_tvro_data():
     Route naming: R{FROM}{TO} e.g., R1020 = Route from 1000 to 2000
     """
     data = []
-    plants = list(PLANT_LOCATIONS.keys())
+    plants = list(PLANT_CONFIG)
 
     # Shipping type mapping
     shipping_types = {'ROAD': '01', 'RAIL': '02', 'SEA': '03', 'AIR': '04'}
@@ -759,36 +758,33 @@ def generate_tvro_data():
             if loc_from == loc_to:
                 continue
 
-            from_info = PLANT_LOCATIONS[loc_from]
-            to_info = PLANT_LOCATIONS[loc_to]
+            from_info = PLANT_CONFIG[loc_from]
+            to_info = PLANT_CONFIG[loc_to]
 
             # Route code: R + first 2 digits of from + first 2 digits of to
             route = f"R{loc_from[:2]}{loc_to[:2]}"
 
-            # Calculate distance
             distance_km = haversine_km(
                 from_info['ypos'], from_info['xpos'],
                 to_info['ypos'], to_info['xpos']
             )
 
-            # Calculate customs delay
             customs_delay = customs_days(from_info['country'], to_info['country'])
 
-            # Determine primary shipping type based on lane characteristics
-            if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
-                vsart = '03'  # Sea (cheapest for port-to-port)
-                travel_hours = distance_km / TRANSPORT_MODES['SEA']['speed_kmh']
+            available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
+            mode = min(
+                available_modes,
+                key=lambda candidate: TRANSPORT_MODES[candidate]['cost_per_km'],
+            )
+            vsart = shipping_types[mode]
+            travel_hours = distance_km / TRANSPORT_MODES[mode]['speed_kmh']
+            if mode == 'SEA':
                 agent = 'MAERSK'
-            elif distance_km > 1000:
-                vsart = '04'  # Air for very long distances
-                travel_hours = distance_km / TRANSPORT_MODES['AIR']['speed_kmh']
+            elif mode == 'AIR':
                 agent = 'FEDEX'
             else:
-                vsart = '01'  # Road
-                travel_hours = distance_km / TRANSPORT_MODES['ROAD']['speed_kmh']
                 agent = random.choice(['DHL', 'KUEHNE', 'DBSCHENK'])
 
-            # Transit duration in days (travel + customs)
             transit_days = round((travel_hours / 24) + customs_delay, 2)
 
             data.append({
@@ -811,7 +807,7 @@ def generate_tvrot_data(df_tvro):
     Provides descriptions for routes in multiple languages.
     """
     data = []
-    plants = list(PLANT_LOCATIONS.keys())
+    plants = list(PLANT_CONFIG)
     languages = ['E', 'D', 'F']  # English, German, French
 
     for _, route in df_tvro.iterrows():
@@ -821,8 +817,8 @@ def generate_tvrot_data(df_tvro):
         from_plant = route_code[1:3] + '00'
         to_plant = route_code[3:5] + '00'
 
-        from_name = PLANT_LOCATIONS.get(from_plant, {}).get('name', from_plant)
-        to_name = PLANT_LOCATIONS.get(to_plant, {}).get('name', to_plant)
+        from_name = PLANT_CONFIG.get(from_plant, {}).get('city', from_plant)
+        to_name = PLANT_CONFIG.get(to_plant, {}).get('city', to_plant)
 
         for lang in languages:
             if lang == 'E':
@@ -907,47 +903,65 @@ def generate_eina_data(df_mara, df_lfa1):
     """
     data = []
 
-    # Get raw materials - these need supplier linkages
     raw_materials = df_mara[df_mara['MTART'] == 'ROH']['MATNR'].tolist()
     vendors = df_lfa1['LIFNR'].tolist()
 
-    # API vendors (VEND-0001 to VEND-0005)
-    api_vendors = [v for v in vendors if int(v.split('-')[1]) <= 5]
-    # Excipient vendors (VEND-0006 to VEND-0010)
-    excipient_vendors = [v for v in vendors if 6 <= int(v.split('-')[1]) <= 10]
-    # Packaging vendors (VEND-0011 to VEND-0015)
-    packaging_vendors = [v for v in vendors if 11 <= int(v.split('-')[1]) <= 15]
+    vendor_pools = {
+        'API': [v for v in vendors if int(v.split('-')[1]) <= 5],
+        'EXCIPIENT': [v for v in vendors if 6 <= int(v.split('-')[1]) <= 10],
+        'PACKAGING': [v for v in vendors if 11 <= int(v.split('-')[1]) <= 15],
+        'OTHER': [v for v in vendors if int(v.split('-')[1]) >= 16],
+    }
+
+    materials_by_category = {category: [] for category in vendor_pools}
+    for matnr in raw_materials:
+        if matnr == 'API1':
+            category = 'API'
+        elif matnr == 'EXC1':
+            category = 'EXCIPIENT'
+        else:
+            material_number = int(matnr.removeprefix('MAT-R'))
+            if material_number <= 8:
+                category = 'API'
+            elif material_number <= 16:
+                category = 'EXCIPIENT'
+            elif material_number <= 24:
+                category = 'PACKAGING'
+            else:
+                category = 'OTHER'
+        materials_by_category[category].append(matnr)
 
     infnr_counter = 5300000000
 
-    for matnr in raw_materials:
-        # Determine vendor type based on material naming
-        if 'API' in matnr or matnr.startswith('MAT-R00'):  # First raw materials are API
-            primary_vendors = api_vendors
-            secondary_vendors = api_vendors  # API typically single-sourced
-        elif 'EXC' in matnr or (matnr.startswith('MAT-R') and int(matnr.split('R')[1][:2]) <= 15):
-            primary_vendors = excipient_vendors
-            secondary_vendors = excipient_vendors
-        else:
-            primary_vendors = packaging_vendors
-            secondary_vendors = packaging_vendors
+    def append_info_record(matnr, lifnr):
+        nonlocal infnr_counter
+        infnr_counter += 1
+        data.append({
+            'MANDT': '800',
+            'INFNR': str(infnr_counter),
+            'MATNR': matnr,
+            'LIFNR': lifnr,
+            'LOEKZ': '',
+            'ERDAT': (datetime.now() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
+            'ERNAM': random.choice(PREDEFINED_USERS),
+        })
 
-        # Assign 1-3 vendors per material (for alternate supplier scenarios)
-        num_vendors = random.randint(1, 3)
-        assigned_vendors = random.sample(primary_vendors, min(num_vendors, len(primary_vendors)))
+    for category, materials in materials_by_category.items():
+        vendor_pool = vendor_pools[category]
+        for material_index, matnr in enumerate(materials):
+            primary_vendor = vendor_pool[material_index % len(vendor_pool)]
+            additional_count = random.randint(0, min(2, len(vendor_pool) - 1))
+            additional_vendors = random.sample(
+                [vendor for vendor in vendor_pool if vendor != primary_vendor],
+                additional_count,
+            )
+            for lifnr in [primary_vendor, *additional_vendors]:
+                append_info_record(matnr, lifnr)
 
-        for idx, lifnr in enumerate(assigned_vendors):
-            infnr_counter += 1
-
-            data.append({
-                'MANDT': '800',
-                'INFNR': str(infnr_counter),  # Info record number
-                'MATNR': matnr,
-                'LIFNR': lifnr,
-                'LOEKZ': '',  # Deletion indicator
-                'ERDAT': (datetime.now() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
-                'ERNAM': random.choice(PREDEFINED_USERS),
-            })
+    assigned_vendors = {record['LIFNR'] for record in data}
+    for vendor_index, lifnr in enumerate(vendors):
+        if lifnr not in assigned_vendors:
+            append_info_record(raw_materials[vendor_index % len(raw_materials)], lifnr)
 
     return pd.DataFrame(data)
 
@@ -984,7 +998,7 @@ def generate_eine_data(df_eina):
                 'LOEKZ': '',   # Deletion indicator
                 'APLFZ': lead_time,  # Planned delivery time (days)
                 'NETPR': round(base_price, 2),  # Net price
-                'WAERS': 'USD',  # Currency
+                'WAERS': DATASET_CURRENCY,
                 'PEINH': 1,  # Price unit
                 'BPRME': 'PC',  # Order price unit
                 'MINBM': min_qty,  # Minimum order qty
@@ -1005,66 +1019,7 @@ def generate_t001w_data():
     """
     data = []
 
-    # Plant configuration matching PREDEFINED_PLANTS
-    plant_config = {
-        '1000': {
-            'name': 'Manufacturing Hub',
-            'name2': 'Primary Production',
-            'country': 'DE',
-            'region': 'BW',
-            'city': 'Stuttgart',
-            'street': 'Pharmastrasse 100',
-            'postal': '70173',
-            'plant_type': 'PROD',  # Production
-            'calendar': 'DE',
-        },
-        '2000': {
-            'name': 'Regional DC Europe',
-            'name2': 'Distribution Center',
-            'country': 'DE',
-            'region': 'HE',
-            'city': 'Frankfurt',
-            'street': 'Logistikweg 50',
-            'postal': '60313',
-            'plant_type': 'DC',  # Distribution Center
-            'calendar': 'DE',
-        },
-        '3000': {
-            'name': 'Regional DC Americas',
-            'name2': 'Distribution Center',
-            'country': 'US',
-            'region': 'NJ',
-            'city': 'Newark',
-            'street': '500 Distribution Blvd',
-            'postal': '07102',
-            'plant_type': 'DC',
-            'calendar': 'US',
-        },
-        '4000': {
-            'name': 'Regional DC Asia Pacific',
-            'name2': 'Distribution Center',
-            'country': 'SG',
-            'region': '',
-            'city': 'Singapore',
-            'street': '10 Changi Business Park',
-            'postal': '486030',
-            'plant_type': 'DC',
-            'calendar': 'SG',
-        },
-        '5000': {
-            'name': 'Secondary Manufacturing',
-            'name2': 'Backup Production Site',
-            'country': 'IE',
-            'region': 'CO',
-            'city': 'Cork',
-            'street': 'Pharma Park 25',
-            'postal': 'T12 ABC1',
-            'plant_type': 'PROD',
-            'calendar': 'IE',
-        },
-    }
-
-    for werks, config in plant_config.items():
+    for werks, config in PLANT_CONFIG.items():
         data.append({
             'MANDT': '800',
             'WERKS': werks,
@@ -1147,7 +1102,7 @@ def generate_crhd_data():
 
     objid_counter = 1000
 
-    for arbpl, ktext, kapession, hours_day, days_week, efficiency, plants in work_centers:
+    for arbpl, ktext, capacity_category, hours_day, days_week, efficiency, plants in work_centers:
         for werks in plants:
             objid_counter += 1
 
@@ -1163,20 +1118,21 @@ def generate_crhd_data():
                 'KTEXT': ktext,  # Short text
                 'VERWE': '001',  # Usage (001 = Production)
                 'PLANV': 'SAP1',  # Planner group
-                'KAPESSION': kapession,  # Capacity category
-                'VEESSION': 'PROD_MGR',  # Person responsible
-                'STESSION': '0001',  # Standard value key
+                'KAPID': str(objid_counter).zfill(8),
+                'ZZ_CAPACITY_CATEGORY': capacity_category,  # Capacity category
+                'VERAN': 'PROD_MGR',  # Person responsible
+                'VGWTS': '0001',  # Standard value key
                 # Capacity fields
-                'KAPESSION_ANZ': 1,  # Number of individual capacities
-                'KAPESSION_ARBZW': hours_day,  # Working hours per day
-                'KAPESSION_ARBTA': days_week,  # Working days per week
-                'KAPESSION_NESSION': efficiency / 100,  # Utilization rate (efficiency)
-                'KAPESSION_AE': available_hours,  # Available capacity (hours)
+                'ZZ_CAPACITY_COUNT': 1,  # Number of individual capacities
+                'ZZ_WORK_HOURS_PER_DAY': hours_day,  # Working hours per day
+                'ZZ_WORK_DAYS_PER_WEEK': days_week,  # Working days per week
+                'ZZ_UTILIZATION_RATE': efficiency / 100,  # Utilization rate (efficiency)
+                'ZZ_AVAILABLE_HOURS': available_hours,  # Available capacity (hours)
                 # Cost center assignment
                 'KOSTL': f"CC-{werks}",  # Cost center
                 # Status
-                'LOESSION': '',  # Deletion flag
-                'SESSION': '',  # Status
+                'LVORM': '',  # Deletion flag
+                'OBJST': '',  # Status
                 # Dates
                 'ERDAT': '20200101',  # Created on
                 'AEDAT': '20240101',  # Changed on
@@ -1198,20 +1154,21 @@ def generate_kako_data(df_crhd):
             'MANDT': '800',
             'OBJID': wc['OBJID'],
             'OBJTY': wc['OBJTY'],
-            'KAPESSION_NR': '001',  # Capacity number
-            'KAPESSION_ART': wc['KAPESSION'],  # Capacity category
-            'KAPESSION_BEZ': wc['KTEXT'],  # Capacity description
+            'KAPID': wc['KAPID'],
+            'KAPAR': wc['ZZ_CAPACITY_CATEGORY'],  # Capacity category
+            'NAME': wc['KTEXT'],  # Capacity description
             'BEGDA': '20200101',  # Valid from
             'ENDDA': '99991231',  # Valid to
             'WERK': wc['WERKS'],
             'ARBPL': wc['ARBPL'],
             # Capacity time parameters
-            'ESSION_ANESSION_ZT': wc['KAPESSION_ARBZW'],  # Operating time (hours/day)
-            'ESSION_ANESSION_TA': wc['KAPESSION_ARBTA'],  # Working days/week
-            'ESSION_NUTZ': wc['KAPESSION_NESSION'],  # Utilization
-            'ESSION_PESSION_UFF': 0,  # Capacity buffer
+            'BEGZT': 0,
+            'ENDZT': wc['ZZ_WORK_HOURS_PER_DAY'] * 3600,
+            'ZZ_WORK_DAYS_PER_WEEK': wc['ZZ_WORK_DAYS_PER_WEEK'],  # Working days/week
+            'NGRAD': round(wc['ZZ_UTILIZATION_RATE'] * 100),
+            'PAUSE': 0,  # Capacity buffer
             # Shift model
-            'ESSION_SHMESSION': '1',  # Shift definition
+            'MOSID': '1',  # Shift definition
         })
 
     return pd.DataFrame(data)
@@ -1256,13 +1213,13 @@ def generate_plko_data(df_mara, df_crhd):
                 'MATNR': matnr,  # Material
                 'VERWE': '1',  # Usage (1 = Production)
                 'STATU': '4',  # Status (4 = Released)
-                'LOESSION': '',  # Deletion flag
-                'DAESSION_TUV': '20200101',  # Valid from
-                'DAESSION_TB': '99991231',  # Valid to
-                'PLESSION_NME': 'PROD_MGR',  # Planner group
-                'LOESSION_GR': str(random.randint(100, 500)),  # Lot size from
-                'LOESSION_GR_TO': str(random.randint(5000, 20000)),  # Lot size to
-                'PESSION_LNOR': str(random.randint(500, 2000)),  # Standard lot size
+                'LOEKZ': '',  # Deletion flag
+                'DATUV': '20200101',  # Valid from
+                'DATUB': '99991231',  # Valid to
+                'VAGRP': 'PROD_MGR',  # Planner group
+                'LOSVN': str(random.randint(100, 500)),  # Lot size from
+                'LOSBS': str(random.randint(5000, 20000)),  # Lot size to
+                'ZZ_STANDARD_LOT_SIZE': str(random.randint(500, 2000)),  # Standard lot size
                 'KTEXT': f"Routing for {matnr}",  # Description
                 'ROUTING_TYPE': routing_type,  # Custom field for routing category
             })
@@ -1330,7 +1287,7 @@ def generate_plpo_data(df_plko, df_crhd):
         # Get operation sequence template
         template = routing_templates.get(routing_type, routing_templates['STANDARD'])
 
-        for vornr, wc_prefix, setup_min, run_min, stession_S in template:
+        for vornr, wc_prefix, setup_min, run_min, control_key in template:
             # Find matching work center in plant
             matching_wcs = [k for k in plant_wcs.keys() if k.startswith(wc_prefix)]
             if not matching_wcs:
@@ -1355,11 +1312,11 @@ def generate_plpo_data(df_plko, df_crhd):
                 'ARBPL': arbpl,  # Work center
                 'OBJID': wc_data['OBJID'],  # Work center object ID
                 'LTXA1': f"Operation {vornr}: {wc_data['KTEXT']}",  # Operation text
-                'STESSION': stession_S,  # Control key
-                'LOESSION': '',  # Deletion flag
+                'STEUS': control_key,  # Control key
+                'LOEKZ': '',  # Deletion flag
                 # Setup time
-                'RUESSION': round(setup_time, 2),  # Setup time (base)
-                'RUESSION_E': 'MIN',  # Setup time unit
+                'RUEST': round(setup_time, 2),  # Setup time (base)
+                'RUESTE': 'MIN',  # Setup time unit
                 # Machine time (run time per unit)
                 'VGW01': round(run_time, 4),  # Standard value 1 (machine time)
                 'VGE01': 'MIN',  # Unit for standard value 1
@@ -1368,13 +1325,13 @@ def generate_plpo_data(df_plko, df_crhd):
                 'VGE02': 'MIN',
                 # Base quantity
                 'BMSCH': 1,  # Base quantity for times
-                'MESSION': 'PC',  # Base quantity unit
+                'MEINH': 'PC',  # Base quantity unit
                 # Scheduling
-                'PRZESSION': random.randint(0, 2),  # Processing time overlap
-                'PESSION_RMIN': random.choice([0, 1, 2]),  # Min wait time (hours)
-                'PESSION_RMAX': random.choice([0, 4, 8, 24]),  # Max wait time (hours)
+                'ZZ_OVERLAP_HOURS': random.randint(0, 2),  # Processing time overlap
+                'MINWE': random.choice([0, 1, 2]),  # Min wait time (hours)
+                'MAXWE': random.choice([0, 4, 8, 24]),  # Max wait time (hours)
                 # Costing
-                'LAESSION': random.choice(['0001', '0002', '0003']),  # Activity type
+                'LAR01': random.choice(['0001', '0002', '0003']),  # Activity type
             })
 
     return pd.DataFrame(data)

@@ -28,6 +28,7 @@ dbutils.widgets.text("GENERATE_DIRTY_DATA", "false", "Generate Dirty Data (true/
 dbutils.widgets.text("DIRTY_DATA_RATE", "0.05", "Dirty Data Rate (0.0-1.0)")
 dbutils.widgets.text("SUPPLIER_RELIABILITY_RATE", "1.0", "Supplier Reliability (0.0-1.0)")
 dbutils.widgets.text("UNRELIABLE_MATERIALS", "", "Specific unreliable materials (comma-separated)")
+dbutils.widgets.text("DATASET_CURRENCY", "EUR", "Dataset Currency")
 
 CATALOG = dbutils.widgets.get("CATALOG")
 SCHEMA = dbutils.widgets.get("SCHEMA")
@@ -40,6 +41,7 @@ GENERATE_DIRTY_DATA = dbutils.widgets.get("GENERATE_DIRTY_DATA").lower() == "tru
 DIRTY_DATA_RATE = float(dbutils.widgets.get("DIRTY_DATA_RATE"))
 SUPPLIER_RELIABILITY_RATE = float(dbutils.widgets.get("SUPPLIER_RELIABILITY_RATE"))
 UNRELIABLE_MATERIALS_STR = dbutils.widgets.get("UNRELIABLE_MATERIALS")
+DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
 # --- FIXED SEEDING ---
 Faker.seed(RANDOM_SEED)
@@ -68,7 +70,14 @@ df_mbew = spark.table(f"{CATALOG}.{SCHEMA}.mbew")
 
 FINISHED_PRODUCTS = [row['MATNR'] for row in df_mara.filter("MTART = 'FERT'").select('MATNR').distinct().collect()]
 ALL_CUSTOMERS = [row['KUNNR'] for row in spark.table(f"{CATALOG}.{SCHEMA}.kna1").select('KUNNR').distinct().collect()]
-PLANTS = ['1000', '2000', '3000', '4000']
+PLANT_CONFIG = {
+    '1000': {'city': 'Stuttgart', 'country': 'DE', 'xpos': 9.1829, 'ypos': 48.7758},
+    '2000': {'city': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
+    '3000': {'city': 'Newark', 'country': 'US', 'xpos': -74.1724, 'ypos': 40.7357},
+    '4000': {'city': 'Singapore', 'country': 'SG', 'xpos': 103.8198, 'ypos': 1.3521},
+    '5000': {'city': 'Cork', 'country': 'IE', 'xpos': -8.4756, 'ypos': 51.8985},
+}
+PLANTS = list(PLANT_CONFIG)
 
 # --- PRICING CONFIG ---
 # Build pricing lookup from MBEW (standard cost) with sales markup
@@ -463,7 +472,7 @@ def generate_sales_orders(finished_goods, all_customers):
             order_lines.append({
                 'MANDT': '800', 'VBELN': vbeln, 'POSNR': posnr, 'MATNR': matnr,
                 'WERKS': werks, 'LGORT': 'FG01', 'KWMENG': qty, 'MEINS': 'PC',
-                'NETPR': round(unit_price, 2), 'NETWR': line_value, 'WAERK': 'GBP'
+                'NETPR': round(unit_price, 2), 'NETWR': line_value, 'WAERK': DATASET_CURRENCY
             })
             vbep.append({
                 'MANDT': '800', 'VBELN': vbeln, 'POSNR': posnr, 'ETENR': '0001',
@@ -472,7 +481,9 @@ def generate_sales_orders(finished_goods, all_customers):
 
         vbak.append({
             'MANDT': '800', 'VBELN': vbeln, 'AUART': 'OR', 'KUNNR': kunnr,
-            'ERDAT': order_date, 'NETWR': round(order_total, 2), 'VDATU': req_date, 'WAERK': 'GBP'
+            'ERDAT': order_date, 'NETWR': round(order_total, 2), 'VDATU': req_date,
+            'WAERK': DATASET_CURRENCY, 'ERNAM': random.choice(PREDEFINED_USERS),
+            'BSTNK': f'PO-{vbeln}'
         })
         vbap.extend(order_lines)
 
@@ -577,15 +588,8 @@ def generate_logistics(df_vbak, df_vbap, df_vbep):
 # Step 2b: Shipment Generation (VTTK, VTTP, VTTS)
 
 # Plant location master data with geo coordinates (mirrors Masterdata)
-PLANT_LOCATIONS = {
-    '1000': {'name': 'London', 'country': 'GB', 'xpos': -0.1278, 'ypos': 51.5074},
-    '2000': {'name': 'Rotterdam', 'country': 'NL', 'xpos': 4.4777, 'ypos': 51.9244},
-    '3000': {'name': 'Frankfurt', 'country': 'DE', 'xpos': 8.6821, 'ypos': 50.1109},
-    '4000': {'name': 'Warsaw', 'country': 'PL', 'xpos': 21.0122, 'ypos': 52.2297},
-}
-
-EU_COUNTRIES = {'NL', 'DE', 'PL', 'FR', 'BE', 'ES', 'IT', 'AT', 'CZ', 'HU', 'SK', 'RO', 'BG', 'GR', 'PT', 'SE', 'DK', 'FI', 'IE'}
-PORT_PLANTS = {'1000', '2000'}
+EU_COUNTRIES = {'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'}
+PORT_PLANTS = {'3000', '4000', '5000'}
 
 TRANSPORT_MODES = {
     'ROAD': {'speed_kmh': 60, 'cost_per_km': 0.50, 'vsart': '01'},
@@ -603,13 +607,23 @@ def haversine_km(lat1, lon1, lat2, lon2):
 
 def customs_days(country_from, country_to):
     """Calculate customs delay days based on border crossing."""
-    from_eu = country_from in EU_COUNTRIES
-    to_eu = country_to in EU_COUNTRIES
-    from_gb = country_from == 'GB'
-    to_gb = country_to == 'GB'
-    if (from_gb and to_eu) or (from_eu and to_gb):
-        return 1
-    return 0
+    if country_from == country_to:
+        return 0
+    if country_from in EU_COUNTRIES and country_to in EU_COUNTRIES:
+        return 0
+    return 1
+
+def transport_modes_for_lane(loc_from, loc_to, distance_km):
+    country_from = PLANT_CONFIG[loc_from]['country']
+    country_to = PLANT_CONFIG[loc_to]['country']
+    modes = ['AIR']
+    if country_from == country_to or (
+        country_from in EU_COUNTRIES and country_to in EU_COUNTRIES
+    ):
+        modes.insert(0, 'ROAD')
+    if loc_from in PORT_PLANTS and loc_to in PORT_PLANTS and distance_km > 200:
+        modes.append('SEA')
+    return modes
 
 def get_route_code(from_plant, to_plant):
     """Generate route code in format R{FROM}{TO}."""
@@ -617,19 +631,11 @@ def get_route_code(from_plant, to_plant):
 
 def get_best_transport_mode(from_plant, to_plant, distance_km):
     """Determine the best transport mode based on cost."""
-    available_modes = ['ROAD', 'AIR']
-    if from_plant in PORT_PLANTS and to_plant in PORT_PLANTS and distance_km > 200:
-        available_modes.append('SEA')
-
-    # Calculate costs and return cheapest
-    min_cost = float('inf')
-    best_mode = 'ROAD'
-    for mode in available_modes:
-        cost = distance_km * TRANSPORT_MODES[mode]['cost_per_km']
-        if cost < min_cost:
-            min_cost = cost
-            best_mode = mode
-    return best_mode
+    available_modes = transport_modes_for_lane(from_plant, to_plant, distance_km)
+    return min(
+        available_modes,
+        key=lambda mode: TRANSPORT_MODES[mode]['cost_per_km'],
+    )
 
 def generate_shipments(df_likp, df_lips, df_vbap):
     """
@@ -683,12 +689,12 @@ def generate_shipments(df_likp, df_lips, df_vbap):
 
         # For simplicity, assume customer is in a different location (random destination plant)
         # In reality this would be determined by customer address
-        dest_plants = [p for p in PLANT_LOCATIONS.keys() if p != source_plant]
+        dest_plants = [p for p in PLANT_CONFIG if p != source_plant]
         dest_plant = random.choice(dest_plants) if dest_plants else '2000'
 
         # Calculate route
-        from_info = PLANT_LOCATIONS.get(source_plant, PLANT_LOCATIONS['1000'])
-        to_info = PLANT_LOCATIONS.get(dest_plant, PLANT_LOCATIONS['2000'])
+        from_info = PLANT_CONFIG.get(source_plant, PLANT_CONFIG['1000'])
+        to_info = PLANT_CONFIG.get(dest_plant, PLANT_CONFIG['2000'])
 
         distance_km = haversine_km(
             from_info['ypos'], from_info['xpos'],
@@ -893,6 +899,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
     afko, resb, matdoc = [], [], []
     matdoc_id = 9000000000
     shortage_doc_id = 7000000000  # Separate counter for shortage docs
+    reservation_number_counter = 5000000000
 
     # Use a deterministic RNG for supplier delivery rates
     supplier_rng = random.Random(RANDOM_SEED + 999)
@@ -915,11 +922,15 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
 
         # Generate Order ID
         aufnr = f"ORD{random.randint(1000000,9999999)}"
+        reservation_number = ''
+        if matnr in bom_map:
+            reservation_number_counter += 1
+            reservation_number = str(reservation_number_counter)
 
         # Check component availability if BOM exists
         actual_qty = planned_qty
         shortage_components = []
-        status = 'COMP'  # Default: Complete
+        status = 'CNF'
         shortage_reason = ''
 
         if matnr in bom_map and unreliable_materials:
@@ -951,12 +962,12 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
 
         # Determine status
         if actual_qty <= 0:
-            status = 'BLCK'  # Blocked - no production possible
+            status = 'CRTD'
             actual_qty = 0
             shortage_reason = f"Blocked: insufficient {', '.join(s['material'] for s in shortage_components)}"
             stats['blocked'] += 1
         elif actual_qty < planned_qty:
-            status = 'PART'  # Partial production
+            status = 'PCNF'
             shortage_parts = [s['material'] + '(' + str(int(s['delivery_rate']*100)) + '%)' for s in shortage_components]
             shortage_reason = 'Partial: ' + ', '.join(shortage_parts)
             stats['partial'] += 1
@@ -972,8 +983,9 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
             'IGMNG': actual_qty,       # Actual produced quantity
             'GSTRP': date,
             'WERKS': plant,
-            'STAT': status,            # Status: COMP/PART/BLCK
-            'RUESSION': shortage_reason  # Reason for shortage/block
+            'RSNUM': reservation_number,
+            'STAT': status,
+            'ZZ_SHORTAGE_REASON': shortage_reason  # Reason for shortage/block
         })
 
         # B. Create Goods Receipt (101) only for actual production - creates new batch
@@ -1000,46 +1012,45 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
             })
             matdoc_id += 1
 
-        # C. Component Consumption (261) - Only for actual production
         if matnr in bom_map:
             bom = bom_map[matnr]
             for i, comp in enumerate(bom['components']):
                 # Calculate actual consumption based on actual production
                 actual_consumption = comp['qty'] * actual_qty
 
-                if actual_consumption > 0:
-                    # Goods Issue Consumption (261) - select batch, limited to available stock
-                    comp_batch, consumed_qty = select_batch_for_issue(comp['child_mat'], plant, 'RM01', actual_consumption)[0]
+                comp_batch, consumed_qty = select_batch_for_issue(
+                    comp['child_mat'], plant, 'RM01', actual_consumption
+                )[0]
+                resb.append({
+                    'MANDT': '800', 'RSNUM': reservation_number, 'RSPOS': f"{i+1:04d}",
+                    'AUFNR': aufnr,
+                    'MATNR': comp['child_mat'],
+                    'BDMNG': comp['qty'] * planned_qty,
+                    'ENMNG': consumed_qty,
+                    'WERKS': plant, 'LGORT': 'RM01'
+                })
 
-                    if consumed_qty > 0:
-                        # Reservation (RESB) - for planned qty
-                        resb.append({
-                            'MANDT': '800', 'RSNUM': aufnr, 'RSPOS': f"{i+1:04d}",
-                            'MATNR': comp['child_mat'],
-                            'BDMNG': comp['qty'] * planned_qty,  # Planned requirement
-                            'ENMNG': consumed_qty,                # Actual withdrawal (limited to stock)
-                            'WERKS': plant, 'LGORT': 'RM01'
-                        })
-                        matdoc.append({
-                            'MANDT': '800',
-                            'MBLNR': str(matdoc_id),
-                            'MJAHR': '2025',
-                            'ZEILE': '0001',
-                            'BWART': '261',
-                            'MATNR': comp['child_mat'],
-                            'WERKS': plant,
-                            'LGORT': 'RM01',
-                            'CHARG': comp_batch,
-                            'SHKZG': 'H',
-                            'MENGE': consumed_qty,  # Use actual consumed (limited to stock)
-                            'MEINS': 'PC',
-                            'BUDAT': date,
-                            'CPUDT': date,
-                            'CPUTM': '070000',
-                            'AUFNR': aufnr,
-                            'BKTXT': 'GI for Production',
-                        })
-                        matdoc_id += 1
+                if consumed_qty > 0:
+                    matdoc.append({
+                        'MANDT': '800',
+                        'MBLNR': str(matdoc_id),
+                        'MJAHR': '2025',
+                        'ZEILE': '0001',
+                        'BWART': '261',
+                        'MATNR': comp['child_mat'],
+                        'WERKS': plant,
+                        'LGORT': 'RM01',
+                        'CHARG': comp_batch,
+                        'SHKZG': 'H',
+                        'MENGE': consumed_qty,
+                        'MEINS': 'PC',
+                        'BUDAT': date,
+                        'CPUDT': date,
+                        'CPUTM': '070000',
+                        'AUFNR': aufnr,
+                        'BKTXT': 'GI for Production',
+                    })
+                    matdoc_id += 1
 
         # D. Create shortage documentation (102 movements) for failed deliveries
         for shortage in shortage_components:
@@ -1336,7 +1347,7 @@ def generate_purchase_orders(df_eina, df_eine, df_matdoc, num_months=12):
                 'LIFNR': lifnr,
                 'EKORG': '1000',  # Purchasing org
                 'EKGRP': 'P01',  # Purchasing group
-                'WAERS': 'USD',  # Currency
+                'WAERS': DATASET_CURRENCY,
                 'BEDAT': po_date.strftime('%Y%m%d'),  # PO date
                 'AEDAT': po_date.strftime('%Y%m%d'),  # Creation date
                 'ERNAM': random.choice(PREDEFINED_USERS),
@@ -1449,7 +1460,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
             'MANDT': '800',
             'EBELN': ebeln,
             'EBELP': po['EBELP'],
-            'ZEESSION': '0001',  # Sequential number
+            'ZEKKN': '0001',  # Sequential number
             'VGABE': '1',  # Transaction type (1 = GR)
             'BEWTP': 'E',  # History category (E = Goods receipt)
             'BWART': '101',  # Movement type
@@ -1458,7 +1469,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
             'BPMNG': actual_qty,  # Quantity in PO unit
             'DMBTR': round(actual_qty * po['NETPR'], 2),  # Amount in local currency
             'WRBTR': round(actual_qty * po['NETPR'], 2),  # Amount in doc currency
-            'WAERS': 'USD',
+            'WAERS': DATASET_CURRENCY,
             'SHKZG': 'S',  # Debit/Credit (S = credit/increase)
             'MATNR': matnr,
             'WERKS': po['WERKS'],
