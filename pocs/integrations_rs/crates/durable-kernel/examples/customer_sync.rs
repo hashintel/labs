@@ -1,9 +1,7 @@
-//! A durable customer sync over the durable kernel.
+//! Synchronizes five customers to a CRM and resumes pending work after restart.
 //!
-//! The simulated CRM persists separately from the kernel. In `defer` mode the
-//! CRM rejects customer 3 without creating a record. Customers 4 and 5 still
-//! finish while customer 3 remains pending. The next run recovers that work
-//! from the journal and creates the missing CRM record.
+//! The `defer` run leaves customer 3 pending and absent from the CRM. The next
+//! run recovers it from the journal.
 //!
 //! ```sh
 //! cargo run -q -p durable-kernel --example customer_sync -- reset
@@ -11,10 +9,8 @@
 //! cargo run -q -p durable-kernel --example customer_sync
 //! ```
 //!
-//! The optional `crash` mode demonstrates a second failure. The CRM accepts
-//! customer 3 before the process exits, but the matching completion event does
-//! not reach the journal. The next run repeats the effect and the CRM absorbs
-//! it through the stable idempotency key.
+//! The `crash` mode exits after the CRM write. The next run repeats the effect
+//! with the same idempotency key.
 
 #![allow(clippy::expect_used, clippy::print_stdout)]
 
@@ -273,7 +269,7 @@ async fn main() {
         return;
     }
 
-    println!("Durable customer sync");
+    println!("The durable customer sync started.");
     let key = customer_partition();
     let mut config = KernelConfig::new(
         "customersync",

@@ -1,19 +1,16 @@
-//! A durable webhook relay in one file.
+//! Delivers journaled webhooks to a local HTTP endpoint.
 //!
-//! Accepted webhooks live in a crash-safe journal, and an executor delivers
-//! them over HTTP with bounded retries and dead-letters a delivery the
-//! endpoint keeps refusing. The journal is the source of truth, and the
-//! process is disposable.
+//! The executor retries HTTP 503 responses, dead-letters a delivery after four
+//! attempts, and recovers pending deliveries after restart.
 //!
 //! ```sh
-//! cargo run -p durable-kernel --example webhook_relay -- crash   # die mid-delivery
-//! cargo run -p durable-kernel --example webhook_relay            # recover, finish
-//! cargo run -p durable-kernel --example webhook_relay -- reset   # wipe state
+//! cargo run -q -p durable-kernel --example webhook_relay -- reset
+//! cargo run -q -p durable-kernel --example webhook_relay -- crash
+//! cargo run -q -p durable-kernel --example webhook_relay
 //! ```
 //!
-//! The demo endpoint refuses every webhook twice before accepting it, never
-//! accepts the poison one, and persists its own state. Like a real external
-//! service, it outlives the relay's crash.
+//! The `crash` mode exits after the endpoint accepts a delivery and before its
+//! completion event reaches the journal.
 
 #![allow(
     clippy::expect_used,
@@ -130,8 +127,8 @@ struct DeliveryAttempt {
 }
 
 struct HttpDeliverer {
-    /// Exit after the endpoint accepts a webhook but before its completion
-    /// event reaches the journal. This is the at-least-once window.
+    /// The process exits after the endpoint accepts a webhook and before the
+    /// completion event reaches the journal. Recovery repeats this delivery.
     crash_on_delivery: bool,
 }
 
@@ -351,7 +348,7 @@ async fn main() {
         return;
     }
 
-    println!("Durable webhook relay");
+    println!("The durable webhook relay started.");
     println!("The journal is stored at target/webhook_relay_demo.");
     let listener = TcpListener::bind(ENDPOINT)
         .await
@@ -408,14 +405,9 @@ async fn main() {
         })
         .await
         .expect("summary read should succeed");
-    println!("\nFinal delivery outcomes");
+    println!("\nAll deliveries reached a final outcome.");
     for line in settled {
         println!("{line}");
-    }
-    if mode.is_empty() {
-        println!("\nRun with `-- crash` to stop the relay during delivery.");
-        println!("Run it again without an argument to finish the interrupted work.");
-        println!("Run with `-- reset` to remove the example state.");
     }
     running.shutdown().await.expect("shutdown should be clean");
 }
