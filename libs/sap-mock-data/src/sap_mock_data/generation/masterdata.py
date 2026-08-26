@@ -1094,8 +1094,6 @@ def generate(wh):
     PREDEFINED_MATERIALS = sorted(list(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS)))
     PARENT_MATERIALS = FINISHED_GOODS + INTERMEDIATE_GOODS
 
-    valid_matnr_set = set(PREDEFINED_MATERIALS)
-    valid_kunnr_set = set(PREDEFINED_CUSTOMERS)
 
     print("Generating KNA1...")
     df_kna1 = generate_kna1_data()

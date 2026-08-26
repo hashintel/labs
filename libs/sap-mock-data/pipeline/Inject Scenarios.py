@@ -11,7 +11,6 @@ from pyspark.sql.types import *
 
 # COMMAND ----------
 
-# --- WIDGETS ---
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("RANDOM_SEED", "42", "Random Seed")
@@ -150,7 +149,6 @@ SCN018_CONFIG = dbutils.widgets.get("SCN018_CONFIG")
 SCN019_CONFIG = dbutils.widgets.get("SCN019_CONFIG")
 SCN020_CONFIG = dbutils.widgets.get("SCN020_CONFIG")
 
-# Set random seed
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
 
@@ -946,7 +944,6 @@ def inject_reroute_scenario(config, df_mard, df_matdoc):
     # Check if we're affecting all storage locations
     affect_all_slocs = sloc.upper() == 'ALL'
 
-    # Parse dates
     reroute_date = datetime.strptime(reroute_date_str, '%Y%m%d')
     recovery_date = reroute_date + timedelta(days=downtime_days)
 
@@ -1292,7 +1289,6 @@ def generate_mardh(df_matdoc, df_mard_initial):
     """
     print("Regenerating MARDH (Historical Stock)...")
 
-    # Convert to pandas if needed
     if hasattr(df_matdoc, 'toPandas'):
         df_matdoc = df_matdoc.toPandas()
     if hasattr(df_mard_initial, 'toPandas'):
@@ -1572,13 +1568,11 @@ def inject_demand_increase(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
     print(f"    Increase: +{increase_pct}%")
     print(f"    Start Date: {start_date_str}")
 
-    # Parse start date
     try:
         start_date = datetime.strptime(start_date_str, '%Y%m%d')
     except:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
 
-    # Convert to pandas if needed
     if hasattr(df_vbak, 'toPandas'):
         df_vbak = df_vbak.toPandas()
     if hasattr(df_vbap, 'toPandas'):
@@ -1608,7 +1602,6 @@ def inject_demand_increase(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
     print(f"    Baseline: {num_baseline_orders} orders, avg qty {baseline_qty:.0f}")
     print(f"    Creating: {num_new_orders} new orders")
 
-    # Get available customers
     customers = df_kna1['KUNNR'].tolist()
 
     # Generate new order numbers (start from a high number to avoid conflicts)
@@ -1716,7 +1709,6 @@ def inject_emergency_order(scenario_id, config, df_vbak, df_kna1):
     except:
         due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
 
-    # Convert to pandas if needed
     if hasattr(df_vbak, 'toPandas'):
         df_vbak = df_vbak.toPandas()
     if hasattr(df_kna1, 'toPandas'):
@@ -1726,7 +1718,6 @@ def inject_emergency_order(scenario_id, config, df_vbak, df_kna1):
     max_vbeln = int(df_vbak['VBELN'].astype(str).str.replace(r'\D', '', regex=True).astype(float).max())
     vbeln = str(max_vbeln + 5000)
 
-    # Select a customer
     customer = df_kna1['KUNNR'].iloc[0]
 
     order_date = datetime.now()
@@ -1815,7 +1806,6 @@ def inject_shortage_demand(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
     print(f"    Increase: +{increase_pct}%")
     print(f"    Duration: {duration_days} days")
 
-    # Convert to pandas if needed
     if hasattr(df_vbak, 'toPandas'):
         df_vbak = df_vbak.toPandas()
     if hasattr(df_vbap, 'toPandas'):
@@ -1843,7 +1833,6 @@ def inject_shortage_demand(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
     print(f"    Baseline: {num_baseline_orders} orders, avg qty {baseline_qty:.0f}")
     print(f"    Creating: {num_new_orders} URGENT orders")
 
-    # Get available customers
     customers = df_kna1['KUNNR'].tolist()
 
     # Generate new order numbers
@@ -1952,7 +1941,6 @@ def inject_new_product(scenario_id, config, df_mara, df_makt, df_marc, df_mast, 
     print(f"    Based on: {base_material}")
     print(f"    Plant: {plant}")
 
-    # Convert to pandas if needed
     if hasattr(df_mara, 'toPandas'):
         df_mara = df_mara.toPandas()
     if hasattr(df_makt, 'toPandas'):
@@ -2128,7 +2116,6 @@ def inject_equipment_failure(scenario_id, config, df_afko):
 
     recovery_date = failure_date + timedelta(days=downtime_days)
 
-    # Convert to pandas if needed
     if hasattr(df_afko, 'toPandas'):
         df_afko = df_afko.toPandas()
 
@@ -2189,7 +2176,6 @@ def inject_regulatory_freeze(scenario_id, config, df_likp):
     print(f"    Plant: {plant}")
     print(f"    Freeze Start: {start_date_str}, Duration: {freeze_days} days")
 
-    # Parse start date
     try:
         start_date = datetime.strptime(start_date_str, '%Y%m%d')
     except:
@@ -2197,7 +2183,6 @@ def inject_regulatory_freeze(scenario_id, config, df_likp):
 
     freeze_end = start_date + timedelta(days=freeze_days)
 
-    # Convert to pandas if needed
     if hasattr(df_likp, 'toPandas'):
         df_likp = df_likp.toPandas()
 
@@ -2248,7 +2233,6 @@ def inject_new_facility(scenario_id, config, df_sapapo_loc, df_afko, df_mara):
     except:
         ramp_start = datetime.strptime(ramp_start_str, '%Y-%m-%d')
 
-    # Convert to pandas if needed
     if hasattr(df_sapapo_loc, 'toPandas'):
         df_sapapo_loc = df_sapapo_loc.toPandas()
     if hasattr(df_afko, 'toPandas'):
@@ -2331,7 +2315,6 @@ def inject_limited_capacity(scenario_id, config, df_afko, df_mara):
     capacity_pct = config['capacity_pct']
     duration_days = config['duration_days']
 
-    # Convert to pandas if needed
     if hasattr(df_afko, 'toPandas'):
         df_afko = df_afko.toPandas()
     if hasattr(df_mara, 'toPandas'):
@@ -2399,7 +2382,6 @@ def inject_competing_production(scenario_id, config, df_afko, df_vbak, df_kna1):
     materials = config['materials']
     contention_pct = config['contention_pct']
 
-    # Convert to pandas if needed
     if hasattr(df_afko, 'toPandas'):
         df_afko = df_afko.toPandas()
     if hasattr(df_vbak, 'toPandas'):
@@ -2514,7 +2496,6 @@ def inject_high_volatility(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
     volatility_pct = config['volatility_pct']
     duration_days = config['duration_days']
 
-    # Convert to pandas if needed
     if hasattr(df_vbak, 'toPandas'):
         df_vbak = df_vbak.toPandas()
     if hasattr(df_kna1, 'toPandas'):
@@ -2623,7 +2604,6 @@ def inject_supplier_performance(df_ekbe, scenario_id, config, scenario_def):
     # Create a copy of df_ekbe
     df_ekbe = df_ekbe.copy()
 
-    # Parse dates
     df_ekbe['BUDAT_DT'] = pd.to_datetime(df_ekbe['BUDAT'], format='%Y%m%d', errors='coerce')
     df_ekbe['EINDT_DT'] = pd.to_datetime(df_ekbe.get('EINDT_PLAN', df_ekbe['BUDAT']), format='%Y%m%d', errors='coerce')
 
@@ -2704,7 +2684,6 @@ def save_sap_table(df_spark, table_name, catalog, schema):
     """Save DataFrame to Delta table with schema alignment."""
     full_table_name = f"{catalog}.{schema}.{table_name}"
 
-    # Uppercase columns
     for col in df_spark.columns:
         df_spark = df_spark.withColumnRenamed(col, col.upper())
 
@@ -2722,7 +2701,6 @@ def save_sap_table(df_spark, table_name, catalog, schema):
             if col in df_spark.columns:
                 select_exprs.append(F.col(col).cast(field.dataType))
             else:
-                # Defaults
                 if isinstance(field.dataType, StringType):
                     select_exprs.append(F.lit("").cast(field.dataType).alias(col))
                 elif isinstance(field.dataType, (DoubleType, LongType, IntegerType)):
@@ -3145,7 +3123,6 @@ if production_scenarios_enabled and df_vbak is not None:
                     "SCN012", config, df_mara, df_makt, df_marc, df_mast, df_stpo, df_vbak, df_kna1
                 )
 
-                # Store for later saving
                 if 'master_data' not in production_scenario_records:
                     production_scenario_records['master_data'] = {'mara': [], 'makt': [], 'marc': [], 'mast': [], 'stpo': []}
                 production_scenario_records['master_data']['mara'].extend(mara_recs)
@@ -3634,6 +3611,8 @@ if inventory_changes or supplier_changes or production_changes:
         print("\nSaving updated supplier tables...")
         save_sap_table(spark.createDataFrame(df_ekbe), "ekbe", CATALOG, SCHEMA)
 
+    scenario_protection_records = []
+
     # Apply production scenario changes
     if production_changes and df_vbak is not None:
         print("\nSaving updated production/sales tables...")
@@ -3643,6 +3622,7 @@ if inventory_changes or supplier_changes or production_changes:
             df_new_vbak = pd.DataFrame(production_scenario_records["vbak"])
             df_vbak_updated = pd.concat([df_vbak, df_new_vbak], ignore_index=True)
             save_sap_table(spark.createDataFrame(df_vbak_updated), "vbak", CATALOG, SCHEMA)
+            scenario_protection_records += [("vbak", "VBELN", str(v)) for v in df_new_vbak["VBELN"].unique()]
             print(f"  Added {len(df_new_vbak)} new VBAK records")
 
         # Append new VBAP records
@@ -3650,6 +3630,7 @@ if inventory_changes or supplier_changes or production_changes:
             df_new_vbap = pd.DataFrame(production_scenario_records["vbap"])
             df_vbap_updated = pd.concat([df_vbap, df_new_vbap], ignore_index=True)
             save_sap_table(spark.createDataFrame(df_vbap_updated), "vbap", CATALOG, SCHEMA)
+            scenario_protection_records += [("vbap", "VBELN", str(v)) for v in df_new_vbap["VBELN"].unique()]
             print(f"  Added {len(df_new_vbap)} new VBAP records")
 
         # Append new VBEP records
@@ -3657,6 +3638,7 @@ if inventory_changes or supplier_changes or production_changes:
             df_new_vbep = pd.DataFrame(production_scenario_records["vbep"])
             df_vbep_updated = pd.concat([df_vbep, df_new_vbep], ignore_index=True)
             save_sap_table(spark.createDataFrame(df_vbep_updated), "vbep", CATALOG, SCHEMA)
+            scenario_protection_records += [("vbep", "VBELN", str(v)) for v in df_new_vbep["VBELN"].unique()]
             print(f"  Added {len(df_new_vbep)} new VBEP records")
 
         # SCN012: Save new master data (MARA, MAKT, MARC, MAST, STPO)
@@ -3666,26 +3648,31 @@ if inventory_changes or supplier_changes or production_changes:
                 df_mara = spark.table(f"{CATALOG}.{SCHEMA}.mara").toPandas()
                 df_mara_updated = pd.concat([df_mara, pd.DataFrame(md['mara'])], ignore_index=True)
                 save_sap_table(spark.createDataFrame(df_mara_updated), "mara", CATALOG, SCHEMA)
+                scenario_protection_records += [("mara", "MATNR", str(r["MATNR"])) for r in md["mara"]]
                 print(f"  Added {len(md['mara'])} new MARA records (SCN012)")
             if md.get('makt'):
                 df_makt = spark.table(f"{CATALOG}.{SCHEMA}.makt").toPandas()
                 df_makt_updated = pd.concat([df_makt, pd.DataFrame(md['makt'])], ignore_index=True)
                 save_sap_table(spark.createDataFrame(df_makt_updated), "makt", CATALOG, SCHEMA)
+                scenario_protection_records += [("makt", "MATNR", str(r["MATNR"])) for r in md["makt"]]
                 print(f"  Added {len(md['makt'])} new MAKT records (SCN012)")
             if md.get('marc'):
                 df_marc = spark.table(f"{CATALOG}.{SCHEMA}.marc").toPandas()
                 df_marc_updated = pd.concat([df_marc, pd.DataFrame(md['marc'])], ignore_index=True)
                 save_sap_table(spark.createDataFrame(df_marc_updated), "marc", CATALOG, SCHEMA)
+                scenario_protection_records += [("marc", "MATNR", str(r["MATNR"])) for r in md["marc"]]
                 print(f"  Added {len(md['marc'])} new MARC records (SCN012)")
             if md.get('mast'):
                 df_mast = spark.table(f"{CATALOG}.{SCHEMA}.mast").toPandas()
                 df_mast_updated = pd.concat([df_mast, pd.DataFrame(md['mast'])], ignore_index=True)
                 save_sap_table(spark.createDataFrame(df_mast_updated), "mast", CATALOG, SCHEMA)
+                scenario_protection_records += [("mast", "MATNR", str(r["MATNR"])) for r in md["mast"]]
                 print(f"  Added {len(md['mast'])} new MAST records (SCN012)")
             if md.get('stpo'):
                 df_stpo = spark.table(f"{CATALOG}.{SCHEMA}.stpo").toPandas()
                 df_stpo_updated = pd.concat([df_stpo, pd.DataFrame(md['stpo'])], ignore_index=True)
                 save_sap_table(spark.createDataFrame(df_stpo_updated), "stpo", CATALOG, SCHEMA)
+                scenario_protection_records += [("stpo", "STLNR", str(r["STLNR"])) for r in md["stpo"]]
                 print(f"  Added {len(md['stpo'])} new STPO records (SCN012)")
 
         # SCN014/SCN016: Add new AFKO production orders
@@ -3748,6 +3735,15 @@ if inventory_changes or supplier_changes or production_changes:
                     df_afko_updated['PLNBEZ'] = df_afko_updated['PLNBEZ'].fillna(df_afko_updated['MATNR'])
                 save_sap_table(spark.createDataFrame(df_afko_updated), "afko", CATALOG, SCHEMA)
                 print(f"  Added {len(nf['afko'])} ramping production orders (SCN018)")
+
+    if scenario_protection_records:
+        df_protection = pd.DataFrame(
+            scenario_protection_records,
+            columns=["TABLE_NAME", "KEY_COLUMN", "KEY_VALUE"],
+        ).drop_duplicates().reset_index(drop=True)
+        protection_table = f"{CATALOG}.{SCHEMA}.scenario_protection"
+        spark.createDataFrame(df_protection).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(protection_table)
+        print(f"  Saved {len(df_protection)} scenario protection keys")
 
     # Save scenario metadata with explicit schema to avoid type inference issues
     print("Saving scenario metadata...")

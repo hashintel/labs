@@ -1,5 +1,4 @@
 # Databricks notebook source
-#INITIAL LIBRARIES
 !pip install faker
 
 import pandas as pd
@@ -15,7 +14,6 @@ from pyspark.sql.types import *
 # COMMAND ----------
 
 # Configuration & Seeding
-# --- WIDGETS ---
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("RANDOM_SEED", "42", "Random Seed")
@@ -40,7 +38,6 @@ MOQ_RAW_MIN = int(dbutils.widgets.get("MOQ_RAW_MIN"))
 MOQ_RAW_MAX = int(dbutils.widgets.get("MOQ_RAW_MAX"))
 DATASET_CURRENCY = dbutils.widgets.get("DATASET_CURRENCY").upper()
 
-# --- FIXED SEEDING ---
 Faker.seed(RANDOM_SEED)
 random.seed(RANDOM_SEED)
 np.random.seed(RANDOM_SEED)
@@ -68,11 +65,11 @@ MAT_VEGGIE_CAPS = "MAT-R0025"
 MAT_INDIA_PRODUCT = "MAT-A0020"
 CUST_INDIA = "CUST00020"
 
-# --- NAMING LISTS ---
+# NAMING LISTS
 PRODUCT_ADJECTIVES = ['Active', 'Smart', 'Turbo', 'Quick', 'Fast', 'Power', 'Hyper', 'Stealth', 'Sonic', 'Aero', 'Fusion', 'Digital', 'Core', 'Quantum', 'Rapid', 'Dynamic']
 PRODUCT_NOUNS = ['Drive', 'Flow', 'Spark', 'Link', 'Core', 'Max', 'Pro', 'Genius', 'Master', 'Stream', 'Shift', 'Bolt', 'Edge', 'Connect', 'Sync']
 
-# --- BOM CONFIGURATION ---
+# BOM CONFIGURATION
 BOM_CONFIG = [
     {'parent': 'B1_TAB1', 'child': 'API1', 'qty': 500, 'uom': 'GRM', 'scrap': 0.5, 'type': 'API'},
     {'parent': 'B1_TAB1', 'child': 'EXC1', 'qty': 300, 'uom': 'GRM', 'scrap': 2.0, 'type': 'Excipient'},
@@ -99,7 +96,6 @@ def save_to_catalog(df_spark, table_name):
     """
     full_table_name = f"{CATALOG}.{SCHEMA}.{table_name}"
 
-    # Standardize cols to uppercase
     for col_name in df_spark.columns:
         df_spark = df_spark.withColumnRenamed(col_name, col_name.upper())
 
@@ -142,12 +138,11 @@ def generate_mara_data():
         })
     return pd.DataFrame(data)
 
-def generate_makt_data(): # FIXED: Restored Creative Naming
+def generate_makt_data():
     data = []
     languages = ['EN', 'DE', 'FR']
     
     for matnr in PREDEFINED_MATERIALS:
-        # LOGIC RESTORED: Creative names for Finished Goods, Functional for Raws
         if matnr in PARENT_MATERIALS:
             base_name = f"{random.choice(PRODUCT_ADJECTIVES)} {random.choice(PRODUCT_NOUNS)}"
         else:
@@ -462,8 +457,7 @@ def generate_marm_data():
     return pd.DataFrame(data)
 
 
-# --- TRANSPORTATION LANE DATA GENERATORS ---
-
+# TRANSPORTATION LANE DATA GENERATORS
 # EU countries for customs logic
 EU_COUNTRIES = {'AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'}
 
@@ -1216,12 +1210,9 @@ def generate_bom_structure():
     for idx, matnr in enumerate(PARENT_MATERIALS):
         bom_id = f"BOM{idx+10000}"
         
-        # MAST
         for werks in PREDEFINED_PLANTS:
             mast.append({'MANDT': '800', 'MATNR': matnr, 'WERKS': werks, 'STLAN': '1', 'STLNR': bom_id, 'STLAL': '01'})
-        # STKO
         stko.append({'MANDT': '800', 'STLTY': 'M', 'STLNR': bom_id, 'STLAL': '01', 'BMENG': 1, 'BMEIN': 'PC', 'DATUV': '20230101'})
-        # STPO
         comps = bom_map.get(matnr, [])
         if not comps: 
             for i in range(2):
@@ -1237,7 +1228,7 @@ def generate_bom_structure():
 
 # COMMAND ----------
 
-# --- SMART CATALOG SETUP ---
+# SMART CATALOG SETUP
 # 1. Try to use the catalog. 2. If missing, try to create. 3. If that fails, fallback to hive_metastore.
 target_catalog = CATALOG # From widget
 setup_done = False
@@ -1263,15 +1254,11 @@ if not setup_done:
         CATALOG = "hive_metastore"
         spark.sql(f"USE CATALOG {CATALOG}")
 
-# Now create the Schema (Database) inside whichever Catalog we selected
+# Create the schema inside whichever catalog was selected
 spark.sql(f"CREATE SCHEMA IF NOT EXISTS {CATALOG}.{SCHEMA}")
 print(f"Active Target: {CATALOG}.{SCHEMA}")
 
-# --- EXECUTE GENERATORS ---
-# Store valid keys for orphan record injection
-valid_matnr_set = set(PREDEFINED_MATERIALS)
-valid_kunnr_set = set(PREDEFINED_CUSTOMERS)
-
+# EXECUTE GENERATORS
 print("Generating KNA1...")
 df_kna1 = generate_kna1_data()
 save_to_catalog(spark.createDataFrame(df_kna1), "kna1")
@@ -1320,12 +1307,10 @@ save_to_catalog(spark.createDataFrame(df_stpo), "stpo")
 
 print("Generating APO Location Master (/SAPAPO/LOC)...")
 df_sapapo_loc = generate_sapapo_loc_data()
-# APO location data generally stays clean (reference data)
 save_to_catalog(spark.createDataFrame(df_sapapo_loc), "sapapo_loc")
 
 print("Generating APO Transportation Lanes (/SAPAPO/TR)...")
 df_sapapo_tr = generate_sapapo_tr_data()
-# Note: Don't dirty LOCFR/LOCTO - they're used as lookup keys for TRM generation
 save_to_catalog(spark.createDataFrame(df_sapapo_tr), "sapapo_tr")
 
 print("Generating APO Means of Transport (/SAPAPO/TRM)...")

@@ -3285,6 +3285,8 @@ def generate(wh):
             print("\nSaving updated supplier tables...")
             save_sap_table(df_ekbe, "ekbe", wh)
 
+        scenario_protection_records = []
+
         if production_changes and df_vbak is not None:
             print("\nSaving updated production/sales tables...")
 
@@ -3292,18 +3294,21 @@ def generate(wh):
                 df_new_vbak = pd.DataFrame(production_scenario_records["vbak"])
                 df_vbak_updated = pd.concat([df_vbak, df_new_vbak], ignore_index=True)
                 save_sap_table(df_vbak_updated, "vbak", wh)
+                scenario_protection_records += [("vbak", "VBELN", str(v)) for v in df_new_vbak["VBELN"].unique()]
                 print(f"  Added {len(df_new_vbak)} new VBAK records")
 
             if production_scenario_records["vbap"]:
                 df_new_vbap = pd.DataFrame(production_scenario_records["vbap"])
                 df_vbap_updated = pd.concat([df_vbap, df_new_vbap], ignore_index=True)
                 save_sap_table(df_vbap_updated, "vbap", wh)
+                scenario_protection_records += [("vbap", "VBELN", str(v)) for v in df_new_vbap["VBELN"].unique()]
                 print(f"  Added {len(df_new_vbap)} new VBAP records")
 
             if production_scenario_records["vbep"]:
                 df_new_vbep = pd.DataFrame(production_scenario_records["vbep"])
                 df_vbep_updated = pd.concat([df_vbep, df_new_vbep], ignore_index=True)
                 save_sap_table(df_vbep_updated, "vbep", wh)
+                scenario_protection_records += [("vbep", "VBELN", str(v)) for v in df_new_vbep["VBELN"].unique()]
                 print(f"  Added {len(df_new_vbep)} new VBEP records")
 
             if 'master_data' in production_scenario_records:
@@ -3312,26 +3317,31 @@ def generate(wh):
                     df_mara = wh.read("mara")
                     df_mara_updated = pd.concat([df_mara, pd.DataFrame(md['mara'])], ignore_index=True)
                     save_sap_table(df_mara_updated, "mara", wh)
+                    scenario_protection_records += [("mara", "MATNR", str(r["MATNR"])) for r in md["mara"]]
                     print(f"  Added {len(md['mara'])} new MARA records (SCN012)")
                 if md.get('makt'):
                     df_makt = wh.read("makt")
                     df_makt_updated = pd.concat([df_makt, pd.DataFrame(md['makt'])], ignore_index=True)
                     save_sap_table(df_makt_updated, "makt", wh)
+                    scenario_protection_records += [("makt", "MATNR", str(r["MATNR"])) for r in md["makt"]]
                     print(f"  Added {len(md['makt'])} new MAKT records (SCN012)")
                 if md.get('marc'):
                     df_marc = wh.read("marc")
                     df_marc_updated = pd.concat([df_marc, pd.DataFrame(md['marc'])], ignore_index=True)
                     save_sap_table(df_marc_updated, "marc", wh)
+                    scenario_protection_records += [("marc", "MATNR", str(r["MATNR"])) for r in md["marc"]]
                     print(f"  Added {len(md['marc'])} new MARC records (SCN012)")
                 if md.get('mast'):
                     df_mast = wh.read("mast")
                     df_mast_updated = pd.concat([df_mast, pd.DataFrame(md['mast'])], ignore_index=True)
                     save_sap_table(df_mast_updated, "mast", wh)
+                    scenario_protection_records += [("mast", "MATNR", str(r["MATNR"])) for r in md["mast"]]
                     print(f"  Added {len(md['mast'])} new MAST records (SCN012)")
                 if md.get('stpo'):
                     df_stpo = wh.read("stpo")
                     df_stpo_updated = pd.concat([df_stpo, pd.DataFrame(md['stpo'])], ignore_index=True)
                     save_sap_table(df_stpo_updated, "stpo", wh)
+                    scenario_protection_records += [("stpo", "STLNR", str(r["STLNR"])) for r in md["stpo"]]
                     print(f"  Added {len(md['stpo'])} new STPO records (SCN012)")
 
             if 'afko' in production_scenario_records and production_scenario_records['afko']:
@@ -3385,6 +3395,14 @@ def generate(wh):
                         df_afko_updated['PLNBEZ'] = df_afko_updated['PLNBEZ'].fillna(df_afko_updated['MATNR'])
                     save_sap_table(df_afko_updated, "afko", wh)
                     print(f"  Added {len(nf['afko'])} ramping production orders (SCN018)")
+
+        if scenario_protection_records:
+            df_protection = pd.DataFrame(
+                scenario_protection_records,
+                columns=["TABLE_NAME", "KEY_COLUMN", "KEY_VALUE"],
+            ).drop_duplicates().reset_index(drop=True)
+            wh.save("scenario_protection", df_protection)
+            print(f"  Saved {len(df_protection)} scenario protection keys")
 
         print("Saving scenario metadata...")
 

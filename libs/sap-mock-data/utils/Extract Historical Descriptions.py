@@ -1,7 +1,5 @@
 # Databricks notebook source
-# =============================================================================
-# EXTRACT COLUMN DESCRIPTIONS FROM HISTORICAL TABLE VERSIONS
-# =============================================================================
+# Extract column descriptions from historical table versions
 # This script queries historical versions of Delta tables to extract
 # column descriptions that may have been overwritten.
 #
@@ -13,9 +11,7 @@
 
 # COMMAND ----------
 
-# =============================================================================
-# PARAMETERS
-# =============================================================================
+# Parameters
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 
@@ -31,9 +27,7 @@ print("=" * 70)
 
 # COMMAND ----------
 
-# =============================================================================
-# DEFINE TABLE VERSIONS TO QUERY
-# =============================================================================
+# Define table versions to query
 # Update this dictionary with your table names and the version numbers
 # that contain the descriptions you want to restore.
 #
@@ -74,9 +68,7 @@ if not TABLE_VERSIONS:
 
 # COMMAND ----------
 
-# =============================================================================
-# HELPER: SHOW AVAILABLE HISTORY FOR ALL TABLES
-# =============================================================================
+# Helper: show available history for all tables
 # Run this cell to see version history for all tables
 
 print("TABLE VERSION HISTORY")
@@ -101,9 +93,7 @@ for row in tables_df.collect():
 
 # COMMAND ----------
 
-# =============================================================================
-# EXTRACT DESCRIPTIONS FROM HISTORICAL OR CURRENT VERSIONS
-# =============================================================================
+# Extract descriptions from historical or current versions
 # Column comments are stored in Delta schema metadata and accessible via
 # spark.read with versionAsOf - then access field.metadata.get("comment")
 #
@@ -187,9 +177,7 @@ for table_name, version in TABLE_VERSIONS.items():
 
 # COMMAND ----------
 
-# =============================================================================
-# OUTPUT AS YAML FORMAT
-# =============================================================================
+# Output as yaml format
 
 if TABLE_VERSIONS and all_results:
     print("\n" + "=" * 70)
@@ -214,9 +202,7 @@ if TABLE_VERSIONS and all_results:
 
 # COMMAND ----------
 
-# =============================================================================
-# ALTERNATIVE: QUERY SPECIFIC TABLE HISTORY
-# =============================================================================
+# Alternative: query specific table history
 # Uncomment and modify to check a specific table's history
 
 # table_to_check = "mara"
@@ -224,9 +210,7 @@ if TABLE_VERSIONS and all_results:
 
 # COMMAND ----------
 
-# =============================================================================
-# ALTERNATIVE: DESCRIBE TABLE AT SPECIFIC VERSION
-# =============================================================================
+# Alternative: describe table at specific version
 # Uncomment and modify to see schema at a specific version
 
 # table_to_check = "mara"

@@ -90,7 +90,7 @@ def select_batch_for_issue(matnr, werks, lgort, qty_needed):
             batch_info['qty'] -= deduct
             return [(batch_info['batch'], actual_qty)]
 
-    return [('', actual_qty)]  # Fallback
+    return [('', actual_qty)]
 
 def get_unreliable_materials(all_raw_materials, reliability_rate, specific_materials=""):
     """
@@ -312,7 +312,7 @@ def generate_shipments(df_likp, df_lips, df_vbap):
         first_item = del_items.iloc[0]
         source_plant = first_item.get('WERKS', '1000')
         if pd.isna(source_plant) or source_plant == '':
-            source_plant = '1000'  # Default to hub
+            source_plant = '1000'  # Hub plant
 
         delivery_date_str = first_item.get('LFDAT', datetime.now().strftime('%Y%m%d'))
 
@@ -403,7 +403,7 @@ def simulate_hub_spoke_v2(pdf: pd.DataFrame) -> pd.DataFrame:
         moq = hub_rows['MOQ'].iloc[0]
         moq = int(moq) if pd.notna(moq) and moq > 0 else 500
     else:
-        moq = 500  # Default MOQ
+        moq = 500
 
     for _, row in plant_groups.iterrows():
         plant = row['WERKS']
@@ -510,7 +510,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
     for _, row in df_prod.iterrows():
         matnr = row['MATNR']
         planned_qty = row['QUANTITY']
-        plant = row['SUPPLY_PLANT']  # Should be 1000
+        plant = row['SUPPLY_PLANT']
         date = row['DATE']
 
         aufnr = f"ORD{random.randint(1000000,9999999)}"

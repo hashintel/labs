@@ -1,7 +1,5 @@
 # Databricks notebook source
-# =============================================================================
-# EXPORT UNITY CATALOG DOCUMENTATION TO YAML
-# =============================================================================
+# Export unity catalog documentation to yaml
 # This notebook extracts table and column descriptions from Unity Catalog
 # and exports them to a portable YAML file for version control.
 #
@@ -18,9 +16,7 @@
 
 # COMMAND ----------
 
-# =============================================================================
-# PARAMETERS
-# =============================================================================
+# Parameters
 dbutils.widgets.text("CATALOG", "sample_synthetic_sap", "Catalog Name")
 dbutils.widgets.text("SCHEMA", "sap", "Schema Name")
 dbutils.widgets.text("OUTPUT_PATH", "/Volumes/sample_synthetic_sap/sap/exports/schema_documentation.yaml", "Output YAML Path")
@@ -38,9 +34,7 @@ print("=" * 70)
 
 # COMMAND ----------
 
-# =============================================================================
-# EXTRACT TABLE AND COLUMN METADATA
-# =============================================================================
+# Extract table and column metadata
 from pyspark.sql import functions as F
 import yaml
 from collections import OrderedDict
@@ -66,9 +60,7 @@ print(f"Found {len(tables)} tables in {CATALOG}.{SCHEMA}")
 
 # COMMAND ----------
 
-# =============================================================================
-# BUILD DOCUMENTATION STRUCTURE
-# =============================================================================
+# Build documentation structure
 
 documentation = OrderedDict()
 documentation['_metadata'] = OrderedDict([
@@ -130,9 +122,7 @@ for table_row in tables:
 
 # COMMAND ----------
 
-# =============================================================================
-# GENERATE YAML OUTPUT
-# =============================================================================
+# Generate yaml output
 
 # Convert to YAML with nice formatting
 yaml_content = yaml.dump(
@@ -155,9 +145,7 @@ if len(lines) > 100:
 
 # COMMAND ----------
 
-# =============================================================================
-# SAVE TO FILE
-# =============================================================================
+# Save to file
 import os
 
 # Write to the output path
@@ -189,9 +177,7 @@ print("=" * 70)
 
 # COMMAND ----------
 
-# =============================================================================
-# DISPLAY SUMMARY
-# =============================================================================
+# Display summary
 
 # Create summary dataframe
 summary_data = []
@@ -211,9 +197,7 @@ display(summary_df)
 
 # COMMAND ----------
 
-# =============================================================================
-# OPTIONAL: ALSO SAVE AS JSON FOR PROGRAMMATIC ACCESS
-# =============================================================================
+# Optional: also save as json for programmatic access
 import json
 
 json_path = OUTPUT_PATH.replace('.yaml', '.json')

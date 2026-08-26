@@ -16,12 +16,12 @@ from .common import param
 def dirty_key(value):
     """Apply a random dirty transformation to a key value."""
     transformations = [
-        lambda v: '0' + str(v),           # Add leading zero
-        lambda v: ' ' + str(v),           # Add leading space
-        lambda v: str(v) + ' ',           # Add trailing space
-        lambda v: str(v).lower(),         # Lowercase
-        lambda v: str(v).lstrip('0'),     # Strip leading zeros
-        lambda v: '  ' + str(v) + '  ',   # Multiple spaces
+        lambda v: '0' + str(v),
+        lambda v: ' ' + str(v),
+        lambda v: str(v) + ' ',
+        lambda v: str(v).lower(),
+        lambda v: str(v).lstrip('0'),
+        lambda v: '  ' + str(v) + '  ',
     ]
     return random.choice(transformations)(str(value))
 
@@ -38,10 +38,10 @@ def dirty_date(date_str):
         day = date_str[6:8]
 
         formats = [
-            f"{day}/{month}/{year}",      # DD/MM/YYYY
-            f"{month}-{day}-{year}",      # MM-DD-YYYY
-            f"{year}-{month}-{day}",      # YYYY-MM-DD (ISO)
-            f"{day}.{month}.{year}",      # DD.MM.YYYY (European)
+            f"{day}/{month}/{year}",
+            f"{month}-{day}-{year}",
+            f"{year}-{month}-{day}",
+            f"{day}.{month}.{year}",
         ]
         return random.choice(formats)
     except Exception:
@@ -219,8 +219,7 @@ TRANSACTION_DIRTY_CONFIGS = {
     },
     "matdoc": {
         'key_columns': ['MBLNR', 'WERKS'],
-        # Scenario records are identified by the 'SCN' prefix on MBLNR,
-        # so they are left clean.
+        # Scenario documents (MBLNR prefix 'SCN') stay clean.
         'protect': ('MBLNR', 'SCN'),
     },
 }
@@ -234,19 +233,31 @@ def generate(wh):
     dirty_rate = float(param("DIRTY_DATA_RATE"))
     seed = int(param("RANDOM_SEED"))
 
+    # Rows appended by scenario injection stay clean.
+    protected_keys = {}
+    if wh.exists("scenario_protection"):
+        for row in wh.read("scenario_protection").itertuples(index=False):
+            table_keys = protected_keys.setdefault(row.TABLE_NAME, {})
+            table_keys.setdefault(row.KEY_COLUMN, set()).add(str(row.KEY_VALUE))
+
     dirtied = 0
     for table_name, config in {**MASTERDATA_DIRTY_CONFIGS, **TRANSACTION_DIRTY_CONFIGS}.items():
         if not wh.exists(table_name):
             continue
 
         df = wh.read(table_name)
-        protect = config.get('protect')
-        if protect:
-            protect_col, protect_prefix = protect
-            protected_mask = df[protect_col].astype(str).str.startswith(protect_prefix)
-            config = {key: value for key, value in config.items() if key != 'protect'}
-            df_dirty = apply_dirty_data(df[~protected_mask], table_name, config, dirty_rate, seed)
-            df_dirty = pd.concat([df_dirty, df[protected_mask]], ignore_index=True)
+        exempt = pd.Series(False, index=df.index)
+        if 'protect' in config:
+            protect_col, protect_prefix = config['protect']
+            exempt |= df[protect_col].astype(str).str.startswith(protect_prefix)
+        for key_column, key_values in protected_keys.get(table_name, {}).items():
+            if key_column in df.columns:
+                exempt |= df[key_column].astype(str).isin(key_values)
+
+        config = {key: value for key, value in config.items() if key != 'protect'}
+        if exempt.any():
+            df_dirty = apply_dirty_data(df[~exempt], table_name, config, dirty_rate, seed)
+            df_dirty = pd.concat([df_dirty, df[exempt]], ignore_index=True)
         else:
             df_dirty = apply_dirty_data(df, table_name, config, dirty_rate, seed)
 
