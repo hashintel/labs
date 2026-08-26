@@ -3400,7 +3400,11 @@ def generate(wh):
             df_protection = pd.DataFrame(
                 scenario_protection_records,
                 columns=["TABLE_NAME", "KEY_COLUMN", "KEY_VALUE"],
-            ).drop_duplicates().reset_index(drop=True)
+            )
+            # Rows from earlier inject runs remain in the tables; keep their keys.
+            if wh.exists("scenario_protection"):
+                df_protection = pd.concat([wh.read("scenario_protection"), df_protection], ignore_index=True)
+            df_protection = df_protection.drop_duplicates().reset_index(drop=True)
             wh.save("scenario_protection", df_protection)
             print(f"  Saved {len(df_protection)} scenario protection keys")
 

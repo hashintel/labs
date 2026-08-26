@@ -300,12 +300,12 @@ dirty_configs = {
 
 # Rows appended by Inject Scenarios stay clean; it records their keys in scenario_protection.
 protected_keys = {}
-try:
+if spark.catalog.tableExists(f"{CATALOG}.{SCHEMA}.scenario_protection"):
     df_protection = spark.table(f"{CATALOG}.{SCHEMA}.scenario_protection").toPandas()
     for row in df_protection.itertuples(index=False):
         protected_keys.setdefault(row.TABLE_NAME, {}).setdefault(row.KEY_COLUMN, set()).add(str(row.KEY_VALUE))
     print(f"Scenario protection: {len(df_protection)} keys loaded")
-except Exception:
+else:
     print("No scenario_protection table found")
 
 tables_processed = 0

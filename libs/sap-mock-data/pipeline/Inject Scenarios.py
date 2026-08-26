@@ -3740,8 +3740,13 @@ if inventory_changes or supplier_changes or production_changes:
         df_protection = pd.DataFrame(
             scenario_protection_records,
             columns=["TABLE_NAME", "KEY_COLUMN", "KEY_VALUE"],
-        ).drop_duplicates().reset_index(drop=True)
+        )
         protection_table = f"{CATALOG}.{SCHEMA}.scenario_protection"
+        # Rows from earlier inject runs remain in the tables; keep their keys.
+        if spark.catalog.tableExists(protection_table):
+            df_existing = spark.table(protection_table).toPandas()
+            df_protection = pd.concat([df_existing, df_protection], ignore_index=True)
+        df_protection = df_protection.drop_duplicates().reset_index(drop=True)
         spark.createDataFrame(df_protection).write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(protection_table)
         print(f"  Saved {len(df_protection)} scenario protection keys")
 
