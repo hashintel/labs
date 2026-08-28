@@ -1,5 +1,4 @@
 import React, { FC, memo, ReactElement, useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { Tab, TabPanel } from "react-tabs";
 import classNames from "classnames";
 import { SerializableAgentState } from "@hashintel/engine-web";
@@ -7,7 +6,6 @@ import { editor } from "monaco-editor";
 
 import { AgentScene } from "./AgentSceneLazy";
 import { AnalysisViewer } from "./AnalysisViewerLazy";
-import type { AppDispatch } from "../../features/types";
 import { GeospatialMap } from "./GeospatialMapLazy";
 import { IconClose } from "../Icon";
 import { MonacoContainer } from "../MonacoContainer";
@@ -22,7 +20,6 @@ import {
   restoreEditorState,
   useMonacoContainer,
 } from "../TabbedEditor";
-import { changeTab, closeTab } from "../../features/viewer/slice";
 import { getUiQueryParams } from "../../hooks/useParameterisedUi";
 import { lazyTabs } from "./lazy";
 import { pyodideEnabled } from "../../util/pyodideEnabled";
@@ -36,19 +33,15 @@ import {
   selectResetting,
   selectRunning,
 } from "../../features/simulator/simulate/selectors";
-import {
-  selectCurrentTab,
-  selectEmbedded,
-  selectVisibleTabsInOrder,
-} from "../../features/viewer/selectors";
 import { useHandlePromiseRejection } from "../ErrorBoundary";
 import { useSimulatorSelector } from "../../features/simulator/context";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
-interface TabEl {
+type TabEl = {
   el: (selected: boolean) => ReactElement | null;
   forceRender?: boolean;
   onSelected?: () => void;
-}
+};
 
 const makeSelectStep = (currentStep: number) => (state: SimulatorRootState) =>
   selectCurrentRunnerSteps(state)[currentStep];
@@ -66,7 +59,7 @@ const useRawOutputTextModel = () => {
     };
   }, []);
 
-  return textModelRef.current;
+  return textModelRef.current!;
 };
 
 const getLazyTab = (tab: TabKind | string) =>
@@ -105,13 +98,15 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
   const errored = useSimulatorSelector(selectCurrentSimErrored);
   const currentExperiment = useSimulatorSelector(selectCurrentExperimentData);
 
-  const dispatch = useDispatch<AppDispatch>();
+  const {
+    currentTab: selectedTab,
+    embedded,
+    visibleTabsInOrder: visibleTabs,
+    changeTab: viewerChangeTab,
+    closeTab: viewerCloseTab,
+  } = useViewer();
 
   const [editorInstance, monacoContainerRef] = useMonacoContainer();
-
-  const selectedTab = useSelector(selectCurrentTab);
-  const embedded = useSelector(selectEmbedded);
-  const visibleTabs = useSelector(selectVisibleTabsInOrder);
   const selectedTabIndex = visibleTabs
     .map((tab) => tab.kind)
     .indexOf(selectedTab);
@@ -148,7 +143,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
     // https://github.com/reactjs/react-tabs/issues/237
     // @todo we should move this functionality into TabActionBar
     if (target.className === "react-tabs__tab") {
-      dispatch(changeTab(tabIndex));
+      viewerChangeTab(tabIndex);
 
       const { onSelected } = tabs[visibleTabs[tabIndex].kind];
       if (onSelected) {
@@ -231,7 +226,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
     if (editorInstance && selectedTab === TabKind.RawOutput) {
       rawOutputTextModel.setValue(serializeRawOutput(viewingStep));
 
-      (rawOutputTextModel as any).forceTokenization(
+      rawOutputTextModel.tokenization.forceTokenization(
         rawOutputTextModel.getLineCount(),
       );
     }
@@ -248,7 +243,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
               className="tab-button"
               onClick={(evt) => {
                 evt.stopPropagation();
-                dispatch(closeTab(tab.kind));
+                viewerCloseTab(tab.kind);
               }}
             >
               <IconClose size={8} />
@@ -268,7 +263,7 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
               "react-tabs__tab-panel": true,
               RawOutput: tab.kind === TabKind.RawOutput,
             })}
-            forceRender={tabs[tab.kind].forceRender ?? false}
+            forceRender={tabs[tab.kind].forceRender || false}
           >
             {tabs[tab.kind].el(selectedTab === tab.kind)}
           </TabPanel>

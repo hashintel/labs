@@ -1,11 +1,13 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 
 import "./ModalForm.scss";
 
-export const ModalForm: FC<{
-  onSubmit: () => Promise<void>;
-  disabled: boolean | undefined;
-}> = ({ onSubmit, disabled, children }) => (
+export const ModalForm: FC<
+  PropsWithChildren<{
+    onSubmit: () => Promise<void>;
+    disabled: boolean | undefined;
+  }>
+> = ({ onSubmit, disabled, children }) => (
   <form
     onSubmit={(event) => {
       event.preventDefault();

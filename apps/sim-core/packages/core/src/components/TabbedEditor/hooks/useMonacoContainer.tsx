@@ -1,6 +1,7 @@
 import React, {
   createContext,
   FC,
+  PropsWithChildren,
   RefCallback,
   useCallback,
   useContext,
@@ -32,7 +33,56 @@ const editorOptions: EditorConstructionsOptions = {
   fixedOverflowWidgets: true,
   scrollBeyondLastLine: false,
   fontFamily: "var(--code-font)",
+  fontSize: 13,
+  tabSize: 2,
   theme: "hash",
+
+  // Smooth editing experience
+  cursorBlinking: "smooth",
+  cursorSmoothCaretAnimation: "on",
+  smoothScrolling: true,
+
+  // Code intelligence
+  formatOnPaste: true,
+  autoClosingBrackets: "languageDefined",
+  autoClosingQuotes: "languageDefined",
+  autoSurround: "languageDefined",
+  suggest: {
+    showKeywords: true,
+    showSnippets: true,
+    showFunctions: true,
+    showVariables: true,
+    showConstants: true,
+  },
+  quickSuggestions: {
+    other: true,
+    comments: false,
+    strings: false,
+  },
+  parameterHints: { enabled: true },
+
+  // Readability
+  renderWhitespace: "selection",
+  renderLineHighlight: "all",
+  matchBrackets: "always",
+  mouseWheelZoom: true,
+
+  // New in Monaco 0.28+
+  "bracketPairColorization.enabled": true,
+  guides: {
+    bracketPairs: true,
+    indentation: true,
+    highlightActiveIndentation: true,
+  },
+  stickyScroll: { enabled: true },
+  wordBasedSuggestions: "currentDocument",
+
+  minimap: {
+    enabled: true,
+    showSlider: "mouseover",
+    maxColumn: 80,
+  },
+
   scrollbar: {
     horizontalScrollbarSize: 3,
     verticalScrollbarSize: 3,
@@ -41,32 +91,24 @@ const editorOptions: EditorConstructionsOptions = {
 };
 
 /**
- * We want to use the shortcuts attached to these commands for our own purposes,
- * so we remove monaco's binding for them to allow them to bubble up to our app
+ * Remove Monaco's default keybindings for commands we want to handle at the
+ * app level, using the public addKeybindingRules API (available since 0.34).
  */
-const disallowedBindings = [
-  "-editor.action.insertLineBefore",
-  "-editor.action.insertLineAfter",
-  "-openReferenceToSide",
+const disallowedBindingRules = [
+  { keybinding: 0, command: "-editor.action.insertLineBefore" },
+  { keybinding: 0, command: "-editor.action.insertLineAfter" },
+  { keybinding: 0, command: "-openReferenceToSide" },
 ];
 
-function createEditorInstance(container: HTMLElement): EditorInstance {
-  const instance = editor.create(container, editorOptions);
+let keybindingRulesRegistered = false;
 
-  for (const binding of disallowedBindings) {
-    /**
-     * Unfortunately, we have to use a private API for this…
-     *
-     * @see https://github.com/microsoft/monaco-editor/issues/102#issuecomment-701704517
-     */
-    (instance as any)._standaloneKeybindingService.addDynamicKeybinding(
-      binding,
-      null,
-      () => {},
-    );
+function createEditorInstance(container: HTMLElement): EditorInstance {
+  if (!keybindingRulesRegistered) {
+    editor.addKeybindingRules(disallowedBindingRules);
+    keybindingRulesRegistered = true;
   }
 
-  return instance;
+  return editor.create(container, editorOptions);
 }
 
 function createDiffEditorInstance(container: HTMLElement): DiffEditorInstance {
@@ -187,7 +229,9 @@ const MonacoContext = createContext<{
   diff: DiffMonacoContainerHook;
 } | null>(null);
 
-export const MonacoContainerProvider: FC = ({ children }) => {
+export const MonacoContainerProvider: FC<PropsWithChildren> = ({
+  children,
+}) => {
   const main = useMonacoContainer();
   const diff = useMonacoContainer(true);
   const hook = useMemo(() => ({ main, diff }), [main, diff]);

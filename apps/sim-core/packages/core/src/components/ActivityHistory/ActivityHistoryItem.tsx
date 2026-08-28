@@ -5,12 +5,12 @@ import { Link, LinkProps } from "../Link/Link";
 
 import "./ActivityHistoryItem.scss";
 
-interface ActivityHistoryItemPropsShared {
+type ActivityHistoryItemPropsShared = {
   open?: boolean;
   tooltip?: ReactNode | null;
   viewable?: boolean;
   after?: ReactNode | null;
-}
+};
 
 type ActivityHistoryItemPropsDiv = ActivityHistoryItemPropsShared &
   Omit<HTMLProps<HTMLDivElement>, "ref" | "as">;

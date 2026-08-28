@@ -1,10 +1,10 @@
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
 import ReactMapboxGl, { Layer, Popup, Source } from "react-mapbox-gl";
-import * as o from "fp-ts/es6/Option";
-import * as r from "fp-ts/es6/Record";
+import * as option from "fp-ts/es6/Option";
+import * as record from "fp-ts/es6/Record";
 import { AgentState } from "@hashintel/engine-web";
 import { MapLayerMouseEvent } from "mapbox-gl";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 
 import { SimulationViewerLazyTab } from "../SimulationViewer/LazyTab/SimulationViewerLazyTab";
 import { mapColor } from "../../util/palette";
@@ -13,22 +13,20 @@ import { useResizeObserver } from "../../hooks/useResizeObserver/useResizeObserv
 import "mapbox-gl/dist/mapbox-gl.css";
 import "./GeospatialMap.css";
 
-export interface GeospatialMapProps {
+export type GeospatialMapProps = {
   simulationStep: AgentState[] | null;
   simulationId: string | null | undefined;
   errored: boolean;
-}
+};
 
-interface PopupData {
+type PopupData = {
   coordinates: [number, number];
   description: string;
-}
+};
 
-// Injected by vite.
-// To specify, add a '.env' file containing, e.g.,
-//    MAPBOX_API_TOKEN=pk.eyJ1IjoianV[...]kZWFsbHtbinwPK4yA
-// Then rebuild.
-const accessToken = import.meta.env.MAPBOX_API_TOKEN;
+// Injected at build time via vite.config.ts define.
+// Set MAPBOX_API_TOKEN env var before building.
+const accessToken = MAPBOX_API_TOKEN;
 const MapComponent = accessToken
   ? ReactMapboxGl({
       accessToken,
@@ -73,11 +71,7 @@ const GeospatialMapPlaceholder: FC<GeospatialMapProps> = () => (
     <p>You can create the .env file if it doesn't exist.</p>
     <p>
       Mapbox API access tokens can be found at{" "}
-      <a
-        target="_blank"
-        href="https://account.mapbox.com/access-tokens/"
-        rel="noreferrer"
-      >
+      <a target="_blank" href="https://account.mapbox.com/access-tokens/">
         https://account.mapbox.com/access-tokens/
       </a>
     </p>
@@ -97,13 +91,10 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
       const agentAverageCenter: [number, number] | undefined =
         lngLatAgents.length > 0
           ? (lngLatAgents
-              .reduce<[number, number]>(
-                (acc, agent) => [
-                  acc[0] + agent.lng_lat[0],
-                  acc[1] + agent.lng_lat[1],
-                ],
-                [0, 0],
-              )
+              .reduce<
+                [number, number]
+              >((acc, agent) => [acc[0] + agent.lng_lat[0], acc[1] + agent.lng_lat[1]], [0,
+                  0])
               .map((val) => val / lngLatAgents.length) as [number, number])
           : undefined;
 
@@ -164,20 +155,20 @@ export const GeospatialMap: FC<GeospatialMapProps> = !MapComponent
                   },
                   properties: {
                     description: JSON.stringify(
-                      r.filterWithIndex((idx) =>
-                        ((agent.popup_fields as string[]) ?? []).includes(idx),
+                      record.filterWithIndex((idx) =>
+                        ((agent.popup_fields as Array<string>) ?? []).includes(
+                          idx,
+                        ),
                       )(agent),
                       null,
                       2,
                     ),
                     agent_idx: idx,
-                    color: `#${o.getOrElse(() => "ffffff")(
-                      o.map((color: number) => color.toString(16))(
-                        o.fromNullable(
-                          mapColor(
-                            agent.geo_color ?? agent.color ?? "random",
-                            agent.agent_id,
-                          ),
+                    color: `#${option.getOrElse(() => "ffffff")(
+                      option.map((color: number) => color.toString(16))(
+                        mapColor(
+                          agent.geo_color ?? agent.color ?? "random",
+                          agent.agent_id,
                         ),
                       ),
                     )}`,

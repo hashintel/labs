@@ -5,7 +5,10 @@ import {
 } from "../types";
 import { FileAction } from "../../../features/files/types";
 import { FullProjectFragment } from "./unpreparedProjectByPath";
-import { SimulationProjectWithHcFiles } from "../../../features/project/types";
+import {
+  RemoteSimulationProject,
+  SimulationProjectWithHcFiles,
+} from "../../../features/project/types";
 import { parse } from "../../files";
 import { prepareRemoteProject } from "./utils";
 import { query } from "../query";
@@ -91,7 +94,7 @@ export async function commitActions<
   // ensures the project will always be defined, so we have to assert it.
   if ("pathWithNamespace" in project!) {
     return {
-      result: prepareRemoteProject(project, null) as Result,
+      result: prepareRemoteProject(project as RemoteSimulationProject) as Result,
       commit,
     };
   } else {

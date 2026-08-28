@@ -1,22 +1,21 @@
 import React, { FC } from "react";
 import * as THREE from "three";
 import { Vec3 } from "@hashintel/engine-web";
-import { useRecoilState } from "recoil";
 
-import * as sceneState from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { RenderSummary } from "../util/anim";
 
 const tempObject = new THREE.Object3D();
 tempObject.up = new THREE.Vector3(0, 0, 1);
 
-interface HoveredAgentProps {
+type HoveredAgentProps = {
   transitions: RenderSummary;
-}
+};
 /*
  * Creates the appropriate ThreeJS representation of a "hovered" agent
  */
 export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
-  const [hoveredAgentId] = useRecoilState(sceneState.HoveredAgent);
+  const { hoveredAgent: hoveredAgentId } = useSceneContext();
 
   if (hoveredAgentId) {
     // HoveredAgentID might be stale (cursor improperly focused and ID gets outdated)
@@ -38,7 +37,6 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
       const [posx, posy, posz] = agent.position.to;
       const pos: Vec3 = [posx, posy, posz + offsetZ];
 
-      /* eslint-disable react/no-unknown-property */
       return (
         <mesh
           scale={scale}
@@ -46,7 +44,7 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
           rotation={tempObject.rotation}
           up={[0, 0, 1]}
         >
-          <boxBufferGeometry args={[1, 1, 1]} attach="geometry" />
+          <boxGeometry args={[1, 1, 1]} attach="geometry" />
           <meshStandardMaterial
             color={"white"}
             attach="material"
@@ -54,7 +52,6 @@ export const HoveredAgent: FC<HoveredAgentProps> = ({ transitions }) => {
           />
         </mesh>
       );
-      /* eslint-enable react/no-unknown-property */
     }
   }
   return null;

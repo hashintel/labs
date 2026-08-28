@@ -1,0 +1,17 @@
+# Playwright test artifacts
+# These are generated during test runs and should not be committed
+
+# Test results (screenshots, videos, traces on failure)
+test-results/
+
+# HTML test report
+playwright-report/
+
+# Playwright browser cache and state
+.playwright/
+
+# Blob reports (for sharding)
+blob-report/
+
+# Last run info
+.last-run.json

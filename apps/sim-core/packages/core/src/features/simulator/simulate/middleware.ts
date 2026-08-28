@@ -1,9 +1,8 @@
-import { Middleware } from "@reduxjs/toolkit";
+import type { Middleware } from "../../reduxCompat";
 
 import { IS_DEV } from "../../../util/api";
 import type { SimulatorDispatch, SimulatorRootState } from "../types";
-import { addUserAlert } from "../../viewer";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import { downloadStepsForRun, earlyStopSimulation } from "./thunks";
 import { initializeExperiment, simulationRunUpdated } from "./slice";
 import { selectCurrentSimulationData, selectProviderTarget } from "./selectors";
@@ -35,15 +34,22 @@ export const simulatorMiddleware: Middleware<{}, SimulatorRootState> = (
     dispatch(simulationRunUpdated(message));
 
     if (message.runnerError) {
-      appStore.dispatch(
-        addUserAlert({
-          type: "error",
-          message: message.runnerError.message ?? "error",
-          context: "",
-          timestamp: Date.now(),
-          simulationId: message.simulationRunId,
-        }),
-      );
+      const rawErr = message.runnerError;
+      const errMsg =
+        typeof rawErr === "string"
+          ? rawErr
+          : rawErr instanceof Error
+            ? rawErr.message
+            : typeof rawErr.message === "string"
+              ? rawErr.message
+              : JSON.stringify(rawErr);
+      appBridge.dispatchUserAlert({
+        type: "error",
+        message: errMsg || "unknown simulation error",
+        context: "",
+        timestamp: Date.now(),
+        simulationId: message.simulationRunId,
+      });
     }
   });
 

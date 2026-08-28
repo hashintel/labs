@@ -6,20 +6,20 @@ import { SerializableAgentState } from "../../glue";
 export class AnalyzerProvider {
   promiseWorker: PromiseWorker;
 
-  constructor(path: string) {
+  constructor(path: string | URL) {
     this.promiseWorker = new PromiseWorker(
-      new Worker(path, { name: "hash-analyzer", type: "module" }),
+      new Worker(path, { name: "hash-analyzer", type: "module" })
     );
   }
 
   async analyze(
-    state: SerializableAgentState[][],
+    state: SerializableAgentState[][]
   ): Promise<Extract<AnalyzerResponse, { type: "analyze" }>> {
     return this.promiseWorker.postMessage({ type: "analyze", data: state }, []);
   }
 
   async setAnalysisSrc(
-    src: string,
+    src: string
   ): Promise<Extract<AnalyzerResponse, { type: "setAnalysisSrc" }>> {
     return this.promiseWorker.postMessage({ type: "setAnalysisSrc", src }, []);
   }

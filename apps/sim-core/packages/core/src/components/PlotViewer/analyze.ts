@@ -8,21 +8,25 @@ import {
 
 import { OutputPlotProps } from "./types";
 import { buildData, buildPlots } from "./utils";
-import analyzerWorkerUrl from "../../workers/analyzer-worker/index?worker&url";
 
-export const analyzer = new AnalyzerProvider(analyzerWorkerUrl);
-interface PlotDefinitionIsInvalidType {
+export const analyzer = new AnalyzerProvider(
+  new URL("../../workers/analyzer-worker/index.ts", import.meta.url),
+);
+
+type PlotDefinitionIsInvalidType = {
   isInvalid?: boolean;
-}
+};
 
-export interface PlotDataItem {
+export type PlotDataItem = {
   definition: PlotDefinition & PlotDefinitionIsInvalidType;
   outputProps: OutputPlotProps;
   data: Plotly.Data[];
-}
-export type PlotDataMap = Record<string, PlotDataItem>;
+};
+export type PlotDataMap = {
+  [id: string]: PlotDataItem;
+};
 
-export interface OutputPlots {
+export type OutputPlots = {
   outputs: OutputSeries;
   /**
    * @todo what is this for – we don't have it in cloud analysis which makes
@@ -30,7 +34,7 @@ export interface OutputPlots {
    */
   rawOutputs: Outputs[];
   plots: PlotDataMap;
-}
+};
 
 /**
  * Analyzing returns an array of output maps.

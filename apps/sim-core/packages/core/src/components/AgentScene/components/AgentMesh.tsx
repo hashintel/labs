@@ -1,21 +1,20 @@
 import React, { FC, useRef } from "react";
-import { useFrame } from "react-three-fiber";
+import { useFrame } from "@react-three/fiber";
 import usePromise from "react-promise-suspense";
 import * as THREE from "three";
 import { BufferGeometry, InstancedBufferAttribute } from "three";
-import { useRecoilState, useRecoilValue } from "recoil";
 
-import * as sceneState from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { RawGeometry, loadGeometryMesh } from "../util/geometry-loader";
 import { lerpAnimValue } from "../util/anim";
 
-interface PolyMeshProps {
+type PolyMeshProps = {
   meshId: string;
   clock: {
     lastTime: number;
     animLength: number;
   };
-}
+};
 const tempObject = new THREE.Object3D();
 tempObject.up = new THREE.Vector3(0, 0, 1);
 
@@ -27,16 +26,15 @@ tempObject.up = new THREE.Vector3(0, 0, 1);
 export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
   const ref = useRef<THREE.InstancedMesh>();
 
-  const [hoveredAgentId, setHoveredAgentIds] = useRecoilState(
-    sceneState.HoveredAgent,
-  );
-  const [selectedAgentIds, setSelectedAgentIds] = useRecoilState(
-    sceneState.SelectedAgentIds,
-  );
+  const {
+    hoveredAgent: hoveredAgentId,
+    setHoveredAgent: setHoveredAgentIds,
+    selectedAgentIds,
+    setSelectedAgentIds,
+    getShapedMeshesEntries,
+  } = useSceneContext();
 
-  // Only update the render agents when agents changes
-  const renderAgents =
-    useRecoilValue(sceneState.ShapedMeshesEntries(meshId)) ?? {};
+  const renderAgents = getShapedMeshesEntries(meshId) ?? {};
   const numMeshes = renderAgents.length;
   const bufferedMeshCount = getMeshCount(numMeshes, meshId);
 
@@ -119,8 +117,6 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
   });
 
   return (
-    /* eslint-disable react/no-unknown-property */
-
     <instancedMesh
       ref={ref}
       args={[geometry, material, bufferedMeshCount]}
@@ -135,8 +131,6 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
           }
         }
       }}
-      /* eslint-enable react/no-unknown-property */
-
       // Agent is being clicked
       onPointerDown={(evt) => {
         const id = evt.instanceId;
@@ -145,7 +139,7 @@ export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
           const [agentId] = renderAgents[id];
           const temp = { ...selectedAgentIds };
 
-          if (Object.prototype.hasOwnProperty.call(selectedAgentIds, agentId)) {
+          if (selectedAgentIds.hasOwnProperty(agentId)) {
             delete temp[agentId];
             setSelectedAgentIds(temp);
           } else {

@@ -6,10 +6,9 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { ProviderTargetEnv } from "@hashintel/engine-web";
 import { Result, combine, ok } from "neverthrow";
-import { omit, pick } from "lodash";
+import { omit, pick } from "lodash-es";
 import { v4 as uuid } from "uuid";
 
 import {
@@ -38,7 +37,11 @@ import { ModalExit } from "../ModalExit";
 import { ModalFormEntryLabel } from "../FormEntry/ModalFormEntryLabel";
 import { ReactSelectOption } from "../../Dropdown/types";
 import { RoundedSelect } from "../../Inputs/Select/RoundedSelect";
-import { addUserAlert } from "../../../features/viewer/slice";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 import {
   convertToReactSelectOption,
   convertToReactSelectOptions,
@@ -65,7 +68,6 @@ import {
 } from "../../../features/files/selectors";
 import { selectProviderTarget } from "../../../features/simulator/simulate/selectors";
 import { toggleProviderTarget } from "../../../features/simulator/simulate/thunks";
-import { updateFile } from "../../../features/files/slice";
 import { useRefState } from "../../../hooks/useRefState";
 import {
   useSimulatorDispatch,
@@ -295,7 +297,7 @@ const prepareExperimentForFormData = (
         }
 
         if (originalFields?.metricName) {
-          cloneFields.metricName = {
+          cloneFields!.metricName = {
             value: originalFields.metricName,
             label: originalFields.metricName,
           };
@@ -306,12 +308,12 @@ const prepareExperimentForFormData = (
           originalFields?.metricObjective ===
             FormDataDynamicFieldOptimizationMetricObjective.max
         ) {
-          cloneFields.metricObjective = {
+          cloneFields!.metricObjective = {
             value: originalFields?.metricObjective,
             label: originalFields?.metricObjective,
           };
         } else {
-          cloneFields.metricObjective =
+          cloneFields!.metricObjective =
             initialFormDynamicFieldsData[
               ExperimentTypes.optimization
             ].metricObjective;
@@ -332,7 +334,7 @@ const prepareExperimentForFormData = (
     } else {
       value = null;
     }
-    clone.dynamicFields[experimentType]!.runs = value;
+    clone.dynamicFields![experimentType]!.runs = value;
     return clone;
   }
   const fieldValue = experiment.dynamicFields?.[experimentType]?.field;
@@ -341,11 +343,11 @@ const prepareExperimentForFormData = (
   const hasFieldTypeString = typeof fieldValue === "string";
   const hasDistributionTypeString = typeof distributionValue === "string"; // monte-carlo case
   if (hasFieldTypeString) {
-    clone.dynamicFields[experimentType]!.field =
+    clone.dynamicFields![experimentType]!.field =
       convertToReactSelectOption(fieldValue);
   }
   if (hasDistributionTypeString) {
-    clone.dynamicFields["monte-carlo"]!.distribution =
+    clone.dynamicFields!["monte-carlo"]!.distribution =
       convertToReactSelectOption(distributionValue);
   }
   return clone;
@@ -396,7 +398,7 @@ const onSubmitSpecificExperimentHandler = (
       clone.runs = clone.runs?.map((run: ReactSelectOption) => run.value) ?? [];
       return ok(clone);
 
-    case ExperimentTypes.optimization: {
+    case ExperimentTypes.optimization:
       clone.metricName = clone.metricName.value;
       clone.metricObjective = clone.metricObjective.value;
       let formErrors: FormErrorsType | null = null;
@@ -436,9 +438,9 @@ const onSubmitSpecificExperimentHandler = (
         return res;
       }
       return ok(clone);
-    }
+
     default:
-      if (clone.field?.value) {
+      if (clone.field && clone.field.value) {
         clone.field = clone.field.value;
       }
       return ok(clone);
@@ -455,21 +457,22 @@ export const ExperimentModal: FC<{
     () => prepareExperimentForFormData(experiment) ?? initialFormData,
   );
   const shouldRunExperimentAfterSaving = useRef(false);
-  const dispatch = useDispatch();
+  const { updateFile: contextUpdateFile } = useFiles();
+  const { addUserAlert } = useViewer();
   const simulationTarget = useSimulatorSelector(selectProviderTarget);
   const [newSimulationTarget, setNewSimulationTarget, newSimulationTargetRef] =
     useRefState<ProviderTargetEnv>(simulationTarget);
   const simulatorDispatch = useSimulatorDispatch();
   const experiments: [string, RawExperimentType][] | null =
-    useSelector(selectExperiments);
-  const globals = parseGlobals(useSelector(selectGlobals));
+    useFilesSelector(selectExperiments);
+  const globals = parseGlobals(useFilesSelector(selectGlobals));
   const fieldOptions =
     (globals?.globals
       ? flattenObjectKeysIntoString(globals.globals).map((global: string) =>
           convertToReactSelectOption(global),
         )
       : null) ?? [];
-  const metricOptions = useSelector(selectParsedAnalysisMetricNames).map(
+  const metricOptions = useFilesSelector(selectParsedAnalysisMetricNames).map(
     (name): ReactSelectOption => ({ value: name, label: name }),
   );
   const canUseCloud = false;
@@ -515,8 +518,9 @@ export const ExperimentModal: FC<{
     const experimentType: ExperimentTypes | string =
       formData.experimentType.value;
     let fields = JSON.parse(
-      //@ts-expect-error tech debt
-      JSON.stringify(formData.dynamicFields[experimentType]),
+      JSON.stringify(
+        formData.dynamicFields[experimentType as ExperimentTypes],
+      ),
     );
 
     const res = onSubmitSpecificExperimentHandler(
@@ -569,7 +573,7 @@ export const ExperimentModal: FC<{
       delete newExperiments[experiment.experimentTitle];
     }
     const contents = stringifyExperiments(newExperiments);
-    dispatch(updateFile({ id: experimentsFileId, contents }));
+    contextUpdateFile(experimentsFileId, contents);
     if (shouldRunExperimentAfterSaving.current) {
       // switch the simulation environment target if the user changed it
       if (newSimulationTargetRef.current !== simulationTarget) {
@@ -591,8 +595,10 @@ export const ExperimentModal: FC<{
     const splitted = fieldName.split(".");
     if (splitted.length === 1) {
       clone[fieldName] = value;
-      // @ts-expect-error tech debt
-      if (fieldName === "experimentType" && value.value !== clone[fieldName]) {
+      if (
+        fieldName === "experimentType" &&
+        (value as ReactSelectOption).value !== clone[fieldName]
+      ) {
         // we changed the experiment type, thus we have to rebuild the dynamicFields
         const clonedDynamicFields: typeof initialFormData.dynamicFields =
           JSON.parse(JSON.stringify(initialFormData.dynamicFields));
@@ -621,7 +627,7 @@ export const ExperimentModal: FC<{
     if (value !== "") {
       // clear errors for this field
       const newErrors: any = JSON.parse(JSON.stringify(formErrors));
-      if (newErrors.dynamicFields?.[experimentType]) {
+      if (newErrors.dynamicFields && newErrors.dynamicFields[experimentType]) {
         delete newErrors?.dynamicFields[experimentType][field];
       }
       setFormErrors(newErrors);
@@ -646,30 +652,28 @@ export const ExperimentModal: FC<{
       return;
     }
     console.error("experiments.json is malformed, closing modal");
-    dispatch(
-      addUserAlert({
-        type: "error",
-        message: `You can't use the Experiments visual editor because your experiments file has a typo.`,
-        context: "experiments.json",
-        timestamp: Date.now(),
-        simulationId: null,
-      }),
-    );
+    addUserAlert({
+      type: "error",
+      message: `You can't use the Experiments visual editor because your experiments file has a typo.`,
+      context: "experiments.json",
+      timestamp: Date.now(),
+      simulationId: null,
+    });
     onClose();
-  }, [experiments, onClose, dispatch]);
+  }, [experiments, onClose, addUserAlert]);
 
   const hasExperiments = experiments && experiments.length > 0;
   const experimentTitles = !hasExperiments
     ? []
-    : experiments?.map((item: any) => item[0]) ?? [];
+    : (experiments?.map((item: any) => item[0]) ?? []);
   const experimentTitlesMinusGroupsAndMultiparameterAsOptions = !hasExperiments
     ? []
-    : experiments
+    : (experiments
         ?.filter(
           (item: any) =>
             item[1].type !== "multiparameter" && item[1].type !== "group",
         )
-        .map((item: any) => convertToReactSelectOption(item[0])) ?? [];
+        .map((item: any) => convertToReactSelectOption(item[0])) ?? []);
 
   const showValues = shouldShowType(ExperimentTypes.values);
   const showLinspace = shouldShowType(ExperimentTypes.linspace);
@@ -762,7 +766,9 @@ export const ExperimentModal: FC<{
                     !!formErrors?.dynamicFields?.values?.field,
                   )}
                   options={fieldOptions}
-                  value={formData.dynamicFields?.values?.field}
+                  value={
+                    formData.dynamicFields?.values?.field as ReactSelectOption
+                  }
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -802,7 +808,9 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="FIELD"
                   options={fieldOptions}
-                  value={formData.dynamicFields?.linspace?.field}
+                  value={
+                    formData.dynamicFields?.linspace?.field as ReactSelectOption
+                  }
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -867,7 +875,9 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="FIELD"
                   options={fieldOptions}
-                  value={formData.dynamicFields?.arange?.field}
+                  value={
+                    formData.dynamicFields?.arange?.field as ReactSelectOption
+                  }
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -936,7 +946,10 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="FIELD"
                   options={fieldOptions}
-                  value={formData.dynamicFields?.["monte-carlo"]?.field}
+                  value={
+                    formData.dynamicFields?.["monte-carlo"]
+                      ?.field as ReactSelectOption
+                  }
                   isSearchable
                   creatable
                   onChange={(selectedOption) =>
@@ -963,7 +976,10 @@ export const ExperimentModal: FC<{
                 <ModalFormEntryDropdown
                   label="DISTRIBUTION"
                   options={monteCarloDistributionOptions}
-                  value={formData.dynamicFields?.["monte-carlo"]?.distribution}
+                  value={
+                    formData.dynamicFields?.["monte-carlo"]
+                      ?.distribution as ReactSelectOption
+                  }
                   isSearchable={false}
                   onChange={(selectedOption) =>
                     onChange("monte-carlo.distribution", selectedOption)
@@ -1207,7 +1223,7 @@ export const ExperimentModal: FC<{
                     }
                     // @todo this casting shouldn't be necessary
                     errorMessage={
-                      formErrors.dynamicFields?.optimization?.maxRuns
+                      formErrors.dynamicFields?.optimization?.maxRuns!
                     }
                   />
                   <ModalFormEntryRequiredText
@@ -1227,7 +1243,7 @@ export const ExperimentModal: FC<{
                     }
                     // @todo this casting shouldn't be necessary
                     errorMessage={
-                      formErrors.dynamicFields?.optimization?.minSteps
+                      formErrors.dynamicFields?.optimization?.minSteps!
                     }
                   />
                   <ModalFormEntryRequiredText
@@ -1391,7 +1407,7 @@ export const ExperimentModal: FC<{
 
                   fields.push(optimizationFieldTemplate());
                   setFormData(clone);
-                  setTimeout(() => {
+                  setImmediate(() => {
                     document
                       .querySelector<HTMLInputElement>(
                         `[name="fields.${fields.length - 1}.name"]`,
@@ -1429,7 +1445,7 @@ export const ExperimentModal: FC<{
                 theme="blue"
                 type="submit"
               >
-                Save and run in hCloud
+                Run experiment
               </FancyButton>
             ) : null
           ) : canUseCloud ? (
@@ -1456,7 +1472,7 @@ export const ExperimentModal: FC<{
               }}
             >
               Save and run{" "}
-              {newSimulationTarget === "cloud" ? "in hCloud" : "locally"}
+              {newSimulationTarget === "cloud" ? "in cloud" : "locally"}
             </FancyButtonWithDropdown>
           ) : (
             <FancyButton

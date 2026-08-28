@@ -13,13 +13,13 @@ import { SimpleTooltip } from "../SimpleTooltip";
 
 import "./TabListActionButtons.scss";
 
-interface ListItemProps {
+type ListItemProps = {
   icon: ReactElement;
   tooltipContent: ReactFragment;
   onClick?: MouseEventHandler;
   listIndex: number;
   disabled?: boolean;
-}
+};
 
 const ListItem: FC<ListItemProps> = ({
   icon,

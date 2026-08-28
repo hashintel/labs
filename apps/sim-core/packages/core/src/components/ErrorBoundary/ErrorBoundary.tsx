@@ -1,14 +1,15 @@
 import React, {
   Component,
   createContext,
+  ErrorInfo,
   FC,
+  PropsWithChildren,
   useContext,
   useMemo,
   useState,
 } from "react";
 import { customAlphabet } from "nanoid";
 
-import { BasicDiscordWidget } from "../DiscordWidget/DiscordWidget";
 import { BigModal } from "../Modal";
 import { ErrorDetails } from "../ErrorDetails";
 import { FancyButton } from "../Fancy";
@@ -41,17 +42,15 @@ const quotableId = (() => {
       .padStart(2, "0")}${generateHashEventId()}`;
 })();
 
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-interface ErrorBoundaryProps {}
-interface ErrorBoundaryState {
+type ErrorBoundaryProps = {};
+type ErrorBoundaryState = {
   didError: boolean;
   errorName?: string;
   errorMessage?: string;
   errorStack?: string;
-  eventId: string | null;
   detailsHidden: boolean;
   hashEventId: string | null;
-}
+};
 
 type TErrorBoundaryContext = {
   handlePromiseRejection: (promise: Promise<any>) => void;
@@ -78,7 +77,7 @@ export const useFatalError = () => useContext(ErrorBoundaryContext)!.fatalError;
  *
  * @see https://github.com/facebook/react/issues/14981#issuecomment-468460187
  */
-const ErrorBoundaryContextProvider: FC = ({ children }) => {
+const ErrorBoundaryContextProvider: FC<PropsWithChildren> = ({ children }) => {
   const [, catchError] = useState();
   const contextValue = useMemo<TErrorBoundaryContext>(() => {
     const fatalError = (err: any) => {
@@ -125,10 +124,13 @@ export class ErrorBoundary extends Component<
     errorName: undefined,
     errorMessage: undefined,
     errorStack: undefined,
-    eventId: null,
     detailsHidden: true,
     hashEventId: null,
   };
+
+  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {
+    // Error captured and displayed to user
+  }
 
   render() {
     const {
@@ -161,7 +163,6 @@ export class ErrorBoundary extends Component<
             <a
               href="https://docs.hash.ai/core/extra/troubleshooting#troubleshooting-crashes"
               target="_blank"
-              rel="noreferrer"
             >
               troubleshooting guide
             </a>
@@ -194,7 +195,6 @@ export class ErrorBoundary extends Component<
               <strong>REFRESH PAGE</strong>
             </FancyButton>
           </footer>
-          <BasicDiscordWidget errored />
         </div>
       </BigModal>
     ) : (

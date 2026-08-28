@@ -7,7 +7,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useSelector } from "react-redux";
 import { useInView } from "react-intersection-observer";
 import { useModal } from "react-modal-hook";
 import JSZip from "jszip";
@@ -30,10 +29,7 @@ import {
   selectHistoryReady,
 } from "../../features/simulator/simulate/selectors";
 import { outputsToCsv } from "./util";
-import {
-  selectProjectRef,
-  selectVersionSwitchingTo,
-} from "../../features/project/selectors";
+import { useProject } from "../../features/project/ProjectContext";
 import {
   setHistoryHasFilledScreen,
   setHistoryRequestingMore,
@@ -475,8 +471,7 @@ export const useCurrentRefItem = (
   tag: string | null | undefined,
   ref: RefObject<HTMLElement>,
 ) => {
-  const projectRef = useSelector(selectProjectRef);
-  const switchingTo = useSelector(selectVersionSwitchingTo);
+  const { projectRef, versionSwitchingTo: switchingTo } = useProject();
 
   const current = projectRef === tag;
   const currentlySwitchingTo = switchingTo === tag;

@@ -1,0 +1,64 @@
+name: E2E
+
+on:
+  pull_request:
+    paths:
+      - "apps/sim-core/**"
+      - ".github/workflows/e2e.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "apps/sim-core/**"
+      - ".github/workflows/e2e.yml"
+
+defaults:
+  run:
+    shell: bash
+    working-directory: apps/sim-core/packages/core
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: yarn
+          cache-dependency-path: apps/sim-core/yarn.lock
+
+      - name: Install dependencies
+        working-directory: apps/sim-core
+        run: yarn install --frozen-lockfile --ignore-scripts
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build
+        run: yarn build
+
+      - name: Run E2E tests
+        run: yarn test:e2e
+        env:
+          E2E_USE_BUILD: "1"
+
+      - name: Upload test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: apps/sim-core/packages/core/test-results/
+          retention-days: 7

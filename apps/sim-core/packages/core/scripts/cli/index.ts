@@ -11,7 +11,7 @@ function isString(value: string | undefined): value is string {
   return value !== undefined;
 }
 
-export function cli() {
+export async function cli() {
   const { dryRun, verbose, fromIcon, _ } = parseArgs();
 
   // TODO: @mysterycommand - is there a way to make `yargs` do the validation?
@@ -29,9 +29,12 @@ export function cli() {
   // n.b. `fromIcon!` is fine(?) below, because `isValidIcon` checks for string
   // value, `.svg` extension, and file existence
   const names =
-    isValidIcon && _.length === 0 ? [basename(fromIcon, ".svg")] : _;
+    isValidIcon && _.length === 0 ? [basename(fromIcon!, ".svg")] : _;
 
-  names.forEach(generateFiles({ dryRun, verbose, isValidIcon, fromIcon }));
+  const gen = generateFiles({ dryRun, verbose, isValidIcon, fromIcon });
+  for (const name of names) {
+    await gen(String(name));
+  }
 }
 
-cli();
+void cli();

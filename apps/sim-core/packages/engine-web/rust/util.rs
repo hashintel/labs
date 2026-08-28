@@ -3,6 +3,22 @@ use js_sys::Error;
 use serde_json::json;
 use wasm_bindgen::prelude::*;
 
+pub(crate) fn serde_wasm_err_to_jsvalue(e: serde_wasm_bindgen::Error) -> JsValue {
+    Error::new(&e.to_string()).into()
+}
+
+/// Serialize to JsValue via JSON. Use when JS expects plain objects (not Map/Set).
+#[allow(deprecated)]
+pub fn to_js_json<T: serde::Serialize>(v: &T) -> Result<JsValue, JsValue> {
+    JsValue::from_serde(v).map_err(|e| err_to_jsvalue(SimulationError::from(e)))
+}
+
+/// Deserialize from JsValue via JSON.
+#[allow(deprecated)]
+pub fn from_js_json<T: serde::de::DeserializeOwned>(v: &JsValue) -> Result<T, JsValue> {
+    v.clone().into_serde().map_err(|e| err_to_jsvalue(SimulationError::from(e)))
+}
+
 #[derive(Debug)]
 pub struct JsError(JsValue);
 unsafe impl Send for JsError {}
@@ -58,5 +74,5 @@ pub fn list_behaviors() -> Result<JsValue, JsValue> {
             })
         })
         .collect();
-    JsValue::from_serde(&simple_list).map_err(err_to_jsvalue)
+    serde_wasm_bindgen::to_value(&simple_list).map_err(serde_wasm_err_to_jsvalue)
 }

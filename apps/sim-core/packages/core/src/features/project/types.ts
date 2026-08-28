@@ -1,55 +1,56 @@
 import { FileAction, HcDependencyFile, HcFile } from "../files/types";
 import { HashCoreAccessGateKindWithProps } from "../../components/HashCore/AccessGate";
 import { License } from "../../util/api/types";
+import type { ProjectAccessCodeAccessType } from "../../shared/scopes";
 import { PartialSimulationProjectFieldsTuple } from "./utils";
-import { ProjectAccessCodeAccessType } from "../../shared/scopes";
 
-export interface ProjectFile {
+export type ProjectAccessParsed = {
+  code: string;
+  level: ProjectAccessCodeAccessType;
+};
+
+/** @deprecated Use ProjectAccessParsed; kept for legacy share modal imports */
+export type ProjectAccess = ProjectAccessParsed;
+export type ProjectFile = {
   name: string;
   path: string;
   contents: string;
   ref: string;
-}
+};
 
 export type ReleaseFile = ProjectFile & {
   dependencyPath: string;
 };
 
-export interface Release {
+export type Release = {
   pathWithNamespace: string;
   tag: string;
   latestReleaseTag: string;
   files: ReleaseFile[];
   canUserEdit: boolean;
   visibility: ProjectVisibility;
-}
+};
 
 type SimulationProjectType = "Simulation" | "Dataset" | "Behavior";
 
-export interface ReleaseDescription {
+export type ReleaseDescription = {
   tag: string;
   createdAt: string;
-}
+};
 
-export interface SimulationProjectConfig {
+export type SimulationProjectConfig = {
   files: string[];
   type: SimulationProjectType;
   keywords: string[];
   avatar?: string;
-}
+};
 
 export type ProjectVisibility = "public" | "private";
 
-export interface CanUserEditProject {
+export type CanUserEditProject = {
   canUserEdit: boolean;
   dependencies: Pick<Release, "pathWithNamespace" | "canUserEdit">[];
-}
-
-export interface ProjectAccessParsed {
-  code: string;
-  level: ProjectAccessCodeAccessType;
-}
-export type ProjectAccess = ProjectAccessParsed | null | undefined;
+};
 
 /**
  * @todo rename this to Project
@@ -76,13 +77,11 @@ export type SimulationProject = {
   license?: Pick<License, "id" | "name"> | null;
   keywords: string[];
   ownerType: "User" | "Org";
-  access: ProjectAccess;
 } & Omit<CanUserEditProject, "dependencies">;
 
-// @todo consider adding access to this
 export type RemoteSimulationProject = Omit<
   SimulationProject,
-  "config" | "ref" | "access"
+  "config" | "ref"
 > & {
   files: ProjectFile[];
   dependencies?: Release[];
@@ -100,7 +99,7 @@ export type LocalStorageProject = SimulationProjectWithHcFiles & {
 export type ResourceProjectType = Exclude<SimulationProjectType, "Simulation">;
 export type ResourceProject = Omit<
   SimulationProject,
-  "config" | "forkOf" | "files" | "type" | "ref" | "access"
+  "config" | "forkOf" | "files" | "type" | "ref"
 > & {
   type: ResourceProjectType;
   files: HcDependencyFile[];
@@ -111,12 +110,12 @@ export type ResourceProject = Omit<
   subject: { name: string }[];
 };
 
-export interface ProjectSlice {
+export type ProjectSlice = {
   projectLoaded: boolean;
   accessGate: (HashCoreAccessGateKindWithProps & { url: string | null }) | null;
   currentProject: SimulationProject | null;
   pendingProject: LinkableProject | null;
-}
+};
 
 export type PartialSimulationProjectFields =
   PartialSimulationProjectFieldsTuple[number];
@@ -131,7 +130,6 @@ export type UnpreparedPartialSimulationProject = Omit<
   "ref"
 > & { latestRelease?: ReleaseDescription | null };
 
-// @todo consider adding access to this
 export type LinkableProject = Pick<SimulationProject, "pathWithNamespace"> & {
   ref?: SimulationProject["ref"] | null;
 };

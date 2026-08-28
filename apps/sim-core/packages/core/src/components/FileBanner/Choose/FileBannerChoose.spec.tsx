@@ -1,18 +1,15 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { FileBannerChoose } from "./FileBannerChoose";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
+  render(
     <FileBannerChoose
       labelA=""
       onChooseA={() => {}}
       labelB=""
       onChooseB={() => {}}
     />,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

@@ -1,11 +1,11 @@
 import React, { FC, memo } from "react";
-import { kebabCase } from "lodash";
+import { kebabCase } from "lodash-es";
 
 import "./DataTableHead.css";
 
-interface DataTableHeadProps {
+type DataTableHeadProps = {
   headings: string[];
-}
+};
 
 export const DataTableHead: FC<DataTableHeadProps> = memo(({ headings }) => (
   <>

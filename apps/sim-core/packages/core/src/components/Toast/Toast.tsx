@@ -1,11 +1,11 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 
 import { IconClose } from "../Icon";
 import type { ToastProps } from "./types";
 
 import "./Toast.css";
 
-export const Toast: FC<ToastProps> = ({
+export const Toast: FC<PropsWithChildren<ToastProps>> = ({
   theme = "info",
   isDismissable = true,
   dismiss,

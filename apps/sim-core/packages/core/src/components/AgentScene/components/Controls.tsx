@@ -1,10 +1,9 @@
 import React, { FC, useEffect, useRef, useState } from "react";
-import { CanvasProps, useThree } from "react-three-fiber";
+import { CanvasProps, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { MapControls, OrbitControls } from "@react-three/drei";
-import { useRecoilValue } from "recoil";
 
-import * as sceneState from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 import { RenderSummary } from "../util/anim";
 
 const cameraRot = new THREE.Object3D();
@@ -31,10 +30,12 @@ export const ViewerControls: FC<{
   resetting: boolean;
   mappedTransitions: RenderSummary;
 }> = ({ resetting, mappedTransitions }) => {
-  const cameraFov = useRecoilValue(sceneState.CameraFov);
-  const dimensions = useRecoilValue(sceneState.StageDimensions);
+  const {
+    cameraFov,
+    stageDimensions: dimensions,
+    sceneView: view,
+  } = useSceneContext();
   const controlsRef = useRef<MapControls>();
-  const view = useRecoilValue(sceneState.SceneView);
   const { camera } = useThree();
 
   /*
@@ -72,9 +73,7 @@ export const ViewerControls: FC<{
       camera.position.set(0, 0, 1000);
       camera.lookAt(0, 0, 0);
 
-      // Flatten the camera
-      // @ts-expect-error 'fov' does in fact exist.
-      camera.fov = 1;
+      (camera as THREE.PerspectiveCamera).fov = 1;
       camera.updateProjectionMatrix();
 
       controlsRef.current?.update!();
