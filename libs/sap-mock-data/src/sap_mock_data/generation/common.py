@@ -17,6 +17,7 @@ DEFAULTS = {
     "MOQ_RAW_MIN": "1000",
     "MOQ_RAW_MAX": "10000",
     "NUM_ORDERS": "5000",
+    "NUM_VENDORS": "20",
     "HUB_PLANT": "1000",
     "DELIVERY_FILL_RATE": "0.8",
     "SAFETY_STOCK_WEEKS": "6",
@@ -133,6 +134,7 @@ SCALED_KNOBS = {
     "NUM_CUSTOMERS",
     "NUM_FINISHED_GOODS",
     "NUM_RAW_MATERIALS",
+    "NUM_VENDORS",
 }
 
 

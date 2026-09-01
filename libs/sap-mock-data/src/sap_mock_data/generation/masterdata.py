@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 import random
-import uuid
 from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
 
@@ -385,7 +384,7 @@ def generate_sapapo_tr_data():
             from_info = PLANT_CONFIG[loc_from]
             to_info = PLANT_CONFIG[loc_to]
 
-            trlid = str(uuid.uuid4()).replace('-', '').upper()[:32]
+            trlid = f"{random.getrandbits(128):032X}"
             lane_name = f"{from_info['city']} -> {to_info['city']}"
 
             data.append({
@@ -550,6 +549,25 @@ def generate_tvrot_data(df_tvro):
     return pd.DataFrame(data)
 
 
+VENDOR_CATEGORY_SHARES = [
+    ('API', 0.25),
+    ('EXCIPIENT', 0.25),
+    ('PACKAGING', 0.25),
+    ('CMO', 0.15),
+    ('LOGISTICS', 0.10),
+]
+
+
+def vendor_category(index, num_vendors):
+    """Assign the 1-based vendor index to a category per VENDOR_CATEGORY_SHARES."""
+    cumulative = 0.0
+    for category, share in VENDOR_CATEGORY_SHARES:
+        cumulative += share
+        if index <= round(num_vendors * cumulative):
+            return category
+    return VENDOR_CATEGORY_SHARES[-1][0]
+
+
 def generate_lfa1_data():
     """
     Generates LFA1 - Vendor Master General Data.
@@ -567,20 +585,10 @@ def generate_lfa1_data():
 
     countries = ['DE', 'US', 'IN', 'CN', 'CH', 'IE', 'GB', 'FR']
 
-    num_vendors = 20
+    num_vendors = int(param("NUM_VENDORS"))
     for i in range(1, num_vendors + 1):
         lifnr = f"VEND-{i:04d}"
-
-        if i <= 5:
-            v_type = 'API'
-        elif i <= 10:
-            v_type = 'EXCIPIENT'
-        elif i <= 15:
-            v_type = 'PACKAGING'
-        elif i <= 18:
-            v_type = 'CMO'
-        else:
-            v_type = 'LOGISTICS'
+        v_type = vendor_category(i, num_vendors)
 
         country = random.choice(countries)
         name_base = random.choice(vendor_categories[v_type])
@@ -615,12 +623,16 @@ def generate_eina_data(df_mara, df_lfa1):
     raw_materials = df_mara[df_mara['MTART'] == 'ROH']['MATNR'].tolist()
     vendors = df_lfa1['LIFNR'].tolist()
 
+    # LFA1 stores each vendor's category in NAME2; CMO and LOGISTICS vendors
+    # supply the OTHER materials.
+    vendor_types = dict(zip(df_lfa1['LIFNR'], df_lfa1['NAME2']))
     vendor_pools = {
-        'API': [v for v in vendors if int(v.split('-')[1]) <= 5],
-        'EXCIPIENT': [v for v in vendors if 6 <= int(v.split('-')[1]) <= 10],
-        'PACKAGING': [v for v in vendors if 11 <= int(v.split('-')[1]) <= 15],
-        'OTHER': [v for v in vendors if int(v.split('-')[1]) >= 16],
+        'API': [v for v in vendors if vendor_types[v] == 'API'],
+        'EXCIPIENT': [v for v in vendors if vendor_types[v] == 'EXCIPIENT'],
+        'PACKAGING': [v for v in vendors if vendor_types[v] == 'PACKAGING'],
+        'OTHER': [v for v in vendors if vendor_types[v] in ('CMO', 'LOGISTICS')],
     }
+    vendor_pools = {category: pool or vendors for category, pool in vendor_pools.items()}
 
     materials_by_category = {category: [] for category in vendor_pools}
     for matnr in raw_materials:

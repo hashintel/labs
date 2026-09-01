@@ -120,6 +120,7 @@ def generate_sales_orders(finished_goods, all_customers):
     print(f"Generating {NUMBER_OF_ORDERS} Sales Orders...")
     vbak, vbap, vbep = [], [], []
     base_date = datetime.now()
+    india_customer_exists = CUST_INDIA in all_customers
 
     for i in range(NUMBER_OF_ORDERS):
         vbeln = f'{1000000000 + i:010d}'
@@ -128,7 +129,7 @@ def generate_sales_orders(finished_goods, all_customers):
         order_date = order_date_dt.strftime('%Y%m%d')
         req_date = (order_date_dt + timedelta(days=7)).strftime('%Y%m%d')
 
-        if i % 100 == 0: kunnr = CUST_INDIA
+        if i % 100 == 0 and india_customer_exists: kunnr = CUST_INDIA
         else: kunnr = random.choice(all_customers)
 
         order_total = 0.0
@@ -1095,6 +1096,8 @@ def generate(wh):
     global RANDOM_SEED, NUMBER_OF_ORDERS, HUB_PLANT, DELIVERY_FILL_RATE, SAFETY_STOCK_WEEKS
     global SUPPLIER_RELIABILITY_RATE, UNRELIABLE_MATERIALS_STR
     global PLANTS, PRICE_LOOKUP, PRICE_FALLBACK, BATCH_INVENTORY, AVAILABLE_STOCK, network_schema
+    global BATCH_COUNTER
+    BATCH_COUNTER = 1000000
 
     RANDOM_SEED = int(param("RANDOM_SEED"))
     NUMBER_OF_ORDERS = int(param("NUM_ORDERS"))

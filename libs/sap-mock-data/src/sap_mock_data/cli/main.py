@@ -4,13 +4,31 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from importlib.metadata import version
 from pathlib import Path
 from typing import Sequence
 
 from .. import GenerationConfig, generate_dataset
+from ..config import SIZE_KNOB_RANGES
 from ..storage import DeltaTableStore
 from ..validation import build_manifest, integrity_report
+
+
+def _scale_factor(value: str) -> float | str:
+    try:
+        number = float(value)
+    except ValueError:
+        letter = value.strip().upper()
+        if letter in SIZE_KNOB_RANGES:
+            return letter
+        raise argparse.ArgumentTypeError(
+            f"must be a positive number or one of {', '.join(SIZE_KNOB_RANGES)}; "
+            f"got {value!r}"
+        )
+    if not (number > 0 and math.isfinite(number)):
+        raise argparse.ArgumentTypeError(f"must be a positive finite number; got {value}")
+    return number
 
 
 def _scenario_configs(values: Sequence[str]) -> dict[str, str]:
@@ -37,11 +55,17 @@ def _parser() -> argparse.ArgumentParser:
     generate = commands.add_parser("generate", help="generate a dataset")
     generate.add_argument("output", type=Path, help="Delta warehouse directory")
     generate.add_argument("--seed", type=int, default=42)
-    generate.add_argument("--scale-factor", type=float, default=1.0)
+    generate.add_argument(
+        "--scale-factor",
+        type=_scale_factor,
+        default=1.0,
+        help="numeric multiplier, or a dataset size: S, M, L, XL",
+    )
     generate.add_argument("--orders", type=int)
     generate.add_argument("--customers", type=int)
     generate.add_argument("--finished-goods", type=int)
     generate.add_argument("--raw-materials", type=int)
+    generate.add_argument("--vendors", type=int)
     generate.add_argument("--currency", default="EUR")
     generate.add_argument(
         "--scenarios",
@@ -78,25 +102,27 @@ def _write_json(payload: object, output: Path | None) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    args = _parser().parse_args(argv)
+    parser = _parser()
+    args = parser.parse_args(argv)
     if args.command == "generate":
         try:
             scenario_configs = _scenario_configs(args.scenario_config)
-        except argparse.ArgumentTypeError as error:
-            _parser().error(str(error))
-        config = GenerationConfig(
-            random_seed=args.seed,
-            scale_factor=args.scale_factor,
-            num_orders=args.orders,
-            num_customers=args.customers,
-            num_finished_goods=args.finished_goods,
-            num_raw_materials=args.raw_materials,
-            currency=args.currency,
-            scenarios=args.scenarios,
-            scenario_configs=scenario_configs,
-            generate_dirty_data=args.dirty_data,
-            dirty_data_rate=args.dirty_data_rate,
-        )
+            config = GenerationConfig(
+                random_seed=args.seed,
+                scale_factor=args.scale_factor,
+                num_orders=args.orders,
+                num_customers=args.customers,
+                num_finished_goods=args.finished_goods,
+                num_raw_materials=args.raw_materials,
+                num_vendors=args.vendors,
+                currency=args.currency,
+                scenarios=args.scenarios,
+                scenario_configs=scenario_configs,
+                generate_dirty_data=args.dirty_data,
+                dirty_data_rate=args.dirty_data_rate,
+            )
+        except (argparse.ArgumentTypeError, ValueError) as error:
+            parser.error(str(error))
         store = DeltaTableStore(args.output)
         result = generate_dataset(config, store)
         print(

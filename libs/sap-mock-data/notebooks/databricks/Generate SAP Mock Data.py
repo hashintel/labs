@@ -89,10 +89,15 @@ store = SparkCatalogStore(
     dbutils.widgets.get("catalog"),
     dbutils.widgets.get("schema"),
 )
+scale_widget = dbutils.widgets.get("scale_factor")
+try:
+    scale_factor = float(scale_widget)
+except ValueError:
+    scale_factor = scale_widget
 result = generate_dataset(
     GenerationConfig(
         random_seed=int(dbutils.widgets.get("random_seed")),
-        scale_factor=float(dbutils.widgets.get("scale_factor")),
+        scale_factor=scale_factor,
         scenarios=dbutils.widgets.get("scenarios"),
     ),
     store,

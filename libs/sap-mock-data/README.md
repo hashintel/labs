@@ -1,18 +1,18 @@
 # SAP Mock Data
 
 `sap-mock-data` generates deterministic, interconnected SAP-style master and
-transaction data. The pandas generation engine is available through one Python
-API and is shared by the CLI, local notebooks, and Databricks notebooks.
+transaction data. The `generate_dataset` function generates it. The CLI,
+local notebooks, and Databricks notebooks all call that function.
 
-Generation has two layers. Pandas creates and mutates tables. A `TableStore`
-decides where those tables live. Delta Lake is the default local store. The
-Databricks notebook supplies a Unity Catalog adapter.
+Pandas creates and mutates tables. A `TableStore` persists them. Delta Lake
+is the default local store. The Databricks notebook supplies a Unity Catalog
+adapter.
 
 ## Development environment
 
-The library supports Python 3.11 through 3.13 and does not require Nix. Nix is
-an optional way to provision the Python and system tools; Python dependencies
-come from `pyproject.toml` and are locked in `uv.lock`.
+The library supports Python 3.11 through 3.13. Nix is an optional way to
+provision the Python and system tools. Python dependencies come from
+`pyproject.toml` and are locked in `uv.lock`.
 
 ### Without Nix
 
@@ -28,8 +28,7 @@ uv build
 The checked-in `.python-version` selects Python 3.13. By default, uv downloads
 that runtime when it is not already installed.
 
-The package also works with standard Python tooling when the lock file is not
-needed:
+The package also installs with venv and pip, without the lock file:
 
 ```console
 python -m venv .venv
@@ -46,13 +45,13 @@ uv sync --frozen --extra spark --group notebook
 uv run jupyter lab
 ```
 
-Local Spark additionally requires a Java 17 or newer JDK available on `PATH`
-with `JAVA_HOME` configured. Databricks supplies its own Spark and Java runtime.
+Local Spark requires a Java 17 or newer JDK on `PATH` with `JAVA_HOME` set.
+Databricks supplies its own Spark and Java runtime.
 
 ### With Nix
 
-The default Nix shell provides pinned Python and uv executables. It uses the
-same uv-managed Python dependency workflow as the non-Nix setup:
+The default Nix shell provides pinned Python and uv executables. The uv
+commands are the same as without Nix:
 
 ```console
 nix develop
@@ -69,8 +68,8 @@ uv sync --frozen --extra spark --group notebook
 uv run jupyter lab
 ```
 
-PySpark imports are confined to notebooks, so core library and CLI users do not
-need Java or Spark in either environment.
+Only the notebooks import PySpark. The library and CLI run without Java or
+Spark in either environment.
 
 ## Library API
 
@@ -93,9 +92,9 @@ print(result.table_count, result.row_counts)
 Use a new or isolated warehouse path for each run. Generation overwrites its
 tables and preserves unrelated tables in an existing store.
 
-For embedding or quick checks, use `MemoryTableStore`. The generation API
-accepts any pandas-oriented `TableStore`, including the Databricks adapter shown
-in `notebooks/databricks/Generate SAP Mock Data.py`.
+For embedding or quick checks, use `MemoryTableStore`. `generate_dataset`
+accepts any `TableStore` implementation, including the Databricks adapter in
+`notebooks/databricks/Generate SAP Mock Data.py`.
 
 Scenario selection accepts `demo`, `none`, `all`, a comma-separated string, or
 a sequence of IDs. Explicit scenarios need configuration strings:
@@ -106,6 +105,28 @@ GenerationConfig(
     scenario_configs={"SCN003": "2000,ALL,20250615,30"},
 )
 ```
+
+### Dataset size
+
+`scale_factor` is a positive number or one of the size identifiers `S`,
+`M`, `L`, `XL`. For a size identifier, `GenerationConfig` samples each count
+from the ranges below, seeded by `random_seed`. The same seed produces the
+same dataset. A number multiplies the default order, customer, material, and
+vendor counts.
+
+| size | products | suppliers | sites | BOM depth | raw materials | customers | orders      |
+| ---- | -------- | --------- | ----- | --------- | ------------- | --------- | ----------- |
+| S    | 3        | 3-5       | 5     | 1         | 6-10          | 4-8       | 200-400     |
+| M    | 10-50    | 20-30     | 5     | 1         | 27-42         | 25-40     | 4000-6000   |
+| L    | 100-200  | 50-100    | 5     | 1         | 72-112        | 80-120    | 12000-20000 |
+| XL   | 400-800  | 150-300   | 5     | 1         | 180-280       | 250-400   | 40000-80000 |
+
+- The products column includes two fixed BOM parent materials, and the raw
+  materials column includes three fixed BOM components.
+- `num_customers`, `num_finished_goods`, `num_raw_materials`, `num_vendors`,
+  and `num_orders` set their counts directly, whichever form `scale_factor`
+  takes.
+- The demo scenarios target ids that exist at every size.
 
 ### Currency
 
@@ -131,5 +152,5 @@ The manifest records schemas, row and null counts, and canonical content hashes.
   `SparkCatalogStore` and calls the same API.
 - `notebooks/databricks/Node Impact Analysis.py` runs the node-impact analysis.
 
-Spark serves as a storage adapter. Generation logic lives under
-`src/sap_mock_data`; notebooks call that package.
+Spark is a storage adapter. Generation logic is in `src/sap_mock_data`.
+Notebooks call that package.
