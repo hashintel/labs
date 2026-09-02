@@ -199,6 +199,14 @@ def route_code(loc_from: str, loc_to: str) -> str:
     return f"R{route_segment(loc_from)}{route_segment(loc_to)}"
 
 
+def route_pairs(plants) -> list[tuple[str, str]]:
+    """Ordered plant pairs that need a delivery route.
+
+    A single plant ships to itself, so it gets a self-loop route."""
+    pairs = [(a, b) for a in plants for b in plants if a != b]
+    return pairs or [(plant, plant) for plant in plants]
+
+
 def production_plants() -> list[str]:
     return [werks for werks, plant in PLANT_CONFIG.items() if plant["plant_type"] == "PROD"]
 

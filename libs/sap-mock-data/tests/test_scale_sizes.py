@@ -144,6 +144,9 @@ class PlantModelTests(unittest.TestCase):
         self.assertEqual(store.read("t001w")["WERKS"].tolist(), ["1000"])
         self.assertEqual(set(store.read("marc")["WERKS"]), {"1000"})
         self.assertEqual(set(store.read("vbap")["WERKS"]), {"1000"})
+        tvro, vttk = store.read("tvro"), store.read("vttk")
+        self.assertEqual(tvro["ROUTE"].tolist(), ["R1010"])
+        self.assertTrue(set(vttk["ROUTE"]) <= set(tvro["ROUTE"]))
 
 
 class SmallDatasetTests(unittest.TestCase):

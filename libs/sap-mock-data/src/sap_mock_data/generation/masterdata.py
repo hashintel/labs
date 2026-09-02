@@ -14,6 +14,7 @@ from .common import (
     param,
     production_plants,
     route_code,
+    route_pairs,
     seed_all,
     transport_modes_for_lane,
 )
@@ -481,50 +482,47 @@ def generate_tvro_data():
     shipping_types = {'ROAD': '01', 'RAIL': '02', 'SEA': '03', 'AIR': '04'}
     forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
 
-    for loc_from in plants:
-        for loc_to in plants:
-            if loc_from == loc_to:
-                continue
+    for loc_from, loc_to in route_pairs(plants):
 
-            from_info = PLANT_CONFIG[loc_from]
-            to_info = PLANT_CONFIG[loc_to]
+        from_info = PLANT_CONFIG[loc_from]
+        to_info = PLANT_CONFIG[loc_to]
 
-            route = route_code(loc_from, loc_to)
+        route = route_code(loc_from, loc_to)
 
-            distance_km = haversine_km(
-                from_info['ypos'], from_info['xpos'],
-                to_info['ypos'], to_info['xpos']
-            )
+        distance_km = haversine_km(
+            from_info['ypos'], from_info['xpos'],
+            to_info['ypos'], to_info['xpos']
+        )
 
-            customs_delay = customs_days(from_info['country'], to_info['country'])
+        customs_delay = customs_days(from_info['country'], to_info['country'])
 
-            available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
-            mode = min(
-                available_modes,
-                key=lambda candidate: TRANSPORT_MODES[candidate]['cost_per_km'],
-            )
-            vsart = shipping_types[mode]
-            travel_hours = distance_km / TRANSPORT_MODES[mode]['speed_kmh']
-            if mode == 'SEA':
-                agent = 'MAERSK'
-            elif mode == 'AIR':
-                agent = 'FEDEX'
-            else:
-                agent = random.choice(['DHL', 'KUEHNE', 'DBSCHENK'])
+        available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
+        mode = min(
+            available_modes,
+            key=lambda candidate: TRANSPORT_MODES[candidate]['cost_per_km'],
+        )
+        vsart = shipping_types[mode]
+        travel_hours = distance_km / TRANSPORT_MODES[mode]['speed_kmh']
+        if mode == 'SEA':
+            agent = 'MAERSK'
+        elif mode == 'AIR':
+            agent = 'FEDEX'
+        else:
+            agent = random.choice(['DHL', 'KUEHNE', 'DBSCHENK'])
 
-            transit_days = round((travel_hours / 24) + customs_delay, 2)
+        transit_days = round((travel_hours / 24) + customs_delay, 2)
 
-            data.append({
-                'MANDT': '800',
-                'ROUTE': route,
-                'TRAZTD': transit_days,  # Transit duration (calendar days)
-                'TDVZTD': transit_days,  # Transportation lead time (days)
-                'FAHZTD': round(travel_hours, 2),  # Travel duration (hours)
-                'DISTZ': round(distance_km, 2),  # Distance
-                'MEDST': 'KM',  # Distance unit
-                'VSART': vsart,  # Shipping type
-                'TDLNR': agent,  # Forwarding agent
-            })
+        data.append({
+            'MANDT': '800',
+            'ROUTE': route,
+            'TRAZTD': transit_days,  # Transit duration (calendar days)
+            'TDVZTD': transit_days,  # Transportation lead time (days)
+            'FAHZTD': round(travel_hours, 2),  # Travel duration (hours)
+            'DISTZ': round(distance_km, 2),  # Distance
+            'MEDST': 'KM',  # Distance unit
+            'VSART': vsart,  # Shipping type
+            'TDLNR': agent,  # Forwarding agent
+        })
 
     return frame_with_schema(
         data,
@@ -539,7 +537,7 @@ def generate_tvrot_data(df_tvro):
     """
     data = []
     plants = list(PLANT_CONFIG)
-    lanes = {route_code(a, b): (a, b) for a in plants for b in plants if a != b}
+    lanes = {route_code(a, b): (a, b) for a, b in route_pairs(plants)}
     languages = ['E', 'D', 'F']  # English, German, French
 
     for _, route in df_tvro.iterrows():
