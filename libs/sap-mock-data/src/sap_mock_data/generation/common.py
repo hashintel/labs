@@ -180,6 +180,25 @@ def configure_plants() -> None:
         raise ValueError(f"HUB_PLANT {hub!r} is not one of the {len(PLANT_CONFIG)} generated plants")
 
 
+ROUTE_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+
+def route_segment(werks: str) -> str:
+    """Two-character route code segment for a plant.
+
+    Base plants use their leading digits. Synthesized plants use a letter
+    followed by a base-36 digit, so no two plants share a segment.
+    """
+    if werks in BASE_PLANTS:
+        return werks[:2]
+    index = (int(werks) - SYNTHESIZED_ID_START) // SYNTHESIZED_ID_STEP
+    return chr(ord("A") + index // len(ROUTE_ALPHABET)) + ROUTE_ALPHABET[index % len(ROUTE_ALPHABET)]
+
+
+def route_code(loc_from: str, loc_to: str) -> str:
+    return f"R{route_segment(loc_from)}{route_segment(loc_to)}"
+
+
 def production_plants() -> list[str]:
     return [werks for werks, plant in PLANT_CONFIG.items() if plant["plant_type"] == "PROD"]
 

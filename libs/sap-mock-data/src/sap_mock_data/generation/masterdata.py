@@ -13,6 +13,7 @@ from .common import (
     dc_plants,
     param,
     production_plants,
+    route_code,
     seed_all,
     transport_modes_for_lane,
 )
@@ -488,7 +489,7 @@ def generate_tvro_data():
             from_info = PLANT_CONFIG[loc_from]
             to_info = PLANT_CONFIG[loc_to]
 
-            route = f"R{loc_from[:2]}{loc_to[:2]}"
+            route = route_code(loc_from, loc_to)
 
             distance_km = haversine_km(
                 from_info['ypos'], from_info['xpos'],
@@ -538,13 +539,13 @@ def generate_tvrot_data(df_tvro):
     """
     data = []
     plants = list(PLANT_CONFIG)
+    lanes = {route_code(a, b): (a, b) for a in plants for b in plants if a != b}
     languages = ['E', 'D', 'F']  # English, German, French
 
     for _, route in df_tvro.iterrows():
-        route_code = route['ROUTE']
+        code = route['ROUTE']
 
-        from_plant = route_code[1:3] + '00'
-        to_plant = route_code[3:5] + '00'
+        from_plant, to_plant = lanes[code]
 
         from_name = PLANT_CONFIG.get(from_plant, {}).get('city', from_plant)
         to_name = PLANT_CONFIG.get(to_plant, {}).get('city', to_plant)
@@ -560,7 +561,7 @@ def generate_tvrot_data(df_tvro):
             data.append({
                 'MANDT': '800',
                 'SPRAS': lang,
-                'ROUTE': route_code,
+                'ROUTE': code,
                 'BEZEI': desc,
             })
 

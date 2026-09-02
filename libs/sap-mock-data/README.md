@@ -111,8 +111,9 @@ GenerationConfig(
 `scale_factor` is a positive number or one of the size identifiers `S`,
 `M`, `L`, `XL`. For a size identifier, `GenerationConfig` samples each count
 from the ranges below, seeded by `random_seed`. The same seed produces the
-same dataset. A number multiplies the default order, customer, material,
-vendor, and site counts.
+same dataset, apart from the `INJECTED_AT` timestamp in `scenario_metadata`.
+A number multiplies the default order, customer, material, vendor, and site
+counts.
 
 | size | products | suppliers | sites   | BOM depth | raw materials | customers | orders      |
 | ---- | -------- | --------- | ------- | --------- | ------------- | --------- | ----------- |

@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from .common import (
     PLANT_CONFIG,
     configure_plants,
+    route_code,
     customs_days,
     param,
     seed_all,
@@ -263,8 +264,7 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return R * 2 * asin(sqrt(a))
 
 def get_route_code(from_plant, to_plant):
-    """Generate route code in format R{FROM}{TO}."""
-    return f"R{from_plant[:2]}{to_plant[:2]}"
+    return route_code(from_plant, to_plant)
 
 def get_best_transport_mode(from_plant, to_plant, distance_km):
     """Determine the best transport mode based on cost."""

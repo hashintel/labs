@@ -111,6 +111,26 @@ class PlantModelTests(unittest.TestCase):
         self.assertIn("1000", production)
         self.assertGreater(len(production), 2)
 
+    TABLE_KEYS = {
+        "t001w": ["WERKS"], "sapapo_loc": ["LOCNO"], "sapapo_tr": ["TRLID"],
+        "sapapo_trm": ["TRLID", "TRMID"], "tvro": ["ROUTE"], "tvrot": ["ROUTE", "SPRAS"],
+        "crhd": ["OBJID"], "kako": ["KAPID"], "plko": ["PLNNR"], "plpo": ["PLNNR", "VORNR"],
+        "marc": ["MATNR", "WERKS"], "mbew": ["MATNR", "BWKEY"], "mard": ["MATNR", "WERKS", "LGORT", "CHARG"],
+        "vttk": ["TKNUM"], "vttp": ["TKNUM", "TPNUM"], "vtts": ["TKNUM", "TSNUM"],
+    }
+
+    def test_synthesized_plants_keep_every_key_unique(self) -> None:
+        store = MemoryTableStore()
+        with redirect_stdout(StringIO()):
+            generate_dataset(GenerationConfig(scale_factor="S", num_sites=60, scenarios=()), store)
+        for table, key in self.TABLE_KEYS.items():
+            duplicates = int(store.read(table).duplicated(subset=key).sum())
+            self.assertEqual(duplicates, 0, f"{table} has {duplicates} duplicate {'+'.join(key)}")
+        tvro, tvrot, vttk = store.read("tvro"), store.read("tvrot"), store.read("vttk")
+        self.assertEqual(len(tvro), 60 * 59)
+        self.assertFalse(tvrot["BEZEI"].str.contains(r"\b6\d{3}\b").any())
+        self.assertTrue(set(vttk["ROUTE"]) <= set(tvro["ROUTE"]))
+
     def test_hub_outside_the_generated_plants_is_rejected(self) -> None:
         with redirect_stdout(StringIO()), self.assertRaisesRegex(ValueError, "HUB_PLANT '3000'"):
             generate_dataset(
@@ -165,6 +185,22 @@ class SmallDatasetTests(unittest.TestCase):
         materials = set(self.store.read("mara")["MATNR"])
         for scenario_material in ("MAT-A0001", "MAT-A0020", "API1"):
             self.assertIn(scenario_material, materials)
+
+    def test_scenario_catalog_names_only_ids_that_exist(self) -> None:
+        catalog = self.store.read("scenario_config")
+        catalog = catalog[catalog["SCENARIO_ID"].isin(DEMO_SCENARIO_CONFIGS)]
+        plants = set(self.store.read("t001w")["WERKS"])
+        materials = set(self.store.read("mara")["MATNR"])
+        vendors = set(self.store.read("lfa1")["LIFNR"])
+        for row in catalog.itertuples(index=False):
+            if row.IMPACTED_NODE not in ("", "ALL"):
+                self.assertIn(row.IMPACTED_NODE, plants, row.SCENARIO_ID)
+            if row.IMPACTED_SUPPLIER:
+                self.assertIn(row.IMPACTED_SUPPLIER, vendors, row.SCENARIO_ID)
+            for field in (row.IMPACTED_PRODUCTS, row.COMPETING_PRODUCTS):
+                for material in filter(None, field.split(",")):
+                    if material != "ALL":
+                        self.assertIn(material, materials, f"{row.SCENARIO_ID}: {material}")
 
     def test_supplier_scenario_targets_an_existing_supply_relationship(self) -> None:
         vendor, material = DEMO_SCENARIO_CONFIGS["SCN023"].split(",")

@@ -6,7 +6,6 @@ from sap_mock_data import GenerationConfig, generate_dataset
 from sap_mock_data.generation.common import (
     EU_COUNTRIES,
     PLANT_CONFIG,
-    is_port,
     customs_days,
 )
 from sap_mock_data.storage import MemoryTableStore
@@ -20,6 +19,7 @@ class GenerationQualityTests(unittest.TestCase):
             generate_dataset(
                 GenerationConfig(scale_factor=0.1, num_sites=5, scenarios="demo"), cls.store
             )
+        cls.plants = dict(PLANT_CONFIG)
 
     def test_generated_columns_have_no_corruption_marker(self) -> None:
         malformed = [
@@ -88,15 +88,15 @@ class GenerationQualityTests(unittest.TestCase):
 
         self.assertEqual(set(preferred["TRMID"]), {"ROAD", "SEA", "AIR"})
         for lane in preferred.itertuples():
-            country_from = PLANT_CONFIG[lane.LOCFR]["country"]
-            country_to = PLANT_CONFIG[lane.LOCTO]["country"]
+            country_from = self.plants[lane.LOCFR]["country"]
+            country_to = self.plants[lane.LOCTO]["country"]
             if lane.TRMID == "ROAD":
                 self.assertTrue(
                     country_from == country_to
                     or {country_from, country_to}.issubset(EU_COUNTRIES)
                 )
             if lane.TRMID == "SEA":
-                self.assertTrue(is_port(lane.LOCFR) and is_port(lane.LOCTO))
+                self.assertTrue(self.plants[lane.LOCFR]["port"] and self.plants[lane.LOCTO]["port"])
 
         self.assertEqual(customs_days("DE", "DE"), 0)
         self.assertEqual(customs_days("DE", "IE"), 0)
