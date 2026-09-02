@@ -18,6 +18,7 @@ SIZE_KNOB_RANGES: dict[str, dict[str, tuple[int, int]]] = {
         "NUM_VENDORS": (3, 5),
         "NUM_CUSTOMERS": (4, 8),
         "NUM_ORDERS": (200, 400),
+        "NUM_SITES": (1, 2),
     },
     "M": {
         "NUM_FINISHED_GOODS": (8, 49),
@@ -25,6 +26,7 @@ SIZE_KNOB_RANGES: dict[str, dict[str, tuple[int, int]]] = {
         "NUM_VENDORS": (20, 30),
         "NUM_CUSTOMERS": (25, 40),
         "NUM_ORDERS": (4000, 6000),
+        "NUM_SITES": (4, 5),
     },
     "L": {
         "NUM_FINISHED_GOODS": (99, 199),
@@ -32,6 +34,7 @@ SIZE_KNOB_RANGES: dict[str, dict[str, tuple[int, int]]] = {
         "NUM_VENDORS": (50, 100),
         "NUM_CUSTOMERS": (80, 120),
         "NUM_ORDERS": (12000, 20000),
+        "NUM_SITES": (20, 40),
     },
     "XL": {
         "NUM_FINISHED_GOODS": (399, 799),
@@ -39,13 +42,14 @@ SIZE_KNOB_RANGES: dict[str, dict[str, tuple[int, int]]] = {
         "NUM_VENDORS": (150, 300),
         "NUM_CUSTOMERS": (250, 400),
         "NUM_ORDERS": (40000, 80000),
+        "NUM_SITES": (100, 120),
     },
 }
 
 # Demo configs reference only ids that exist at every dataset size.
 DEMO_SCENARIO_CONFIGS: dict[str, str] = {
     "SCN001": "MAT-A0001,1000,FG01,500",
-    "SCN003": "2000,ALL,20250615,30",
+    "SCN003": "1000,ALL,20250615,30",
     "SCN011": "MAT-A0001,1000,25,20250615",
     "SCN012": "MAT-NEW01,1000,MAT-A0001",
     "SCN014": "1000,95,30",
@@ -66,6 +70,7 @@ class GenerationConfig:
     num_finished_goods: int | None = None
     num_raw_materials: int | None = None
     num_vendors: int | None = None
+    num_sites: int | None = None
     num_orders: int | None = None
     moq_finished_min: int = 250
     moq_finished_max: int = 1000
@@ -118,6 +123,7 @@ class GenerationConfig:
             "num_finished_goods",
             "num_raw_materials",
             "num_vendors",
+            "num_sites",
             "num_orders",
         ):
             value = getattr(self, name)
@@ -178,6 +184,7 @@ class GenerationConfig:
             "NUM_FINISHED_GOODS": self.num_finished_goods,
             "NUM_RAW_MATERIALS": self.num_raw_materials,
             "NUM_VENDORS": self.num_vendors,
+            "NUM_SITES": self.num_sites,
             "NUM_ORDERS": self.num_orders,
         }
         values.update(

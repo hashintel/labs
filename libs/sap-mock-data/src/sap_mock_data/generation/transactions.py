@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 
 from .common import (
     PLANT_CONFIG,
+    configure_plants,
     customs_days,
     param,
     seed_all,
@@ -299,7 +300,7 @@ def generate_shipments(df_likp, df_lips, df_vbap):
                 suffixes=('', '_VBAP')
             )
             if 'WERKS_VBAP' in df_delivery.columns:
-                df_delivery['WERKS'] = df_delivery['WERKS_VBAP'].fillna(df_delivery.get('WERKS', '1000'))
+                df_delivery['WERKS'] = df_delivery['WERKS_VBAP'].fillna(df_delivery.get('WERKS', HUB_PLANT))
 
     delivery_groups = df_delivery.groupby('VBELN')
 
@@ -311,17 +312,17 @@ def generate_shipments(df_likp, df_lips, df_vbap):
         shipment_counter += 1
 
         first_item = del_items.iloc[0]
-        source_plant = first_item.get('WERKS', '1000')
+        source_plant = first_item.get('WERKS', HUB_PLANT)
         if pd.isna(source_plant) or source_plant == '':
-            source_plant = '1000'  # Hub plant
+            source_plant = HUB_PLANT
 
         delivery_date_str = first_item.get('LFDAT', datetime.now().strftime('%Y%m%d'))
 
         dest_plants = [p for p in PLANT_CONFIG if p != source_plant]
-        dest_plant = random.choice(dest_plants) if dest_plants else '2000'
+        dest_plant = random.choice(dest_plants) if dest_plants else source_plant
 
-        from_info = PLANT_CONFIG.get(source_plant, PLANT_CONFIG['1000'])
-        to_info = PLANT_CONFIG.get(dest_plant, PLANT_CONFIG['2000'])
+        from_info = PLANT_CONFIG.get(source_plant, PLANT_CONFIG[HUB_PLANT])
+        to_info = PLANT_CONFIG.get(dest_plant, PLANT_CONFIG[HUB_PLANT])
 
         distance_km = haversine_km(
             from_info['ypos'], from_info['xpos'],
@@ -917,7 +918,7 @@ def generate_purchase_orders(df_eina, df_eine, df_matdoc, num_months=12):
                 'EBELP': '00010',  # Item number
                 'MATNR': matnr,
                 'TXZ01': f"Raw Material {matnr}",
-                'WERKS': '1000',  # Plant
+                'WERKS': HUB_PLANT,  # Plant
                 'LGORT': 'RM01',  # Storage location (raw materials)
                 'MENGE': order_qty,  # Order quantity
                 'MEINS': 'PC',  # Unit
@@ -1120,6 +1121,7 @@ def generate(wh):
 
     FINISHED_PRODUCTS = [row['MATNR'] for row in df_mara[df_mara["MTART"] == "FERT"][['MATNR']].drop_duplicates().to_dict("records")]
     ALL_CUSTOMERS = [row['KUNNR'] for row in wh.read("kna1")[['KUNNR']].drop_duplicates().to_dict("records")]
+    configure_plants()
     PLANTS = list(PLANT_CONFIG)
 
     SALES_MARKUP = 0.35  # 35% markup on cost for selling price

@@ -8,8 +8,11 @@ from datetime import datetime, timedelta
 
 from .common import (
     PLANT_CONFIG,
+    configure_plants,
     customs_days,
+    dc_plants,
     param,
+    production_plants,
     seed_all,
     transport_modes_for_lane,
 )
@@ -225,7 +228,6 @@ def generate_mard_data():
 
 def generate_mbew_data():
     data = []
-    plant_cost_factors = {'1000': 1.0, '2000': 1.15, '3000': 0.85, '4000': 1.25}
 
     for matnr in PREDEFINED_MATERIALS:
         if matnr in FINISHED_GOODS:
@@ -236,7 +238,7 @@ def generate_mbew_data():
             base_price = round(random.uniform(5, 100), 2)
 
         for werks in PREDEFINED_PLANTS:
-            location_factor = plant_cost_factors.get(werks, 1.0)
+            location_factor = PLANT_CONFIG[werks]['cost_factor']
             std_price = round(base_price * location_factor, 2)
             mov_avg_price = round(std_price * random.uniform(0.95, 1.05), 2)
 
@@ -368,6 +370,14 @@ def generate_sapapo_loc_data():
         })
     return pd.DataFrame(data)
 
+
+def frame_with_schema(rows, columns, float_columns=()):
+    """Build a DataFrame that keeps its columns and float dtypes even with no rows."""
+    frame = pd.DataFrame(rows, columns=columns)
+    if frame.empty:
+        frame = frame.astype({column: 'float64' for column in float_columns})
+    return frame
+
 def generate_sapapo_tr_data():
     """
     Generates /SAPAPO/TR - APO Transportation Lane Header.
@@ -396,7 +406,7 @@ def generate_sapapo_tr_data():
                 'MODEL': 'SAPAPO_MODEL',
             })
 
-    return pd.DataFrame(data)
+    return frame_with_schema(data, ['MANDT', 'TRLID', 'LOCFR', 'LOCTO', 'TRNAME', 'MODEL'])
 
 def generate_sapapo_trm_data(df_tr):
     """
@@ -453,7 +463,11 @@ def generate_sapapo_trm_data(df_tr):
 
         data.extend(mode_records)
 
-    return pd.DataFrame(data)
+    return frame_with_schema(
+        data,
+        ['MANDT', 'TRLID', 'TRMID', 'TRATIME', 'TRACOST', 'TRACOSTCUR', 'PRIFLAG'],
+        float_columns=('TRATIME', 'TRACOST'),
+    )
 
 def generate_tvro_data():
     """
@@ -511,7 +525,11 @@ def generate_tvro_data():
                 'TDLNR': agent,  # Forwarding agent
             })
 
-    return pd.DataFrame(data)
+    return frame_with_schema(
+        data,
+        ['MANDT', 'ROUTE', 'TRAZTD', 'TDVZTD', 'FAHZTD', 'DISTZ', 'MEDST', 'VSART', 'TDLNR'],
+        float_columns=('TRAZTD', 'TDVZTD', 'FAHZTD', 'DISTZ'),
+    )
 
 def generate_tvrot_data(df_tvro):
     """
@@ -546,7 +564,7 @@ def generate_tvrot_data(df_tvro):
                 'BEZEI': desc,
             })
 
-    return pd.DataFrame(data)
+    return frame_with_schema(data, ['MANDT', 'SPRAS', 'ROUTE', 'BEZEI'])
 
 
 VENDOR_CATEGORY_SHARES = [
@@ -789,36 +807,41 @@ def generate_crhd_data():
     data = []
 
     work_centers = [
-        ('DISP01', 'Dispensing & Weighing 1', '001', 16, 5, 95, ['1000', '5000']),
-        ('DISP02', 'Dispensing & Weighing 2', '001', 16, 5, 95, ['1000']),
-        ('GRAN01', 'Wet Granulation Line 1', '002', 16, 5, 85, ['1000', '5000']),
-        ('GRAN02', 'Dry Granulation Line 1', '002', 16, 5, 88, ['1000']),
-        ('BLND01', 'Blending Station 1', '002', 16, 5, 92, ['1000', '5000']),
-        ('BLND02', 'Blending Station 2', '002', 16, 5, 92, ['1000']),
-        ('COMP01', 'Tablet Press Line 1', '003', 24, 7, 80, ['1000', '5000']),
-        ('COMP02', 'Tablet Press Line 2', '003', 24, 7, 82, ['1000']),
-        ('COMP03', 'Tablet Press Line 3', '003', 16, 5, 78, ['1000']),
-        ('COAT01', 'Film Coating Line 1', '003', 16, 5, 85, ['1000', '5000']),
-        ('COAT02', 'Film Coating Line 2', '003', 16, 5, 85, ['1000']),
-        ('ENCAP01', 'Encapsulation Line 1', '003', 16, 5, 88, ['1000']),
-        ('FILL01', 'Liquid Filling Line 1', '004', 16, 5, 82, ['1000']),
-        ('FILL02', 'Liquid Filling Line 2', '004', 16, 5, 82, ['1000', '5000']),
-        ('STER01', 'Sterile Filling Line 1', '005', 16, 5, 75, ['1000']),
-        ('STER02', 'Sterile Filling Line 2', '005', 16, 5, 75, ['1000']),
-        ('PACK01', 'Primary Packaging Line 1', '006', 24, 7, 90, ['1000', '5000']),
-        ('PACK02', 'Primary Packaging Line 2', '006', 24, 7, 90, ['1000']),
-        ('PACK03', 'Secondary Packaging Line 1', '006', 16, 5, 92, ['1000', '5000']),
-        ('PACK04', 'Secondary Packaging Line 2', '006', 16, 5, 92, ['1000']),
-        ('QCLAB01', 'Quality Control Lab 1', '007', 16, 5, 85, ['1000', '5000']),
-        ('QCLAB02', 'Quality Control Lab 2', '007', 16, 5, 85, ['1000']),
-        ('INSP01', 'Incoming Inspection', '008', 8, 5, 95, ['2000', '3000', '4000']),
-        ('REPK01', 'Repackaging Station', '006', 8, 5, 90, ['2000', '3000', '4000']),
+        ('DISP01', 'Dispensing & Weighing 1', '001', 16, 5, 95, 'PROD'),
+        ('DISP02', 'Dispensing & Weighing 2', '001', 16, 5, 95, 'HUB'),
+        ('GRAN01', 'Wet Granulation Line 1', '002', 16, 5, 85, 'PROD'),
+        ('GRAN02', 'Dry Granulation Line 1', '002', 16, 5, 88, 'HUB'),
+        ('BLND01', 'Blending Station 1', '002', 16, 5, 92, 'PROD'),
+        ('BLND02', 'Blending Station 2', '002', 16, 5, 92, 'HUB'),
+        ('COMP01', 'Tablet Press Line 1', '003', 24, 7, 80, 'PROD'),
+        ('COMP02', 'Tablet Press Line 2', '003', 24, 7, 82, 'HUB'),
+        ('COMP03', 'Tablet Press Line 3', '003', 16, 5, 78, 'HUB'),
+        ('COAT01', 'Film Coating Line 1', '003', 16, 5, 85, 'PROD'),
+        ('COAT02', 'Film Coating Line 2', '003', 16, 5, 85, 'HUB'),
+        ('ENCAP01', 'Encapsulation Line 1', '003', 16, 5, 88, 'HUB'),
+        ('FILL01', 'Liquid Filling Line 1', '004', 16, 5, 82, 'HUB'),
+        ('FILL02', 'Liquid Filling Line 2', '004', 16, 5, 82, 'PROD'),
+        ('STER01', 'Sterile Filling Line 1', '005', 16, 5, 75, 'HUB'),
+        ('STER02', 'Sterile Filling Line 2', '005', 16, 5, 75, 'HUB'),
+        ('PACK01', 'Primary Packaging Line 1', '006', 24, 7, 90, 'PROD'),
+        ('PACK02', 'Primary Packaging Line 2', '006', 24, 7, 90, 'HUB'),
+        ('PACK03', 'Secondary Packaging Line 1', '006', 16, 5, 92, 'PROD'),
+        ('PACK04', 'Secondary Packaging Line 2', '006', 16, 5, 92, 'HUB'),
+        ('QCLAB01', 'Quality Control Lab 1', '007', 16, 5, 85, 'PROD'),
+        ('QCLAB02', 'Quality Control Lab 2', '007', 16, 5, 85, 'HUB'),
+        ('INSP01', 'Incoming Inspection', '008', 8, 5, 95, 'DC'),
+        ('REPK01', 'Repackaging Station', '006', 8, 5, 90, 'DC'),
     ]
 
     objid_counter = 1000
 
-    for arbpl, ktext, capacity_category, hours_day, days_week, efficiency, plants in work_centers:
-        for werks in plants:
+    plants_for_role = {
+        'HUB': [param("HUB_PLANT")],
+        'PROD': production_plants(),
+        'DC': dc_plants(),
+    }
+    for arbpl, ktext, capacity_category, hours_day, days_week, efficiency, role in work_centers:
+        for werks in plants_for_role[role]:
             objid_counter += 1
 
             available_hours = hours_day * days_week
@@ -891,7 +914,7 @@ def generate_plko_data(df_mara, df_crhd):
 
     producible = df_mara[df_mara['MTART'].isin(['FERT', 'HALB'])]['MATNR'].tolist()
 
-    prod_plants = ['1000', '5000']
+    prod_plants = production_plants()
 
     plnnr_counter = 1000000
 
@@ -1079,6 +1102,7 @@ def generate(wh):
     print(f"Seed: {RANDOM_SEED}")
     print(f"Universe: {NUM_CUSTOMERS} customers, {NUM_FINISHED_GOODS} finished goods, {NUM_RAW_MATERIALS} raw materials")
 
+    configure_plants()
     PREDEFINED_PLANTS = list(PLANT_CONFIG)
     PREDEFINED_STORAGE_LOCATIONS = ['0001', 'FG01', 'RM01', 'WH01', 'QA01', 'ALT1']
     PREDEFINED_CUSTOMERS = [f'CUST{i:05d}' for i in range(1, NUM_CUSTOMERS + 1)]

@@ -6,7 +6,7 @@ from sap_mock_data import GenerationConfig, generate_dataset
 from sap_mock_data.generation.common import (
     EU_COUNTRIES,
     PLANT_CONFIG,
-    PORT_PLANTS,
+    is_port,
     customs_days,
 )
 from sap_mock_data.storage import MemoryTableStore
@@ -18,7 +18,7 @@ class GenerationQualityTests(unittest.TestCase):
         cls.store = MemoryTableStore()
         with redirect_stdout(StringIO()):
             generate_dataset(
-                GenerationConfig(scale_factor=0.1, scenarios="demo"), cls.store
+                GenerationConfig(scale_factor=0.1, num_sites=5, scenarios="demo"), cls.store
             )
 
     def test_generated_columns_have_no_corruption_marker(self) -> None:
@@ -96,7 +96,7 @@ class GenerationQualityTests(unittest.TestCase):
                     or {country_from, country_to}.issubset(EU_COUNTRIES)
                 )
             if lane.TRMID == "SEA":
-                self.assertTrue({lane.LOCFR, lane.LOCTO}.issubset(PORT_PLANTS))
+                self.assertTrue(is_port(lane.LOCFR) and is_port(lane.LOCTO))
 
         self.assertEqual(customs_days("DE", "DE"), 0)
         self.assertEqual(customs_days("DE", "IE"), 0)

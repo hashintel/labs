@@ -6,16 +6,15 @@ from io import StringIO
 from sap_mock_data import GenerationConfig, generate_dataset
 from sap_mock_data.config import DEMO_SCENARIO_CONFIGS, SIZE_KNOB_RANGES
 from sap_mock_data.context import GenerationContext
-from sap_mock_data.generation.common import param
+from sap_mock_data.generation.common import BASE_PLANTS, build_plants, param
 from sap_mock_data.storage import MemoryTableStore
 
-# Target ranges per size: (products, suppliers). Sites are fixed at 5 and BOM
-# depth at 1 for every size, asserted separately.
+# Target ranges per size. BOM depth is fixed at 1 for every size.
 SIZE_RANGES = {
-    "S": {"products": (1, 3), "suppliers": (3, 5)},
-    "M": {"products": (10, 50), "suppliers": (20, 30)},
-    "L": {"products": (100, 200), "suppliers": (50, 100)},
-    "XL": {"products": (400, 800), "suppliers": (150, 300)},
+    "S": {"products": (1, 3), "suppliers": (3, 5), "sites": (1, 2)},
+    "M": {"products": (10, 50), "suppliers": (20, 30), "sites": (4, 5)},
+    "L": {"products": (100, 200), "suppliers": (50, 100), "sites": (20, 40)},
+    "XL": {"products": (400, 800), "suppliers": (150, 300), "sites": (100, 120)},
 }
 
 
@@ -84,15 +83,47 @@ class ScaleFactorValidationTests(unittest.TestCase):
             self.assertEqual(param("NUM_VENDORS"), "1")
 
     def test_explicit_knobs_override_the_size_values(self) -> None:
-        config = GenerationConfig(scale_factor="S", num_customers=77, num_vendors=9)
+        config = GenerationConfig(scale_factor="S", num_customers=77, num_vendors=9, num_sites=3)
         self.assertEqual(config.parameters()["NUM_CUSTOMERS"], "77")
         self.assertEqual(config.parameters()["NUM_VENDORS"], "9")
+        self.assertEqual(config.parameters()["NUM_SITES"], "3")
 
     def test_tiny_numeric_factor_generates_a_minimal_dataset(self) -> None:
         store = MemoryTableStore()
         with redirect_stdout(StringIO()):
             generate_dataset(GenerationConfig(scale_factor=0.001, scenarios=()), store)
         self.assertEqual(store.read("lfa1")["LIFNR"].nunique(), 1)
+
+
+class PlantModelTests(unittest.TestCase):
+    def test_base_plants_come_first_and_unchanged(self) -> None:
+        self.assertEqual(build_plants(5), BASE_PLANTS)
+        self.assertEqual(list(build_plants(2)), ["1000", "2000"])
+
+    def test_synthesized_plants_are_well_formed(self) -> None:
+        plants = build_plants(60)
+        self.assertEqual(len(plants), 60)
+        fields = set(BASE_PLANTS["1000"])
+        for werks, plant in plants.items():
+            self.assertEqual(len(werks), 4, werks)
+            self.assertEqual(set(plant), fields, werks)
+        production = [w for w, plant in plants.items() if plant["plant_type"] == "PROD"]
+        self.assertIn("1000", production)
+        self.assertGreater(len(production), 2)
+
+    def test_hub_outside_the_generated_plants_is_rejected(self) -> None:
+        with redirect_stdout(StringIO()), self.assertRaisesRegex(ValueError, "HUB_PLANT '3000'"):
+            generate_dataset(
+                GenerationConfig(scale_factor="S", num_sites=2, hub_plant="3000"), MemoryTableStore()
+            )
+
+    def test_single_site_dataset_generates(self) -> None:
+        store = MemoryTableStore()
+        with redirect_stdout(StringIO()):
+            generate_dataset(GenerationConfig(scale_factor="S", num_sites=1, scenarios="demo"), store)
+        self.assertEqual(store.read("t001w")["WERKS"].tolist(), ["1000"])
+        self.assertEqual(set(store.read("marc")["WERKS"]), {"1000"})
+        self.assertEqual(set(store.read("vbap")["WERKS"]), {"1000"})
 
 
 class SmallDatasetTests(unittest.TestCase):
@@ -151,7 +182,6 @@ class SizeTableTests(unittest.TestCase):
                 low <= measured[dimension] <= high,
                 f"{size} {dimension}: {measured[dimension]} outside [{low}, {high}]",
             )
-        self.assertEqual(measured["sites"], 5)
         self.assertEqual(measured["bom_depth"], 1)
 
     def test_s_dataset_matches_the_size_table(self) -> None:
@@ -173,7 +203,7 @@ class SizeTableTests(unittest.TestCase):
 
     @unittest.skipUnless(
         os.environ.get("SAP_MOCK_XL_VALIDATION") == "1",
-        "XL generation takes about five minutes; set SAP_MOCK_XL_VALIDATION=1",
+        "XL generation takes over an hour; set SAP_MOCK_XL_VALIDATION=1",
     )
     def test_xl_dataset_matches_the_size_table(self) -> None:
         self.assert_size("XL")

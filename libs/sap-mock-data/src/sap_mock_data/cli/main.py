@@ -66,6 +66,7 @@ def _parser() -> argparse.ArgumentParser:
     generate.add_argument("--finished-goods", type=int)
     generate.add_argument("--raw-materials", type=int)
     generate.add_argument("--vendors", type=int)
+    generate.add_argument("--sites", type=int)
     generate.add_argument("--currency", default="EUR")
     generate.add_argument(
         "--scenarios",
@@ -115,6 +116,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 num_finished_goods=args.finished_goods,
                 num_raw_materials=args.raw_materials,
                 num_vendors=args.vendors,
+                num_sites=args.sites,
                 currency=args.currency,
                 scenarios=args.scenarios,
                 scenario_configs=scenario_configs,

@@ -111,22 +111,25 @@ GenerationConfig(
 `scale_factor` is a positive number or one of the size identifiers `S`,
 `M`, `L`, `XL`. For a size identifier, `GenerationConfig` samples each count
 from the ranges below, seeded by `random_seed`. The same seed produces the
-same dataset. A number multiplies the default order, customer, material, and
-vendor counts.
+same dataset. A number multiplies the default order, customer, material,
+vendor, and site counts.
 
-| size | products | suppliers | sites | BOM depth | raw materials | customers | orders      |
-| ---- | -------- | --------- | ----- | --------- | ------------- | --------- | ----------- |
-| S    | 3        | 3-5       | 5     | 1         | 6-10          | 4-8       | 200-400     |
-| M    | 10-50    | 20-30     | 5     | 1         | 27-42         | 25-40     | 4000-6000   |
-| L    | 100-200  | 50-100    | 5     | 1         | 72-112        | 80-120    | 12000-20000 |
-| XL   | 400-800  | 150-300   | 5     | 1         | 180-280       | 250-400   | 40000-80000 |
+| size | products | suppliers | sites   | BOM depth | raw materials | customers | orders      |
+| ---- | -------- | --------- | ------- | --------- | ------------- | --------- | ----------- |
+| S    | 3        | 3-5       | 1-2     | 1         | 6-10          | 4-8       | 200-400     |
+| M    | 10-50    | 20-30     | 4-5     | 1         | 27-42         | 25-40     | 4000-6000   |
+| L    | 100-200  | 50-100    | 20-40   | 1         | 72-112        | 80-120    | 12000-20000 |
+| XL   | 400-800  | 150-300   | 100-120 | 1         | 180-280       | 250-400   | 40000-80000 |
 
 - The products column includes two fixed BOM parent materials, and the raw
   materials column includes three fixed BOM components.
 - `num_customers`, `num_finished_goods`, `num_raw_materials`, `num_vendors`,
-  and `num_orders` set their counts directly, whichever form `scale_factor`
-  takes.
+  `num_sites`, and `num_orders` set their counts directly, whichever form
+  `scale_factor` takes.
+- The first five sites are fixed plants. Further sites are synthesized with
+  ids from 6000 in steps of 10, and every fifth one is a production plant.
 - The demo scenarios target ids that exist at every size.
+- Generation time grows with products times sites. `XL` takes over an hour.
 
 ### Currency
 

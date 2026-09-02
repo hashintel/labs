@@ -4,7 +4,7 @@ import numpy as np
 import random
 from datetime import datetime, timedelta
 
-from ..generation.common import param, widget, seed_all
+from ..generation.common import PLANT_CONFIG, configure_plants, param, seed_all, widget
 
 
 INVENTORY_SCENARIO_DEFINITIONS = {
@@ -2192,7 +2192,7 @@ def inject_high_volatility(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
 
     customers = df_kna1['KUNNR'].tolist()
     finished_goods = df_mara[df_mara['MTART'] == 'FERT']['MATNR'].tolist()
-    plants = ['1000', '2000', '3000', '4000']
+    plants = list(PLANT_CONFIG)
     start_date = datetime.now()
 
     new_vbak = []
@@ -2424,6 +2424,7 @@ def generate(wh):
     SCN019_CONFIG = widget("SCN019_CONFIG", "")
     SCN020_CONFIG = widget("SCN020_CONFIG", "")
 
+    configure_plants()
     seed_all(RANDOM_SEED)
 
     print(f"Seed: {RANDOM_SEED}")
