@@ -8,8 +8,15 @@ import type {
 	SDCPN,
 	Transition,
 } from "@hashintel/petrinaut";
+import {
+	getArcEndpointPlaceId,
+	type InputArc,
+	type OutputArc,
+} from "@hashintel/petrinaut-core";
 
-/** "standard" or "inhibitor" — an inhibitor arc blocks its transition while the place holds tokens. */
+/** "standard", "inhibitor" or "read" — an inhibitor arc blocks its transition
+ * while the place holds tokens, and a read arc requires tokens without
+ * consuming them. */
 type ArcType = Transition["inputArcs"][number]["type"];
 
 type PetriNetDoc = {
@@ -25,6 +32,13 @@ const ARC_ID_SEPARATOR = "___";
 
 function generateArcId(inputId: string, outputId: string) {
 	return `${ARC_ID_PREFIX}${inputId}${ARC_ID_SEPARATOR}${outputId}`;
+}
+
+function placeIdOf(arc: InputArc | OutputArc): string | null {
+	if (!arc.endpoint && !arc.placeId) {
+		return null;
+	}
+	return getArcEndpointPlaceId(arc) || null;
 }
 
 function findPlace(def: SDCPN, nameOrId: string) {
@@ -90,8 +104,10 @@ function deleteItemsFromSdcpn(sdcpn: SDCPN, items: RemoveItem[]) {
 			for (let j = transition.inputArcs.length - 1; j >= 0; j--) {
 				const arc = transition.inputArcs[j];
 				if (!arc) continue;
-				const arcId = generateArcId(arc.placeId, transition.id);
-				if (arcIds.has(arcId) || placeIds.has(arc.placeId)) {
+				const placeId = placeIdOf(arc);
+				if (placeId === null) continue;
+				const arcId = generateArcId(placeId, transition.id);
+				if (arcIds.has(arcId) || placeIds.has(placeId)) {
 					transition.inputArcs.splice(j, 1);
 				}
 			}
@@ -99,8 +115,10 @@ function deleteItemsFromSdcpn(sdcpn: SDCPN, items: RemoveItem[]) {
 			for (let j = transition.outputArcs.length - 1; j >= 0; j--) {
 				const arc = transition.outputArcs[j];
 				if (!arc) continue;
-				const arcId = generateArcId(transition.id, arc.placeId);
-				if (arcIds.has(arcId) || placeIds.has(arc.placeId)) {
+				const placeId = placeIdOf(arc);
+				if (placeId === null) continue;
+				const arcId = generateArcId(transition.id, placeId);
+				if (arcIds.has(arcId) || placeIds.has(placeId)) {
 					transition.outputArcs.splice(j, 1);
 				}
 			}
@@ -256,20 +274,24 @@ export default function (workspace: Workspace) {
 					}> = [];
 					for (const t of def.transitions) {
 						for (const ia of t.inputArcs) {
+							const placeId = placeIdOf(ia);
+							if (placeId === null) continue;
 							arcs.push({
-								id: generateArcId(ia.placeId, t.id),
+								id: generateArcId(placeId, t.id),
 								direction: "place_to_transition",
-								placeId: ia.placeId,
+								placeId,
 								transitionId: t.id,
 								weight: ia.weight,
 								type: ia.type,
 							});
 						}
 						for (const oa of t.outputArcs) {
+							const placeId = placeIdOf(oa);
+							if (placeId === null) continue;
 							arcs.push({
-								id: generateArcId(t.id, oa.placeId),
+								id: generateArcId(t.id, placeId),
 								direction: "transition_to_place",
-								placeId: oa.placeId,
+								placeId,
 								transitionId: t.id,
 								weight: oa.weight,
 							});

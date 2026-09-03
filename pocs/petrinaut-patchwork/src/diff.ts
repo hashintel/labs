@@ -1,7 +1,12 @@
 import { view } from "@automerge/automerge";
 import { decodeHeads, type UrlHeads } from "@automerge/automerge-repo";
 import type { SDCPN, Transition } from "@hashintel/petrinaut";
-import { generateArcId } from "@hashintel/petrinaut-core";
+import {
+	generateArcId,
+	getArcEndpointPlaceId,
+	type InputArc,
+	type OutputArc,
+} from "@hashintel/petrinaut-core";
 import type { Doc } from "./datatype";
 
 export type NodeKind = "place" | "transition";
@@ -163,33 +168,45 @@ type Arc = {
 	from: string;
 	to: string;
 	weight: number;
-	type: "standard" | "inhibitor";
+	type: "standard" | "inhibitor" | "read";
 };
 
-/** Every arc in the net, keyed by the edge id the canvas draws it under. */
+function placeIdOf(arc: InputArc | OutputArc): string | null {
+	if (!arc.endpoint && !arc.placeId) {
+		return null;
+	}
+	return getArcEndpointPlaceId(arc) || null;
+}
+
+/** Every arc in the net that runs between a place and a transition, keyed by
+ * the edge id the canvas draws it under. */
 function arcsById(net: SDCPN): Map<string, Arc> {
 	const arcs = new Map<string, Arc>();
 	for (const transition of net.transitions) {
 		for (const input of transition.inputArcs) {
+			const placeId = placeIdOf(input);
+			if (placeId === null) continue;
 			const id = generateArcId({
-				inputId: input.placeId,
+				inputId: placeId,
 				outputId: transition.id,
 			});
 			arcs.set(id, {
-				from: input.placeId,
+				from: placeId,
 				to: transition.id,
 				weight: input.weight,
 				type: input.type,
 			});
 		}
 		for (const output of transition.outputArcs) {
+			const placeId = placeIdOf(output);
+			if (placeId === null) continue;
 			const id = generateArcId({
 				inputId: transition.id,
-				outputId: output.placeId,
+				outputId: placeId,
 			});
 			arcs.set(id, {
 				from: transition.id,
-				to: output.placeId,
+				to: placeId,
 				weight: output.weight,
 				type: "standard",
 			});
