@@ -16,7 +16,9 @@
 	"author": "HASH",
 	"pnpm": {
 		"overrides": {
-			"postcss@8.5.14": "8.5.26"
+			"browserslist@4.28.1": "4.28.8",
+			"postcss@8.5.14": "8.5.26",
+			"postcss-selector-parser@7.1.1": "7.1.6"
 		}
 	},
 	"dependencies": {
