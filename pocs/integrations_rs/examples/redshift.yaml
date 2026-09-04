@@ -1,0 +1,49 @@
+# Reads a Redshift table through DuckDB's PostgreSQL extension. The User Secret
+# must belong to WEB_ID and contain username and password string fields.
+
+connector:
+  id: redshift-orders
+  mode: batch
+
+vars:
+  WEB_ID: 9d8073c2-84eb-4227-b5b3-f5224fe1138f
+
+sources:
+  orders:
+    kind: postgres
+    host: 127.0.0.1
+    port: 15439
+    database: dev
+    sslMode: require
+    credentials:
+      secretEntityUuid: cc4e13d4-e219-4c58-ae9c-5daffb240bc4
+    primaryKey: o_orderkey
+    asserts:
+      rowCount: { min: 1 }
+      unique: [o_orderkey]
+      notNull: [o_orderkey]
+    schema: integrations_demo
+    table: orders
+
+pipelines:
+  entities:
+    - source: orders
+      steps:
+        - id: shape-orders
+          kind: sql
+          sql: |
+            SELECT
+              _op,
+              _key,
+              _before,
+              o_orderkey AS order_key,
+              'Order ' || o_orderkey AS name
+            FROM input
+        - id: sink-orders
+          kind: graph-sink
+          config:
+            entityType: https://hash.ai/@h/types/entity-type/material/v/1
+            entityId: order_key
+            webId: "${WEB_ID}"
+            properties:
+              https://blockprotocol.org/@blockprotocol/types/property-type/name/v/1: name

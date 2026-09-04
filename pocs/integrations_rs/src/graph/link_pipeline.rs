@@ -10,8 +10,8 @@
 use error_stack::{Report, ResultExt as _};
 use serde_json::{json, Map, Value};
 
-use crate::build::LinkEntry;
 use crate::config::{self, Env};
+use crate::definition::LinkEntry;
 use crate::dlq;
 use crate::durable_artifacts::ArtifactRepository;
 use crate::error::SourceError;
@@ -359,7 +359,7 @@ async fn load_inputs(
 
     let mut previous: Option<String> = None;
     for step in &entry.steps {
-        let crate::build::StepKind::Sql { sql } = &step.kind else {
+        let crate::definition::StepKind::Sql { sql } = &step.kind else {
             continue;
         };
         let out = format!("_link_step/{}", step.id);
@@ -1061,7 +1061,7 @@ mod tests {
 
     use super::*;
     use crate::blob::{ArtifactStore, BlobNamespace};
-    use crate::build::{Accessor, EndpointRef};
+    use crate::definition::{Accessor, EndpointRef};
     use crate::graph::client::{archive_params, link_entity_ids};
     use crate::graph::effects::GraphOperationV1;
     use crate::graph::planner::{GraphDeliveryPayload, GraphDeliveryRequestV1};

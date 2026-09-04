@@ -182,7 +182,7 @@ pub fn prepare_task_for_web(
     }
     let durable_env = env.durable_interpolation_scope();
     let resolved = yaml::resolve_env(&raw, &durable_env).change_context(DurableError)?;
-    let integration = crate::build::build(&resolved, web_id).change_context(DurableError)?;
+    let integration = crate::definition::parse(&resolved, web_id).change_context(DurableError)?;
     if crate::connectors::is_stream_mode(&integration.connector_mode) {
         return Err(Report::new(DurableError).attach_printable(format!(
             "connector mode {} is a continuous stream; protocol V1 accepts batch integrations only",

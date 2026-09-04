@@ -1,12 +1,9 @@
-//! Connector registry. `batch` and `rest-api` are engine-native modes
-//! (hydration runs inside the batch sync); stream modes resolve to
-//! `StreamConnector` implementations. The pgoutput decoder is ported and
-//! golden-testable; the live CDC replication connection and the mongo change
-//! stream are deferred (documented), so the built-in stream modes are
-//! recognized for validation and run through injected connectors (fixtures,
-//! custom implementations) until then.
+//! Defines connector interfaces. Batch and REST API sources run in the batch
+//! engine. Stream modes use injected `StreamConnector` implementations. This
+//! module also decodes PostgreSQL `pgoutput` messages.
 
 pub mod cdc;
+pub mod postgres;
 pub mod rest_api;
 
 use std::sync::Arc;
@@ -18,7 +15,7 @@ use serde_json::Value;
 use crate::error::SourceError;
 
 pub fn stream_modes() -> &'static [&'static str] {
-    crate::build::stream_modes()
+    crate::definition::stream_modes()
 }
 
 pub fn is_stream_mode(mode: &str) -> bool {
@@ -43,15 +40,14 @@ pub struct StreamEvent {
 #[derive(Debug, Clone)]
 pub struct StreamBatch {
     pub events: Vec<StreamEvent>,
-    /// Resume position AFTER these events (LSN, resume token); persisted once
-    /// the batch is fully processed.
+    /// Position after these events, such as an LSN or resume token. The engine
+    /// persists it after processing the batch.
     pub cursor: Option<Value>,
 }
 
-/// The callback is synchronous in effect: the connector must not deliver the
-/// next batch until the returned future resolves. `Ok` acknowledges the
-/// source cursor; `Err` is a negative acknowledgement and the connector must
-/// redeliver the same batch. This is the durability/back-pressure boundary.
+/// The connector waits for the returned future before delivering the next
+/// batch. `Ok` acknowledges the source cursor. `Err` requires redelivery of
+/// the same batch.
 pub type OnBatch = Arc<dyn Fn(StreamBatch) -> BoxFuture<'static, Result<(), String>> + Send + Sync>;
 
 #[async_trait::async_trait]

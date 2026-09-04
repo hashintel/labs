@@ -8,8 +8,8 @@
 use error_stack::{Report, ResultExt as _};
 use serde_json::Value;
 
-use crate::build::Integration;
 use crate::config::{self, Env};
+use crate::definition::Integration;
 use crate::error::{CoherenceError, GraphError};
 use crate::store::{lit, qi, Store};
 

@@ -13,8 +13,8 @@ use error_stack::{Report, ResultExt as _};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 
-use crate::build::{Accessor, SinkConfig};
 use crate::config::{self, Env};
+use crate::definition::{Accessor, SinkConfig};
 use crate::dlq;
 use crate::error::SourceError;
 use crate::progress::{self, Progress};
@@ -1038,7 +1038,7 @@ pub async fn column_types_of(
 #[allow(clippy::expect_used, clippy::panic, clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use crate::build::ProvenanceFields;
+    use crate::definition::ProvenanceFields;
     use crate::graph::client::{archive_params, entity_graph_id};
     use crate::graph::effects::GraphOperationV1;
     use crate::graph::planner::{GraphDeliveryPayload, GraphDeliveryRequestV1};

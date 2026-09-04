@@ -4,7 +4,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 
-use crate::build::{Pipeline, Step, StepKind};
+use crate::definition::{Pipeline, Step, StepKind};
 
 pub fn sort_pipelines(pipelines: &[Pipeline]) -> Result<Vec<&Pipeline>, String> {
     if pipelines.is_empty() {

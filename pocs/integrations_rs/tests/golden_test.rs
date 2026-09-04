@@ -18,7 +18,7 @@
 use serde_json::Value;
 
 use integrations_rs::blob::BlobNamespace;
-use integrations_rs::build::{Accessor, ProvenanceFields, SinkConfig};
+use integrations_rs::definition::{Accessor, ProvenanceFields, SinkConfig};
 use integrations_rs::graph::hash;
 use integrations_rs::graph::link_pipeline::{decode_link_op, link_op_id};
 use integrations_rs::graph::uuid::{composite_entity_id, deterministic_uuid};

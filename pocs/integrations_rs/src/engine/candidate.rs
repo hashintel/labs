@@ -8,8 +8,8 @@ use std::path::Path;
 
 use error_stack::{Report, ResultExt as _};
 
-use crate::build::{Integration, LinkEntry, Pipeline, SourceKind, Step, StepKind};
 use crate::config::Env;
+use crate::definition::{Integration, LinkEntry, Pipeline, SourceKind, Step, StepKind};
 use crate::engine::batch_sync::{collect_sinks, compose_provenance};
 use crate::error::SourceError;
 use crate::graph::link_pipeline::{self, LinkPlanningContext};
@@ -192,7 +192,10 @@ async fn hydrate_captured_source(
         SourceKind::Table { .. } => Err(Report::new(SourceError).attach_printable(format!(
             "stream table source {source:?} is invalid in protocol V1"
         ))),
-        SourceKind::Sql { .. } | SourceKind::External { .. } | SourceKind::Rest { .. } => {
+        SourceKind::Sql { .. }
+        | SourceKind::External { .. }
+        | SourceKind::Rest { .. }
+        | SourceKind::Postgres(_) => {
             let capture = captures.get(source).ok_or_else(|| {
                 Report::new(SourceError)
                     .attach_printable(format!("source {source:?} has no durable bronze capture"))
@@ -234,7 +237,7 @@ async fn plan_empty_source(
     store: &Store,
     integration: &Integration,
     pipeline: &Pipeline,
-    source: &crate::build::SourceDef,
+    source: &crate::definition::SourceDef,
     loaded_at: &str,
     env: &Env,
 ) -> Result<GraphPlanV1, Report<SourceError>> {
@@ -313,7 +316,7 @@ async fn plan_source_pipeline(
     store: &Store,
     integration: &Integration,
     pipeline: &Pipeline,
-    source: &crate::build::SourceDef,
+    source: &crate::definition::SourceDef,
     source_table: &str,
     loaded_at: &str,
     transforms: &Transforms,
@@ -539,7 +542,7 @@ fn checkpoint_table(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::build::{
+    use crate::definition::{
         Accessor, Pipeline, ProvenanceFields, SinkConfig, SourceDef, Step, StepKind,
     };
     use crate::secret::Secret;

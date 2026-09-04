@@ -52,9 +52,9 @@
 
 pub mod application;
 pub mod blob;
-pub mod build;
 pub mod coerce;
 pub mod config;
+pub mod definition;
 pub mod dlq;
 pub mod durable_artifacts;
 pub mod error;

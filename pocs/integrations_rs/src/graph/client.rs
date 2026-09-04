@@ -1,12 +1,8 @@
-//! HASH graph HTTP client: create-then-patch upserts on authoritative HTTP
-//! 409 conflicts, with deterministic entity UUIDs; bulk batches with per-op
-//! fallback on rejection (PATCH-first once a conflict is proven); a circuit
-//! breaker on consecutive
-//! wholly-failed batches; PATCH always revives (`archived: false`); creates
-//! are `readOnly: true`; null properties are filtered; `$typedValue` tags
-//! unwrap into per-value `dataTypeId` metadata. Every request funnels through
-//! one choke point with the per-web throttle and shared 429/Retry-After
-//! retry.
+//! Sends entity and link changes to HASH Graph. Creates use deterministic
+//! entity UUIDs and set `readOnly` to `true`. An HTTP 409 retries the same
+//! entity as a patch. Bulk requests retry rejected operations separately and
+//! stop after the configured number of failed batches. All requests share the
+//! per-web rate limiter and `Retry-After` handling.
 
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::Arc;
@@ -14,6 +10,7 @@ use std::time::Duration;
 
 use error_stack::{Report, ResultExt as _};
 use futures::StreamExt as _;
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION};
 use serde_json::{json, Map, Value};
 
 use crate::config::{self, Env};
@@ -30,9 +27,9 @@ use super::{ArchiveOp, BatchOk, BulkResult, EntityOp, GraphClient, LinkOp, OpFai
 
 pub struct HttpClient {
     base_url: String,
-    /// Node/default actor for direct GraphClient calls. Durable effect
-    /// delivery overrides this with the owner in the verified work manifest.
-    /// Never printed.
+    /// Actor used for direct Graph calls. Durable delivery uses the owner in
+    /// the verified work manifest. The `Debug` and `Display` implementations
+    /// redact this value.
     actor_id: crate::secret::Secret<String>,
     bulk_size: usize,
     durable_bulk_size: usize,
@@ -56,6 +53,17 @@ pub struct HttpClientOptions {
 
 impl HttpClient {
     pub fn new(options: HttpClientOptions, env: &Env) -> Self {
+        let mut headers = HeaderMap::new();
+        if let Some(secret) = env
+            .get("HASH_GRAPH_SERVICE_SECRET")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            let mut authorization = HeaderValue::from_str(&format!("HASH-Service {secret}"))
+                .expect("Graph service credential should be a valid HTTP header value");
+            authorization.set_sensitive(true);
+            headers.insert(AUTHORIZATION, authorization);
+        }
         Self {
             base_url: options.base_url.trim_end_matches('/').to_owned(),
             actor_id: crate::secret::Secret::new(options.actor_id),
@@ -68,7 +76,10 @@ impl HttpClient {
             rate_limit: options.rate_limit,
             throttle_scope: options.throttle_scope,
             throttle: options.throttle,
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .default_headers(headers)
+                .build()
+                .expect("Graph HTTP client configuration should be valid"),
         }
     }
 
@@ -231,7 +242,7 @@ impl HttpClient {
                 tracing::warn!(
                     status,
                     diagnostic,
-                    "Graph bulk create was rejected; falling back per effect"
+                    "Graph rejected the bulk create. Retrying each effect separately"
                 );
             }
             EffectResponseV1::Http {
@@ -436,10 +447,8 @@ pub fn link_patch_params(op: &LinkOp) -> Value {
     patch.insert("archived".to_owned(), json!(false));
     if let Some(properties) = &op.properties {
         let property_patches = map_properties_as_patch(properties, &Default::default());
-        // A configured property may resolve to null (for example an upstream
-        // sentinel normalized to null). Graph rejects an explicitly empty
-        // property-patch array, while omitting it correctly means “revive the
-        // existing link without changing properties”.
+        // Graph rejects an empty property patch. Omitting the patch revives
+        // the link without changing its properties.
         if property_patches
             .as_array()
             .is_some_and(|patches| !patches.is_empty())
@@ -573,10 +582,9 @@ impl HttpClient {
         }
     }
 
-    /// Shared bulk machinery: chunk, POST /entities/bulk, per-op fallback on
-    /// rejection (PATCH-first for the rest once the first op proves a
-    /// conflicting batch), incremental ok notification, consecutive-failure
-    /// circuit breaker, per-web rate budget.
+    /// Sends bounded bulk requests and retries rejected operations
+    /// individually. An HTTP 409 switches the remaining operations in that
+    /// batch to patch-first delivery.
     async fn bulk(
         &self,
         payloads: Vec<(String, Value, Value)>,
@@ -654,9 +662,8 @@ impl HttpClient {
                 let mut notified = 0;
 
                 for (index, (id, create, patch)) in chunk.into_iter().enumerate() {
-                    // The chunk paid its ops at bulk time, but per-op replay
-                    // is real extra request load: each fallback op re-acquires
-                    // one token.
+                    // The bulk request covered the original operations. Each
+                    // fallback request consumes another rate-limit token.
                     let throttle = self
                         .throttle
                         .acquire(&self.throttle_scope, 1, self.rate_limit)
@@ -686,8 +693,8 @@ impl HttpClient {
                     }
                 }
 
-                // Match the TypeScript runner's smaller fallback replay
-                // window: commit every 16 successes and the final remainder.
+                // Commit fallback successes in groups of 16 to match the
+                // TypeScript runner.
                 if notified < ok.len() {
                     on_batch_ok(ok[notified..].to_vec()).await;
                 }
@@ -842,11 +849,12 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn durable_effect_transport_uses_the_run_owner_instead_of_the_node_actor() {
+    async fn durable_effect_transport_authenticates_the_service_and_uses_the_run_owner() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/entities"))
             .and(header("x-authenticated-user-actor-id", "run-owner"))
+            .and(header("authorization", "HASH-Service service-secret"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&server)
@@ -854,20 +862,35 @@ mod tests {
         Mock::given(method("POST"))
             .and(path("/entities/bulk"))
             .and(header("x-authenticated-user-actor-id", "run-owner"))
+            .and(header("authorization", "HASH-Service service-secret"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&server)
             .await;
 
+        let client = HttpClient::new(
+            HttpClientOptions {
+                base_url: server.uri(),
+                actor_id: "node-actor".to_owned(),
+                rate_limit: None,
+                throttle_scope: "web:test".to_owned(),
+                throttle: Arc::new(crate::throttle::Throttle::new()),
+            },
+            &Env::from_map(std::collections::HashMap::from([(
+                "HASH_GRAPH_SERVICE_SECRET".to_owned(),
+                "service-secret".to_owned(),
+            )])),
+        );
+
         let response = GraphEffectTransport::send_as(
-            &test_client(&server),
+            &client,
             "run-owner",
             EffectRequestV1::Create(json!({"create": true})),
         )
         .await;
         assert_eq!(response, EffectResponseV1::Success);
         let response = GraphEffectTransport::send_create_batch_as(
-            &test_client(&server),
+            &client,
             "run-owner",
             vec![json!({"create": true})],
         )
@@ -923,7 +946,7 @@ mod tests {
         assert!(test_client(&server)
             .upsert_main(&json!({}), &json!({"archived": false}))
             .await
-            .expect("409 must converge through PATCH"));
+            .expect("HTTP 409 should converge through PATCH"));
     }
 
     #[tokio::test]
@@ -961,10 +984,10 @@ mod tests {
         let patch = entity_patch_params(&op);
         let uuid = create["entityUuid"]
             .as_str()
-            .expect("create must contain an entity UUID");
+            .expect("create request should contain an entity UUID");
         assert!(patch["entityId"]
             .as_str()
-            .expect("patch must contain an entity ID")
+            .expect("patch request should contain an entity ID")
             .ends_with(uuid));
         assert_eq!(
             entity_create_params(&op)["entityUuid"],
@@ -976,13 +999,12 @@ mod tests {
             .upsert_main(&create, &patch)
             .await
             .expect("the original create should succeed"));
-        // Model a process dying after Graph committed the create but before
-        // its local checkpoint became durable. Replay gets authoritative 409
-        // and must converge by PATCHing the same deterministic entity.
+        // Graph committed the create before the process stopped. The replay
+        // receives HTTP 409 and patches the same deterministic entity.
         assert!(client
             .upsert_main(&create, &patch)
             .await
-            .expect("replayed create must converge through PATCH"));
+            .expect("replayed create should converge through PATCH"));
         assert_eq!(create_calls.load(Ordering::SeqCst), 2);
     }
 

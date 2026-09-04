@@ -21,8 +21,8 @@ use super::internal_metadata::{
 use super::metadata::{self, InvocationV1};
 use super::registry::DurableRecord;
 use crate::blob::ArtifactStore;
-use crate::build::Integration;
 use crate::config::Env;
+use crate::definition::Integration;
 use crate::kernel::keyspace::Keyspace;
 
 pub(crate) const DEFINITION_DIGEST_ENCODING_VERSION: u32 = 1;
@@ -225,8 +225,8 @@ fn load_current(
             .attach_printable(format!("admitted integration: {admitted_integration}"))
             .attach_printable(format!("definition integration: {}", identity.canonical)));
     }
-    let integration =
-        crate::build::build(&resolved, web_id).change_context(RunInputError::InvalidDefinition)?;
+    let integration = crate::definition::parse(&resolved, web_id)
+        .change_context(RunInputError::InvalidDefinition)?;
     if crate::connectors::is_stream_mode(&integration.connector_mode) {
         return Err(Report::new(RunInputError::InvalidDefinition)
             .attach_printable("protocol V1 accepts batch integrations only"));

@@ -21,7 +21,7 @@ use super::client::{
 };
 use super::effects::{GraphEffectV1, GraphOperationV1};
 use super::{ArchiveOp, EntityOp, LinkOp, Provenance};
-use crate::build::{Accessor, LinkEntry, SinkConfig};
+use crate::definition::{Accessor, LinkEntry, SinkConfig};
 use crate::orchestrator::registry::{
     reject_unknown_fields, AlgorithmVersion, CompatError, DurabilityClass, DurableRecord,
     MigrationPolicy, PureUpcastRecord, RecordDeclaration, VersionedRecord,

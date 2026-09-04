@@ -8,8 +8,8 @@
 
 use serde_json::{Map, Value};
 
-use crate::build::Accessor;
 use crate::coerce;
+use crate::definition::Accessor;
 use crate::value::{js_string, Row};
 
 #[derive(Debug, Clone, PartialEq, Eq)]

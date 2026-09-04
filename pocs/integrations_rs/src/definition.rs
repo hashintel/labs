@@ -1,9 +1,6 @@
-//! Definition (YAML/JSON) to engine structures, ported from the TS/Elixir
-//! builders. Accessors become columns or tagged transforms; tagged accessors
-//! count as non-column for hash-path selection, exactly like TS function
-//! accessors. `build` runs `validate` first and returns one `ConfigError`
-//! carrying every issue found (paths included), so an author fixes a config
-//! in a single pass; lints (TRY_CAST, unknown keys) warn without failing.
+//! Converts resolved YAML or JSON definitions into engine types. Validation
+//! returns one `ConfigError` with every issue and its path. `TRY_CAST` and
+//! unknown-key lints preserve an otherwise valid definition and report warnings.
 
 use std::collections::HashMap;
 
@@ -106,6 +103,7 @@ pub enum SourceKind {
         endpoint: crate::secret::Secret<Value>,
         primary_key: Vec<String>,
     },
+    Postgres(crate::connectors::postgres::PostgresSource),
 }
 
 impl SourceKind {
@@ -115,6 +113,7 @@ impl SourceKind {
             | Self::External { primary_key, .. }
             | Self::Table { primary_key }
             | Self::Rest { primary_key, .. } => primary_key,
+            Self::Postgres(source) => &source.primary_key,
             Self::Checkpoint { .. } => &[],
         }
     }
@@ -154,8 +153,8 @@ pub struct LinkEntry {
 pub struct Integration {
     pub connector_id: String,
     pub connector_mode: String,
-    /// Carries source credentials (CDC/mongo urls, endpoint auth); redacted
-    /// in every Debug rendering by construction.
+    /// Contains source credentials for CDC, MongoDB, and endpoint
+    /// authentication. Its `Debug` implementation redacts the complete value.
     pub connector_config: Secret<Value>,
     pub id_namespace: Option<String>,
     pub connector_provenance: Option<Value>,
@@ -165,14 +164,14 @@ pub struct Integration {
     pub unit_maps: Map<String, Value>,
 }
 
-const BATCH_SOURCE_KINDS: &[&str] = &["sql", "checkpoint", "external", "table"];
+const BATCH_SOURCE_KINDS: &[&str] = &["sql", "checkpoint", "external", "table", "postgres"];
 const STEP_KINDS: &[&str] = &["sql", "fn", "checkpoint", "branch", "graph-sink"];
 
 pub fn stream_modes() -> &'static [&'static str] {
     &["webhook", "cdc", "mongo-stream"]
 }
 
-pub fn build(yaml: &Value, web_id: &str) -> Result<Integration, Report<ConfigError>> {
+pub fn parse(yaml: &Value, web_id: &str) -> Result<Integration, Report<ConfigError>> {
     let issues = shape_issues(yaml, web_id);
     if !issues.is_empty() {
         return Err(Report::new(ConfigError::new(issues)));
@@ -357,10 +356,17 @@ fn sources_issues(yaml: &Value) -> Vec<Issue> {
                     }
                 }
                 Some("external") => {}
+                Some("postgres") => {
+                    if let Err(message) =
+                        crate::connectors::postgres::PostgresSource::from_value(source)
+                    {
+                        issues.push(Issue::new(path.clone(), message));
+                    }
+                }
                 other => issues.push(Issue::new(
                     format!("{path}.kind"),
                     format!(
-                        "unknown kind {other:?}; expected one of {}",
+                        "unknown kind {other:?}. Expected one of {}",
                         BATCH_SOURCE_KINDS.join(", ")
                     ),
                 )),
@@ -489,7 +495,7 @@ fn steps_issues(
                 other => issues.push(Issue::new(
                     format!("{step_path}.kind"),
                     format!(
-                        "unknown kind {other:?}; expected one of {}",
+                        "unknown kind {other:?}. Expected one of {}",
                         STEP_KINDS.join(", ")
                     ),
                 )),
@@ -510,7 +516,7 @@ fn sink_issues(config: Option<&Value>, path: &str, unit_maps: &Map<String, Value
     match config.get("entityId") {
         Some(Value::Array(_)) => issues.push(Issue::new(
             format!("{path}.entityId"),
-            "array entityId is stream-only in the TS engine and unsupported in batch; compose it in SQL",
+            "The TypeScript engine supports array entityId for stream integrations. Batch definitions must compose the entity ID in SQL",
         )),
         Some(Value::String(id)) if !id.is_empty() => {}
         _ => issues.push(Issue::new(format!("{path}.entityId"), "required")),
@@ -549,26 +555,30 @@ fn accessor_issues(
         .filter_map(|(key, accessor)| {
             let issue = |message: String| Some(Issue::new(format!("{path}.{key}"), message));
 
-            // A bare string is a column; otherwise it must be exactly one of
-            // the two tagged shapes. Anything else (a typo'd tag, a partial
-            // object) would silently become an empty-column accessor at build,
-            // so flag it here.
+            // A string names a column. An object must match one tagged
+            // accessor shape. This check prevents a malformed object from
+            // becoming an accessor with an empty column name.
             if accessor.is_string() {
                 return None;
             }
             let Some(object) = accessor.as_object() else {
-                return issue("accessor must be a column string or a {column,coerce}/{amount,unit,measure} object".to_owned());
+                return issue(
+                    "accessor must be a column name or an object describing coercion or measurement"
+                        .to_owned(),
+                );
             };
 
             if object.contains_key("coerce") {
                 let name = object.get("coerce").and_then(Value::as_str);
                 if object.get("column").and_then(Value::as_str).is_none() || name.is_none() {
-                    return issue("coerce accessor requires string \"column\" and \"coerce\"".to_owned());
+                    return issue(
+                        "coerce accessor requires string fields named column and coerce".to_owned(),
+                    );
                 }
-                let name = name.expect("checked");
+                let name = name.expect("coerce accessor name should be present after validation");
                 if !coerce::known(name) {
                     return issue(format!(
-                        "unknown coercion \"{name}\"; available: {}",
+                        "unknown coercion \"{name}\". Expected one of {}",
                         coerce::REGISTRY.join(", ")
                     ));
                 }
@@ -581,16 +591,23 @@ fn accessor_issues(
                     || object.get("unit").and_then(Value::as_str).is_none()
                     || map_name.is_none()
                 {
-                    return issue("measure accessor requires string \"amount\", \"unit\", and \"measure\"".to_owned());
+                    return issue(
+                        "measure accessor requires string fields named amount, unit, and measure"
+                            .to_owned(),
+                    );
                 }
-                let map_name = map_name.expect("checked");
+                let map_name =
+                    map_name.expect("measure accessor name should be present after validation");
                 if !unit_maps.contains_key(map_name) {
                     return issue(format!("unknown unit map \"{map_name}\""));
                 }
                 return None;
             }
 
-            issue("accessor object must contain \"coerce\" (with \"column\") or \"measure\" (with \"amount\"/\"unit\")".to_owned())
+            issue(
+                "accessor object must describe coercion with column and coerce fields or measurement with amount, unit, and measure fields"
+                    .to_owned(),
+            )
         })
         .collect()
 }
@@ -656,7 +673,7 @@ fn link_issues(yaml: &Value, web_id: &str) -> Vec<Issue> {
             if web_id.is_empty() {
                 issues.push(Issue::new(
                     format!("{path}.webId"),
-                    "no web id (set HASH_WEB_ID; the link schema has no webId)",
+                    "link has no webId and HASH_WEB_ID is unset",
                 ));
             }
             issues.extend(accessor_issues(
@@ -670,8 +687,13 @@ fn link_issues(yaml: &Value, web_id: &str) -> Vec<Issue> {
 }
 
 fn construct(yaml: &Value, web_id: &str) -> Integration {
-    let connector = yaml.get("connector").expect("validated").clone();
-    let connector_id = text(&connector, "id").expect("validated").to_owned();
+    let connector = yaml
+        .get("connector")
+        .expect("connector should be present after validation")
+        .clone();
+    let connector_id = text(&connector, "id")
+        .expect("connector ID should be present after validation")
+        .to_owned();
     let mode = text(&connector, "mode").unwrap_or("batch").to_owned();
     let unit_maps = obj(yaml, "unitMaps").cloned().unwrap_or_default();
     let id_namespace = text(&connector, "idNamespace").map(str::to_owned);
@@ -748,7 +770,9 @@ fn build_sources(yaml: &Value) -> HashMap<String, SourceDef> {
                 .map(|(name, source)| {
                     let kind = match text(source, "kind") {
                         Some("sql") => SourceKind::Sql {
-                            sql: text(source, "sql").expect("validated").to_owned(),
+                            sql: text(source, "sql")
+                                .expect("SQL source query should be present after validation")
+                                .to_owned(),
                             primary_key: primary_key_of(source),
                             extensions: source
                                 .get("extensions")
@@ -763,12 +787,18 @@ fn build_sources(yaml: &Value) -> HashMap<String, SourceDef> {
                                 .unwrap_or_default(),
                         },
                         Some("checkpoint") => SourceKind::Checkpoint {
-                            name: text(source, "name").expect("validated").to_owned(),
+                            name: text(source, "name")
+                                .expect("checkpoint source name should be present after validation")
+                                .to_owned(),
                         },
                         Some("external") => SourceKind::External {
                             key: text(source, "key").map(str::to_owned),
                             primary_key: primary_key_of(source),
                         },
+                        Some("postgres") => SourceKind::Postgres(
+                            crate::connectors::postgres::PostgresSource::from_value(source)
+                                .expect("PostgreSQL source should be validated"),
+                        ),
                         _ => SourceKind::Table {
                             primary_key: primary_key_of(source),
                         },
@@ -791,9 +821,8 @@ fn build_sources(yaml: &Value) -> HashMap<String, SourceDef> {
         .unwrap_or_default()
 }
 
-/// rest-api connectors declare endpoints instead of duckdb sources: each
-/// endpoint becomes a `Rest` source, with connector-level
-/// auth/rateLimitMs/pageSize as endpoint defaults.
+/// Converts each REST API endpoint into a source. Connector authentication,
+/// rate limit, and page size settings supply the endpoint defaults.
 fn build_rest_sources(connector: &Value) -> HashMap<String, SourceDef> {
     let Some(endpoints) = obj(connector, "endpoints") else {
         return HashMap::new();
@@ -900,7 +929,12 @@ fn build_step(step: &Value, connector: &Value, unit_maps: &Map<String, Value>) -
                 .collect(),
         },
         _ => StepKind::GraphSink {
-            config: build_sink_config(step.get("config").expect("validated"), connector, unit_maps),
+            config: build_sink_config(
+                step.get("config")
+                    .expect("Graph sink configuration should be present after validation"),
+                connector,
+                unit_maps,
+            ),
         },
     };
     Step { id, kind }
@@ -1055,9 +1089,8 @@ fn build_link(
     }
 }
 
-// TRY_CAST nulls silently on conversion failure and bypasses the conversion
-// quarantine; warn at build time so the known limitation is visible at the
-// offending location.
+// `TRY_CAST` returns `NULL` on conversion failure and bypasses conversion
+// quarantine. The warning identifies each occurrence in the definition.
 fn lint_try_cast(yaml: &Value) {
     let mut sites: Vec<(String, &str)> = vec![];
 
@@ -1092,7 +1125,7 @@ fn lint_try_cast(yaml: &Value) {
     for (site, sql) in sites {
         if sql.to_uppercase().contains("TRY_CAST") {
             tracing::warn!(
-                "{site}: TRY_CAST nulls silently on conversion failure and bypasses the conversion quarantine; prefer an explicit cast or a coerce accessor"
+                "{site} uses TRY_CAST, which returns NULL on conversion failure and bypasses conversion quarantine. Use an explicit cast or a coerce accessor"
             );
         }
     }
@@ -1110,6 +1143,13 @@ const KNOWN_SOURCE: &[&str] = &[
     "archiveOnEmpty",
     "provenance",
     "asserts",
+    "host",
+    "port",
+    "database",
+    "schema",
+    "table",
+    "sslMode",
+    "credentials",
 ];
 const KNOWN_PIPELINE: &[&str] = &["source", "dependsOn", "inputs", "steps"];
 const KNOWN_STEP: &[&str] = &[
@@ -1142,8 +1182,8 @@ const KNOWN_LINK: &[&str] = &[
     "provenance",
 ];
 
-// A typo'd optional key is silently ignored by construction; warn instead of
-// erroring so newer-schema definitions still run.
+// Unknown keys may belong to a newer schema. The parser reports a warning and
+// accepts the definition.
 fn lint_unknown_keys(yaml: &Value) {
     let warn = |path: &str, map: Option<&Map<String, Value>>, known: &[&str]| {
         let Some(map) = map else { return };
@@ -1240,11 +1280,11 @@ mod tests {
         });
         value
             .as_object_mut()
-            .expect("test link is an object")
+            .expect("test link should be an object")
             .extend(
                 overrides
                     .as_object()
-                    .expect("test overrides are an object")
+                    .expect("test overrides should be an object")
                     .clone(),
             );
         value
@@ -1267,5 +1307,29 @@ mod tests {
         assert!(link_issues(&neither, "web")
             .iter()
             .any(|issue| issue.message == "source or inputs is required"));
+    }
+
+    #[test]
+    fn redshift_example_parses_as_a_postgres_source() {
+        let resolved = crate::yaml::load(
+            &crate::yaml::Source::Text(include_str!("../examples/redshift.yaml").to_owned()),
+            &crate::config::Env::default(),
+        )
+        .expect("Redshift example should resolve");
+        let integration = parse(&resolved, "9d8073c2-84eb-4227-b5b3-f5224fe1138f")
+            .expect("Redshift example should parse");
+
+        let SourceKind::Postgres(source) = &integration.sources["orders"].kind else {
+            panic!("orders should parse as a PostgreSQL source")
+        };
+        assert_eq!(source.port, 15439);
+        assert_eq!(
+            source.ssl_mode,
+            crate::connectors::postgres::SslMode::Require
+        );
+        assert_eq!(
+            source.credentials.secret_entity_uuid.to_string(),
+            "cc4e13d4-e219-4c58-ae9c-5daffb240bc4"
+        );
     }
 }

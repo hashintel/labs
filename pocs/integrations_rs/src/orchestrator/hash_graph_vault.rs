@@ -84,6 +84,11 @@ impl HashGraphVaultSecretStore {
         }
     }
 
+    pub fn for_actor(mut self, actor_id: &str) -> Self {
+        self.graph_actor_id = actor_id.to_owned();
+        self
+    }
+
     async fn vault_path(&self, web_id: &str, entity_uuid: Uuid) -> Result<String, ManagedError> {
         let response = self
             .http
@@ -381,13 +386,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn reads_vault_after_graph_authorizes_the_entity() {
+    async fn reads_vault_after_graph_authorizes_the_run_owner() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
             .and(path("/entities/query"))
             .and(header(
                 "x-authenticated-user-actor-id",
-                "33333333-3333-4333-8333-333333333333",
+                "55555555-5555-4555-8555-555555555555",
             ))
             .and(header("authorization", "HASH-Service graph-service-secret"))
             .and(body_json(query_body()))
@@ -412,6 +417,7 @@ mod tests {
             .await;
 
         let value = store(&server)
+            .for_actor("55555555-5555-4555-8555-555555555555")
             .read(WEB_ID, &reference())
             .await
             .expect("Graph-authorized User Secret should be readable from Vault");

@@ -1,8 +1,7 @@
-//! Accepted-run to immutable Apply-candidate composition.
-//!
-//! Slow source, DuckDB, and object-store work stays outside the shard command
-//! loop. The loop is used only for the next `AttemptStarted` and the
-//! source-qualified artifact bindings that make replay exact.
+//! Creates immutable apply candidates for accepted runs. Source capture,
+//! DuckDB work, and object storage run outside the shard command loop. The
+//! loop records `AttemptStarted` and the source artifact bindings used during
+//! replay.
 use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::path::PathBuf;
@@ -49,7 +48,7 @@ pub(crate) enum RunPlanningError {
 impl fmt::Display for RunPlanningError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter.write_str(match self {
-            Self::StaleRun => "accepted run is no longer eligible for planning",
+            Self::StaleRun => "accepted run is ineligible for planning",
             Self::StartAttempt => "durably start planning attempt failed",
             Self::Input => "load immutable run input failed",
             Self::State => "restore journal-selected state failed",
@@ -122,9 +121,6 @@ impl RunPlanner {
         })
     }
 
-    /// One-shot convenience for tests. Production dispatch always splits
-    /// `start_attempt` from `build_candidate` so a candidate failure can be
-    /// recorded against the exact durable attempt.
     #[cfg(test)]
     pub(crate) async fn plan(
         &self,
@@ -249,8 +245,8 @@ impl RunPlanner {
             tokio::fs::copy(materialized.path(), &database)
                 .await
                 .change_context(RunPlanningError::Workspace)?;
-            // The copy preserves the cache blob's read-only seal; the
-            // candidate is this attempt's mutable working database.
+            // Materialization preserves the cache object's read-only
+            // permissions. The candidate database must be writable.
             let mut permissions = tokio::fs::metadata(&database)
                 .await
                 .change_context(RunPlanningError::Workspace)?
@@ -273,9 +269,9 @@ impl RunPlanner {
         let candidate_store = Store::open(StoreOptions {
             path: Some(database),
             allowed_directories: Some(vec![
-                // DuckDB's external-access allowlist is process-global once
-                // locked. Pin the stable disposable root instead of one attempt
-                // directory, so a recovered attempt can open its sibling.
+                // DuckDB locks the external-access allowlist for the process.
+                // The common workspace root lets recovered attempts open
+                // another attempt directory.
                 aggregate_workspace_root.clone(),
                 self.storage.root().to_owned(),
                 self.artifacts.materialized_root(),
@@ -286,7 +282,9 @@ impl RunPlanner {
                 .sources
                 .values()
                 .filter_map(|source| match &source.kind {
-                    crate::build::SourceKind::Sql { extensions, .. } => Some(extensions.clone()),
+                    crate::definition::SourceKind::Sql { extensions, .. } => {
+                        Some(extensions.clone())
+                    }
                     _ => None,
                 })
                 .flatten()
@@ -327,6 +325,8 @@ impl RunPlanner {
             &loaded.integration,
             &loaded.invocation,
             &run,
+            self.tenant.as_str(),
+            &loaded.owner_actor_id,
             &self.env,
         )
         .await

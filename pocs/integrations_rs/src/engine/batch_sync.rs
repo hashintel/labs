@@ -10,8 +10,8 @@ use std::collections::HashMap;
 use error_stack::{Report, ResultExt as _};
 use serde_json::{Map, Value};
 
-use crate::build::{Integration, Pipeline, SinkConfig, SourceDef, SourceKind, Step, StepKind};
 use crate::config::Env;
+use crate::definition::{Integration, Pipeline, SinkConfig, SourceDef, SourceKind, Step, StepKind};
 use crate::dlq;
 use crate::durable_artifacts::ArtifactRepository;
 use crate::error::{CoherenceError, SourceError};
@@ -373,7 +373,10 @@ async fn hydrate(
 
     let hydrated = match (&source_def.kind, replay) {
         (
-            SourceKind::Sql { .. } | SourceKind::External { .. } | SourceKind::Rest { .. },
+            SourceKind::Sql { .. }
+            | SourceKind::External { .. }
+            | SourceKind::Rest { .. }
+            | SourceKind::Postgres(_),
             Some(prefix),
         ) => {
             let (hydrated, object) =
@@ -477,6 +480,9 @@ async fn hydrate(
             admit_input(options, source, &hydrated, object).await?;
             Ok(hydrated)
         }
+
+        (SourceKind::Postgres(_), None) => Err(Report::new(SourceError)
+            .attach_printable("PostgreSQL sources require durable source capture")),
 
         (SourceKind::Table { .. }, _) => Err(Report::new(SourceError).attach_printable(format!(
             "source {source} is a stream table; batch cannot hydrate it"

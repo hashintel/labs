@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use serde_json::json;
 use sha2::{Digest, Sha256};
 
-use crate::build::{Accessor, LinkEntry, SinkConfig};
+use crate::definition::{Accessor, LinkEntry, SinkConfig};
 use crate::store::qi;
 
 pub fn struct_hash_expr(

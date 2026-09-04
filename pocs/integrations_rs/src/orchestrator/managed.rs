@@ -619,9 +619,9 @@ impl ManagedStore {
             .and_then(Value::as_str)
             .ok_or_else(|| ManagedError::Invalid("connector.provider is required".to_owned()))?
             .parse()?;
-        let built = crate::build::build(&definition, web_id)
+        let integration = crate::definition::parse(&definition, web_id)
             .map_err(|error| ManagedError::Invalid(error.current_context().to_string()))?;
-        if built.connector_mode != "webhook" {
+        if integration.connector_mode != "webhook" {
             return Err(ManagedError::Invalid(
                 "definition is not a webhook".to_owned(),
             ));

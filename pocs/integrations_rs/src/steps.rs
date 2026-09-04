@@ -11,7 +11,7 @@ use std::sync::Arc;
 use error_stack::{Report, ResultExt as _};
 use serde_json::Value;
 
-use crate::build::{Step, StepKind};
+use crate::definition::{Step, StepKind};
 use crate::error::SourceError;
 use crate::store::{qi, Store};
 use crate::value::Row;
