@@ -40,8 +40,9 @@ Transition — every input arc needs a "type"; output arcs do not have one:
   "transitionKernelCode": "...", "x": 300, "y": 100 }
 
 An arc "type" of "inhibitor" instead blocks the transition while the place
-holds tokens, and its place is NOT passed to the lambda. "weight" is how many
-tokens the arc consumes or produces.
+holds tokens, and its place is NOT passed to the lambda. A "read" arc requires
+tokens to be present and exposes them to the lambda without consuming them.
+"weight" is how many tokens the arc consumes, requires or produces.
 
 Colour type (only needed when tokens carry attributes):
 { "id": "<uuid>", "name": "Person", "iconSlug": "circle",
