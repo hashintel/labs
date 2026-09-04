@@ -2,33 +2,75 @@
 
 from __future__ import annotations
 
+import math
+import random
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
 ALL_SCENARIOS = tuple(f"SCN{i:03d}" for i in range(1, 27))
 
+# Knob ranges per dataset size. The fixed BOM parent materials put product
+# totals at NUM_FINISHED_GOODS + 2 below 20 and + 1 from 20 up.
+SIZE_KNOB_RANGES: dict[str, dict[str, tuple[int, int]]] = {
+    "S": {
+        "NUM_FINISHED_GOODS": (1, 1),
+        "NUM_RAW_MATERIALS": (3, 7),
+        "NUM_VENDORS": (3, 5),
+        "NUM_CUSTOMERS": (4, 8),
+        "NUM_ORDERS": (200, 400),
+        "NUM_SITES": (1, 2),
+    },
+    "M": {
+        "NUM_FINISHED_GOODS": (8, 49),
+        "NUM_RAW_MATERIALS": (25, 40),
+        "NUM_VENDORS": (20, 30),
+        "NUM_CUSTOMERS": (25, 40),
+        "NUM_ORDERS": (4000, 6000),
+        "NUM_SITES": (4, 5),
+    },
+    "L": {
+        "NUM_FINISHED_GOODS": (99, 199),
+        "NUM_RAW_MATERIALS": (70, 110),
+        "NUM_VENDORS": (50, 100),
+        "NUM_CUSTOMERS": (80, 120),
+        "NUM_ORDERS": (12000, 20000),
+        "NUM_SITES": (20, 40),
+    },
+    "XL": {
+        "NUM_FINISHED_GOODS": (399, 799),
+        "NUM_RAW_MATERIALS": (178, 278),
+        "NUM_VENDORS": (150, 300),
+        "NUM_CUSTOMERS": (250, 400),
+        "NUM_ORDERS": (40000, 80000),
+        "NUM_SITES": (100, 120),
+    },
+}
+
+# Demo configs reference only ids that exist at every dataset size.
 DEMO_SCENARIO_CONFIGS: dict[str, str] = {
-    "SCN001": "MAT-A0008,1000,FG01,500",
-    "SCN003": "2000,ALL,20250615,30",
-    "SCN011": "MAT-A0005,1000,25,20250615",
-    "SCN012": "MAT-NEW01,1000,MAT-A0005",
+    "SCN001": "MAT-A0001,1000,FG01,500",
+    "SCN003": "1000,ALL,20250615,30",
+    "SCN011": "MAT-A0001,1000,25,20250615",
+    "SCN012": "MAT-NEW01,1000,MAT-A0001",
     "SCN014": "1000,95,30",
     "SCN015": "1000,20250615,7,0.3",
-    "SCN016": "1000,MAT-A0005;MAT-A0008,30",
+    "SCN016": "1000,MAT-A0001;MAT-A0020,30",
     "SCN020": "40,30",
-    "SCN021": "VEND-0005,ALL,0.72,3",
-    "SCN023": "VEND-0008,MAT-R0010",
-    "SCN026": "VEND-0008,ALL,0.85,3",
+    "SCN021": "VEND-0001,ALL,0.72,3",
+    "SCN023": "VEND-0001,API1",
+    "SCN026": "VEND-0002,ALL,0.85,3",
 }
 
 
 @dataclass(frozen=True, slots=True)
 class GenerationConfig:
     random_seed: int = 42
-    scale_factor: float = 1.0
+    scale_factor: float | str = 1.0
     num_customers: int | None = None
     num_finished_goods: int | None = None
     num_raw_materials: int | None = None
+    num_vendors: int | None = None
+    num_sites: int | None = None
     num_orders: int | None = None
     moq_finished_min: int = 250
     moq_finished_max: int = 1000
@@ -46,9 +88,17 @@ class GenerationConfig:
     scenario_configs: Mapping[str, str] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        if self.scale_factor <= 0:
+        if isinstance(self.scale_factor, str):
+            letter = self.scale_factor.strip().upper()
+            if letter not in SIZE_KNOB_RANGES:
+                raise ValueError(
+                    f"scale_factor must be a positive number or one of "
+                    f"{', '.join(SIZE_KNOB_RANGES)}; got {self.scale_factor!r}"
+                )
+            object.__setattr__(self, "scale_factor", letter)
+        elif not (self.scale_factor > 0 and math.isfinite(self.scale_factor)):
             raise ValueError(
-                f"scale_factor must be greater than zero; got {self.scale_factor}"
+                f"scale_factor must be a positive finite number; got {self.scale_factor}"
             )
         if not 0 <= self.delivery_fill_rate <= 1:
             raise ValueError(
@@ -72,6 +122,8 @@ class GenerationConfig:
             "num_customers",
             "num_finished_goods",
             "num_raw_materials",
+            "num_vendors",
+            "num_sites",
             "num_orders",
         ):
             value = getattr(self, name)
@@ -105,7 +157,7 @@ class GenerationConfig:
 
         values = {
             "RANDOM_SEED": str(self.random_seed),
-            "SCALE_FACTOR": str(self.scale_factor),
+            "SCALE_FACTOR": "1" if isinstance(self.scale_factor, str) else str(self.scale_factor),
             "MOQ_FINISHED_MIN": str(self.moq_finished_min),
             "MOQ_FINISHED_MAX": str(self.moq_finished_max),
             "MOQ_RAW_MIN": str(self.moq_raw_min),
@@ -119,10 +171,20 @@ class GenerationConfig:
             "GENERATE_DIRTY_DATA": str(self.generate_dirty_data).lower(),
             "DIRTY_DATA_RATE": str(self.dirty_data_rate),
         }
+        if isinstance(self.scale_factor, str):
+            rng = random.Random(f"{self.random_seed}:{self.scale_factor}")
+            values.update(
+                {
+                    knob: str(rng.randint(low, high))
+                    for knob, (low, high) in SIZE_KNOB_RANGES[self.scale_factor].items()
+                }
+            )
         optional = {
             "NUM_CUSTOMERS": self.num_customers,
             "NUM_FINISHED_GOODS": self.num_finished_goods,
             "NUM_RAW_MATERIALS": self.num_raw_materials,
+            "NUM_VENDORS": self.num_vendors,
+            "NUM_SITES": self.num_sites,
             "NUM_ORDERS": self.num_orders,
         }
         values.update(

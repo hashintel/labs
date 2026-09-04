@@ -9,7 +9,7 @@ scenarios = [
         "SCENARIO_TYPE": "INVENTORY",
         "DESCRIPTION": "A batch deviation impacts inventory at the Manufacturing site (1000) - removes a particular batch of one product permanently",
         "IMPACTED_NODE": "1000",
-        "IMPACTED_PRODUCTS": "MAT-A0008",
+        "IMPACTED_PRODUCTS": "MAT-A0001",
         "IMPACTED_BATCH": "BATCH-2025-001",
         "NODE_OFFLINE": False,
         "NODE_CAPACITY_PCT": 100,
@@ -36,7 +36,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "LOW",
         "AI_DECISION_OPTIONS": "Accept loss|Expedite production|Source from alternate supplier|Reallocate from other products",
-        "DATA_EVIDENCE": "inventory_impacted.csv: Filter Product_Code=MAT-A0008, Location=1000 to see affected stock | supply_network.csv: Location_ID=1000 shows Node_Status=IMPACTED | matdoc table: MBLNR starting with SCN001 contains the 344 adjustment movement"
+        "DATA_EVIDENCE": "inventory_impacted.csv: Filter Product_Code=MAT-A0001, Location=1000 to see affected stock | supply_network.csv: Location_ID=1000 shows Node_Status=IMPACTED | matdoc table: MBLNR starting with SCN001 contains the 344 adjustment movement"
     },
     {
         "SCENARIO_ID": "SCN002",
@@ -78,7 +78,7 @@ scenarios = [
         "SCENARIO_NAME": "Fire Damage",
         "SCENARIO_TYPE": "INVENTORY",
         "DESCRIPTION": "A fire removes ALL inventory (all products, all batches) at one location and takes the node offline temporarily",
-        "IMPACTED_NODE": "2000",
+        "IMPACTED_NODE": "1000",
         "IMPACTED_PRODUCTS": "ALL",
         "IMPACTED_BATCH": "ALL",
         "NODE_OFFLINE": True,
@@ -106,7 +106,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "LOW",
         "AI_DECISION_OPTIONS": "Reroute through alternate node|Direct ship from hub|Delay customer orders|Split shipments",
-        "DATA_EVIDENCE": "supply_network.csv: Location_ID=2000 shows Node_Status=OFFLINE, Node_Capacity_Pct=0 | transportation_lanes.csv: Lanes to/from 2000 show Lane_Status=BLOCKED | inventory_impacted.csv: ALL products at Location=2000 destroyed | matdoc table: SCN003 records with BWART=551"
+        "DATA_EVIDENCE": "supply_network.csv: Location_ID=1000 shows Node_Status=OFFLINE, Node_Capacity_Pct=0 | transportation_lanes.csv: Lanes to/from 1000 show Lane_Status=BLOCKED | inventory_impacted.csv: ALL products at Location=1000 destroyed | matdoc table: SCN003 records with BWART=551"
     },
     {
         "SCENARIO_ID": "SCN004",
@@ -359,7 +359,7 @@ scenarios = [
         "SCENARIO_TYPE": "PRODUCTION",
         "DESCRIPTION": "Permanent increase in demand - planned issues increase and receipt/production plans need to be increased accordingly",
         "IMPACTED_NODE": "1000",
-        "IMPACTED_PRODUCTS": "MAT-A0005",
+        "IMPACTED_PRODUCTS": "MAT-A0001",
         "IMPACTED_BATCH": "N/A",
         "NODE_OFFLINE": False,
         "NODE_CAPACITY_PCT": 100,
@@ -386,7 +386,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "MEDIUM",
         "AI_DECISION_OPTIONS": "Increase production schedule|Add overtime shifts|Qualify additional capacity|Adjust safety stock targets",
-        "DATA_EVIDENCE": "vbak table: Sales orders with BSTNK like 'SCN011-%' (ERNAM=SCENARIO) | vbap table: Order items for MATNR=MAT-A0005, WERKS=1000 showing +25% demand | vbep table: Schedule lines with delivery dates | scenario_metadata table: SCN011 scenario_type=PRODUCTION, demand_type=PERMANENT"
+        "DATA_EVIDENCE": "vbak table: Sales orders with BSTNK like 'SCN011-%' (ERNAM=SCENARIO) | vbap table: Order items for MATNR=MAT-A0001, WERKS=1000 showing +25% demand | vbep table: Schedule lines with delivery dates | scenario_metadata table: SCN011 scenario_type=PRODUCTION, demand_type=PERMANENT"
     },
     {
         "SCENARIO_ID": "SCN012",
@@ -416,7 +416,7 @@ scenarios = [
         "DEMAND_CHANGE_TYPE": "NEW_PRODUCT",
         "NEW_PRODUCT_ID": "MAT-NEW01",
         "CAPACITY_CONSTRAINT": "Shared line with existing products",
-        "COMPETING_PRODUCTS": "MAT-A0005,MAT-A0008",
+        "COMPETING_PRODUCTS": "MAT-A0001,MAT-A0020",
         "REGULATORY_EVENT": "",
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "MEDIUM",
@@ -486,7 +486,7 @@ scenarios = [
         "DEMAND_CHANGE_TYPE": "NONE",
         "NEW_PRODUCT_ID": "",
         "CAPACITY_CONSTRAINT": "Sterile facility at 95% utilization",
-        "COMPETING_PRODUCTS": "MAT-A0018,MAT-A0022",
+        "COMPETING_PRODUCTS": "MAT-A0001,B1_TAB1",
         "REGULATORY_EVENT": "",
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "HIGH",
@@ -521,7 +521,7 @@ scenarios = [
         "DEMAND_CHANGE_TYPE": "NONE",
         "NEW_PRODUCT_ID": "",
         "CAPACITY_CONSTRAINT": "Filling line down - backup available at reduced speed",
-        "COMPETING_PRODUCTS": "MAT-A0005,MAT-A0008,MAT-A0010,MAT-A0012",
+        "COMPETING_PRODUCTS": "MAT-A0001,MAT-A0020,B1_TAB1",
         "REGULATORY_EVENT": "",
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "HIGH",
@@ -534,7 +534,7 @@ scenarios = [
         "SCENARIO_TYPE": "PRODUCTION",
         "DESCRIPTION": "Several commercial products with different service levels compete for time on the same production line",
         "IMPACTED_NODE": "1000",
-        "IMPACTED_PRODUCTS": "MAT-A0005,MAT-A0008,MAT-A0010",
+        "IMPACTED_PRODUCTS": "MAT-A0001,MAT-A0020",
         "IMPACTED_BATCH": "N/A",
         "NODE_OFFLINE": False,
         "NODE_CAPACITY_PCT": 100,
@@ -556,12 +556,12 @@ scenarios = [
         "DEMAND_CHANGE_TYPE": "NONE",
         "NEW_PRODUCT_ID": "",
         "CAPACITY_CONSTRAINT": "Single line shared by 3 products",
-        "COMPETING_PRODUCTS": "MAT-A0005,MAT-A0008,MAT-A0010",
+        "COMPETING_PRODUCTS": "MAT-A0001,MAT-A0020",
         "REGULATORY_EVENT": "",
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "MEDIUM",
         "AI_DECISION_OPTIONS": "Optimize by service level|Optimize by margin|Fixed rotation schedule|Dynamic scheduling based on inventory",
-        "DATA_EVIDENCE": "CONFIG ONLY - No transactional injection | COMPETING_PRODUCTS=MAT-A0005,MAT-A0008,MAT-A0010 share line | production_orders.csv: Competing orders | material_master.csv: Product priorities"
+        "DATA_EVIDENCE": "CONFIG ONLY - No transactional injection | COMPETING_PRODUCTS=MAT-A0001,MAT-A0020 share line | production_orders.csv: Competing orders | material_master.csv: Product priorities"
     },
     {
         "SCENARIO_ID": "SCN017",
@@ -709,7 +709,7 @@ scenarios = [
         "SCENARIO_TYPE": "SUPPLIER",
         "DESCRIPTION": "Supplier of one core excipient material has drifted from agreed SLA - delivery quantities and on-time performance declining",
         "IMPACTED_NODE": "1000",
-        "IMPACTED_PRODUCTS": "MAT-R0005",
+        "IMPACTED_PRODUCTS": "ALL",
         "IMPACTED_BATCH": "N/A",
         "NODE_OFFLINE": False,
         "NODE_CAPACITY_PCT": 100,
@@ -721,7 +721,7 @@ scenarios = [
         "IMPACT_DURATION_DAYS": 0,
         "TLANES_AFFECTED": False,
         "ALT_LINE_SAME_LOCATION": False,
-        "IMPACTED_SUPPLIER": "VEND-0005",
+        "IMPACTED_SUPPLIER": "VEND-0001",
         "SUPPLIER_ISSUE": "SLA_DRIFT",
         "METRIC_TREND": "DECLINE",
         "CURRENT_RELIABILITY": "0.72",
@@ -736,7 +736,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "LOW",
         "AI_DECISION_OPTIONS": "Engage supplier for improvement plan|Qualify alternate supplier|Increase safety stock|Adjust production schedule",
-        "DATA_EVIDENCE": "supplier_master.csv: Vendor_ID=VEND-0005 supplies MAT-R0005 | ekbe table: Filter LIFNR=VEND-0005 to see declining OTIF (OTIF_ONTIME, OTIF_INFULL columns) | CURRENT_RELIABILITY=0.72 (down from baseline 0.95)"
+        "DATA_EVIDENCE": "supplier_master.csv: Vendor_ID=VEND-0001 supplies API1 | ekbe table: Filter LIFNR=VEND-0001 to see declining OTIF (OTIF_ONTIME, OTIF_INFULL columns) | CURRENT_RELIABILITY=0.72 (down from baseline 0.95)"
     },
     {
         "SCENARIO_ID": "SCN022",
@@ -779,7 +779,7 @@ scenarios = [
         "SCENARIO_TYPE": "SUPPLIER",
         "DESCRIPTION": "API supplier receives FDA 483 for a different client - no immediate change but all supply from this supplier requires review",
         "IMPACTED_NODE": "1000",
-        "IMPACTED_PRODUCTS": "MAT-R0010",
+        "IMPACTED_PRODUCTS": "API1",
         "IMPACTED_BATCH": "ALL",
         "NODE_OFFLINE": False,
         "NODE_CAPACITY_PCT": 100,
@@ -791,7 +791,7 @@ scenarios = [
         "IMPACT_DURATION_DAYS": 90,
         "TLANES_AFFECTED": False,
         "ALT_LINE_SAME_LOCATION": False,
-        "IMPACTED_SUPPLIER": "VEND-0008",
+        "IMPACTED_SUPPLIER": "VEND-0001",
         "SUPPLIER_ISSUE": "FDA_483",
         "METRIC_TREND": "STABLE",
         "CURRENT_RELIABILITY": "0.95",
@@ -806,7 +806,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "LOW",
         "AI_DECISION_OPTIONS": "Immediate quality review of existing supply|Request supplier documentation and CAPA|Prepare backup supplier qualification|No action pending review",
-        "DATA_EVIDENCE": "supplier_master.csv: Vendor_ID=VEND-0008 supplies MAT-R0010 | SUPPLIER_ISSUE=FDA_483, REVIEW_REQUIRED=True | ekbe table: No OTIF impact yet (CURRENT_RELIABILITY=0.95) but all batches flagged for review"
+        "DATA_EVIDENCE": "supplier_master.csv: Vendor_ID=VEND-0001 supplies API1 | SUPPLIER_ISSUE=FDA_483, REVIEW_REQUIRED=True | ekbe table: No OTIF impact yet (CURRENT_RELIABILITY=0.95) but all batches flagged for review"
     },
     {
         "SCENARIO_ID": "SCN024",
@@ -884,7 +884,7 @@ scenarios = [
         "SCENARIO_TYPE": "SUPPLIER",
         "DESCRIPTION": "API supplier with previous CAPA failures shows improvement - situation recovering and reliability increasing",
         "IMPACTED_NODE": "1000",
-        "IMPACTED_PRODUCTS": "MAT-R0010",
+        "IMPACTED_PRODUCTS": "ALL",
         "IMPACTED_BATCH": "N/A",
         "NODE_OFFLINE": False,
         "NODE_CAPACITY_PCT": 100,
@@ -896,7 +896,7 @@ scenarios = [
         "IMPACT_DURATION_DAYS": 30,
         "TLANES_AFFECTED": False,
         "ALT_LINE_SAME_LOCATION": False,
-        "IMPACTED_SUPPLIER": "VEND-0008",
+        "IMPACTED_SUPPLIER": "VEND-0002",
         "SUPPLIER_ISSUE": "CAPA_IMPROVEMENT",
         "METRIC_TREND": "IMPROVE",
         "CURRENT_RELIABILITY": "0.85",
@@ -911,7 +911,7 @@ scenarios = [
         "NEW_FACILITY": "",
         "NETWORK_VOLATILITY": "LOW",
         "AI_DECISION_OPTIONS": "Resume normal ordering volumes|Continue enhanced monitoring|Reduce safety stock buffer|Update supplier qualification status",
-        "DATA_EVIDENCE": "supplier_master.csv: Vendor_ID=VEND-0008 supplies MAT-R0010 | ekbe table: Filter LIFNR=VEND-0008 to see improving OTIF trend | CURRENT_RELIABILITY=0.85 (recovering), SUPPLIER_ISSUE=CAPA_IMPROVEMENT, METRIC_TREND=IMPROVE"
+        "DATA_EVIDENCE": "supplier_master.csv: Vendor_ID=VEND-0002 supplies its materials | ekbe table: Filter LIFNR=VEND-0002 to see improving OTIF trend | CURRENT_RELIABILITY=0.85 (recovering), SUPPLIER_ISSUE=CAPA_IMPROVEMENT, METRIC_TREND=IMPROVE"
     }
 ]
 

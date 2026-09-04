@@ -13,6 +13,10 @@ RELATIONSHIPS = (
     ("vbap", "VBELN", "vbak", "VBELN"),
     ("vbep", "VBELN", "vbak", "VBELN"),
     ("ekpo", "EBELN", "ekko", "EBELN"),
+    ("vbak", "KUNNR", "kna1", "KUNNR"),
+    ("vbap", "MATNR", "mara", "MATNR"),
+    ("eina", "LIFNR", "lfa1", "LIFNR"),
+    ("vttk", "ROUTE", "tvro", "ROUTE"),
 )
 
 

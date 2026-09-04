@@ -3,14 +3,18 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 import random
-import uuid
 from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
 
 from .common import (
     PLANT_CONFIG,
+    configure_plants,
     customs_days,
+    dc_plants,
     param,
+    production_plants,
+    route_code,
+    route_pairs,
     seed_all,
     transport_modes_for_lane,
 )
@@ -226,7 +230,6 @@ def generate_mard_data():
 
 def generate_mbew_data():
     data = []
-    plant_cost_factors = {'1000': 1.0, '2000': 1.15, '3000': 0.85, '4000': 1.25}
 
     for matnr in PREDEFINED_MATERIALS:
         if matnr in FINISHED_GOODS:
@@ -237,7 +240,7 @@ def generate_mbew_data():
             base_price = round(random.uniform(5, 100), 2)
 
         for werks in PREDEFINED_PLANTS:
-            location_factor = plant_cost_factors.get(werks, 1.0)
+            location_factor = PLANT_CONFIG[werks]['cost_factor']
             std_price = round(base_price * location_factor, 2)
             mov_avg_price = round(std_price * random.uniform(0.95, 1.05), 2)
 
@@ -369,6 +372,14 @@ def generate_sapapo_loc_data():
         })
     return pd.DataFrame(data)
 
+
+def frame_with_schema(rows, columns, float_columns=()):
+    """Build a DataFrame that keeps its columns and float dtypes even with no rows."""
+    frame = pd.DataFrame(rows, columns=columns)
+    if frame.empty:
+        frame = frame.astype({column: 'float64' for column in float_columns})
+    return frame
+
 def generate_sapapo_tr_data():
     """
     Generates /SAPAPO/TR - APO Transportation Lane Header.
@@ -385,7 +396,7 @@ def generate_sapapo_tr_data():
             from_info = PLANT_CONFIG[loc_from]
             to_info = PLANT_CONFIG[loc_to]
 
-            trlid = str(uuid.uuid4()).replace('-', '').upper()[:32]
+            trlid = f"{random.getrandbits(128):032X}"
             lane_name = f"{from_info['city']} -> {to_info['city']}"
 
             data.append({
@@ -397,7 +408,7 @@ def generate_sapapo_tr_data():
                 'MODEL': 'SAPAPO_MODEL',
             })
 
-    return pd.DataFrame(data)
+    return frame_with_schema(data, ['MANDT', 'TRLID', 'LOCFR', 'LOCTO', 'TRNAME', 'MODEL'])
 
 def generate_sapapo_trm_data(df_tr):
     """
@@ -454,7 +465,11 @@ def generate_sapapo_trm_data(df_tr):
 
         data.extend(mode_records)
 
-    return pd.DataFrame(data)
+    return frame_with_schema(
+        data,
+        ['MANDT', 'TRLID', 'TRMID', 'TRATIME', 'TRACOST', 'TRACOSTCUR', 'PRIFLAG'],
+        float_columns=('TRATIME', 'TRACOST'),
+    )
 
 def generate_tvro_data():
     """
@@ -467,52 +482,53 @@ def generate_tvro_data():
     shipping_types = {'ROAD': '01', 'RAIL': '02', 'SEA': '03', 'AIR': '04'}
     forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
 
-    for loc_from in plants:
-        for loc_to in plants:
-            if loc_from == loc_to:
-                continue
+    for loc_from, loc_to in route_pairs(plants):
 
-            from_info = PLANT_CONFIG[loc_from]
-            to_info = PLANT_CONFIG[loc_to]
+        from_info = PLANT_CONFIG[loc_from]
+        to_info = PLANT_CONFIG[loc_to]
 
-            route = f"R{loc_from[:2]}{loc_to[:2]}"
+        route = route_code(loc_from, loc_to)
 
-            distance_km = haversine_km(
-                from_info['ypos'], from_info['xpos'],
-                to_info['ypos'], to_info['xpos']
-            )
+        distance_km = haversine_km(
+            from_info['ypos'], from_info['xpos'],
+            to_info['ypos'], to_info['xpos']
+        )
 
-            customs_delay = customs_days(from_info['country'], to_info['country'])
+        customs_delay = customs_days(from_info['country'], to_info['country'])
 
-            available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
-            mode = min(
-                available_modes,
-                key=lambda candidate: TRANSPORT_MODES[candidate]['cost_per_km'],
-            )
-            vsart = shipping_types[mode]
-            travel_hours = distance_km / TRANSPORT_MODES[mode]['speed_kmh']
-            if mode == 'SEA':
-                agent = 'MAERSK'
-            elif mode == 'AIR':
-                agent = 'FEDEX'
-            else:
-                agent = random.choice(['DHL', 'KUEHNE', 'DBSCHENK'])
+        available_modes = transport_modes_for_lane(loc_from, loc_to, distance_km)
+        mode = min(
+            available_modes,
+            key=lambda candidate: TRANSPORT_MODES[candidate]['cost_per_km'],
+        )
+        vsart = shipping_types[mode]
+        travel_hours = distance_km / TRANSPORT_MODES[mode]['speed_kmh']
+        if mode == 'SEA':
+            agent = 'MAERSK'
+        elif mode == 'AIR':
+            agent = 'FEDEX'
+        else:
+            agent = random.choice(['DHL', 'KUEHNE', 'DBSCHENK'])
 
-            transit_days = round((travel_hours / 24) + customs_delay, 2)
+        transit_days = round((travel_hours / 24) + customs_delay, 2)
 
-            data.append({
-                'MANDT': '800',
-                'ROUTE': route,
-                'TRAZTD': transit_days,  # Transit duration (calendar days)
-                'TDVZTD': transit_days,  # Transportation lead time (days)
-                'FAHZTD': round(travel_hours, 2),  # Travel duration (hours)
-                'DISTZ': round(distance_km, 2),  # Distance
-                'MEDST': 'KM',  # Distance unit
-                'VSART': vsart,  # Shipping type
-                'TDLNR': agent,  # Forwarding agent
-            })
+        data.append({
+            'MANDT': '800',
+            'ROUTE': route,
+            'TRAZTD': transit_days,  # Transit duration (calendar days)
+            'TDVZTD': transit_days,  # Transportation lead time (days)
+            'FAHZTD': round(travel_hours, 2),  # Travel duration (hours)
+            'DISTZ': round(distance_km, 2),  # Distance
+            'MEDST': 'KM',  # Distance unit
+            'VSART': vsart,  # Shipping type
+            'TDLNR': agent,  # Forwarding agent
+        })
 
-    return pd.DataFrame(data)
+    return frame_with_schema(
+        data,
+        ['MANDT', 'ROUTE', 'TRAZTD', 'TDVZTD', 'FAHZTD', 'DISTZ', 'MEDST', 'VSART', 'TDLNR'],
+        float_columns=('TRAZTD', 'TDVZTD', 'FAHZTD', 'DISTZ'),
+    )
 
 def generate_tvrot_data(df_tvro):
     """
@@ -521,13 +537,13 @@ def generate_tvrot_data(df_tvro):
     """
     data = []
     plants = list(PLANT_CONFIG)
+    lanes = {route_code(a, b): (a, b) for a, b in route_pairs(plants)}
     languages = ['E', 'D', 'F']  # English, German, French
 
     for _, route in df_tvro.iterrows():
-        route_code = route['ROUTE']
+        code = route['ROUTE']
 
-        from_plant = route_code[1:3] + '00'
-        to_plant = route_code[3:5] + '00'
+        from_plant, to_plant = lanes[code]
 
         from_name = PLANT_CONFIG.get(from_plant, {}).get('city', from_plant)
         to_name = PLANT_CONFIG.get(to_plant, {}).get('city', to_plant)
@@ -543,11 +559,30 @@ def generate_tvrot_data(df_tvro):
             data.append({
                 'MANDT': '800',
                 'SPRAS': lang,
-                'ROUTE': route_code,
+                'ROUTE': code,
                 'BEZEI': desc,
             })
 
-    return pd.DataFrame(data)
+    return frame_with_schema(data, ['MANDT', 'SPRAS', 'ROUTE', 'BEZEI'])
+
+
+VENDOR_CATEGORY_SHARES = [
+    ('API', 0.25),
+    ('EXCIPIENT', 0.25),
+    ('PACKAGING', 0.25),
+    ('CMO', 0.15),
+    ('LOGISTICS', 0.10),
+]
+
+
+def vendor_category(index, num_vendors):
+    """Assign the 1-based vendor index to a category per VENDOR_CATEGORY_SHARES."""
+    cumulative = 0.0
+    for category, share in VENDOR_CATEGORY_SHARES:
+        cumulative += share
+        if index <= round(num_vendors * cumulative):
+            return category
+    return VENDOR_CATEGORY_SHARES[-1][0]
 
 
 def generate_lfa1_data():
@@ -567,20 +602,10 @@ def generate_lfa1_data():
 
     countries = ['DE', 'US', 'IN', 'CN', 'CH', 'IE', 'GB', 'FR']
 
-    num_vendors = 20
+    num_vendors = int(param("NUM_VENDORS"))
     for i in range(1, num_vendors + 1):
         lifnr = f"VEND-{i:04d}"
-
-        if i <= 5:
-            v_type = 'API'
-        elif i <= 10:
-            v_type = 'EXCIPIENT'
-        elif i <= 15:
-            v_type = 'PACKAGING'
-        elif i <= 18:
-            v_type = 'CMO'
-        else:
-            v_type = 'LOGISTICS'
+        v_type = vendor_category(i, num_vendors)
 
         country = random.choice(countries)
         name_base = random.choice(vendor_categories[v_type])
@@ -615,12 +640,16 @@ def generate_eina_data(df_mara, df_lfa1):
     raw_materials = df_mara[df_mara['MTART'] == 'ROH']['MATNR'].tolist()
     vendors = df_lfa1['LIFNR'].tolist()
 
+    # LFA1 stores each vendor's category in NAME2; CMO and LOGISTICS vendors
+    # supply the OTHER materials.
+    vendor_types = dict(zip(df_lfa1['LIFNR'], df_lfa1['NAME2']))
     vendor_pools = {
-        'API': [v for v in vendors if int(v.split('-')[1]) <= 5],
-        'EXCIPIENT': [v for v in vendors if 6 <= int(v.split('-')[1]) <= 10],
-        'PACKAGING': [v for v in vendors if 11 <= int(v.split('-')[1]) <= 15],
-        'OTHER': [v for v in vendors if int(v.split('-')[1]) >= 16],
+        'API': [v for v in vendors if vendor_types[v] == 'API'],
+        'EXCIPIENT': [v for v in vendors if vendor_types[v] == 'EXCIPIENT'],
+        'PACKAGING': [v for v in vendors if vendor_types[v] == 'PACKAGING'],
+        'OTHER': [v for v in vendors if vendor_types[v] in ('CMO', 'LOGISTICS')],
     }
+    vendor_pools = {category: pool or vendors for category, pool in vendor_pools.items()}
 
     materials_by_category = {category: [] for category in vendor_pools}
     for matnr in raw_materials:
@@ -777,36 +806,41 @@ def generate_crhd_data():
     data = []
 
     work_centers = [
-        ('DISP01', 'Dispensing & Weighing 1', '001', 16, 5, 95, ['1000', '5000']),
-        ('DISP02', 'Dispensing & Weighing 2', '001', 16, 5, 95, ['1000']),
-        ('GRAN01', 'Wet Granulation Line 1', '002', 16, 5, 85, ['1000', '5000']),
-        ('GRAN02', 'Dry Granulation Line 1', '002', 16, 5, 88, ['1000']),
-        ('BLND01', 'Blending Station 1', '002', 16, 5, 92, ['1000', '5000']),
-        ('BLND02', 'Blending Station 2', '002', 16, 5, 92, ['1000']),
-        ('COMP01', 'Tablet Press Line 1', '003', 24, 7, 80, ['1000', '5000']),
-        ('COMP02', 'Tablet Press Line 2', '003', 24, 7, 82, ['1000']),
-        ('COMP03', 'Tablet Press Line 3', '003', 16, 5, 78, ['1000']),
-        ('COAT01', 'Film Coating Line 1', '003', 16, 5, 85, ['1000', '5000']),
-        ('COAT02', 'Film Coating Line 2', '003', 16, 5, 85, ['1000']),
-        ('ENCAP01', 'Encapsulation Line 1', '003', 16, 5, 88, ['1000']),
-        ('FILL01', 'Liquid Filling Line 1', '004', 16, 5, 82, ['1000']),
-        ('FILL02', 'Liquid Filling Line 2', '004', 16, 5, 82, ['1000', '5000']),
-        ('STER01', 'Sterile Filling Line 1', '005', 16, 5, 75, ['1000']),
-        ('STER02', 'Sterile Filling Line 2', '005', 16, 5, 75, ['1000']),
-        ('PACK01', 'Primary Packaging Line 1', '006', 24, 7, 90, ['1000', '5000']),
-        ('PACK02', 'Primary Packaging Line 2', '006', 24, 7, 90, ['1000']),
-        ('PACK03', 'Secondary Packaging Line 1', '006', 16, 5, 92, ['1000', '5000']),
-        ('PACK04', 'Secondary Packaging Line 2', '006', 16, 5, 92, ['1000']),
-        ('QCLAB01', 'Quality Control Lab 1', '007', 16, 5, 85, ['1000', '5000']),
-        ('QCLAB02', 'Quality Control Lab 2', '007', 16, 5, 85, ['1000']),
-        ('INSP01', 'Incoming Inspection', '008', 8, 5, 95, ['2000', '3000', '4000']),
-        ('REPK01', 'Repackaging Station', '006', 8, 5, 90, ['2000', '3000', '4000']),
+        ('DISP01', 'Dispensing & Weighing 1', '001', 16, 5, 95, 'PROD'),
+        ('DISP02', 'Dispensing & Weighing 2', '001', 16, 5, 95, 'HUB'),
+        ('GRAN01', 'Wet Granulation Line 1', '002', 16, 5, 85, 'PROD'),
+        ('GRAN02', 'Dry Granulation Line 1', '002', 16, 5, 88, 'HUB'),
+        ('BLND01', 'Blending Station 1', '002', 16, 5, 92, 'PROD'),
+        ('BLND02', 'Blending Station 2', '002', 16, 5, 92, 'HUB'),
+        ('COMP01', 'Tablet Press Line 1', '003', 24, 7, 80, 'PROD'),
+        ('COMP02', 'Tablet Press Line 2', '003', 24, 7, 82, 'HUB'),
+        ('COMP03', 'Tablet Press Line 3', '003', 16, 5, 78, 'HUB'),
+        ('COAT01', 'Film Coating Line 1', '003', 16, 5, 85, 'PROD'),
+        ('COAT02', 'Film Coating Line 2', '003', 16, 5, 85, 'HUB'),
+        ('ENCAP01', 'Encapsulation Line 1', '003', 16, 5, 88, 'HUB'),
+        ('FILL01', 'Liquid Filling Line 1', '004', 16, 5, 82, 'HUB'),
+        ('FILL02', 'Liquid Filling Line 2', '004', 16, 5, 82, 'PROD'),
+        ('STER01', 'Sterile Filling Line 1', '005', 16, 5, 75, 'HUB'),
+        ('STER02', 'Sterile Filling Line 2', '005', 16, 5, 75, 'HUB'),
+        ('PACK01', 'Primary Packaging Line 1', '006', 24, 7, 90, 'PROD'),
+        ('PACK02', 'Primary Packaging Line 2', '006', 24, 7, 90, 'HUB'),
+        ('PACK03', 'Secondary Packaging Line 1', '006', 16, 5, 92, 'PROD'),
+        ('PACK04', 'Secondary Packaging Line 2', '006', 16, 5, 92, 'HUB'),
+        ('QCLAB01', 'Quality Control Lab 1', '007', 16, 5, 85, 'PROD'),
+        ('QCLAB02', 'Quality Control Lab 2', '007', 16, 5, 85, 'HUB'),
+        ('INSP01', 'Incoming Inspection', '008', 8, 5, 95, 'DC'),
+        ('REPK01', 'Repackaging Station', '006', 8, 5, 90, 'DC'),
     ]
 
     objid_counter = 1000
 
-    for arbpl, ktext, capacity_category, hours_day, days_week, efficiency, plants in work_centers:
-        for werks in plants:
+    plants_for_role = {
+        'HUB': [param("HUB_PLANT")],
+        'PROD': production_plants(),
+        'DC': dc_plants(),
+    }
+    for arbpl, ktext, capacity_category, hours_day, days_week, efficiency, role in work_centers:
+        for werks in plants_for_role[role]:
             objid_counter += 1
 
             available_hours = hours_day * days_week
@@ -879,7 +913,7 @@ def generate_plko_data(df_mara, df_crhd):
 
     producible = df_mara[df_mara['MTART'].isin(['FERT', 'HALB'])]['MATNR'].tolist()
 
-    prod_plants = ['1000', '5000']
+    prod_plants = production_plants()
 
     plnnr_counter = 1000000
 
@@ -1067,6 +1101,7 @@ def generate(wh):
     print(f"Seed: {RANDOM_SEED}")
     print(f"Universe: {NUM_CUSTOMERS} customers, {NUM_FINISHED_GOODS} finished goods, {NUM_RAW_MATERIALS} raw materials")
 
+    configure_plants()
     PREDEFINED_PLANTS = list(PLANT_CONFIG)
     PREDEFINED_STORAGE_LOCATIONS = ['0001', 'FG01', 'RM01', 'WH01', 'QA01', 'ALT1']
     PREDEFINED_CUSTOMERS = [f'CUST{i:05d}' for i in range(1, NUM_CUSTOMERS + 1)]

@@ -281,6 +281,7 @@ def generate_sales_orders(finished_goods, all_customers):
     print(f"Generating {NUMBER_OF_ORDERS} Sales Orders...")
     vbak, vbap, vbep = [], [], []
     base_date = datetime.now()
+    india_customer_exists = CUST_INDIA in all_customers
 
     for i in range(NUMBER_OF_ORDERS):
         vbeln = f'{1000000000 + i:010d}'
@@ -290,7 +291,7 @@ def generate_sales_orders(finished_goods, all_customers):
         req_date = (order_date_dt + timedelta(days=7)).strftime('%Y%m%d')
 
         # Scenario: India Customer
-        if i % 100 == 0: kunnr = CUST_INDIA
+        if i % 100 == 0 and india_customer_exists: kunnr = CUST_INDIA
         else: kunnr = random.choice(all_customers)
 
         order_total = 0.0

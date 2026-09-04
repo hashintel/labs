@@ -5,7 +5,6 @@ import pandas as pd
 import numpy as np
 from faker import Faker
 import random
-import uuid
 from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
 import pyspark.sql.functions as F
@@ -532,7 +531,7 @@ def generate_sapapo_tr_data():
             from_info = PLANT_CONFIG[loc_from]
             to_info = PLANT_CONFIG[loc_to]
 
-            trlid = str(uuid.uuid4()).replace('-', '').upper()[:32]
+            trlid = f"{random.getrandbits(128):032X}"
             lane_name = f"{from_info['city']} -> {to_info['city']}"
 
             data.append({
