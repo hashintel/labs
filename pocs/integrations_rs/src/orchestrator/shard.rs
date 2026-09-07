@@ -22,7 +22,9 @@ use super::shard_log::{
     OpenedShard, RunView, ShardCommandConfig, ShardCommandHandle, ShardLogLocation, StartedShard,
     StartupRecovery, StateChangeFeed, WorkRecoveryIntent,
 };
-use super::submission::{admitted_run_record, delete_ready_receipt, discover_ready_receipts};
+use super::submission::{
+    admitted_run_record, delete_pending_submission, discover_pending_submissions,
+};
 use super::work::WorkKind;
 use crate::blob::ArtifactStore;
 use crate::graph::executor::EffectTurnPermit;
@@ -334,7 +336,7 @@ pub(crate) enum SchedulerAction {
         result: crate::blob::BlobRef,
     },
     AcceptedRun(RunView),
-    ReceiptPromoted,
+    SubmissionPromoted,
     Idle,
 }
 
@@ -378,10 +380,10 @@ pub(crate) enum SchedulerError {
     WorkQuery,
     RestoreQuery,
     RunQuery,
-    ReceiptDiscovery,
-    ReceiptValidation,
-    ReceiptPromotion,
-    ReceiptDeletion,
+    SubmissionDiscovery,
+    SubmissionValidation,
+    SubmissionPromotion,
+    SubmissionDeletion,
     OwnershipLost,
 }
 
@@ -392,10 +394,10 @@ impl fmt::Display for SchedulerError {
             Self::WorkQuery => "query committed shard work failed",
             Self::RestoreQuery => "query required shard restore failed",
             Self::RunQuery => "query accepted shard run failed",
-            Self::ReceiptDiscovery => "discover ready receipts failed",
-            Self::ReceiptValidation => "validate admitted ready receipt failed",
-            Self::ReceiptPromotion => "promote ready receipt through shard journal failed",
-            Self::ReceiptDeletion => "delete durably promoted ready receipt failed",
+            Self::SubmissionDiscovery => "discover pending submissions failed",
+            Self::SubmissionValidation => "validate admitted pending submission failed",
+            Self::SubmissionPromotion => "promote pending submission through shard journal failed",
+            Self::SubmissionDeletion => "delete durably promoted pending submission failed",
             Self::OwnershipLost => "shard scheduler ownership was lost",
         })
     }
@@ -471,7 +473,7 @@ impl RecoveryScheduler {
 
     /// Runs exactly one bounded scheduling turn. A control flood gets one
     /// wrapping batch, after which already durable work gets an explicit turn
-    /// before any newly discovered receipt.
+    /// before any newly discovered submission.
     pub(crate) async fn next(
         &mut self,
         now: DateTime<Utc>,
@@ -525,34 +527,34 @@ impl RecoveryScheduler {
             });
         }
 
-        let receipts = discover_ready_receipts(&self.store, &self.tenant)
+        let submissions = discover_pending_submissions(&self.store, &self.tenant)
             .await
-            .change_context(SchedulerError::ReceiptDiscovery)?;
-        for receipt in receipts
+            .change_context(SchedulerError::SubmissionDiscovery)?;
+        for submission in submissions
             .into_iter()
-            .filter(|receipt| receipt.shard == self.shard)
+            .filter(|submission| submission.shard == self.shard)
         {
-            let Some(record) = admitted_run_record(&self.store, &self.tenant, &receipt)
+            let Some(record) = admitted_run_record(&self.store, &self.tenant, &submission)
                 .await
-                .change_context(SchedulerError::ReceiptValidation)?
+                .change_context(SchedulerError::SubmissionValidation)?
             else {
                 continue;
             };
             self.command
                 .propose(record)
                 .await
-                .change_context(SchedulerError::ReceiptPromotion)?;
-            delete_ready_receipt(
+                .change_context(SchedulerError::SubmissionPromotion)?;
+            delete_pending_submission(
                 &self.store,
                 &self.tenant,
                 self.shard,
-                &receipt.receipt.run_id,
+                &submission.submission.run_id,
             )
             .await
-            .change_context(SchedulerError::ReceiptDeletion)?;
+            .change_context(SchedulerError::SubmissionDeletion)?;
             return Ok(SchedulerTurn {
                 controls_processed,
-                action: SchedulerAction::ReceiptPromoted,
+                action: SchedulerAction::SubmissionPromoted,
             });
         }
 
@@ -585,7 +587,7 @@ impl RecoveryScheduler {
                 &runs,
             )
             .await
-            .change_context(SchedulerError::ReceiptDiscovery)?;
+            .change_context(SchedulerError::SubmissionDiscovery)?;
             if retired {
                 tracing::info!(
                     integration_id = %integration_id,
@@ -598,7 +600,7 @@ impl RecoveryScheduler {
     }
 
     /// Selects at most one integration whose new reconciliation cycle is due.
-    /// This runs only after the restore, run, and receipt branches declined
+    /// This runs only after the restore, run, and submission branches declined
     /// the turn. Foreground deferral is per integration: the candidates query
     /// excludes any integration with a foreground slot in use, and the DRR
     /// Reconcile class additionally yields to runnable foreground lanes at
@@ -1866,7 +1868,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn control_and_receipt_floods_cannot_overtake_an_accepted_run() {
+    async fn control_and_submission_floods_cannot_overtake_an_accepted_run() {
         let remote = tempdir().expect("remote");
         let cache = tempdir().expect("cache");
         let store = ArtifactStore::local(remote.path(), cache.path()).expect("store");
@@ -1902,18 +1904,18 @@ mod tests {
             .await
             .expect("seed accepted run");
 
-        let receipt_integration = integration_on_fixture_shard("receipt-flood");
+        let submission_integration = integration_on_fixture_shard("submission-flood");
         submit_durable_for_run(
             &store,
             &tenant,
-            receipt_integration,
+            submission_integration,
             RunId::parse("00000000-0000-4000-8000-000000000010").expect("run ID"),
-            input_ref("receipt"),
-            policy_ref("receipt"),
+            input_ref("submission"),
+            policy_ref("submission"),
             "2026-07-22T00:00:00Z".to_owned(),
         )
         .await
-        .expect("submit competing ready receipt");
+        .expect("submit competing pending submission");
 
         let accepted_integration = accepted.integration_id;
         for index in 0..3 {
@@ -1952,7 +1954,7 @@ mod tests {
                 .expect("scheduler turn");
             assert_eq!(turn.controls_processed, 1);
             let SchedulerAction::AcceptedRun(run) = turn.action else {
-                panic!("accepted recovery run must precede new receipts")
+                panic!("accepted recovery run must precede new submissions")
             };
             assert_eq!(run.run_id, accepted_run_id);
         }
@@ -1969,7 +1971,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn cancellation_promotes_its_exact_receipt_before_ready_list_order_matters() {
+    async fn cancellation_promotes_its_exact_submission_before_ready_list_order_matters() {
         let remote = tempdir().expect("remote");
         let cache = tempdir().expect("cache");
         let store = ArtifactStore::local(remote.path(), cache.path()).expect("store");
@@ -2004,25 +2006,25 @@ mod tests {
             "2026-07-22T00:00:00Z".to_owned(),
         )
         .await
-        .expect("submit target receipt");
+        .expect("submit target submission");
         submit_durable_for_run(
             &store,
             &tenant,
-            integration_on_fixture_shard("lower-sorting-receipt"),
+            integration_on_fixture_shard("lower-sorting-submission"),
             RunId::parse("00000000-0000-4000-8000-000000000001").expect("run ID"),
             input_ref("lower"),
             policy_ref("lower"),
             "2026-07-22T00:00:00Z".to_owned(),
         )
         .await
-        .expect("submit lower-sorting receipt");
+        .expect("submit lower-sorting submission");
         let cancellation = ControlRequestV1::new(
             tenant.clone(),
             target_integration,
             "actor:cancel".to_owned(),
             ControlCommandV1::CancelRun(CancelRunV1 {
                 run_id: target_run.clone(),
-                expected_run_revision: submitted.initial_revision,
+                expected_run_revision: submitted.acceptance_event_id,
                 expected_failed_work: None,
             }),
         )
@@ -2053,7 +2055,7 @@ mod tests {
             .inspect_run(target_run)
             .await
             .expect("inspect target")
-            .expect("cancellation promoted target receipt");
+            .expect("cancellation promoted target submission");
         assert_eq!(
             target.status,
             crate::orchestrator::projection::RunStatus::Terminated

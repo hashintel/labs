@@ -66,7 +66,7 @@ impl std::error::Error for WorkerDispatchError {}
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum WorkerDispatchOutcome {
     Idle,
-    ReceiptPromoted,
+    SubmissionPromoted,
     PlanningFailed,
     WorkPlanned(WorkId),
     RunFinalized,
@@ -231,7 +231,7 @@ impl Dispatch for WorkerDispatcher {
                     .await;
                 Ok(WorkerDispatchOutcome::RunFinalized)
             }
-            SchedulerAction::ReceiptPromoted => Ok(WorkerDispatchOutcome::ReceiptPromoted),
+            SchedulerAction::SubmissionPromoted => Ok(WorkerDispatchOutcome::SubmissionPromoted),
             SchedulerAction::Idle => Ok(WorkerDispatchOutcome::Idle),
         }
     }

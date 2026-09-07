@@ -1567,14 +1567,14 @@ mod tests {
             panic!("fixture must be RunAccepted");
         };
         let run_id = accepted_event.run_id.clone();
-        let initial_revision = accepted.event_id.clone();
+        let acceptance_event_id = accepted.event_id.clone();
         let request = ControlRequestV1::new(
             TenantNamespace::parse("alice").expect("valid tenant"),
             integration.clone(),
             "actor:alice".to_owned(),
             ControlCommandV1::CancelRun(CancelRunV1 {
                 run_id: run_id.clone(),
-                expected_run_revision: initial_revision.clone(),
+                expected_run_revision: acceptance_event_id.clone(),
                 expected_failed_work: None,
             }),
         )
@@ -1624,7 +1624,7 @@ mod tests {
             "actor:stale-reader".to_owned(),
             ControlCommandV1::CancelRun(CancelRunV1 {
                 run_id,
-                expected_run_revision: initial_revision,
+                expected_run_revision: acceptance_event_id,
                 expected_failed_work: None,
             }),
         )
@@ -1758,14 +1758,14 @@ mod tests {
             "2026-07-22T10:00:00Z".to_owned(),
         )
         .await
-        .expect("submit admitted ready receipt");
+        .expect("pending submission should be admitted");
         let request = ControlRequestV1::new(
             tenant.clone(),
             integration,
             "actor:alice".to_owned(),
             ControlCommandV1::CancelRun(CancelRunV1 {
                 run_id: submitted.run_id.clone(),
-                expected_run_revision: submitted.initial_revision,
+                expected_run_revision: submitted.acceptance_event_id,
                 expected_failed_work: None,
             }),
         )
@@ -1806,7 +1806,7 @@ mod tests {
         assert!(matches!(
             store
                 .get_cas_document_bounded(
-                    &paths.ready_receipt(shard, &submitted.run_id),
+                    &paths.pending_submission(shard, &submitted.run_id),
                     256 * 1024,
                 )
                 .await

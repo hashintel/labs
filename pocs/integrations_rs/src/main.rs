@@ -352,14 +352,14 @@ async fn submit_durable(
                 );
             } else {
                 println!(
-                    "{} run {} (initial revision {})",
+                    "{} run {} (acceptance event {})",
                     if outcome.created {
                         "submitted"
                     } else {
                         "already active; attached to"
                     },
                     outcome.run_id,
-                    outcome.initial_revision
+                    outcome.acceptance_event_id
                 );
                 println!("inspect: integrations_rs status {}", outcome.run_id);
                 println!("cancel:  integrations_rs cancel {}", outcome.run_id);

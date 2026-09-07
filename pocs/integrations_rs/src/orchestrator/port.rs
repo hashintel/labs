@@ -94,7 +94,7 @@ pub struct SubmitRun {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubmitOutcome {
     pub run_id: RunId,
-    pub initial_revision: EventId,
+    pub acceptance_event_id: EventId,
     pub created: bool,
 }
 

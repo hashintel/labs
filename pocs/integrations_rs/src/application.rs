@@ -125,7 +125,7 @@ pub trait IntegrationService: Send + Sync {
         run_id: &RunId,
     ) -> Result<PublishedCancellation, ApplicationError>;
 
-    async fn put_managed(
+    async fn put_definition(
         &self,
         _context: RequestContext,
         _connector_id: &str,
@@ -139,7 +139,7 @@ pub trait IntegrationService: Send + Sync {
         })
     }
 
-    async fn get_managed(
+    async fn get_definition(
         &self,
         _context: RequestContext,
         _connector_id: &str,
@@ -150,7 +150,7 @@ pub trait IntegrationService: Send + Sync {
         })
     }
 
-    async fn set_managed_desired_state(
+    async fn set_definition_desired_state(
         &self,
         _context: RequestContext,
         _connector_id: &str,
@@ -163,7 +163,7 @@ pub trait IntegrationService: Send + Sync {
         })
     }
 
-    async fn bind_managed(
+    async fn bind_webhook_provider(
         &self,
         _context: RequestContext,
         _binding: ProviderBinding,
@@ -199,13 +199,16 @@ impl DurableIntegrationService {
         Self { env }
     }
 
-    fn surface(&self, context: &RequestContext) -> Result<OperatorCommands, ApplicationError> {
-        self.validate_web(context)?;
+    fn open_operator_commands(
+        &self,
+        context: &RequestContext,
+    ) -> Result<OperatorCommands, ApplicationError> {
+        self.validate_node_web(context)?;
         OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
             .map_err(ApplicationError::from_command)
     }
 
-    fn validate_web(&self, context: &RequestContext) -> Result<(), ApplicationError> {
+    fn validate_node_web(&self, context: &RequestContext) -> Result<(), ApplicationError> {
         if let Some(configured_web) = self
             .env
             .get("HASH_WEB_ID")
@@ -221,7 +224,7 @@ impl DurableIntegrationService {
         Ok(())
     }
 
-    fn managed(&self) -> Result<ManagedStore, ApplicationError> {
+    fn open_definition_store(&self) -> Result<ManagedStore, ApplicationError> {
         let blobs = crate::blob::ArtifactStore::from_url(
             &crate::config::blob_store_url(&self.env),
             crate::config::blob_cache_dir(&self.env),
@@ -253,7 +256,7 @@ impl DurableIntegrationService {
         context: &RequestContext,
         command: SubmitIntegration,
     ) -> Result<ValidatedSubmission, ApplicationError> {
-        self.validate_web(context)?;
+        self.validate_node_web(context)?;
         if context.actor_id.as_deref().is_none_or(|actor_id| {
             actor_id.trim().is_empty()
                 || actor_id.len() > 256
@@ -308,7 +311,7 @@ impl IntegrationService for DurableIntegrationService {
         run_id: &RunId,
     ) -> Result<CommandRunStatus, ApplicationError> {
         let status = self
-            .surface(&context)?
+            .open_operator_commands(&context)?
             .status(run_id)
             .await
             .map_err(ApplicationError::from_command)?;
@@ -324,21 +327,21 @@ impl IntegrationService for DurableIntegrationService {
         connector_id: Option<&str>,
         run_id: &RunId,
     ) -> Result<PublishedCancellation, ApplicationError> {
-        let surface = self.surface(&context)?;
-        let status = surface
+        let commands = self.open_operator_commands(&context)?;
+        let status = commands
             .status(run_id)
             .await
             .map_err(ApplicationError::from_command)?;
         if let Some(connector_id) = connector_id {
             require_matching_integration(&context.web_id, connector_id, &status.integration_id)?;
         }
-        surface
+        commands
             .cancel(run_id)
             .await
             .map_err(ApplicationError::from_command)
     }
 
-    async fn put_managed(
+    async fn put_definition(
         &self,
         context: RequestContext,
         connector_id: &str,
@@ -350,7 +353,7 @@ impl IntegrationService for DurableIntegrationService {
             .actor_id
             .as_deref()
             .ok_or_else(|| ApplicationError::invalid("an authenticated owner actor is required"))?;
-        self.managed()?
+        self.open_definition_store()?
             .put_definition(
                 &context.web_id,
                 connector_id,
@@ -363,31 +366,31 @@ impl IntegrationService for DurableIntegrationService {
             .map_err(ApplicationError::from_managed)
     }
 
-    async fn get_managed(
+    async fn get_definition(
         &self,
         context: RequestContext,
         connector_id: &str,
     ) -> Result<ManagedDefinition, ApplicationError> {
-        self.managed()?
+        self.open_definition_store()?
             .get_definition(&context.web_id, connector_id)
             .await
             .map_err(ApplicationError::from_managed)
     }
 
-    async fn set_managed_desired_state(
+    async fn set_definition_desired_state(
         &self,
         context: RequestContext,
         connector_id: &str,
         desired: ManagedDesiredState,
         expected_revision: &str,
     ) -> Result<ManagedDefinition, ApplicationError> {
-        self.managed()?
+        self.open_definition_store()?
             .set_desired_state(&context.web_id, connector_id, desired, expected_revision)
             .await
             .map_err(ApplicationError::from_managed)
     }
 
-    async fn bind_managed(
+    async fn bind_webhook_provider(
         &self,
         context: RequestContext,
         binding: ProviderBinding,
@@ -398,7 +401,7 @@ impl IntegrationService for DurableIntegrationService {
                 "binding web does not match route",
             ));
         }
-        self.managed()?
+        self.open_definition_store()?
             .bind(binding, secret)
             .await
             .map_err(ApplicationError::from_managed)
@@ -411,7 +414,7 @@ impl IntegrationService for DurableIntegrationService {
         headers: &BTreeMap<String, String>,
         body: &[u8],
     ) -> Result<IngressDisposition, ApplicationError> {
-        self.managed()?
+        self.open_definition_store()?
             .accept(
                 provider,
                 binding_id,

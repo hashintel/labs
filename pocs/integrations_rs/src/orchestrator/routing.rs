@@ -67,7 +67,7 @@ pub use crate::kernel::keyspace::Keyspace;
 /// the shard, lease, and log roots these compose with.
 pub trait TenantKeyspace: Sized {
     fn for_tenant(tenant: &super::ids::TenantNamespace) -> Self;
-    fn ready_receipt(&self, shard: Shard, run_id: &super::ids::RunId) -> String;
+    fn pending_submission(&self, shard: Shard, run_id: &super::ids::RunId) -> String;
     fn admission(&self, integration: &IntegrationPath) -> String;
     fn run_locator(&self, run_id: &super::ids::RunId) -> String;
     fn request(&self, shard: Shard, request_id: &super::ids::RequestId) -> String;
@@ -86,7 +86,7 @@ impl TenantKeyspace for Keyspace {
         Self::new(namespace)
     }
 
-    fn ready_receipt(&self, shard: Shard, run_id: &super::ids::RunId) -> String {
+    fn pending_submission(&self, shard: Shard, run_id: &super::ids::RunId) -> String {
         format!("{}/{}.json", self.ready_shard(shard), run_id)
     }
 

@@ -205,7 +205,7 @@ pub struct StoreVerification {
     pub full_document_validation: bool,
     pub objects_scanned: usize,
     pub known_shards: usize,
-    pub ready_receipts: usize,
+    pub pending_submissions: usize,
     pub admissions: usize,
     pub run_locators: usize,
     pub control_requests: usize,
@@ -435,7 +435,7 @@ pub async fn verify_store(
         full_document_validation: full,
         objects_scanned: objects.len(),
         known_shards: counts.known_shards,
-        ready_receipts: counts.ready_receipts,
+        pending_submissions: counts.pending_submissions,
         admissions: counts.admissions,
         run_locators: counts.run_locators,
         control_requests: counts.control_requests,
@@ -451,7 +451,7 @@ pub async fn verify_store(
 enum ControlInventoryClass {
     Baseline,
     KnownShard,
-    ReadyReceipt,
+    PendingSubmission,
     Admission,
     RunLocator,
     ControlRequest,
@@ -471,7 +471,7 @@ impl ControlInventoryClass {
             Self::Projection => 64 * 1024 * 1024,
             Self::Baseline
             | Self::KnownShard
-            | Self::ReadyReceipt
+            | Self::PendingSubmission
             | Self::Admission
             | Self::RunLocator
             | Self::ControlRequest
@@ -485,7 +485,7 @@ impl ControlInventoryClass {
 #[derive(Debug, Default)]
 struct ControlInventoryCounts {
     known_shards: usize,
-    ready_receipts: usize,
+    pending_submissions: usize,
     admissions: usize,
     run_locators: usize,
     control_requests: usize,
@@ -500,7 +500,7 @@ impl ControlInventoryCounts {
         match class {
             ControlInventoryClass::Baseline => {}
             ControlInventoryClass::KnownShard => self.known_shards += 1,
-            ControlInventoryClass::ReadyReceipt => self.ready_receipts += 1,
+            ControlInventoryClass::PendingSubmission => self.pending_submissions += 1,
             ControlInventoryClass::Admission => self.admissions += 1,
             ControlInventoryClass::RunLocator => self.run_locators += 1,
             ControlInventoryClass::ControlRequest => self.control_requests += 1,
@@ -523,7 +523,7 @@ fn classify_control_key(root: &str, key: &str) -> Option<ControlInventoryClass> 
             Some(ControlInventoryClass::KnownShard)
         }
         ["ready", shard, file] if canonical_shard(shard) && canonical_uuid_json(file) => {
-            Some(ControlInventoryClass::ReadyReceipt)
+            Some(ControlInventoryClass::PendingSubmission)
         }
         ["admissions", file] if canonical_digest_json(file) => {
             Some(ControlInventoryClass::Admission)

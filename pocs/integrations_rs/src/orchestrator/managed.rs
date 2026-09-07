@@ -361,7 +361,7 @@ pub enum ProviderEventRow {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AcceptedEvent {
-    pub receipt_key: String,
+    pub submission_key: String,
     pub receipt: WebhookReceipt,
     pub row: ProviderEventRow,
 }
@@ -389,12 +389,12 @@ impl StreamMicroBatch {
             (
                 &left.receipt.accepted_at,
                 &left.receipt.delivery_id,
-                &left.receipt_key,
+                &left.submission_key,
             )
                 .cmp(&(
                     &right.receipt.accepted_at,
                     &right.receipt.delivery_id,
-                    &right.receipt_key,
+                    &right.submission_key,
                 ))
         });
         let first = &events[0].receipt;
@@ -933,7 +933,7 @@ impl ManagedStore {
                 accepted_at: now_rfc3339(now_unix_seconds),
                 headers: safe_headers.clone(),
             };
-            let key = receipt_key(
+            let key = submission_key(
                 &target.web_id,
                 &target.connector_id,
                 provider,
@@ -999,7 +999,7 @@ impl ManagedStore {
                 .map_err(|error| ManagedError::Storage(error.to_string()))?;
             let row = provider_row(&receipt, &bytes)?;
             events.push(AcceptedEvent {
-                receipt_key: object.key,
+                submission_key: object.key,
                 receipt,
                 row,
             });
@@ -1008,12 +1008,12 @@ impl ManagedStore {
             (
                 &left.receipt.accepted_at,
                 &left.receipt.delivery_id,
-                &left.receipt_key,
+                &left.submission_key,
             )
                 .cmp(&(
                     &right.receipt.accepted_at,
                     &right.receipt.delivery_id,
-                    &right.receipt_key,
+                    &right.submission_key,
                 ))
         });
         Ok(events)
@@ -1575,7 +1575,7 @@ fn route_key(provider: WebhookProvider, external_id: &str) -> String {
     )
 }
 
-fn receipt_key(web: &str, connector: &str, provider: WebhookProvider, delivery: &str) -> String {
+fn submission_key(web: &str, connector: &str, provider: WebhookProvider, delivery: &str) -> String {
     format!(
         "managed/receipts/{web}/{connector}/{}/{}.json",
         provider.as_str(),

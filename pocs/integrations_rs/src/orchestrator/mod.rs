@@ -57,9 +57,10 @@ pub use port::{
     SharedExecutionContext, SharedRunHandler, SubmitOutcome, SubmitRun, WorkerHost,
 };
 pub use submission::{
-    admitted_run_record, delete_ready_receipt, discover_known_shards, discover_ready_receipts,
-    submit_durable, AdmissionPointer, AdmissionPointerV1, DiscoveredReadyReceipt, KnownShardMarker,
-    KnownShardMarkerV1, ReadyReceipt, ReadyReceiptV1, SubmitOutcome as DurableSubmitOutcome,
+    admitted_run_record, delete_pending_submission, discover_known_shards,
+    discover_pending_submissions, submit_durable, AdmissionPointer, AdmissionPointerV1,
+    DiscoveredPendingSubmission, KnownShardMarker, KnownShardMarkerV1, PendingSubmission,
+    PendingSubmissionV1, SubmitOutcome as DurableSubmitOutcome,
 };
 
 // Context for database, envelope or durable-worker failures; kernel-owned.

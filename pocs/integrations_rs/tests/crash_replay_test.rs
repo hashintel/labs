@@ -300,7 +300,7 @@ async fn lost_create_ack_converges_through_429_retry_conflict_and_patch() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-async fn cancellation_before_acceptance_promotes_the_exact_receipt() {
+async fn cancellation_before_acceptance_promotes_the_exact_submission() {
     let graph = MockServer::start().await;
     Mock::given(method("POST"))
         .and(path("/entities"))

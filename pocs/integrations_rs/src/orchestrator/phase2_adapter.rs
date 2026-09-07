@@ -41,7 +41,8 @@ use super::routing::{self, Keyspace, Shard};
 use super::shard_log::{start_recovered, RunView, ShardCommandConfig, ShardCommandHandle};
 use super::state::{start_state_hint_repairer, JournalStateAuthority, StateAuthority};
 use super::submission::{
-    admitted_run_record, delete_ready_receipt, discover_ready_receipts, submit_durable_for_run,
+    admitted_run_record, delete_pending_submission, discover_pending_submissions,
+    submit_durable_for_run,
 };
 use crate::blob::{ArtifactStore, BlobRef, BoundedCasDocument, CasWrite};
 
@@ -190,7 +191,7 @@ impl Phase2OpenDataOrchestrator {
         Ok(())
     }
 
-    async fn process_control_before_receipts(&self) -> Result<bool, OrchestratorError> {
+    async fn process_control_before_submissions(&self) -> Result<bool, OrchestratorError> {
         self.ensure_known_shards().await?;
         let runtimes = self
             .inner
@@ -214,23 +215,23 @@ impl Phase2OpenDataOrchestrator {
         Ok(processed)
     }
 
-    async fn promote_receipts(&self) -> Result<(), OrchestratorError> {
-        let receipts = discover_ready_receipts(&self.inner.store, &self.inner.tenant)
+    async fn promote_submissions(&self) -> Result<(), OrchestratorError> {
+        let submissions = discover_pending_submissions(&self.inner.store, &self.inner.tenant)
             .await
             .map_err(internal_report)?;
-        for receipt in receipts {
-            let runtime = self.runtime(receipt.shard).await?;
+        for submission in submissions {
+            let runtime = self.runtime(submission.shard).await?;
             if let Some(record) =
-                admitted_run_record(&self.inner.store, &self.inner.tenant, &receipt)
+                admitted_run_record(&self.inner.store, &self.inner.tenant, &submission)
                     .await
                     .map_err(internal_report)?
             {
                 runtime.handle.propose(record).await.map_err(internal)?;
-                delete_ready_receipt(
+                delete_pending_submission(
                     &self.inner.store,
                     &self.inner.tenant,
-                    receipt.shard,
-                    &receipt.receipt.run_id,
+                    submission.shard,
+                    &submission.submission.run_id,
                 )
                 .await
                 .map_err(internal_report)?;
@@ -257,7 +258,7 @@ impl Phase2OpenDataOrchestrator {
         let Some(integration) = self.locate(run_id).await? else {
             return Ok(None);
         };
-        Box::pin(self.promote_receipts()).await?;
+        Box::pin(self.promote_submissions()).await?;
         self.runtime(routing::shard(&integration))
             .await?
             .handle
@@ -349,7 +350,7 @@ impl RunSubmission for Phase2OpenDataOrchestrator {
         self.inner.changed.notify_waiters();
         Ok(SubmitOutcome {
             run_id: outcome.run_id,
-            initial_revision: outcome.initial_revision,
+            acceptance_event_id: outcome.acceptance_event_id,
             created: outcome.created,
         })
     }
@@ -485,11 +486,11 @@ impl WorkerHost for Phase2OpenDataOrchestrator {
         loop {
             // Startup replay is completed by runtime construction. Live work
             // blocks `next_runnable_run`; control recovery then precedes fresh
-            // receipt promotion, matching the normative recovery priority.
-            if Box::pin(self.process_control_before_receipts()).await? {
+            // submission promotion, matching the normative recovery priority.
+            if Box::pin(self.process_control_before_submissions()).await? {
                 continue;
             }
-            Box::pin(self.promote_receipts()).await?;
+            Box::pin(self.promote_submissions()).await?;
             let runtimes = self
                 .inner
                 .shards
@@ -909,7 +910,7 @@ mod tests {
             _input: RunInput,
             _context: SharedExecutionContext,
         ) -> Result<RunOutput, ExecutionError> {
-            panic!("control recovery must run before the newly admitted receipt")
+            panic!("control recovery must run before the newly admitted submission")
         }
     }
 
@@ -954,8 +955,11 @@ mod tests {
                 max_handler_failures: NonZeroU32::MIN,
             },
         };
-        first.submit_run(submission).await.expect("submit receipt");
-        Box::pin(first.promote_receipts())
+        first
+            .submit_run(submission)
+            .await
+            .expect("submit submission");
+        Box::pin(first.promote_submissions())
             .await
             .expect("durable RunAccepted");
         first.shutdown_shards().await.expect("close first writer");
@@ -1020,7 +1024,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn recovered_control_is_resolved_before_a_new_receipt_can_start() {
+    async fn recovered_control_is_resolved_before_a_new_submission_can_start() {
         let backend = Phase2OpenDataOrchestrator::new().expect("create adapter");
         let run_id = RunId::parse("00000100-0000-4000-8000-000000000001").expect("valid run ID");
         let integration =
@@ -1039,7 +1043,7 @@ mod tests {
                 },
             })
             .await
-            .expect("submit pending receipt");
+            .expect("submit pending submission");
         let definition = backend
             .publish(b"\"pipeline: disabled\"", ".json", "application/json")
             .await
@@ -1078,7 +1082,7 @@ mod tests {
             }
         })
         .await
-        .expect("disabled receipt becomes queued");
+        .expect("disabled submission becomes queued");
         assert_eq!(status.attempt, 0);
         shutdown.cancel();
         worker.await.expect("worker joins").expect("worker exits");

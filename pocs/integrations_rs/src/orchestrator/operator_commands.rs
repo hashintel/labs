@@ -79,7 +79,7 @@ pub struct PublishedCancellation {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct CommandSubmission {
     pub run_id: RunId,
-    pub initial_revision: EventId,
+    pub acceptance_event_id: EventId,
     pub created: bool,
 }
 
@@ -248,7 +248,7 @@ impl OperatorCommands {
         .change_context(OperatorCommandError::SubmitRun)?;
         Ok(CommandSubmission {
             run_id: outcome.run_id,
-            initial_revision: outcome.initial_revision,
+            acceptance_event_id: outcome.acceptance_event_id,
             created: outcome.created,
         })
     }
@@ -453,7 +453,8 @@ mod tests {
     use crate::orchestrator::ids::derive_attempt_id;
     use crate::orchestrator::shard_log::{start_recovered, ShardCommandConfig};
     use crate::orchestrator::submission::{
-        admitted_run_record, delete_ready_receipt, discover_ready_receipts, submit_durable_for_run,
+        admitted_run_record, delete_pending_submission, discover_pending_submissions,
+        submit_durable_for_run,
     };
 
     fn env(remote: &tempfile::TempDir, cache: &tempfile::TempDir) -> Env {
@@ -499,7 +500,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn pending_status_and_cancel_use_only_v1_receipts_and_control_inbox() {
+    async fn pending_status_and_cancel_use_only_v1_submissions_and_control_inbox() {
         let remote = tempfile::tempdir().unwrap();
         let cache = tempfile::tempdir().unwrap();
         let env = env(&remote, &cache);
@@ -521,7 +522,7 @@ mod tests {
         .await
         .unwrap();
         let surface = OperatorCommands::open(&env).unwrap();
-        delete_ready_receipt(
+        delete_pending_submission(
             &store,
             &tenant,
             super::super::routing::shard(&integration),
@@ -531,11 +532,11 @@ mod tests {
         .unwrap();
 
         // The immutable locator plus active admission bridge the interval
-        // after receipt deletion but before a separate read-only journal
+        // after submission deletion but before a separate read-only journal
         // reader observes RunAccepted.
         let status = surface.status(&run_id).await.unwrap();
         assert_eq!(status.state, CommandRunState::AdmissionPending);
-        assert_eq!(status.revision, submitted.initial_revision);
+        assert_eq!(status.revision, submitted.acceptance_event_id);
         let first = surface.cancel(&run_id).await.unwrap();
         let retry = surface.cancel(&run_id).await.unwrap();
         assert_eq!(first, retry);
@@ -570,12 +571,12 @@ mod tests {
         )
         .await
         .unwrap();
-        let receipt = discover_ready_receipts(&store, &tenant)
+        let submission = discover_pending_submissions(&store, &tenant)
             .await
             .unwrap()
             .pop()
             .unwrap();
-        let accepted = admitted_run_record(&store, &tenant, &receipt)
+        let accepted = admitted_run_record(&store, &tenant, &submission)
             .await
             .unwrap()
             .unwrap();
@@ -589,7 +590,7 @@ mod tests {
             .await
             .unwrap();
         started.handle.propose(accepted).await.unwrap();
-        delete_ready_receipt(&store, &tenant, receipt.shard, &run_id)
+        delete_pending_submission(&store, &tenant, submission.shard, &run_id)
             .await
             .unwrap();
 

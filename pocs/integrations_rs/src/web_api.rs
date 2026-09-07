@@ -129,7 +129,7 @@ pub struct InvocationRequest {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SubmitRunResponse {
     pub run_id: String,
-    pub initial_revision: String,
+    pub acceptance_event_id: String,
     pub created: bool,
 }
 
@@ -283,7 +283,7 @@ pub fn router(service: Arc<dyn IntegrationService>) -> axum::Router {
         )
         .api_route(
             "/v1/webs/{web_id}/integrations/{connector_id}",
-            get(get_managed).put(put_managed),
+            get(get_definition).put(put_definition),
         )
         .api_route(
             "/v1/webs/{web_id}/integrations/{connector_id}/desired-state",
@@ -291,7 +291,7 @@ pub fn router(service: Arc<dyn IntegrationService>) -> axum::Router {
         )
         .api_route(
             "/v1/webs/{web_id}/integrations/{connector_id}/bindings",
-            post(bind_managed),
+            post(bind_webhook_provider),
         )
         .api_route("/v1/hooks/github", post(github_hook))
         .api_route("/v1/hooks/slack", post(slack_hook))
@@ -322,7 +322,7 @@ pub fn router(service: Arc<dyn IntegrationService>) -> axum::Router {
         .with_state(ApiState { service })
 }
 
-async fn put_managed(
+async fn put_definition(
     State(state): State<ApiState>,
     Path((web_id, connector_id)): Path<(String, String)>,
     headers: RequestHeaders,
@@ -332,7 +332,7 @@ async fn put_managed(
     let created = request.expected_revision.is_none();
     let definition = state
         .service
-        .put_managed(
+        .put_definition(
             context,
             &connector_id,
             request.definition,
@@ -350,13 +350,13 @@ async fn put_managed(
     ))
 }
 
-async fn get_managed(
+async fn get_definition(
     State(state): State<ApiState>,
     Path((web_id, connector_id)): Path<(String, String)>,
     headers: RequestHeaders,
 ) -> Result<Json<Value>, ApiError> {
     let context = request_context(web_id, &headers.0)?;
-    let definition = state.service.get_managed(context, &connector_id).await?;
+    let definition = state.service.get_definition(context, &connector_id).await?;
     Ok(Json(
         serde_json::to_value(definition).expect("managed definition serializes"),
     ))
@@ -380,14 +380,14 @@ async fn patch_desired_state(
     };
     let definition = state
         .service
-        .set_managed_desired_state(context, &connector_id, desired, &request.expected_revision)
+        .set_definition_desired_state(context, &connector_id, desired, &request.expected_revision)
         .await?;
     Ok(Json(
         serde_json::to_value(definition).expect("managed definition serializes"),
     ))
 }
 
-async fn bind_managed(
+async fn bind_webhook_provider(
     State(state): State<ApiState>,
     Path((web_id, connector_id)): Path<(String, String)>,
     headers: RequestHeaders,
@@ -411,7 +411,10 @@ async fn bind_managed(
     let secret = request
         .secret
         .map(|value| crate::secret::Secret::new(value.into_bytes()));
-    state.service.bind_managed(context, binding, secret).await?;
+    state
+        .service
+        .bind_webhook_provider(context, binding, secret)
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -611,7 +614,7 @@ impl From<CommandSubmission> for SubmitRunResponse {
     fn from(value: CommandSubmission) -> Self {
         Self {
             run_id: value.run_id.to_string(),
-            initial_revision: value.initial_revision.to_string(),
+            acceptance_event_id: value.acceptance_event_id.to_string(),
             created: value.created,
         }
     }
@@ -681,7 +684,7 @@ mod tests {
                 .push((context, command.connector_id));
             Ok(CommandSubmission {
                 run_id: RunId::parse("00000000-0000-4000-8000-000000000001").unwrap(),
-                initial_revision: EventId::parse("a".repeat(64)).unwrap(),
+                acceptance_event_id: EventId::parse("a".repeat(64)).unwrap(),
                 created: true,
             })
         }
@@ -741,7 +744,7 @@ mod tests {
             Err(ApplicationError::invalid("not used"))
         }
 
-        async fn put_managed(
+        async fn put_definition(
             &self,
             context: RequestContext,
             connector_id: &str,
@@ -762,7 +765,7 @@ mod tests {
                 .map_err(managed_error)
         }
 
-        async fn get_managed(
+        async fn get_definition(
             &self,
             context: RequestContext,
             connector_id: &str,
@@ -773,7 +776,7 @@ mod tests {
                 .map_err(managed_error)
         }
 
-        async fn set_managed_desired_state(
+        async fn set_definition_desired_state(
             &self,
             context: RequestContext,
             connector_id: &str,
@@ -786,7 +789,7 @@ mod tests {
                 .map_err(managed_error)
         }
 
-        async fn bind_managed(
+        async fn bind_webhook_provider(
             &self,
             _context: RequestContext,
             binding: ProviderBinding,

@@ -210,7 +210,7 @@ impl RunSubmission for InMemoryOrchestrator {
             }
             return Ok(SubmitOutcome {
                 run_id: request.run_id,
-                initial_revision: initial_revision(&existing.submission)?,
+                acceptance_event_id: acceptance_event_id(&existing.submission)?,
                 created: false,
             });
         }
@@ -222,13 +222,13 @@ impl RunSubmission for InMemoryOrchestrator {
             if !winner.state.is_terminal() {
                 return Ok(SubmitOutcome {
                     run_id: winner_id,
-                    initial_revision: initial_revision(&winner.submission)?,
+                    acceptance_event_id: acceptance_event_id(&winner.submission)?,
                     created: false,
                 });
             }
             state.admissions.remove(&request.integration_id);
         }
-        let revision = initial_revision(&request)?;
+        let revision = acceptance_event_id(&request)?;
         state
             .admissions
             .insert(request.integration_id.clone(), request.run_id.clone());
@@ -251,7 +251,7 @@ impl RunSubmission for InMemoryOrchestrator {
         self.inner.changed.notify_one();
         Ok(SubmitOutcome {
             run_id: request.run_id,
-            initial_revision: revision,
+            acceptance_event_id: revision,
             created: true,
         })
     }
@@ -555,7 +555,7 @@ fn failure(code: &str, message: String, retryable: bool) -> FailureSummary {
     }
 }
 
-fn initial_revision(request: &SubmitRun) -> Result<EventId, OrchestratorError> {
+fn acceptance_event_id(request: &SubmitRun) -> Result<EventId, OrchestratorError> {
     #[derive(Serialize)]
     struct InitialRevision<'a> {
         run_id: &'a RunId,

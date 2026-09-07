@@ -94,7 +94,10 @@ async fn submission_status_and_controls(backend: Arc<dyn Orchestrator>) {
     let attached = backend.submit_run(loser).await.expect("attach to winner");
     assert!(!attached.created);
     assert_eq!(attached.run_id, first.run_id);
-    assert_eq!(attached.initial_revision, first_outcome.initial_revision);
+    assert_eq!(
+        attached.acceptance_event_id,
+        first_outcome.acceptance_event_id
+    );
     assert_eq!(
         backend
             .run_status(&first.run_id)
@@ -110,7 +113,7 @@ async fn submission_status_and_controls(backend: Arc<dyn Orchestrator>) {
         integration_id: integration.clone(),
         kind: ControlCommandKind::CancelRun {
             run_id: first.run_id.clone(),
-            expected_revision: first_outcome.initial_revision,
+            expected_revision: first_outcome.acceptance_event_id,
         },
     };
     let cancelled = backend.request(cancel.clone()).await.expect("cancel run");

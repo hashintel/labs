@@ -37,7 +37,9 @@ use super::shard_log::{
     ControlRequestSnapshot, ShardCommandError, ShardCommandErrorKind, ShardCommandHandle,
 };
 use super::submission::ensure_known_shard_marker;
-use super::submission::{admitted_run_record, delete_ready_receipt, exact_admitted_ready_receipt};
+use super::submission::{
+    admitted_run_record, delete_pending_submission, exact_admitted_pending_submission,
+};
 use super::work::WorkKind;
 use crate::blob::{ArtifactStore, BoundedCasDocument, CasWrite};
 
@@ -448,7 +450,7 @@ impl ControlInbox {
 
         if preflight_rejection.is_none() && !snapshot.target_exists {
             if let ControlCommandV1::CancelRun(CancelRunV1 { run_id, .. }) = &request.command {
-                if let Some(receipt) = exact_admitted_ready_receipt(
+                if let Some(submission) = exact_admitted_pending_submission(
                     &self.store,
                     &self.tenant,
                     &request.integration_id,
@@ -457,7 +459,7 @@ impl ControlInbox {
                 .await
                 .change_context(InboxError::AdmissionStorage)?
                 {
-                    let record = admitted_run_record(&self.store, &self.tenant, &receipt)
+                    let record = admitted_run_record(&self.store, &self.tenant, &submission)
                         .await
                         .change_context(InboxError::AdmissionStorage)?
                         .ok_or_else(|| Report::new(InboxError::AdmissionChanged))?;
@@ -465,18 +467,18 @@ impl ControlInbox {
                         .propose(record)
                         .await
                         .change_context(InboxError::ShardCommand)?;
-                    if let Err(error) = delete_ready_receipt(
+                    if let Err(error) = delete_pending_submission(
                         &self.store,
                         &self.tenant,
-                        receipt.shard,
-                        &receipt.receipt.run_id,
+                        submission.shard,
+                        &submission.submission.run_id,
                     )
                     .await
                     {
                         tracing::warn!(
-                            run_id = %receipt.receipt.run_id,
+                            run_id = %submission.submission.run_id,
                             error = ?error,
-                            "ready receipt deletion failed after durable cancellation promotion"
+                            "pending submission deletion failed after durable cancellation promotion"
                         );
                     }
                 }

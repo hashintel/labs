@@ -1803,7 +1803,7 @@ mod tests {
     }
 
     #[test]
-    fn stale_desired_request_can_observe_the_explicit_initial_revision() {
+    fn stale_desired_request_can_observe_the_explicit_acceptance_event_id() {
         let expected = digest_id('a', EventId::parse);
         let rejected = record(JournalEventV1::ControlRequestRejected(
             ControlRequestRejectedV1 {

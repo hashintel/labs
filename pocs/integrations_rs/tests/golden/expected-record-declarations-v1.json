@@ -206,7 +206,7 @@
       "migration": "pure_upcast"
     },
     {
-      "name": "ready_receipt",
+      "name": "pending_submission",
       "owningModule": "orchestrator::submission",
       "emittedVersion": 1,
       "supportedVersions": [1],

@@ -1,4 +1,4 @@
-//! Durable submission receipts and admission pointers.
+//! Saved submissions awaiting journal acceptance and their admission pointers.
 
 use crate::orchestrator::routing::TenantKeyspace as _;
 use error_stack::{Report, ResultExt as _};
@@ -26,7 +26,7 @@ use super::routing::{self, shard_path, Keyspace, Shard, ROUTING_VERSION};
 use super::DurableError;
 
 const MAX_KNOWN_SHARD_MARKER_BYTES: usize = 4 * 1024;
-const MAX_READY_RECEIPT_BYTES: usize = 256 * 1024;
+const MAX_PENDING_SUBMISSION_BYTES: usize = 256 * 1024;
 const MAX_ADMISSION_POINTER_BYTES: usize = 16 * 1024;
 const MAX_ADMISSION_ATTEMPTS: usize = 8;
 
@@ -62,8 +62,8 @@ pub(crate) static KNOWN_SHARD_MARKER_DECLARATION: RecordDeclaration = RecordDecl
     migration: MigrationPolicy::PureUpcast,
 };
 
-pub(crate) static READY_RECEIPT_DECLARATION: RecordDeclaration = RecordDeclaration {
-    name: "ready_receipt",
+pub(crate) static PENDING_SUBMISSION_DECLARATION: RecordDeclaration = RecordDeclaration {
+    name: "pending_submission",
     owning_module: "orchestrator::submission",
     emitted_version: 1,
     supported_versions: &[1],
@@ -115,15 +115,16 @@ impl KnownShardMarker {
     }
 }
 
+/// A saved request that the worker can turn into a `RunAccepted` event.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "version", content = "data", rename_all = "snake_case")]
-pub enum ReadyReceipt {
-    V1(ReadyReceiptV1),
+pub enum PendingSubmission {
+    V1(PendingSubmissionV1),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ReadyReceiptV1 {
+pub struct PendingSubmissionV1 {
     pub integration_id: CanonicalIntegrationId,
     pub run_id: RunId,
     pub immutable_input: InputRef,
@@ -132,7 +133,7 @@ pub struct ReadyReceiptV1 {
     pub submitted_at: String,
 }
 
-impl ReadyReceiptV1 {
+impl PendingSubmissionV1 {
     pub fn new(
         integration_id: CanonicalIntegrationId,
         run_id: RunId,
@@ -141,7 +142,7 @@ impl ReadyReceiptV1 {
         submitted_at: String,
     ) -> Result<Self, CompatError> {
         let immutable_input_digest = immutable_input_digest(&immutable_input)?;
-        let receipt = Self {
+        let submission = Self {
             integration_id,
             run_id,
             immutable_input,
@@ -149,8 +150,8 @@ impl ReadyReceiptV1 {
             policy,
             submitted_at,
         };
-        validate_ready_receipt(&receipt)?;
-        Ok(receipt)
+        validate_pending_submission(&submission)?;
+        Ok(submission)
     }
 
     pub fn run_accepted_record(&self) -> Result<JournalRecordV1, CompatError> {
@@ -165,27 +166,28 @@ impl ReadyReceiptV1 {
         )
     }
 
-    pub fn initial_revision(&self) -> Result<EventId, CompatError> {
+    /// Identifies the acceptance event before it is appended to the journal.
+    pub fn acceptance_event_id(&self) -> Result<EventId, CompatError> {
         self.run_accepted_record().map(|record| record.event_id)
     }
 }
 
-impl ReadyReceipt {
-    pub fn into_current(self) -> Result<ReadyReceiptV1, CompatError> {
-        let Self::V1(receipt) = self;
-        validate_ready_receipt(&receipt)?;
-        Ok(receipt)
+impl PendingSubmission {
+    pub fn into_current(self) -> Result<PendingSubmissionV1, CompatError> {
+        let Self::V1(submission) = self;
+        validate_pending_submission(&submission)?;
+        Ok(submission)
     }
 
-    pub fn try_current(&self) -> Result<&ReadyReceiptV1, CompatError> {
-        let receipt = self.wire();
-        validate_ready_receipt(receipt)?;
-        Ok(receipt)
+    pub fn try_current(&self) -> Result<&PendingSubmissionV1, CompatError> {
+        let submission = self.wire();
+        validate_pending_submission(submission)?;
+        Ok(submission)
     }
 
-    fn wire(&self) -> &ReadyReceiptV1 {
+    fn wire(&self) -> &PendingSubmissionV1 {
         match self {
-            Self::V1(receipt) => receipt,
+            Self::V1(submission) => submission,
         }
     }
 }
@@ -201,9 +203,9 @@ pub enum AdmissionPointer {
 pub struct AdmissionPointerV1 {
     pub integration_id: CanonicalIntegrationId,
     pub run_id: RunId,
-    pub receipt_key: String,
+    pub submission_key: String,
     pub immutable_input_digest: String,
-    pub initial_revision: EventId,
+    pub acceptance_event_id: EventId,
     pub submitted_at: String,
     pub state: AdmissionPointerStateV1,
 }
@@ -216,14 +218,17 @@ pub enum AdmissionPointerStateV1 {
 }
 
 impl AdmissionPointerV1 {
-    fn from_receipt(receipt: &ReadyReceiptV1, receipt_key: String) -> Result<Self, CompatError> {
+    fn from_submission(
+        submission: &PendingSubmissionV1,
+        submission_key: String,
+    ) -> Result<Self, CompatError> {
         let pointer = Self {
-            integration_id: receipt.integration_id.clone(),
-            run_id: receipt.run_id.clone(),
-            receipt_key,
-            immutable_input_digest: receipt.immutable_input_digest.clone(),
-            initial_revision: receipt.initial_revision()?,
-            submitted_at: receipt.submitted_at.clone(),
+            integration_id: submission.integration_id.clone(),
+            run_id: submission.run_id.clone(),
+            submission_key,
+            immutable_input_digest: submission.immutable_input_digest.clone(),
+            acceptance_event_id: submission.acceptance_event_id()?,
+            submitted_at: submission.submitted_at.clone(),
             state: AdmissionPointerStateV1::Active,
         };
         validate_admission_pointer(&pointer)?;
@@ -254,15 +259,15 @@ impl AdmissionPointer {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SubmitOutcome {
     pub run_id: RunId,
-    pub initial_revision: EventId,
+    pub acceptance_event_id: EventId,
     pub created: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct DiscoveredReadyReceipt {
+pub struct DiscoveredPendingSubmission {
     pub key: String,
     pub shard: Shard,
-    pub receipt: ReadyReceiptV1,
+    pub submission: PendingSubmissionV1,
 }
 
 pub async fn submit_durable(
@@ -304,7 +309,7 @@ pub(crate) async fn submit_durable_for_run(
     let paths = Keyspace::for_tenant(tenant);
     ensure_known_shard_marker(store, &paths, routed.shard).await?;
 
-    let receipt = ReadyReceiptV1::new(
+    let submission = PendingSubmissionV1::new(
         integration_id,
         run_id,
         immutable_input,
@@ -312,11 +317,11 @@ pub(crate) async fn submit_durable_for_run(
         submitted_at,
     )
     .change_context(DurableError)?;
-    let receipt_key = paths.ready_receipt(routed.shard, &receipt.run_id);
-    let receipt_record = ReadyReceipt::V1(receipt.clone());
-    create_ready_receipt(store, &receipt_key, &receipt_record).await?;
+    let submission_key = paths.pending_submission(routed.shard, &submission.run_id);
+    let submission_record = PendingSubmission::V1(submission.clone());
+    create_pending_submission(store, &submission_key, &submission_record).await?;
 
-    let proposed = AdmissionPointerV1::from_receipt(&receipt, receipt_key)
+    let proposed = AdmissionPointerV1::from_submission(&submission, submission_key)
         .map(AdmissionPointer::V1)
         .change_context(DurableError)?;
     let admission_key = paths.admission(&routed.integration_path);
@@ -334,7 +339,7 @@ pub(crate) async fn submit_durable_for_run(
             {
                 return outcome_from_pointer(
                     &paths,
-                    &receipt.integration_id,
+                    &submission.integration_id,
                     routed.shard,
                     winner,
                     false,
@@ -347,7 +352,7 @@ pub(crate) async fn submit_durable_for_run(
                 CasWrite::Written(_) => {
                     return outcome_from_pointer(
                         &paths,
-                        &receipt.integration_id,
+                        &submission.integration_id,
                         routed.shard,
                         proposed.clone(),
                         true,
@@ -375,7 +380,7 @@ pub(crate) async fn submit_durable_for_run(
                 if winner == proposed {
                     return outcome_from_pointer(
                         &paths,
-                        &receipt.integration_id,
+                        &submission.integration_id,
                         routed.shard,
                         winner,
                         true,
@@ -386,7 +391,7 @@ pub(crate) async fn submit_durable_for_run(
                 {
                     return outcome_from_pointer(
                         &paths,
-                        &receipt.integration_id,
+                        &submission.integration_id,
                         routed.shard,
                         winner,
                         false,
@@ -477,44 +482,44 @@ pub(crate) async fn retire_admission_for_terminal_runs(
         .attach_printable("admission pointer remained unstable while retiring a terminal run"))
 }
 
-pub async fn discover_ready_receipts(
+pub async fn discover_pending_submissions(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
-) -> Result<Vec<DiscoveredReadyReceipt>, Report<DurableError>> {
+) -> Result<Vec<DiscoveredPendingSubmission>, Report<DurableError>> {
     let paths = Keyspace::for_tenant(tenant);
     let mut discovered = Vec::new();
     let mut objects = store
         .list(&paths.ready())
         .await
         .change_context(DurableError)
-        .attach_printable("list ready receipts")?;
+        .attach_printable("list pending submissions")?;
     objects.sort_by(|left, right| left.key.cmp(&right.key));
     for object in objects {
-        let Some((shard, path_run_id)) = parse_ready_receipt_key(&paths, &object.key) else {
+        let Some((shard, path_run_id)) = parse_pending_submission_key(&paths, &object.key) else {
             tracing::warn!(
                 key = %object.key,
-                "ignoring non-canonical object under ready receipt prefix"
+                "ignoring non-canonical object under pending submission prefix"
             );
             continue;
         };
         let Some((record, _version)) =
-            read_record::<ReadyReceipt>(store, &object.key, MAX_READY_RECEIPT_BYTES)
+            read_record::<PendingSubmission>(store, &object.key, MAX_PENDING_SUBMISSION_BYTES)
                 .await
                 .change_context(DurableError)?
         else {
             continue;
         };
-        let receipt = record.into_current().change_context(DurableError)?;
-        if receipt.run_id != path_run_id || routing::shard(&receipt.integration_id) != shard {
+        let submission = record.into_current().change_context(DurableError)?;
+        if submission.run_id != path_run_id || routing::shard(&submission.integration_id) != shard {
             return Err(Report::new(DurableError).attach_printable(format!(
-                "ready receipt {:?} disagrees with its canonical path",
+                "pending submission {:?} disagrees with its canonical path",
                 object.key
             )));
         }
-        discovered.push(DiscoveredReadyReceipt {
+        discovered.push(DiscoveredPendingSubmission {
             key: object.key,
             shard,
-            receipt,
+            submission,
         });
     }
     Ok(discovered)
@@ -584,15 +589,15 @@ pub async fn discover_known_shards(
 pub async fn admitted_run_record(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
-    discovered: &DiscoveredReadyReceipt,
+    discovered: &DiscoveredPendingSubmission,
 ) -> Result<Option<JournalRecordV1>, Report<DurableError>> {
-    if routing::shard(&discovered.receipt.integration_id) != discovered.shard {
+    if routing::shard(&discovered.submission.integration_id) != discovered.shard {
         return Err(Report::new(DurableError)
-            .attach_printable("discovered receipt integration disagrees with its shard"));
+            .attach_printable("discovered submission integration disagrees with its shard"));
     }
     let paths = Keyspace::for_tenant(tenant);
     let admission_key = paths.admission(&routing::integration_path(
-        &discovered.receipt.integration_id,
+        &discovered.submission.integration_id,
     ));
     let Some((pointer, _version)) =
         read_mutable_record::<AdmissionPointer>(store, &admission_key, MAX_ADMISSION_POINTER_BYTES)
@@ -603,38 +608,38 @@ pub async fn admitted_run_record(
     };
     let pointer = pointer.into_current().change_context(DurableError)?;
     if pointer.state != AdmissionPointerStateV1::Active
-        || pointer.integration_id != discovered.receipt.integration_id
-        || pointer.run_id != discovered.receipt.run_id
+        || pointer.integration_id != discovered.submission.integration_id
+        || pointer.run_id != discovered.submission.run_id
     {
         return Ok(None);
     }
-    let initial_revision = discovered
-        .receipt
-        .initial_revision()
+    let acceptance_event_id = discovered
+        .submission
+        .acceptance_event_id()
         .change_context(DurableError)?;
-    if pointer.receipt_key != discovered.key
-        || pointer.immutable_input_digest != discovered.receipt.immutable_input_digest
-        || pointer.initial_revision != initial_revision
+    if pointer.submission_key != discovered.key
+        || pointer.immutable_input_digest != discovered.submission.immutable_input_digest
+        || pointer.acceptance_event_id != acceptance_event_id
     {
         return Err(Report::new(DurableError)
-            .attach_printable("admission pointer disagrees with the named ready receipt"));
+            .attach_printable("admission pointer disagrees with the named pending submission"));
     }
     discovered
-        .receipt
+        .submission
         .run_accepted_record()
         .map(Some)
         .change_context(DurableError)
 }
 
 /// Resolves cancellation-before-acceptance by following the integration's
-/// admission pointer to its exact immutable receipt. This avoids
+/// admission pointer to its exact immutable submission. This avoids
 /// LIST: object discovery order must never decide whether a run exists.
-pub(crate) async fn exact_admitted_ready_receipt(
+pub(crate) async fn exact_admitted_pending_submission(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
     integration_id: &CanonicalIntegrationId,
     run_id: &RunId,
-) -> Result<Option<DiscoveredReadyReceipt>, Report<DurableError>> {
+) -> Result<Option<DiscoveredPendingSubmission>, Report<DurableError>> {
     let routed = routing::route(integration_id);
     let paths = Keyspace::for_tenant(tenant);
     let admission_key = paths.admission(&routed.integration_path);
@@ -652,29 +657,33 @@ pub(crate) async fn exact_admitted_ready_receipt(
     {
         return Ok(None);
     }
-    let Some((path_shard, path_run_id)) = parse_ready_receipt_key(&paths, &pointer.receipt_key)
+    let Some((path_shard, path_run_id)) =
+        parse_pending_submission_key(&paths, &pointer.submission_key)
     else {
         return Err(Report::new(DurableError)
-            .attach_printable("admission pointer contains a noncanonical receipt key"));
+            .attach_printable("admission pointer contains a noncanonical submission key"));
     };
     if path_shard != routed.shard || path_run_id != *run_id {
         return Err(Report::new(DurableError).attach_printable(
-            "admission pointer receipt key disagrees with its integration shard or run ID",
+            "admission pointer submission key disagrees with its integration shard or run ID",
         ));
     }
-    let Some((receipt, _version)) =
-        read_record::<ReadyReceipt>(store, &pointer.receipt_key, MAX_READY_RECEIPT_BYTES)
-            .await
-            .change_context(DurableError)?
+    let Some((submission, _version)) = read_record::<PendingSubmission>(
+        store,
+        &pointer.submission_key,
+        MAX_PENDING_SUBMISSION_BYTES,
+    )
+    .await
+    .change_context(DurableError)?
     else {
         return Err(Report::new(DurableError)
-            .attach_printable("admission pointer names a missing ready receipt"));
+            .attach_printable("admission pointer names a missing pending submission"));
     };
-    let receipt = receipt.into_current().change_context(DurableError)?;
-    let discovered = DiscoveredReadyReceipt {
-        key: pointer.receipt_key,
+    let submission = submission.into_current().change_context(DurableError)?;
+    let discovered = DiscoveredPendingSubmission {
+        key: pointer.submission_key,
         shard: path_shard,
-        receipt,
+        submission,
     };
     let Some(_record) = admitted_run_record(store, tenant, &discovered).await? else {
         // The admission changed while it was being resolved. The caller must
@@ -684,8 +693,8 @@ pub(crate) async fn exact_admitted_ready_receipt(
     Ok(Some(discovered))
 }
 
-/// Returns the deterministic initial revision while this exact run still owns
-/// the integration's active admission. This remains available after receipt
+/// Returns the acceptance event ID while this exact run still owns
+/// the integration's active admission. This remains available after submission
 /// deletion and bridges read-only projection visibility lag without making
 /// the admission pointer an execution authority.
 pub(crate) async fn active_admission_revision(
@@ -711,21 +720,21 @@ pub(crate) async fn active_admission_revision(
     if pointer.state != AdmissionPointerStateV1::Active || &pointer.run_id != run_id {
         return Ok(None);
     }
-    Ok(Some(pointer.initial_revision))
+    Ok(Some(pointer.acceptance_event_id))
 }
 
-pub async fn delete_ready_receipt(
+pub async fn delete_pending_submission(
     store: &ArtifactStore,
     tenant: &TenantNamespace,
     shard: Shard,
     run_id: &RunId,
 ) -> Result<(), Report<DurableError>> {
-    let key = Keyspace::for_tenant(tenant).ready_receipt(shard, run_id);
+    let key = Keyspace::for_tenant(tenant).pending_submission(shard, run_id);
     store
         .delete_control(&key)
         .await
         .change_context(DurableError)
-        .attach_printable("delete remotely durable ready receipt")
+        .attach_printable("delete remotely durable pending submission")
 }
 
 pub(crate) async fn ensure_known_shard_marker(
@@ -777,24 +786,25 @@ fn outcome_from_pointer(
         return Err(Report::new(DurableError)
             .attach_printable("admission pointer names a different integration"));
     }
-    let Some((actual_shard, path_run_id)) = parse_ready_receipt_key(paths, &pointer.receipt_key)
+    let Some((actual_shard, path_run_id)) =
+        parse_pending_submission_key(paths, &pointer.submission_key)
     else {
         return Err(Report::new(DurableError)
-            .attach_printable("admission pointer contains a noncanonical receipt key"));
+            .attach_printable("admission pointer contains a noncanonical submission key"));
     };
     if actual_shard != expected_shard || path_run_id != pointer.run_id {
         return Err(Report::new(DurableError).attach_printable(
-            "admission pointer receipt key disagrees with its routed shard or run ID",
+            "admission pointer submission key disagrees with its routed shard or run ID",
         ));
     }
     Ok(SubmitOutcome {
         run_id: pointer.run_id,
-        initial_revision: pointer.initial_revision,
+        acceptance_event_id: pointer.acceptance_event_id,
         created,
     })
 }
 
-fn parse_ready_receipt_key(paths: &Keyspace, key: &str) -> Option<(Shard, RunId)> {
+fn parse_pending_submission_key(paths: &Keyspace, key: &str) -> Option<(Shard, RunId)> {
     let relative = key.strip_prefix(&format!("{}/", paths.ready()))?;
     let mut components = relative.split('/');
     let shard = components.next()?;
@@ -812,10 +822,10 @@ fn parse_ready_receipt_key(paths: &Keyspace, key: &str) -> Option<(Shard, RunId)
     Some((shard, run_id))
 }
 
-async fn create_ready_receipt(
+async fn create_pending_submission(
     store: &ArtifactStore,
     key: &str,
-    proposed: &ReadyReceipt,
+    proposed: &PendingSubmission,
 ) -> Result<(), Report<DurableError>> {
     match create_record(store, key, proposed)
         .await
@@ -823,22 +833,26 @@ async fn create_ready_receipt(
     {
         CasWrite::Written(_) | CasWrite::Conflict => {}
     }
-    let (actual, _version) = read_record::<ReadyReceipt>(store, key, MAX_READY_RECEIPT_BYTES)
-        .await
-        .change_context(DurableError)?
-        .ok_or_else(|| {
-            Report::new(DurableError).attach_printable("ready receipt missing after create")
-        })?;
+    let (actual, _version) =
+        read_record::<PendingSubmission>(store, key, MAX_PENDING_SUBMISSION_BYTES)
+            .await
+            .change_context(DurableError)?
+            .ok_or_else(|| {
+                Report::new(DurableError)
+                    .attach_printable("pending submission missing after create")
+            })?;
     let proposed = proposed.try_current().change_context(DurableError)?;
     let actual = actual.into_current().change_context(DurableError)?;
-    let same_semantic_receipt = actual.integration_id == proposed.integration_id
+    let same_semantic_submission = actual.integration_id == proposed.integration_id
         && actual.run_id == proposed.run_id
         && actual.immutable_input_digest == proposed.immutable_input_digest
-        && actual.initial_revision().change_context(DurableError)?
-            == proposed.initial_revision().change_context(DurableError)?;
-    if !same_semantic_receipt {
+        && actual.acceptance_event_id().change_context(DurableError)?
+            == proposed
+                .acceptance_event_id()
+                .change_context(DurableError)?;
+    if !same_semantic_submission {
         return Err(Report::new(DurableError).attach_printable(format!(
-            "immutable ready receipt at {key:?} conflicts with the proposed semantic identity"
+            "immutable pending submission at {key:?} conflicts with the proposed semantic identity"
         )));
     }
     Ok(())
@@ -859,23 +873,23 @@ fn validate_known_shard(marker: &KnownShardMarkerV1) -> Result<(), CompatError> 
     Ok(())
 }
 
-fn validate_ready_receipt(receipt: &ReadyReceiptV1) -> Result<(), CompatError> {
+fn validate_pending_submission(submission: &PendingSubmissionV1) -> Result<(), CompatError> {
     validate_timestamp(
-        ReadyReceipt::declaration().name,
+        PendingSubmission::declaration().name,
         "submitted_at",
-        &receipt.submitted_at,
+        &submission.submitted_at,
     )?;
-    let expected = immutable_input_digest(&receipt.immutable_input)?;
-    if receipt.immutable_input_digest != expected {
+    let expected = immutable_input_digest(&submission.immutable_input)?;
+    if submission.immutable_input_digest != expected {
         return Err(CompatError::Conflict {
-            name: ReadyReceipt::declaration().name,
+            name: PendingSubmission::declaration().name,
             message: format!(
                 "immutable_input_digest mismatch: expected {expected}, found {}",
-                receipt.immutable_input_digest
+                submission.immutable_input_digest
             ),
         });
     }
-    receipt.run_accepted_record()?;
+    submission.run_accepted_record()?;
     Ok(())
 }
 
@@ -890,36 +904,37 @@ fn validate_admission_pointer(pointer: &AdmissionPointerV1) -> Result<(), Compat
         "submitted_at",
         &pointer.submitted_at,
     )?;
-    if pointer.receipt_key.is_empty()
-        || pointer.receipt_key.len() > 4096
-        || pointer.receipt_key.chars().any(char::is_control)
-        || pointer.receipt_key.contains("..")
-        || pointer.receipt_key.contains('\\')
+    if pointer.submission_key.is_empty()
+        || pointer.submission_key.len() > 4096
+        || pointer.submission_key.chars().any(char::is_control)
+        || pointer.submission_key.contains("..")
+        || pointer.submission_key.contains('\\')
     {
         return Err(malformed(
             AdmissionPointer::declaration().name,
-            "receipt_key is not a bounded canonical object key".to_owned(),
+            "submission_key is not a bounded canonical object key".to_owned(),
         ));
     }
-    let Some((receipt_shard, receipt_run_id)) =
-        parse_ready_receipt_key_for_validation(&pointer.receipt_key)
+    let Some((submission_shard, submission_run_id)) =
+        parse_pending_submission_key_for_validation(&pointer.submission_key)
     else {
         return Err(malformed(
             AdmissionPointer::declaration().name,
-            "receipt_key is not a canonical ready-receipt key".to_owned(),
+            "submission_key is not a canonical pending-submission key".to_owned(),
         ));
     };
-    if receipt_shard != routing::shard(&pointer.integration_id) || receipt_run_id != pointer.run_id
+    if submission_shard != routing::shard(&pointer.integration_id)
+        || submission_run_id != pointer.run_id
     {
         return Err(CompatError::Conflict {
             name: AdmissionPointer::declaration().name,
-            message: "integration identity or run ID disagrees with the receipt key".to_owned(),
+            message: "integration identity or run ID disagrees with the submission key".to_owned(),
         });
     }
     Ok(())
 }
 
-fn parse_ready_receipt_key_for_validation(key: &str) -> Option<(Shard, RunId)> {
+fn parse_pending_submission_key_for_validation(key: &str) -> Option<(Shard, RunId)> {
     let ready = key.split_once("/ready/")?.1;
     let mut components = ready.split('/');
     let shard = components.next()?;
@@ -1022,35 +1037,38 @@ impl VersionedRecord for KnownShardMarker {
 
 impl PureUpcastRecord for KnownShardMarker {}
 
-impl DurableRecord for ReadyReceipt {
+impl DurableRecord for PendingSubmission {
     fn declaration() -> &'static RecordDeclaration {
-        &READY_RECEIPT_DECLARATION
+        &PENDING_SUBMISSION_DECLARATION
     }
     const MIGRATION_POLICY: MigrationPolicy = MigrationPolicy::PureUpcast;
 
     fn encode(&self) -> Result<Vec<u8>, CompatError> {
-        validate_ready_receipt(self.wire())?;
+        validate_pending_submission(self.wire())?;
         serde_json::to_vec(self)
             .map_err(|error| malformed(Self::declaration().name, error.to_string()))
     }
 
     fn decode(bytes: &[u8]) -> Result<Self, CompatError> {
-        let receipt: Self =
-            decode_submission_record(bytes, Self::declaration().name, MAX_READY_RECEIPT_BYTES)?;
-        validate_ready_receipt(receipt.wire())?;
-        Ok(receipt)
+        let submission: Self = decode_submission_record(
+            bytes,
+            Self::declaration().name,
+            MAX_PENDING_SUBMISSION_BYTES,
+        )?;
+        validate_pending_submission(submission.wire())?;
+        Ok(submission)
     }
 }
 
-impl VersionedRecord for ReadyReceipt {
-    type Current = ReadyReceiptV1;
+impl VersionedRecord for PendingSubmission {
+    type Current = PendingSubmissionV1;
 
     fn normalize(self) -> Result<Self::Current, CompatError> {
         Self::into_current(self)
     }
 }
 
-impl PureUpcastRecord for ReadyReceipt {}
+impl PureUpcastRecord for PendingSubmission {}
 
 impl DurableRecord for AdmissionPointer {
     fn declaration() -> &'static RecordDeclaration {
@@ -1154,15 +1172,15 @@ mod tests {
         }
     }
 
-    fn fixed_receipt() -> ReadyReceiptV1 {
-        ReadyReceiptV1::new(
+    fn fixed_submission() -> PendingSubmissionV1 {
+        PendingSubmissionV1::new(
             integration(),
             RunId::parse("00000000-0000-4000-8000-000000000001").expect("valid run ID"),
             input(),
             policy(),
             "2026-07-21T12:00:00Z".to_owned(),
         )
-        .expect("valid ready receipt")
+        .expect("valid pending submission")
     }
 
     #[test]
@@ -1178,30 +1196,33 @@ mod tests {
                 .expect("fixture newline")
         );
 
-        let receipt = fixed_receipt();
+        let submission = fixed_submission();
         assert_eq!(
-            receipt.immutable_input_digest,
+            submission.immutable_input_digest,
             identities.immutable_input_digest
         );
         assert_eq!(
-            receipt
-                .initial_revision()
-                .expect("initial revision")
+            submission
+                .acceptance_event_id()
+                .expect("acceptance event ID should be valid")
                 .as_str(),
             identities.initial_run_revision
         );
-        let receipt_record = ReadyReceipt::V1(receipt.clone());
+        let submission_record = PendingSubmission::V1(submission.clone());
         assert_eq!(
-            receipt_record.encode().expect("encode receipt"),
-            include_bytes!("../../tests/golden/ready-receipt-v1.json")
+            submission_record.encode().expect("encode submission"),
+            include_bytes!("../../tests/golden/pending-submission-v1.json")
                 .strip_suffix(b"\n")
                 .expect("fixture newline")
         );
 
         let paths = Keyspace::for_tenant(&tenant());
         let pointer = AdmissionPointer::V1(
-            AdmissionPointerV1::from_receipt(&receipt, paths.ready_receipt(shard, &receipt.run_id))
-                .expect("valid admission pointer"),
+            AdmissionPointerV1::from_submission(
+                &submission,
+                paths.pending_submission(shard, &submission.run_id),
+            )
+            .expect("valid admission pointer"),
         );
         assert_eq!(
             pointer.encode().expect("encode pointer"),
@@ -1211,9 +1232,9 @@ mod tests {
         );
 
         assert_eq!(
-            ReadyReceipt::decode(&receipt_record.encode().expect("encode receipt"))
-                .expect("decode receipt"),
-            receipt_record
+            PendingSubmission::decode(&submission_record.encode().expect("encode submission"))
+                .expect("decode submission"),
+            submission_record
         );
         assert_eq!(
             AdmissionPointer::decode(&pointer.encode().expect("encode pointer"))
@@ -1227,13 +1248,16 @@ mod tests {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
         let paths = Keyspace::for_tenant(&tenant());
-        let receipt = fixed_receipt();
-        let shard = routing::shard(&receipt.integration_id);
+        let submission = fixed_submission();
+        let shard = routing::shard(&submission.integration_id);
         let pointer = AdmissionPointer::V1(
-            AdmissionPointerV1::from_receipt(&receipt, paths.ready_receipt(shard, &receipt.run_id))
-                .expect("valid admission pointer"),
+            AdmissionPointerV1::from_submission(
+                &submission,
+                paths.pending_submission(shard, &submission.run_id),
+            )
+            .expect("valid admission pointer"),
         );
-        let key = paths.admission(&routing::integration_path(&receipt.integration_id));
+        let key = paths.admission(&routing::integration_path(&submission.integration_id));
         let noncanonical = serde_json::to_vec_pretty(&pointer).expect("encode noncanonical V1");
         let initial_version = match store
             .create_cas_document(&key, noncanonical)
@@ -1298,8 +1322,8 @@ mod tests {
     }
 
     #[test]
-    fn input_and_initial_revision_ignore_provider_metadata() {
-        let first = fixed_receipt();
+    fn input_and_acceptance_event_id_ignore_provider_metadata() {
+        let first = fixed_submission();
         let mut second_input = input();
         let BlobRef::V1(artifact) = &mut second_input.artifact;
         artifact.e_tag = Some("different".to_owned());
@@ -1308,23 +1332,23 @@ mod tests {
         let BlobRef::V1(artifact) = &mut second_policy.artifact;
         artifact.e_tag = Some("different".to_owned());
         artifact.provider_version = Some("different".to_owned());
-        let second = ReadyReceiptV1::new(
+        let second = PendingSubmissionV1::new(
             integration(),
             first.run_id.clone(),
             second_input,
             second_policy,
             "2030-01-01T00:00:00Z".to_owned(),
         )
-        .expect("valid metadata-varied receipt");
+        .expect("valid metadata-varied submission");
         assert_eq!(first.immutable_input_digest, second.immutable_input_digest);
         assert_eq!(
-            first.initial_revision().expect("first revision"),
-            second.initial_revision().expect("second revision")
+            first.acceptance_event_id().expect("first revision"),
+            second.acceptance_event_id().expect("second revision")
         );
     }
 
     #[tokio::test]
-    async fn concurrent_submitters_attach_to_one_admission_without_receipt_dependency() {
+    async fn concurrent_submitters_attach_to_one_admission_without_submission_dependency() {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
         let left_store = store.clone();
@@ -1350,14 +1374,14 @@ mod tests {
         let left = left.expect("left submission");
         let right = right.expect("right submission");
         assert_eq!(left.run_id, right.run_id);
-        assert_eq!(left.initial_revision, right.initial_revision);
+        assert_eq!(left.acceptance_event_id, right.acceptance_event_id);
         assert_ne!(left.created, right.created);
 
         let shard = routing::shard(&integration());
-        delete_ready_receipt(&store, &tenant, shard, &left.run_id)
+        delete_pending_submission(&store, &tenant, shard, &left.run_id)
             .await
-            .expect("delete winning receipt after durable promotion");
-        delete_ready_receipt(&store, &tenant, shard, &left.run_id)
+            .expect("delete winning submission after durable promotion");
+        delete_pending_submission(&store, &tenant, shard, &left.run_id)
             .await
             .expect("lost-delete retry is idempotent");
 
@@ -1370,10 +1394,10 @@ mod tests {
             "2026-07-21T12:00:02Z".to_owned(),
         )
         .await
-        .expect("attach without winner receipt");
+        .expect("attach without winner submission");
         assert!(!attached.created);
         assert_eq!(attached.run_id, left.run_id);
-        assert_eq!(attached.initial_revision, left.initial_revision);
+        assert_eq!(attached.acceptance_event_id, left.acceptance_event_id);
     }
 
     #[tokio::test]
@@ -1466,7 +1490,7 @@ mod tests {
         .expect("locator exists");
         assert_eq!(locator.into_current(), integration());
         assert!(
-            discover_ready_receipts(&store, &tenant())
+            discover_pending_submissions(&store, &tenant())
                 .await
                 .expect("ready inventory")
                 .is_empty(),
@@ -1488,11 +1512,11 @@ mod tests {
         .expect_err("one run ID cannot be rebound to another integration");
         assert!(format!("{error:?}").contains("run locator integration conflict"));
         assert!(
-            discover_ready_receipts(&store, &tenant())
+            discover_pending_submissions(&store, &tenant())
                 .await
                 .expect("ready inventory after conflict")
                 .is_empty(),
-            "locator conflict must fail before ready receipt publication"
+            "locator conflict must fail before pending submission publication"
         );
     }
 
@@ -1527,24 +1551,24 @@ mod tests {
             .await
             .expect("create malformed foreign key");
 
-        let discovered = discover_ready_receipts(&store, &tenant())
+        let discovered = discover_pending_submissions(&store, &tenant())
             .await
-            .expect("discover receipts");
+            .expect("discover submissions");
         assert_eq!(discovered.len(), 1);
-        assert_eq!(discovered[0].receipt.run_id, outcome.run_id);
+        assert_eq!(discovered[0].submission.run_id, outcome.run_id);
         assert_eq!(discovered[0].shard, shard);
     }
 
     #[tokio::test]
-    async fn lost_receipt_ack_adopts_only_the_same_semantic_receipt() {
+    async fn lost_submission_ack_adopts_only_the_same_semantic_submission() {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
         let paths = Keyspace::for_tenant(&tenant());
-        let first = fixed_receipt();
-        let key = paths.ready_receipt(routing::shard(&integration()), &first.run_id);
-        create_ready_receipt(&store, &key, &ReadyReceipt::V1(first.clone()))
+        let first = fixed_submission();
+        let key = paths.pending_submission(routing::shard(&integration()), &first.run_id);
+        create_pending_submission(&store, &key, &PendingSubmission::V1(first.clone()))
             .await
-            .expect("first receipt create");
+            .expect("first submission create");
 
         let mut equivalent = first.clone();
         equivalent.submitted_at = "2030-01-01T00:00:00Z".to_owned();
@@ -1554,21 +1578,21 @@ mod tests {
         let BlobRef::V1(artifact) = &mut equivalent.policy.artifact;
         artifact.e_tag = Some("changed".to_owned());
         artifact.provider_version = Some("changed".to_owned());
-        validate_ready_receipt(&equivalent).expect("equivalent receipt remains valid");
-        create_ready_receipt(&store, &key, &ReadyReceipt::V1(equivalent))
+        validate_pending_submission(&equivalent).expect("equivalent submission remains valid");
+        create_pending_submission(&store, &key, &PendingSubmission::V1(equivalent))
             .await
             .expect("lost-ack retry adopts semantic equivalent");
 
         let mut conflicting = first;
         conflicting.policy.policy_digest = "e".repeat(64);
-        let error = create_ready_receipt(&store, &key, &ReadyReceipt::V1(conflicting))
+        let error = create_pending_submission(&store, &key, &PendingSubmission::V1(conflicting))
             .await
             .expect_err("changed future RunAccepted record must conflict");
         assert!(format!("{error:?}").contains("semantic identity"));
     }
 
     #[tokio::test]
-    async fn canonical_shaped_malformed_receipt_fails_discovery_closed() {
+    async fn canonical_shaped_malformed_submission_fails_discovery_closed() {
         let cache = tempdir().expect("cache directory");
         let store = ArtifactStore::in_memory(cache.path()).expect("memory store");
         ensure_control_baseline(&store, &tenant())
@@ -1576,15 +1600,17 @@ mod tests {
             .expect("control baseline");
         let paths = Keyspace::for_tenant(&tenant());
         let shard = routing::shard(&integration());
-        let key = paths.ready_receipt(
+        let key = paths.pending_submission(
             shard,
             &RunId::parse("00000000-0000-4000-8000-000000000001").expect("valid path run ID"),
         );
         store
             .create_json(&key, &serde_json::json!({"malformed": true}))
             .await
-            .expect("create poison receipt-shaped object");
-        assert!(discover_ready_receipts(&store, &tenant()).await.is_err());
+            .expect("create poison submission-shaped object");
+        assert!(discover_pending_submissions(&store, &tenant())
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -1648,29 +1674,30 @@ mod tests {
         .expect("recover after marker");
         assert!(after_marker.created);
 
-        // Death after receipt publication leaves an unreferenced immutable
+        // Death after submission publication leaves an unreferenced immutable
         // object. A new run wins admission; the orphan never executes merely
         // because discovery can see it.
-        let receipt_cache = tempdir().expect("receipt cache");
-        let receipt_store = ArtifactStore::in_memory(receipt_cache.path()).expect("receipt store");
-        ensure_control_baseline(&receipt_store, &tenant())
+        let submission_cache = tempdir().expect("submission cache");
+        let submission_store =
+            ArtifactStore::in_memory(submission_cache.path()).expect("submission store");
+        ensure_control_baseline(&submission_store, &tenant())
             .await
-            .expect("receipt baseline");
-        let receipt_paths = Keyspace::for_tenant(&tenant());
-        ensure_known_shard_marker(&receipt_store, &receipt_paths, shard)
+            .expect("submission baseline");
+        let submission_paths = Keyspace::for_tenant(&tenant());
+        ensure_known_shard_marker(&submission_store, &submission_paths, shard)
             .await
-            .expect("receipt marker");
-        let orphan = fixed_receipt();
-        let orphan_key = receipt_paths.ready_receipt(shard, &orphan.run_id);
-        create_ready_receipt(
-            &receipt_store,
+            .expect("submission marker");
+        let orphan = fixed_submission();
+        let orphan_key = submission_paths.pending_submission(shard, &orphan.run_id);
+        create_pending_submission(
+            &submission_store,
             &orphan_key,
-            &ReadyReceipt::V1(orphan.clone()),
+            &PendingSubmission::V1(orphan.clone()),
         )
         .await
-        .expect("receipt-only crash state");
-        let after_receipt = submit_durable(
-            &receipt_store,
+        .expect("submission-only crash state");
+        let after_submission = submit_durable(
+            &submission_store,
             &tenant(),
             integration(),
             input(),
@@ -1678,31 +1705,31 @@ mod tests {
             "2026-07-21T13:00:01Z".to_owned(),
         )
         .await
-        .expect("recover after receipt");
-        assert!(after_receipt.created);
-        assert_ne!(after_receipt.run_id, orphan.run_id);
-        let discovered = discover_ready_receipts(&receipt_store, &tenant())
+        .expect("recover after submission");
+        assert!(after_submission.created);
+        assert_ne!(after_submission.run_id, orphan.run_id);
+        let discovered = discover_pending_submissions(&submission_store, &tenant())
             .await
             .expect("discover orphan and winner");
         let orphan_discovery = discovered
             .iter()
-            .find(|candidate| candidate.receipt.run_id == orphan.run_id)
+            .find(|candidate| candidate.submission.run_id == orphan.run_id)
             .expect("orphan remains discoverable");
         assert!(
-            admitted_run_record(&receipt_store, &tenant(), orphan_discovery)
+            admitted_run_record(&submission_store, &tenant(), orphan_discovery)
                 .await
                 .expect("check orphan admission")
                 .is_none()
         );
         let winner_discovery = discovered
             .iter()
-            .find(|candidate| candidate.receipt.run_id == after_receipt.run_id)
+            .find(|candidate| candidate.submission.run_id == after_submission.run_id)
             .expect("winner is discoverable");
-        let run_accepted = admitted_run_record(&receipt_store, &tenant(), winner_discovery)
+        let run_accepted = admitted_run_record(&submission_store, &tenant(), winner_discovery)
             .await
             .expect("validate winning admission")
             .expect("winner is admitted");
-        assert_eq!(run_accepted.event_id, after_receipt.initial_revision);
+        assert_eq!(run_accepted.event_id, after_submission.acceptance_event_id);
 
         // Death after admission CAS, including before its read-back or response,
         // is recovered solely from the pointer. The retry returns the exact
@@ -1716,13 +1743,17 @@ mod tests {
         ensure_known_shard_marker(&cas_store, &cas_paths, shard)
             .await
             .expect("CAS marker");
-        let winner = fixed_receipt();
-        let winner_key = cas_paths.ready_receipt(shard, &winner.run_id);
-        create_ready_receipt(&cas_store, &winner_key, &ReadyReceipt::V1(winner.clone()))
-            .await
-            .expect("CAS winner receipt");
+        let winner = fixed_submission();
+        let winner_key = cas_paths.pending_submission(shard, &winner.run_id);
+        create_pending_submission(
+            &cas_store,
+            &winner_key,
+            &PendingSubmission::V1(winner.clone()),
+        )
+        .await
+        .expect("CAS winner submission");
         let pointer = AdmissionPointer::V1(
-            AdmissionPointerV1::from_receipt(&winner, winner_key).expect("CAS winner pointer"),
+            AdmissionPointerV1::from_submission(&winner, winner_key).expect("CAS winner pointer"),
         );
         assert!(matches!(
             create_record(
@@ -1747,8 +1778,10 @@ mod tests {
         assert!(!after_cas.created);
         assert_eq!(after_cas.run_id, winner.run_id);
         assert_eq!(
-            after_cas.initial_revision,
-            winner.initial_revision().expect("winner initial revision")
+            after_cas.acceptance_event_id,
+            winner
+                .acceptance_event_id()
+                .expect("winner acceptance event ID should be valid")
         );
     }
 }
