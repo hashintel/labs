@@ -1,14 +1,8 @@
-//! Decoder for the pgoutput logical-replication plugin, protocol version 1
-//! (vendored: the wire format has been stable since PostgreSQL 10). Stateful
-//! only in the relation registry: Relation messages describe columns, DML
-//! messages reference them by relation id. Tuples arrive in text format;
-//! values stay strings (the engine's event tables are VARCHAR-typed, matching
-//! the TS event path). With REPLICA IDENTITY FULL, Update/Delete carry the
-//! full old tuple ('O'), giving true before-images.
-//!
-//! The live replication connection (walsender START_REPLICATION) is deferred
-//! in this engine; the decoder is the hermetically-tested core it will sit
-//! on, and the Elixir engine remains the live-CDC reference.
+//! Decodes version 1 of PostgreSQL's pgoutput replication protocol. Relation
+//! messages populate a column registry, and row-change messages refer to those
+//! columns by relation ID. Text-format tuple values remain strings for the
+//! engine's event tables. With `REPLICA IDENTITY FULL`, updates and deletions
+//! include the full earlier tuple in the `O` field.
 
 use std::collections::HashMap;
 

@@ -1,10 +1,10 @@
-//! Sink accessors: a plain column name, or a tagged transform. Tagged forms
-//! count as non-column for hash-path selection (forcing the whole-row
-//! fallback exactly as in TS), but hash into the config deterministically and
-//! evaluate without closures. `resolve_audited` additionally classifies
-//! conversion failures for the DLQ: a conversion FAILS iff the raw input is
-//! non-blank and the result is null. boolean and trim never fail; an unmapped
-//! measure unit is not a failure (the amount passes through, warn-once).
+//! Reads sink values from columns or applies tagged conversions. Tagged
+//! accessors are included in the configuration hash and select whole-row
+//! hashing, matching the TypeScript engine.
+//!
+//! `resolve_audited` records a conversion failure when nonblank input becomes
+//! null for a fallible conversion. Boolean conversion and trimming accept all
+//! inputs. An unknown measure unit preserves the amount and emits a warning.
 
 use serde_json::{Map, Value};
 

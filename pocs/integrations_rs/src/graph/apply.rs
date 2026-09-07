@@ -1,9 +1,8 @@
-//! Apply planning and delivery lifecycle composition.
+//! Saves an integration's plan and delivers the work accepted by the journal.
 //!
-//! Planning publishes immutable evidence before proposing `WorkPlanned`.
-//! Delivery consumes only journal-selected work and advances state only through
-//! `WorkCompleted`. The module owns no append handle outside the serialized
-//! shard command loop.
+//! The plan's artifacts are stored before `WorkPlanned` is proposed. Delivery
+//! follows the accepted plan, and `WorkCompleted` records the resulting state.
+//! Both events go through the shard's command loop.
 use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::sync::Arc;

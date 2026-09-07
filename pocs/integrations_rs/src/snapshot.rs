@@ -1,8 +1,7 @@
-//! Wraps a read expression with the snapshot envelope (`_op`/`_key`/`_before`)
-//! into a staging table. The `_key` rendering (`CAST(to_json({...}) AS
-//! VARCHAR)`) is computed by DuckDB itself and is byte-identical to the
-//! TS/Elixir engines': it is part of the adopted-state contract
-//! (golden-pinned).
+//! Creates a staging table from a read expression and adds the `_op`, `_key`,
+//! and `_before` columns. DuckDB renders each primary key as a JSON string.
+//! Golden tests check those bytes against the TypeScript and Elixir engines
+//! because existing state identifies rows by that exact string.
 
 use error_stack::{Report, ResultExt as _};
 

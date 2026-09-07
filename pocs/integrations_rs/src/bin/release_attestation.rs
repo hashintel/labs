@@ -1,25 +1,19 @@
 #![allow(clippy::print_stdout, clippy::print_stderr)]
 
-//! Release tooling: generates the activation attestation from actual
-//! contract-suite evidence.
+//! Generates an activation attestation from contract-test results.
 //!
-//! The attestation is evidence for one binary version against one provider
-//! configuration, never hand-written for production. This tool refuses to
-//! emit anything unless:
+//! The attestation identifies one binary version and provider configuration.
+//! It requires passing results from the credentialed S3 suite and the isolated
+//! Graph delivery suite. It also opens competing SlateDB writers against the
+//! configured blob URL to check that a replacement writer invalidates the first.
 //!
-//! - the captured output of the credentialed S3 provider suite shows the
-//!   contract passed (`--s3-suite-log`),
-//! - the captured output of the isolated Graph delivery suite shows the
-//!   contract passed (`--graph-suite-log`), and
-//! - the `SlateDB` writer-fencing probe passes live against the configured
-//!   blob URL, right now, in this process.
+//! ```sh
+//! release_attestation --output <path> --valid-hours <hours> \
+//!     --s3-suite-log <path> --graph-suite-log <path>
+//! ```
 //!
-//! Usage:
-//!   `release_attestation` --output <path> --valid-hours <hours> \
-//!       --s3-suite-log <path> --graph-suite-log <path>
-//!
-//! Environment: `INTEGRATIONS_BLOB_URL`, `HASH_GRAPH_URL`, and
-//! `INTEGRATIONS_BLOB_CACHE` exactly as the worker will run.
+//! Set `INTEGRATIONS_BLOB_URL`, `HASH_GRAPH_URL`, and `INTEGRATIONS_BLOB_CACHE`
+//! to the values the worker will use.
 
 use std::collections::HashMap;
 use std::process::ExitCode;

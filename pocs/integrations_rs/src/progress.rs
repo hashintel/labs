@@ -1,8 +1,8 @@
-//! Throttled human progress and dependency-free operational observations.
+//! Reports progress and collects counters for the running process.
 //!
-//! Durable execution never depends on this module. Producers update bounded
-//! process-local counters and gauges from outcomes they already observed; no
-//! Graph or object-store read is performed merely to populate telemetry.
+//! Counters and gauges use outcomes already observed by the runner. Updates
+//! stay in memory, and progress output is throttled to keep repeated reports
+//! readable. The journal determines durable progress after a restart.
 
 use std::collections::BTreeMap;
 use std::fmt;

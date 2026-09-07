@@ -1,9 +1,7 @@
-//! Node-wide fetch pacing shared by every endpoint that talks to the same
-//! host: `await_slot` reserves the next send slot for the host, at least the
-//! caller's interval after the previous one, so back-to-back sources and
-//! concurrent integrations cannot stack requests on one API. Reservation is a
-//! fast lock; the caller sleeps until its slot, keeping other hosts
-//! unblocked. Hosts a node stops talking to are pruned.
+//! Spaces requests to the same host across integrations on this node. Each
+//! caller reserves a send time at least its interval after the preceding
+//! reservation. It releases the lock before waiting, so requests to other
+//! hosts can continue. Old reservations are removed as the host map grows.
 
 use std::collections::HashMap;
 use std::sync::Mutex;
@@ -29,9 +27,7 @@ impl FetchPacer {
             let now = Instant::now();
 
             if slots.len() > 64 {
-                // checked_sub guards a monotonic clock younger than 60s (fresh
-                // boot): unwrap would panic while holding the lock and poison
-                // the whole pacer. When it can't subtract, keep every slot.
+                // Some monotonic clocks cannot represent a time before boot.
                 if let Some(cutoff) = now.checked_sub(Duration::from_secs(60)) {
                     slots.retain(|_, slot| *slot > cutoff);
                 }

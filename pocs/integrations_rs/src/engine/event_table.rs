@@ -1,10 +1,8 @@
-//! Append-path materialize for stream events: builds/evolves the staging
-//! table and inserts one row per event with the envelope rendered host-side.
-//! `_key` is JSON in primary-key declared order (TS `JSON.stringify(ev.key)`
-//! parity), `_before` is the JSON'd before-image, cells render like the TS
-//! event path (JS `String()` scalars, JSON columns for structured values).
-//! This is the documented event-path adoption caveat: these bytes are
-//! host-rendered, unlike the snapshot path.
+//! Inserts stream events into a staging table and adds columns as fields
+//! appear. Rust renders `_key` as JSON in declared primary-key order and
+//! `_before` as the row's earlier JSON value. Scalars follow JavaScript string
+//! conversion, and structured values use JSON columns. These encodings match
+//! the TypeScript event path.
 
 use error_stack::{Report, ResultExt as _};
 use serde_json::Value;

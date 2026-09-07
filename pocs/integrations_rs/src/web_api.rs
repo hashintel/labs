@@ -1,8 +1,8 @@
-//! HTTP adapter for the transport-neutral application service.
+//! Exposes the application service over HTTP.
 //!
-//! The deployment
-//! boundary must authenticate requests and supply the trusted actor header;
-//! this module validates shape and forwards explicit context only.
+//! The server's deployment must authenticate requests and supply a trusted
+//! actor header. This module validates the request fields and passes the actor
+//! context to the application service.
 
 use std::collections::BTreeMap;
 use std::sync::Arc;

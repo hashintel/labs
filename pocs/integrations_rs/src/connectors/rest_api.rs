@@ -1,14 +1,14 @@
-//! Paginated REST hydration with fetch-side throttling: next-link, offset, or
-//! single-page pagination; header or bearer auth; `${NOW+-Nm|h|d}` and
-//! `${ENV}` interpolation in urls/params/auth (through the env allowlist);
-//! `rateLimitMs` paces requests through the node-wide pacer, keyed by host;
-//! every request revalidates against the egress guard (next-link URLs come
-//! from response bodies); 429s retry honoring Retry-After. Hydration is a
-//! sequential fetch-then-land loop: memory is bounded to one page and a slow
-//! insert back-pressures the fetch by construction. The final staging table
-//! goes through `snapshot::materialize`, so the envelope and `_key` stay
-//! DuckDB-computed (adopted-state contract); raw page cells are rendered
-//! host-side (the documented event-path adoption caveat).
+//! Loads REST responses into a source table one page at a time. Each page is
+//! inserted before the next request, so a slow insert delays fetching and only
+//! one page is buffered. Pagination follows next links or advances an offset.
+//!
+//! URLs, query parameters, and authentication values can contain allowed
+//! environment variables and `${NOW+-Nm|h|d}` time expressions. Authentication
+//! uses a configured header or bearer token. Requests share host pacing and
+//! retry HTTP 429 responses. Next links must keep the endpoint's origin.
+//!
+//! Rust renders the response cells. [`snapshot::materialize`] then lets DuckDB
+//! compute the `_op`, `_key`, and `_before` columns used by the pipeline.
 
 use std::sync::Arc;
 
@@ -198,8 +198,7 @@ fn render_row(row: &Value) -> Row {
     out
 }
 
-// Pages land incrementally with column evolution: a later page may grow a
-// column; earlier rows read NULL there.
+// A column first seen on a later page is null in earlier rows.
 async fn land_page(
     store: &Store,
     raw_table: &str,
@@ -409,20 +408,14 @@ fn headers(
 }
 
 fn default_fetcher(env: Env) -> Fetcher {
-    // Build the client (connection pool + TLS config) once for the whole fetch: a
-    // paginated fetch reuses one pool across all its requests. Redirects stay
-    // disabled (a redirect is an unvalidated URL).
-    let client = reqwest::Client::builder()
-        .redirect(reqwest::redirect::Policy::none())
-        .build()
-        .unwrap_or_default();
+    let client = egress::client(&env).map_err(|error| error.to_string());
 
     Arc::new(move |url: String, headers: Vec<(String, String)>| {
         let env = env.clone();
         let client = client.clone();
         Box::pin(async move {
-            // Every page revalidates: next-link URLs come from the RESPONSE
-            // BODY, so the guard runs per request.
+            let client =
+                client.map_err(|error| format!("REST client initialization failed: {error}"))?;
             egress::validate_url(&url, &env)
                 .await
                 .map_err(|err| format!("{err:?}"))?;
@@ -436,7 +429,7 @@ fn default_fetcher(env: Env) -> Fetcher {
                 request.send()
             })
             .await
-            .map_err(|err| format!("REST API request failed for {label}: {err}"))?;
+            .map_err(|err| format!("REST API request failed for {label}: {}", err.without_url()))?;
 
             let status = response.status().as_u16();
             let body = response.text().await.unwrap_or_default();
@@ -469,7 +462,7 @@ fn extract(body: &Value, path: Option<&str>) -> Value {
     }
 }
 
-/// Interpolates NOW arithmetic and env tokens: minute-precision ISO for NOW.
+/// Time expressions produce ISO timestamps rounded down to the minute.
 pub fn interpolate(text: &str, visible: &std::collections::HashMap<String, String>) -> String {
     crate::yaml::placeholder_re()
         .replace_all(text, |captures: &regex::Captures<'_>| {
@@ -497,7 +490,7 @@ fn now_token(token: &str) -> Option<String> {
                 "h" => 60,
                 _ => 1440,
             };
-            let signed = amount * unit_minutes;
+            let signed = amount.checked_mul(unit_minutes)?;
             if sign.as_str() == "-" {
                 -signed
             } else {
@@ -507,13 +500,29 @@ fn now_token(token: &str) -> Option<String> {
         _ => 0,
     };
 
-    let now = chrono::Utc::now() + chrono::Duration::minutes(minutes);
+    let now = chrono::Utc::now().checked_add_signed(chrono::Duration::try_minutes(minutes)?)?;
     Some(now.format("%Y-%m-%dT%H:%M:00Z").to_string())
 }
 
 #[cfg(test)]
 mod tests {
     use super::resolve_next_link;
+
+    #[test]
+    fn oversized_time_offsets_do_not_panic() {
+        for token in [
+            "NOW+9223372036854775807d",
+            "NOW-9223372036854775807h",
+            "NOW+9223372036854775807m",
+            "NOW+1000000000000m",
+        ] {
+            assert!(
+                super::now_token(token).is_none(),
+                "{token} should be out of range"
+            );
+        }
+        assert!(super::now_token("NOW-5m").is_some());
+    }
 
     #[test]
     fn next_links_stay_on_the_endpoint_origin() {

@@ -1,8 +1,11 @@
-//! Content-hash SQL, byte-identical to the TS/Elixir engines'
-//! (golden-tested against the strings it generates): md5 over a struct of
-//! exactly the sink-mapped columns. VARCHAR columns mirror the sink's
-//! trim/blank-to-null normalization. Any function accessor (coerce, measure)
-//! forces the whole-row fallback, and that CHOICE is part of adopted state.
+//! Builds SQL for the row hashes used to detect changes. Column accessors hash
+//! a struct of the sink's mapped fields with MD5. Text is trimmed and blanks
+//! become null, matching the values sent to the sink. Coercion and measure
+//! accessors select whole-row hashing.
+//!
+//! Golden tests compare the generated SQL with the TypeScript and Elixir
+//! engines. The choice of fields and their rendering must agree with stored
+//! hashes when an integration adopts existing state.
 
 use std::collections::HashMap;
 
@@ -40,10 +43,9 @@ pub fn struct_hash_expr(
     format!("md5(struct_pack({fields})::VARCHAR)")
 }
 
-/// Hash over exactly the columns the sink maps (sorted-by-URL property
-/// columns plus provenance-field columns; entityId excluded as the join key).
-/// `None` when any accessor is a function: the caller falls back to the
-/// whole-row hash.
+/// Hashes property columns in URL order followed by provenance columns.
+/// `entityId` serves as the join key and is excluded from the hash. A transformed
+/// accessor returns `None`, selecting the whole-row hash instead.
 pub fn canonical_hash_expr(
     config: &SinkConfig,
     column_types: &HashMap<String, String>,

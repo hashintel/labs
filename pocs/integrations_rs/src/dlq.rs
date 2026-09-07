@@ -1,8 +1,7 @@
-//! Conversion quarantine: current-state ledger of bronze-to-silver conversion
-//! failures, kept in the state store next to `_state/*`. Rows carry the raw
-//! value as evidence and the `_key` envelope to locate the row in bronze.
-//! Self-healing: callers clear by resolved entity id for every re-evaluated
-//! row, then record fresh failures.
+//! Stores row conversion failures beside `_state/*`. Each failure retains the
+//! raw value and `_key` needed to find its source row. When a row is evaluated
+//! again, its failures are cleared by resolved entity ID before new failures
+//! are recorded.
 
 use error_stack::Report;
 use serde_json::Value;

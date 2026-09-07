@@ -1,7 +1,6 @@
-//! Declarative post-hydrate invariants on the materialized source table,
-//! semantics identical to the TS/Elixir engines. A failure errors with a
-//! diagnostic; per-source isolation turns that into a source-level error
-//! without touching other sources.
+//! Checks the configured assertions after a source table is materialized.
+//! A failed assertion reports a source error, allowing other sources to
+//! continue. The checks match the TypeScript and Elixir engines.
 
 use error_stack::{Report, ResultExt as _};
 use serde_json::Value;

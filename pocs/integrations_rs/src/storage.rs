@@ -1,6 +1,6 @@
-//! Sandboxed local inputs supplied by the operator. Durable bronze, named
-//! checkpoints, and DuckDB state live in the blob repositories instead; this
-//! type remains only for explicitly local `external` source keys.
+//! Resolves relative file keys under the source folder for `external` sources.
+//! Keys containing parent traversal are rejected. Blob repositories manage durable
+//! source captures, named checkpoints, and saved DuckDB state.
 
 use std::path::{Path, PathBuf};
 

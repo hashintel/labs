@@ -1,11 +1,11 @@
-//! Integration definitions: loading, and `${KEY}` interpolation. Precedence
-//! matches the TS runner: the `vars:` block supplies defaults, a same-named
-//! env var overrides each, and `vars` values are themselves interpolated
-//! against the environment. interpolation applies to every string value and
-//! every map key, and sees only the allowlisted environment
-//! (`config::interpolation_env`): definitions are user-authorable, and
-//! unrestricted `${}` would exfiltrate node secrets. A placeholder with no
-//! binding fails with the TS message shape.
+//! Loads integration definitions and expands `${KEY}` placeholders in string
+//! values and map keys. The `vars` block supplies defaults. An allowed
+//! environment variable with the same name overrides a default, and default
+//! values can themselves reference the environment.
+//!
+//! Only variables returned by `config::interpolation_env` are visible to a
+//! definition. This prevents definitions from reading other node secrets.
+//! Missing variables produce the same error format as the TypeScript runner.
 
 use std::collections::HashMap;
 use std::path::Path;

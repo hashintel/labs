@@ -1,7 +1,6 @@
-//! Single resolution point for runtime settings: an explicit environment map
-//! (process env by default; tests pass their own), safe or derived defaults
-//! everywhere. The set of settings stays small; an empty
-//! environment produces a working single-node configuration.
+//! Resolves runtime settings from an explicit environment map. Settings use
+//! configured values or derive defaults for a single node. `Env::process`
+//! captures the process environment, and tests can supply their own map.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -26,10 +25,9 @@ impl Env {
         self.vars.get(name).map(String::as_str)
     }
 
-    /// Preserve operational settings while making definition interpolation
-    /// default-deny. Direct, operator-invoked runs retain TS-compatible open
-    /// interpolation; durable receipts and desired stream state call this
-    /// before resolving user-authored definitions.
+    /// Requires an explicit allowlist for environment interpolation in user
+    /// definitions. An existing allowlist is preserved. Other settings remain
+    /// available to the runner.
     pub(crate) fn durable_interpolation_scope(&self) -> Self {
         let mut scoped = self.clone();
         scoped

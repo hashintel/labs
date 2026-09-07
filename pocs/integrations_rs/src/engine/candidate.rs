@@ -1,8 +1,8 @@
-//! Side-effect-free batch planning inside a disposable candidate workspace.
+//! Builds a batch plan in a disposable DuckDB workspace.
 //!
-//! Every live source reaches this module only through a journal-bound bronze
-//! capture. The planner mutates DuckDB candidate tables and emits exact Graph
-//! requests, but owns no Graph client and performs no external delivery.
+//! Source inputs come from the captures recorded in the journal. The planner
+//! transforms those rows in DuckDB and produces the Graph request bytes that
+//! delivery will use. Repeating the plan uses the same captured inputs.
 use std::collections::BTreeMap;
 use std::path::Path;
 

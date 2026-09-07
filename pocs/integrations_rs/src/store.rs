@@ -1,11 +1,10 @@
-//! Owns one DuckDB database per integration. All statements serialize through
-//! a dedicated OS thread (DuckDB calls block; connections are not
-//! concurrency-safe), with an async facade over a channel: the tokio
-//! equivalent of the GenServer store. Hardening mirrors the TS/Elixir
-//! engines: autoinstall/autoload off, community extensions off, allowed
-//! directories as the only filesystem exceptions, external access disabled,
-//! configuration locked. Resource limits (memory, temp spill, threads) are
-//! always set by the caller from the derived node budget.
+//! Runs each integration's DuckDB statements on a dedicated thread. Async
+//! callers send commands through a channel and receive the results in order.
+//!
+//! The sandbox restricts file access to allowed directories and locks database
+//! settings after setup. Extensions must be explicitly allowed and loaded
+//! during setup. The caller supplies memory, spill, disk, and thread limits
+//! from the node's resource budget.
 
 use std::path::PathBuf;
 use std::sync::mpsc;
@@ -28,9 +27,9 @@ pub fn lit(value: &str) -> String {
 
 #[derive(Debug, Clone, Default)]
 pub struct StoreOptions {
-    /// `None` = in-memory.
+    /// Leaving the path unset creates an in-memory database.
     pub path: Option<PathBuf>,
-    /// `None` = sandbox off (tests); `Some` = the only filesystem exceptions.
+    /// Setting this enables the sandbox and limits file access to these paths.
     pub allowed_directories: Option<Vec<PathBuf>>,
     pub extensions: Vec<String>,
     pub memory_limit: Option<String>,
@@ -95,8 +94,8 @@ enum Command {
     },
 }
 
-/// Cloneable async handle; the connection thread exits (checkpointing the
-/// WAL) when the last handle drops.
+/// Dropping the last handle closes the command channel. The connection thread
+/// finishes queued commands and checkpoints the write-ahead log before exiting.
 #[derive(Clone)]
 pub struct Store {
     tx: mpsc::Sender<Command>,
@@ -317,8 +316,6 @@ fn connection_thread(
             }
         }
     }
-    // Dropping the connection checkpoints the WAL: state survives
-    // interruption mid-flush.
 }
 
 fn enforce_disk_bounds(
@@ -340,10 +337,7 @@ fn enforce_disk_bounds(
         return Ok(());
     }
 
-    // A meaningful DuckDB boundary can fold WAL pages back into the database
-    // and release temp spill. It is attempted exactly once before the hard
-    // resource failure is returned; work is never allowed to grow past the
-    // boundary indefinitely.
+    // A checkpoint can reclaim WAL and spill files before the limit is checked again.
     connection.execute_batch("CHECKPOINT").map_err(|error| {
         format!("local disk limit reached and DuckDB CHECKPOINT failed: {error}")
     })?;

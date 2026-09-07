@@ -2,16 +2,18 @@
 //! starts its executor. The resulting [`RunningKernel`] accepts submissions,
 //! serves reads, and supports an orderly shutdown.
 //!
-//! Each shard driver recovers its projection, reads that state, plans work,
-//! executes the work, and appends the returned events. There is no durable
-//! effect bookkeeping. Completion is represented in the domain events an effect
-//! returns, and a per-session executed set prevents hot loops. The
-//! `Executor` contract in [`crate::domain`] describes this requirement.
+//! All shards recover before any executor starts. Each shard driver reads its
+//! projection, plans work, executes it, and appends the returned events. Those
+//! events record completion so the next plan can omit completed work. A set of
+//! executed effect IDs also prevents repeated execution within a session.
+//! A retry delay applies to one effect, allowing the driver to process the rest
+//! of the plan while that effect waits.
 //!
-//! The coordination model runs exactly one process per shard set. The SlateDB
-//! writer epoch fences a misdeployment because a second writer makes the first
-//! fail closed. There is no lease arbitration, so two processes on one
-//! shard fence each other instead of taking turns.
+//! Run one process per shard set. Opening a second SlateDB writer invalidates
+//! the first writer. Call [`RunningKernel::shutdown`] to finish the active
+//! effects and close storage. Dropping the kernel cancels its effect tasks and
+//! asks its command loops to close. An external write may already have succeeded
+//! when its task is cancelled, so recovery can repeat that effect.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt;
@@ -27,13 +29,10 @@ use crate::keyspace::{Keyspace, Namespace};
 use crate::registry::CompatError;
 use crate::routing::Shard;
 use crate::shard_log::{
-    LogStorageOptions, OpenedShard, RecoveredShard, ShardCommandConfig, ShardCommandError,
-    ShardCommandErrorKind, ShardCommandHandle, ShardCommandOutcome, ShardLogLocation,
-    StateChangeFeed,
+    LogStorageOptions, OpenedShard, ShardCommandConfig, ShardCommandError, ShardCommandErrorKind,
+    ShardCommandHandle, ShardCommandOutcome, ShardLogLocation, StateChangeFeed,
 };
 
-/// Every variant is kernel-owned, so no internal error type or identifier
-/// escapes to a library user.
 #[derive(Debug)]
 pub enum KernelError {
     Config(String),
@@ -68,17 +67,17 @@ impl std::error::Error for KernelError {}
 
 #[derive(Debug, Clone)]
 pub struct KernelConfig {
-    /// Instance namespace that provides the validated root prefix for every
-    /// key and log.
+    /// Every storage key starts with this namespace.
     pub name: String,
     /// Storage location expressed as a local file URL or an S3 URL.
     pub blob_url: String,
     pub aws_region: Option<String>,
-    /// Shards this process owns. Partitions hashing elsewhere are refused.
+    /// The kernel rejects submissions routed outside these shards.
     pub shards: Vec<u16>,
-    /// Commit a snapshot after this many folded events. `0` disables.
+    /// Attempts a snapshot after this many journal sequence positions have
+    /// passed since the last snapshot. A value of zero disables snapshots.
     pub snapshot_every_events: u64,
-    /// Driver idle wake-up that also provides the default effect retry backoff.
+    /// Idle drivers wait this long. It is also the default retry delay.
     pub poll_interval: Duration,
     pub channel_capacity: NonZeroUsize,
     pub safe_append_retries: u32,
@@ -103,8 +102,7 @@ impl KernelConfig {
     }
 }
 
-/// An opened kernel instance whose storage is validated and whose names can
-/// be registered before execution starts.
+/// Validates the namespace and shard selection before storage opens in `start`.
 pub struct Kernel {
     config: KernelConfig,
     keyspace: Keyspace,
@@ -135,7 +133,7 @@ impl Kernel {
         })
     }
 
-    /// Registers the domain's wire names and remains chainable before `start`.
+    /// Registers the domain's record names and checks for conflicting codecs.
     pub fn register<S: SimpleDomain>(self) -> Result<Self, KernelError> {
         domain::register::<S>().map_err(|error| KernelError::Registration(error.to_string()))?;
         Ok(self)
@@ -156,45 +154,61 @@ impl Kernel {
             block_cache_bytes: self.config.block_cache_bytes,
             meta_cache_bytes: self.config.meta_cache_bytes,
         };
-        let mut shards = BTreeMap::new();
-        let mut recovered_snapshots = BTreeMap::new();
-        let mut drivers = Vec::new();
-        let mut loops = Vec::new();
+        let mut running = RunningKernel {
+            shards: BTreeMap::new(),
+            recovered_snapshots: BTreeMap::new(),
+            drivers: Vec::new(),
+            loops: Vec::new(),
+            shutdown,
+        };
+        let mut feeds = Vec::new();
         for &shard in &self.shards {
-            let location =
-                ShardLogLocation::for_kernel(shard, &self.keyspace.shard_log(shard), &storage)
-                    .map_err(|error| KernelError::Storage(format!("{error:?}")))?;
-            let opened = OpenedShard::open(location).await.map_err(command_failure)?;
-            let recovered: RecoveredShard<Hosted<S>> = opened
-                .recover_with_snapshots(&())
-                .await
-                .map_err(command_failure)?;
+            let recovered = async {
+                let location =
+                    ShardLogLocation::for_kernel(shard, &self.keyspace.shard_log(shard), &storage)
+                        .map_err(|error| KernelError::Storage(format!("{error:?}")))?;
+                OpenedShard::open(location)
+                    .await
+                    .map_err(command_failure)?
+                    .recover_with_snapshots::<Hosted<S>>(&())
+                    .await
+                    .map_err(command_failure)
+            }
+            .await;
+            let recovered = match recovered {
+                Ok(recovered) => recovered,
+                Err(error) => {
+                    if let Err(close_error) = running.shutdown().await {
+                        tracing::warn!(%close_error, "failed to close shards after startup failure");
+                    }
+                    return Err(error);
+                }
+            };
             let started = recovered.enable(ShardCommandConfig::new(
                 self.config.channel_capacity,
                 self.config.safe_append_retries,
             ));
             let handle = started.handle.clone();
-            recovered_snapshots.insert(shard.get(), started.recovery.snapshot_through_log_sequence);
-            drivers.push(tokio::spawn(drive_shard::<S, X>(
-                handle.clone(),
-                started.state_changes,
+            running
+                .recovered_snapshots
+                .insert(shard.get(), started.recovery.snapshot_through_log_sequence);
+            feeds.push((handle.clone(), started.state_changes));
+            running.loops.push(started.task);
+            running.shards.insert(shard.get(), handle);
+        }
+        for (handle, state_changes) in feeds {
+            running.drivers.push(tokio::spawn(drive_shard::<S, X>(
+                handle,
+                state_changes,
                 Arc::clone(&executor),
                 DriverSettings {
                     poll_interval: self.config.poll_interval,
                     snapshot_every_events: self.config.snapshot_every_events,
                 },
-                shutdown.clone(),
+                running.shutdown.clone(),
             )));
-            loops.push(started.task);
-            shards.insert(shard.get(), handle);
         }
-        Ok(RunningKernel {
-            shards,
-            recovered_snapshots,
-            drivers,
-            loops,
-            shutdown,
-        })
+        Ok(running)
     }
 }
 
@@ -223,8 +237,8 @@ impl<S: SimpleDomain> RunningKernel<S> {
         })
     }
 
-    /// Validates and durably appends one event. Idempotent by content
-    /// identity. A rejection carries the fold's reason.
+    /// Validates and durably appends one event. Submitting the same event again
+    /// returns `AlreadyDurable`. A rejection includes the fold's reason.
     pub async fn submit(&self, event: S::Event) -> Result<Submitted, KernelError> {
         let record = EventRecordV1::new(event).map_err(invalid_event)?;
         let handle = self.handle_for(&record.partition)?;
@@ -240,7 +254,9 @@ impl<S: SimpleDomain> RunningKernel<S> {
         }
     }
 
-    /// Runs a read-only closure against the partition's fold state.
+    /// Reads the projection for the shard containing `key`. The projection
+    /// includes every partition on that shard, so the closure selects the data
+    /// it needs. The closure runs inside the command loop and must not block.
     pub async fn read<R, F>(&self, key: &PartitionKey, read: F) -> Result<R, KernelError>
     where
         R: Send + 'static,
@@ -259,10 +275,12 @@ impl<S: SimpleDomain> RunningKernel<S> {
         &self.recovered_snapshots
     }
 
-    pub async fn shutdown(self) -> Result<(), KernelError> {
+    /// Waits for active effects to return, then closes each shard writer.
+    /// Executors must bound their own requests for shutdown to finish promptly.
+    pub async fn shutdown(mut self) -> Result<(), KernelError> {
         self.shutdown.cancel();
         let mut first_error = None;
-        for driver in self.drivers {
+        for driver in &mut self.drivers {
             match driver.await {
                 Ok(Ok(())) => {}
                 Ok(Err(error)) => {
@@ -278,7 +296,7 @@ impl<S: SimpleDomain> RunningKernel<S> {
             // expected outcome.
             let _ = handle.shutdown().await;
         }
-        for task in self.loops {
+        for task in &mut self.loops {
             match task.await {
                 Ok(Ok(())) => {}
                 Ok(Err(error)) => {
@@ -296,12 +314,24 @@ impl<S: SimpleDomain> RunningKernel<S> {
     }
 }
 
+impl<S: SimpleDomain> Drop for RunningKernel<S> {
+    fn drop(&mut self) {
+        self.shutdown.cancel();
+        for driver in &self.drivers {
+            driver.abort();
+        }
+        for handle in self.shards.values() {
+            handle.stop_admission();
+            handle.cancel_owned_writer();
+        }
+    }
+}
+
 struct DriverSettings {
     poll_interval: Duration,
     snapshot_every_events: u64,
 }
 
-/// Converts an error into a normal exit when it only reflects shutdown.
 fn command_failure(error: ShardCommandError) -> KernelError {
     KernelError::Internal(error.to_string())
 }
@@ -333,6 +363,7 @@ where
     X: Executor<S>,
 {
     let mut executed: BTreeSet<String> = BTreeSet::new();
+    let mut retries = BTreeMap::<String, tokio::time::Instant>::new();
     loop {
         if shutdown.is_cancelled() {
             return Ok(());
@@ -355,8 +386,15 @@ where
             if executed.contains(&id) {
                 continue;
             }
+            if retries
+                .get(&id)
+                .is_some_and(|deadline| *deadline > tokio::time::Instant::now())
+            {
+                continue;
+            }
             match executor.execute(&effect).await {
                 Ok(events) => {
+                    retries.remove(&id);
                     executed.insert(id);
                     progressed = true;
                     for event in events {
@@ -378,21 +416,29 @@ where
                 }
                 Err(retry) => {
                     tracing::debug!(reason = %retry.reason, "effect execution retries later");
-                    tokio::select! {
-                        () = shutdown.cancelled() => return Ok(()),
-                        () = tokio::time::sleep(
-                            retry.after.unwrap_or(settings.poll_interval),
-                        ) => {}
-                    }
+                    let deadline = tokio::time::Instant::now()
+                        .checked_add(retry.after.unwrap_or(settings.poll_interval))
+                        .ok_or_else(|| {
+                            KernelError::Internal("effect retry delay is out of range".to_owned())
+                        })?;
+                    retries.insert(id, deadline);
                 }
             }
         }
         maybe_snapshot(&handle, settings.snapshot_every_events).await;
+        let now = tokio::time::Instant::now();
+        retries.retain(|_, deadline| *deadline > now);
         if !progressed {
+            let delay = retries
+                .values()
+                .map(|deadline| deadline.saturating_duration_since(now))
+                .min()
+                .unwrap_or(settings.poll_interval)
+                .min(settings.poll_interval);
             tokio::select! {
                 () = shutdown.cancelled() => return Ok(()),
                 _changed = state_changes.receiver.recv() => {}
-                () = tokio::time::sleep(settings.poll_interval) => {}
+                () = tokio::time::sleep(delay) => {}
             }
         }
     }
@@ -503,8 +549,7 @@ mod tests {
         total: u64,
     }
 
-    /// Archives any counter at or over the threshold. The returned
-    /// `Archived` event removes the counter, so `plan` reaches a fixpoint.
+    /// The completion event removes the counter from subsequent plans.
     struct ArchiveExecutor {
         threshold: u64,
         external: Arc<Mutex<Vec<(String, u64)>>>,
@@ -701,6 +746,174 @@ mod tests {
             .shutdown()
             .await
             .expect("shutdown after restart should succeed");
+    }
+
+    #[tokio::test]
+    async fn retry_delay_allows_other_effects_to_complete() {
+        struct RetryingExecutor {
+            attempts: Arc<Mutex<Vec<(u8, tokio::time::Instant)>>>,
+        }
+
+        impl Executor<RtDomain> for RetryingExecutor {
+            type Effect = u8;
+
+            fn plan(&self, projection: &RtCounters) -> Vec<u8> {
+                match projection.totals.get("ready") {
+                    None => vec![1, 2],
+                    Some(1) => vec![1],
+                    Some(_) => Vec::new(),
+                }
+            }
+
+            async fn execute(&self, effect: &u8) -> Result<Vec<RtEvent>, Retry> {
+                let mut attempts = self
+                    .attempts
+                    .lock()
+                    .expect("test mutex should not be poisoned");
+                attempts.push((*effect, tokio::time::Instant::now()));
+                if attempts.len() == 1 {
+                    Err(Retry {
+                        reason: "destination unavailable".to_owned(),
+                        after: Some(Duration::from_millis(200)),
+                    })
+                } else {
+                    Ok(vec![increment("ready", u32::from(*effect), 1)])
+                }
+            }
+        }
+
+        let blob = tempfile::tempdir().expect("blob root tempdir should be created");
+        let key = PartitionKey::parse("ready").expect("key should be valid");
+        let attempts = Arc::new(Mutex::new(Vec::new()));
+        let running = Kernel::open(config(
+            &format!("file://{}", blob.path().display()),
+            domain::shard_of(&key).get(),
+        ))
+        .expect("kernel should open")
+        .register::<RtDomain>()
+        .expect("domain should register")
+        .start(RetryingExecutor {
+            attempts: Arc::clone(&attempts),
+        })
+        .await
+        .expect("kernel should start");
+        wait_until(async || {
+            running
+                .read(&key, |state| state.totals.get("ready") == Some(&2))
+                .await
+                .expect("read should succeed")
+        })
+        .await;
+        {
+            let attempts = attempts.lock().expect("test mutex should not be poisoned");
+            assert_eq!(
+                attempts
+                    .iter()
+                    .map(|(effect, _)| *effect)
+                    .collect::<Vec<_>>(),
+                vec![1, 2, 1],
+                "the second effect should complete before the first retries"
+            );
+            assert!(
+                attempts[2].1.duration_since(attempts[0].1) >= Duration::from_millis(200),
+                "state changes should preserve the pending retry delay"
+            );
+        }
+        running.shutdown().await.expect("shutdown should succeed");
+    }
+
+    #[tokio::test]
+    async fn failed_start_does_not_run_an_executor() {
+        let blob = tempfile::tempdir().expect("blob root tempdir should be created");
+        let mut settings = config(&format!("file://{}", blob.path().display()), 0);
+        settings.shards = vec![0, 1];
+        let kernel = Kernel::open(settings)
+            .expect("kernel should open")
+            .register::<RtDomain>()
+            .expect("domain should register");
+        let blocked = blob
+            .path()
+            .join(kernel.keyspace.shard_log(kernel.shards[1]));
+        std::fs::create_dir_all(blocked.parent().expect("log path should have a parent"))
+            .expect("log parent should be created");
+        std::fs::write(blocked, b"not a directory").expect("second shard path should be blocked");
+
+        struct CountingPlanner(Arc<std::sync::atomic::AtomicUsize>);
+
+        impl Executor<RtDomain> for CountingPlanner {
+            type Effect = ();
+
+            fn plan(&self, _: &RtCounters) -> Vec<()> {
+                self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                Vec::new()
+            }
+
+            async fn execute(&self, (): &()) -> Result<Vec<RtEvent>, Retry> {
+                unreachable!("empty plans should never execute");
+            }
+        }
+
+        let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        assert!(kernel
+            .start(CountingPlanner(Arc::clone(&calls)))
+            .await
+            .is_err());
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            0,
+            "a failed startup should never invoke the executor"
+        );
+        assert_eq!(
+            Arc::strong_count(&calls),
+            1,
+            "startup should release the executor"
+        );
+    }
+
+    #[tokio::test]
+    async fn dropping_kernel_stops_an_in_flight_executor() {
+        struct WaitingExecutor(Arc<tokio::sync::Notify>);
+
+        impl Executor<RtDomain> for WaitingExecutor {
+            type Effect = ();
+
+            fn plan(&self, _: &RtCounters) -> Vec<()> {
+                vec![()]
+            }
+
+            async fn execute(&self, (): &()) -> Result<Vec<RtEvent>, Retry> {
+                self.0.notify_one();
+                std::future::pending().await
+            }
+        }
+
+        let blob = tempfile::tempdir().expect("blob root tempdir should be created");
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let executor = Arc::downgrade(&entered);
+        let running = Kernel::open(config(&format!("file://{}", blob.path().display()), 0))
+            .expect("kernel should open")
+            .register::<RtDomain>()
+            .expect("domain should register")
+            .start(WaitingExecutor(Arc::clone(&entered)))
+            .await
+            .expect("kernel should start");
+        tokio::time::timeout(Duration::from_secs(10), entered.notified())
+            .await
+            .expect("effect should start");
+        let handle = running.shards[&0].clone();
+        let mut loops = running
+            .loops
+            .iter()
+            .map(JoinHandle::abort_handle)
+            .collect::<Vec<_>>();
+        drop(entered);
+        drop(running);
+        wait_until(async || executor.upgrade().is_none()).await;
+        wait_until(async || loops.iter_mut().all(|task| task.is_finished())).await;
+        assert!(
+            handle.read(|_| ()).await.is_err(),
+            "dropped kernel should reject reads"
+        );
     }
 
     #[tokio::test]

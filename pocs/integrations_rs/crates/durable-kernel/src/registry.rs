@@ -1,12 +1,10 @@
-//! Declaration mechanism for durable records.
+//! Registers the codecs used to read and write durable records.
 //!
-//! Every record that reaches durable storage implements [`DurableRecord`] and
-//! carries a [`RecordDeclaration`] that defines its frozen wire name, version
-//! envelope, identity algorithm versions, and migration policy. The kernel maintains a
-//! process-wide interning table. A domain's declarations are interned before
-//! its shard logs are scanned or appended, preserving the property that one
-//! name means one codec. A consuming crate may additionally maintain its own
-//! reviewed static catalog and attestation manifest on top of this mechanism.
+//! Each [`DurableRecord`] has a [`RecordDeclaration`] with its stored name,
+//! version envelope, identity algorithm versions, and migration policy.
+//! Declarations are registered before reading or appending a shard log. The
+//! process-wide registry rejects conflicting declarations for the same name,
+//! preventing one codec from reading another codec's records.
 
 use std::collections::BTreeMap;
 use std::fmt;

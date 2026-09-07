@@ -1,8 +1,6 @@
-//! Counting semaphore capping concurrently active integrations on this node.
-//! Per-integration serialization is structural (one DuckDB file); this is the
-//! cross-integration resource budget. Slots are RAII guards: release happens
-//! on drop, so a dying holder cannot leak a slot, and a dropped waiter
-//! stops polling.
+//! Limits the number of integrations active on this node. An acquired permit
+//! stays with the running integration and is released when its guard drops.
+//! Dropping a waiting request cancels that wait.
 
 use std::collections::HashSet;
 use std::sync::{Arc, Mutex};

@@ -1,16 +1,15 @@
-//! The durable execution kernel is an event-sourced, S3-backed control layer with
-//! content-addressed identities, snapshot-bounded replay, and epoch-fenced
-//! shard logs.
+//! The kernel records events in object storage and rebuilds application state
+//! from that history after a restart. Snapshots save the state so recovery can
+//! begin partway through the journal. Each shard has one writer, and opening
+//! a replacement writer prevents the earlier writer from appending.
 //!
 //! A domain implements the user-facing traits in [`domain`]. Domains that need
-//! full control implement the internal port in [`port`]. Both run through [`runtime`].
+//! control over record encoding and recovery implement [`port::Domain`] and
+//! use the command loop in [`shard_log`]. The [`runtime`] module runs domains
+//! built with [`domain::SimpleDomain`].
 //! Storage layout is derived in [`keyspace`]. Record codecs register through
 //! [`registry`]. Append and recovery are implemented in [`shard_log`].
 
-// The workspace cargo config injects the HASH-repo lint list. Correctness
-// and suspicious lints stay hot. The allows below are doc-shape and
-// numeric-cast pedantry that adds noise without adding safety here. String indexing
-// operates on validated ASCII, while casts represent counts and durations.
 #![allow(
     clippy::missing_errors_doc,
     clippy::missing_panics_doc,
@@ -29,9 +28,6 @@
     clippy::cast_possible_truncation,
     clippy::single_match_else,
     clippy::items_after_statements,
-    // Cheap handle clones for Store and Arc callbacks read better as calls to
-    // clone. Reports render through their debug representation. This crate
-    // also uses mod.rs for its module layout.
     clippy::clone_on_ref_ptr,
     clippy::needless_pass_by_value,
     clippy::significant_drop_tightening,

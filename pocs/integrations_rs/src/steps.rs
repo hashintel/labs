@@ -1,9 +1,10 @@
-//! Step execution over the staging store. SQL steps see the previous output
-//! as the view `input` plus any named checkpoint inputs; every step output
-//! must keep the `_op/_key/_before` envelope. Branch steps fan out against
-//! the pre-branch table; the main flow continues unchanged. Side-effect
-//! results (graph sinks, checkpoints) are collected and returned in execution
-//! order: the caller folds them, no shared mutable state.
+//! Executes pipeline steps against the staging store. SQL reads the previous
+//! output through `input` and can also read named checkpoints. Each output must
+//! preserve the `_op`, `_key`, and `_before` columns.
+//!
+//! Each branch starts from the same table. The main pipeline then continues
+//! with that table. Graph sink and checkpoint results are returned in execution
+//! order for the caller to combine.
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::Arc;

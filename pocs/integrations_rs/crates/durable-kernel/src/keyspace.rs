@@ -1,14 +1,11 @@
-//! Kernel-owned S3 key derivation.
+//! Derives storage keys from one validated [`Namespace`].
 //!
-//! Every durable key is derived here from one validated [`Namespace`]. The
-//! control layer lives under `{namespace}/control/v1/...`, while content-addressed
-//! artifact prefixes under `{namespace}/artifacts/{kind}/sha256/...`. Call
-//! sites must not format keys ad hoc. This type exists to prevent a writer
-//! and its validator from disagreeing on layout.
+//! Control records use `{namespace}/control/v1/...`. Artifacts use
+//! `{namespace}/artifacts/{kind}/sha256/...`. Writers and validators use these
+//! methods to agree on each record's location.
 //!
-//! The layout under a namespace is frozen. A consuming domain derives its
-//! own record-typed keys on top of these methods and does not define
-//! parallel layouts.
+//! The layout is part of the storage format. Domains build their record keys
+//! from these prefixes so stored data stays discoverable across releases.
 
 use std::fmt;
 

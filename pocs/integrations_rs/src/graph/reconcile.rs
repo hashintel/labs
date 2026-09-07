@@ -1,8 +1,8 @@
-//! Capacity-bounded reconciliation of journal-applied Graph truth.
+//! Reapplies the integration state recorded in the journal to Graph.
 //!
-//! Reconcile force-applies one immutable desired projection. It shares the
-//! ordinary work manifest, cursor, effect lane, and fenced journal path with
-//! Apply and Restore; no reconciliation-specific checkpoint protocol exists.
+//! Reconciliation uses the same work manifests, progress cursor, integration
+//! lock, and journal as Apply and Restore. Delivery proceeds in batches within
+//! the configured request budget.
 use crate::orchestrator::shard_log::IntegrationsCommandExt as _;
 use std::fmt;
 use std::sync::Arc;

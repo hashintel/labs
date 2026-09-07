@@ -1,9 +1,9 @@
-//! Protocol V1's shard-log layer over the kernel machinery.
+//! Connects the integration domain to the kernel's shard log.
 //!
-//! The append handle, retry/ambiguity discipline, and recovery live in
-//! `durable_kernel::shard_log`; this module pins that machinery to
-//! [`IntegrationsDomain`], derives production storage locations from the
-//! environment, and folds V1 projections for read-only inspection.
+//! [`IntegrationsDomain`] defines the integration records and projection.
+//! The kernel handles appends, retries, and recovery. This module derives
+//! storage locations from the environment and rebuilds V1 projections for
+//! read-only inspection.
 
 use std::time::Duration;
 
@@ -18,13 +18,11 @@ pub(crate) use command_loop::{
     IntegrationsSnapshotContext, RunView, WorkRecoveryIntent,
 };
 
-// Kernel machinery, re-exported under this module's import paths.
 pub(crate) use durable_kernel::shard_log::{
     LogStorageOptions, OpenedShard, ShardCommandConfig, ShardCommandError, ShardCommandErrorKind,
     ShardCommandOutcome, ShardLogLocation,
 };
 
-// The kernel's generic types, pinned to V1's domain under short names.
 pub(crate) type ShardCommandHandle =
     durable_kernel::shard_log::ShardCommandHandle<IntegrationsDomain>;
 pub(crate) type StartedShard = durable_kernel::shard_log::StartedShard<IntegrationsDomain>;

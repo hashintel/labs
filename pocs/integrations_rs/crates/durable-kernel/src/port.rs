@@ -1,11 +1,9 @@
-//! The kernel↔domain contract for the durable command loop.
+//! Defines how the command loop reads and updates a domain's state.
 //!
-//! The command loop owns the append-capable writer, retry and ambiguity
-//! discipline, terminal-error handling, and sequencing. Everything it must
-//! know about the records it appends and the state it folds comes through
-//! this trait. A domain brings its own vocabulary and reuses
-//! `CommandLoop<D>`, `ShardCommandHandle<D>`, and the recovery path
-//! unchanged.
+//! The loop serializes appends, assigns sequences, and recovers when an append's
+//! outcome is uncertain. The domain supplies record encoding, validation, and
+//! state updates through [`Domain`]. A prepared mutation changes the projection
+//! only after its record is durable.
 
 use crate::ids::EventId;
 use crate::registry::{DurableRecord, UntrimmedJournalRecord};
@@ -68,8 +66,6 @@ pub trait Domain: Send + Sync + 'static {
     /// Recovered live-work descriptor reported to the scheduler at startup.
     type WorkIntent: Clone + Send + std::fmt::Debug + PartialEq + Eq;
 
-    // The following methods define records and folding.
-
     fn record_shard(record: &Self::RecordCurrent) -> Shard;
     /// The fold error rejecting a record proposed to the wrong shard.
     fn reject_foreign_shard(record: &Self::RecordCurrent) -> Self::FoldError;
@@ -88,15 +84,9 @@ pub trait Domain: Send + Sync + 'static {
         shard_sequence: u64,
     ) -> Result<(), Self::FoldError>;
 
-    // The following method reports state changes.
-
     fn state_sequence(projection: &Self::Projection, key: &Self::StateKey) -> Option<u64>;
 
-    // The following method answers domain queries.
-
     fn answer(projection: &Self::Projection, query: Self::Query) -> Self::QueryResult;
-
-    // The following methods process control requests.
 
     fn control_shard(request: &Self::ControlRequest) -> Shard;
     /// Rejection message for a control request proposed to the wrong shard.
@@ -122,8 +112,6 @@ pub trait Domain: Send + Sync + 'static {
         request: &Self::ControlRequest,
     ) -> Result<Self::ControlOutcome, String>;
 
-    // The following methods create and restore snapshots.
-
     fn capture_snapshot(
         shard: Shard,
         projection: &Self::Projection,
@@ -141,15 +129,10 @@ pub trait Domain: Send + Sync + 'static {
         snapshot: &Self::Snapshot,
     ) -> impl std::future::Future<Output = Result<Self::Projection, String>> + Send;
 
-    // Both telemetry hooks default to no-ops. A domain wires them to its
-    // own observability.
-
     /// Observes one completed snapshot-enabled recovery.
     fn note_snapshot_recovery(_context: &Self::SnapshotContext, _stats: &SnapshotRecoveryStats) {}
     /// Observes the loop stopping because its writer was fenced.
     fn note_fenced(_context: &Self::SnapshotContext) {}
-
-    // The following methods validate and describe recovered state.
 
     /// The projection's inclusive durable high-water mark.
     fn through_sequence(projection: &Self::Projection) -> Option<u64>;

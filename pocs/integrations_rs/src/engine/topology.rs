@@ -1,6 +1,6 @@
-//! Stable Kahn topological sort of pipelines by declared `dependsOn`,
-//! checkpoint `inputs`, and cross-pipeline step deps, ported with the same
-//! errors as the TS/Elixir engines.
+//! Orders pipelines by `dependsOn`, checkpoint `inputs`, and step dependencies
+//! across pipelines. Kahn's algorithm preserves declaration order where
+//! dependencies allow it. Errors match the TypeScript and Elixir engines.
 
 use std::collections::{BTreeMap, HashMap, HashSet, VecDeque};
 

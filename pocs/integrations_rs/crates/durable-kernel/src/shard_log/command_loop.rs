@@ -1,8 +1,9 @@
-//! Serialized mutation path for one shard journal and its authoritative fold.
+//! Serializes changes to one shard's journal and projection.
 //!
-//! Producers can submit typed records but cannot access the append-capable log
-//! or clone the whole projection. Expensive planning and external effects stay
-//! outside this loop and return as ordinary, potentially stale proposals.
+//! Producers submit typed records through a command handle. The loop checks
+//! each proposal against its projection and applies the change after the append
+//! is durable. Planning and external effects run outside the loop, so their
+//! proposals may arrive after another command has changed the state.
 
 use std::fmt;
 use std::num::NonZeroUsize;
@@ -238,9 +239,7 @@ impl<D: Domain> ShardCommandHandle<D> {
         })?
     }
 
-    /// Stops new admission immediately and wakes the loop through a dedicated
-    /// control path. Commands already queued are rejected rather than draining
-    /// through a lease-lost writer.
+    /// Rejects new commands. Use `cancel_owned_writer` to wake and stop the loop.
     pub fn stop_admission(&self) {
         self.accepting.store(false, Ordering::Release);
     }

@@ -52,7 +52,7 @@ pub trait DomainEvent: Serialize + DeserializeOwned + Clone + Send + Sync + 'sta
     fn partition(&self) -> PartitionKey;
 }
 
-/// Pure fold over one partition-keyed history.
+/// Maintains the domain state for all partitions on one shard.
 ///
 /// `validate` performs command-time checking. It may reject a proposed event and
 /// is never consulted again once the event is durable. `apply` performs the
@@ -80,8 +80,10 @@ pub trait SimpleDomain: Send + Sync + 'static {
 ///
 /// `plan` is a pure function of the fold state. The events returned by
 /// `execute` are the effect's durable completion. Once they are folded,
-/// `plan` must stop emitting that effect. External side effects are named by
-/// [`effect_id`] so replayed executions are absorbed idempotently.
+/// `plan` must stop emitting that effect. Pass [`effect_id`] to the external
+/// system as an idempotency key. That system must remember the key and return
+/// the earlier result when an execution repeats. The kernel can repeat an
+/// effect after a crash between the external write and its completion event.
 pub trait Executor<S: SimpleDomain>: Send + Sync + 'static {
     type Effect: Serialize + Clone + Send + Sync + 'static;
 
@@ -93,7 +95,8 @@ pub trait Executor<S: SimpleDomain>: Send + Sync + 'static {
     ) -> impl std::future::Future<Output = Result<Vec<S::Event>, Retry>> + Send;
 }
 
-/// A transient effect failure causes the driver to back off and retry the effect.
+/// Delays another attempt at this effect while the driver processes other work.
+/// The delay is held in memory, so a restart can retry the effect immediately.
 #[derive(Debug, Clone)]
 pub struct Retry {
     pub reason: String,

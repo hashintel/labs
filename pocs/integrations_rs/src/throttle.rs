@@ -1,8 +1,8 @@
-//! Write budget toward the graph, scoped per web and weighted in operations,
-//! not HTTP requests. This is the TypeScript runner's token-bucket contract:
-//! 2x-rate burst capacity, refill to now, deduct/reserve the full charge, then
-//! sleep once when the resulting balance is negative. Reservation prevents
-//! concurrent waiters racing to reacquire the same future capacity.
+//! Limits Graph writes per web by counting operations. The token bucket allows
+//! a burst of twice the configured per-second rate. Each request reserves its
+//! full charge before waiting for a negative balance to refill, so concurrent
+//! callers reserve different portions of the future budget. This follows the
+//! TypeScript runner's rate-limiting behavior.
 
 use std::collections::HashMap;
 use std::sync::Mutex;

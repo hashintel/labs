@@ -1,8 +1,7 @@
-//! Bounded retry on HTTP 429 honoring Retry-After, shared by the graph
-//! client (write side) and REST fetches (fetch side). An integer Retry-After
-//! wins, capped; an HTTP-date or absent header falls back to capped
-//! exponential backoff. After the attempt budget the 429 response is returned
-//! as-is for the caller's normal error path.
+//! Retries HTTP 429 responses from Graph writes and REST reads. An integer
+//! `Retry-After` supplies the delay in seconds. Other values, including HTTP
+//! dates, use exponential backoff. Each delay is capped at 30 seconds. After
+//! ten retries, the caller receives the last response to handle as an error.
 
 use std::future::Future;
 use std::time::Duration;
@@ -40,9 +39,7 @@ pub fn retry_after_ms(response: &reqwest::Response, attempt: u32) -> u64 {
         .unwrap_or_else(|| backoff_ms(attempt))
 }
 
-/// Seconds -> capped milliseconds. saturating_mul because the Retry-After
-/// header is server-controlled: a huge value must not overflow the *1000
-/// before the cap applies (which would panic in dev / wrap in release).
+/// Saturation prevents server-supplied seconds from overflowing before the cap.
 fn cap_seconds_ms(seconds: u64) -> u64 {
     seconds.saturating_mul(1000).min(MAX_RETRY_AFTER_MS)
 }
@@ -65,9 +62,11 @@ mod tests {
     fn retry_after_seconds_cap_never_overflows() {
         assert_eq!(cap_seconds_ms(5), 5_000);
         assert_eq!(cap_seconds_ms(60), MAX_RETRY_AFTER_MS);
-        // A server-controlled value that would overflow seconds*1000 saturates
-        // to the cap instead of panicking/wrapping.
-        assert_eq!(cap_seconds_ms(u64::MAX), MAX_RETRY_AFTER_MS);
+        assert_eq!(
+            cap_seconds_ms(u64::MAX),
+            MAX_RETRY_AFTER_MS,
+            "oversized Retry-After values should saturate before the cap"
+        );
         assert_eq!(cap_seconds_ms(18_446_744_073_709_552), MAX_RETRY_AFTER_MS);
     }
 }

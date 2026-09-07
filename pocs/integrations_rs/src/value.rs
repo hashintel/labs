@@ -1,7 +1,7 @@
-//! Cell values and JS rendering parity. Rows are string-keyed maps of
-//! `serde_json::Value`; a value carrying a HASH data-type id travels in the
-//! `$typedValue` tagged shape (the TS replacer/reviver wire format), which is
-//! also its JSON-staging representation, so there is exactly one encoding.
+//! Renders row values using JavaScript's conversion rules. Rows map string
+//! column names to `serde_json::Value`. Values with a HASH data-type ID use the
+//! `$typedValue` representation both in transit and in JSON staging tables,
+//! matching the TypeScript serializer.
 
 use serde_json::{json, Value};
 

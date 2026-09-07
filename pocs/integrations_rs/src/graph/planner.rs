@@ -1,8 +1,7 @@
-//! Side-effect-free Graph operation planning.
+//! Converts pipeline rows into Graph operations and their exact request bytes.
 //!
-//! This module owns row conversion and exact delivery bytes. It has no Graph
-//! client dependency: planning can read deterministic pipeline values, but it
-//! cannot perform an external request.
+//! Planning uses the pipeline values to produce a repeatable result. Delivery
+//! sends the saved requests after the journal accepts the plan.
 
 use std::collections::{BTreeMap, BTreeSet};
 

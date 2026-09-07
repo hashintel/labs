@@ -1,7 +1,6 @@
-//! Value coercions for definition accessors, semantics identical to the
-//! TS/Elixir registries. These compile to function accessors, which forces
-//! the sink onto the whole-row hash path exactly as in TS; that choice is
-//! part of adopted state and must not be "improved" into column expressions.
+//! Converts accessor values using the TypeScript and Elixir coercion rules.
+//! These accessors select whole-row hashing. Keeping that selection preserves
+//! compatibility with hashes already stored by an integration.
 
 use std::sync::OnceLock;
 

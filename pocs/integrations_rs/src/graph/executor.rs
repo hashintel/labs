@@ -1,9 +1,10 @@
-//! Bounded, replay-safe delivery of immutable Graph effects.
+//! Delivers saved Graph requests in batches with a fixed request budget.
 //!
-//! The executor is split into artifact verification and one
-//! bounded delivery turn. It may overlap effects within one dependency class,
-//! advances only a contiguous acknowledged prefix, and holds the integration
-//! lane until that cursor is authoritative in the shard journal.
+//! Each turn verifies the saved artifacts before sending requests. Independent
+//! effects within a dependency class may run concurrently. Progress advances
+//! through consecutive acknowledged effects, so an earlier failure prevents
+//! later successes from moving the cursor past it. The integration remains
+//! locked until that cursor is recorded in the shard journal.
 
 use std::collections::BTreeMap;
 use std::fmt;

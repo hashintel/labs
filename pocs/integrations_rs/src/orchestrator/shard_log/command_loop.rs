@@ -1,10 +1,8 @@
-//! Protocol V1's domain behind the kernel command loop: the
-//! [`IntegrationsDomain`] port implementation, its query vocabulary, and the
-//! V1-typed convenience methods on the kernel's shard command handle.
+//! Implements the kernel's domain contract for integration records and queries.
 //!
-//! The loop itself (writer ownership, retry/ambiguity discipline,
-//! sequencing, recovery) is kernel machinery in `durable_kernel::shard_log`;
-//! nothing here can access the append-capable log or clone the projection.
+//! [`IntegrationsDomain`] supplies validation and projection updates. The
+//! extension methods submit typed requests through the kernel's command handle,
+//! which serializes writes and handles uncertain append outcomes.
 
 use error_stack::Report;
 

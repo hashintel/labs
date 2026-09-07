@@ -1,11 +1,7 @@
-//! Egress policy for user-configurable fetch URLs (rest-api endpoints and
-//! the next-link URLs their responses supply): http/https only, and the host
-//! must not resolve to loopback, private, link-local, CGNAT, or unspecified
-//! space unless INTEGRATIONS_ALLOW_PRIVATE_HOSTS is set (dev). Checked per
-//! request, so every page of a paginated fetch revalidates whatever URL the
-//! previous response handed back. The resolve-then-connect gap (DNS rebinding
-//! between check and request) is accepted; the blast radius is bounded by
-//! this check plus the graph's own auth.
+//! REST requests use HTTP or HTTPS and public destination addresses.
+//! Each page's URL is checked before sending. The client's DNS resolver also
+//! checks the addresses it passes to the connection, including on retries.
+//! `INTEGRATIONS_ALLOW_PRIVATE_HOSTS` allows private destinations for local use.
 
 use std::net::IpAddr;
 
@@ -13,6 +9,39 @@ use error_stack::Report;
 
 use crate::config::{self, Env};
 use crate::error::SourceError;
+
+/// Pair this client with `validate_url` for each request. URL validation checks
+/// IP literals, which bypass the client's DNS resolver.
+pub(crate) fn client(env: &Env) -> reqwest::Result<reqwest::Client> {
+    let mut builder = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::none())
+        // A proxy could resolve the destination outside our address checks.
+        .no_proxy();
+    if !config::allow_private_hosts(env) {
+        builder = builder.dns_resolver(std::sync::Arc::new(PublicResolver));
+    }
+    builder.build()
+}
+
+struct PublicResolver;
+
+impl reqwest::dns::Resolve for PublicResolver {
+    fn resolve(&self, name: reqwest::dns::Name) -> reqwest::dns::Resolving {
+        Box::pin(async move {
+            let addresses = tokio::net::lookup_host((name.as_str(), 0))
+                .await?
+                .collect::<Vec<_>>();
+            if addresses.is_empty() || addresses.iter().any(|address| private(&address.ip())) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    "egress blocked because DNS did not return exclusively public addresses",
+                )
+                .into());
+            }
+            Ok(Box::new(addresses.into_iter()) as reqwest::dns::Addrs)
+        })
+    }
+}
 
 pub async fn validate_url(url: &str, env: &Env) -> Result<(), Report<SourceError>> {
     let parsed = reqwest::Url::parse(url).map_err(|_error| {
@@ -87,9 +116,7 @@ pub fn private(ip: &IpAddr) -> bool {
             v4.is_loopback()
                 || v4.is_private()
                 || v4.is_link_local()
-                // The whole 0.0.0.0/8 ("this network"), not just the
-                // unspecified address: Linux routes 0.x.y.z to the local
-                // stack, so the guard must block the entire block.
+                // Linux can route addresses in 0.0.0.0/8 to the local network stack.
                 || a == 0
                 || (a == 100 && (64..=127).contains(&b))
         }
@@ -117,6 +144,21 @@ mod tests {
     use super::*;
     use std::collections::HashMap;
 
+    #[tokio::test]
+    async fn connection_resolution_rejects_private_addresses() {
+        let server = wiremock::MockServer::start().await;
+        let url = server.uri().replace("127.0.0.1", "localhost");
+        let guarded = client(&env(&[])).expect("guarded client should build");
+        assert!(
+            guarded.get(&url).send().await.is_err(),
+            "connection DNS should reject localhost without relying on URL preflight"
+        );
+        let local = client(&env(&[("INTEGRATIONS_ALLOW_PRIVATE_HOSTS", "1")]))
+            .expect("local client should build");
+        assert!(local.get(&url).send().await.is_ok());
+        assert_eq!(server.received_requests().await.unwrap().len(), 1);
+    }
+
     fn env(pairs: &[(&str, &str)]) -> Env {
         Env::from_map(
             pairs
@@ -137,7 +179,6 @@ mod tests {
             "169.254.169.254",
             "100.64.0.1",
             "0.0.0.0",
-            // the whole 0.0.0.0/8, not just the unspecified address
             "0.1.2.3",
             "0.255.255.255",
             "::1",
