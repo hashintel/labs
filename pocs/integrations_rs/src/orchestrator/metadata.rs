@@ -25,8 +25,8 @@ pub enum TaskPayload {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskPayloadV1 {
-    /// Raw, unresolved user definition. Placeholders travel to the worker and
-    /// known credential-shaped fields are rejected when supplied literally.
+    /// The unresolved definition keeps public configuration placeholders and
+    /// User Secret references until execution.
     pub definition: Value,
     #[serde(default)]
     pub invocation: InvocationV1,
@@ -58,8 +58,7 @@ pub struct TaskMetadataV1 {
     pub connector_id: String,
     pub web_id: String,
     pub definition_digest: String,
-    /// Pins the fully interpolated semantic definition without persisting
-    /// resolved credential values.
+    /// Pins the definition after public configuration variables are expanded.
     pub resolved_definition_digest: String,
     pub submitted_at: String,
     pub runner_revision: String,
@@ -207,10 +206,11 @@ pub fn prepare_task_for_web(
             .attach_printable("durable submissions do not support source replay"));
     }
     let raw = yaml::raw(source).change_context(DurableError)?;
-    reject_inline_secrets(&raw)?;
+    reject_embedded_credentials(&raw)?;
     reject_unsafe_env_placeholders(&raw, env)?;
     let durable_env = env.durable_interpolation_scope();
     let resolved = yaml::resolve_env(&raw, &durable_env).change_context(DurableError)?;
+    reject_embedded_credentials(&resolved)?;
     let integration = crate::definition::parse(&resolved, web_id).change_context(DurableError)?;
     if crate::connectors::is_stream_mode(&integration.connector_mode) {
         return Err(Report::new(DurableError).attach_printable(format!(
@@ -264,15 +264,15 @@ fn canonical_json(value: &Value) -> Value {
     }
 }
 
-pub(crate) fn reject_inline_secrets(raw: &Value) -> Result<(), Report<DurableError>> {
+pub(crate) fn reject_embedded_credentials(raw: &Value) -> Result<(), Report<DurableError>> {
     let mut paths = Vec::new();
-    find_inline_secrets(raw, "definition", None, &mut paths);
+    find_embedded_credentials(raw, "definition", None, &mut paths);
     if paths.is_empty() {
         return Ok(());
     }
 
     Err(Report::new(DurableError).attach_printable(format!(
-        "durable submissions cannot persist literal credentials at {}; replace each value with an allowlisted ${{ENV_VAR}} placeholder",
+        "durable credential fields at {} require User Secret references instead of values or environment placeholders",
         paths.join(", ")
     )))
 }
@@ -350,7 +350,7 @@ pub(crate) fn required_environment_placeholders(raw: &Value) -> std::collections
     required
 }
 
-fn find_inline_secrets(
+fn find_embedded_credentials(
     value: &Value,
     path: &str,
     parent_key: Option<&str>,
@@ -363,6 +363,8 @@ fn find_inline_secrets(
                 if let Value::String(text) = child {
                     let credential_scope = path == "definition.connector"
                         || path.starts_with("definition.connector.")
+                        || path == "definition.sources"
+                        || path.starts_with("definition.sources.")
                         || path == "definition.vars"
                         || path.starts_with("definition.vars.");
                     let normalized: String = key
@@ -387,54 +389,20 @@ fn find_inline_secrets(
                     let credential_url = credential_scope && url_contains_password(text);
                     let credential_field =
                         (credential_scope && key_is_sensitive) || auth_value || credential_url;
-                    if !text.is_empty()
-                        && credential_field
-                        && !credential_is_placeholder(text, auth_value, credential_url)
-                    {
+                    if !text.is_empty() && credential_field {
                         found.push(child_path.clone());
                     }
                 }
-                find_inline_secrets(child, &child_path, Some(key), found);
+                find_embedded_credentials(child, &child_path, Some(key), found);
             }
         }
         Value::Array(items) => {
             for (index, child) in items.iter().enumerate() {
-                find_inline_secrets(child, &format!("{path}[{index}]"), parent_key, found);
+                find_embedded_credentials(child, &format!("{path}[{index}]"), parent_key, found);
             }
         }
         _ => {}
     }
-}
-
-fn credential_is_placeholder(text: &str, auth_value: bool, credential_url: bool) -> bool {
-    let placeholder = |value: &str| {
-        let value = value.trim();
-        crate::yaml::placeholder_re()
-            .find(value)
-            .is_some_and(|found| found.start() == 0 && found.end() == value.len())
-    };
-    if placeholder(text) {
-        return true;
-    }
-    if auth_value {
-        return text
-            .split_once(char::is_whitespace)
-            .is_some_and(|(scheme, value)| {
-                matches!(scheme.to_ascii_lowercase().as_str(), "bearer" | "basic")
-                    && placeholder(value)
-            });
-    }
-    if credential_url {
-        let Some((_, rest)) = text.split_once("://") else {
-            return false;
-        };
-        let authority = rest.split(['/', '?', '#']).next().unwrap_or(rest);
-        return authority
-            .split_once('@')
-            .and_then(|(userinfo, _)| userinfo.split_once(':'))
-            .is_some_and(|(_, password)| placeholder(password));
-    }
-    false
 }
 
 fn url_contains_password(value: &str) -> bool {
@@ -551,7 +519,7 @@ mod tests {
     }
 
     #[test]
-    fn durable_payload_rejects_literal_credentials_but_accepts_placeholders() {
+    fn durable_payload_rejects_credentials_and_environment_placeholders() {
         let literal = serde_json::json!({
             "connector": {
                 "endpoints": {
@@ -559,7 +527,8 @@ mod tests {
                 }
             }
         });
-        let error = reject_inline_secrets(&literal).expect_err("literal token must be rejected");
+        let error =
+            reject_embedded_credentials(&literal).expect_err("literal token must be rejected");
         assert!(format!("{error:?}").contains("definition.connector.endpoints.items.auth.token"));
 
         let placeholder = serde_json::json!({
@@ -570,20 +539,24 @@ mod tests {
                 }
             }
         });
-        reject_inline_secrets(&placeholder).expect("placeholders are safe to persist");
+        assert!(
+            reject_embedded_credentials(&placeholder).is_err(),
+            "credential placeholders should be rejected"
+        );
 
         let mixed = serde_json::json!({
             "connector": {"auth": {"value": "Bearer sk_live_literal ${TOKEN}"}},
             "vars": {"nested": {"password": "literal"}}
         });
-        let error = reject_inline_secrets(&mixed).expect_err("mixed/nested literals must fail");
+        let error =
+            reject_embedded_credentials(&mixed).expect_err("mixed/nested literals must fail");
         let rendered = format!("{error:?}");
         assert!(rendered.contains("definition.connector.auth.value"));
         assert!(rendered.contains("definition.vars.nested.password"));
     }
 
     #[test]
-    fn secret_bearing_environment_placeholders_require_explicit_permission() {
+    fn environment_permission_does_not_allow_credential_fields() {
         let raw = serde_json::json!({
             "connector": {"auth": {"value": "Bearer ${SERVICE_TOKEN}"}}
         });
@@ -606,7 +579,43 @@ mod tests {
             ),
         ]));
         reject_unsafe_env_placeholders(&raw, &allowed)
-            .expect("operators can explicitly permit an intentional secret placeholder");
+            .expect("allowlisted variable should pass the environment check");
+        assert!(
+            reject_embedded_credentials(&raw).is_err(),
+            "credential fields should require secret references even when allowlisted"
+        );
+    }
+
+    #[test]
+    fn expanded_credentials_are_rejected_without_reporting_the_value() {
+        let env = Env::from_map(std::collections::HashMap::from([
+            ("HASH_WEB_ID".to_owned(), "alice".to_owned()),
+            (
+                "INTEGRATIONS_ENV_ALLOWLIST".to_owned(),
+                "ENDPOINT".to_owned(),
+            ),
+            (
+                "ENDPOINT".to_owned(),
+                "https://reader:private-password@example.test/data".to_owned(),
+            ),
+        ]));
+        let raw = serde_json::json!({
+            "connector": {"id": "orders", "mode": "rest-api", "endpoints": {
+                "orders": {"url": "${ENDPOINT}", "primaryKey": "id"}
+            }},
+            "pipelines": {"entities": []}
+        });
+        let error = prepare_task(
+            &Source::Definition(raw),
+            InvocationV1::default(),
+            SubmissionTriggerV1::Manual,
+            Map::new(),
+            &env,
+        )
+        .expect_err("expanded URL credentials should be rejected before hashing");
+        let report = format!("{error:?}");
+        assert!(report.contains("definition.connector.endpoints.orders.url"));
+        assert!(!report.contains("private-password"));
     }
 
     #[test]

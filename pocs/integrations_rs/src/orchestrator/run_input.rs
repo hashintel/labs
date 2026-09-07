@@ -175,7 +175,7 @@ fn load_current(
         return Err(Report::new(RunInputError::InvalidDefinition)
             .attach_printable("definition must be a JSON object"));
     }
-    metadata::reject_inline_secrets(&raw).change_context(RunInputError::UnsafeDefinition)?;
+    metadata::reject_embedded_credentials(&raw).change_context(RunInputError::UnsafeDefinition)?;
     metadata::reject_unsafe_env_placeholders(&raw, env)
         .change_context(RunInputError::UnsafeDefinition)?;
     let raw_digest =
@@ -192,6 +192,8 @@ fn load_current(
     let durable_env = env.durable_interpolation_scope();
     let resolved = crate::yaml::resolve_env(&raw, &durable_env)
         .change_context(RunInputError::InvalidDefinition)?;
+    metadata::reject_embedded_credentials(&resolved)
+        .change_context(RunInputError::UnsafeDefinition)?;
     let resolved_digest =
         metadata::definition_digest(&resolved).change_context(RunInputError::InvalidDefinition)?;
     if resolved_digest != current.resolved_definition_digest {
@@ -329,6 +331,33 @@ mod tests {
             loaded.definition_digest,
             metadata::definition_digest(&raw).expect("digest")
         );
+    }
+
+    #[tokio::test]
+    async fn worker_rejects_credentials_introduced_by_environment_expansion() {
+        let mut raw = definition();
+        raw["connector"]["url"] = Value::String("${ENDPOINT}".to_owned());
+        let env = Env::from_map(std::collections::HashMap::from([
+            ("HASH_WEB_ID".to_owned(), "alice".to_owned()),
+            (
+                "HASH_TYPE_BASE".to_owned(),
+                "https://hash.ai/@h/types".to_owned(),
+            ),
+            (
+                "INTEGRATIONS_ENV_ALLOWLIST".to_owned(),
+                "ENDPOINT".to_owned(),
+            ),
+            (
+                "ENDPOINT".to_owned(),
+                "postgres://reader:private-password@example.test/db".to_owned(),
+            ),
+        ]));
+        let (_remote, _cache, store, tenant, integration, reference) = fixture(&raw, &env).await;
+        let error = load_run_input(&store, &tenant, &integration, &reference, &env)
+            .await
+            .expect_err("worker should reject expanded credentials before planning");
+        assert_eq!(error.current_context(), &RunInputError::UnsafeDefinition);
+        assert!(!format!("{error:?}").contains("private-password"));
     }
 
     #[tokio::test]

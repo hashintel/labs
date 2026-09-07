@@ -183,7 +183,9 @@ use `type: header` and add `name: x-api-key`. The worker resolves the reference
 with the run owner's actor and web immediately before live source capture.
 Saved captures are reused without fetching the secret again. Secret values
 stay out of the definition and its digest. This form requires the durable
-worker. Existing environment-based authentication remains supported.
+worker. Durable credential fields require secret references. Environment
+placeholders remain available for public configuration, including URLs without
+embedded credentials, table names, and type URLs.
 
 Graph authorization is enforced at the trusted submission boundary and by the
 Graph on each delivery. The engine does not use managed entities to probe an

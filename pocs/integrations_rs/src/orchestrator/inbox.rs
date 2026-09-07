@@ -536,7 +536,7 @@ impl ControlInbox {
             );
             return Ok(Some(ControlRejectionReason::Malformed));
         }
-        if super::metadata::reject_inline_secrets(&definition).is_err() {
+        if super::metadata::reject_embedded_credentials(&definition).is_err() {
             return Ok(Some(ControlRejectionReason::Malformed));
         }
         Ok(None)
