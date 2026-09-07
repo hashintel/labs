@@ -5,7 +5,6 @@
 //! allowed environment, then refuses to plan if either representation or the
 //! canonical integration identity drifted.
 use crate::orchestrator::routing::TenantKeyspace as _;
-use std::collections::BTreeMap;
 use std::fmt;
 
 use error_stack::{Report, ResultExt as _};
@@ -28,8 +27,6 @@ use crate::kernel::keyspace::Keyspace;
 pub(crate) const DEFINITION_DIGEST_ENCODING_VERSION: u32 = 1;
 pub(crate) const PLANNER_VERSION: u32 = 1;
 const RUN_INPUT_MEDIA_TYPE: &str = "application/json";
-const LINKS_ONLY_VARIABLE: &str = "integrations.invocation.links_only";
-const REPLAY_VARIABLE: &str = "integrations.invocation.replay.v1";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum RunInputError {
@@ -41,7 +38,6 @@ pub(crate) enum RunInputError {
     UnsafeDefinition,
     EnvironmentDrift,
     IdentityMismatch,
-    InvalidInvocation,
     InvalidPolicy,
 }
 
@@ -60,7 +56,6 @@ impl fmt::Display for RunInputError {
             Self::IdentityMismatch => {
                 "resolved definition does not match the admitted integration identity"
             }
-            Self::InvalidInvocation => "run invocation metadata is invalid",
             Self::InvalidPolicy => "run retry policy is invalid",
         })
     }
@@ -231,42 +226,22 @@ fn load_current(
         return Err(Report::new(RunInputError::InvalidDefinition)
             .attach_printable("protocol V1 accepts batch integrations only"));
     }
-    let invocation = parse_invocation(&current.public_variables)?;
 
     Ok(LoadedRunInputV1 {
         integration,
         owner_actor_id: current.owner_actor_id,
         #[cfg(test)]
         resolved_definition: resolved,
-        invocation,
+        invocation: current.invocation,
         definition_digest: raw_digest,
     })
-}
-
-fn parse_invocation(
-    variables: &BTreeMap<String, String>,
-) -> Result<InvocationV1, Report<RunInputError>> {
-    let links_only = variables
-        .get(LINKS_ONLY_VARIABLE)
-        .map(|value| {
-            value
-                .parse::<bool>()
-                .change_context(RunInputError::InvalidInvocation)
-        })
-        .transpose()?
-        .unwrap_or(false);
-    let replay = variables
-        .get(REPLAY_VARIABLE)
-        .map(|value| serde_json::from_str(value).change_context(RunInputError::InvalidInvocation))
-        .transpose()?
-        .unwrap_or_default();
-    Ok(InvocationV1 { links_only, replay })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use sha2::Sha256;
+    use std::collections::BTreeMap;
 
     fn definition() -> Value {
         serde_json::json!({
@@ -305,10 +280,11 @@ mod tests {
         let resolved_digest = metadata::definition_digest(&resolved).expect("resolved digest");
         let record = RunInputRecord::current(
             serde_json::to_string(raw).expect("definition JSON"),
-            BTreeMap::from([
-                (LINKS_ONLY_VARIABLE.to_owned(), "true".to_owned()),
-                (REPLAY_VARIABLE.to_owned(), r#"{"orders":null}"#.to_owned()),
-            ]),
+            BTreeMap::new(),
+            InvocationV1 {
+                links_only: true,
+                replay: BTreeMap::from([("orders".to_owned(), None)]),
+            },
             "actor:owner".to_owned(),
             resolved_digest,
         );

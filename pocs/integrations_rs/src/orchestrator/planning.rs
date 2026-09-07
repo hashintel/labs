@@ -521,16 +521,8 @@ mod tests {
         let digest = metadata::definition_digest(&definition).expect("definition digest");
         let input = RunInputRecord::current(
             serde_json::to_string(&definition).expect("definition JSON"),
-            BTreeMap::from([
-                (
-                    "integrations.invocation.links_only".to_owned(),
-                    "false".to_owned(),
-                ),
-                (
-                    "integrations.invocation.replay.v1".to_owned(),
-                    "{}".to_owned(),
-                ),
-            ]),
+            BTreeMap::new(),
+            metadata::InvocationV1::default(),
             "actor:owner".to_owned(),
             digest.clone(),
         );

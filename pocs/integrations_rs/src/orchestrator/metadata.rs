@@ -32,6 +32,7 @@ pub struct TaskPayloadV1 {
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct InvocationV1 {
     #[serde(default)]
     pub links_only: bool,

@@ -301,6 +301,7 @@ impl RunSubmission for Phase2OpenDataOrchestrator {
         let input_wire = RunInputRecord::current(
             request.input.definition.as_str().to_owned(),
             request.input.public_variables.as_map().clone(),
+            super::metadata::InvocationV1::default(),
             "phase2-test-owner".to_owned(),
             hex::encode(Sha256::digest(request.input.definition.as_str().as_bytes())),
         );

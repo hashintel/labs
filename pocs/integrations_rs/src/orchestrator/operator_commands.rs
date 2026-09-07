@@ -182,16 +182,6 @@ impl OperatorCommands {
                 ),
             );
         }
-        let mut variables = std::collections::BTreeMap::new();
-        variables.insert(
-            "integrations.invocation.links_only".to_owned(),
-            payload.invocation.links_only.to_string(),
-        );
-        variables.insert(
-            "integrations.invocation.replay.v1".to_owned(),
-            serde_json::to_string(&payload.invocation.replay)
-                .change_context(OperatorCommandError::InvalidSubmission)?,
-        );
         let definition = serde_json::to_string(&payload.definition)
             .change_context(OperatorCommandError::InvalidSubmission)?;
         let owner_actor_id = self.actor.clone().ok_or_else(|| {
@@ -200,7 +190,8 @@ impl OperatorCommands {
         })?;
         let input_record = RunInputRecord::current(
             definition,
-            variables,
+            std::collections::BTreeMap::new(),
+            payload.invocation,
             owner_actor_id,
             metadata.resolved_definition_digest,
         );

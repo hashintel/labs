@@ -12,6 +12,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use super::ids::{CanonicalIntegrationId, RequestId};
+use super::metadata::InvocationV1;
 use super::registry::{
     reject_unknown_fields, CompatError, DurabilityClass, DurableRecord, MigrationPolicy,
     PureUpcastRecord, RecordDeclaration, VersionedRecord,
@@ -50,6 +51,7 @@ pub(crate) enum RunInputRecord {
 pub(crate) struct RunInputRecordV1 {
     definition: String,
     public_variables: BTreeMap<String, String>,
+    invocation: InvocationV1,
     /// Authenticated Graph actor responsible for this run. This is engine
     /// metadata, never part of the user-authored pipeline definition.
     owner_actor_id: String,
@@ -99,12 +101,14 @@ impl RunInputRecord {
     pub(crate) fn current(
         definition: String,
         public_variables: BTreeMap<String, String>,
+        invocation: InvocationV1,
         owner_actor_id: String,
         resolved_definition_digest: String,
     ) -> Self {
         Self::V1(RunInputRecordV1 {
             definition,
             public_variables,
+            invocation,
             owner_actor_id,
             resolved_definition_digest,
         })
@@ -116,6 +120,7 @@ impl RunInputRecord {
         CurrentRunInputRecord {
             definition: value.definition,
             public_variables: value.public_variables,
+            invocation: value.invocation,
             owner_actor_id: value.owner_actor_id,
             resolved_definition_digest: value.resolved_definition_digest,
         }
@@ -126,6 +131,7 @@ impl RunInputRecord {
 pub(crate) struct CurrentRunInputRecord {
     pub(crate) definition: String,
     pub(crate) public_variables: BTreeMap<String, String>,
+    pub(crate) invocation: InvocationV1,
     pub(crate) owner_actor_id: String,
     pub(crate) resolved_definition_digest: String,
 }
@@ -339,6 +345,7 @@ durable_record!(
     [
         "definition",
         "public_variables",
+        "invocation",
         "owner_actor_id",
         "resolved_definition_digest"
     ]
@@ -427,6 +434,48 @@ fn validate_sha256(name: &'static str, field: &str, value: &str) -> Result<(), C
 mod tests {
     use super::*;
 
+    #[test]
+    fn run_input_persists_typed_options() {
+        let invocation = InvocationV1 {
+            links_only: true,
+            replay: BTreeMap::from([("orders".to_owned(), Some("2026-07-10".to_owned()))]),
+        };
+        let record = RunInputRecord::current(
+            "pipeline: metadata".to_owned(),
+            BTreeMap::new(),
+            invocation.clone(),
+            "actor:owner".to_owned(),
+            "c".repeat(64),
+        );
+        let bytes = record.encode().expect("input should encode");
+        let json: Value = serde_json::from_slice(&bytes).expect("input should be JSON");
+        assert_eq!(json["version"], "v1");
+        assert_eq!(json["data"]["public_variables"], serde_json::json!({}));
+        assert_eq!(
+            json["data"]["invocation"],
+            serde_json::json!({
+                "links_only": true, "replay": {"orders": "2026-07-10"}
+            })
+        );
+        let decoded = RunInputRecord::decode(&bytes)
+            .expect("input should decode")
+            .into_current();
+        assert_eq!(decoded.invocation, invocation);
+        for invalid in [
+            serde_json::json!({"links_only": "true", "replay": {}}),
+            serde_json::json!({"links_only": false, "replay": {}, "unknown": true}),
+            serde_json::json!({"links_only": false, "replay": {"orders": 3}}),
+        ] {
+            let mut invalid_record = json.clone();
+            invalid_record["data"]["invocation"] = invalid;
+            assert!(RunInputRecord::decode(
+                &serde_json::to_vec(&invalid_record).expect("invalid input should encode as JSON")
+            )
+            .is_err());
+        }
+        assert_v1_strict(&record);
+    }
+
     fn assert_v1_strict<T>(record: &T)
     where
         T: DurableRecord + PartialEq + std::fmt::Debug,
@@ -453,6 +502,7 @@ mod tests {
         assert_v1_strict(&RunInputRecord::V1(RunInputRecordV1 {
             definition: "pipeline: metadata".to_owned(),
             public_variables: BTreeMap::new(),
+            invocation: InvocationV1::default(),
             owner_actor_id: "actor:owner".to_owned(),
             resolved_definition_digest: "c".repeat(64),
         }));
@@ -478,12 +528,13 @@ mod tests {
         let records = [
             (
                 "runInput",
-                RunInputRecord::current(
-                    "pipeline: metadata".to_owned(),
-                    BTreeMap::from([("mode".to_owned(), "full".to_owned())]),
-                    "actor:owner".to_owned(),
-                    "c".repeat(64),
-                )
+                RunInputRecord::V1(RunInputRecordV1 {
+                    definition: "pipeline: metadata".to_owned(),
+                    public_variables: BTreeMap::from([("mode".to_owned(), "full".to_owned())]),
+                    invocation: InvocationV1::default(),
+                    owner_actor_id: "actor:owner".to_owned(),
+                    resolved_definition_digest: "c".repeat(64),
+                })
                 .encode()
                 .expect("encode run input"),
             ),
