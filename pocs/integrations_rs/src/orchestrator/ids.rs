@@ -129,6 +129,27 @@ macro_rules! digest_id {
 }
 
 uuid_id!(RunId, "run ID");
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActorId(String);
+
+impl ActorId {
+    pub fn parse(value: impl Into<String>) -> Result<Self, InvalidId> {
+        let value = value.into();
+        if value.trim().is_empty() || value.len() > 256 || value.chars().any(char::is_control) {
+            return Err(InvalidId::new(
+                "actor ID",
+                "must be 1..=256 bytes without control characters",
+            ));
+        }
+        Ok(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 digest_id!(AttemptId, "attempt ID");
 digest_id!(StateVersionId, "state-version ID");
 digest_id!(WorkId, "work ID");
@@ -364,6 +385,28 @@ impl std::error::Error for InvalidCanonicalIntegrationId {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn actor_ids_preserve_valid_values_and_enforce_byte_limits() {
+        for value in ["actor:alice".to_owned(), "x".repeat(256), "é".repeat(128)] {
+            let actor = ActorId::parse(value.clone()).expect("valid actor ID should parse");
+            assert_eq!(actor.as_str(), value);
+        }
+        for value in [
+            String::new(),
+            " ".to_owned(),
+            "x".repeat(257),
+            "é".repeat(129),
+            "actor\nalice".to_owned(),
+            "actor\talice".to_owned(),
+            "actor\0alice".to_owned(),
+        ] {
+            assert!(
+                ActorId::parse(value).is_err(),
+                "invalid actor ID should be rejected"
+            );
+        }
+    }
 
     #[test]
     fn validates_bytes_without_normalizing_unicode() {

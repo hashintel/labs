@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::orchestrator::ids::RunId;
+use crate::orchestrator::ids::{ActorId, RunId, TenantNamespace};
 use aide::axum::routing::{get, patch, post};
 use aide::axum::{ApiRouter, IntoApiResponse};
 use aide::openapi::{
@@ -573,12 +573,10 @@ async fn cancel_run(
 }
 
 fn request_context(web_id: String, headers: &HeaderMap) -> Result<RequestContext, ApiError> {
-    let actor_id = required_header(headers, ACTOR_HEADER)?;
-    if actor_id.len() > 256 {
-        return Err(ApiError::invalid(
-            "x-hash-actor-id must not exceed 256 bytes",
-        ));
-    }
+    let web_id =
+        TenantNamespace::parse(web_id).map_err(|error| ApiError::invalid(error.to_string()))?;
+    let actor_id = ActorId::parse(required_header(headers, ACTOR_HEADER)?)
+        .map_err(|error| ApiError::invalid(error.to_string()))?;
     let request_id = headers
         .get(REQUEST_ID_HEADER)
         .map(|value| {
@@ -665,6 +663,24 @@ mod tests {
     use super::*;
     use crate::orchestrator::ids::{EventId, RunId};
     use crate::orchestrator::managed::{InMemorySecretStore, ManagedStore};
+
+    #[test]
+    fn request_context_rejects_invalid_identities() {
+        for (web, actor) in [
+            ("../alice", "actor:alice".to_owned()),
+            ("alice", "x".repeat(257)),
+        ] {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                ACTOR_HEADER,
+                actor.parse().expect("fixture header should be valid"),
+            );
+            assert!(
+                request_context(web.to_owned(), &headers).is_err(),
+                "invalid request identity should be rejected"
+            );
+        }
+    }
 
     #[derive(Default)]
     struct FakeService {
@@ -754,9 +770,13 @@ mod tests {
         ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
             self.store
                 .put_definition(
-                    &context.web_id,
+                    context.web_id.as_str(),
                     connector_id,
-                    context.actor_id.as_deref().unwrap_or_default(),
+                    context
+                        .actor_id
+                        .as_ref()
+                        .map(ActorId::as_str)
+                        .unwrap_or_default(),
                     definition,
                     expected_revision,
                     replaces_connector_id,
@@ -771,7 +791,7 @@ mod tests {
             connector_id: &str,
         ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
             self.store
-                .get_definition(&context.web_id, connector_id)
+                .get_definition(context.web_id.as_str(), connector_id)
                 .await
                 .map_err(managed_error)
         }
@@ -784,7 +804,12 @@ mod tests {
             expected_revision: &str,
         ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
             self.store
-                .set_desired_state(&context.web_id, connector_id, desired, expected_revision)
+                .set_desired_state(
+                    context.web_id.as_str(),
+                    connector_id,
+                    desired,
+                    expected_revision,
+                )
                 .await
                 .map_err(managed_error)
         }
@@ -843,8 +868,11 @@ mod tests {
         );
         let submissions = service.submissions.lock().unwrap();
         let (context, connector) = submissions.first().unwrap();
-        assert_eq!(context.web_id, "alice");
-        assert_eq!(context.actor_id.as_deref(), Some("actor:alice"));
+        assert_eq!(context.web_id.as_str(), "alice");
+        assert_eq!(
+            context.actor_id.as_ref().map(ActorId::as_str),
+            Some("actor:alice")
+        );
         assert_eq!(context.request_id.as_deref(), Some("request-17"));
         assert_eq!(connector.as_deref(), Some("sap"));
     }

@@ -20,7 +20,7 @@ use std::sync::Arc;
 
 use clap::builder::TypedValueParser as _;
 use clap::{Args, Parser, Subcommand};
-use integrations_rs::orchestrator::ids::RunId;
+use integrations_rs::orchestrator::ids::{ActorId, RunId, TenantNamespace};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -448,14 +448,18 @@ async fn durable_cancel(args: RunArgs, env: Env) -> i32 {
     }
 }
 
-fn local_request_context(env: &Env) -> Result<RequestContext, &'static str> {
+fn local_request_context(env: &Env) -> Result<RequestContext, String> {
     let web_id = env
         .get("HASH_WEB_ID")
         .filter(|value| !value.trim().is_empty())
         .ok_or("HASH_WEB_ID is required")?;
     Ok(RequestContext {
-        web_id: web_id.to_owned(),
-        actor_id: env.get("HASH_ACTOR_ID").map(str::to_owned),
+        web_id: TenantNamespace::parse(web_id).map_err(|error| error.to_string())?,
+        actor_id: env
+            .get("HASH_ACTOR_ID")
+            .map(ActorId::parse)
+            .transpose()
+            .map_err(|error| error.to_string())?,
         request_id: None,
     })
 }
@@ -561,6 +565,24 @@ fn load_dotenv(path: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn local_context_rejects_invalid_identities() {
+        for (web, actor) in [
+            ("../alice", "actor:alice"),
+            ("alice", "actor\nalice"),
+            ("alice", ""),
+        ] {
+            let env = Env::from_map(std::collections::HashMap::from([
+                ("HASH_WEB_ID".to_owned(), web.to_owned()),
+                ("HASH_ACTOR_ID".to_owned(), actor.to_owned()),
+            ]));
+            assert!(
+                local_request_context(&env).is_err(),
+                "invalid identity should be rejected"
+            );
+        }
+    }
 
     #[test]
     fn submit_parses_options_in_either_position() {

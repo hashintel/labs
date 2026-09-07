@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde_json::{Map, Value};
 
 use crate::config::Env;
-use crate::orchestrator::ids::RunId;
+use crate::orchestrator::ids::{ActorId, RunId, TenantNamespace};
 use crate::orchestrator::managed::{
     IngressDisposition, ManagedDefinition, ManagedDesiredState, ManagedError, ManagedStore,
     ProviderBinding, WebhookProvider,
@@ -22,8 +22,8 @@ use crate::yaml::Source;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RequestContext {
-    pub web_id: String,
-    pub actor_id: Option<String>,
+    pub web_id: TenantNamespace,
+    pub actor_id: Option<ActorId>,
     pub request_id: Option<String>,
 }
 
@@ -204,7 +204,7 @@ impl DurableIntegrationService {
         context: &RequestContext,
     ) -> Result<OperatorCommands, ApplicationError> {
         self.validate_node_web(context)?;
-        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
+        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_ref())
             .map_err(ApplicationError::from_command)
     }
 
@@ -215,7 +215,7 @@ impl DurableIntegrationService {
             .map(str::trim)
             .filter(|value| !value.is_empty())
         {
-            if configured_web != context.web_id {
+            if configured_web != context.web_id.as_str() {
                 return Err(ApplicationError::invalid(
                     "request web does not match this node's configured web",
                 ));
@@ -257,13 +257,9 @@ impl DurableIntegrationService {
         command: SubmitIntegration,
     ) -> Result<ValidatedSubmission, ApplicationError> {
         self.validate_node_web(context)?;
-        if context.actor_id.as_deref().is_none_or(|actor_id| {
-            actor_id.trim().is_empty()
-                || actor_id.len() > 256
-                || actor_id.chars().any(char::is_control)
-        }) {
+        if context.actor_id.is_none() {
             return Err(ApplicationError::invalid(
-                "owner actor must be 1..=256 bytes without control characters",
+                "an authenticated owner actor is required",
             ));
         }
         let prepared = orchestrator::prepare_task_for_web(
@@ -271,7 +267,7 @@ impl DurableIntegrationService {
             command.invocation,
             command.trigger,
             command.trace_context,
-            &context.web_id,
+            context.web_id.as_str(),
             &self.env,
         )
         .map_err(|report| {
@@ -297,7 +293,7 @@ impl IntegrationService for DurableIntegrationService {
         command: SubmitIntegration,
     ) -> Result<CommandSubmission, ApplicationError> {
         let prepared = self.validate_submission(&context, command)?;
-        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
+        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_ref())
             .map_err(ApplicationError::from_command)?
             .submit(prepared)
             .await
@@ -316,7 +312,11 @@ impl IntegrationService for DurableIntegrationService {
             .await
             .map_err(ApplicationError::from_command)?;
         if let Some(connector_id) = connector_id {
-            require_matching_integration(&context.web_id, connector_id, &status.integration_id)?;
+            require_matching_integration(
+                context.web_id.as_str(),
+                connector_id,
+                &status.integration_id,
+            )?;
         }
         Ok(status)
     }
@@ -333,7 +333,11 @@ impl IntegrationService for DurableIntegrationService {
             .await
             .map_err(ApplicationError::from_command)?;
         if let Some(connector_id) = connector_id {
-            require_matching_integration(&context.web_id, connector_id, &status.integration_id)?;
+            require_matching_integration(
+                context.web_id.as_str(),
+                connector_id,
+                &status.integration_id,
+            )?;
         }
         commands
             .cancel(run_id)
@@ -351,11 +355,12 @@ impl IntegrationService for DurableIntegrationService {
     ) -> Result<ManagedDefinition, ApplicationError> {
         let actor = context
             .actor_id
-            .as_deref()
+            .as_ref()
+            .map(ActorId::as_str)
             .ok_or_else(|| ApplicationError::invalid("an authenticated owner actor is required"))?;
         self.open_definition_store()?
             .put_definition(
-                &context.web_id,
+                context.web_id.as_str(),
                 connector_id,
                 actor,
                 definition,
@@ -372,7 +377,7 @@ impl IntegrationService for DurableIntegrationService {
         connector_id: &str,
     ) -> Result<ManagedDefinition, ApplicationError> {
         self.open_definition_store()?
-            .get_definition(&context.web_id, connector_id)
+            .get_definition(context.web_id.as_str(), connector_id)
             .await
             .map_err(ApplicationError::from_managed)
     }
@@ -385,7 +390,12 @@ impl IntegrationService for DurableIntegrationService {
         expected_revision: &str,
     ) -> Result<ManagedDefinition, ApplicationError> {
         self.open_definition_store()?
-            .set_desired_state(&context.web_id, connector_id, desired, expected_revision)
+            .set_desired_state(
+                context.web_id.as_str(),
+                connector_id,
+                desired,
+                expected_revision,
+            )
             .await
             .map_err(ApplicationError::from_managed)
     }
@@ -396,7 +406,7 @@ impl IntegrationService for DurableIntegrationService {
         binding: ProviderBinding,
         secret: Option<crate::secret::Secret<Vec<u8>>>,
     ) -> Result<(), ApplicationError> {
-        if binding.web_id != context.web_id {
+        if binding.web_id != context.web_id.as_str() {
             return Err(ApplicationError::invalid(
                 "binding web does not match route",
             ));
@@ -451,8 +461,10 @@ mod tests {
     fn request() -> (RequestContext, SubmitIntegration) {
         (
             RequestContext {
-                web_id: "alice".to_owned(),
-                actor_id: Some("actor:alice".to_owned()),
+                web_id: TenantNamespace::parse("alice").expect("fixture web should be valid"),
+                actor_id: Some(
+                    ActorId::parse("actor:alice").expect("fixture actor should be valid"),
+                ),
                 request_id: None,
             },
             SubmitIntegration {
@@ -493,19 +505,20 @@ mod tests {
                     "unsupported://storage".to_owned(),
                 ),
             ])));
-        for case in 0..8 {
+        for case in 0..6 {
             let (mut context, mut command) = request();
             match case {
                 0 => context.actor_id = None,
-                1 => context.actor_id = Some("x".repeat(257)),
-                2 => context.actor_id = Some("actor\nalice".to_owned()),
-                3 => context.web_id = "bob".to_owned(),
-                4 => command.connector_id = Some("other".to_owned()),
-                5 => {
+                1 => {
+                    context.web_id =
+                        TenantNamespace::parse("bob").expect("fixture web should be valid");
+                }
+                2 => command.connector_id = Some("other".to_owned()),
+                3 => {
                     command.invocation.replay.insert("orders".to_owned(), None);
                 }
-                6 => command.source = Source::Definition(Value::Null),
-                7 => {
+                4 => command.source = Source::Definition(Value::Null),
+                5 => {
                     command.source = Source::Definition(serde_json::json!({
                         "connector": {"id": "orders", "mode": "stream"},
                         "sources": {}, "pipelines": {"entities": []}

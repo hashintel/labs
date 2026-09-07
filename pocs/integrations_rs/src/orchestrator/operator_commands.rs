@@ -15,7 +15,7 @@ use super::control::{CancelRunV1, ControlCommandV1, ControlRequestV1};
 use super::events::FailureSummary;
 use super::events::{InputRef, PolicyRef};
 use super::ids::{
-    AttemptId, CanonicalIntegrationId, EventId, RequestId, RunId, TenantNamespace, WorkId,
+    ActorId, AttemptId, CanonicalIntegrationId, EventId, RequestId, RunId, TenantNamespace, WorkId,
 };
 use super::inbox::publish_control_request;
 use super::internal_metadata::{
@@ -125,7 +125,7 @@ pub struct OperatorCommands {
     env: Env,
     store: ArtifactStore,
     tenant: TenantNamespace,
-    actor: Option<String>,
+    actor: Option<ActorId>,
 }
 
 impl OperatorCommands {
@@ -134,7 +134,14 @@ impl OperatorCommands {
             Report::new(OperatorCommandError::Configuration)
                 .attach_printable("HASH_WEB_ID is required")
         })?;
-        Self::open_for(env, web_id, env.get("HASH_ACTOR_ID"))
+        let tenant =
+            TenantNamespace::parse(web_id).change_context(OperatorCommandError::Configuration)?;
+        let actor = env
+            .get("HASH_ACTOR_ID")
+            .map(ActorId::parse)
+            .transpose()
+            .change_context(OperatorCommandError::Configuration)?;
+        Self::open_for(env, &tenant, actor.as_ref())
     }
 
     /// Opens request-scoped operator commands without changing process-global
@@ -142,19 +149,17 @@ impl OperatorCommands {
     /// already-authenticated tenant and actor are explicit inputs.
     pub fn open_for(
         env: &Env,
-        web_id: &str,
-        actor: Option<&str>,
+        tenant: &TenantNamespace,
+        actor: Option<&ActorId>,
     ) -> Result<Self, Report<OperatorCommandError>> {
-        let tenant = TenantNamespace::parse(web_id.to_owned())
-            .change_context(OperatorCommandError::Configuration)?;
         let store =
             ArtifactStore::from_url(&config::blob_store_url(env), config::blob_cache_dir(env))
                 .change_context(OperatorCommandError::Storage)?;
         Ok(Self {
             env: env.clone(),
             store,
-            tenant,
-            actor: actor.map(str::to_owned),
+            tenant: tenant.clone(),
+            actor: actor.cloned(),
         })
     }
 
@@ -191,7 +196,7 @@ impl OperatorCommands {
             definition,
             std::collections::BTreeMap::new(),
             payload.invocation,
-            owner_actor_id,
+            owner_actor_id.as_str().to_owned(),
             metadata.resolved_definition_digest,
         );
         require_registered::<RunInputRecord>()
@@ -264,7 +269,7 @@ impl OperatorCommands {
         run_id: &RunId,
     ) -> Result<PublishedCancellation, Report<OperatorCommandError>> {
         let status = self.status(run_id).await?;
-        let actor = self.actor.as_deref().ok_or_else(|| {
+        let actor = self.actor.as_ref().map(ActorId::as_str).ok_or_else(|| {
             Report::new(OperatorCommandError::Configuration)
                 .attach_printable("an authenticated actor is required to publish a control request")
         })?;
