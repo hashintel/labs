@@ -9,7 +9,7 @@ use async_trait::async_trait;
 use serde_json::{Map, Value};
 
 use crate::config::Env;
-use crate::orchestrator::ids::{ActorId, RunId, TenantNamespace};
+use crate::orchestrator::ids::{ActorId, ConnectorId, RunId, TenantNamespace};
 use crate::orchestrator::managed::{
     IngressDisposition, ManagedDefinition, ManagedDesiredState, ManagedError, ManagedStore,
     ProviderBinding, WebhookProvider,
@@ -29,7 +29,7 @@ pub struct RequestContext {
 
 #[derive(Debug, Clone)]
 pub struct SubmitIntegration {
-    pub connector_id: Option<String>,
+    pub connector_id: Option<ConnectorId>,
     pub source: Source,
     pub invocation: InvocationV1,
     pub trigger: SubmissionTriggerV1,
@@ -114,24 +114,24 @@ pub trait IntegrationService: Send + Sync {
     async fn status(
         &self,
         context: RequestContext,
-        connector_id: Option<&str>,
+        connector_id: Option<&ConnectorId>,
         run_id: &RunId,
     ) -> Result<CommandRunStatus, ApplicationError>;
 
     async fn cancel(
         &self,
         context: RequestContext,
-        connector_id: Option<&str>,
+        connector_id: Option<&ConnectorId>,
         run_id: &RunId,
     ) -> Result<PublishedCancellation, ApplicationError>;
 
     async fn put_definition(
         &self,
         _context: RequestContext,
-        _connector_id: &str,
+        _connector_id: &ConnectorId,
         _definition: Value,
         _expected_revision: Option<&str>,
-        _replaces_connector_id: Option<String>,
+        _replaces_connector_id: Option<ConnectorId>,
     ) -> Result<ManagedDefinition, ApplicationError> {
         Err(ApplicationError {
             kind: ApplicationErrorKind::Unavailable,
@@ -142,7 +142,7 @@ pub trait IntegrationService: Send + Sync {
     async fn get_definition(
         &self,
         _context: RequestContext,
-        _connector_id: &str,
+        _connector_id: &ConnectorId,
     ) -> Result<ManagedDefinition, ApplicationError> {
         Err(ApplicationError {
             kind: ApplicationErrorKind::Unavailable,
@@ -153,7 +153,7 @@ pub trait IntegrationService: Send + Sync {
     async fn set_definition_desired_state(
         &self,
         _context: RequestContext,
-        _connector_id: &str,
+        _connector_id: &ConnectorId,
         _desired: ManagedDesiredState,
         _expected_revision: &str,
     ) -> Result<ManagedDefinition, ApplicationError> {
@@ -275,7 +275,7 @@ impl DurableIntegrationService {
             ApplicationError::invalid("integration definition is invalid")
         })?;
         if let Some(connector_id) = command.connector_id {
-            if prepared.connector_id() != connector_id {
+            if prepared.connector_id() != &connector_id {
                 return Err(ApplicationError::invalid(
                     "route connector does not match the integration definition",
                 ));
@@ -303,7 +303,7 @@ impl IntegrationService for DurableIntegrationService {
     async fn status(
         &self,
         context: RequestContext,
-        connector_id: Option<&str>,
+        connector_id: Option<&ConnectorId>,
         run_id: &RunId,
     ) -> Result<CommandRunStatus, ApplicationError> {
         let status = self
@@ -324,7 +324,7 @@ impl IntegrationService for DurableIntegrationService {
     async fn cancel(
         &self,
         context: RequestContext,
-        connector_id: Option<&str>,
+        connector_id: Option<&ConnectorId>,
         run_id: &RunId,
     ) -> Result<PublishedCancellation, ApplicationError> {
         let commands = self.open_operator_commands(&context)?;
@@ -348,10 +348,10 @@ impl IntegrationService for DurableIntegrationService {
     async fn put_definition(
         &self,
         context: RequestContext,
-        connector_id: &str,
+        connector_id: &ConnectorId,
         definition: Value,
         expected_revision: Option<&str>,
-        replaces_connector_id: Option<String>,
+        replaces_connector_id: Option<ConnectorId>,
     ) -> Result<ManagedDefinition, ApplicationError> {
         let actor = context
             .actor_id
@@ -361,11 +361,11 @@ impl IntegrationService for DurableIntegrationService {
         self.open_definition_store()?
             .put_definition(
                 context.web_id.as_str(),
-                connector_id,
+                connector_id.as_str(),
                 actor,
                 definition,
                 expected_revision,
-                replaces_connector_id,
+                replaces_connector_id.map(|id| id.as_str().to_owned()),
             )
             .await
             .map_err(ApplicationError::from_managed)
@@ -374,10 +374,10 @@ impl IntegrationService for DurableIntegrationService {
     async fn get_definition(
         &self,
         context: RequestContext,
-        connector_id: &str,
+        connector_id: &ConnectorId,
     ) -> Result<ManagedDefinition, ApplicationError> {
         self.open_definition_store()?
-            .get_definition(context.web_id.as_str(), connector_id)
+            .get_definition(context.web_id.as_str(), connector_id.as_str())
             .await
             .map_err(ApplicationError::from_managed)
     }
@@ -385,14 +385,14 @@ impl IntegrationService for DurableIntegrationService {
     async fn set_definition_desired_state(
         &self,
         context: RequestContext,
-        connector_id: &str,
+        connector_id: &ConnectorId,
         desired: ManagedDesiredState,
         expected_revision: &str,
     ) -> Result<ManagedDefinition, ApplicationError> {
         self.open_definition_store()?
             .set_desired_state(
                 context.web_id.as_str(),
-                connector_id,
+                connector_id.as_str(),
                 desired,
                 expected_revision,
             )
@@ -439,7 +439,7 @@ impl IntegrationService for DurableIntegrationService {
 
 fn require_matching_integration(
     web_id: &str,
-    connector_id: &str,
+    connector_id: &ConnectorId,
     actual: &crate::orchestrator::ids::CanonicalIntegrationId,
 ) -> Result<(), ApplicationError> {
     let expected = format!("{web_id}:{connector_id}");
@@ -468,7 +468,9 @@ mod tests {
                 request_id: None,
             },
             SubmitIntegration {
-                connector_id: Some("orders".to_owned()),
+                connector_id: Some(
+                    ConnectorId::parse("orders").expect("fixture connector should be valid"),
+                ),
                 source: Source::Definition(serde_json::json!({
                     "connector": {"id": "orders", "mode": "batch"},
                     "sources": {},
@@ -492,7 +494,7 @@ mod tests {
         let validated = service
             .validate_submission(&context, command)
             .expect("valid request should pass submission validation");
-        assert_eq!(validated.connector_id(), "orders");
+        assert_eq!(validated.connector_id().as_str(), "orders");
     }
 
     #[tokio::test]
@@ -513,7 +515,11 @@ mod tests {
                     context.web_id =
                         TenantNamespace::parse("bob").expect("fixture web should be valid");
                 }
-                2 => command.connector_id = Some("other".to_owned()),
+                2 => {
+                    command.connector_id = Some(
+                        ConnectorId::parse("other").expect("fixture connector should be valid"),
+                    );
+                }
                 3 => {
                     command.invocation.replay.insert("orders".to_owned(), None);
                 }

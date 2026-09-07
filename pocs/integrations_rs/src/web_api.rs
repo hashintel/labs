@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use crate::orchestrator::ids::{ActorId, RunId, TenantNamespace};
+use crate::orchestrator::ids::{ActorId, ConnectorId, RunId, TenantNamespace};
 use aide::axum::routing::{get, patch, post};
 use aide::axum::{ApiRouter, IntoApiResponse};
 use aide::openapi::{
@@ -329,6 +329,8 @@ async fn put_definition(
     Json(request): Json<PutManagedRequest>,
 ) -> Result<(StatusCode, Json<Value>), ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let connector_id =
+        ConnectorId::parse(connector_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let created = request.expected_revision.is_none();
     let definition = state
         .service
@@ -337,7 +339,11 @@ async fn put_definition(
             &connector_id,
             request.definition,
             request.expected_revision.as_deref(),
-            request.replaces_connector_id,
+            request
+                .replaces_connector_id
+                .map(ConnectorId::parse)
+                .transpose()
+                .map_err(|error| ApiError::invalid(error.to_string()))?,
         )
         .await?;
     Ok((
@@ -356,6 +362,8 @@ async fn get_definition(
     headers: RequestHeaders,
 ) -> Result<Json<Value>, ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let connector_id =
+        ConnectorId::parse(connector_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let definition = state.service.get_definition(context, &connector_id).await?;
     Ok(Json(
         serde_json::to_value(definition).expect("managed definition serializes"),
@@ -369,6 +377,8 @@ async fn patch_desired_state(
     Json(request): Json<DesiredStateRequest>,
 ) -> Result<Json<Value>, ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let connector_id =
+        ConnectorId::parse(connector_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let desired = match request.desired_state.as_str() {
         "enabled" => ManagedDesiredState::Enabled,
         "disabled" => ManagedDesiredState::Disabled,
@@ -394,6 +404,8 @@ async fn bind_webhook_provider(
     Json(request): Json<BindManagedRequest>,
 ) -> Result<StatusCode, ApiError> {
     let context = request_context(web_id.clone(), &headers.0)?;
+    let connector_id =
+        ConnectorId::parse(connector_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let provider = request
         .provider
         .parse::<WebhookProvider>()
@@ -403,7 +415,7 @@ async fn bind_webhook_provider(
         provider,
         external_id: request.external_id,
         web_id,
-        connector_id,
+        connector_id: connector_id.as_str().to_owned(),
         secret_ref: SecretRef {
             entity_uuid: request.secret_entity_uuid,
         },
@@ -517,6 +529,8 @@ async fn submit_run(
     Json(request): Json<SubmitRunRequest>,
 ) -> Result<(StatusCode, Json<SubmitRunResponse>), ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let connector_id =
+        ConnectorId::parse(connector_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let request_id = context.request_id.clone();
     let outcome = state
         .service
@@ -548,6 +562,8 @@ async fn run_status(
     headers: RequestHeaders,
 ) -> Result<Json<RunStatusResponse>, ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let connector_id =
+        ConnectorId::parse(connector_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let run_id = RunId::parse(run_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     state
         .service
@@ -564,6 +580,8 @@ async fn cancel_run(
     headers: RequestHeaders,
 ) -> Result<(StatusCode, Json<CancelRunResponse>), ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let connector_id =
+        ConnectorId::parse(connector_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let run_id = RunId::parse(run_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let response = state
         .service
@@ -684,7 +702,28 @@ mod tests {
 
     #[derive(Default)]
     struct FakeService {
-        submissions: Mutex<Vec<(RequestContext, Option<String>)>>,
+        submissions: Mutex<Vec<(RequestContext, Option<ConnectorId>)>>,
+    }
+
+    #[tokio::test]
+    async fn invalid_connector_ids_fail_before_submission() {
+        let service = Arc::new(FakeService::default());
+        for connector in ["a%2Fb", "a%20b", "a%00b"] {
+            let response = router(service.clone())
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri(format!("/v1/webs/alice/integrations/{connector}/runs"))
+                        .header(ACTOR_HEADER, "actor:alice")
+                        .header("content-type", "application/json")
+                        .body(Body::from(r#"{"definition":{}}"#))
+                        .expect("fixture request should be valid"),
+                )
+                .await
+                .expect("request should return a response");
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+        }
+        assert!(service.submissions.lock().unwrap().is_empty());
     }
 
     #[async_trait]
@@ -708,7 +747,7 @@ mod tests {
         async fn status(
             &self,
             _context: RequestContext,
-            _connector_id: Option<&str>,
+            _connector_id: Option<&ConnectorId>,
             _run_id: &RunId,
         ) -> Result<CommandRunStatus, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
@@ -717,7 +756,7 @@ mod tests {
         async fn cancel(
             &self,
             _context: RequestContext,
-            _connector_id: Option<&str>,
+            _connector_id: Option<&ConnectorId>,
             _run_id: &RunId,
         ) -> Result<PublishedCancellation, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
@@ -745,7 +784,7 @@ mod tests {
         async fn status(
             &self,
             _context: RequestContext,
-            _connector_id: Option<&str>,
+            _connector_id: Option<&ConnectorId>,
             _run_id: &RunId,
         ) -> Result<CommandRunStatus, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
@@ -754,7 +793,7 @@ mod tests {
         async fn cancel(
             &self,
             _context: RequestContext,
-            _connector_id: Option<&str>,
+            _connector_id: Option<&ConnectorId>,
             _run_id: &RunId,
         ) -> Result<PublishedCancellation, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
@@ -763,15 +802,15 @@ mod tests {
         async fn put_definition(
             &self,
             context: RequestContext,
-            connector_id: &str,
+            connector_id: &ConnectorId,
             definition: Value,
             expected_revision: Option<&str>,
-            replaces_connector_id: Option<String>,
+            replaces_connector_id: Option<ConnectorId>,
         ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
             self.store
                 .put_definition(
                     context.web_id.as_str(),
-                    connector_id,
+                    connector_id.as_str(),
                     context
                         .actor_id
                         .as_ref()
@@ -779,7 +818,7 @@ mod tests {
                         .unwrap_or_default(),
                     definition,
                     expected_revision,
-                    replaces_connector_id,
+                    replaces_connector_id.map(|id| id.as_str().to_owned()),
                 )
                 .await
                 .map_err(managed_error)
@@ -788,10 +827,10 @@ mod tests {
         async fn get_definition(
             &self,
             context: RequestContext,
-            connector_id: &str,
+            connector_id: &ConnectorId,
         ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
             self.store
-                .get_definition(context.web_id.as_str(), connector_id)
+                .get_definition(context.web_id.as_str(), connector_id.as_str())
                 .await
                 .map_err(managed_error)
         }
@@ -799,14 +838,14 @@ mod tests {
         async fn set_definition_desired_state(
             &self,
             context: RequestContext,
-            connector_id: &str,
+            connector_id: &ConnectorId,
             desired: ManagedDesiredState,
             expected_revision: &str,
         ) -> Result<crate::orchestrator::managed::ManagedDefinition, ApplicationError> {
             self.store
                 .set_desired_state(
                     context.web_id.as_str(),
-                    connector_id,
+                    connector_id.as_str(),
                     desired,
                     expected_revision,
                 )
@@ -874,7 +913,7 @@ mod tests {
             Some("actor:alice")
         );
         assert_eq!(context.request_id.as_deref(), Some("request-17"));
-        assert_eq!(connector.as_deref(), Some("sap"));
+        assert_eq!(connector.as_ref().map(ConnectorId::as_str), Some("sap"));
     }
 
     #[tokio::test]

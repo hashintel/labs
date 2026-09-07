@@ -9,7 +9,7 @@ use crate::config::Env;
 use crate::identity;
 use crate::yaml::{self, Source};
 
-use super::ids::{CanonicalIntegrationId, TenantNamespace};
+use super::ids::{CanonicalIntegrationId, ConnectorId, TenantNamespace};
 use super::DurableError;
 
 /// Versioned task parameters stored in the immutable run input artifact.
@@ -55,7 +55,7 @@ pub enum TaskMetadata {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskMetadataV1 {
     pub canonical_integration_id: String,
-    pub connector_id: String,
+    pub connector_id: ConnectorId,
     pub web_id: String,
     pub definition_digest: String,
     /// Pins the definition after public configuration variables are expanded.
@@ -124,7 +124,7 @@ impl From<TaskMetadata> for CurrentTaskMetadata {
         match value {
             TaskMetadata::V1(v1) => Self {
                 canonical_integration_id: v1.canonical_integration_id,
-                connector_id: v1.connector_id,
+                connector_id: v1.connector_id.into(),
                 web_id: v1.web_id,
                 definition_digest: v1.definition_digest,
                 submitted_at: v1.submitted_at,
@@ -146,7 +146,7 @@ pub struct ValidatedSubmission {
 }
 
 impl ValidatedSubmission {
-    pub fn connector_id(&self) -> &str {
+    pub fn connector_id(&self) -> &ConnectorId {
         let TaskMetadata::V1(metadata) = &self.metadata;
         &metadata.connector_id
     }
@@ -219,6 +219,7 @@ pub fn prepare_task_for_web(
         )));
     }
     let id = identity::integration_id(&resolved, web_id);
+    let connector_id = ConnectorId::parse(id.connector_id).change_context(DurableError)?;
     let integration_id =
         CanonicalIntegrationId::parse(id.canonical.clone()).change_context(DurableError)?;
     let resolved_definition_digest = definition_digest(&resolved).change_context(DurableError)?;
@@ -233,7 +234,7 @@ pub fn prepare_task_for_web(
         }),
         metadata: TaskMetadata::V1(TaskMetadataV1 {
             canonical_integration_id: id.canonical,
-            connector_id: id.connector_id,
+            connector_id,
             web_id: id.web_id,
             definition_digest,
             resolved_definition_digest,
@@ -453,7 +454,7 @@ mod tests {
     fn v1_wire_shape_is_explicit_and_normalizes() {
         let metadata = TaskMetadata::V1(TaskMetadataV1 {
             canonical_integration_id: "web:source".to_owned(),
-            connector_id: "source".to_owned(),
+            connector_id: ConnectorId::parse("source").expect("fixture connector should be valid"),
             web_id: "web".to_owned(),
             definition_digest: "abc".to_owned(),
             resolved_definition_digest: "def".to_owned(),

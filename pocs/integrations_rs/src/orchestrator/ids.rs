@@ -133,6 +133,51 @@ uuid_id!(RunId, "run ID");
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ActorId(String);
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(try_from = "String", into = "String")]
+pub struct ConnectorId(String);
+
+impl ConnectorId {
+    pub fn parse(value: impl Into<String>) -> Result<Self, InvalidId> {
+        let value = value.into();
+        if !crate::identity::is_safe_state_component(&value)
+            || value
+                .chars()
+                .any(|character| character.is_whitespace() || character.is_control())
+        {
+            return Err(InvalidId::new(
+                "connector ID",
+                "must be one path component without whitespace or control characters",
+            ));
+        }
+        Ok(Self(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for ConnectorId {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(self.as_str())
+    }
+}
+
+impl TryFrom<String> for ConnectorId {
+    type Error = InvalidId;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::parse(value)
+    }
+}
+
+impl From<ConnectorId> for String {
+    fn from(value: ConnectorId) -> Self {
+        value.0
+    }
+}
+
 impl ActorId {
     pub fn parse(value: impl Into<String>) -> Result<Self, InvalidId> {
         let value = value.into();
@@ -385,6 +430,31 @@ impl std::error::Error for InvalidCanonicalIntegrationId {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn connector_ids_preserve_valid_path_components() {
+        for value in ["orders", "sap-orders.v1", "café", "cafe\u{301}"] {
+            let id = ConnectorId::parse(value).expect("valid connector ID should parse");
+            assert_eq!(id.as_str(), value);
+            let encoded = serde_json::to_value(&id).expect("connector ID should serialize");
+            assert_eq!(encoded, serde_json::json!(value));
+            assert_eq!(
+                serde_json::from_value::<ConnectorId>(encoded)
+                    .expect("valid connector ID should deserialize"),
+                id
+            );
+        }
+        for value in ["", ".", "..", "a/b", "a\\b", "a b", "a\nb", "a\0b"] {
+            assert!(
+                ConnectorId::parse(value).is_err(),
+                "invalid connector ID should be rejected"
+            );
+            assert!(
+                serde_json::from_value::<ConnectorId>(serde_json::json!(value)).is_err(),
+                "invalid stored connector ID should be rejected"
+            );
+        }
+    }
 
     #[test]
     fn actor_ids_preserve_valid_values_and_enforce_byte_limits() {
