@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use serde_json::{Map, Value};
 
 use crate::config::Env;
+use crate::orchestrator::ids::RunId;
 use crate::orchestrator::managed::{
     IngressDisposition, ManagedDefinition, ManagedDesiredState, ManagedError, ManagedStore,
     ProviderBinding, WebhookProvider,
@@ -114,14 +115,14 @@ pub trait IntegrationService: Send + Sync {
         &self,
         context: RequestContext,
         connector_id: Option<&str>,
-        run_id: &str,
+        run_id: &RunId,
     ) -> Result<CommandRunStatus, ApplicationError>;
 
     async fn cancel(
         &self,
         context: RequestContext,
         connector_id: Option<&str>,
-        run_id: &str,
+        run_id: &RunId,
     ) -> Result<PublishedCancellation, ApplicationError>;
 
     async fn put_managed(
@@ -289,7 +290,7 @@ impl IntegrationService for DurableIntegrationService {
         &self,
         context: RequestContext,
         connector_id: Option<&str>,
-        run_id: &str,
+        run_id: &RunId,
     ) -> Result<CommandRunStatus, ApplicationError> {
         let status = self
             .surface(&context)?
@@ -306,7 +307,7 @@ impl IntegrationService for DurableIntegrationService {
         &self,
         context: RequestContext,
         connector_id: Option<&str>,
-        run_id: &str,
+        run_id: &RunId,
     ) -> Result<PublishedCancellation, ApplicationError> {
         let surface = self.surface(&context)?;
         let status = surface

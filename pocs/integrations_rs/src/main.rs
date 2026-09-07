@@ -14,9 +14,134 @@ use integrations_rs::application::{
 use integrations_rs::config::Env;
 use integrations_rs::orchestrator::{InvocationV1, SubmissionTriggerV1};
 use integrations_rs::yaml::Source;
+use std::num::{NonZeroU64, NonZeroUsize};
+use std::str::FromStr;
 use std::sync::Arc;
 
+use clap::builder::TypedValueParser as _;
+use clap::{Args, Parser, Subcommand};
+use integrations_rs::orchestrator::ids::RunId;
+
+#[derive(Debug, Parser)]
+#[command(
+    name = "integrations_rs",
+    version,
+    about = "Run durable data integrations"
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    #[command(about = "Submit an integration definition")]
+    Submit {
+        #[arg(value_parser = clap::builder::StringValueParser::new().map(Source::Text))]
+        definition: Source,
+        #[arg(long)]
+        links_only: bool,
+        #[arg(long, value_name = "SOURCE[=TIMESTAMP]")]
+        replay_bronze: Vec<ReplaySource>,
+        #[arg(long)]
+        json: bool,
+    },
+    #[command(about = "Inspect a run")]
+    Status(RunArgs),
+    #[command(about = "Request cancellation of a run")]
+    Cancel(RunArgs),
+    #[command(about = "Inspect or change runtime settings")]
+    Tune {
+        #[command(subcommand)]
+        command: Option<TuneCommand>,
+    },
+    #[command(about = "Check node configuration")]
+    Doctor,
+    #[command(about = "Verify stored integration state")]
+    VerifyStore {
+        #[arg(long)]
+        full: bool,
+    },
+    #[command(about = "Start the HTTP API and worker")]
+    Serve(ActivationArgs),
+    #[command(about = "Process durable work")]
+    Worker(ActivationArgs),
+}
+
+#[derive(Debug, Args)]
+struct ActivationArgs {
+    #[arg(long = "activate-baseline", required = true)]
+    _activate_baseline: bool,
+}
+
+#[derive(Debug, Args)]
+struct RunArgs {
+    #[arg(value_parser = parse_run_id)]
+    run_id: RunId,
+    #[arg(long)]
+    json: bool,
+}
+
+fn parse_run_id(value: &str) -> Result<RunId, integrations_rs::orchestrator::ids::InvalidId> {
+    RunId::parse(value)
+}
+
+#[derive(Debug, Subcommand)]
+enum TuneCommand {
+    Show,
+    Concurrency { value: Setting<NonZeroUsize> },
+    GraphRps { value: Setting<NonZeroU64> },
+}
+
+#[derive(Debug, Clone)]
+enum Setting<T> {
+    Default,
+    Value(T),
+}
+
+impl<T: FromStr> FromStr for Setting<T> {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        if value == "default" {
+            Ok(Self::Default)
+        } else {
+            value
+                .parse()
+                .map(Self::Value)
+                .map_err(|_error| "expected a positive integer or 'default'".to_owned())
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+struct ReplaySource {
+    source: String,
+    timestamp: Option<String>,
+}
+
+impl FromStr for ReplaySource {
+    type Err = String;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let (source, timestamp) = match value.split_once('=') {
+            Some((source, timestamp)) if !source.is_empty() && !timestamp.is_empty() => {
+                (source, Some(timestamp.to_owned()))
+            }
+            None if !value.is_empty() => (value, None),
+            _ => {
+                return Err("expected a source name optionally followed by '=TIMESTAMP'".to_owned())
+            }
+        };
+        Ok(Self {
+            source: source.to_owned(),
+            timestamp,
+        })
+    }
+}
+
 fn main() {
+    let cli = Cli::parse();
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| {
@@ -31,62 +156,39 @@ fn main() {
     load_dotenv(".env");
 
     let runtime = tokio::runtime::Runtime::new().expect("tokio runtime");
-    let code = runtime.block_on(dispatch(std::env::args().skip(1).collect()));
+    let code = runtime.block_on(dispatch(cli.command));
     std::process::exit(code);
 }
 
-async fn dispatch(args: Vec<String>) -> i32 {
+async fn dispatch(command: Command) -> i32 {
     let env = Env::process();
-
-    match args.first().map(String::as_str) {
-        Some("submit") => {
-            let Some(definition) = args.get(1) else {
-                eprintln!("error: submit requires a definition\n\n{}", durable_usage());
-                return 64;
+    match command {
+        Command::Submit {
+            definition,
+            links_only,
+            replay_bronze,
+            json,
+        } => {
+            let invocation = InvocationV1 {
+                links_only,
+                replay: replay_bronze
+                    .into_iter()
+                    .map(|entry| (entry.source, entry.timestamp))
+                    .collect(),
             };
-            submit_durable(definition, &args[2..], env).await
+            submit_durable(definition, invocation, json, env).await
         }
-        Some("status") => durable_status(&args[1..], env).await,
-        Some("cancel") => durable_cancel(&args[1..], env).await,
-        Some("tune") => durable_tune(&args[1..], &env).await,
-        Some("doctor") => production_doctor(&args[1..], &env).await,
-        Some("verify-store") => production_verify_store(&args[1..], &env).await,
-        Some("serve") => production_serve(&args[1..], &env).await,
-        Some("worker") => production_worker(&args[1..], &env).await,
-        Some("help" | "--help" | "-h") => {
-            println!("{}", usage());
-            0
-        }
-        _ => {
-            eprintln!("{}", usage());
-            64
-        }
+        Command::Status(args) => durable_status(args, env).await,
+        Command::Cancel(args) => durable_cancel(args, env).await,
+        Command::Tune { command } => durable_tune(command, &env).await,
+        Command::Doctor => production_doctor(&env).await,
+        Command::VerifyStore { full } => production_verify_store(full, &env).await,
+        Command::Serve(_) => production_serve(&env).await,
+        Command::Worker(_) => production_worker(&env).await,
     }
 }
 
-const fn usage() -> &'static str {
-    "Usage:
-  integrations_rs submit <definition> [--links-only] [--replay-bronze source[=ts]] [--json]
-  integrations_rs status <task-id> [--json]
-  integrations_rs cancel <task-id> [--json]
-  integrations_rs tune
-  integrations_rs tune concurrency <count|default>
-  integrations_rs tune graph-rps <requests-per-second|default>
-  integrations_rs doctor
-  integrations_rs verify-store [--full]
-  integrations_rs serve --activate-baseline
-  integrations_rs worker --activate-baseline
-
-Durable commands use the blob-backed OpenData/SlateDB backend."
-}
-
-async fn production_serve(args: &[String], env: &Env) -> i32 {
-    if args != ["--activate-baseline"] {
-        eprintln!(
-            "serve refuses to start without explicit baseline activation\n\nUsage: integrations_rs serve --activate-baseline"
-        );
-        return 64;
-    }
+async fn production_serve(env: &Env) -> i32 {
     let bind = env
         .get("INTEGRATIONS_HTTP_BIND")
         .unwrap_or("127.0.0.1:3000");
@@ -152,37 +254,17 @@ fn report_node_results(
     i32::from(worker_failed || api_failed)
 }
 
-async fn production_worker(args: &[String], env: &Env) -> i32 {
-    match args {
-        [] => {
-            eprintln!(
-                "worker refuses to start without explicit baseline activation\n\nUsage: integrations_rs worker --activate-baseline"
-            );
+async fn production_worker(env: &Env) -> i32 {
+    match integrations_rs::production::run_worker(env).await {
+        Ok(()) => 0,
+        Err(error) => {
+            print_worker_error("worker stopped", &error);
             1
-        }
-        [flag] if flag == "--activate-baseline" => {
-            match integrations_rs::production::run_worker(env).await {
-                Ok(()) => 0,
-                Err(error) => {
-                    print_worker_error("worker stopped", &error);
-                    1
-                }
-            }
-        }
-        _ => {
-            eprintln!(
-                "error: unknown worker arguments\n\nUsage: integrations_rs worker --activate-baseline"
-            );
-            64
         }
     }
 }
 
-async fn production_doctor(args: &[String], env: &Env) -> i32 {
-    if !args.is_empty() {
-        eprintln!("error: doctor takes no arguments\n\nUsage: integrations_rs doctor");
-        return 64;
-    }
+async fn production_doctor(env: &Env) -> i32 {
     match integrations_rs::production::doctor(env).await {
         Ok(report) => {
             println!(
@@ -198,17 +280,7 @@ async fn production_doctor(args: &[String], env: &Env) -> i32 {
     }
 }
 
-async fn production_verify_store(args: &[String], env: &Env) -> i32 {
-    let full = match args {
-        [] => false,
-        [flag] if flag == "--full" => true,
-        _ => {
-            eprintln!(
-                "error: unknown verify-store arguments\n\nUsage: integrations_rs verify-store [--full]"
-            );
-            return 64;
-        }
-    };
+async fn production_verify_store(full: bool, env: &Env) -> i32 {
     match integrations_rs::production::verify_store(env, full).await {
         Ok(report) => {
             println!(
@@ -245,18 +317,12 @@ fn print_diagnostics_error(
     }
 }
 
-const fn durable_usage() -> &'static str {
-    "Usage: integrations_rs submit <definition> [--links-only] [--replay-bronze source[=ts]] [--json]"
-}
-
-async fn submit_durable(definition: &str, flags: &[String], env: Env) -> i32 {
-    let (invocation, json_output) = match parse_durable_submit_flags(flags) {
-        Ok(parsed) => parsed,
-        Err(message) => {
-            eprintln!("error: {message}\n\n{}", durable_usage());
-            return 64;
-        }
-    };
+async fn submit_durable(
+    definition: Source,
+    invocation: InvocationV1,
+    json_output: bool,
+    env: Env,
+) -> i32 {
     let context = match local_request_context(&env) {
         Ok(context) => context,
         Err(message) => {
@@ -270,7 +336,7 @@ async fn submit_durable(definition: &str, flags: &[String], env: Env) -> i32 {
             context,
             SubmitIntegration {
                 connector_id: None,
-                source: Source::from_arg(definition),
+                source: definition,
                 invocation,
                 trigger: SubmissionTriggerV1::Manual,
                 trace_context: serde_json::Map::new(),
@@ -307,51 +373,7 @@ async fn submit_durable(definition: &str, flags: &[String], env: Env) -> i32 {
     }
 }
 
-fn parse_durable_submit_flags(flags: &[String]) -> Result<(InvocationV1, bool), String> {
-    let mut invocation = InvocationV1::default();
-    let mut json_output = false;
-    let mut index = 0;
-    while index < flags.len() {
-        match flags[index].as_str() {
-            "--links-only" => invocation.links_only = true,
-            "--json" => json_output = true,
-            "--replay-bronze" => {
-                index += 1;
-                let entry = flags
-                    .get(index)
-                    .ok_or_else(|| "--replay-bronze requires source[=timestamp]".to_owned())?;
-                match entry.split_once('=') {
-                    Some((source, timestamp)) if !source.is_empty() && !timestamp.is_empty() => {
-                        invocation
-                            .replay
-                            .insert(source.to_owned(), Some(timestamp.to_owned()));
-                    }
-                    Some(_) => {
-                        return Err(
-                            "--replay-bronze requires non-empty source[=timestamp]".to_owned()
-                        );
-                    }
-                    None if !entry.is_empty() => {
-                        invocation.replay.insert(entry.clone(), None);
-                    }
-                    None => return Err("--replay-bronze source must not be empty".to_owned()),
-                }
-            }
-            unknown => return Err(format!("unknown submit option {unknown:?}")),
-        }
-        index += 1;
-    }
-    Ok((invocation, json_output))
-}
-
-async fn durable_status(args: &[String], env: Env) -> i32 {
-    let (task_id, json_output) = match parse_task_command("status", args) {
-        Ok(parsed) => parsed,
-        Err(message) => {
-            eprintln!("error: {message}\n\nUsage: integrations_rs status <task-id> [--json]");
-            return 64;
-        }
-    };
+async fn durable_status(args: RunArgs, env: Env) -> i32 {
     let context = match local_request_context(&env) {
         Ok(context) => context,
         Err(message) => {
@@ -360,8 +382,8 @@ async fn durable_status(args: &[String], env: Env) -> i32 {
         }
     };
     let service = DurableIntegrationService::new(env);
-    match service.status(context, None, &task_id).await {
-        Ok(result) if json_output => {
+    match service.status(context, None, &args.run_id).await {
+        Ok(result) if args.json => {
             println!(
                 "{}",
                 serde_json::to_string(&result).expect("command status always serializes")
@@ -393,14 +415,7 @@ async fn durable_status(args: &[String], env: Env) -> i32 {
     }
 }
 
-async fn durable_cancel(args: &[String], env: Env) -> i32 {
-    let (task_id, json_output) = match parse_task_command("cancel", args) {
-        Ok(parsed) => parsed,
-        Err(message) => {
-            eprintln!("error: {message}\n\nUsage: integrations_rs cancel <task-id> [--json]");
-            return 64;
-        }
-    };
+async fn durable_cancel(args: RunArgs, env: Env) -> i32 {
     let context = match local_request_context(&env) {
         Ok(context) => context,
         Err(message) => {
@@ -409,9 +424,9 @@ async fn durable_cancel(args: &[String], env: Env) -> i32 {
         }
     };
     let service = DurableIntegrationService::new(env);
-    match service.cancel(context, None, &task_id).await {
+    match service.cancel(context, None, &args.run_id).await {
         Ok(request) => {
-            if json_output {
+            if args.json {
                 println!(
                     "{}",
                     serde_json::to_string(&request)
@@ -445,7 +460,7 @@ fn local_request_context(env: &Env) -> Result<RequestContext, &'static str> {
     })
 }
 
-async fn durable_tune(args: &[String], env: &Env) -> i32 {
+async fn durable_tune(command: Option<TuneCommand>, env: &Env) -> i32 {
     use integrations_rs::runtime_settings::{GraphDeliverySettingsV1, RuntimeSettingsStore};
 
     let store = match RuntimeSettingsStore::open(env) {
@@ -455,24 +470,16 @@ async fn durable_tune(args: &[String], env: &Env) -> i32 {
             return 1;
         }
     };
-    let result = match args {
-        [] => store.load().await,
-        [show] if show == "show" => store.load().await,
-        [kind, value] if kind == "concurrency" => {
-            let value = if value == "default" {
-                None
-            } else {
-                match value.parse::<usize>() {
-                    Ok(value) if value > 0 => Some(value),
-                    _ => {
-                        eprintln!("error: concurrency must be a positive integer or 'default'");
-                        return 64;
-                    }
-                }
+    let result = match command {
+        None | Some(TuneCommand::Show) => store.load().await,
+        Some(TuneCommand::Concurrency { value }) => {
+            let value = match value {
+                Setting::Default => None,
+                Setting::Value(count) => Some(count.get()),
             };
             store.set_concurrency(value).await
         }
-        [kind, value] if kind == "graph-rps" => {
+        Some(TuneCommand::GraphRps { value }) => {
             let Some(web_id) = env
                 .get("HASH_WEB_ID")
                 .map(str::trim)
@@ -481,30 +488,13 @@ async fn durable_tune(args: &[String], env: &Env) -> i32 {
                 eprintln!("error: HASH_WEB_ID is required to tune Graph requests per second");
                 return 64;
             };
-            let value = if value == "default" {
-                None
-            } else {
-                match value.parse::<u64>() {
-                    Ok(requests_per_second) if requests_per_second > 0 => {
-                        Some(GraphDeliverySettingsV1 {
-                            requests_per_second,
-                        })
-                    }
-                    _ => {
-                        eprintln!(
-                            "error: Graph requests per second must be a positive integer or 'default'"
-                        );
-                        return 64;
-                    }
-                }
+            let value = match value {
+                Setting::Default => None,
+                Setting::Value(rate) => Some(GraphDeliverySettingsV1 {
+                    requests_per_second: rate.get(),
+                }),
             };
             store.set_graph_delivery(web_id, value).await
-        }
-        _ => {
-            eprintln!(
-                "Usage:\n  integrations_rs tune\n  integrations_rs tune concurrency <count|default>\n  integrations_rs tune graph-rps <requests-per-second|default>"
-            );
-            return 64;
         }
     };
     match result {
@@ -533,25 +523,6 @@ async fn durable_tune(args: &[String], env: &Env) -> i32 {
             1
         }
     }
-}
-
-fn parse_task_command(command: &str, args: &[String]) -> Result<(String, bool), String> {
-    let task_id_text = args
-        .first()
-        .ok_or_else(|| format!("{command} requires a task ID"))?;
-    if task_id_text.trim().is_empty() {
-        return Err("task ID must not be empty".to_owned());
-    }
-    let task_id = task_id_text.clone();
-    let json_output = match args.get(1).map(String::as_str) {
-        None => false,
-        Some("--json") => true,
-        Some(unknown) => return Err(format!("unknown {command} option {unknown:?}")),
-    };
-    if args.len() > 2 {
-        return Err(format!("too many arguments for {command}"));
-    }
-    Ok((task_id, json_output))
 }
 
 fn print_worker_error(
@@ -592,36 +563,134 @@ mod tests {
     use super::*;
 
     #[test]
-    fn durable_submit_flags_are_strict_and_preserve_invocation() {
-        let flags = vec![
-            "--links-only".to_owned(),
-            "--replay-bronze".to_owned(),
-            "source-a=2026-07-10T12:00:00Z".to_owned(),
-            "--json".to_owned(),
-        ];
-        let (invocation, json) = parse_durable_submit_flags(&flags).expect("valid flags");
-        assert!(invocation.links_only);
-        assert!(json);
-        assert_eq!(
-            invocation.replay.get("source-a"),
-            Some(&Some("2026-07-10T12:00:00Z".to_owned()))
-        );
-
-        assert!(parse_durable_submit_flags(&["--replay-bronze".to_owned()]).is_err());
-        assert!(parse_durable_submit_flags(&["--unknown".to_owned()]).is_err());
+    fn submit_parses_options_in_either_position() {
+        for args in [
+            vec![
+                "integrations_rs",
+                "submit",
+                "example.yaml",
+                "--links-only",
+                "--replay-bronze",
+                "orders=2026-07-10",
+                "--json",
+            ],
+            vec![
+                "integrations_rs",
+                "submit",
+                "--json",
+                "--links-only",
+                "--replay-bronze=orders=2026-07-10",
+                "example.yaml",
+            ],
+        ] {
+            let cli = Cli::try_parse_from(args).expect("submission arguments should parse");
+            let Command::Submit {
+                definition,
+                links_only,
+                replay_bronze,
+                json,
+            } = cli.command
+            else {
+                panic!("submission should produce the submit command");
+            };
+            assert!(matches!(definition, Source::Text(text) if text == "example.yaml"));
+            assert!(links_only && json);
+            assert_eq!(replay_bronze[0].source, "orders");
+            assert_eq!(replay_bronze[0].timestamp.as_deref(), Some("2026-07-10"));
+        }
     }
 
     #[test]
-    fn run_commands_defer_typed_id_validation_and_reject_extra_arguments() {
+    fn malformed_arguments_are_rejected_before_dispatch() {
+        for args in [
+            vec!["submit"],
+            vec!["submit", "example.yaml", "--unknown"],
+            vec!["submit", "example.yaml", "--replay-bronze"],
+            vec!["submit", "example.yaml", "--replay-bronze=orders="],
+            vec!["status", "not-a-run-id"],
+            vec!["cancel", "not-a-run-id"],
+            vec!["tune", "concurrency", "0"],
+            vec!["tune", "concurrency", "18446744073709551616"],
+            vec!["tune", "graph-rps", "0"],
+            vec!["tune", "graph-rps", "-1"],
+            vec!["tune", "graph-rps", "18446744073709551616"],
+            vec!["worker"],
+            vec!["serve"],
+            vec!["worker", "--activate-baseline", "--force"],
+            vec!["doctor", "extra"],
+        ] {
+            assert!(
+                Cli::try_parse_from(std::iter::once("integrations_rs").chain(args.clone()))
+                    .is_err(),
+                "{args:?} should be rejected"
+            );
+        }
+    }
+
+    #[test]
+    fn run_ids_and_settings_are_typed() {
+        let id = RunId::generate();
+        let cli = Cli::try_parse_from(["integrations_rs", "status", "--json", id.as_str()])
+            .expect("status arguments should parse");
+        let Command::Status(args) = cli.command else {
+            panic!("status should produce a status command");
+        };
+        assert_eq!(args.run_id, id);
+        assert!(args.json);
+        for value in ["1", "default"] {
+            let concurrency =
+                Cli::try_parse_from(["integrations_rs", "tune", "concurrency", value])
+                    .expect("positive or default concurrency should parse");
+            let rate = Cli::try_parse_from(["integrations_rs", "tune", "graph-rps", value])
+                .expect("positive or default request rate should parse");
+            match (value, concurrency.command, rate.command) {
+                (
+                    "1",
+                    Command::Tune {
+                        command:
+                            Some(TuneCommand::Concurrency {
+                                value: Setting::Value(count),
+                            }),
+                    },
+                    Command::Tune {
+                        command:
+                            Some(TuneCommand::GraphRps {
+                                value: Setting::Value(rate),
+                            }),
+                    },
+                ) => {
+                    assert_eq!(count.get(), 1);
+                    assert_eq!(rate.get(), 1);
+                }
+                (
+                    "default",
+                    Command::Tune {
+                        command:
+                            Some(TuneCommand::Concurrency {
+                                value: Setting::Default,
+                            }),
+                    },
+                    Command::Tune {
+                        command:
+                            Some(TuneCommand::GraphRps {
+                                value: Setting::Default,
+                            }),
+                    },
+                ) => {}
+                _ => panic!("tuning arguments should preserve the typed setting"),
+            }
+        }
+    }
+
+    #[test]
+    fn command_definitions_are_consistent() {
+        use clap::CommandFactory as _;
+        Cli::command().debug_assert();
         assert_eq!(
-            parse_task_command("status", &["redis-stream:1712-0".to_owned()])
-                .expect("syntax parsing leaves typed validation to the operator commands")
-                .0,
-            "redis-stream:1712-0"
-        );
-        let id = uuid::Uuid::new_v4().to_string();
-        assert!(
-            parse_task_command("status", &[id, "--json".to_owned(), "extra".to_owned()]).is_err()
+            Cli::try_parse_from(["integrations_rs", "--help"])
+                .expect_err("help should return a display-help result")
+                .kind(),
+            clap::error::ErrorKind::DisplayHelp
         );
     }
 }

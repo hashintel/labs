@@ -4,7 +4,7 @@
 //!
 //! The attestation identifies one binary version and provider configuration.
 //! It requires passing results from the credentialed S3 suite and the isolated
-//! Graph delivery suite. It also opens competing SlateDB writers against the
+//! Graph delivery suite. It also opens competing `SlateDB` writers against the
 //! configured blob URL to check that a replacement writer invalidates the first.
 //!
 //! ```sh
@@ -15,8 +15,10 @@
 //! Set `INTEGRATIONS_BLOB_URL`, `HASH_GRAPH_URL`, and `INTEGRATIONS_BLOB_CACHE`
 //! to the values the worker will use.
 
-use std::collections::HashMap;
+use clap::Parser;
+use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::str::FromStr;
 
 use serde::Deserialize;
 use sha2::{Digest as _, Sha256};
@@ -41,61 +43,58 @@ struct ExpectedEvidence<'a> {
     graph_url_sha256: Option<&'a str>,
 }
 
+#[derive(Debug, Parser)]
+#[command(
+    name = "release_attestation",
+    about = "Generate an activation attestation from contract-test results"
+)]
 struct Arguments {
-    output: String,
-    valid_hours: i64,
-    s3_suite_log: String,
-    graph_suite_log: String,
+    #[arg(long)]
+    output: PathBuf,
+    #[arg(long = "valid-hours", value_name = "HOURS")]
+    valid_for: ValidityPeriod,
+    #[arg(long)]
+    s3_suite_log: PathBuf,
+    #[arg(long)]
+    graph_suite_log: PathBuf,
 }
 
-fn parse_arguments() -> Result<Arguments, String> {
-    let mut values = HashMap::new();
-    let mut arguments = std::env::args().skip(1);
-    while let Some(flag) = arguments.next() {
-        let value = arguments
-            .next()
-            .ok_or_else(|| format!("{flag} requires a value"))?;
-        values.insert(flag, value);
+#[derive(Debug, Clone, Copy)]
+struct ValidityPeriod(chrono::Duration);
+
+impl FromStr for ValidityPeriod {
+    type Err = &'static str;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let hours = value
+            .parse::<std::num::NonZeroU64>()
+            .map_err(|_error| "validity must be a positive number of hours")?;
+        i64::try_from(hours.get())
+            .ok()
+            .and_then(chrono::Duration::try_hours)
+            .map(Self)
+            .ok_or("validity exceeds the supported duration range")
     }
-    let take = |name: &str, values: &mut HashMap<String, String>| {
-        values
-            .remove(name)
-            .ok_or_else(|| format!("{name} is required"))
-    };
-    let parsed = Arguments {
-        output: take("--output", &mut values)?,
-        valid_hours: take("--valid-hours", &mut values)?
-            .parse::<i64>()
-            .map_err(|error| format!("--valid-hours must be a positive integer: {error}"))?,
-        s3_suite_log: take("--s3-suite-log", &mut values)?,
-        graph_suite_log: take("--graph-suite-log", &mut values)?,
-    };
-    if parsed.valid_hours <= 0 {
-        return Err("--valid-hours must be positive".to_owned());
-    }
-    if let Some(unknown) = values.keys().next() {
-        return Err(format!("unknown argument {unknown}"));
-    }
-    Ok(parsed)
 }
 
 /// A suite log counts as evidence only when the named contract test ran,
 /// emitted one machine-readable statement bound to this binary and the exact
 /// provider URLs, and the harness reported an overall pass with zero failures.
 fn verify_suite_log(
-    path: &str,
+    path: &Path,
     contract_test: &str,
     expected: ExpectedEvidence<'_>,
 ) -> Result<(), String> {
-    let metadata =
-        std::fs::metadata(path).map_err(|error| format!("read suite log {path}: {error}"))?;
+    let display_path = path.display();
+    let metadata = std::fs::metadata(path)
+        .map_err(|error| format!("read suite log {display_path}: {error}"))?;
     if metadata.len() > MAX_SUITE_LOG_BYTES {
         return Err(format!(
-            "suite log {path} exceeds {MAX_SUITE_LOG_BYTES} bytes"
+            "suite log {display_path} exceeds {MAX_SUITE_LOG_BYTES} bytes"
         ));
     }
-    let log =
-        std::fs::read_to_string(path).map_err(|error| format!("read suite log {path}: {error}"))?;
+    let log = std::fs::read_to_string(path)
+        .map_err(|error| format!("read suite log {display_path}: {error}"))?;
     let test_prefix = format!("test {contract_test} ... ");
     let contract_passed = log.lines().any(|line| {
         line.starts_with(&test_prefix)
@@ -103,14 +102,16 @@ fn verify_suite_log(
     });
     if !contract_passed {
         return Err(format!(
-            "suite log {path} does not show a completed run of {contract_test}"
+            "suite log {display_path} does not show a completed run of {contract_test}"
         ));
     }
     if log.contains("FAILED") || log.contains("panicked") {
-        return Err(format!("suite log {path} contains failures"));
+        return Err(format!("suite log {display_path} contains failures"));
     }
     if !log.contains("test result: ok.") {
-        return Err(format!("suite log {path} has no passing harness summary"));
+        return Err(format!(
+            "suite log {display_path} has no passing harness summary"
+        ));
     }
     let evidence = log
         .lines()
@@ -120,13 +121,13 @@ fn verify_suite_log(
         .filter_map(|line| line.split_once(EVIDENCE_PREFIX).map(|(_prefix, json)| json))
         .map(|json| {
             serde_json::from_str::<ContractEvidence>(json).map_err(|error| {
-                format!("suite log {path} has malformed contract evidence: {error}")
+                format!("suite log {display_path} has malformed contract evidence: {error}")
             })
         })
         .collect::<Result<Vec<_>, _>>()?;
     let [evidence] = evidence.as_slice() else {
         return Err(format!(
-            "suite log {path} must contain exactly one {EVIDENCE_PREFIX:?} record"
+            "suite log {display_path} must contain exactly one {EVIDENCE_PREFIX:?} record"
         ));
     };
     if evidence.evidence_version != 1
@@ -136,7 +137,7 @@ fn verify_suite_log(
         || evidence.graph_url_sha256.as_deref() != expected.graph_url_sha256
     {
         return Err(format!(
-            "suite log {path} evidence does not match the current binary and provider configuration"
+            "suite log {display_path} evidence does not match the current binary and provider configuration"
         ));
     }
     Ok(())
@@ -156,9 +157,9 @@ fn digest(value: &str) -> String {
 
 #[tokio::main]
 async fn main() -> ExitCode {
-    match run().await {
+    match run(Arguments::parse()).await {
         Ok(output) => {
-            println!("release attestation written to {output}");
+            println!("release attestation written to {}", output.display());
             ExitCode::SUCCESS
         }
         Err(error) => {
@@ -168,8 +169,10 @@ async fn main() -> ExitCode {
     }
 }
 
-async fn run() -> Result<String, String> {
-    let arguments = parse_arguments()?;
+async fn run(arguments: Arguments) -> Result<PathBuf, String> {
+    let valid_until = chrono::Utc::now()
+        .checked_add_signed(arguments.valid_for.0)
+        .ok_or_else(|| "--valid-hours exceeds the supported date range".to_owned())?;
     let env = integrations_rs::config::Env::process();
     let blob_url = required_env(&env, "INTEGRATIONS_BLOB_URL")?;
     let graph_url = required_env(&env, "HASH_GRAPH_URL")?;
@@ -199,7 +202,6 @@ async fn run() -> Result<String, String> {
         .await
         .map_err(|error| format!("live SlateDB fencing probe failed: {error:?}"))?;
 
-    let valid_until = chrono::Utc::now() + chrono::Duration::hours(arguments.valid_hours);
     let attestation = serde_json::json!({
         "version": 1,
         "protocolVersion": 1,
@@ -214,7 +216,7 @@ async fn run() -> Result<String, String> {
     let bytes = serde_json::to_vec_pretty(&attestation)
         .map_err(|error| format!("encode attestation: {error}"))?;
     std::fs::write(&arguments.output, bytes)
-        .map_err(|error| format!("write attestation {}: {error}", arguments.output))?;
+        .map_err(|error| format!("write attestation {}: {error}", arguments.output.display()))?;
     Ok(arguments.output)
 }
 
@@ -222,14 +224,48 @@ async fn run() -> Result<String, String> {
 mod tests {
     use super::*;
 
+    #[test]
+    fn arguments_require_files_and_positive_validity() {
+        use clap::CommandFactory as _;
+        Arguments::command().debug_assert();
+        let valid = [
+            "release_attestation",
+            "--output",
+            "attestation.json",
+            "--valid-hours",
+            "24",
+            "--s3-suite-log",
+            "s3.log",
+            "--graph-suite-log",
+            "graph.log",
+        ];
+        let parsed = Arguments::try_parse_from(valid).expect("attestation arguments should parse");
+        assert_eq!(parsed.valid_for.0, chrono::Duration::hours(24));
+        assert_eq!(parsed.output, PathBuf::from("attestation.json"));
+        for value in [
+            "0",
+            "-1",
+            "many",
+            "9223372036854775807",
+            "18446744073709551616",
+        ] {
+            let mut invalid = valid;
+            invalid[4] = value;
+            assert!(Arguments::try_parse_from(invalid).is_err());
+        }
+        assert!(Arguments::try_parse_from(&valid[..7]).is_err());
+        assert!(
+            Arguments::try_parse_from(valid.into_iter().chain(["--output", "other.json"])).is_err()
+        );
+    }
+
     const BLOB_DIGEST: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const GRAPH_DIGEST: &str = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
-    fn log_file(content: &str) -> (tempfile::TempDir, String) {
+    fn log_file(content: &str) -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().expect("log directory");
         let path = dir.path().join("suite.log");
         std::fs::write(&path, content).expect("write suite log");
-        let path = path.display().to_string();
         (dir, path)
     }
 

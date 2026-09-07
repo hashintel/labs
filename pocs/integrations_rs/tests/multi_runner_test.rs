@@ -78,10 +78,7 @@ async fn four_capped_runners_split_three_shards_with_one_owner_each() {
         loop {
             let mut done = 0;
             for run in &runs {
-                let status = surface
-                    .status(run.run_id.as_str())
-                    .await
-                    .expect("query status");
+                let status = surface.status(&run.run_id).await.expect("query status");
                 match status.state {
                     CommandRunState::Completed => done += 1,
                     CommandRunState::Terminated => {

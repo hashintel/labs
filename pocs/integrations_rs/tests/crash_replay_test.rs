@@ -98,7 +98,7 @@ async fn process_death_mid_delivery_resumes_at_the_durable_cursor_on_a_fresh_mac
     let _ = first_worker.wait();
     let first_phase_bodies = stall.bodies.lock().expect("trace lock").clone();
     let status = surface
-        .status(submitted.run_id.as_str())
+        .status(&submitted.run_id)
         .await
         .expect("status after death");
     assert_eq!(status.attempt, 1, "process death consumes no attempt");
@@ -316,7 +316,7 @@ async fn cancellation_before_acceptance_promotes_the_exact_receipt() {
         .await;
     let surface = harness.surface();
     let cancellation = surface
-        .cancel(submitted.run_id.as_str())
+        .cancel(&submitted.run_id)
         .await
         .expect("publish cancellation before the worker exists");
     assert_eq!(cancellation.run_id, submitted.run_id);

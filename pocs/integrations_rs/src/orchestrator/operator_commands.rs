@@ -160,11 +160,9 @@ impl OperatorCommands {
 
     pub async fn status(
         &self,
-        run_id: &str,
+        run_id: &RunId,
     ) -> Result<CommandRunStatus, Report<OperatorCommandError>> {
-        let run_id =
-            RunId::parse(run_id.to_owned()).change_context(OperatorCommandError::InvalidRunId)?;
-        self.status_for_run(&run_id)
+        self.status_for_run(run_id)
             .await?
             .ok_or_else(|| Report::new(OperatorCommandError::RunNotFound))
     }
@@ -273,7 +271,7 @@ impl OperatorCommands {
 
     pub async fn cancel(
         &self,
-        run_id: &str,
+        run_id: &RunId,
     ) -> Result<PublishedCancellation, Report<OperatorCommandError>> {
         let status = self.status(run_id).await?;
         let actor = self.actor.as_deref().ok_or_else(|| {
@@ -545,11 +543,11 @@ mod tests {
         // The immutable locator plus active admission bridge the interval
         // after receipt deletion but before a separate read-only journal
         // reader observes RunAccepted.
-        let status = surface.status(run_id.as_str()).await.unwrap();
+        let status = surface.status(&run_id).await.unwrap();
         assert_eq!(status.state, CommandRunState::AdmissionPending);
         assert_eq!(status.revision, submitted.initial_revision);
-        let first = surface.cancel(run_id.as_str()).await.unwrap();
-        let retry = surface.cancel(run_id.as_str()).await.unwrap();
+        let first = surface.cancel(&run_id).await.unwrap();
+        let retry = surface.cancel(&run_id).await.unwrap();
         assert_eq!(first, retry);
         assert_eq!(
             first.request_key,
@@ -606,7 +604,7 @@ mod tests {
             .unwrap();
 
         let surface = OperatorCommands::open(&env).unwrap();
-        let status = surface.status(run_id.as_str()).await.unwrap();
+        let status = surface.status(&run_id).await.unwrap();
         assert_eq!(status.state, CommandRunState::Accepted);
         let attempt_id = derive_attempt_id(&run_id, 1);
         started

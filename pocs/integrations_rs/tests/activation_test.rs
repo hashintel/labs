@@ -155,18 +155,18 @@ fn collect_files(root: &Path, dir: &Path, into: &mut Vec<String>) {
 }
 
 #[tokio::test]
-async fn worker_refuses_by_default_and_unknown_flags_exit_64_without_persistent_operations() {
+async fn invalid_worker_arguments_fail_before_persistent_operations() {
     let fixture = Fixture::new().await;
 
     let refused = fixture.run_worker(&[], &[]);
-    assert_eq!(refused.status.code(), Some(1), "{refused:?}");
-    assert!(String::from_utf8_lossy(&refused.stderr).contains("refuses"));
+    assert_eq!(refused.status.code(), Some(2), "{refused:?}");
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("--activate-baseline"));
 
     let unknown = fixture.run_worker(&["--force"], &[]);
-    assert_eq!(unknown.status.code(), Some(64), "{unknown:?}");
+    assert_eq!(unknown.status.code(), Some(2), "{unknown:?}");
 
     let also_unknown = fixture.run_worker(&["--activate-baseline", "--and-more"], &[]);
-    assert_eq!(also_unknown.status.code(), Some(64), "{also_unknown:?}");
+    assert_eq!(also_unknown.status.code(), Some(2), "{also_unknown:?}");
 
     assert!(fixture.remote_objects().is_empty());
     assert!(fixture.graph_requests().await.is_empty());

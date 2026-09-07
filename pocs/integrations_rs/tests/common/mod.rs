@@ -265,9 +265,11 @@ pub(crate) async fn wait_for(
     deadline: Duration,
     accept: impl Fn(&CommandRunStatus) -> bool + Send + Sync,
 ) -> CommandRunStatus {
+    let run_id = integrations_rs::orchestrator::ids::RunId::parse(run_id)
+        .expect("submitted run ID should be valid");
     tokio::time::timeout(deadline, async {
         loop {
-            let status = surface.status(run_id).await.unwrap_or_else(|error| {
+            let status = surface.status(&run_id).await.unwrap_or_else(|error| {
                 panic!("a successfully submitted run must remain queryable: {error:?}")
             });
             if accept(&status) {

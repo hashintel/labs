@@ -71,7 +71,7 @@ async fn lifecycle_load_stays_inside_disk_bounds_and_releases_the_workspace() {
             peak_staging = peak_staging.max(tree_size(&staging_root));
             peak_cache = peak_cache.max(tree_size(&cache_root));
             let status = surface
-                .status(submitted.run_id.as_str())
+                .status(&submitted.run_id)
                 .await
                 .expect("query status");
             match status.state {

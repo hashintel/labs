@@ -7,6 +7,7 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use crate::orchestrator::ids::RunId;
 use aide::axum::routing::{get, patch, post};
 use aide::axum::{ApiRouter, IntoApiResponse};
 use aide::openapi::{
@@ -544,6 +545,7 @@ async fn run_status(
     headers: RequestHeaders,
 ) -> Result<Json<RunStatusResponse>, ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let run_id = RunId::parse(run_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     state
         .service
         .status(context, Some(&connector_id), &run_id)
@@ -559,6 +561,7 @@ async fn cancel_run(
     headers: RequestHeaders,
 ) -> Result<(StatusCode, Json<CancelRunResponse>), ApiError> {
     let context = request_context(web_id, &headers.0)?;
+    let run_id = RunId::parse(run_id).map_err(|error| ApiError::invalid(error.to_string()))?;
     let response = state
         .service
         .cancel(context, Some(&connector_id), &run_id)
@@ -687,7 +690,7 @@ mod tests {
             &self,
             _context: RequestContext,
             _connector_id: Option<&str>,
-            _run_id: &str,
+            _run_id: &RunId,
         ) -> Result<CommandRunStatus, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
         }
@@ -696,7 +699,7 @@ mod tests {
             &self,
             _context: RequestContext,
             _connector_id: Option<&str>,
-            _run_id: &str,
+            _run_id: &RunId,
         ) -> Result<PublishedCancellation, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
         }
@@ -724,7 +727,7 @@ mod tests {
             &self,
             _context: RequestContext,
             _connector_id: Option<&str>,
-            _run_id: &str,
+            _run_id: &RunId,
         ) -> Result<CommandRunStatus, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
         }
@@ -733,7 +736,7 @@ mod tests {
             &self,
             _context: RequestContext,
             _connector_id: Option<&str>,
-            _run_id: &str,
+            _run_id: &RunId,
         ) -> Result<PublishedCancellation, ApplicationError> {
             Err(ApplicationError::invalid("not used"))
         }
@@ -841,6 +844,32 @@ mod tests {
         assert_eq!(context.actor_id.as_deref(), Some("actor:alice"));
         assert_eq!(context.request_id.as_deref(), Some("request-17"));
         assert_eq!(connector.as_deref(), Some("sap"));
+    }
+
+    #[tokio::test]
+    async fn invalid_run_ids_are_rejected_before_calling_the_service() {
+        for method in ["GET", "DELETE"] {
+            let response = router(Arc::new(FakeService::default()))
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri("/v1/webs/alice/integrations/sap/runs/invalid")
+                        .header(ACTOR_HEADER, "actor:alice")
+                        .body(Body::empty())
+                        .expect("request should build"),
+                )
+                .await
+                .expect("router should respond");
+            assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+            let body = to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("error body should be readable");
+            let body = String::from_utf8(body.to_vec()).expect("error body should be UTF-8");
+            assert!(
+                !body.contains("not used"),
+                "invalid run ID should not reach the service"
+            );
+        }
     }
 
     #[tokio::test]
