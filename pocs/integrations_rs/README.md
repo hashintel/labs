@@ -169,6 +169,22 @@ Local environments may set `HASH_VAULT_ROOT_TOKEN` to the Vault development
 root token used by the HASH API. Deployments should use a service token with
 read access to the User Secret paths assigned to the integration worker.
 
+Durable REST sources can use a User Secret for bearer or header authentication.
+Set this under `connector.auth` or an endpoint's `auth` field:
+
+```yaml
+auth:
+  type: bearer
+  secretEntityUuid: 11111111-1111-4111-8111-111111111111
+```
+
+The secret contains JSON such as `{"value":"your-token"}`. For a custom header,
+use `type: header` and add `name: x-api-key`. The worker resolves the reference
+with the run owner's actor and web immediately before live source capture.
+Saved captures are reused without fetching the secret again. Secret values
+stay out of the definition and its digest. This form requires the durable
+worker. Existing environment-based authentication remains supported.
+
 Graph authorization is enforced at the trusted submission boundary and by the
 Graph on each delivery. The engine does not use managed entities to probe an
 actor's permissions during worker activation.

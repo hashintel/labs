@@ -468,7 +468,10 @@ async fn hydrate(
                 source_table,
                 endpoint.expose(),
                 primary_key,
-                options.fetcher.clone(),
+                crate::connectors::rest_api::HydrationOptions {
+                    fetcher: options.fetcher.clone(),
+                    auth: None,
+                },
                 options.env,
             )
             .await?;

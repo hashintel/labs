@@ -449,6 +449,36 @@ fn url_contains_password(value: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn rest_secret_references_need_no_credentials_at_submission() {
+        let env = crate::config::Env::from_map(std::collections::HashMap::from([(
+            "HASH_WEB_ID".to_owned(),
+            "alice".to_owned(),
+        )]));
+        let raw = serde_json::json!({
+            "connector": {
+                "id": "orders", "mode": "rest-api",
+                "auth": {"type": "bearer", "secretEntityUuid": "11111111-1111-4111-8111-111111111111"},
+                "endpoints": {"orders": {"url": "https://example.test/orders", "primaryKey": "id"}}
+            },
+            "pipelines": {"entities": []}
+        });
+        let prepared = super::prepare_task(
+            &crate::yaml::Source::Definition(raw.clone()),
+            super::InvocationV1::default(),
+            super::SubmissionTriggerV1::Manual,
+            serde_json::Map::new(),
+            &env,
+        )
+        .expect("REST reference should validate without Vault or credentials");
+        let super::TaskPayload::V1(payload) = prepared.payload;
+        assert_eq!(payload.definition, raw);
+        let super::TaskMetadata::V1(metadata) = prepared.metadata;
+        assert_eq!(
+            metadata.definition_digest,
+            metadata.resolved_definition_digest
+        );
+    }
     use super::*;
 
     #[test]

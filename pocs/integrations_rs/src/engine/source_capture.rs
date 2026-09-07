@@ -187,6 +187,31 @@ struct SourceAccess<'a> {
     artifacts: &'a ArtifactStore,
 }
 
+impl SourceAccess<'_> {
+    async fn read_secret(
+        &self,
+        entity_uuid: uuid::Uuid,
+    ) -> Result<crate::secret::Secret<Vec<u8>>, Report<SourceCaptureError>> {
+        let store =
+            crate::orchestrator::hash_graph_vault::HashGraphVaultSecretStore::from_env(self.env)
+                .map_err(|message| {
+                    Report::new(SourceCaptureError::Hydrate).attach_printable(message)
+                })?
+                .ok_or_else(|| {
+                    Report::new(SourceCaptureError::Hydrate)
+                        .attach_printable("HASH Graph Vault secret store is not configured")
+                })?
+                .for_actor(self.actor_id);
+        store
+            .read(self.web_id, &SecretRef { entity_uuid })
+            .await
+            .map_err(|_error| {
+                Report::new(SourceCaptureError::Hydrate)
+                    .attach_printable(format!("User Secret {entity_uuid} could not be resolved"))
+            })
+    }
+}
+
 async fn hydrate_live_source(
     store: &Store,
     storage: &Storage,
@@ -224,13 +249,28 @@ async fn hydrate_live_source(
             endpoint,
             primary_key,
         } => {
+            let reference = crate::connectors::rest_api::referenced_auth(endpoint.expose())
+                .map_err(|message| {
+                    Report::new(SourceCaptureError::Hydrate).attach_printable(message)
+                })?;
+            let auth = match reference {
+                Some(reference) => Some(
+                    reference
+                        .resolve(&access.read_secret(reference.entity_uuid()).await?)
+                        .change_context(SourceCaptureError::Hydrate)?,
+                ),
+                None => None,
+            };
             crate::connectors::rest_api::hydrate(
                 store,
                 source,
                 table,
                 endpoint.expose(),
                 primary_key,
-                None,
+                crate::connectors::rest_api::HydrationOptions {
+                    fetcher: None,
+                    auth,
+                },
                 access.env,
             )
             .await
@@ -238,32 +278,9 @@ async fn hydrate_live_source(
             Ok(())
         }
         SourceKind::Postgres(source_config) => {
-            let secret_store =
-                crate::orchestrator::hash_graph_vault::HashGraphVaultSecretStore::from_env(
-                    access.env,
-                )
-                .map_err(|message| {
-                    Report::new(SourceCaptureError::Hydrate).attach_printable(message)
-                })?
-                .ok_or_else(|| {
-                    Report::new(SourceCaptureError::Hydrate)
-                        .attach_printable("HASH Graph Vault secret store is not configured")
-                })?
-                .for_actor(access.actor_id);
-            let credentials = secret_store
-                .read(
-                    access.web_id,
-                    &SecretRef {
-                        entity_uuid: source_config.credentials.secret_entity_uuid,
-                    },
-                )
-                .await
-                .map_err(|_error| {
-                    Report::new(SourceCaptureError::Hydrate).attach_printable(format!(
-                        "PostgreSQL User Secret {} could not be resolved",
-                        source_config.credentials.secret_entity_uuid
-                    ))
-                })?;
+            let credentials = access
+                .read_secret(source_config.credentials.secret_entity_uuid)
+                .await?;
             let captured = access
                 .artifacts
                 .stage(".parquet")

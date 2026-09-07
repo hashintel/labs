@@ -12,8 +12,10 @@
 
 use std::sync::Arc;
 
+use crate::secret::Secret;
 use error_stack::{Report, ResultExt as _};
 use futures::future::BoxFuture;
+use serde::Deserialize;
 use serde_json::Value;
 
 use crate::config::Env;
@@ -31,6 +33,90 @@ pub type Fetcher = Arc<
         + Sync,
 >;
 
+#[derive(Debug, Clone, Deserialize)]
+#[serde(tag = "type", rename_all = "lowercase", deny_unknown_fields)]
+pub enum ReferencedAuth {
+    Header {
+        name: String,
+        #[serde(rename = "secretEntityUuid")]
+        secret_entity_uuid: uuid::Uuid,
+    },
+    Bearer {
+        #[serde(rename = "secretEntityUuid")]
+        secret_entity_uuid: uuid::Uuid,
+    },
+}
+
+impl ReferencedAuth {
+    pub fn entity_uuid(&self) -> uuid::Uuid {
+        match self {
+            Self::Header {
+                secret_entity_uuid, ..
+            }
+            | Self::Bearer { secret_entity_uuid } => *secret_entity_uuid,
+        }
+    }
+
+    pub fn resolve(&self, secret: &Secret<Vec<u8>>) -> Result<ResolvedAuth, Report<SourceError>> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct StoredValue {
+            value: String,
+        }
+        let stored: StoredValue = serde_json::from_slice(secret.expose()).map_err(|_error| {
+            Report::new(SourceError)
+                .attach_printable("REST User Secret must contain a string field named value")
+        })?;
+        if stored.value.is_empty() {
+            return Err(Report::new(SourceError)
+                .attach_printable("REST User Secret value must not be empty"));
+        }
+        let (name, value) = match self {
+            Self::Header { name, .. } => (name.clone(), stored.value),
+            Self::Bearer { .. } => (
+                "authorization".to_owned(),
+                format!("Bearer {}", stored.value),
+            ),
+        };
+        reqwest::header::HeaderValue::from_str(&value).map_err(|_error| {
+            Report::new(SourceError)
+                .attach_printable("REST User Secret is not a valid HTTP header value")
+        })?;
+        Ok(ResolvedAuth {
+            name,
+            value: Secret::new(value),
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct ResolvedAuth {
+    name: String,
+    value: Secret<String>,
+}
+
+#[derive(Default)]
+pub struct HydrationOptions {
+    pub fetcher: Option<Fetcher>,
+    pub auth: Option<ResolvedAuth>,
+}
+
+pub fn referenced_auth(endpoint: &Value) -> Result<Option<ReferencedAuth>, &'static str> {
+    let Some(auth) = endpoint
+        .get("auth")
+        .filter(|auth| auth.get("secretEntityUuid").is_some())
+    else {
+        return Ok(None);
+    };
+    let reference: ReferencedAuth = serde_json::from_value(auth.clone())
+        .map_err(|_error| "auth must specify header or bearer authentication with a secretEntityUuid and no inline value")?;
+    if let ReferencedAuth::Header { name, .. } = &reference {
+        reqwest::header::HeaderName::from_bytes(name.as_bytes())
+            .map_err(|_error| "auth.name must be a valid HTTP header name")?;
+    }
+    Ok(Some(reference))
+}
+
 pub fn global_pacer() -> &'static FetchPacer {
     static PACER: std::sync::OnceLock<FetchPacer> = std::sync::OnceLock::new();
     PACER.get_or_init(FetchPacer::new)
@@ -42,16 +128,35 @@ pub async fn hydrate(
     staging_table: &str,
     endpoint: &Value,
     primary_key: &[String],
-    fetcher: Option<Fetcher>,
+    options: HydrationOptions,
     env: &Env,
 ) -> Result<i64, Report<SourceError>> {
+    if referenced_auth(endpoint)
+        .map_err(|message| Report::new(SourceError).attach_printable(message))?
+        .is_some()
+        && options.auth.is_none()
+    {
+        return Err(Report::new(SourceError).attach_printable(
+            "REST secret reference must be resolved by the run owner before capture",
+        ));
+    }
     let raw_table = format!("_raw/{source}");
     let _ = store
         .exec(&format!("DROP TABLE IF EXISTS {}", qi(&raw_table)))
         .await;
 
-    let fetcher = fetcher.unwrap_or_else(|| default_fetcher(env.clone()));
-    let row_count = stream_pages_into(store, &raw_table, endpoint, &fetcher, env).await?;
+    let fetcher = options
+        .fetcher
+        .unwrap_or_else(|| default_fetcher(env.clone()));
+    let row_count = stream_pages_into(
+        store,
+        &raw_table,
+        endpoint,
+        &fetcher,
+        options.auth.as_ref(),
+        env,
+    )
+    .await?;
 
     if row_count == 0 {
         return Ok(0);
@@ -87,6 +192,7 @@ async fn stream_pages_into(
     raw_table: &str,
     endpoint: &Value,
     fetcher: &Fetcher,
+    auth: Option<&ResolvedAuth>,
     env: &Env,
 ) -> Result<i64, Report<SourceError>> {
     let visible = crate::config::interpolation_env(env);
@@ -129,7 +235,7 @@ async fn stream_pages_into(
             .await_slot(&host_of(&full_url), state.rate_ms)
             .await;
 
-        let body = fetcher(full_url.clone(), headers(endpoint, &visible))
+        let body = fetcher(full_url.clone(), headers(endpoint, &visible, auth))
             .await
             .map_err(|message| {
                 Report::new(SourceError)
@@ -384,8 +490,13 @@ fn urlencode(text: &str) -> String {
 fn headers(
     endpoint: &Value,
     visible: &std::collections::HashMap<String, String>,
+    resolved: Option<&ResolvedAuth>,
 ) -> Vec<(String, String)> {
     let mut headers = vec![("content-type".to_owned(), "application/json".to_owned())];
+    if let Some(auth) = resolved {
+        headers.push((auth.name.clone(), auth.value.expose().clone()));
+        return headers;
+    }
     if let Some(auth) = endpoint.get("auth") {
         match text(auth, "type") {
             Some("header") => {
@@ -506,6 +617,83 @@ fn now_token(token: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
+    #[tokio::test]
+    async fn unresolved_reference_cannot_send_a_request() {
+        let store = super::Store::open(crate::store::StoreOptions::default())
+            .expect("test store should open");
+        let fetcher: super::Fetcher = std::sync::Arc::new(|_, _| {
+            Box::pin(async { panic!("unresolved credentials should prevent fetching") })
+        });
+        let endpoint = serde_json::json!({
+            "url": "https://example.test/orders",
+            "auth": {"type": "bearer", "secretEntityUuid": "11111111-1111-4111-8111-111111111111"}
+        });
+        let env = crate::config::Env::from_map(std::collections::HashMap::new());
+        let result = super::hydrate(
+            &store,
+            "orders",
+            "orders",
+            &endpoint,
+            &[],
+            super::HydrationOptions {
+                fetcher: Some(fetcher),
+                auth: None,
+            },
+            &env,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn referenced_auth_rejects_inline_values_and_invalid_fields() {
+        let id = "11111111-1111-4111-8111-111111111111";
+        for auth in [
+            serde_json::json!({"type": "bearer", "secretEntityUuid": "invalid"}),
+            serde_json::json!({"type": "bearer", "secretEntityUuid": id, "token": "secret"}),
+            serde_json::json!({"type": "header", "secretEntityUuid": id, "name": "bad\nname"}),
+            serde_json::json!({"type": "unknown", "secretEntityUuid": id}),
+        ] {
+            assert!(super::referenced_auth(&serde_json::json!({"auth": auth})).is_err());
+        }
+    }
+
+    #[test]
+    fn resolved_auth_is_redacted_and_never_interpolated() {
+        for (kind, expected) in [
+            ("header", "literal-${TOKEN}"),
+            ("bearer", "Bearer literal-${TOKEN}"),
+        ] {
+            let mut auth = serde_json::json!({"type": kind, "secretEntityUuid": "11111111-1111-4111-8111-111111111111"});
+            if kind == "header" {
+                auth["name"] = "x-api-key".into();
+            }
+            let endpoint = serde_json::json!({"auth": auth});
+            let reference = super::referenced_auth(&endpoint)
+                .expect("auth reference should parse")
+                .expect("reference should be present");
+            let secret = crate::secret::Secret::new(br#"{"value":"literal-${TOKEN}"}"#.to_vec());
+            let resolved = reference
+                .resolve(&secret)
+                .expect("secret should resolve to a header");
+            assert!(!format!("{resolved:?}").contains("literal-"));
+            let visible =
+                std::collections::HashMap::from([("TOKEN".to_owned(), "expanded".to_owned())]);
+            let headers = super::headers(&endpoint, &visible, Some(&resolved));
+            assert_eq!(headers[1].1, expected);
+            assert!(endpoint["auth"].get("value").is_none());
+            assert!(endpoint["auth"].get("token").is_none());
+            for invalid in [
+                br#"{"value":"secret\r\ninjected"}"#.as_slice(),
+                br#"{"password":"secret"}"#.as_slice(),
+            ] {
+                let error = reference
+                    .resolve(&crate::secret::Secret::new(invalid.to_vec()))
+                    .expect_err("invalid secret should be rejected");
+                assert!(!format!("{error:?}").contains("injected"));
+            }
+        }
+    }
     use super::resolve_next_link;
 
     #[test]

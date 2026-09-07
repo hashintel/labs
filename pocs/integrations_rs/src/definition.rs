@@ -301,6 +301,14 @@ fn endpoint_issues(connector: &Value) -> Vec<Issue> {
             .flat_map(|(name, endpoint)| {
                 let path = format!("connector.endpoints.{name}");
                 let mut issues = vec![];
+                let auth = endpoint.get("auth").or_else(|| connector.get("auth"));
+                if let Some(auth) = auth {
+                    if let Err(message) = crate::connectors::rest_api::referenced_auth(
+                        &serde_json::json!({"auth": auth}),
+                    ) {
+                        issues.push(Issue::new(format!("{path}.auth"), message));
+                    }
+                }
                 if blank(endpoint.get("url")) {
                     issues.push(Issue::new(format!("{path}.url"), "required"));
                 }
