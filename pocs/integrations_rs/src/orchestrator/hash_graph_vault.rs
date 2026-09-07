@@ -386,6 +386,49 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn a_later_read_rechecks_authorization_before_accessing_vault() {
+        use std::sync::{
+            atomic::{AtomicUsize, Ordering},
+            Arc,
+        };
+        let server = MockServer::start().await;
+        let reads = Arc::new(AtomicUsize::new(0));
+        Mock::given(method("POST"))
+            .and(path("/entities/query"))
+            .and(body_json(query_body()))
+            .respond_with(move |_: &wiremock::Request| {
+                if reads.fetch_add(1, Ordering::SeqCst) == 0 {
+                    ResponseTemplate::new(200)
+                        .set_body_json(graph_response("2999-01-01T00:00:00Z", VAULT_PATH))
+                } else {
+                    ResponseTemplate::new(403)
+                }
+            })
+            .expect(2)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("/v1/secret/data/{VAULT_PATH}")))
+            .respond_with(ResponseTemplate::new(200).set_body_json(json!({
+                "data": {"data": {"value": "first-authorized-value"}}
+            })))
+            .expect(1)
+            .mount(&server)
+            .await;
+        let store = store(&server);
+        let first = store
+            .read(WEB_ID, &reference())
+            .await
+            .expect("authorized read should return the secret");
+        assert_eq!(first.expose(), b"first-authorized-value");
+        assert!(matches!(
+            store.read(WEB_ID, &reference()).await,
+            Err(ManagedError::SecretUnavailable)
+        ));
+        server.verify().await;
+    }
+
+    #[tokio::test]
     async fn reads_vault_after_graph_authorizes_the_run_owner() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
