@@ -419,6 +419,46 @@ fn url_contains_password(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     #[test]
+    fn postgres_submissions_accept_only_entity_references() {
+        let env = crate::config::Env::from_map(std::collections::HashMap::from([(
+            "HASH_WEB_ID".to_owned(),
+            "alice".to_owned(),
+        )]));
+        let raw = serde_json::json!({
+            "connector": {"id": "orders", "mode": "batch"},
+            "sources": {"orders": {
+                "kind": "postgres", "host": "database.example", "database": "dev",
+                "schema": "public", "table": "orders", "primaryKey": "id",
+                "credentials": {"secretEntityUuid": "11111111-1111-4111-8111-111111111111"}
+            }},
+            "pipelines": {"entities": []}
+        });
+        let prepare = |definition| {
+            super::prepare_task(
+                &crate::yaml::Source::Definition(definition),
+                super::InvocationV1::default(),
+                super::SubmissionTriggerV1::Manual,
+                serde_json::Map::new(),
+                &env,
+            )
+        };
+        assert!(
+            prepare(raw.clone()).is_ok(),
+            "entity reference should need no credentials at submission"
+        );
+        for field in ["vaultPath", "value", "username", "password"] {
+            let mut invalid = raw.clone();
+            invalid["sources"]["orders"]["credentials"][field] =
+                serde_json::json!("secret-sentinel");
+            let error = prepare(invalid).expect_err("extra credential field should be rejected");
+            assert!(
+                !format!("{error:?}").contains("secret-sentinel"),
+                "rejected credential value should be redacted"
+            );
+        }
+    }
+
+    #[test]
     fn rest_secret_references_need_no_credentials_at_submission() {
         let env = crate::config::Env::from_map(std::collections::HashMap::from([(
             "HASH_WEB_ID".to_owned(),

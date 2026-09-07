@@ -45,7 +45,7 @@ pub struct PostgresSource {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SecretReference {
     pub secret_entity_uuid: uuid::Uuid,
 }
@@ -127,11 +127,11 @@ pub async fn capture(
 }
 
 fn parse_credentials(value: &Secret<Vec<u8>>) -> Result<Credentials, Report<SourceError>> {
-    let stored: StoredCredentials = serde_json::from_slice(value.expose())
-        .change_context(SourceError)
-        .attach_printable(
+    let stored: StoredCredentials = serde_json::from_slice(value.expose()).map_err(|_error| {
+        Report::new(SourceError).attach_printable(
             "PostgreSQL User Secret must contain string fields named username and password",
-        )?;
+        )
+    })?;
     if stored.username.trim().is_empty() || stored.password.is_empty() {
         return Err(Report::new(SourceError).attach_printable(
             "The username and password fields in the PostgreSQL User Secret must be non-empty strings",
@@ -250,6 +250,29 @@ mod tests {
         Credentials {
             username: "reader".to_owned(),
             password: Secret::new("pa'ss\\word".to_owned()),
+        }
+    }
+
+    #[test]
+    fn malformed_credentials_do_not_appear_in_errors() {
+        for value in [
+            serde_json::json!({"username": "reader", "password": 987654321}),
+            serde_json::json!({"username": "reader", "password": "valid", "secret-sentinel": "value"}),
+        ] {
+            let bytes = serde_json::to_vec(&value).expect("fixture credentials should serialize");
+            let result = parse_credentials(&Secret::new(bytes));
+            let error = result
+                .err()
+                .expect("malformed credentials should be rejected");
+            let report = format!("{error:?}");
+            assert!(
+                !report.contains("987654321"),
+                "credential values should be redacted"
+            );
+            assert!(
+                !report.contains("secret-sentinel"),
+                "secret field names should be redacted"
+            );
         }
     }
 
