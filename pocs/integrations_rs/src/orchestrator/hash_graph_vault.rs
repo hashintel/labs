@@ -80,7 +80,10 @@ impl HashGraphVaultSecretStore {
             vault_url: vault_url.trim_end_matches('/').to_owned(),
             vault_mount_path,
             vault_token: Secret::new(vault_token),
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .redirect(reqwest::redirect::Policy::none())
+                .build()
+                .expect("secret-store HTTP client should initialize"),
         }
     }
 
@@ -383,6 +386,54 @@ mod tests {
                 }
             }]
         })
+    }
+
+    #[tokio::test]
+    async fn rejects_graph_redirects() {
+        assert_redirect_rejected(true).await;
+    }
+
+    #[tokio::test]
+    async fn rejects_vault_redirects() {
+        assert_redirect_rejected(false).await;
+    }
+
+    async fn assert_redirect_rejected(redirect_graph: bool) {
+        let server = MockServer::start().await;
+        let destination = MockServer::start().await;
+        Mock::given(wiremock::matchers::any())
+            .respond_with(ResponseTemplate::new(200))
+            .expect(0)
+            .mount(&destination)
+            .await;
+        let redirect = ResponseTemplate::new(307)
+            .insert_header("location", format!("{}/redirected", destination.uri()));
+        Mock::given(method("POST"))
+            .and(path("/entities/query"))
+            .respond_with(if redirect_graph {
+                redirect.clone()
+            } else {
+                ResponseTemplate::new(200)
+                    .set_body_json(graph_response("2999-01-01T00:00:00Z", VAULT_PATH))
+            })
+            .expect(1)
+            .mount(&server)
+            .await;
+        Mock::given(method("GET"))
+            .and(path(format!("/v1/secret/data/{VAULT_PATH}")))
+            .respond_with(redirect)
+            .expect(u64::from(!redirect_graph))
+            .mount(&server)
+            .await;
+
+        let result = store(&server).read(WEB_ID, &reference()).await;
+
+        assert!(
+            matches!(result, Err(ManagedError::SecretUnavailable)),
+            "a redirected secret request should fail"
+        );
+        destination.verify().await;
+        server.verify().await;
     }
 
     #[tokio::test]
