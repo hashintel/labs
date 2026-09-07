@@ -42,7 +42,8 @@ pub(crate) mod worker_dispatch;
 pub use memory_adapter::InMemoryOrchestrator;
 pub use metadata::{
     prepare_task, prepare_task_for_web, CurrentTaskMetadata, CurrentTaskPayload, InvocationV1,
-    PreparedTask, SubmissionTriggerV1, TaskMetadata, TaskMetadataV1, TaskPayload, TaskPayloadV1,
+    SubmissionTriggerV1, TaskMetadata, TaskMetadataV1, TaskPayload, TaskPayloadV1,
+    ValidatedSubmission,
 };
 pub use operator_commands::{
     CommandRunState, CommandRunStatus, CommandSubmission, OperatorCommandError, OperatorCommands,

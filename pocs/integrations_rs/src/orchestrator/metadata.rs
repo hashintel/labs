@@ -9,6 +9,7 @@ use crate::config::Env;
 use crate::identity;
 use crate::yaml::{self, Source};
 
+use super::ids::{CanonicalIntegrationId, TenantNamespace};
 use super::DurableError;
 
 /// Versioned task parameters stored in the immutable run input artifact.
@@ -137,10 +138,35 @@ impl From<TaskMetadata> for CurrentTaskMetadata {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct PreparedTask {
-    pub payload: TaskPayload,
-    pub metadata: TaskMetadata,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ValidatedSubmission {
+    payload: TaskPayload,
+    metadata: TaskMetadata,
+    integration_id: CanonicalIntegrationId,
+    tenant: TenantNamespace,
+}
+
+impl ValidatedSubmission {
+    pub fn connector_id(&self) -> &str {
+        let TaskMetadata::V1(metadata) = &self.metadata;
+        &metadata.connector_id
+    }
+
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        TaskPayload,
+        TaskMetadata,
+        CanonicalIntegrationId,
+        TenantNamespace,
+    ) {
+        (
+            self.payload,
+            self.metadata,
+            self.integration_id,
+            self.tenant,
+        )
+    }
 }
 
 /// Validates a definition at submission time, but persists the unresolved
@@ -152,7 +178,7 @@ pub fn prepare_task(
     trigger: SubmissionTriggerV1,
     trace_context: Map<String, Value>,
     env: &Env,
-) -> Result<PreparedTask, Report<DurableError>> {
+) -> Result<ValidatedSubmission, Report<DurableError>> {
     let web_id = env
         .get("HASH_WEB_ID")
         .filter(|value| !value.trim().is_empty())
@@ -174,13 +200,15 @@ pub fn prepare_task_for_web(
     trace_context: Map<String, Value>,
     web_id: &str,
     env: &Env,
-) -> Result<PreparedTask, Report<DurableError>> {
+) -> Result<ValidatedSubmission, Report<DurableError>> {
+    let tenant = TenantNamespace::parse(web_id).change_context(DurableError)?;
+    if !invocation.replay.is_empty() {
+        return Err(Report::new(DurableError)
+            .attach_printable("durable submissions do not support source replay"));
+    }
     let raw = yaml::raw(source).change_context(DurableError)?;
     reject_inline_secrets(&raw)?;
     reject_unsafe_env_placeholders(&raw, env)?;
-    if web_id.trim().is_empty() {
-        return Err(Report::new(DurableError).attach_printable("web identity must not be empty"));
-    }
     let durable_env = env.durable_interpolation_scope();
     let resolved = yaml::resolve_env(&raw, &durable_env).change_context(DurableError)?;
     let integration = crate::definition::parse(&resolved, web_id).change_context(DurableError)?;
@@ -191,10 +219,14 @@ pub fn prepare_task_for_web(
         )));
     }
     let id = identity::integration_id(&resolved, web_id);
+    let integration_id =
+        CanonicalIntegrationId::parse(id.canonical.clone()).change_context(DurableError)?;
     let resolved_definition_digest = definition_digest(&resolved).change_context(DurableError)?;
     let definition_digest = definition_digest(&raw).change_context(DurableError)?;
 
-    Ok(PreparedTask {
+    Ok(ValidatedSubmission {
+        integration_id,
+        tenant,
         payload: TaskPayload::V1(TaskPayloadV1 {
             definition: raw,
             invocation,

@@ -21,7 +21,7 @@ use super::inbox::publish_control_request;
 use super::internal_metadata::{
     RunInputRecord, RunLocatorRecord, RunPolicyRecord, MAX_RUN_LOCATOR_RECORD_BYTES,
 };
-use super::metadata::{CurrentTaskMetadata, CurrentTaskPayload, PreparedTask};
+use super::metadata::{CurrentTaskMetadata, CurrentTaskPayload, ValidatedSubmission};
 use super::projection::RunStatus as ProjectedRunStatus;
 use super::record_io::read_strict as read_record;
 use super::registry::{require_registered, DurableRecord};
@@ -169,13 +169,12 @@ impl OperatorCommands {
 
     pub async fn submit(
         &self,
-        prepared: PreparedTask,
+        prepared: ValidatedSubmission,
     ) -> Result<CommandSubmission, Report<OperatorCommandError>> {
-        let payload = CurrentTaskPayload::from(prepared.payload);
-        let metadata = CurrentTaskMetadata::from(prepared.metadata);
-        let integration_id = CanonicalIntegrationId::parse(metadata.canonical_integration_id)
-            .change_context(OperatorCommandError::InvalidSubmission)?;
-        if metadata.web_id != self.tenant.as_str() {
+        let (payload, metadata, integration_id, tenant) = prepared.into_parts();
+        let payload = CurrentTaskPayload::from(payload);
+        let metadata = CurrentTaskMetadata::from(metadata);
+        if tenant != self.tenant {
             return Err(
                 Report::new(OperatorCommandError::InvalidSubmission).attach_printable(
                     "prepared submission web identity disagrees with request tenant",

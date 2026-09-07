@@ -16,7 +16,7 @@ use crate::orchestrator::managed::{
 };
 use crate::orchestrator::{
     self, CommandRunStatus, CommandSubmission, InvocationV1, OperatorCommandError,
-    OperatorCommands, PublishedCancellation, SubmissionTriggerV1, TaskMetadata,
+    OperatorCommands, PublishedCancellation, SubmissionTriggerV1, ValidatedSubmission,
 };
 use crate::yaml::Source;
 
@@ -200,6 +200,12 @@ impl DurableIntegrationService {
     }
 
     fn surface(&self, context: &RequestContext) -> Result<OperatorCommands, ApplicationError> {
+        self.validate_web(context)?;
+        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
+            .map_err(ApplicationError::from_command)
+    }
+
+    fn validate_web(&self, context: &RequestContext) -> Result<(), ApplicationError> {
         if let Some(configured_web) = self
             .env
             .get("HASH_WEB_ID")
@@ -212,8 +218,7 @@ impl DurableIntegrationService {
                 ));
             }
         }
-        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
-            .map_err(ApplicationError::from_command)
+        Ok(())
     }
 
     fn managed(&self) -> Result<ManagedStore, ApplicationError> {
@@ -242,20 +247,20 @@ impl DurableIntegrationService {
     }
 }
 
-#[async_trait]
-impl IntegrationService for DurableIntegrationService {
-    async fn submit(
+impl DurableIntegrationService {
+    fn validate_submission(
         &self,
-        context: RequestContext,
+        context: &RequestContext,
         command: SubmitIntegration,
-    ) -> Result<CommandSubmission, ApplicationError> {
-        if context
-            .actor_id
-            .as_deref()
-            .is_none_or(|actor_id| actor_id.trim().is_empty())
-        {
+    ) -> Result<ValidatedSubmission, ApplicationError> {
+        self.validate_web(context)?;
+        if context.actor_id.as_deref().is_none_or(|actor_id| {
+            actor_id.trim().is_empty()
+                || actor_id.len() > 256
+                || actor_id.chars().any(char::is_control)
+        }) {
             return Err(ApplicationError::invalid(
-                "an authenticated owner actor is required",
+                "owner actor must be 1..=256 bytes without control characters",
             ));
         }
         let prepared = orchestrator::prepare_task_for_web(
@@ -270,17 +275,27 @@ impl IntegrationService for DurableIntegrationService {
             tracing::info!(error = ?report, "integration submission rejected");
             ApplicationError::invalid("integration definition is invalid")
         })?;
-        let prepared_connector = match &prepared.metadata {
-            TaskMetadata::V1(metadata) => &metadata.connector_id,
-        };
         if let Some(connector_id) = command.connector_id {
-            if prepared_connector != &connector_id {
+            if prepared.connector_id() != connector_id {
                 return Err(ApplicationError::invalid(
                     "route connector does not match the integration definition",
                 ));
             }
         }
-        self.surface(&context)?
+        Ok(prepared)
+    }
+}
+
+#[async_trait]
+impl IntegrationService for DurableIntegrationService {
+    async fn submit(
+        &self,
+        context: RequestContext,
+        command: SubmitIntegration,
+    ) -> Result<CommandSubmission, ApplicationError> {
+        let prepared = self.validate_submission(&context, command)?;
+        OperatorCommands::open_for(&self.env, &context.web_id, context.actor_id.as_deref())
+            .map_err(ApplicationError::from_command)?
             .submit(prepared)
             .await
             .map_err(ApplicationError::from_command)
@@ -423,5 +438,87 @@ fn require_matching_integration(
             kind: ApplicationErrorKind::NotFound,
             message: "run was not found for this integration".to_owned(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn request() -> (RequestContext, SubmitIntegration) {
+        (
+            RequestContext {
+                web_id: "alice".to_owned(),
+                actor_id: Some("actor:alice".to_owned()),
+                request_id: None,
+            },
+            SubmitIntegration {
+                connector_id: Some("orders".to_owned()),
+                source: Source::Definition(serde_json::json!({
+                    "connector": {"id": "orders", "mode": "batch"},
+                    "sources": {},
+                    "pipelines": {"entities": []}
+                })),
+                invocation: InvocationV1::default(),
+                trigger: SubmissionTriggerV1::Manual,
+                trace_context: Map::new(),
+            },
+        )
+    }
+
+    #[test]
+    fn validation_produces_a_submission_without_opening_storage() {
+        let service =
+            DurableIntegrationService::new(Env::from_map(std::collections::HashMap::from([(
+                "INTEGRATIONS_BLOB_URL".to_owned(),
+                "unsupported://storage".to_owned(),
+            )])));
+        let (context, command) = request();
+        let validated = service
+            .validate_submission(&context, command)
+            .expect("valid request should pass submission validation");
+        assert_eq!(validated.connector_id(), "orders");
+    }
+
+    #[tokio::test]
+    async fn invalid_requests_fail_before_opening_storage() {
+        let service =
+            DurableIntegrationService::new(Env::from_map(std::collections::HashMap::from([
+                ("HASH_WEB_ID".to_owned(), "alice".to_owned()),
+                (
+                    "INTEGRATIONS_BLOB_URL".to_owned(),
+                    "unsupported://storage".to_owned(),
+                ),
+            ])));
+        for case in 0..8 {
+            let (mut context, mut command) = request();
+            match case {
+                0 => context.actor_id = None,
+                1 => context.actor_id = Some("x".repeat(257)),
+                2 => context.actor_id = Some("actor\nalice".to_owned()),
+                3 => context.web_id = "bob".to_owned(),
+                4 => command.connector_id = Some("other".to_owned()),
+                5 => {
+                    command.invocation.replay.insert("orders".to_owned(), None);
+                }
+                6 => command.source = Source::Definition(Value::Null),
+                7 => {
+                    command.source = Source::Definition(serde_json::json!({
+                        "connector": {"id": "orders", "mode": "stream"},
+                        "sources": {}, "pipelines": {"entities": []}
+                    }));
+                }
+                _ => unreachable!(),
+            }
+            let error = service
+                .submit(context, command)
+                .await
+                .expect_err("invalid request should fail before storage is opened");
+            assert_eq!(
+                error.kind,
+                ApplicationErrorKind::InvalidRequest,
+                "case {case} should fail validation"
+            );
+        }
     }
 }
