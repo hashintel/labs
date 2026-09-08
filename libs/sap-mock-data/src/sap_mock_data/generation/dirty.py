@@ -44,7 +44,7 @@ def dirty_date(date_str):
             f"{day}.{month}.{year}",
         ]
         return random.choice(formats)
-    except Exception:
+    except (TypeError, ValueError):
         return date_str
 
 

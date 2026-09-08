@@ -5,9 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from collections.abc import Sequence
 from importlib.metadata import version
 from pathlib import Path
-from typing import Sequence
 
 from .. import GenerationConfig, Timeframe, generate_dataset
 from ..config import SIZE_KNOB_RANGES

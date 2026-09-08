@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 
@@ -39,7 +39,7 @@ def _seed_empty_resb(store: TableStore) -> None:
 def generate_dataset(config: GenerationConfig, store: TableStore) -> GenerationResult:
     """Generate a complete dataset into *store* and return a run summary."""
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
     selected_scenarios = config.resolved_scenarios()
     context = GenerationContext(config)
     with _GENERATION_LOCK, context.activate():
@@ -85,5 +85,5 @@ def generate_dataset(config: GenerationConfig, store: TableStore) -> GenerationR
         row_counts=row_counts,
         scenarios=selected_scenarios,
         started_at=started_at,
-        finished_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(UTC),
     )

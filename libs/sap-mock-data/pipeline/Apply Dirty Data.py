@@ -4,10 +4,11 @@
 # Run this notebook last, after Inject Scenarios: the generation and scenario
 # notebooks read clean tables.
 
-import pandas as pd
-import numpy as np
 import random
 import zlib
+
+import numpy as np
+import pandas as pd
 import pyspark.sql.functions as F
 from pyspark.sql.types import *
 
@@ -71,7 +72,7 @@ def dirty_date(date_str, dirty_rate=0.05):
             f"{day}.{month}.{year}",      # DD.MM.YYYY (European)
         ]
         return random.choice(formats)
-    except:
+    except (TypeError, ValueError):
         return date_str
 
 
@@ -334,7 +335,7 @@ for table_name, config in dirty_configs.items():
         tables_processed += 1
 
     except Exception as e:
-        print(f"Warning: Could not process {table_name}: {str(e)}")
+        print(f"Warning: Could not process {table_name}: {e!s}")
 
 print(f"\n{'='*60}")
 print(f"Dirty data applied to {tables_processed} tables")

@@ -1,7 +1,6 @@
 """Define rows for the scenario_config table."""
 import pandas as pd
 
-
 scenarios = [
     {
         "SCENARIO_ID": "SCN001",

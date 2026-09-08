@@ -7,6 +7,13 @@
 
 # COMMAND ----------
 
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    dbutils = cast(Any, None)
+    display = cast(Any, None)
+    spark = cast(Any, None)
+
 dbutils.widgets.text("catalog", "sample_synthetic_sap")
 dbutils.widgets.text("schema", "sap")
 dbutils.widgets.text("scale_factor", "1")

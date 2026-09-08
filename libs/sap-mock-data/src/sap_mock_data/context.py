@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
-from typing import Iterator, Mapping
 from datetime import datetime, time, timedelta
 
 from .config import GenerationConfig
 
-_ACTIVE_CONTEXT: ContextVar["GenerationContext | None"] = ContextVar(
+_ACTIVE_CONTEXT: ContextVar[GenerationContext | None] = ContextVar(
     "sap_mock_data_generation_context", default=None
 )
 
@@ -40,7 +40,7 @@ class GenerationContext:
         self.parameters = self.config.parameters()
 
     @contextmanager
-    def activate(self) -> Iterator["GenerationContext"]:
+    def activate(self) -> Iterator[GenerationContext]:
         token = _ACTIVE_CONTEXT.set(self)
         try:
             yield self

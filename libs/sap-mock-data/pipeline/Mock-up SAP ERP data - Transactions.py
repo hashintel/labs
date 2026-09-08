@@ -1,15 +1,17 @@
 # Databricks notebook source
-!pip install faker
+# MAGIC %pip install faker
 
-import pandas as pd
-import numpy as np
+# COMMAND ----------
+
 import math
-import uuid
-from math import radians, sin, cos, sqrt, asin
-from faker import Faker
 import random
 from datetime import datetime, timedelta
+from math import asin, cos, radians, sin, sqrt
+
+import numpy as np
+import pandas as pd
 import pyspark.sql.functions as F
+from faker import Faker
 from pyspark.sql.types import *
 
 # COMMAND ----------
@@ -160,8 +162,8 @@ for row in mard_rows:
         BATCH_INVENTORY[key].append({'batch': charg, 'qty': float(row['LABST'])})
 
 # Sort batches by batch ID (FIFO approximation - older batches first)
-for key in BATCH_INVENTORY:
-    BATCH_INVENTORY[key].sort(key=lambda x: x['batch'])
+for batches in BATCH_INVENTORY.values():
+    batches.sort(key=lambda x: x['batch'])
 
 print(f"Batch inventory loaded: {len(BATCH_INVENTORY)} location combinations with batches")
 
@@ -261,7 +263,7 @@ def get_unreliable_materials(all_raw_materials, reliability_rate, specific_mater
     """
     if specific_materials.strip():
         # Use specific materials if provided
-        return set(m.strip() for m in specific_materials.split(','))
+        return {m.strip() for m in specific_materials.split(',')}
     else:
         # Random selection: (1 - reliability_rate) of materials are unreliable
         unreliable_rate = 1.0 - reliability_rate
@@ -269,10 +271,10 @@ def get_unreliable_materials(all_raw_materials, reliability_rate, specific_mater
             return set()
         # Use deterministic seed for reproducibility
         rng = random.Random(RANDOM_SEED)
-        return set(
+        return {
             m for m in all_raw_materials
             if rng.random() < unreliable_rate
-        )
+        }
 
 # COMMAND ----------
 
@@ -495,23 +497,22 @@ def generate_shipments(df_likp, df_lips, df_vbap):
     )
 
     # Get plant from VBAP for each delivery
-    if 'WERKS' not in df_delivery.columns or df_delivery['WERKS'].isna().all():
-        # If no WERKS in LIPS, try to get from VBAP via VGBEL/VGPOS
-        if 'VGBEL' in df_delivery.columns:
-            df_delivery = df_delivery.merge(
-                df_vbap[['VBELN', 'POSNR', 'WERKS']].rename(columns={'VBELN': 'VGBEL', 'POSNR': 'VGPOS'}),
-                on=['VGBEL', 'VGPOS'],
-                how='left',
-                suffixes=('', '_VBAP')
-            )
-            if 'WERKS_VBAP' in df_delivery.columns:
-                df_delivery['WERKS'] = df_delivery['WERKS_VBAP'].fillna(df_delivery.get('WERKS', '1000'))
+    if (
+        'WERKS' not in df_delivery.columns or df_delivery['WERKS'].isna().all()
+    ) and 'VGBEL' in df_delivery.columns:
+        df_delivery = df_delivery.merge(
+            df_vbap[['VBELN', 'POSNR', 'WERKS']].rename(columns={'VBELN': 'VGBEL', 'POSNR': 'VGPOS'}),
+            on=['VGBEL', 'VGPOS'],
+            how='left',
+            suffixes=('', '_VBAP')
+        )
+        if 'WERKS_VBAP' in df_delivery.columns:
+            df_delivery['WERKS'] = df_delivery['WERKS_VBAP'].fillna(df_delivery.get('WERKS', '1000'))
 
     # Group deliveries by delivery number
     delivery_groups = df_delivery.groupby('VBELN')
 
     shipment_counter = 7000000000
-    forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
 
     for del_vbeln, del_items in delivery_groups:
         # Create shipment for this delivery
@@ -554,7 +555,7 @@ def generate_shipments(df_likp, df_lips, df_vbap):
         # Parse delivery date and calculate dispatch/delivery dates
         try:
             del_date = datetime.strptime(str(delivery_date_str), '%Y%m%d')
-        except:
+        except ValueError:
             del_date = datetime.now()
 
         dispatch_date = del_date - timedelta(days=int(travel_hours/24) + customs_delay + 1)
@@ -783,8 +784,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
 
                     # Calculate max producible based on this component
                     max_from_comp = planned_qty * delivery_rate
-                    if max_from_comp < actual_qty:
-                        actual_qty = max_from_comp
+                    actual_qty = min(actual_qty, max_from_comp)
 
                     shortage_qty = comp['qty'] * (planned_qty - max_from_comp)
                     shortage_components.append({
@@ -970,7 +970,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
 
     # Print supplier reliability statistics
     if unreliable_materials:
-        print(f"Supplier Reliability Impact:")
+        print("Supplier Reliability Impact:")
         print(f"  - Complete orders: {stats['complete']}")
         print(f"  - Partial orders: {stats['partial']}")
         print(f"  - Blocked orders: {stats['blocked']}")
@@ -1255,7 +1255,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
         matnr = po['MATNR']
         order_qty = po['MENGE']
         planned_date = datetime.strptime(po['EINDT'], '%Y%m%d')
-        po_date = datetime.strptime(po['BEDAT'], '%Y%m%d')
+        datetime.strptime(po['BEDAT'], '%Y%m%d')
 
         # Determine supplier reliability
         # Default: 95% on-time, 98% full quantity
@@ -1326,7 +1326,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
     in_full_count = len(df_ekbe[df_ekbe['OTIF_INFULL'] == 'X'])
     otif_count = len(df_ekbe[(df_ekbe['OTIF_ONTIME'] == 'X') & (df_ekbe['OTIF_INFULL'] == 'X')])
 
-    print(f"  Delivery Performance:")
+    print("  Delivery Performance:")
     print(f"    On-Time: {on_time_count}/{total_deliveries} ({100*on_time_count/total_deliveries:.1f}%)")
     print(f"    In-Full: {in_full_count}/{total_deliveries} ({100*in_full_count/total_deliveries:.1f}%)")
     print(f"    OTIF:    {otif_count}/{total_deliveries} ({100*otif_count/total_deliveries:.1f}%)")
@@ -1594,7 +1594,7 @@ if eina_exists and eine_exists:
 
     except Exception as e:
         import traceback
-        print(f"ERROR: Purchase order generation failed:")
+        print("ERROR: Purchase order generation failed:")
         print(f"  {type(e).__name__}: {e}")
         traceback.print_exc()
 else:

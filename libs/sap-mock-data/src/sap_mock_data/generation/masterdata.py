@@ -1,13 +1,12 @@
 """Generate SAP master data with pandas."""
-import pandas as pd
-import numpy as np
-from faker import Faker
 import random
-from math import radians, sin, cos, sqrt, asin
-from datetime import datetime, timedelta
+from datetime import timedelta
+from math import asin, cos, radians, sin, sqrt
+
+import pandas as pd
+from faker import Faker
 
 from ..context import current_parameters, master_datetime
-
 from .common import (
     PLANT_CONFIG,
     configure_plants,
@@ -483,7 +482,6 @@ def generate_tvro_data():
     plants = list(PLANT_CONFIG)
 
     shipping_types = {'ROAD': '01', 'RAIL': '02', 'SEA': '03', 'AIR': '04'}
-    forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
 
     for loc_from, loc_to in route_pairs(plants):
 
@@ -1012,7 +1010,7 @@ def generate_plpo_data(df_plko, df_crhd):
         template = routing_templates.get(routing_type, routing_templates['STANDARD'])
 
         for vornr, wc_prefix, setup_min, run_min, control_key in template:
-            matching_wcs = [k for k in plant_wcs.keys() if k.startswith(wc_prefix)]
+            matching_wcs = [k for k in plant_wcs if k.startswith(wc_prefix)]
             if not matching_wcs:
                 continue
 
@@ -1125,11 +1123,11 @@ def generate(wh):
     BOM_CONFIG.append({'parent': MAT_INDIA_PRODUCT, 'child': MAT_VEGGIE_CAPS, 'qty': 50, 'uom': 'PC', 'scrap': 0.0, 'type': 'Excipient'})
     BOM_CONFIG.append({'parent': MAT_INDIA_PRODUCT, 'child': 'API1', 'qty': 100, 'uom': 'GRM', 'scrap': 0.5, 'type': 'API'})
 
-    FINISHED_GOODS = sorted(list(set([row['parent'] for row in BOM_CONFIG] + [f'MAT-A{i:04d}' for i in range(1, NUM_FINISHED_GOODS + 1)])))
-    INTERMEDIATE_GOODS = sorted(list(set([row['parent'] for row in BOM_CONFIG if row['parent'] in [r['child'] for r in BOM_CONFIG]] + [f'MAT-H{i:04d}' for i in range(1, 11)])))
-    RAW_MATERIALS = sorted(list(set([row['child'] for row in BOM_CONFIG] + [f'MAT-R{i:04d}' for i in range(1, NUM_RAW_MATERIALS + 1)])))
+    FINISHED_GOODS = sorted(set([row['parent'] for row in BOM_CONFIG] + [f'MAT-A{i:04d}' for i in range(1, NUM_FINISHED_GOODS + 1)]))
+    INTERMEDIATE_GOODS = sorted(set([row['parent'] for row in BOM_CONFIG if row['parent'] in [r['child'] for r in BOM_CONFIG]] + [f'MAT-H{i:04d}' for i in range(1, 11)]))
+    RAW_MATERIALS = sorted(set([row['child'] for row in BOM_CONFIG] + [f'MAT-R{i:04d}' for i in range(1, NUM_RAW_MATERIALS + 1)]))
 
-    PREDEFINED_MATERIALS = sorted(list(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS)))
+    PREDEFINED_MATERIALS = sorted(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS))
     PARENT_MATERIALS = FINISHED_GOODS + INTERMEDIATE_GOODS
 
 
