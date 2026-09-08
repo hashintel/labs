@@ -1,4 +1,11 @@
 # Databricks notebook source
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    dbutils = cast(Any, None)
+    spark = cast(Any, None)
+
+
 # Import schema documentation to unity catalog
 # This notebook reads table and column descriptions from a YAML file
 # and applies them to Unity Catalog tables.
@@ -126,7 +133,7 @@ if APPLY_CONSTRAINTS and DROP_EXISTING_CONSTRAINTS:
     fk_dropped = 0
     pk_dropped = 0
 
-    for table_name in tables.keys():
+    for table_name in tables:
         full_table_name = qualified_table_name(table_name)
 
         if not table_exists(full_table_name):
@@ -238,7 +245,7 @@ for table_name, table_doc in tables.items():
             if column_updates < 10:
                 print(f"  [DRY RUN] {table_name}.{col_name}: {description[:40]}...")
             elif column_updates == 10:
-                print(f"  ... and more columns")
+                print("  ... and more columns")
             column_updates += 1
         else:
             try:

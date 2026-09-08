@@ -2,10 +2,11 @@
 # Scenario Injection Notebook
 # Injects specific supply chain events (scenarios) into the generated SAP data
 
-import pandas as pd
-import numpy as np
 import random
 from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
 import pyspark.sql.functions as F
 from pyspark.sql.types import *
 
@@ -541,7 +542,7 @@ def inject_fire_scenario(config, df_mard, df_matdoc):
     recovery_date = fire_date + timedelta(days=downtime_days)
 
     sloc_display = "ALL storage locations" if affect_all_slocs else f"Storage Location {sloc}"
-    print(f"\n  Fire Scenario Details:")
+    print("\n  Fire Scenario Details:")
     print(f"    Location: Plant {plant}, {sloc_display}")
     print(f"    Fire Date: {fire_date_str}")
     print(f"    Downtime: {downtime_days} days")
@@ -690,7 +691,7 @@ def inject_shutdown_scenario(scenario_id, config, df_matdoc, capacity_pct=0):
         blocked_doc_ids = blocked_docs['MBLNR'].unique().tolist()
         print(f"    Blocked transactions during downtime: {len(blocked_doc_ids)}")
     else:
-        print(f"    Partial shutdown - no transactions blocked (reduced capacity only)")
+        print("    Partial shutdown - no transactions blocked (reduced capacity only)")
 
     return blocked_doc_ids, recovery_date
 
@@ -722,7 +723,7 @@ def inject_quarantine_scenario(scenario_id, config, df_mard, is_all_locations=Fa
 
     if is_all_locations:
         # SCN006: Quarantine ALL batches of material across ALL locations
-        print(f"\n  Quarantine Scenario (All Locations) Details:")
+        print("\n  Quarantine Scenario (All Locations) Details:")
         print(f"    Material: {material}")
         print(f"    Quarantine Date: {quarantine_date.strftime('%Y%m%d')}")
         print(f"    Quarantine Duration: {quarantine_days} days")
@@ -795,7 +796,7 @@ def inject_quarantine_scenario(scenario_id, config, df_mard, is_all_locations=Fa
         batch = config['batch']
         qty = config['qty']
 
-        print(f"\n  Quarantine Scenario (Single Batch) Details:")
+        print("\n  Quarantine Scenario (Single Batch) Details:")
         print(f"    Material: {material}")
         print(f"    Plant: {plant}")
         print(f"    Storage Location: {sloc}")
@@ -872,7 +873,7 @@ def inject_temperature_scenario(config, df_mard):
     plant = config['plant']
     sloc = config.get('from_sloc', 'FG01')
 
-    print(f"\n  Temperature Issue Scenario Details:")
+    print("\n  Temperature Issue Scenario Details:")
     print(f"    Location: Plant {plant}, Storage Location {sloc}")
 
     scrap_records = []
@@ -948,7 +949,7 @@ def inject_reroute_scenario(config, df_mard, df_matdoc):
     recovery_date = reroute_date + timedelta(days=downtime_days)
 
     sloc_display = "ALL storage locations" if affect_all_slocs else f"Storage Location {sloc}"
-    print(f"\n  Re-route Scenario Details:")
+    print("\n  Re-route Scenario Details:")
     print(f"    Location: Plant {plant}, {sloc_display}")
     print(f"    Reroute Date: {reroute_date_str}")
     print(f"    Downtime: {downtime_days} days")
@@ -1205,7 +1206,7 @@ def adjust_goods_issues_for_scenario(df_matdoc, scenario_records, df_mard, df_li
                     indices_to_remove.append(idx)
                     total_removed += 1
                     # Track for cascade - XBLNR is delivery number
-                    if 'XBLNR' in row and row['XBLNR']:
+                    if row.get('XBLNR'):
                         removed_deliveries.append((row['XBLNR'], row['MATNR']))
                 elif qty > simulated_stock:
                     # Partial stock - reduce the issue
@@ -1213,7 +1214,7 @@ def adjust_goods_issues_for_scenario(df_matdoc, scenario_records, df_mard, df_li
                     simulated_stock = 0
                     total_reduced += 1
                     # Track for cascade
-                    if 'XBLNR' in row and row['XBLNR']:
+                    if row.get('XBLNR'):
                         reduced_deliveries.append((row['XBLNR'], row['MATNR'], simulated_stock))
                 else:
                     # Enough stock - process normally
@@ -1570,7 +1571,7 @@ def inject_demand_increase(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
 
     try:
         start_date = datetime.strptime(start_date_str, '%Y%m%d')
-    except:
+    except ValueError:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
 
     if hasattr(df_vbak, 'toPandas'):
@@ -1706,7 +1707,7 @@ def inject_emergency_order(scenario_id, config, df_vbak, df_kna1):
     # Parse due date
     try:
         due_date = datetime.strptime(due_date_str, '%Y%m%d')
-    except:
+    except ValueError:
         due_date = datetime.strptime(due_date_str, '%Y-%m-%d')
 
     if hasattr(df_vbak, 'toPandas'):
@@ -1906,7 +1907,7 @@ def inject_shortage_demand(scenario_id, config, df_vbak, df_vbap, df_vbep, df_kn
 
     total_qty = sum(r['KWMENG'] for r in new_vbap)
     print(f"    Created: {len(new_vbak)} CRITICAL orders totaling {total_qty:.0f} units")
-    print(f"    Average delivery window: 3-7 days (URGENT)")
+    print("    Average delivery window: 3-7 days (URGENT)")
 
     return new_vbak, new_vbap, new_vbep
 
@@ -2111,7 +2112,7 @@ def inject_equipment_failure(scenario_id, config, df_afko):
     # Parse failure date
     try:
         failure_date = datetime.strptime(failure_date_str, '%Y%m%d')
-    except:
+    except ValueError:
         failure_date = datetime.strptime(failure_date_str, '%Y-%m-%d')
 
     recovery_date = failure_date + timedelta(days=downtime_days)
@@ -2178,7 +2179,7 @@ def inject_regulatory_freeze(scenario_id, config, df_likp):
 
     try:
         start_date = datetime.strptime(start_date_str, '%Y%m%d')
-    except:
+    except ValueError:
         start_date = datetime.strptime(start_date_str, '%Y-%m-%d')
 
     freeze_end = start_date + timedelta(days=freeze_days)
@@ -2230,7 +2231,7 @@ def inject_new_facility(scenario_id, config, df_sapapo_loc, df_afko, df_mara):
     # Parse ramp start date
     try:
         ramp_start = datetime.strptime(ramp_start_str, '%Y%m%d')
-    except:
+    except ValueError:
         ramp_start = datetime.strptime(ramp_start_str, '%Y-%m-%d')
 
     if hasattr(df_sapapo_loc, 'toPandas'):
@@ -2290,7 +2291,7 @@ def inject_new_facility(scenario_id, config, df_sapapo_loc, df_afko, df_mara):
 
     print(f"    Created: New location {new_plant}")
     print(f"    Created: {len(new_afko)} ramping production orders over {ramp_weeks} weeks")
-    print(f"    Capacity ramp: 20% -> 100%")
+    print("    Capacity ramp: 20% -> 100%")
 
     return new_location, new_afko
 
@@ -2380,7 +2381,7 @@ def inject_competing_production(scenario_id, config, df_afko, df_vbak, df_kna1):
     """
     plant = config['plant']
     materials = config['materials']
-    contention_pct = config['contention_pct']
+    config['contention_pct']
 
     if hasattr(df_afko, 'toPandas'):
         df_afko = df_afko.toPandas()
@@ -2813,7 +2814,7 @@ if SCN002_ENABLED:
 if SCN003_ENABLED:
     config = parse_config(SCN003_CONFIG, scenario_type="fire")
     if config:
-        print(f"Injecting SCN003 (Fire Damage - ALL materials at location):")
+        print("Injecting SCN003 (Fire Damage - ALL materials at location):")
         scrap_records, blocked_ids, recovery_date = inject_fire_scenario(config, df_mard, df_matdoc)
         all_scenario_records.extend(scrap_records)
         blocked_matdoc_ids.extend(blocked_ids)
@@ -2839,7 +2840,7 @@ if SCN003_ENABLED:
 if SCN004_ENABLED:
     config = parse_config(SCN004_CONFIG, scenario_type="shutdown")
     if config:
-        print(f"Injecting SCN004 (Production Shutdown):")
+        print("Injecting SCN004 (Production Shutdown):")
         blocked_ids, recovery_date = inject_shutdown_scenario("SCN004", config, df_matdoc, capacity_pct=0)
         blocked_matdoc_ids.extend(blocked_ids)
         scenario_metadata.append({
@@ -2859,7 +2860,7 @@ if SCN004_ENABLED:
 if SCN005_ENABLED:
     config = parse_config(SCN005_CONFIG, scenario_type="quarantine_single")
     if config:
-        print(f"Injecting SCN005 (Batch Quarantine - Single):")
+        print("Injecting SCN005 (Batch Quarantine - Single):")
         transfer_records, release_date = inject_quarantine_scenario("SCN005", config, df_mard, is_all_locations=False)
         all_scenario_records.extend(transfer_records)
         scenario_metadata.append({
@@ -2879,7 +2880,7 @@ if SCN005_ENABLED:
 if SCN006_ENABLED:
     config = parse_config(SCN006_CONFIG, scenario_type="quarantine_all")
     if config:
-        print(f"Injecting SCN006 (Batch Quarantine - All Locations):")
+        print("Injecting SCN006 (Batch Quarantine - All Locations):")
         transfer_records, release_date = inject_quarantine_scenario("SCN006", config, df_mard, is_all_locations=True)
         all_scenario_records.extend(transfer_records)
 
@@ -2903,7 +2904,7 @@ if SCN006_ENABLED:
 if SCN007_ENABLED:
     config = parse_config(SCN007_CONFIG, scenario_type="writeoff")
     if config:
-        print(f"Injecting SCN007 (Product Write-off):")
+        print("Injecting SCN007 (Product Write-off):")
         print(f"  Material: {config['material']}, Plant: {config['plant']}, Batch: {config['batch']}, Qty: {config['qty']}")
         records = inject_scenario("SCN007", config, INVENTORY_SCENARIO_DEFINITIONS["SCN007"])
         all_scenario_records.extend(records)
@@ -2924,7 +2925,7 @@ if SCN007_ENABLED:
 if SCN008_ENABLED:
     config = parse_config(SCN008_CONFIG, scenario_type="transfer")
     if config:
-        print(f"Injecting SCN008 (Temperature Issue - Inventory Destruction):")
+        print("Injecting SCN008 (Temperature Issue - Inventory Destruction):")
         scrap_records = inject_temperature_scenario(config, df_mard)
         all_scenario_records.extend(scrap_records)
 
@@ -2948,7 +2949,7 @@ if SCN008_ENABLED:
 if SCN009_ENABLED:
     config = parse_config(SCN009_CONFIG, scenario_type="reroute")
     if config:
-        print(f"Injecting SCN009 (Re-route - Warehouse Offline):")
+        print("Injecting SCN009 (Re-route - Warehouse Offline):")
         transfer_records, blocked_ids, recovery_date, total_qty = inject_reroute_scenario(config, df_mard, df_matdoc)
         all_scenario_records.extend(transfer_records)
         blocked_matdoc_ids.extend(blocked_ids)
@@ -2971,7 +2972,7 @@ if SCN009_ENABLED:
 if SCN010_ENABLED:
     config = parse_config(SCN010_CONFIG, scenario_type="shutdown")
     if config:
-        print(f"Injecting SCN010 (Partial Production Shutdown - 50% capacity):")
+        print("Injecting SCN010 (Partial Production Shutdown - 50% capacity):")
         blocked_ids, recovery_date = inject_shutdown_scenario("SCN010", config, df_matdoc, capacity_pct=50)
         # For partial shutdown, we don't block transactions - just record the reduced capacity
         scenario_metadata.append({
@@ -3006,7 +3007,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN011_ENABLED:
         config = parse_production_config(SCN011_CONFIG)
         if config:
-            print(f"\n  Injecting SCN011 (Demand Increase):")
+            print("\n  Injecting SCN011 (Demand Increase):")
             print(f"    Material: {config['material']}, Plant: {config['plant']}")
             print(f"    Increase: {config['increase_pct']}% permanent demand increase")
 
@@ -3040,7 +3041,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN013_ENABLED:
         config = parse_production_config(SCN013_CONFIG, scenario_type="expedition")
         if config:
-            print(f"\n  Injecting SCN013 (Batch Expedition):")
+            print("\n  Injecting SCN013 (Batch Expedition):")
             print(f"    Material: {config['material']}, Plant: {config['plant']}")
             print(f"    Emergency order: {config['qty']} units, Due: {config['due_date']}")
 
@@ -3074,7 +3075,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN019_ENABLED:
         config = parse_production_config(SCN019_CONFIG, scenario_type="shortage")
         if config:
-            print(f"\n  Injecting SCN019 (Product Shortage):")
+            print("\n  Injecting SCN019 (Product Shortage):")
             print(f"    Material: {config['material']}, Plant: {config['plant']}")
             print(f"    Shortage response: +{config['increase_pct']}% demand for {config['duration_days']} days")
 
@@ -3108,7 +3109,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN012_ENABLED:
         config = parse_production_config(SCN012_CONFIG, scenario_type="new_product")
         if config:
-            print(f"\n  Injecting SCN012 (New Product Introduction):")
+            print("\n  Injecting SCN012 (New Product Introduction):")
             print(f"    New Material: {config['new_material']}, Based on: {config['base_material']}")
 
             # Load additional master data tables for NPI
@@ -3158,7 +3159,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN015_ENABLED:
         config = parse_production_config(SCN015_CONFIG, scenario_type="equipment_failure")
         if config:
-            print(f"\n  Injecting SCN015 (Equipment Failure):")
+            print("\n  Injecting SCN015 (Equipment Failure):")
 
             try:
                 df_afko = spark.table(f"{CATALOG}.{SCHEMA}.afko").toPandas()
@@ -3197,7 +3198,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN017_ENABLED:
         config = parse_production_config(SCN017_CONFIG, scenario_type="regulatory_freeze")
         if config:
-            print(f"\n  Injecting SCN017 (Regulatory Inspection):")
+            print("\n  Injecting SCN017 (Regulatory Inspection):")
 
             try:
                 df_likp = spark.table(f"{CATALOG}.{SCHEMA}.likp").toPandas()
@@ -3235,7 +3236,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN018_ENABLED:
         config = parse_production_config(SCN018_CONFIG, scenario_type="new_facility")
         if config:
-            print(f"\n  Injecting SCN018 (New Production Facility):")
+            print("\n  Injecting SCN018 (New Production Facility):")
 
             try:
                 df_sapapo_loc = spark.table(f"{CATALOG}.{SCHEMA}.sapapo_loc").toPandas()
@@ -3276,7 +3277,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN014_ENABLED:
         config = parse_production_config(SCN014_CONFIG, scenario_type="limited_capacity")
         if config:
-            print(f"\n  Injecting SCN014 (Limited Capacity):")
+            print("\n  Injecting SCN014 (Limited Capacity):")
             print(f"    Plant: {config['plant']}, Capacity: {config['capacity_pct']}%")
             print(f"    Duration: {config['duration_days']} days")
 
@@ -3317,7 +3318,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN016_ENABLED:
         config = parse_production_config(SCN016_CONFIG, scenario_type="competing_production")
         if config:
-            print(f"\n  Injecting SCN016 (Competing Production):")
+            print("\n  Injecting SCN016 (Competing Production):")
             print(f"    Plant: {config['plant']}, Materials: {config['materials']}")
             print(f"    Contention: {config['contention_pct']}%")
 
@@ -3361,7 +3362,7 @@ if production_scenarios_enabled and df_vbak is not None:
     if SCN020_ENABLED:
         config = parse_production_config(SCN020_CONFIG, scenario_type="high_volatility")
         if config:
-            print(f"\n  Injecting SCN020 (High Volatility):")
+            print("\n  Injecting SCN020 (High Volatility):")
             print(f"    Volatility: {config['volatility_pct']}%, Duration: {config['duration_days']} days")
 
             try:
@@ -3453,10 +3454,10 @@ if supplier_scenarios_enabled and df_ekbe is not None:
         config = parse_supplier_config(SCN023_CONFIG, scenario_type="fda")
         if config:
             # FDA 483 doesn't change OTIF, just flags for review
-            print(f"\n  Injecting SCN023 (FDA 483):")
+            print("\n  Injecting SCN023 (FDA 483):")
             print(f"    Vendor: {config['vendor']}")
             print(f"    Material: {config['material']}")
-            print(f"    Action: Flagged for review (no OTIF impact)")
+            print("    Action: Flagged for review (no OTIF impact)")
             scenario_metadata.append({
                 "scenario_id": "SCN023",
                 "scenario_type": "SUPPLIER",
@@ -3676,7 +3677,7 @@ if inventory_changes or supplier_changes or production_changes:
                 print(f"  Added {len(md['stpo'])} new STPO records (SCN012)")
 
         # SCN014/SCN016: Add new AFKO production orders
-        if 'afko' in production_scenario_records and production_scenario_records['afko']:
+        if production_scenario_records.get('afko'):
             df_new_afko = pd.DataFrame(production_scenario_records['afko'])
             df_afko = spark.table(f"{CATALOG}.{SCHEMA}.afko").toPandas()
             df_afko_updated = pd.concat([df_afko, df_new_afko], ignore_index=True)
@@ -3799,7 +3800,7 @@ if inventory_changes or supplier_changes or production_changes:
     df_metadata.write.format("delta").mode("overwrite").option("overwriteSchema", "true").saveAsTable(metadata_table)
 
     print(f"\n{'='*60}")
-    print(f"SCENARIO INJECTION COMPLETE")
+    print("SCENARIO INJECTION COMPLETE")
     if inventory_changes:
         print(f"  Inventory scenarios: {len(all_scenario_records)} MATDOC records")
         if blocked_matdoc_ids:

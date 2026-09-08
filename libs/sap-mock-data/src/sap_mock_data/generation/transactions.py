@@ -1,19 +1,19 @@
 """Generate SAP transaction data with pandas."""
-import pandas as pd
-import numpy as np
 import math
-import uuid
-from math import radians, sin, cos, sqrt, asin
-from faker import Faker
 import random
 from datetime import datetime, timedelta
+from math import asin, cos, radians, sin, sqrt
+
+import numpy as np
+import pandas as pd
+from faker import Faker
 
 from .common import (
     PLANT_CONFIG,
     configure_plants,
-    route_code,
     customs_days,
     param,
+    route_code,
     seed_all,
     transport_modes_for_lane,
 )
@@ -107,16 +107,16 @@ def get_unreliable_materials(all_raw_materials, reliability_rate, specific_mater
         Set of unreliable material IDs
     """
     if specific_materials.strip():
-        return set(m.strip() for m in specific_materials.split(','))
+        return {m.strip() for m in specific_materials.split(',')}
     else:
         unreliable_rate = 1.0 - reliability_rate
         if unreliable_rate <= 0:
             return set()
         rng = random.Random(RANDOM_SEED)
-        return set(
+        return {
             m for m in all_raw_materials
             if rng.random() < unreliable_rate
-        )
+        }
 
 def generate_sales_orders(finished_goods, all_customers):
     print(f"Generating {NUMBER_OF_ORDERS} Sales Orders...")
@@ -291,21 +291,21 @@ def generate_shipments(df_likp, df_lips, df_vbap):
         suffixes=('', '_H')
     )
 
-    if 'WERKS' not in df_delivery.columns or df_delivery['WERKS'].isna().all():
-        if 'VGBEL' in df_delivery.columns:
-            df_delivery = df_delivery.merge(
-                df_vbap[['VBELN', 'POSNR', 'WERKS']].rename(columns={'VBELN': 'VGBEL', 'POSNR': 'VGPOS'}),
-                on=['VGBEL', 'VGPOS'],
-                how='left',
-                suffixes=('', '_VBAP')
-            )
-            if 'WERKS_VBAP' in df_delivery.columns:
-                df_delivery['WERKS'] = df_delivery['WERKS_VBAP'].fillna(df_delivery.get('WERKS', HUB_PLANT))
+    if (
+        'WERKS' not in df_delivery.columns or df_delivery['WERKS'].isna().all()
+    ) and 'VGBEL' in df_delivery.columns:
+        df_delivery = df_delivery.merge(
+            df_vbap[['VBELN', 'POSNR', 'WERKS']].rename(columns={'VBELN': 'VGBEL', 'POSNR': 'VGPOS'}),
+            on=['VGBEL', 'VGPOS'],
+            how='left',
+            suffixes=('', '_VBAP')
+        )
+        if 'WERKS_VBAP' in df_delivery.columns:
+            df_delivery['WERKS'] = df_delivery['WERKS_VBAP'].fillna(df_delivery.get('WERKS', HUB_PLANT))
 
     delivery_groups = df_delivery.groupby('VBELN')
 
     shipment_counter = 7000000000
-    forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
 
     for del_vbeln, del_items in delivery_groups:
         tknum = f'{shipment_counter:010d}'
@@ -339,7 +339,7 @@ def generate_shipments(df_likp, df_lips, df_vbap):
 
         try:
             del_date = datetime.strptime(str(delivery_date_str), '%Y%m%d')
-        except:
+        except ValueError:
             del_date = datetime.now()
 
         dispatch_date = del_date - timedelta(days=int(travel_hours/24) + customs_delay + 1)
@@ -535,8 +535,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
                     delivery_rate = supplier_rng.uniform(0.3, 0.8)
 
                     max_from_comp = planned_qty * delivery_rate
-                    if max_from_comp < actual_qty:
-                        actual_qty = max_from_comp
+                    actual_qty = min(actual_qty, max_from_comp)
 
                     shortage_qty = comp['qty'] * (planned_qty - max_from_comp)
                     shortage_components.append({
@@ -713,7 +712,7 @@ def convert_plan_to_execution(df_sim_results, bom_map, unreliable_materials=None
         matdoc_id += 1
 
     if unreliable_materials:
-        print(f"Supplier Reliability Impact:")
+        print("Supplier Reliability Impact:")
         print(f"  - Complete orders: {stats['complete']}")
         print(f"  - Partial orders: {stats['partial']}")
         print(f"  - Blocked orders: {stats['blocked']}")
@@ -973,7 +972,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
         matnr = po['MATNR']
         order_qty = po['MENGE']
         planned_date = datetime.strptime(po['EINDT'], '%Y%m%d')
-        po_date = datetime.strptime(po['BEDAT'], '%Y%m%d')
+        datetime.strptime(po['BEDAT'], '%Y%m%d')
 
         on_time_rate = 0.95
         full_qty_rate = 0.98
@@ -1032,7 +1031,7 @@ def generate_po_delivery_history(df_ekko, df_ekpo, df_eine, supplier_scenarios=N
     in_full_count = len(df_ekbe[df_ekbe['OTIF_INFULL'] == 'X'])
     otif_count = len(df_ekbe[(df_ekbe['OTIF_ONTIME'] == 'X') & (df_ekbe['OTIF_INFULL'] == 'X')])
 
-    print(f"  Delivery Performance:")
+    print("  Delivery Performance:")
     print(f"    On-Time: {on_time_count}/{total_deliveries} ({100*on_time_count/total_deliveries:.1f}%)")
     print(f"    In-Full: {in_full_count}/{total_deliveries} ({100*in_full_count/total_deliveries:.1f}%)")
     print(f"    OTIF:    {otif_count}/{total_deliveries} ({100*otif_count/total_deliveries:.1f}%)")
@@ -1109,7 +1108,7 @@ def generate(wh):
     UNRELIABLE_MATERIALS_STR = param("UNRELIABLE_MATERIALS")
 
     seed_all(RANDOM_SEED)
-    fake = Faker('en_GB')
+    Faker('en_GB')
 
     print(f"Config: {NUMBER_OF_ORDERS} orders, Hub={HUB_PLANT}, Fill Rate={DELIVERY_FILL_RATE}, Safety Stock={SAFETY_STOCK_WEEKS} weeks")
     print(f"Supplier Reliability: {SUPPLIER_RELIABILITY_RATE} (unreliable materials: {UNRELIABLE_MATERIALS_STR or 'random selection'})")
@@ -1312,22 +1311,8 @@ def generate(wh):
 
     print("\n--- Generating Purchase Order Data ---")
 
-    eina_exists = False
-    eine_exists = False
-    try:
-        wh.read("eina")
-        eina_exists = True
-        print("  EINA table found")
-    except:
-        print("  WARNING: EINA table not found - run Masterdata generation first")
-
-    try:
-        wh.read("eine")
-        eine_exists = True
-        print("  EINE table found")
-    except:
-        print("  WARNING: EINE table not found - run Masterdata generation first")
-
+    eina_exists = wh.exists("eina")
+    eine_exists = wh.exists("eine")
     if eina_exists and eine_exists:
         try:
             df_eina = wh.read("eina")
@@ -1345,7 +1330,7 @@ def generate(wh):
 
         except Exception as e:
             import traceback
-            print(f"ERROR: Purchase order generation failed:")
+            print("ERROR: Purchase order generation failed:")
             print(f"  {type(e).__name__}: {e}")
             traceback.print_exc()
     else:

@@ -5,8 +5,8 @@ import random
 import numpy as np
 from faker import Faker
 
-from ..context import current_parameters
 from ..config import BASE_ORDER_COUNT
+from ..context import current_parameters
 
 DEFAULTS = {
     "RANDOM_SEED": "42",
