@@ -6,6 +6,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from typing import Iterator, Mapping
+from datetime import datetime, time, timedelta
 
 from .config import GenerationConfig
 
@@ -17,6 +18,15 @@ _ACTIVE_CONTEXT: ContextVar["GenerationContext | None"] = ContextVar(
 def current_parameters() -> Mapping[str, str]:
     context = _ACTIVE_CONTEXT.get()
     return context.parameters if context else {}
+
+
+def master_datetime() -> datetime:
+    context = _ACTIVE_CONTEXT.get()
+    if context and context.config.timeframe:
+        return datetime.combine(
+            context.config.timeframe.start - timedelta(days=1), time()
+        )
+    return datetime.now()
 
 
 @dataclass(slots=True)

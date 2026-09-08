@@ -6,6 +6,8 @@ import random
 from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
 
+from ..context import current_parameters, master_datetime
+
 from .common import (
     PLANT_CONFIG,
     configure_plants,
@@ -27,7 +29,7 @@ def generate_kna1_data():
         data.append({
             'MANDT': '800', 'KUNNR': kunnr, 'NAME1': fake.company(),
             'ORT01': fake.city(), 'PSTLZ': fake.postcode(), 'LAND1': country,
-            'KTGRD': '01', 'ERDAT': datetime.now().strftime('%Y%m%d')
+            'KTGRD': '01', 'ERDAT': master_datetime().strftime('%Y%m%d')
         })
     return pd.DataFrame(data)
 
@@ -104,10 +106,11 @@ def generate_marc_data():
             })
     return pd.DataFrame(data)
 
-def generate_batch_id(matnr, werks, batch_num, year=2025):
+def generate_batch_id(matnr, werks, batch_num, year=None):
     """Generate a batch ID in SAP format: BATCH-YYYY-MMMNNN (material prefix + sequence)"""
     mat_suffix = matnr.replace('MAT-', '').replace('-', '')[:4]
-    return f"B{year}{mat_suffix}{batch_num:03d}"
+    batch_year = year or (master_datetime().year if "TIMEFRAME_START" in current_parameters() else 2025)
+    return f"B{batch_year}{mat_suffix}{batch_num:03d}"
 
 def generate_mch1_data(batch_records):
     """
@@ -123,7 +126,7 @@ def generate_mch1_data(batch_records):
             continue
         seen_batches.add(batch_key)
 
-        prod_date = datetime.now() - timedelta(days=random.randint(1, 180))
+        prod_date = master_datetime() - timedelta(days=random.randint(1, 180))
         shelf_life_days = random.choice([365, 730, 1095])  # 1, 2, or 3 years
         expiry_date = prod_date + timedelta(days=shelf_life_days)
 
@@ -158,7 +161,7 @@ def generate_mcha_data(batch_records):
             continue
         seen_batches.add(batch_key)
 
-        prod_date = datetime.now() - timedelta(days=random.randint(1, 180))
+        prod_date = master_datetime() - timedelta(days=random.randint(1, 180))
         expiry_date = prod_date + timedelta(days=random.choice([365, 730, 1095]))
 
         data.append({
@@ -259,7 +262,7 @@ def generate_mbew_data():
                 'LBKUM': stock_qty,       # Total Valuated Stock
                 'SALK3': stock_value,     # Total Stock Value
                 'ZKPRS': round(std_price * 0.9, 2),  # Future/Planned Price
-                'ZKDAT': (datetime.now() + timedelta(days=90)).strftime('%Y%m%d'),  # Future Price Date
+                'ZKDAT': (master_datetime() + timedelta(days=90)).strftime('%Y%m%d'),  # Future Price Date
                 'BKLAS': '3000' if matnr in FINISHED_GOODS else '3001'  # Valuation Class
             })
     return pd.DataFrame(data)
@@ -621,7 +624,7 @@ def generate_lfa1_data():
             'STRAS': fake.street_address(),
             'TELF1': fake.phone_number()[:20],
             'KTOKK': 'KRED',  # Vendor account group
-            'ERDAT': (datetime.now() - timedelta(days=random.randint(365, 1500))).strftime('%Y%m%d'),
+            'ERDAT': (master_datetime() - timedelta(days=random.randint(365, 1500))).strftime('%Y%m%d'),
             'ERNAM': random.choice(PREDEFINED_USERS),
             'LOEVM': '',  # Deletion flag (empty = active)
             'SPERR': '',  # Block flag (empty = not blocked)
@@ -680,7 +683,7 @@ def generate_eina_data(df_mara, df_lfa1):
             'MATNR': matnr,
             'LIFNR': lifnr,
             'LOEKZ': '',
-            'ERDAT': (datetime.now() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
+            'ERDAT': (master_datetime() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
             'ERNAM': random.choice(PREDEFINED_USERS),
         })
 

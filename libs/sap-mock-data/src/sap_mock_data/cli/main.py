@@ -9,7 +9,7 @@ from importlib.metadata import version
 from pathlib import Path
 from typing import Sequence
 
-from .. import GenerationConfig, generate_dataset
+from .. import GenerationConfig, Timeframe, generate_dataset
 from ..config import SIZE_KNOB_RANGES
 from ..storage import DeltaTableStore
 from ..validation import build_manifest, integrity_report
@@ -27,7 +27,9 @@ def _scale_factor(value: str) -> float | str:
             f"got {value!r}"
         )
     if not (number > 0 and math.isfinite(number)):
-        raise argparse.ArgumentTypeError(f"must be a positive finite number; got {value}")
+        raise argparse.ArgumentTypeError(
+            f"must be a positive finite number; got {value}"
+        )
     return number
 
 
@@ -55,6 +57,12 @@ def _parser() -> argparse.ArgumentParser:
     generate = commands.add_parser("generate", help="generate a dataset")
     generate.add_argument("output", type=Path, help="Delta warehouse directory")
     generate.add_argument("--seed", type=int, default=42)
+    generate.add_argument("--start-date")
+    timeframe_end = generate.add_mutually_exclusive_group()
+    timeframe_end.add_argument("--end-date")
+    timeframe_end.add_argument(
+        "--duration-days", type=int, help="timeframe length in days, for example 14"
+    )
     generate.add_argument(
         "--scale-factor",
         type=_scale_factor,
@@ -108,7 +116,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "generate":
         try:
             scenario_configs = _scenario_configs(args.scenario_config)
+            timeframe = None
+            if args.start_date or args.end_date or args.duration_days is not None:
+                if not args.start_date:
+                    raise ValueError(
+                        "--start-date is required with --end-date or --duration-days"
+                    )
+                timeframe = Timeframe(
+                    args.start_date, end=args.end_date, duration_days=args.duration_days
+                )
             config = GenerationConfig(
+                timeframe=timeframe,
                 random_seed=args.seed,
                 scale_factor=args.scale_factor,
                 num_orders=args.orders,

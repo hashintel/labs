@@ -6,6 +6,7 @@ import numpy as np
 from faker import Faker
 
 from ..context import current_parameters
+from ..config import BASE_ORDER_COUNT
 
 DEFAULTS = {
     "RANDOM_SEED": "42",
@@ -16,7 +17,7 @@ DEFAULTS = {
     "MOQ_FINISHED_MAX": "1000",
     "MOQ_RAW_MIN": "1000",
     "MOQ_RAW_MAX": "10000",
-    "NUM_ORDERS": "5000",
+    "NUM_ORDERS": str(BASE_ORDER_COUNT),
     "NUM_VENDORS": "20",
     "NUM_SITES": "5",
     "HUB_PLANT": "1000",
@@ -175,6 +176,15 @@ def configure_plants() -> None:
     """Rebuild PLANT_CONFIG in place for the active run's NUM_SITES."""
     PLANT_CONFIG.clear()
     PLANT_CONFIG.update(build_plants(int(param("NUM_SITES"))))
+    parameters = current_parameters()
+    if "TIMEFRAME_START" in parameters and parameters.get("SCN018_ENABLED") == "true":
+        raw = parameters.get("SCN018_CONFIG", "").split(",")[0].strip()
+        if len(raw) != 4 or not raw.isdigit() or not 6000 <= int(raw) <= 9990 or int(raw) % 10:
+            raise ValueError(f"SCN018 plant must be a four-digit id from 6000 to 9990 in steps of 10; got {raw!r}")
+        if raw not in PLANT_CONFIG:
+            plant = dict(BASE_PLANTS["1000"])
+            plant.update(name="New Production Site", name2="Production Capacity Expansion")
+            PLANT_CONFIG[raw] = plant
     hub = param("HUB_PLANT")
     if hub not in PLANT_CONFIG:
         raise ValueError(f"HUB_PLANT {hub!r} is not one of the {len(PLANT_CONFIG)} generated plants")

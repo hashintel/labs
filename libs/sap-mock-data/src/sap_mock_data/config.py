@@ -7,7 +7,10 @@ import random
 from dataclasses import dataclass, field
 from typing import Mapping, Sequence
 
+from .timeframe import Timeframe
+
 ALL_SCENARIOS = tuple(f"SCN{i:03d}" for i in range(1, 27))
+BASE_ORDER_COUNT = 5000
 
 # Knob ranges per dataset size. The fixed BOM parent materials put product
 # totals at NUM_FINISHED_GOODS + 2 below 20 and + 1 from 20 up.
@@ -86,8 +89,23 @@ class GenerationConfig:
     dirty_data_rate: float = 0.05
     scenarios: str | Sequence[str] = "demo"
     scenario_configs: Mapping[str, str] = field(default_factory=dict)
+    timeframe: Timeframe | None = None
 
     def __post_init__(self) -> None:
+        if self.timeframe is not None and not isinstance(self.timeframe, Timeframe):
+            raise ValueError("timeframe must be a Timeframe instance")
+        if self.timeframe is not None:
+            if self.safety_stock_weeks < 0:
+                raise ValueError("safety_stock_weeks must be nonnegative")
+            for kind in ("finished", "raw"):
+                minimum, maximum = (
+                    getattr(self, f"moq_{kind}_min"),
+                    getattr(self, f"moq_{kind}_max"),
+                )
+                if minimum <= 0 or maximum < minimum:
+                    raise ValueError(
+                        f"moq_{kind}_min must be positive and no greater than moq_{kind}_max"
+                    )
         if isinstance(self.scale_factor, str):
             letter = self.scale_factor.strip().upper()
             if letter not in SIZE_KNOB_RANGES:
@@ -157,7 +175,9 @@ class GenerationConfig:
 
         values = {
             "RANDOM_SEED": str(self.random_seed),
-            "SCALE_FACTOR": "1" if isinstance(self.scale_factor, str) else str(self.scale_factor),
+            "SCALE_FACTOR": "1"
+            if isinstance(self.scale_factor, str)
+            else str(self.scale_factor),
             "MOQ_FINISHED_MIN": str(self.moq_finished_min),
             "MOQ_FINISHED_MAX": str(self.moq_finished_max),
             "MOQ_RAW_MIN": str(self.moq_raw_min),
@@ -198,4 +218,19 @@ class GenerationConfig:
             values[f"{scenario_id}_ENABLED"] = "true"
             if scenario_id in configs:
                 values[f"{scenario_id}_CONFIG"] = configs[scenario_id]
+        if self.timeframe is not None:
+            annual_orders = int(
+                values.get(
+                    "NUM_ORDERS",
+                    max(1, round(BASE_ORDER_COUNT * float(values["SCALE_FACTOR"]))),
+                )
+            )
+            values["ANNUAL_ORDERS"] = str(annual_orders)
+            values["NUM_ORDERS"] = str(
+                self.num_orders
+                if self.num_orders is not None
+                else round(annual_orders * self.timeframe.days / 365)
+            )
+            values["TIMEFRAME_START"] = self.timeframe.start.isoformat()
+            values["TIMEFRAME_END"] = self.timeframe.end.isoformat()
         return values

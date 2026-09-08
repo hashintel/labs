@@ -11,6 +11,9 @@ dbutils.widgets.text("catalog", "sample_synthetic_sap")
 dbutils.widgets.text("schema", "sap")
 dbutils.widgets.text("scale_factor", "1")
 dbutils.widgets.text("random_seed", "42")
+dbutils.widgets.text("start_date", "")
+dbutils.widgets.text("end_date", "")
+dbutils.widgets.text("duration_days", "", "Duration in days (e.g. 14)")
 dbutils.widgets.dropdown("scenarios", "demo", ["demo", "none", "all"])
 
 # COMMAND ----------
@@ -26,7 +29,7 @@ from pyspark.sql.types import (
     TimestampType,
 )
 
-from sap_mock_data import GenerationConfig, generate_dataset
+from sap_mock_data import GenerationConfig, Timeframe, generate_dataset
 
 
 class SparkCatalogStore:
@@ -94,8 +97,13 @@ try:
     scale_factor = float(scale_widget)
 except ValueError:
     scale_factor = scale_widget
+start_date = dbutils.widgets.get("start_date").strip()
+end_date = dbutils.widgets.get("end_date").strip()
+duration_days = dbutils.widgets.get("duration_days").strip()
+timeframe = Timeframe(start_date, end=end_date or None, duration_days=int(duration_days) if duration_days else None) if any((start_date, end_date, duration_days)) else None
 result = generate_dataset(
     GenerationConfig(
+        timeframe=timeframe,
         random_seed=int(dbutils.widgets.get("random_seed")),
         scale_factor=scale_factor,
         scenarios=dbutils.widgets.get("scenarios"),

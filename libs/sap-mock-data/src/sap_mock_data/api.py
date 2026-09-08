@@ -43,9 +43,26 @@ def generate_dataset(config: GenerationConfig, store: TableStore) -> GenerationR
     selected_scenarios = config.resolved_scenarios()
     context = GenerationContext(config)
     with _GENERATION_LOCK, context.activate():
+        if config.timeframe is not None:
+            from .scenarios.scheduling import ScenarioSchedule
+
+            ScenarioSchedule(config, context.parameters)
         masterdata.generate(store)
-        transactions.generate(store)
-        if selected_scenarios:
+        if config.timeframe is not None:
+            from .generation import scheduled
+
+            scheduled.generate(config, store, context.parameters)
+            from .validation.temporal import temporal_report
+
+            report = temporal_report(store, config.timeframe)
+            if not report["ok"]:
+                raise ValueError(
+                    "timeframe consistency checks failed: "
+                    + "; ".join(report["errors"][:5])
+                )
+        else:
+            transactions.generate(store)
+        if selected_scenarios and config.timeframe is None:
             configless = [
                 scenario_id
                 for scenario_id in selected_scenarios
