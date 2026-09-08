@@ -470,7 +470,7 @@ static DOMAIN_SNAPSHOT_DECLARATION: RecordDeclaration = RecordDeclaration {
     migration: MigrationPolicy::NeverRetireWhileUntrimmed,
 };
 
-const MAX_SNAPSHOT_BYTES: usize = 1024 * 1024;
+const MAX_SNAPSHOT_BYTES: usize = 15 * 1024 * 1024;
 
 /// Committed snapshot record. The projection is embedded inline in the log
 /// and is bounded by `MAX_SNAPSHOT_BYTES`. A projection over that limit skips
@@ -1098,7 +1098,7 @@ mod tests {
 
     #[test]
     fn snapshots_encode_and_decode_at_the_size_boundary() {
-        assert_eq!(MAX_SNAPSHOT_BYTES, 1_048_576);
+        assert_eq!(MAX_SNAPSHOT_BYTES, 15_728_640);
         let base = toy_snapshot("00f", String::new())
             .encode()
             .expect("empty snapshot should encode")
