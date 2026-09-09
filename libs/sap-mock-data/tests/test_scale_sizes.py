@@ -2,6 +2,7 @@ import os
 import unittest
 from contextlib import redirect_stdout
 from io import StringIO
+from typing import ClassVar
 
 from sap_mock_data import GenerationConfig, generate_dataset
 from sap_mock_data.config import DEMO_SCENARIO_CONFIGS, SIZE_KNOB_RANGES
@@ -111,7 +112,7 @@ class PlantModelTests(unittest.TestCase):
         self.assertIn("1000", production)
         self.assertGreater(len(production), 2)
 
-    TABLE_KEYS = {
+    TABLE_KEYS: ClassVar[dict[str, list[str]]] = {
         "t001w": ["WERKS"], "sapapo_loc": ["LOCNO"], "sapapo_tr": ["TRLID"],
         "sapapo_trm": ["TRLID", "TRMID"], "tvro": ["ROUTE"], "tvrot": ["ROUTE", "SPRAS"],
         "crhd": ["OBJID"], "kako": ["KAPID"], "plko": ["PLNNR"], "plpo": ["PLNNR", "VORNR"],

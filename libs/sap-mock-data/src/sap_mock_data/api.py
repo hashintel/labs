@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pandas as pd
 
@@ -39,13 +39,30 @@ def _seed_empty_resb(store: TableStore) -> None:
 def generate_dataset(config: GenerationConfig, store: TableStore) -> GenerationResult:
     """Generate a complete dataset into *store* and return a run summary."""
 
-    started_at = datetime.now(timezone.utc)
+    started_at = datetime.now(UTC)
     selected_scenarios = config.resolved_scenarios()
     context = GenerationContext(config)
     with _GENERATION_LOCK, context.activate():
+        if config.timeframe is not None:
+            from .scenarios.scheduling import ScenarioSchedule
+
+            ScenarioSchedule(config, context.parameters)
         masterdata.generate(store)
-        transactions.generate(store)
-        if selected_scenarios:
+        if config.timeframe is not None:
+            from .generation import scheduled
+
+            scheduled.generate(config, store, context.parameters)
+            from .validation.temporal import temporal_report
+
+            report = temporal_report(store, config.timeframe)
+            if not report["ok"]:
+                raise ValueError(
+                    "timeframe consistency checks failed: "
+                    + "; ".join(report["errors"][:5])
+                )
+        else:
+            transactions.generate(store)
+        if selected_scenarios and config.timeframe is None:
             configless = [
                 scenario_id
                 for scenario_id in selected_scenarios
@@ -68,5 +85,5 @@ def generate_dataset(config: GenerationConfig, store: TableStore) -> GenerationR
         row_counts=row_counts,
         scenarios=selected_scenarios,
         started_at=started_at,
-        finished_at=datetime.now(timezone.utc),
+        finished_at=datetime.now(UTC),
     )

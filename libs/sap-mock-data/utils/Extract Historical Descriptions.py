@@ -1,4 +1,11 @@
 # Databricks notebook source
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    dbutils = cast(Any, None)
+    spark = cast(Any, None)
+
+
 # Extract column descriptions from historical table versions
 # This script queries historical versions of Delta tables to extract
 # column descriptions that may have been overwritten.
@@ -88,7 +95,7 @@ for row in tables_df.collect():
         history_df = spark.sql(f"DESCRIBE HISTORY {CATALOG}.{SCHEMA}.{table_name} LIMIT 5")
         versions = [r['version'] for r in history_df.collect()]
         print(f"{table_name}: versions {versions}")
-    except Exception as e:
+    except Exception:
         print(f"{table_name}: (no history available)")
 
 # COMMAND ----------
@@ -146,7 +153,7 @@ for table_name, version in TABLE_VERSIONS.items():
                 try:
                     df_to_use = spark.table(full_table_name)
                     version_used = "current"
-                    print(f"  Using current version")
+                    print("  Using current version")
                 except Exception as e2:
                     print(f"  ERROR: Could not read table: {str(e2)[:60]}")
                     continue
@@ -186,8 +193,8 @@ if TABLE_VERSIONS and all_results:
 
     for table_name, columns in all_results.items():
         print(f"  {table_name}:")
-        print(f"    description: ''  # Add table description")
-        print(f"    columns:")
+        print("    description: ''  # Add table description")
+        print("    columns:")
 
         for col_name, col_info in columns.items():
             desc = col_info['description'].replace("'", "''") if col_info['description'] else ''
@@ -196,7 +203,7 @@ if TABLE_VERSIONS and all_results:
             print(f"      {col_name}:")
             print(f"        description: '{desc}'")
             print(f"        data_type: {dtype}")
-            print(f"        nullable: true")
+            print("        nullable: true")
 
         print()
 

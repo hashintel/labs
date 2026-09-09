@@ -1,4 +1,12 @@
 # Databricks notebook source
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    dbutils = cast(Any, None)
+    display = cast(Any, None)
+    spark = cast(Any, None)
+
+
 # Export unity catalog documentation to yaml
 # This notebook extracts table and column descriptions from Unity Catalog
 # and exports them to a portable YAML file for version control.
@@ -35,10 +43,11 @@ print("=" * 70)
 # COMMAND ----------
 
 # Extract table and column metadata
-from pyspark.sql import functions as F
-import yaml
 from collections import OrderedDict
 from datetime import datetime
+
+import yaml
+
 
 # Custom representer to maintain key order in YAML output
 def represent_ordereddict(dumper, data):
@@ -146,13 +155,12 @@ if len(lines) > 100:
 # COMMAND ----------
 
 # Save to file
-import os
 
 # Write to the output path
 with open(OUTPUT_PATH, 'w') as f:
     f.write(yaml_content)
 
-print(f"\n" + "=" * 70)
+print("\n" + "=" * 70)
 print("EXPORT COMPLETE")
 print("=" * 70)
 print(f"Documentation saved to: {OUTPUT_PATH}")

@@ -1,17 +1,17 @@
 # SAP Mock Data
 
-`sap-mock-data` generates deterministic, interconnected SAP-style master and
-transaction data. The `generate_dataset` function generates it. The CLI,
-local notebooks, and Databricks notebooks all call that function.
+`sap-mock-data` generates SAP-style master and transaction data with linked
+records. The CLI, local notebooks, and Databricks notebooks all call
+`generate_dataset`.
 
-Pandas creates and mutates tables. A `TableStore` persists them. Delta Lake
+Pandas creates and updates tables. A `TableStore` saves them. Delta Lake
 is the default local store. The Databricks notebook supplies a Unity Catalog
 adapter.
 
 ## Development environment
 
 The library supports Python 3.11 through 3.13. Nix is an optional way to
-provision the Python and system tools. Python dependencies come from
+provide Python and system tools. Python dependencies come from
 `pyproject.toml` and are locked in `uv.lock`.
 
 ### Without Nix
@@ -92,7 +92,7 @@ print(result.table_count, result.row_counts)
 Use a new or isolated warehouse path for each run. Generation overwrites its
 tables and preserves unrelated tables in an existing store.
 
-For embedding or quick checks, use `MemoryTableStore`. `generate_dataset`
+To keep tables in memory when using the library, use `MemoryTableStore`. `generate_dataset`
 accepts any `TableStore` implementation, including the Databricks adapter in
 `notebooks/databricks/Generate SAP Mock Data.py`.
 
@@ -109,11 +109,9 @@ GenerationConfig(
 ### Dataset size
 
 `scale_factor` is a positive number or one of the size identifiers `S`,
-`M`, `L`, `XL`. For a size identifier, `GenerationConfig` samples each count
-from the ranges below, seeded by `random_seed`. The same seed produces the
-same dataset, apart from the `INJECTED_AT` timestamp in `scenario_metadata`.
-A number multiplies the default order, customer, material, vendor, and site
-counts.
+`M`, `L`, `XL`. For a size identifier, `GenerationConfig` chooses each count from the ranges
+below using `random_seed`. A numeric scale factor multiplies the default order,
+customer, material, vendor, and site counts.
 
 | size | products | suppliers | sites   | BOM depth | raw materials | customers | orders      |
 | ---- | -------- | --------- | ------- | --------- | ------------- | --------- | ----------- |
@@ -127,10 +125,29 @@ counts.
 - `num_customers`, `num_finished_goods`, `num_raw_materials`, `num_vendors`,
   `num_sites`, and `num_orders` set their counts directly, whichever form
   `scale_factor` takes.
-- The first five sites are fixed plants. Further sites are synthesized with
-  ids from 6000 in steps of 10, and every fifth one is a production plant.
-- The demo scenarios target ids that exist at every size.
+- The first five sites are fixed plants. Further sites are generated with
+  IDs from 6000 in steps of 10, and every fifth one is a production plant.
+- The demo scenarios target IDs that exist at every size.
 - Generation time grows with products times sites. `XL` takes over an hour.
+
+### Timeframe
+
+Set `GenerationConfig.timeframe` to generate activity within a date range.
+Provide `start` and either `end` or a positive integer `duration_days`.
+Both dates are included.
+
+```python
+from sap_mock_data import Timeframe
+
+Timeframe(start="2026-01-05", end="2026-05-02")
+Timeframe(start="2026-01-05", duration_days=14)
+```
+
+The CLI accepts `--start-date` with `--end-date` or `--duration-days`.
+Order counts use the scale's annual count multiplied by `timeframe.days / 365`.
+Set `num_orders` to choose the count directly. Scenarios may add orders.
+Master-data counts stay the same. Existing records and planned dates may fall
+outside the timeframe.
 
 ### Currency
 

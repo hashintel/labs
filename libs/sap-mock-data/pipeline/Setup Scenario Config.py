@@ -1,4 +1,12 @@
 # Databricks notebook source
+from typing import TYPE_CHECKING, Any, cast
+
+if TYPE_CHECKING:
+    dbutils = cast(Any, None)
+    display = cast(Any, None)
+    spark = cast(Any, None)
+
+
 # Setup Scenario Configuration Table
 # Creates a table of scenario parameters for AI agent reasoning
 
@@ -12,8 +20,6 @@ print(f"Setting up scenario config in {CATALOG}.{SCHEMA}")
 
 # COMMAND ----------
 
-from pyspark.sql.types import StructType, StructField, StringType, BooleanType, IntegerType
-from datetime import datetime
 
 # Scenario Configuration
 # Each row defines the parameters for a specific supply chain disruption scenario

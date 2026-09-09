@@ -1,13 +1,15 @@
 # Databricks notebook source
-!pip install faker
+# MAGIC %pip install faker
 
-import pandas as pd
-import numpy as np
-from faker import Faker
+# COMMAND ----------
+
 import random
-from math import radians, sin, cos, sqrt, asin
 from datetime import datetime, timedelta
-import pyspark.sql.functions as F
+from math import asin, cos, radians, sin, sqrt
+
+import numpy as np
+import pandas as pd
+from faker import Faker
 from pyspark.sql.types import *
 
 # COMMAND ----------
@@ -79,11 +81,11 @@ BOM_CONFIG.append({'parent': MAT_INDIA_PRODUCT, 'child': MAT_VEGGIE_CAPS, 'qty':
 BOM_CONFIG.append({'parent': MAT_INDIA_PRODUCT, 'child': 'API1', 'qty': 100, 'uom': 'GRM', 'scrap': 0.5, 'type': 'API'})
 
 # Generate Material Universe Lists
-FINISHED_GOODS = sorted(list(set([row['parent'] for row in BOM_CONFIG] + [f'MAT-A{i:04d}' for i in range(1, NUM_FINISHED_GOODS + 1)])))
-INTERMEDIATE_GOODS = sorted(list(set([row['parent'] for row in BOM_CONFIG if row['parent'] in [r['child'] for r in BOM_CONFIG]] + [f'MAT-H{i:04d}' for i in range(1, 11)])))
-RAW_MATERIALS = sorted(list(set([row['child'] for row in BOM_CONFIG] + [f'MAT-R{i:04d}' for i in range(1, NUM_RAW_MATERIALS + 1)])))
+FINISHED_GOODS = sorted(set([row['parent'] for row in BOM_CONFIG] + [f'MAT-A{i:04d}' for i in range(1, NUM_FINISHED_GOODS + 1)]))
+INTERMEDIATE_GOODS = sorted(set([row['parent'] for row in BOM_CONFIG if row['parent'] in [r['child'] for r in BOM_CONFIG]] + [f'MAT-H{i:04d}' for i in range(1, 11)]))
+RAW_MATERIALS = sorted(set([row['child'] for row in BOM_CONFIG] + [f'MAT-R{i:04d}' for i in range(1, NUM_RAW_MATERIALS + 1)]))
 
-PREDEFINED_MATERIALS = sorted(list(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS)))
+PREDEFINED_MATERIALS = sorted(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS))
 PARENT_MATERIALS = FINISHED_GOODS + INTERMEDIATE_GOODS
 
 # COMMAND ----------
@@ -174,7 +176,6 @@ def generate_marc_data():
 
     for matnr in PREDEFINED_MATERIALS:
         for werks in PREDEFINED_PLANTS:
-            lgort = 'RM01' if matnr in RAW_MATERIALS else 'FG01'
             # MOQ varies by material type - using parameterized values
             if matnr in FINISHED_GOODS:
                 min_lot = random.choice(fg_moq_options)
@@ -613,7 +614,6 @@ def generate_tvro_data():
     # Shipping type mapping
     shipping_types = {'ROAD': '01', 'RAIL': '02', 'SEA': '03', 'AIR': '04'}
     # Forwarding agents
-    forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
 
     for loc_from in plants:
         for loc_to in plants:
@@ -669,7 +669,7 @@ def generate_tvrot_data(df_tvro):
     Provides descriptions for routes in multiple languages.
     """
     data = []
-    plants = list(PLANT_CONFIG)
+    list(PLANT_CONFIG)
     languages = ['E', 'D', 'F']  # English, German, French
 
     for _, route in df_tvro.iterrows():
@@ -1151,7 +1151,7 @@ def generate_plpo_data(df_plko, df_crhd):
 
         for vornr, wc_prefix, setup_min, run_min, control_key in template:
             # Find matching work center in plant
-            matching_wcs = [k for k in plant_wcs.keys() if k.startswith(wc_prefix)]
+            matching_wcs = [k for k in plant_wcs if k.startswith(wc_prefix)]
             if not matching_wcs:
                 continue
 
