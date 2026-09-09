@@ -10,11 +10,10 @@ export const FileBannerPythonSafari: FC = () => (
     <IconPython size={51} />
     <p>
       <strong>
-        Python behaviors can’t be run locally in-browser using your version of
+        Python behaviors can't be run locally in-browser using your version of
         Safari.
       </strong>{" "}
-      To run this simulation you’ll need to use hCloud, or switch to
-      Chrome/Firefox.
+      To run this simulation, switch to Chrome or Firefox.
     </p>
   </div>
 );

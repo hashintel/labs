@@ -33,7 +33,7 @@ export class EvalError {
         }
       } catch (e) {
         console.error(
-          "Could not parse error stack correctly: " + original.stack,
+          "Could not parse error stack correctly: " + original.stack
         );
         console.error(e);
       }
@@ -65,7 +65,7 @@ function extractOriginalMessage(original: any): string {
     return original.toString();
   }
 
-  return original.message;
+  return original?.message ?? String(original);
 }
 
 function parseStack(stack: string, original: any): Trace {

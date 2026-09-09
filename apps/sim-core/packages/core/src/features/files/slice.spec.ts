@@ -1,4 +1,4 @@
-import produce from "immer";
+import { produce } from "immer";
 import { v4 as uuid } from "uuid";
 
 import {
@@ -812,13 +812,13 @@ describe("files slice", () => {
             },
           ).entities.dependencies,
         ).toMatchInlineSnapshot(`
-          Object {
+          {
             "contents": "{
-            \\"abc\\": \\"123\\",
-            \\"def\\": \\"123\\"
+            "abc": "123",
+            "def": "123"
           }",
             "id": "dependencies",
-            "path": Object {
+            "path": {
               "formatted": "dependencies.json",
             },
           }
@@ -840,7 +840,7 @@ describe("files slice", () => {
       );
 
       expect(state.ids).toEqual(["foo_js_1_0_0"]);
-      expect(state.entities.foo_js_1_0_0).toEqual({
+      expect(state.entities["foo_js_1_0_0"]).toEqual({
         id: "foo_js_1_0_0",
         path: parse("foo.js"),
         repoPath: "src/behaviors/foo.js",
@@ -1058,7 +1058,7 @@ describe("files slice", () => {
       );
 
       expect(state.ids).toContain("foo_js_1_0_0");
-      expect(state.entities.foo_js_1_0_0).toEqual({
+      expect(state.entities["foo_js_1_0_0"]).toEqual({
         id: "foo_js_1_0_0",
         path: parse("foo.js"),
         repoPath: "src/behaviors/foo.js",

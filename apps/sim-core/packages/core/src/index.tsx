@@ -1,5 +1,5 @@
 import React from "react";
-import { render } from "react-dom";
+import { createRoot } from "react-dom/client";
 
 import { App } from "./components/App";
 import { HashRouter } from "./components/HashRouter/HashRouter";
@@ -10,7 +10,6 @@ import {
   getBuildStampFromUrl,
   getUrlForCurrentRouteWithBuildStamp,
 } from "./routes";
-import { store } from "./features/store";
 
 import "./styles.css";
 
@@ -25,13 +24,13 @@ if (IS_STAGING) {
   }
 }
 
-// Report our version number on startup:
 console.log("HASH Core Version:", BUILD_STAMP);
 
-await boot(true);
-render(
-  <App store={store}>
-    <HashRouter />
-  </App>,
-  document.getElementById("root"),
-);
+boot(true).then(() => {
+  const root = createRoot(document.getElementById("root")!);
+  root.render(
+    <App>
+      <HashRouter />
+    </App>,
+  );
+});

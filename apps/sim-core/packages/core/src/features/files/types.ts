@@ -1,4 +1,3 @@
-import { EntityState } from "@reduxjs/toolkit";
 import { JSONSchema7 } from "json-schema";
 import { Json, JsonMap } from "@hashintel/engine-web";
 
@@ -13,7 +12,7 @@ export interface HcBaseFile<K extends HcFileKind = HcFileKind> {
   kind: K;
   path: ParsedPath;
   repoPath: string;
-  children?: (HcFile | HcFolder)[];
+  children?: Array<HcFile | HcFolder>;
   name?: string;
 }
 
@@ -29,32 +28,30 @@ export type HcDependencyFile<
     visibility: ProjectVisibility;
   };
 
-export interface DatasetFields {
+export type DatasetFields = {
   data: {
     name?: string;
     rawCsv?: boolean;
     s3Key: string;
     inPlaceData: string | null;
   };
-}
+};
 
-interface BehaviorFields {
+type BehaviorFields = {
   keys: DraftBehaviorKeysRoot;
-}
+};
 
 export interface HcTemporaryFile extends HcBaseFile<HcFileKind.Temporary> {
   name?: string;
 }
 
-export type HcRequiredFile = HcBaseFile<HcFileKind.Required>;
+export interface HcRequiredFile extends HcBaseFile<HcFileKind.Required> {}
 
 export interface HcBehaviorFile
-  extends HcBaseFile<HcFileKind.Behavior>,
-    BehaviorFields {}
+  extends HcBaseFile<HcFileKind.Behavior>, BehaviorFields {}
 
 export interface HcDatasetFile
-  extends HcBaseFile<HcFileKind.Dataset>,
-    DatasetFields {}
+  extends HcBaseFile<HcFileKind.Dataset>, DatasetFields {}
 
 export type HcSharedDatasetFile = HcDependencyFile<HcFileKind.Dataset> &
   DatasetFields;
@@ -70,10 +67,10 @@ export type HcSharedBehaviorFile = HcDependencyFile<HcFileKind.SharedBehavior> &
 
 export interface HcFolder extends HcBaseFile<HcFileKind.Folder> {
   name: string;
-  children: (HcFolder | HcFile)[];
+  children: Array<HcFolder | HcFile>;
 }
 
-export type HcInitFile = HcBaseFile<HcFileKind.Init>;
+export interface HcInitFile extends HcBaseFile<HcFileKind.Init> {}
 
 export type HcProcessModelFile = HcBaseFile<HcFileKind.ProcessModel>;
 
@@ -105,7 +102,9 @@ export type FileAction = {
 export type ParsedGlobals = JsonMap & { schema?: JSONSchema7 | Json };
 export type ParsedAnalysis = Json;
 
-export interface FilesSlice extends EntityState<HcFile> {
+export interface FilesSlice {
+  ids: string[];
+  entities: Record<string, HcFile | undefined>;
   openFileIds: string[];
   currentFileId: string | null;
   replaceProposal: null | {
@@ -119,4 +118,4 @@ export interface FilesSlice extends EntityState<HcFile> {
   visualAnalysis: boolean;
 }
 
-export type DependenciesDescriptor = Record<string, string>;
+export type DependenciesDescriptor = { [name: string]: string };

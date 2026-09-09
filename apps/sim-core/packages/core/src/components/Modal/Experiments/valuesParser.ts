@@ -63,7 +63,9 @@ const specialResolvers = {
 const specialTransformers = {
   stringifyIdentifiers: (value: string): string => {
     // Wrapped as a list to help distinguish between objects and block expressions
-    const node = (Parser.parse("[" + value + "]") as any).body[0].expression
+    const node = (
+      Parser.parse("[" + value + "]", { ecmaVersion: "latest" }) as any
+    ).body[0].expression
       .elements[0];
     specialTransformers
       ._gatherIndentifierRanges(node)
@@ -115,9 +117,7 @@ const convertParsedValueFromInput = (value: string): ParseResult<any> => {
   try {
     const obj = JSON.parse(value);
     return ok(obj);
-  } catch (error) {
-    // Hide parsing errors.
-  }
+  } catch {}
 
   return ok(value.trim());
 };
@@ -127,10 +127,11 @@ const parseValues = (values: string): ParseResult<any[]> => {
   let modified = modifier.modify(values);
   let parsed: any[];
   let remainingRetries = 100;
-  // eslint-disable-next-line no-constant-condition
   while (true) {
     try {
-      parsed = (Parser.parse(modified) as any).body[0].expression.expressions;
+      parsed = (
+        Parser.parse(modified, { ecmaVersion: "latest" }) as any
+      ).body[0].expression.expressions;
       break;
     } catch (error) {
       if (remainingRetries === 0) {
@@ -153,7 +154,7 @@ const parseValues = (values: string): ParseResult<any[]> => {
         const modPos = (error as any).pos as number;
         const position = modPos - 1; // Account for wrap
         return err({
-          msg: `Invalid value at character '${modified[modPos]}' [${position}]`,
+          msg: `Invalid value at character \'${modified[modPos]}\' [${position}]`,
         });
       }
 

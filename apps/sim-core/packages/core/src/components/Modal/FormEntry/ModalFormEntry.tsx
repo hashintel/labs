@@ -1,4 +1,4 @@
-import React, { FC, ReactNode } from "react";
+import React, { FC, PropsWithChildren, ReactNode } from "react";
 import classNames from "classnames";
 import classnames from "classnames";
 
@@ -8,16 +8,16 @@ import { ShrinkWrap } from "../../ShrinkWrap/ShrinkWrap";
 
 import "./ModalFormEntry.css";
 
-export interface ModalFormEntryProps {
+export type ModalFormEntryProps = {
   label?: ReactNode;
   optional?: boolean;
   flex?: boolean;
   error?: string;
   errorInline?: boolean;
   className?: string;
-}
+};
 
-export const ModalFormEntry: FC<ModalFormEntryProps> = ({
+export const ModalFormEntry: FC<PropsWithChildren<ModalFormEntryProps>> = ({
   label,
   children,
   optional = false,

@@ -1,5 +1,5 @@
-type Theme = Record<string, string>;
-type ThemeNumber = Record<string, number>;
+type Theme = { [key: string]: string };
+type ThemeNumber = { [key: string]: number };
 
 // export to the JS world for easy reference:
 export const theme: Theme = {

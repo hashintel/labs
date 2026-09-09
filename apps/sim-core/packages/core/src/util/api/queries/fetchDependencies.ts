@@ -3,11 +3,11 @@ import { Release } from "../../../features/project/types";
 import { graphqlUuid } from "../utils";
 import { query } from "../query";
 
-interface DepArgs {
+type DepArgs = {
   pathWithNamespace: string;
   tag: string;
   files: string[];
-}
+};
 
 export async function fetchDependencies(
   dependencies: DependenciesDescriptor,
@@ -50,7 +50,9 @@ export async function fetchDependencies(
     ),
   );
 
-  const res = await query<Record<string, Release | null>>(
+  const res = await query<{
+    [uuid: string]: Release | null;
+  }>(
     `
     query fetchDependencies {
       ${groupedDependencies.reduce(

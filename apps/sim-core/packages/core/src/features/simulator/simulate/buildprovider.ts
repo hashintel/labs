@@ -1,7 +1,11 @@
 import { IS_DEV } from "../../../util/api";
 import { SimulationProvider } from "./provider";
 import { getLocalStorageSimulatorTarget } from "./target";
-import workerUrl from "../../../workers/simulation-worker/index?worker&url";
+
+const workerUrl = new URL(
+  "../../../workers/simulation-worker/index.ts",
+  import.meta.url,
+);
 
 /**
  * This "magic number" might need to be more sophisticated as time goes on

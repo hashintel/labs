@@ -1,7 +1,5 @@
 import React, { FC, RefObject } from "react";
-import { useDispatch } from "react-redux";
 
-import type { AppDispatch } from "../../../../features/types";
 import { HashCoreFilesSearchInput } from "./HashCoreFilesSearchInput";
 import {
   MonacoIconButton,
@@ -10,7 +8,7 @@ import {
 } from "./MonacoIconComponents";
 import { Scope, useScope } from "../../../../features/scopes";
 import { SearchDispatch, SearchState } from "./reducer";
-import { closeSearch } from "../../../../features/search/slice";
+import { useSearch } from "../../../../features/search/SearchContext";
 import { replace } from "./util";
 import { useCanHover } from "../../../../hooks/useCanHover";
 
@@ -23,7 +21,7 @@ export const HashCoreFilesSearchForm: FC<{
   replaceInputRef: RefObject<HTMLInputElement>;
 }> = ({ searchState, searchDispatch, searchInputRef, replaceInputRef }) => {
   const { query, pending, results } = searchState;
-  const appDispatch = useDispatch<AppDispatch>();
+  const { closeSearch } = useSearch();
   const canEdit = useScope(Scope.edit);
   const canHover = useCanHover();
 
@@ -95,7 +93,7 @@ export const HashCoreFilesSearchForm: FC<{
               iconName="close"
               title="Close"
               onClick={() => {
-                appDispatch(closeSearch());
+                closeSearch();
               }}
             />
           </div>

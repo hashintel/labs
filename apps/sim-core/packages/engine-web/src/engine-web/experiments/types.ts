@@ -176,7 +176,7 @@ export class DeferredPromise<T> {
   catch: Promise<T>["catch"];
   finally: Promise<T>["finally"];
 
-  [Symbol.toStringTag]: string;
+  [Symbol.toStringTag]!: string;
   constructor(existingPromise?: Promise<T>) {
     this._promise = new Promise((resolve, reject) => {
       // assign the resolve and reject functions to `this`
@@ -197,11 +197,13 @@ export class DeferredPromise<T> {
   }
 }
 
-type WithoutOptimization<Definition extends ExperimentDefinition> =
-  Definition extends ExperimentDefinition<"optimization"> ? never : Definition;
+type WithoutOptimization<
+  Definition extends ExperimentDefinition
+> = Definition extends ExperimentDefinition<"optimization">
+  ? never
+  : Definition;
 
-export type ExperimentDefinitionWithoutOptimization =
-  WithoutOptimization<ExperimentDefinition>;
+export type ExperimentDefinitionWithoutOptimization = WithoutOptimization<ExperimentDefinition>;
 
 export type QueuedExperimentRunWithoutOptimization = Omit<
   QueuedExperimentRun,

@@ -63,5 +63,5 @@ export const forkProjectQuery = async (
     ).then((res) => res.result);
   }
 
-  return prepareRemoteProject(remoteProject, null);
+  return prepareRemoteProject(remoteProject);
 };

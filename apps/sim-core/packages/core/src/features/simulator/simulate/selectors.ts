@@ -1,4 +1,5 @@
-import { createSelector, Selector } from "@reduxjs/toolkit";
+import { createSelector } from "../../reduxCompat";
+import type { Selector } from "../../reduxCompat";
 
 import { AnalysisMode } from "./enum";
 import type { SimulationData, SimulatorSlice } from "./types";
@@ -68,7 +69,7 @@ export const selectCurrentExperimentId = createSelector(
 
 export const selectCurrentExperimentData = createSelector(
   [selectCurrentExperimentId, selectExperimentRuns],
-  (experimentId, runs) => (experimentId ? runs[experimentId] ?? null : null),
+  (experimentId, runs) => (experimentId ? (runs[experimentId] ?? null) : null),
 );
 
 export const selectCurrentExperimentName = createSelector(

@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { PlotDataItem } from "./analyze";
 import {

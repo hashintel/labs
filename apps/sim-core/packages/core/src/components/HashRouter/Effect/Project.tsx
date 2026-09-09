@@ -1,33 +1,29 @@
 import React, { FC, useEffect, useMemo } from "react";
-import { useDispatch, useSelector, useStore } from "react-redux";
-import { HookRouter, setQueryParams, useRoutes } from "hookrouter";
 
-import type { AppDispatch } from "../../../features/types";
+import { RouteMap, usePathRouter } from "../../../util/usePathRouter";
+import { setQueryParams } from "../../../util/navigation";
+
 import { HashRouterEffectFork } from "./Fork";
 import { HashRouterEffectNotFound } from "./NotFound";
 import { LinkableProject } from "../../../features/project/types";
-import { ProjectAccessScope } from "../../../shared/scopes";
-import { fetchProject } from "../../../features/project/slice";
 import { getSafeQueryParams } from "../../../util/getSafeQueryParams";
-import { parseAccessCodeInParams } from "../../../util/parseAccessCodeInParams";
-import { selectBootstrapped } from "../../../features/user/selectors";
-import { selectCurrentProjectUrl } from "../../../features/project/selectors";
 import { urlFromProject } from "../../../routes";
 import { useHandlePromiseRejection } from "../../ErrorBoundary";
-import { withSignal } from "../../../util/withSignal";
+import { useProject } from "../../../features/project/ProjectContext";
+import { useUser } from "../../../features/user/UserContext";
 
-interface ProjectParams {
+type ProjectParams = {
   namespace: string;
   path: string;
   ref: string;
   fork?: boolean;
-}
+};
 
 const routeHandler = ({
   namespace,
   path,
   ref = "main",
-}: HookRouter.QueryParams): ProjectParams => ({
+}: Record<string, string>): ProjectParams => ({
   namespace: `@${namespace}`,
   path,
   ref,
@@ -36,75 +32,71 @@ const routeHandler = ({
 const HashRouterEffectProjectFetch: FC<{
   project: LinkableProject;
 }> = ({ project }) => {
-  const dispatch = useDispatch<AppDispatch>();
   const handlePromiseRejection = useHandlePromiseRejection();
-  const bootstrapped = useSelector(selectBootstrapped);
-  const store = useStore();
+  const { bootstrapped } = useUser();
+  const { currentProjectUrl, fetchProject } = useProject();
 
   useEffect(() => {
     const projectUrl = urlFromProject(project);
 
-    if (
-      !bootstrapped ||
-      selectCurrentProjectUrl(store.getState()) === projectUrl
-    ) {
+    if (!bootstrapped || currentProjectUrl === projectUrl) {
       return;
     }
 
-    const { fromLegacy, file, ...params } = getSafeQueryParams();
-    const { access, ...otherParams } = parseAccessCodeInParams(
-      params,
-      ProjectAccessScope.Read,
-    );
+    const {
+      fromLegacy,
+      file,
+      accessCode: _ac,
+      ...otherParams
+    } = getSafeQueryParams();
 
     setQueryParams(
       {
         ...otherParams,
         fromLegacy: undefined,
         file: undefined,
-        accessCode: access?.code ?? undefined,
+        accessCode: undefined,
       },
       true,
     );
 
-    // Assigning here due to a bug in TS typing
     const controller = new AbortController();
 
-    async function fetch() {
-      await withSignal(
-        //@ts-expect-error redux problems
-        dispatch(
-          //@ts-expect-error redux problems
-          fetchProject({
-            project,
-            fromLegacy: !!fromLegacy,
-            file,
-            access,
-          }),
-        ),
-        controller.signal,
-      );
+    async function doFetch() {
+      await fetchProject({
+        project,
+        fromLegacy: !!fromLegacy,
+        file,
+      });
     }
 
-    handlePromiseRejection(fetch());
+    handlePromiseRejection(doFetch());
 
     return () => {
       controller.abort();
     };
-  }, [dispatch, bootstrapped, handlePromiseRejection, project, store]);
+  }, [
+    bootstrapped,
+    handlePromiseRejection,
+    project,
+    currentProjectUrl,
+    fetchProject,
+  ]);
 
   return null;
 };
 
+const projectRoutes: RouteMap = {
+  "/@:namespace/:path": routeHandler,
+  "/@:namespace/:path/:ref": routeHandler,
+  "/@:namespace/:path/:ref/fork": (args: Record<string, string>) => ({
+    ...routeHandler(args),
+    fork: true,
+  }),
+};
+
 export const HashRouterEffectProject: FC = () => {
-  const routeResult: ProjectParams | null = useRoutes({
-    ":namespace/:path": routeHandler,
-    ":namespace/:path/:ref": routeHandler,
-    ":namespace/:path/:ref/fork": (args) => ({
-      ...routeHandler(args),
-      fork: true,
-    }),
-  });
+  const routeResult: ProjectParams | null = usePathRouter(projectRoutes);
 
   const pathWithNamespace = routeResult
     ? `${routeResult.namespace}/${routeResult.path}`

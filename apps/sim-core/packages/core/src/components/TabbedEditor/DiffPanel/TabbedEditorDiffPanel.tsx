@@ -1,5 +1,4 @@
 import { FC, useEffect, useMemo, useRef } from "react";
-import { useSelector } from "react-redux";
 import { Uri, editor } from "monaco-editor";
 import { v4 as uuid } from "uuid";
 
@@ -7,13 +6,13 @@ import type { DiffEditorInstance, DiffEditorModel } from "../types";
 import type { HcFile } from "../../../features/files/types";
 import { getTextModelRequired, languageByExt } from "../../../features/monaco";
 import { parse } from "../../../util/files";
-import { selectCurrentProjectUrl } from "../../../features/project/selectors";
+import { useProject } from "../../../features/project/ProjectContext";
 
-interface TabbedEditorDiffPanelProps {
+type TabbedEditorDiffPanelProps = {
   editorInstance: DiffEditorInstance | undefined;
   file: HcFile;
   nextContents: string;
-}
+};
 
 export const getDiffModel = (
   manifestId: string | null,
@@ -39,7 +38,7 @@ export const TabbedEditorDiffPanel: FC<TabbedEditorDiffPanelProps> = ({
   nextContents,
 }) => {
   const viewStateRef = useRef(editorInstance?.saveViewState());
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProjectUrl: projectUrl } = useProject();
 
   const diffModel = useMemo(
     () => getDiffModel(projectUrl, file, nextContents),

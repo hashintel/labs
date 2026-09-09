@@ -2,9 +2,7 @@ let defaultStorage: Storage | null = null;
 
 try {
   defaultStorage = localStorage;
-} catch {
-  // Some browsers will disable localStorage.
-}
+} catch {}
 
 const safeGetItem = (key: string, storage = defaultStorage) => {
   try {
@@ -36,23 +34,17 @@ export function getItem<T = any>(
 export function setItem(key: string, value: any, storage = defaultStorage) {
   try {
     storage?.setItem(key, JSON.stringify(value));
-  } catch {
-    // This catch is tech debt -- unclear why it exists.
-  }
+  } catch {}
 }
 
 export function removeItem(key: string, storage = defaultStorage) {
   try {
     storage?.removeItem(key);
-  } catch {
-    // This catch is tech debt -- unclear why it exists.
-  }
+  } catch {}
 }
 
 export function clear(storage = defaultStorage) {
   try {
     storage?.clear();
-  } catch {
-    // This catch is tech debt -- unclear why it exists.
-  }
+  } catch {}
 }

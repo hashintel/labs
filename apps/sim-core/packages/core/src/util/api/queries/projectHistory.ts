@@ -2,14 +2,12 @@ import { APIExperimentRun } from "../../types";
 import {
   CommitGroup,
   ProjectHistoryItemType,
-  ProjectHistoryQueryVariables,
   ProjectHistoryReturn,
-} from "../types";
+} from "../apiTypes";
 import {
   LinkableProject,
   ReleaseDescription,
 } from "../../../features/project/types";
-import { query } from "../query";
 
 /**
  * This type mapping is necessary because we use APIExperimentRun instead of
@@ -23,9 +21,7 @@ export type ProjectHistoryItemItem =
   | CommitGroup
   | APIExperimentRun;
 
-interface ProjectHistoryItemShared {
-  createdAt: string;
-}
+type ProjectHistoryItemShared = { createdAt: string };
 
 export type ProjectHistoryItemExperimentRun = ProjectHistoryItemShared & {
   itemType: ProjectHistoryItemType.ExperimentRun;
@@ -54,85 +50,15 @@ export type ProjectHistoryReturnWithCustomItem = Omit<
   items: ProjectHistoryItem[];
 };
 
-const queryString = /* GraphQL */ `
-  query projectHistory(
-    $pathWithNamespace: String!
-    $ref: String!
-    $pageToCurrent: Boolean!
-    $accessCode: String
-    $createdBefore: Date
-  ) {
-    project(
-      projectPath: $pathWithNamespace
-      ref: $ref
-      accessCode: $accessCode
-    ) {
-      history(createdBefore: $createdBefore, pageToCurrent: $pageToCurrent) {
-        next
-        remaining
-        receivedCurrent
-        items {
-          itemType
-          createdAt
-          item {
-            __typename
-
-            ... on CommitGroup {
-              commits {
-                id
-                message
-                createdAt
-              }
-            }
-            ... on ReleaseBasic {
-              tag
-              createdAt
-            }
-            ... on ExperimentRun {
-              id
-              name
-              experimentSrc
-              createdAt
-              packageData {
-                metricName
-                metricObjective
-              }
-              simulationRuns {
-                id
-                stepsLink
-                analysisLink
-                propertyValues
-                metricOutcome
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-`;
-
 export const projectHistory = async (
-  project: LinkableProject,
-  pageToCurrent: boolean,
-  createdBefore?: string | null,
-  accessCode?: string,
-  signal?: AbortSignal,
-) =>
-  (
-    await query<
-      // @todo use ProjectHistoryQuery when not needing to map types
-      { project: { history: ProjectHistoryReturnWithCustomItem } },
-      ProjectHistoryQueryVariables
-    >(
-      queryString,
-      {
-        pathWithNamespace: project.pathWithNamespace,
-        ref: project.ref ?? "main",
-        accessCode,
-        createdBefore,
-        pageToCurrent,
-      },
-      signal,
-    )
-  ).project.history;
+  _project: LinkableProject,
+  _pageToCurrent: boolean,
+  _createdBefore?: string | null,
+  _accessCode?: string,
+  _signal?: AbortSignal,
+): Promise<ProjectHistoryReturnWithCustomItem> => ({
+  items: [],
+  next: null,
+  remaining: false,
+  receivedCurrent: true,
+});

@@ -5,9 +5,9 @@ import { IconCheck, IconClose } from "../../Icon";
 
 import "./DataTableCell.css";
 
-interface DataTableCellProps {
+type DataTableCellProps = {
   cellValue: any;
-}
+};
 
 enum TypeOf {
   Undefined = "undefined",

@@ -1,0 +1,66 @@
+---
+description: Code review panel - assemble expert personas when reviewing PRs or code
+globs: "**/*"
+alwaysApply: true
+---
+
+# Code Review Panel
+
+When reviewing code, PRs, or implementation work, **assemble a panel of expert personas** and provide a structured review from each perspective.
+
+## Core Panel
+
+| Persona | Focus | Key Questions |
+|---------|-------|---------------|
+| **QA Engineer** | Testability, edge cases, regression risk | Are tests adequate? What could break? Happy path + error paths covered? |
+| **Frontend Architect** | React patterns, state, bundle, performance | Does it fit ARCHITECTURE.md? State management correct? Any Redux creep? |
+| **Rust Architect** | sim-engine design, idioms, safety | Ownership, lifetimes, error handling. Does it fit the engine crate layout? |
+| **WASM Expert** | Rust↔JS boundary, FFI, memory | Serialization, JS object shapes, worker isolation. No accidental sync blocking? |
+| **UX Expert** | User flows, feedback, affordances | Loading states, error recovery, discoverability. Local-first assumptions preserved? |
+| **UI Designer** | Visual consistency, hierarchy, responsiveness | Layout, spacing, contrast. Matches existing patterns? |
+
+## Additional Personas (include when relevant)
+
+| Persona | When to Include | Focus |
+|---------|-----------------|-------|
+| **Security Reviewer** | Auth, FFI, user input, file handling | No XSS, safe WASM sandbox, no unintended data exposure |
+| **Performance Engineer** | Simulation, 3D, heavy compute | Frame rate, memory, worker blocking. Bundle size impact? |
+| **Accessibility (a11y) Expert** | UI changes, forms, controls | Keyboard nav, ARIA, screen readers, focus management |
+| **DevOps/CI Specialist** | Build, test, deploy changes | Scripts, env vars, CI workflows. E2E stability? |
+| **Documentation Advocate** | New APIs, complex logic | Comments, README, TODO.md. Will future maintainers understand? |
+
+## Review Format
+
+Structure the review as:
+
+```
+## QA Engineer
+[Findings and recommendations]
+
+## Frontend Architect
+[Findings and recommendations]
+
+## Rust Architect
+[Include only if Rust/engine-web touched]
+
+... (other relevant personas)
+
+## Summary
+[Critical issues | Nice-to-haves | Overall]
+```
+
+## Project-Specific Checks
+
+- **Sim-core**: No Redux, no cloud/auth, no analytics. React Context + hooks. Vite build.
+- **Engine-web**: `err instanceof Error` before accessing `.message`. Worker isolation.
+- **Local-first**: No server calls for core flows. localStorage/IndexedDB for persistence.
+
+## Commit Workflow (MANDATORY)
+
+**Before each commit:**
+
+1. **Run the review panel** on the staged changes (or full diff if nothing staged). Assemble the relevant personas based on which files changed.
+2. **Address critical issues** — fix or explicitly defer with a TODO. Do not commit with unresolved critical findings.
+3. **Follow recommendations** — implement or document why not. For nice-to-haves, either fix now or add a follow-up task.
+4. **Re-run the panel** if changes were made in response to feedback.
+5. **Then commit** using [commit message guidelines](mdc:.cursor/rules/commit-messages.md).

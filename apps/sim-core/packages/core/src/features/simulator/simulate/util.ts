@@ -1,5 +1,6 @@
-import { Draft, EntityState, freeze } from "@reduxjs/toolkit";
-import lodash from "lodash";
+import { freeze } from "../../reduxCompat";
+import type { Draft } from "../../reduxCompat";
+import { last as lodashLast } from "lodash-es";
 import {
   ExperimentRun,
   FetchedDataset,
@@ -12,7 +13,7 @@ import {
 } from "@hashintel/engine-web";
 import { parseDatasetUrl } from "@hashintel/utils/lib/datasets/fetchDataset";
 
-import type { RootState as AppState } from "../../types";
+type AppState = any;
 import { DependenciesDescriptor, HcAnyDatasetFile } from "../../files/types";
 import type { NamedBehaviorSrc } from "../../../util/types";
 import { PendingExperimentRun, SimulatorHistory } from "./types";
@@ -29,7 +30,7 @@ import {
 import { simulationProvider } from "./buildprovider";
 
 export const historyInitialState = historyAdapter.getInitialState<
-  Omit<SimulatorHistory, keyof EntityState<SimulatorHistory>>
+  Omit<SimulatorHistory, "ids" | "entities">
 >({
   nextPage: null,
   complete: false,
@@ -133,8 +134,6 @@ export const createCompleteManifest = (appState: AppState): RawManifest => {
       ),
     }),
   );
-  console.log("added shared behaviors", behaviorsToAdd);
-
   // The API relies on shortname
   // The name might be "My number 1 behavior!"
   // But the shortname is "number1behavior.js"
@@ -235,10 +234,10 @@ export const EXPERIMENT_PENDING_THRESHOLD = 100;
 
 export const DEFAULT_STEPS_PER_SECOND = 60;
 
-interface StopMessage {
+type StopMessage = {
   status: "warning" | "error" | "complete";
   reason: string;
-}
+};
 
 const hasProp = <K extends PropertyKey>(
   data: object,
@@ -292,14 +291,14 @@ const correctedShortnameFromDependencies = (
   //Dependency repoPath always starts with "dependencies/@namespace/"
   const namespace = repoPathParts[1];
   // And ends with the file name ".../{name.ext}"
-  const fileName = lodash.last(repoPathParts);
+  const fileName = lodashLast(repoPathParts);
 
   //Now find an entry in dependencies that matches those conditions
   let correctedShortname = Object.keys(dependencies).find((dependency) => {
     const dependencyParts = dependency.split("/");
     return (
       dependencyParts[0] === namespace &&
-      lodash.last(dependencyParts) === fileName
+      lodashLast(dependencyParts) === fileName
     );
   });
 

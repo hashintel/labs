@@ -1,11 +1,10 @@
 import React, { useRef } from "react";
-import { useDispatch } from "react-redux";
 import { useModal } from "react-modal-hook";
 
 import { ModalNameBehavior } from "../../../Modal/NameBehavior";
 import type { ParsedPath } from "../../../../util/files/types";
 import { parse } from "../../../../util/files";
-import { trackEvent } from "../../../../features/analytics";
+
 import { useName } from "./useName";
 
 export const useModalNameBehavior = (
@@ -21,7 +20,6 @@ export const useModalNameBehavior = (
   path?: ParsedPath,
   id?: string,
 ) => {
-  const dispatch = useDispatch();
   const onSubmitRef = useRef(onSubmit);
   onSubmitRef.current = onSubmit;
 
@@ -50,9 +48,6 @@ export const useModalNameBehavior = (
 
           const path = parse({ name, ext: selectedLanguage.value });
           onSubmitRef.current(path);
-          dispatch(
-            trackEvent({ action: "New behavior", label: path.formatted }),
-          );
 
           done();
         }}

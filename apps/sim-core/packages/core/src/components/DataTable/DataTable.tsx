@@ -4,11 +4,11 @@ import { DataTableBody, DataTableHead, DataTablePagination } from ".";
 
 import "./DataTable.css";
 
-interface DataTableProps {
+type DataTableProps = {
   headings: string[];
   records: any[][];
   recordsPerPage?: number;
-}
+};
 
 export const DataTable: FC<DataTableProps> = memo(
   ({ headings, records, recordsPerPage = 50 }) => {

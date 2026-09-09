@@ -1,7 +1,7 @@
 import React, { FC, useReducer } from "react";
 import { useModal } from "react-modal-hook";
 import classNames from "classnames";
-import { omit } from "lodash";
+import { omit } from "lodash-es";
 
 import { IconAddDatapoint } from "../Icon/AddDatapoint";
 import { IconContentDuplicate } from "../Icon/ContentDuplicate";

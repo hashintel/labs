@@ -6,11 +6,11 @@ import type { ResizeObserver } from "./types";
 type RefArgType<NodeType extends HTMLElement = HTMLElement> = NodeType | null;
 
 // @todo Provide position
-export interface UseResizeObserverEntry<NodeType> {
+export type UseResizeObserverEntry<NodeType> = {
   width: number;
   height: number;
   target: NodeType;
-}
+};
 
 export type UseResizeObserverCallback<NodeType> = (
   entry: UseResizeObserverEntry<NodeType>,
@@ -51,14 +51,14 @@ const getEntry = <NodeType extends HTMLElement>(
 export const useOncePerFrameHandler = <T extends (...args: any[]) => void>(
   handler: T,
 ): T => {
-  const timeoutRef = useRef<number | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setImmediate> | null>(null);
 
   return ((...args: any[]) => {
     if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
+      clearImmediate(timeoutRef.current);
     }
 
-    timeoutRef.current = setTimeout(() => {
+    timeoutRef.current = setImmediate(() => {
       timeoutRef.current = null;
       handler(...args);
     });
@@ -71,8 +71,8 @@ const useObserverRef = <NodeType extends HTMLElement = HTMLElement>(
   const observerRef = useRef<ResizeObserver>();
 
   if (!observerRef.current) {
-    observerRef.current = new window.ResizeObserver(
-      ([entry]) => handlerRef.current?.(toEntry<NodeType>(entry)),
+    observerRef.current = new window.ResizeObserver(([entry]) =>
+      handlerRef.current?.(toEntry<NodeType>(entry)),
     ) as any;
   }
   return observerRef as any;
@@ -125,7 +125,7 @@ export function useResizeObserver<NodeType extends HTMLElement = HTMLElement>(
       const previousNode = previousNodeRef.current;
       previousNodeRef.current = node;
 
-      const observer = observerRef.current;
+      const observer = observerRef.current!;
 
       if (previousNode) {
         observer.unobserve(previousNode);
