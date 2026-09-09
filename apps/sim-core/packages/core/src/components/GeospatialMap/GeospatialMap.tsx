@@ -1,5 +1,14 @@
 import React, { FC, useCallback, useEffect, useRef, useState } from "react";
-import ReactMapboxGl, { Layer, Popup, Source } from "react-mapbox-gl";
+import ReactMapboxGl, {
+  Layer,
+  Popup as MapboxPopup,
+  Source,
+} from "react-mapbox-gl";
+
+// react-mapbox-gl's Popup type predates React 18's stricter children typing.
+const Popup = MapboxPopup as unknown as FC<
+  React.PropsWithChildren<React.ComponentProps<typeof MapboxPopup>>
+>;
 import * as option from "fp-ts/es6/Option";
 import * as record from "fp-ts/es6/Record";
 import { AgentState } from "@hashintel/engine-web";

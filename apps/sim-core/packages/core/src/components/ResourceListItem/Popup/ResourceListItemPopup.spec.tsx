@@ -15,7 +15,17 @@ import { parse } from "../../../util/files";
 
 jest.mock("./util", () => ({ scrollBy: jest.fn() }));
 
-const mockRect = { top: 0, right: 0, bottom: 0, left: 0, width: 0, height: 0 };
+const mockRect: ClientRect = {
+  top: 0,
+  right: 0,
+  bottom: 0,
+  left: 0,
+  width: 0,
+  height: 0,
+  x: 0,
+  y: 0,
+  toJSON: () => ({}),
+};
 
 const datasetOne: HcSharedDatasetFile = {
   pathWithNamespace: "@publisher/dataset/one.csv",

@@ -226,9 +226,13 @@ export const SimulationViewer: FC = memo(function SimulationViewer() {
     if (editorInstance && selectedTab === TabKind.RawOutput) {
       rawOutputTextModel.setValue(serializeRawOutput(viewingStep));
 
-      rawOutputTextModel.tokenization.forceTokenization(
-        rawOutputTextModel.getLineCount(),
-      );
+      // `tokenization` exists at runtime but isn't part of Monaco's public
+      // ITextModel typings.
+      (
+        rawOutputTextModel as unknown as {
+          tokenization: { forceTokenization(lineNumber: number): void };
+        }
+      ).tokenization.forceTokenization(rawOutputTextModel.getLineCount());
     }
   }, [viewingStep, selectedTab, editorInstance, rawOutputTextModel]);
 

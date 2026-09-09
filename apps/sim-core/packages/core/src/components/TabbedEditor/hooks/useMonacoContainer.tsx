@@ -68,7 +68,7 @@ const editorOptions: EditorConstructionsOptions = {
   mouseWheelZoom: true,
 
   // New in Monaco 0.28+
-  "bracketPairColorization.enabled": true,
+  bracketPairColorization: { enabled: true },
   guides: {
     bracketPairs: true,
     indentation: true,

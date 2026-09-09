@@ -42,7 +42,7 @@ const quotableId = (() => {
       .padStart(2, "0")}${generateHashEventId()}`;
 })();
 
-type ErrorBoundaryProps = {};
+type ErrorBoundaryProps = PropsWithChildren;
 type ErrorBoundaryState = {
   didError: boolean;
   errorName?: string;

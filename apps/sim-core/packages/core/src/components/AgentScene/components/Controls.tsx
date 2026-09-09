@@ -1,7 +1,8 @@
 import React, { FC, useEffect, useRef, useState } from "react";
 import { CanvasProps, useThree } from "@react-three/fiber";
 import * as THREE from "three";
-import { MapControls, OrbitControls } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
+import type { OrbitControls as OrbitControlsImpl } from "three-stdlib";
 
 import { useSceneContext } from "../state/SceneContext";
 import { RenderSummary } from "../util/anim";
@@ -35,7 +36,7 @@ export const ViewerControls: FC<{
     stageDimensions: dimensions,
     sceneView: view,
   } = useSceneContext();
-  const controlsRef = useRef<MapControls>();
+  const controlsRef = useRef<OrbitControlsImpl>(null);
   const { camera } = useThree();
 
   /*

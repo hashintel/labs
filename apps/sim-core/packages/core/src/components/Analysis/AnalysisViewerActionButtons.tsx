@@ -1,9 +1,4 @@
-import React, {
-  FC,
-  MouseEventHandler,
-  ReactElement,
-  ReactFragment,
-} from "react";
+import React, { FC, MouseEventHandler, ReactElement, ReactNode } from "react";
 import classNames from "classnames";
 
 import { AnalysisViewerActionButtonsProps } from "./types";
@@ -15,7 +10,7 @@ import "./TabListActionButtons.scss";
 
 type ListItemProps = {
   icon: ReactElement;
-  tooltipContent: ReactFragment;
+  tooltipContent: ReactNode;
   onClick?: MouseEventHandler;
   listIndex: number;
   disabled?: boolean;

@@ -24,7 +24,7 @@ tempObject.up = new THREE.Vector3(0, 0, 1);
  * Run through this current state looking for agents with a mesh type, drawing that mesh
  */
 export const AgentMesh: FC<PolyMeshProps> = ({ meshId, clock }) => {
-  const ref = useRef<THREE.InstancedMesh>();
+  const ref = useRef<THREE.InstancedMesh>(null);
 
   const {
     hoveredAgent: hoveredAgentId,

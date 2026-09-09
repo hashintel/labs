@@ -133,7 +133,9 @@ export const AgentScene = ({
           powerPreference: getPowerPreference(sampleLevel),
           precision: getSampleLevel(sampleLevel),
         }}
-        camera={orthoCamera}
+        // react-three-fiber's camera prop typing doesn't resolve cleanly
+        // against this three.js/@types/react combination.
+        camera={orthoCamera as any}
         flat
         onCreated={({ gl }) => gl.setClearColor("#0e0d15")}
         frameloop={updatesEnabled ? "always" : "demand"}

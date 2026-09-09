@@ -142,7 +142,7 @@ const getNetworkAnalysis = async (
       }
     });
 
-const stepRequests: Record<string, Promise<SimulationStates>> = {};
+const stepRequests: Partial<Record<string, Promise<SimulationStates>>> = {};
 
 export const historicCloudExperimentProvider = {
   async getSteps(
@@ -150,8 +150,9 @@ export const historicCloudExperimentProvider = {
     run: SimulationData,
   ): Promise<SimulationStates> {
     if (hasStepsLink(run)) {
-      if (stepRequests[run.simulationRunId]) {
-        return stepRequests[run.simulationRunId].catch(() =>
+      const existingRequest = stepRequests[run.simulationRunId];
+      if (existingRequest) {
+        return existingRequest.catch(() =>
           historicCloudExperimentProvider.getSteps(experiment, run),
         );
       }

@@ -15,7 +15,7 @@ import {
   ReleaseDescription,
   RemoteSimulationProject,
 } from "./types";
-import { Scope, batchedScopes, selectScope } from "../scopes";
+import { Scope, computeScopesForProject, selectScope } from "../scopes";
 import { ToastKind } from "../toast";
 import { displayToast } from "../toast/slice";
 import {
@@ -152,12 +152,14 @@ export const fetchProject = createAppAsyncThunk<
       return false;
     }
 
-    const scopes = batchedScopes.selectScopes(getState())(project);
+    const { user, viewer } = getState();
+    const scopes = computeScopesForProject(user.isLoggedIn, viewer.editor)(
+      project,
+    );
 
     const selectedFile =
       file ?? (scopes[Scope.edit] ? undefined : globalsFileId);
 
-    //@ts-expect-error redux problems
     dispatch(setProjectWithMeta(project, { fromLegacy, file: selectedFile }));
     if (project && redirect) {
       navigate(urlFromProject(project), true, {}, false);
@@ -265,7 +267,6 @@ export const release = createAppAsyncThunk<
     );
 
     dispatch(
-      //@ts-expect-error redux type problems
       trackEvent({
         action: "New Release: Core",
         label: `${type} - ${pathWithNamespace} – ${tag}`,

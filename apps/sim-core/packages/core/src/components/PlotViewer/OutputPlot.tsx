@@ -4,7 +4,9 @@ import type { Figure } from "react-plotly.js";
 import Plotly from "plotly.js-dist-min";
 import { Subject } from "rxjs";
 
-const Plot = createPlotlyComponent(Plotly);
+const Plot = createPlotlyComponent(Plotly) as unknown as React.ComponentClass<
+  import("react-plotly.js").PlotParams
+>;
 
 import { IconSpinner } from "../Icon";
 import { OutputPlotProps } from "./types";
@@ -336,7 +338,7 @@ export const OutputPlot: FC<
 
   const clonedData = useMemo(() => JSON.parse(JSON.stringify(data)), [data]);
 
-  const plotlyRef = useRef<Plot>(null);
+  const plotlyRef = useRef<InstanceType<typeof Plot>>(null);
   const resizeRef = useResizeObserver(
     () => {
       // @see https://github.com/plotly/react-plotly.js/issues/76#issuecomment-442503423

@@ -6,6 +6,9 @@ import { ToastLegacySimulationAccess } from "../LegacySimulationAccess";
 import { ToastProjectEditable } from "../ProjectEditable/ProjectEditable";
 import { ToastProjectForked } from "../ProjectForked";
 import { ToastProjectPreview } from "../ProjectPreview";
+import { ToastReadOnlyRelease } from "../ReadOnlyRelease/ToastReadOnlyRelease";
+import { ToastReleaseBehaviorSuccess } from "../ReleaseBehaviorSuccess/ToastReleaseBehaviorSuccess";
+import { ToastReleaseSuccess } from "../ReleaseSuccess/ToastReleaseSuccess";
 import { useProject } from "../../../features/project/ProjectContext";
 import { useToast } from "../../../features/toast/ToastContext";
 import { useUser } from "../../../features/user/UserContext";
@@ -65,6 +68,15 @@ export const ToastManager: FC = () => {
         ) : null,
         [ToastKind.ProjectPreview]: userProjectsLoaded ? (
           <ToastProjectPreview project={project} />
+        ) : null,
+        [ToastKind.ReadOnlyRelease]: (
+          <ToastReadOnlyRelease project={project} />
+        ),
+        [ToastKind.ReleaseSuccess]: project.latestRelease ? (
+          <ToastReleaseSuccess project={project} />
+        ) : null,
+        [ToastKind.ReleaseBehaviorSuccess]: data ? (
+          <ToastReleaseBehaviorSuccess files={data} />
         ) : null,
 
         [ToastKind.None]: null,

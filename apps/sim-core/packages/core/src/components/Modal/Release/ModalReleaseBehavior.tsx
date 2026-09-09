@@ -2,10 +2,12 @@ import React, { FC, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { components } from "react-select";
 import { useForm } from "react-hook-form";
-import { unwrapResult } from "@reduxjs/toolkit";
 
 import type { AppDispatch } from "../../../features/types";
-import { HcBehaviorFile } from "../../../features/files/types";
+import {
+  HcBehaviorFile,
+  HcSharedBehaviorFile,
+} from "../../../features/files/types";
 import { ModalForm } from "../ModalForm";
 import {
   ModalFormEntry,
@@ -107,7 +109,9 @@ export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
 
     try {
       await handleQueryCodeErrors(values, setError, async () => {
-        const { forkedBehaviors } = unwrapResult(
+        // The dispatch/AsyncThunkAction generics don't resolve cleanly through
+        // this thunk's config, so TS loses track of dispatch's thunk overload.
+        const { forkedBehaviors }: { forkedBehaviors: HcSharedBehaviorFile[] } =
           await dispatch(
             forkAndReleaseBehaviors({
               projectPath: project.pathWithNamespace,
@@ -125,9 +129,8 @@ export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
               keywords: selectedKeywords.map((keyword) => keyword.value),
               license: selectedLicense.value ?? "",
               visibility: "public",
-            }),
-          ),
-        );
+            }) as any,
+          ).unwrap();
 
         dispatch(
           displayToast({

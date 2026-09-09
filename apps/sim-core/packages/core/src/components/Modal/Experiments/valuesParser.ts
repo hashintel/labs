@@ -63,7 +63,9 @@ const specialResolvers = {
 const specialTransformers = {
   stringifyIdentifiers: (value: string): string => {
     // Wrapped as a list to help distinguish between objects and block expressions
-    const node = (Parser.parse("[" + value + "]") as any).body[0].expression
+    const node = (
+      Parser.parse("[" + value + "]", { ecmaVersion: "latest" }) as any
+    ).body[0].expression
       .elements[0];
     specialTransformers
       ._gatherIndentifierRanges(node)
@@ -127,7 +129,9 @@ const parseValues = (values: string): ParseResult<any[]> => {
   let remainingRetries = 100;
   while (true) {
     try {
-      parsed = (Parser.parse(modified) as any).body[0].expression.expressions;
+      parsed = (
+        Parser.parse(modified, { ecmaVersion: "latest" }) as any
+      ).body[0].expression.expressions;
       break;
     } catch (error) {
       if (remainingRetries === 0) {

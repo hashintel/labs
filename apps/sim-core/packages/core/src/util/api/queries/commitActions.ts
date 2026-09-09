@@ -88,16 +88,20 @@ export async function commitActions<
       .join(", ")}`,
     accessCode,
   });
-  const { project, commit } = result.createCommit;
+  const { commit } = result.createCommit;
 
   // The generated types don't understand that the combination of directives
   // ensures the project will always be defined, so we have to assert it.
-  if ("pathWithNamespace" in project!) {
+  const project = result.createCommit.project as
+    | RemoteSimulationProject
+    | { updatedAt: string };
+
+  if ("pathWithNamespace" in project) {
     return {
-      result: prepareRemoteProject(project as RemoteSimulationProject) as Result,
+      result: prepareRemoteProject(project) as Result,
       commit,
     };
   } else {
-    return { result: project!.updatedAt, commit };
+    return { result: project.updatedAt as Result, commit };
   }
 }

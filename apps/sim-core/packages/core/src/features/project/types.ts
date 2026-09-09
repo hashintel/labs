@@ -77,6 +77,7 @@ export type SimulationProject = {
   license?: Pick<License, "id" | "name"> | null;
   keywords: string[];
   ownerType: "User" | "Org";
+  access?: ProjectAccessParsed | null;
 } & Omit<CanUserEditProject, "dependencies">;
 
 export type RemoteSimulationProject = Omit<
