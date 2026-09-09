@@ -1,0 +1,229 @@
+{
+  "settings": {
+    "catalog": "sample_synthetic_sap",
+    "schema": "sap",
+    "mandt": "800"
+  },
+  "tables": [
+    {
+      "table": "kna1",
+      "checks": [
+        {"type": "count", "min": 10},
+        {"type": "no_nulls", "columns": ["KUNNR", "NAME1", "LAND1"]}
+      ]
+    },
+    {
+      "table": "mara",
+      "checks": [
+        {"type": "count", "min": 50},
+        {"type": "no_nulls", "columns": ["MATNR", "MTART"]},
+        {"type": "allowed_values", "column": "MTART", "values": ["FERT", "HALB", "ROH"]}
+      ]
+    },
+    {
+      "table": "makt",
+      "checks": [
+        {"type": "count", "min": 50},
+        {"type": "no_nulls", "columns": ["MATNR", "SPRAS", "MAKTX"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "marc",
+      "checks": [
+        {"type": "no_nulls", "columns": ["MATNR", "WERKS"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "mard",
+      "checks": [
+        {"type": "count", "min": 50},
+        {"type": "no_nulls", "columns": ["MATNR", "WERKS", "LGORT"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "marm",
+      "checks": [
+        {"type": "count", "min": 50},
+        {"type": "no_nulls", "columns": ["MATNR", "MEINH", "UMREZ", "UMREN"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"},
+        {"type": "allowed_values", "column": "MEINH", "values": ["PC", "KG", "PAL", "L", "DOS"]}
+      ]
+    },
+    {
+      "table": "mbew",
+      "checks": [
+        {"type": "no_nulls", "columns": ["MATNR", "BWKEY", "STPRS"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "mast",
+      "checks": [
+        {"type": "count", "min": 10},
+        {"type": "no_nulls", "columns": ["MATNR", "WERKS", "STLNR"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "stko",
+      "checks": [
+        {"type": "count", "min": 10},
+        {"type": "no_nulls", "columns": ["STLNR", "STLTY", "BMENG"]},
+        {"type": "foreign_key", "parent_table": "mast", "child_col": "STLNR", "parent_col": "STLNR"}
+      ]
+    },
+    {
+      "table": "stpo",
+      "checks": [
+        {"type": "count", "min": 20},
+        {"type": "no_nulls", "columns": ["STLNR", "POSNR", "IDNRK", "MENGE"]},
+        {"type": "foreign_key", "parent_table": "mast", "child_col": "STLNR", "parent_col": "STLNR"}
+      ]
+    },
+    {
+      "table": "vbak",
+      "checks": [
+        {"type": "count", "min": 1000},
+        {"type": "no_nulls", "columns": ["VBELN", "KUNNR", "NETWR"]},
+        {"type": "foreign_key", "parent_table": "kna1", "child_col": "KUNNR", "parent_col": "KUNNR"}
+      ]
+    },
+    {
+      "table": "vbap",
+      "checks": [
+        {"type": "no_nulls", "columns": ["VBELN", "POSNR", "MATNR", "KWMENG"]},
+        {"type": "foreign_key", "parent_table": "vbak", "child_col": "VBELN", "parent_col": "VBELN"},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "vbep",
+      "checks": [
+        {"type": "no_nulls", "columns": ["VBELN", "POSNR", "ETENR", "WMENG"]},
+        {"type": "foreign_key", "parent_table": "vbak", "child_col": "VBELN", "parent_col": "VBELN"}
+      ]
+    },
+    {
+      "table": "likp",
+      "checks": [
+        {"type": "count", "min": 500},
+        {"type": "no_nulls", "columns": ["VBELN", "KUNNR", "LFDAT"]}
+      ]
+    },
+    {
+      "table": "lips",
+      "checks": [
+        {"type": "no_nulls", "columns": ["VBELN", "POSNR", "MATNR", "LFIMG"]},
+        {"type": "foreign_key", "parent_table": "likp", "child_col": "VBELN", "parent_col": "VBELN"},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "vbfa",
+      "checks": [
+        {"type": "count", "min": 500},
+        {"type": "no_nulls", "columns": ["VBELN", "VBELN_N", "VBTYP_N"]}
+      ]
+    },
+    {
+      "table": "afko",
+      "checks": [
+        {"type": "count", "min": 100},
+        {"type": "no_nulls", "columns": ["AUFNR", "PLNBEZ", "GAMNG"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "PLNBEZ", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "resb",
+      "checks": [
+        {"type": "count", "min": 100},
+        {"type": "no_nulls", "columns": ["RSNUM", "RSPOS", "MATNR", "BDMNG"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "matdoc",
+      "checks": [
+        {"type": "count", "min": 1000},
+        {"type": "no_nulls", "columns": ["MBLNR", "MATNR", "WERKS", "BWART", "MENGE"]},
+        {"type": "allowed_values", "column": "BWART", "values": ["101", "601", "261", "641", "311", "551", "344"]},
+        {"type": "allowed_values", "column": "SHKZG", "values": ["S", "H"]},
+        {"type": "foreign_key", "parent_table": "mara", "child_col": "MATNR", "parent_col": "MATNR"}
+      ]
+    },
+    {
+      "table": "sapapo_loc",
+      "checks": [
+        {"type": "count", "min": 4},
+        {"type": "no_nulls", "columns": ["LOCNO", "XPOS", "YPOS", "COUNTRY", "CITY"]},
+        {"type": "allowed_values", "column": "LOCTYPE", "values": ["1001"]}
+      ]
+    },
+    {
+      "table": "sapapo_tr",
+      "checks": [
+        {"type": "count", "min": 12},
+        {"type": "no_nulls", "columns": ["TRLID", "LOCFR", "LOCTO", "TRNAME"]},
+        {"type": "foreign_key", "parent_table": "sapapo_loc", "child_col": "LOCFR", "parent_col": "LOCNO"},
+        {"type": "foreign_key", "parent_table": "sapapo_loc", "child_col": "LOCTO", "parent_col": "LOCNO"}
+      ]
+    },
+    {
+      "table": "sapapo_trm",
+      "checks": [
+        {"type": "count", "min": 30},
+        {"type": "no_nulls", "columns": ["TRLID", "TRMID", "TRAESSION", "TRACOST"]},
+        {"type": "foreign_key", "parent_table": "sapapo_tr", "child_col": "TRLID", "parent_col": "TRLID"},
+        {"type": "allowed_values", "column": "TRMID", "values": ["ROAD", "SEA", "AIR"]},
+        {"type": "allowed_values", "column": "PRIFLAG", "values": ["X", ""]}
+      ]
+    },
+    {
+      "table": "tvro",
+      "checks": [
+        {"type": "count", "min": 12},
+        {"type": "no_nulls", "columns": ["ROUTE", "DISTZ", "VSART", "TRAZTD"]},
+        {"type": "allowed_values", "column": "VSART", "values": ["01", "02", "03", "04"]},
+        {"type": "allowed_values", "column": "MEDST", "values": ["KM"]}
+      ]
+    },
+    {
+      "table": "tvrot",
+      "checks": [
+        {"type": "count", "min": 30},
+        {"type": "no_nulls", "columns": ["ROUTE", "SPRAS", "BEZEI"]},
+        {"type": "foreign_key", "parent_table": "tvro", "child_col": "ROUTE", "parent_col": "ROUTE"},
+        {"type": "allowed_values", "column": "SPRAS", "values": ["E", "D", "F"]}
+      ]
+    },
+    {
+      "table": "vttk",
+      "checks": [
+        {"type": "count", "min": 1000},
+        {"type": "no_nulls", "columns": ["TKNUM", "SHTYP", "VSART", "ROUTE"]},
+        {"type": "foreign_key", "parent_table": "tvro", "child_col": "ROUTE", "parent_col": "ROUTE"},
+        {"type": "allowed_values", "column": "VSART", "values": ["01", "03", "04"]}
+      ]
+    },
+    {
+      "table": "vttp",
+      "checks": [
+        {"type": "count", "min": 1000},
+        {"type": "no_nulls", "columns": ["TKNUM", "TPNUM", "VBELN"]},
+        {"type": "foreign_key", "parent_table": "vttk", "child_col": "TKNUM", "parent_col": "TKNUM"},
+        {"type": "foreign_key", "parent_table": "likp", "child_col": "VBELN", "parent_col": "VBELN"}
+      ]
+    },
+    {
+      "table": "vtts",
+      "checks": [
+        {"type": "count", "min": 1000},
+        {"type": "no_nulls", "columns": ["TKNUM", "TSNUM", "ROUTE", "KNOTA", "KNOTB"]},
+        {"type": "foreign_key", "parent_table": "vttk", "child_col": "TKNUM", "parent_col": "TKNUM"}
+      ]
+    }
+  ]
+}

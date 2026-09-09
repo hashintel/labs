@@ -32,27 +32,28 @@ jobs:
       samples: ${{ steps.samples.outputs.samples }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 2
 
       - name: Setup CI
-        uses: ./.github/actions/setup-rust-ci
+        uses: $/.github/actions/setup-rust-ci
 
       - name: Find changed crates
         id: crates
         run: |
-          export GITHUB_OUTPUT_FILE_PATH=$(mktemp)
+          GITHUB_OUTPUT_FILE_PATH=$(mktemp)
+          export GITHUB_OUTPUT_FILE_PATH
           python .github/scripts/rust/setup.py
-          cat $GITHUB_OUTPUT_FILE_PATH >> $GITHUB_OUTPUT
+          cat "$GITHUB_OUTPUT_FILE_PATH" >> "$GITHUB_OUTPUT"
 
       - name: Determine samples
         id: samples
         run: |
           if [[ ${{ github.event_name }} = pull_request ]]; then
-            echo "samples=1" >> $GITHUB_OUTPUT
+            echo "samples=1" >> "$GITHUB_OUTPUT"
           else
-            echo "samples=10" >> $GITHUB_OUTPUT
+            echo "samples=10" >> "$GITHUB_OUTPUT"
           fi
 
   lint:
@@ -65,10 +66,10 @@ jobs:
       matrix: ${{ fromJSON(needs.setup.outputs.lint) }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: $/.github/actions/install-rust-toolchain
         with:
           toolchain: ${{ matrix.toolchain }}
           working-directory: ${{ matrix.directory }}
@@ -149,10 +150,10 @@ jobs:
       PROFILE: ${{ matrix.profile }}
     steps:
       - name: Checkout source code
-        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v6.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Rust toolchain
-        uses: ./.github/actions/install-rust-toolchain
+        uses: $/.github/actions/install-rust-toolchain
         with:
           toolchain: ${{ matrix.toolchain }}
           working-directory: ${{ matrix.directory }}

@@ -1,0 +1,2 @@
+"""Pandas generation stages."""
+

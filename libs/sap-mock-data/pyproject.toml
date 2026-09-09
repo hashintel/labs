@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "sap-mock-data"
+version = "0.1.0"
+description = "Deterministic synthetic SAP data generation for Python and Databricks"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "deltalake>=1.2,<2",
+  "faker>=37,<40",
+  "numpy>=2,<3",
+  "pandas>=2.2,<3",
+  "pyarrow>=18,<24",
+]
+
+[project.optional-dependencies]
+spark = ["pyspark>=4,<5"]
+
+[dependency-groups]
+notebook = [
+  "ipykernel>=6,<8",
+  "jupyterlab>=4,<5",
+]
+
+[project.scripts]
+sap-mock = "sap_mock_data.cli.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sap_mock_data"]
+
+[tool.uv]
+default-groups = []

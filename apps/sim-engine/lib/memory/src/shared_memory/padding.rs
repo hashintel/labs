@@ -122,8 +122,7 @@ pub(crate) fn _maybe_new_dynamic_length(
     new_length
 }
 
-// ADD: Added padding for for SIMD-alignment and
-// prefetcher optimizations
+// ADD: Added padding for SIMD-alignment and prefetcher optimizations
 #[must_use]
 const fn pad_to_sys_align(len: usize) -> usize {
     match len % ALIGNMENT {

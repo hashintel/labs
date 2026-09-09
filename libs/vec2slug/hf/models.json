@@ -1,0 +1,16 @@
+{
+  "vec2slug-v1-openai-small": {
+    "model_dir": "data/url/openai/models/seq2seq_bpe_d384_l4_t24_eos",
+    "workspace": "url",
+    "inference_speed": "~21ms (M-series), ~89ms (budget VPS)",
+    "training_details": "BPE vocabulary (5,000 subwords) with `-` as a special token. Trained for 30 epochs with label smoothing (0.1) and position-aware EOS loss weighting. Best checkpoint at step 53,430.",
+    "variant_note": "This is the **smaller** of two variants. It is recommended for most deployments: the larger model adds only +0.008 Token F1 at 2x the inference cost."
+  },
+  "vec2slug-v1-openai-large": {
+    "model_dir": "data/url/openai/models/seq2seq_bpe_d512_l6_t24_eos",
+    "workspace": "url",
+    "inference_speed": "~41ms (M-series), ~160ms (budget VPS)",
+    "training_details": "BPE vocabulary (5,000 subwords) with `-` as a special token. Trained for 36 epochs with label smoothing (0.1) and position-aware EOS loss weighting. Best checkpoint at step 70,560.",
+    "variant_note": "This is the **larger** of two variants. It achieves the best Token F1 but at 2x the inference cost of the smaller model."
+  }
+}
