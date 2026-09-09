@@ -43,6 +43,36 @@ jobs:
         working-directory: apps/sim-core
         run: yarn install --frozen-lockfile --ignore-scripts
 
+      # @hashintel/engine-web is a WASM package built from Rust and isn't
+      # checked into git. `yarn install --ignore-scripts` above skips the
+      # postinstall step that would normally build it, so it's built
+      # explicitly here instead.
+      - name: Install Rust toolchain
+        working-directory: apps/sim-core
+        run: |
+          rustup toolchain install stable --profile minimal --no-self-update
+          rustup default stable
+          rustup target add wasm32-unknown-unknown
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.8.2
+        with:
+          workspaces: apps/sim-core
+          save-if: ${{ !startsWith(github.ref, 'refs/heads/gh-readonly-queue') }}
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@b4b80945859e8ef89a9732a0f46499a443b196fe # v2.62.59
+        with:
+          tool: wasm-pack@0.13.1
+
+      - name: Build @hashintel/utils
+        working-directory: apps/sim-core
+        run: yarn build:utils
+
+      - name: Build @hashintel/engine-web
+        working-directory: apps/sim-core
+        run: yarn build:engine-web
+
       - name: ESLint
         run: npx eslint --quiet "src/**/*.{ts,tsx}"
 
@@ -53,4 +83,8 @@ jobs:
         run: npx jest --forceExit --testPathIgnorePatterns "/node_modules/|/tests/e2e/"
 
       - name: Production build
+        env:
+          # The bundle (Monaco + Three.js + Plotly + FluentUI, etc.) is large
+          # enough that Vite's default heap can OOM.
+          NODE_OPTIONS: --max-old-space-size=6144
         run: yarn build
