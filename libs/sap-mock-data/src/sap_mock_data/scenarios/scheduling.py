@@ -17,6 +17,7 @@ class ScheduledScenario:
     start: date
     stop: date
     affected: int = 0
+    suppressed: int = 0
     status: str = "NO_ELIGIBLE_ACTIVITY"
 
     def active(self, day, plant=None, material=None):
@@ -158,10 +159,22 @@ class ScenarioSchedule:
 
     def validate_targets(self, store):
         plants = set(store.read("t001w").WERKS)
-        materials = set(store.read("mara").MATNR)
+        master = store.read("mara")
+        materials = set(master.MATNR)
+        finished = set(master.loc[master.MTART.eq("FERT"), "MATNR"])
         vendors = set(store.read("lfa1").LIFNR)
         for item in self.items:
             c = item.config
+            if item.id == "SCN013" and c["qty"] <= 0:
+                raise ValueError("SCN013 order quantity must be positive")
+            if (
+                c.get("material") in finished
+                and "qty" in c
+                and not float(c["qty"]).is_integer()
+            ):
+                raise ValueError(
+                    f"{item.id} requires a whole-piece quantity for {c['material']}"
+                )
             for key, universe in (
                 ("plant", plants),
                 ("material", materials),
@@ -186,10 +199,13 @@ class ScenarioSchedule:
         while True:
             previous = day
             for item in self.items:
-                blocked = {"SCN003", "SCN009"}
-                blocked |= (
-                    {"SCN004", "SCN015"} if operation == "production" else {"SCN017"}
-                )
+                blocked = {"SCN003", "SCN004", "SCN009"}
+                if operation == "production":
+                    blocked.add("SCN015")
+                elif operation == "shipment":
+                    blocked.add("SCN017")
+                elif operation == "inventory":
+                    blocked = {"SCN004"}
                 if item.id in blocked and item.active(day, plant):
                     day = max(day, item.stop)
                     self.mark(item)
@@ -206,16 +222,7 @@ class ScenarioSchedule:
         for item in self.items:
             if not item.active(day, plant):
                 continue
-            if item.id == "SCN010":
-                days *= 2
-                self.mark(item)
-            elif item.id == "SCN014":
-                days += math.ceil(days * item.config["capacity_pct"] / 100)
-                self.mark(item)
-            elif item.id == "SCN016" and material in item.config["materials"]:
-                days += math.ceil(days * item.config["contention_pct"] / 100)
-                self.mark(item)
-            elif item.id == "SCN018" and plant == item.config["new_plant"]:
+            if item.id == "SCN018" and plant == item.config["new_plant"]:
                 progress = (day - item.start).days / max(
                     1, (item.stop - item.start).days
                 )
@@ -224,36 +231,30 @@ class ScenarioSchedule:
         return days
 
     def production_finish(self, start, plant, material):
-        finish = start + timedelta(days=self.production_days(start, plant, material, 3))
-        interruptions = sorted(
-            (
-                i
-                for i in self.items
-                if i.id in {"SCN003", "SCN004", "SCN009", "SCN015"}
-                and i.config.get("plant") == plant
-            ),
-            key=lambda i: i.start,
-        )
-        covered_until = start
-        for item in interruptions:
-            left = max(start, item.start, covered_until)
-            if left < finish and item.stop > left:
-                finish += item.stop - left
-                covered_until = item.stop
-                self.mark(item)
-        return finish
+        remaining = self.production_days(start, plant, material, 3)
+        finish = start
+        while remaining > 0:
+            finish = self.available(finish, plant, "production")
+            capacity = 1
+            for item in self.items:
+                if item.id == "SCN010" and item.active(finish, plant):
+                    capacity = 0.5
+                    self.mark(item)
+            remaining -= capacity
+            finish += timedelta(days=1)
+        return self.available(finish, plant, "production")
 
     def supplier(self, vendor, material, planned, rng):
-        rate, sid = 0.95, ""
+        candidates, reviews = [], []
         for item in self.items:
             c = item.config
             if int(item.id[3:]) < 21 or not item.start <= planned < item.stop:
                 continue
             if c["vendor"] != vendor or c["material"] not in (material, "ALL", ""):
                 continue
-            sid = item.id
-            self.mark(item)
-            if item.id != "SCN023":
+            if item.id == "SCN023":
+                reviews.append(item)
+            else:
                 progress = min(
                     1,
                     max(
@@ -264,6 +265,19 @@ class ScenarioSchedule:
                 )
                 initial = 0.6 if item.id == "SCN026" else 0.95
                 rate = initial + (c["target_otif"] - initial) * progress
+                candidates.append((rate, item.id, item))
+        rate, sid = 0.95, ""
+        if candidates:
+            rate, sid, selected = min(candidates, key=lambda candidate: candidate[:2])
+            self.mark(selected)
+            for _, _, item in candidates:
+                if item is not selected:
+                    item.suppressed += 1
+                    if not item.affected:
+                        item.status = "SUPPRESSED"
+        for item in reviews:
+            self.mark(item)
+        sid = ",".join(sorted([i.id for i in reviews] + ([sid] if sid else [])))
         failed = rng.random() > rate
         late = failed and rng.random() < 0.6
         partial = failed and (not late or rng.random() < 0.4)
@@ -275,8 +289,53 @@ class ScenarioSchedule:
 
     def save(self, store):
         catalog = pd.DataFrame(definitions.scenarios)
+        metadata = []
         for item in self.items:
+            affected, status, scheduled = item.affected, item.status, 0
+            if item.id == "SCN014":
+                orders = store.read("afko")
+                orders = orders[orders.ZZ_SCENARIO.eq(item.id)]
+                scheduled = len(orders)
+                affected = int(
+                    (
+                        orders.GSTRI.ge(item.start.strftime("%Y%m%d"))
+                        & orders.GSTRI.lt(item.stop.strftime("%Y%m%d"))
+                    ).sum()
+                )
+                if status != "OUTSIDE_TIMEFRAME":
+                    status = (
+                        "APPLIED"
+                        if affected
+                        else "SCHEDULED"
+                        if scheduled
+                        else "NO_ELIGIBLE_ACTIVITY"
+                    )
+            metadata.append(
+                {
+                    "SCENARIO_ID": item.id,
+                    "IMPACT_DATE": item.start.strftime("%Y%m%d"),
+                    "RECOVERY_DATE": item.stop.strftime("%Y%m%d"),
+                    "STATUS": status,
+                    "AFFECTED_EVENTS": affected,
+                    "SCHEDULED_EVENTS": scheduled,
+                    "SUPPRESSED_EVENTS": item.suppressed,
+                }
+            )
             mask = catalog.SCENARIO_ID == item.id
+            catalog.loc[mask, "DATA_EVIDENCE"] = (
+                f"scenario_metadata: STATUS={status}; AFFECTED_EVENTS={affected}; "
+                f"SCHEDULED_EVENTS={scheduled}; SUPPRESSED_EVENTS={item.suppressed}"
+            )
+            if item.id == "SCN014":
+                catalog.loc[mask, "DESCRIPTION"] = (
+                    "Background production consumes capacity at the configured plant."
+                )
+                catalog.loc[mask, "IMPACT_PERMANENT"] = False
+                catalog.loc[mask, "IMPACTED_PRODUCTS"] = "ALL"
+                catalog.loc[mask, "NODE_CAPACITY_PCT"] = item.config["capacity_pct"]
+                catalog.loc[mask, "CAPACITY_CONSTRAINT"] = (
+                    f"Target production-line occupancy: {item.config['capacity_pct']}%"
+                )
             catalog.loc[mask, "IMPACT_DATE"] = item.start.strftime("%Y%m%d")
             catalog.loc[mask, "IMPACT_DURATION_DAYS"] = max(
                 0, (item.stop - item.start).days
@@ -292,15 +351,5 @@ class ScenarioSchedule:
             "scenario_config",
             catalog[catalog.SCENARIO_ID.isin([item.id for item in self.items])],
         )
-        rows = [
-            {
-                "SCENARIO_ID": i.id,
-                "IMPACT_DATE": i.start.strftime("%Y%m%d"),
-                "RECOVERY_DATE": i.stop.strftime("%Y%m%d"),
-                "STATUS": i.status,
-                "AFFECTED_EVENTS": i.affected,
-            }
-            for i in self.items
-        ]
-        if rows:
-            store.save("scenario_metadata", pd.DataFrame(rows))
+        if metadata:
+            store.save("scenario_metadata", pd.DataFrame(metadata))

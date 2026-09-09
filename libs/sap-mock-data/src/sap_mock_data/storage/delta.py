@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 from deltalake import DeltaTable, write_deltalake
+from pyarrow.fs import LocalFileSystem, SubTreeFileSystem
 
 
 class DeltaTableStore:
@@ -25,7 +26,10 @@ class DeltaTableStore:
         print(f"  saved {name.lower()} ({len(normalized)} rows)")
 
     def read(self, name: str) -> pd.DataFrame:
-        return DeltaTable(str(self._path(name))).to_pandas()
+        path = str(self._path(name))
+        return DeltaTable(path).to_pandas(
+            filesystem=SubTreeFileSystem(path, LocalFileSystem())
+        )
 
     def exists(self, name: str) -> bool:
         return (self._path(name) / "_delta_log").exists()
@@ -34,4 +38,3 @@ class DeltaTableStore:
         return sorted(
             path.name for path in self.root.iterdir() if (path / "_delta_log").exists()
         )
-

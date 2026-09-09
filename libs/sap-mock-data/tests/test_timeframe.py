@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from sap_mock_data import GenerationConfig, Timeframe, generate_dataset
 from sap_mock_data.generation.scheduled import Schedule
+from sap_mock_data.scenarios.scheduling import ScenarioSchedule
 from sap_mock_data.storage import DeltaTableStore, MemoryTableStore
 from sap_mock_data.validation.manifest import build_manifest
 from sap_mock_data.validation.temporal import temporal_report
@@ -307,3 +308,192 @@ class ScenarioTimeframeTests(unittest.TestCase):
         self.assertEqual(
             store.read("scenario_metadata").RECOVERY_DATE.iloc[0], "20260204"
         )
+
+
+class ScenarioBusinessEffectTests(unittest.TestCase):
+    def test_stock_deviation_blocks_stock_without_quarantining_it(self):
+        timeframe = Timeframe("2026-01-05", duration_days=1)
+        store = generate(
+            timeframe,
+            num_orders=1,
+            num_sites=1,
+            delivery_fill_rate=0,
+            scenarios=["SCN001"],
+            scenario_configs={"SCN001": "MAT-A0001,1000,FG01,500"},
+        )
+        opening, closing = store.read("opening_stock"), store.read("mard")
+        movements = store.read("matdoc")
+        self.assertEqual(movements.BWART.tolist(), ["344"])
+        self.assertEqual(closing.SPEME.sum(), 500)
+        self.assertAlmostEqual(
+            opening.LABST.sum(), closing.LABST.sum() + closing.SPEME.sum()
+        )
+        self.assertFalse(closing.LGORT.eq("QA01").any())
+        self.assertEqual(store.read("mcha").CSPEM.sum(), 500)
+        self.assertTrue(temporal_report(store, timeframe)["ok"])
+        closing.loc[0, "SPEME"] += 1
+        store.save("mard", closing)
+        self.assertFalse(temporal_report(store, timeframe)["ok"])
+
+    def test_fire_also_scraps_blocked_stock(self):
+        timeframe = Timeframe("2026-01-05", duration_days=3)
+        store = generate(
+            timeframe,
+            num_orders=1,
+            num_sites=1,
+            delivery_fill_rate=0,
+            scenarios=["SCN001", "SCN003"],
+            scenario_configs={
+                "SCN001": "MAT-A0001,1000,FG01,500",
+                "SCN003": "1000,ALL,20260107,1",
+            },
+        )
+        movements = store.read("matdoc")
+        self.assertEqual(movements.loc[movements.BWART.eq("555"), "MENGE"].sum(), 500)
+        self.assertEqual(store.read("mard").SPEME.sum(), 0)
+        self.assertTrue(temporal_report(store, timeframe)["ok"])
+
+    def test_shutdown_defers_receipts_deliveries_and_production(self):
+        timeframe = Timeframe("2026-01-01", duration_days=90)
+        store = generate(
+            timeframe,
+            num_orders=400,
+            num_sites=1,
+            delivery_fill_rate=1,
+            scenarios=["SCN004"],
+            scenario_configs={"SCN004": "1000,20260110,20"},
+        )
+        movements = store.read("matdoc")
+        active = movements.BUDAT.ge("20260110") & movements.BUDAT.lt("20260130")
+        self.assertFalse(active.any())
+        self.assertTrue(movements.BUDAT.lt("20260110").any())
+        self.assertTrue(movements.BUDAT.ge("20260130").any())
+        self.assertGreater(len(store.read("ekbe")), 0)
+        self.assertTrue(temporal_report(store, timeframe)["ok"])
+
+    def test_production_completion_on_shutdown_start_waits_for_recovery(self):
+        config = GenerationConfig(
+            timeframe=Timeframe("2026-01-05", duration_days=151),
+            scenarios=["SCN004"],
+            scenario_configs={"SCN004": "1000,20260201,14"},
+        )
+        schedule = ScenarioSchedule(config, config.parameters())
+        self.assertEqual(
+            schedule.production_finish(date(2026, 1, 29), "1000", "MAT-A0001"),
+            date(2026, 2, 15),
+        )
+        self.assertEqual(
+            schedule.production_finish(date(2026, 1, 30), "1000", "MAT-A0001"),
+            date(2026, 2, 16),
+        )
+
+    def test_competing_production_adds_orders_and_consumes_capacity(self):
+        timeframe = Timeframe("2026-01-05", duration_days=151)
+        store = generate(
+            timeframe,
+            num_orders=300,
+            num_sites=1,
+            scenarios=["SCN016"],
+            scenario_configs={"SCN016": "1000,MAT-A0001;MAT-A0020,30"},
+        )
+        sales = store.read("vbak")
+        self.assertGreater(sales.ZZ_SCENARIO.eq("SCN016").sum(), 0)
+        production = store.read("afko")
+        workload = production[production.ZZ_SCENARIO.eq("SCN016")]
+        self.assertFalse(workload.empty)
+        self.assertTrue(workload.GSTRI.ne("").any())
+        movements = store.read("matdoc")
+        self.assertTrue(
+            (movements.AUFNR.isin(workload.AUFNR) & movements.BWART.eq("261")).any()
+        )
+        self.assertTrue(temporal_report(store, timeframe)["ok"])
+
+    def test_capacity_saturation_creates_background_work_without_sales(self):
+        timeframe = Timeframe("2026-01-05", duration_days=151)
+        store = generate(
+            timeframe,
+            num_orders=100,
+            num_sites=1,
+            scenarios=["SCN014"],
+            scenario_configs={"SCN014": "1000,95,30"},
+        )
+        self.assertEqual(len(store.read("vbak")), 100)
+        production = store.read("afko")
+        workload = production[production.ZZ_SCENARIO.eq("SCN014")]
+        self.assertFalse(workload.empty)
+        self.assertTrue(workload.GSTRI.ne("").any())
+        self.assertTrue(temporal_report(store, timeframe)["ok"])
+
+    def test_shortage_creates_urgent_demand_with_sparse_baseline(self):
+        store = generate(
+            Timeframe("2026-01-05", duration_days=90),
+            num_orders=1,
+            scenarios=["SCN019"],
+            scenario_configs={"SCN019": "MAT-A0001,1000,100,30"},
+        )
+        orders = store.read("vbak")
+        urgent = orders[orders.ZZ_SCENARIO.eq("SCN019")]
+        self.assertGreaterEqual(len(urgent), 5)
+        leads = [
+            (date.fromisoformat(r.VDATU) - date.fromisoformat(r.ERDAT)).days
+            for r in urgent.itertuples()
+        ]
+        self.assertTrue(all(3 <= d <= 7 for d in leads))
+        self.assertLess(min(leads), 7)
+
+    def test_volatility_varies_lead_times_and_uses_the_configured_percentage(self):
+        for percentage in (5, 80):
+            with self.subTest(percentage=percentage):
+                store = generate(
+                    Timeframe("2026-01-05", duration_days=120),
+                    num_orders=1000,
+                    scenarios=["SCN020"],
+                    scenario_configs={"SCN020": f"{percentage},60"},
+                )
+                orders = store.read("vbak")
+                volatile = orders[orders.ZZ_SCENARIO.eq("SCN020")]
+                leads = {
+                    (date.fromisoformat(r.VDATU) - date.fromisoformat(r.ERDAT)).days
+                    for r in volatile.itertuples()
+                }
+                self.assertGreater(len(leads), 1)
+                self.assertLessEqual(leads, {3, 5, 7, 10, 14, 21})
+                items = store.read("vbap")
+                quantities = items.loc[items.VBELN.isin(volatile.VBELN), "KWMENG"]
+                if percentage == 5:
+                    self.assertLessEqual(quantities.max(), 110)
+                else:
+                    self.assertGreater(quantities.max(), 110)
+
+    def test_shutdown_defers_quarantine_transfers(self):
+        timeframe = Timeframe("2026-01-01", duration_days=30)
+        store = generate(
+            timeframe,
+            num_orders=1,
+            num_sites=1,
+            delivery_fill_rate=0,
+            scenarios=["SCN004", "SCN005"],
+            scenario_configs={
+                "SCN004": "1000,20260110,10",
+                "SCN005": "MAT-A0001,1000,FG01,ALL,500,14",
+            },
+        )
+        moves = store.read("matdoc")
+        quarantine = moves[moves.BKTXT.eq("SCN005")]
+        self.assertFalse(quarantine.empty)
+        self.assertTrue(quarantine.BUDAT.ge("20260120").all())
+        self.assertTrue(temporal_report(store, timeframe)["ok"])
+
+    def test_emergency_due_date_can_precede_default_scenario_date(self):
+        timeframe = Timeframe("2026-01-05", duration_days=90)
+        store = generate(
+            timeframe,
+            num_orders=1,
+            scenarios=["SCN013"],
+            scenario_configs={"SCN013": "MAT-A0001,1000,500,20260110"},
+        )
+        emergency = store.read("vbak").query("ZZ_SCENARIO == 'SCN013'")
+        self.assertEqual(len(emergency), 1)
+        self.assertEqual(emergency.VDATU.iloc[0], "20260110")
+        self.assertLessEqual(emergency.ERDAT.iloc[0], "20260110")
+        self.assertTrue(temporal_report(store, timeframe)["ok"])

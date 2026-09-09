@@ -119,6 +119,10 @@ def temporal_report(store, timeframe):
         "document flow disagrees with delivery items",
     )
     for key, item in items.items():
+        check(
+            bool(item.get("ZZ_FULFILLMENT_REASON", "")) == (item["LFSTA"] != "C"),
+            f"sales item {key} has an inconsistent fulfilment reason",
+        )
         check(key[0] in orders, f"sales item {key} references a missing order")
         check(
             shipped[key] <= item["KWMENG"] + 1e-7, f"sales item {key} is overdelivered"
@@ -127,6 +131,44 @@ def temporal_report(store, timeframe):
             (item["LFSTA"] == "C") == (abs(shipped[key] - item["KWMENG"]) < 1e-7),
             f"sales item {key} has inconsistent delivery status",
         )
+    schedule_lines = tables["vbep"]
+    scheduled_qty = schedule_lines.groupby(["VBELN", "POSNR"]).WMENG.sum().to_dict()
+    check(set(scheduled_qty) == set(items), "schedule lines disagree with sales items")
+    for key, quantity in scheduled_qty.items():
+        check(
+            key in items and abs(quantity - items[key]["KWMENG"]) < 1e-7,
+            f"sales item {key} has inconsistent schedule quantities",
+        )
+    check(
+        schedule_lines.WMENG.gt(0).all()
+        and schedule_lines.BMENG.ge(0).all()
+        and schedule_lines.BMENG.le(schedule_lines.WMENG).all(),
+        "sales schedule lines have invalid quantities",
+    )
+    created = schedule_lines.VBELN.map(
+        {key: row["ERDAT"] for key, row in orders.items()}
+    )
+    check(
+        pd.to_datetime(schedule_lines.EDATU, format="%Y%m%d", errors="coerce")
+        .notna()
+        .all()
+        and schedule_lines.EDATU.ge(created.fillna("99999999")).all(),
+        "sales schedule lines have invalid dates",
+    )
+    legs = {row.TKNUM: row for row in tables["vtts"].itertuples()}
+    check(
+        set(tables["lips"].VBELN) == set(deliveries)
+        and set(tables["vttp"].VBELN) == set(deliveries)
+        and set(tables["vttp"].TKNUM) == set(shipments)
+        and set(legs) == set(shipments),
+        "deliveries, shipment links, and shipment legs are incomplete",
+    )
+    for number, delivery in deliveries.items():
+        arrival = delivery["LFDAT"] if delivery["LFDAT"] <= end else ""
+        check(
+            delivery["ZZ_ARRIVAL_DATE"] == arrival,
+            f"delivery {number} has an inconsistent arrival date",
+        )
     for row in tables["vttp"].itertuples():
         check(
             row.TKNUM in shipments and row.VBELN in deliveries,
@@ -134,6 +176,13 @@ def temporal_report(store, timeframe):
         )
         if row.TKNUM in shipments and row.VBELN in deliveries:
             shipment, delivery = shipments[row.TKNUM], deliveries[row.VBELN]
+            leg = legs.get(row.TKNUM)
+            check(
+                leg is not None
+                and leg.KNOTA == delivery["WERKS"]
+                and leg.KNOTB == delivery["KUNNR"],
+                f"shipment {row.TKNUM} does not connect its plant and customer",
+            )
             check(
                 shipment["DATBG"] == delivery["WADAT_IST"]
                 and shipment["DTTRG"] == delivery["LFDAT"],
@@ -191,8 +240,10 @@ def temporal_report(store, timeframe):
         defaultdict(float),
     )
     balances = defaultdict(float)
+    blocked = defaultdict(float)
     for row in tables["opening_stock"].itertuples():
         balances[row.MATNR, row.WERKS, row.LGORT, row.CHARG] += row.LABST
+        blocked[row.MATNR, row.WERKS, row.LGORT, row.CHARG] += getattr(row, "SPEME", 0)
     batches = tables["mch1"].set_index(["MATNR", "CHARG"]).to_dict("index")
     for row in tables["matdoc"].sort_values(["BUDAT", "EVENT_SEQ"]).itertuples():
         key = (row.MATNR, row.WERKS, row.LGORT, row.CHARG)
@@ -218,7 +269,16 @@ def temporal_report(store, timeframe):
                     row.BUDAT <= batch["VFDAT"],
                     f"material document {row.MBLNR} consumes expired stock",
                 )
-        balances[key] += row.MENGE if row.SHKZG == "S" else -row.MENGE
+        if row.BWART == "555":
+            blocked[key] -= row.MENGE
+        else:
+            balances[key] += row.MENGE if row.SHKZG == "S" else -row.MENGE
+        if row.BWART == "344":
+            blocked[key] += row.MENGE
+        check(
+            blocked[key] >= -1e-7,
+            f"material document {row.MBLNR} consumes unavailable blocked stock",
+        )
         check(
             balances[key] >= -1e-7,
             f"material document {row.MBLNR} consumes unavailable stock",
@@ -273,7 +333,34 @@ def temporal_report(store, timeframe):
                 f"production line {line} contains overlapping orders",
             )
             previous_finish = row.GLTRP
+    conversions = {
+        (r.MATNR, r.MEINH): r.UMREZ / r.UMREN for r in store.read("marm").itertuples()
+    }
+    bom_ids = (
+        store.read("mast").drop_duplicates("MATNR").set_index("MATNR").STLNR.to_dict()
+    )
+    requirements = defaultdict(float)
+    for component in store.read("stpo").itertuples():
+        factor = conversions.get((component.IDNRK, component.MEINS))
+        check(
+            factor is not None,
+            f"BOM {component.STLNR} has no unit conversion for {component.IDNRK}",
+        )
+        if factor is not None:
+            requirements[component.STLNR, component.IDNRK] += component.MENGE * factor
+    bom_components = defaultdict(set)
+    for bom, material in requirements:
+        bom_components[bom].add(material)
+    reserved = defaultdict(list)
     for row in tables["resb"].itertuples():
+        reserved[row.AUFNR].append(row.MATNR)
+        if row.AUFNR in production:
+            order = production[row.AUFNR]
+            required = requirements[bom_ids[order["MATNR"]], row.MATNR] * order["GAMNG"]
+            check(
+                abs(row.BDMNG - required) < 1e-7,
+                f"reservation {row.RSNUM} disagrees with BOM units and quantity",
+            )
         check(
             row.AUFNR in production,
             f"reservation {row.RSNUM} references missing production",
@@ -282,6 +369,13 @@ def temporal_report(store, timeframe):
             abs(consumed[row.AUFNR, row.MATNR] - row.ENMNG) < 1e-7
             and row.ENMNG <= row.BDMNG + 1e-7,
             f"reservation {row.RSNUM} has inconsistent consumption",
+        )
+    for number, order in production.items():
+        expected = bom_components[bom_ids[order["MATNR"]]]
+        check(
+            set(reserved[number]) == expected
+            and len(reserved[number]) == len(expected),
+            f"production {number} has missing, duplicate, or unexpected BOM reservations",
         )
     for key in set(sold) | set(shipped):
         check(
@@ -301,6 +395,15 @@ def temporal_report(store, timeframe):
         check(
             abs(balances[key] - closing.get(key, 0)) < 1e-7,
             f"closing stock {key} disagrees with movements",
+        )
+    closing_blocked = {
+        (r.MATNR, r.WERKS, r.LGORT, r.CHARG): getattr(r, "SPEME", 0)
+        for r in tables["mard"].itertuples()
+    }
+    for key in set(blocked) | set(closing_blocked):
+        check(
+            abs(blocked[key] - closing_blocked.get(key, 0)) < 1e-7,
+            f"closing blocked stock {key} disagrees with movements",
         )
     transfers = tables["plaf"][tables["plaf"].BESKZ == "U"]
     transfer_movements = {
@@ -337,14 +440,25 @@ def temporal_report(store, timeframe):
         "historical stock contains an incomplete or outside month",
     )
     running = defaultdict(float)
+    running_blocked = defaultdict(float)
     for row in tables["opening_stock"].itertuples():
         running[row.MATNR, row.WERKS, row.LGORT, row.CHARG] += row.LABST
+        running_blocked[row.MATNR, row.WERKS, row.LGORT, row.CHARG] += getattr(
+            row, "SPEME", 0
+        )
     movements = iter(tables["matdoc"].sort_values(["BUDAT", "EVENT_SEQ"]).itertuples())
     movement = next(movements, None)
     for (year, month), boundary in month_ends.items():
         while movement is not None and movement.BUDAT <= boundary:
             key = movement.MATNR, movement.WERKS, movement.LGORT, movement.CHARG
-            running[key] += movement.MENGE if movement.SHKZG == "S" else -movement.MENGE
+            if movement.BWART == "555":
+                running_blocked[key] -= movement.MENGE
+            else:
+                running[key] += (
+                    movement.MENGE if movement.SHKZG == "S" else -movement.MENGE
+                )
+            if movement.BWART == "344":
+                running_blocked[key] += movement.MENGE
             movement = next(movements, None)
         snapshot = history[
             (history.LFGJA == str(year)) & (history.LFMON == f"{month:02d}")
@@ -358,5 +472,16 @@ def temporal_report(store, timeframe):
                 for k in set(running) | set(recorded)
             ),
             f"historical stock {year}-{month:02d} disagrees with movements",
+        )
+        recorded_blocked = {
+            (r.MATNR, r.WERKS, r.LGORT, r.CHARG): getattr(r, "SPEME", 0)
+            for r in snapshot.itertuples()
+        }
+        check(
+            all(
+                abs(running_blocked[k] - recorded_blocked.get(k, 0)) < 1e-7
+                for k in set(running_blocked) | set(recorded_blocked)
+            ),
+            f"historical blocked stock {year}-{month:02d} disagrees with movements",
         )
     return {"ok": not errors, "errors": errors[:50], "error_count": len(errors)}
