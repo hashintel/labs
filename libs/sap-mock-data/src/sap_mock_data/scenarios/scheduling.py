@@ -211,6 +211,7 @@ class ScenarioSchedule:
                     self.mark(item)
                 if (
                     item.id == "SCN018"
+                    and item.status != "OUTSIDE_TIMEFRAME"
                     and plant == item.config["new_plant"]
                     and day < item.start
                 ):
@@ -222,7 +223,11 @@ class ScenarioSchedule:
         for item in self.items:
             if not item.active(day, plant):
                 continue
-            if item.id == "SCN018" and plant == item.config["new_plant"]:
+            if (
+                item.id == "SCN018"
+                and item.status != "OUTSIDE_TIMEFRAME"
+                and plant == item.config["new_plant"]
+            ):
                 progress = (day - item.start).days / max(
                     1, (item.stop - item.start).days
                 )

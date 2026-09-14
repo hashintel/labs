@@ -9,6 +9,7 @@ from sap_mock_data import GenerationConfig, Timeframe
 from sap_mock_data.generation.scheduled import Schedule
 from sap_mock_data.scenarios.scheduling import ScenarioSchedule
 from sap_mock_data.validation import temporal_report
+from sap_mock_data.validation.manifest import build_manifest
 
 
 class TimeframeRealismTests(unittest.TestCase):
@@ -66,7 +67,7 @@ class TimeframeRealismTests(unittest.TestCase):
 
     def test_baseline_demand_only_uses_open_facilities(self):
         timeframe = Timeframe("2026-01-05", duration_days=118)
-        for opening in ("20260301", "20270101"):
+        for opening in ("20260301", "20260105"):
             with self.subTest(opening=opening):
                 store = generate(
                     timeframe,
@@ -77,9 +78,49 @@ class TimeframeRealismTests(unittest.TestCase):
                 items = store.read("vbap").merge(store.read("vbak"), on="VBELN")
                 new_plant = items[items.WERKS.eq("6000")]
                 self.assertTrue(new_plant.ERDAT.ge(opening).all())
-                if opening == "20260301":
-                    self.assertFalse(new_plant.empty)
+                self.assertFalse(new_plant.empty)
                 self.assertTrue(temporal_report(store, timeframe)["ok"])
+
+    def test_outside_facility_ramps_match_generation_without_the_scenario(self):
+        timeframe = Timeframe("2026-01-05", duration_days=118)
+        options = {"num_sites": 6, "num_orders": 600, "delivery_fill_rate": 1}
+        baseline = generate(timeframe, **options)
+        expected = build_manifest(baseline)["tables"]
+        self.assertTrue(baseline.read("vbap").WERKS.eq("6000").any())
+        self.assertTrue(baseline.read("plaf").WERKS.eq("6000").any())
+        for ramp in (
+            "6000,20250101,12",
+            "6000,20270101,12",
+            "6000,20251229,1",
+            "6000,20260503,1",
+        ):
+            with self.subTest(ramp=ramp):
+                store = generate(
+                    timeframe,
+                    **options,
+                    scenarios=["SCN018"],
+                    scenario_configs={"SCN018": ramp},
+                )
+                actual = build_manifest(store)["tables"]
+                for name in expected.keys() - {
+                    "generation_metadata",
+                    "scenario_config",
+                }:
+                    self.assertEqual(actual[name], expected[name], name)
+                metadata = store.read("scenario_metadata").iloc[0]
+                self.assertEqual(metadata.STATUS, "OUTSIDE_TIMEFRAME")
+                self.assertEqual(metadata.AFFECTED_EVENTS, 0)
+                config = GenerationConfig(
+                    timeframe=timeframe,
+                    scenarios=["SCN018"],
+                    scenario_configs={"SCN018": ramp},
+                )
+                schedule = ScenarioSchedule(config, config.parameters())
+                for day in (timeframe.start, schedule.items[0].start):
+                    self.assertEqual(schedule.available(day, "6000", "production"), day)
+                    self.assertEqual(
+                        schedule.production_days(day, "6000", "MAT-A0001", 3), 3
+                    )
 
     def test_overlapping_quarantines_keep_stock_held_until_recovery(self):
         timeframe = Timeframe("2026-01-01", duration_days=30)

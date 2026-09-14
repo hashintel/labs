@@ -121,7 +121,7 @@ class Schedule:
             self.boms[material] = list(components[bom].items())
         self.initial = store.read("mard")
         for scenario in self.scenarios.items:
-            if scenario.id == "SCN018":
+            if scenario.id == "SCN018" and scenario.status != "OUTSIDE_TIMEFRAME":
                 self.initial.loc[
                     self.initial.WERKS == scenario.config["new_plant"], "LABST"
                 ] = 0.0
@@ -390,7 +390,10 @@ class Schedule:
             site
             for site in PLANT_CONFIG
             if not any(
-                i.id == "SCN018" and i.config["new_plant"] == site and day < i.start
+                i.id == "SCN018"
+                and i.status != "OUTSIDE_TIMEFRAME"
+                and i.config["new_plant"] == site
+                and day < i.start
                 for i in self.scenarios.items
             )
         ]
@@ -733,7 +736,9 @@ class Schedule:
         if self.pending.get(key, date.min) >= day:
             return self.pending[key]
         new_facility = any(
-            i.id == "SCN018" and i.config["new_plant"] == plant
+            i.id == "SCN018"
+            and i.status != "OUTSIDE_TIMEFRAME"
+            and i.config["new_plant"] == plant
             for i in self.scenarios.items
         )
         if (
