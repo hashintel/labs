@@ -1,11 +1,12 @@
 """Generate SAP master data with pandas."""
-import pandas as pd
-import numpy as np
-from faker import Faker
 import random
-from math import radians, sin, cos, sqrt, asin
-from datetime import datetime, timedelta
+from datetime import timedelta
+from math import asin, cos, radians, sin, sqrt
 
+import pandas as pd
+from faker import Faker
+
+from ..context import current_parameters, master_datetime
 from .common import (
     PLANT_CONFIG,
     configure_plants,
@@ -27,7 +28,7 @@ def generate_kna1_data():
         data.append({
             'MANDT': '800', 'KUNNR': kunnr, 'NAME1': fake.company(),
             'ORT01': fake.city(), 'PSTLZ': fake.postcode(), 'LAND1': country,
-            'KTGRD': '01', 'ERDAT': datetime.now().strftime('%Y%m%d')
+            'KTGRD': '01', 'ERDAT': master_datetime().strftime('%Y%m%d')
         })
     return pd.DataFrame(data)
 
@@ -104,10 +105,11 @@ def generate_marc_data():
             })
     return pd.DataFrame(data)
 
-def generate_batch_id(matnr, werks, batch_num, year=2025):
+def generate_batch_id(matnr, werks, batch_num, year=None):
     """Generate a batch ID in SAP format: BATCH-YYYY-MMMNNN (material prefix + sequence)"""
     mat_suffix = matnr.replace('MAT-', '').replace('-', '')[:4]
-    return f"B{year}{mat_suffix}{batch_num:03d}"
+    batch_year = year or (master_datetime().year if "TIMEFRAME_START" in current_parameters() else 2025)
+    return f"B{batch_year}{mat_suffix}{batch_num:03d}"
 
 def generate_mch1_data(batch_records):
     """
@@ -123,7 +125,7 @@ def generate_mch1_data(batch_records):
             continue
         seen_batches.add(batch_key)
 
-        prod_date = datetime.now() - timedelta(days=random.randint(1, 180))
+        prod_date = master_datetime() - timedelta(days=random.randint(1, 180))
         shelf_life_days = random.choice([365, 730, 1095])  # 1, 2, or 3 years
         expiry_date = prod_date + timedelta(days=shelf_life_days)
 
@@ -158,7 +160,7 @@ def generate_mcha_data(batch_records):
             continue
         seen_batches.add(batch_key)
 
-        prod_date = datetime.now() - timedelta(days=random.randint(1, 180))
+        prod_date = master_datetime() - timedelta(days=random.randint(1, 180))
         expiry_date = prod_date + timedelta(days=random.choice([365, 730, 1095]))
 
         data.append({
@@ -259,7 +261,7 @@ def generate_mbew_data():
                 'LBKUM': stock_qty,       # Total Valuated Stock
                 'SALK3': stock_value,     # Total Stock Value
                 'ZKPRS': round(std_price * 0.9, 2),  # Future/Planned Price
-                'ZKDAT': (datetime.now() + timedelta(days=90)).strftime('%Y%m%d'),  # Future Price Date
+                'ZKDAT': (master_datetime() + timedelta(days=90)).strftime('%Y%m%d'),  # Future Price Date
                 'BKLAS': '3000' if matnr in FINISHED_GOODS else '3001'  # Valuation Class
             })
     return pd.DataFrame(data)
@@ -480,7 +482,6 @@ def generate_tvro_data():
     plants = list(PLANT_CONFIG)
 
     shipping_types = {'ROAD': '01', 'RAIL': '02', 'SEA': '03', 'AIR': '04'}
-    forwarding_agents = ['DHL', 'KUEHNE', 'DBSCHENK', 'MAERSK', 'FEDEX']
 
     for loc_from, loc_to in route_pairs(plants):
 
@@ -621,7 +622,7 @@ def generate_lfa1_data():
             'STRAS': fake.street_address(),
             'TELF1': fake.phone_number()[:20],
             'KTOKK': 'KRED',  # Vendor account group
-            'ERDAT': (datetime.now() - timedelta(days=random.randint(365, 1500))).strftime('%Y%m%d'),
+            'ERDAT': (master_datetime() - timedelta(days=random.randint(365, 1500))).strftime('%Y%m%d'),
             'ERNAM': random.choice(PREDEFINED_USERS),
             'LOEVM': '',  # Deletion flag (empty = active)
             'SPERR': '',  # Block flag (empty = not blocked)
@@ -680,7 +681,7 @@ def generate_eina_data(df_mara, df_lfa1):
             'MATNR': matnr,
             'LIFNR': lifnr,
             'LOEKZ': '',
-            'ERDAT': (datetime.now() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
+            'ERDAT': (master_datetime() - timedelta(days=random.randint(180, 720))).strftime('%Y%m%d'),
             'ERNAM': random.choice(PREDEFINED_USERS),
         })
 
@@ -1009,7 +1010,7 @@ def generate_plpo_data(df_plko, df_crhd):
         template = routing_templates.get(routing_type, routing_templates['STANDARD'])
 
         for vornr, wc_prefix, setup_min, run_min, control_key in template:
-            matching_wcs = [k for k in plant_wcs.keys() if k.startswith(wc_prefix)]
+            matching_wcs = [k for k in plant_wcs if k.startswith(wc_prefix)]
             if not matching_wcs:
                 continue
 
@@ -1122,11 +1123,11 @@ def generate(wh):
     BOM_CONFIG.append({'parent': MAT_INDIA_PRODUCT, 'child': MAT_VEGGIE_CAPS, 'qty': 50, 'uom': 'PC', 'scrap': 0.0, 'type': 'Excipient'})
     BOM_CONFIG.append({'parent': MAT_INDIA_PRODUCT, 'child': 'API1', 'qty': 100, 'uom': 'GRM', 'scrap': 0.5, 'type': 'API'})
 
-    FINISHED_GOODS = sorted(list(set([row['parent'] for row in BOM_CONFIG] + [f'MAT-A{i:04d}' for i in range(1, NUM_FINISHED_GOODS + 1)])))
-    INTERMEDIATE_GOODS = sorted(list(set([row['parent'] for row in BOM_CONFIG if row['parent'] in [r['child'] for r in BOM_CONFIG]] + [f'MAT-H{i:04d}' for i in range(1, 11)])))
-    RAW_MATERIALS = sorted(list(set([row['child'] for row in BOM_CONFIG] + [f'MAT-R{i:04d}' for i in range(1, NUM_RAW_MATERIALS + 1)])))
+    FINISHED_GOODS = sorted(set([row['parent'] for row in BOM_CONFIG] + [f'MAT-A{i:04d}' for i in range(1, NUM_FINISHED_GOODS + 1)]))
+    INTERMEDIATE_GOODS = sorted(set([row['parent'] for row in BOM_CONFIG if row['parent'] in [r['child'] for r in BOM_CONFIG]] + [f'MAT-H{i:04d}' for i in range(1, 11)]))
+    RAW_MATERIALS = sorted(set([row['child'] for row in BOM_CONFIG] + [f'MAT-R{i:04d}' for i in range(1, NUM_RAW_MATERIALS + 1)]))
 
-    PREDEFINED_MATERIALS = sorted(list(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS)))
+    PREDEFINED_MATERIALS = sorted(set(FINISHED_GOODS + INTERMEDIATE_GOODS + RAW_MATERIALS))
     PARENT_MATERIALS = FINISHED_GOODS + INTERMEDIATE_GOODS
 
 
