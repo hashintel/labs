@@ -26,6 +26,16 @@ yarn-error.log
 .eslintcache
 packages/hashai/.eslintcache
 
-#ts cache
+# TypeScript incremental build info
 tsconfig.tsbuildinfo
+
+# Vercel CLI local project link
 .vercel
+
+# Dev console log (written by consoleToDisk Vite plugin)
+console.log
+
+# Playwright E2E test artifacts
+**/test-results/
+**/playwright-report/
+**/.playwright/

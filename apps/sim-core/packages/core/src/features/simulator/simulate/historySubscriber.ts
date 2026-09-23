@@ -1,13 +1,10 @@
-import { Store } from "@reduxjs/toolkit";
+import type { Store } from "../../reduxCompat";
 
 import { LinkableProject } from "../../project/types";
 import { SimulatorDispatch, SimulatorRootState } from "../types";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import { fetchProjectHistoryNextPage } from "./thunks";
-import {
-  selectCurrentProjectRequired,
-  selectProjectAccess,
-} from "../../project/selectors";
+import { selectCurrentProjectRequired } from "../../project/selectors";
 import {
   selectHistoryComplete,
   selectHistoryHasFilledScreen,
@@ -17,13 +14,13 @@ import {
   selectHistoryVisible,
 } from "./selectors";
 
-interface RunningState {
+type RunningState = {
   running: boolean;
   abortController: AbortController;
   wasRequestingMore: boolean;
   requestingMore: boolean;
   historyProject: LinkableProject;
-}
+};
 
 export const historySubscriber = (store: Store<SimulatorRootState>) => {
   const dispatch = store.dispatch as SimulatorDispatch;
@@ -31,8 +28,7 @@ export const historySubscriber = (store: Store<SimulatorRootState>) => {
     while (!signal.aborted) {
       await dispatch(
         fetchProjectHistoryNextPage(
-          selectCurrentProjectRequired(appStore.getState()),
-          selectProjectAccess(appStore.getState()),
+          selectCurrentProjectRequired(appBridge.getState()),
           signal,
         ),
       );
@@ -85,7 +81,7 @@ export const historySubscriber = (store: Store<SimulatorRootState>) => {
           abortController,
           wasRequestingMore: requestingMore,
           requestingMore: requestingMore,
-          historyProject: historyProject,
+          historyProject: historyProject!,
         };
 
         run(runningState, abortController.signal).catch((err) => {

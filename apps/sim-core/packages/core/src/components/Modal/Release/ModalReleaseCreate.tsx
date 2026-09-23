@@ -85,7 +85,7 @@ export const ModalReleaseCreate: FC<ModalCreateReleaseProps> = ({
               keywords: selectedKeywords.map((keyword) => keyword.value),
               license: selectedLicense.value ?? "",
             },
-          }),
+          }) as any,
         );
 
         onClose();

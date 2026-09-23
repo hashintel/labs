@@ -1,8 +1,19 @@
 /**
- * provided by vite
- * @see: ./vite.config.ts
+ * Build-time globals provided by Vite's `define` config.
+ * @see ./vite.config.ts
  */
-declare let BUILD_STAMP: string;
+declare var PUBLIC_PATH: string;
+declare var BUILD_STAMP: string;
+declare var LOCAL_API: boolean;
+declare var MAPBOX_API_TOKEN: string;
+
+/**
+ * Vite raw import suffix — importing with ?raw returns file contents as string.
+ */
+declare module "*.d.ts?raw" {
+  const content: string;
+  export default content;
+}
 
 /**
  * Like `Omit` but distributes over unions

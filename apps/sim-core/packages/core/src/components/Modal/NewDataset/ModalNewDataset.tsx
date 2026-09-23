@@ -1,18 +1,18 @@
 import React, { FC, useCallback, useState } from "react";
-import { useDispatch } from "react-redux";
 import { useDropzone } from "react-dropzone";
 import classNames from "classnames";
 
-import { AppDispatch } from "../../../features/types";
 import { BigModal } from "../BigModal";
 import { IconAlert, IconSpinner } from "../../Icon";
 import { IconUpload } from "../../Icon/Upload";
-import { createDataset } from "../../../features/files/slice";
+import { useFiles } from "../../../features/files/FilesContext";
+import { useProject } from "../../../features/project/ProjectContext";
 
 import "./ModalNewDataset.scss";
 
 export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { addPreparedFile } = useFiles();
+  const { currentProject } = useProject();
 
   const [state, setState] = useState<"uploading" | "failed" | "initial">(
     "initial",
@@ -29,15 +29,36 @@ export const ModalNewDataset: FC<{ onClose: VoidFunction }> = ({ onClose }) => {
       setState("uploading");
 
       try {
-        //@ts-expect-error redux problems
-        await dispatch(createDataset(file));
+        // TODO: createDataset was an async thunk that uploaded to server.
+        // In local-first mode, read the file locally and add it directly.
+        const contents = await file.text();
+        const ext = file.name.split(".").pop()?.toLowerCase() ?? "json";
+        const baseName = file.name.replace(/\.[^/.]+$/, "");
+        const repoPath = `data/${baseName}.${ext}`;
+
+        addPreparedFile({
+          id: repoPath,
+          name: file.name,
+          path: {
+            formatted: repoPath,
+            base: baseName,
+            dir: "data",
+            root: "",
+            name: baseName,
+            ext: `.${ext}`,
+          },
+          repoPath,
+          kind: 5 as any, // HcFileKind.Dataset
+          contents,
+          ref: currentProject?.ref ?? "main",
+        } as any);
         onClose();
       } catch (err) {
         console.error("Uploading failed", err);
         setState("failed");
       }
     },
-    [onClose, dispatch],
+    [onClose, addPreparedFile, currentProject],
   );
 
   const uploading = state === "uploading";

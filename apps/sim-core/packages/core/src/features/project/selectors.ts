@@ -1,9 +1,10 @@
-import { createSelector, Selector } from "@reduxjs/toolkit";
-import { createStructuredSelector } from "reselect";
+import { createSelector, createStructuredSelector } from "reselect";
+import type { Selector } from "../reduxCompat";
 
 import { LinkableProject, ProjectSlice } from "./types";
-import { RootState } from "../types";
 import { forkUrlFromProject, urlFromProject } from "../../routes";
+
+type RootState = { project: ProjectSlice };
 import { isProjectLatest, refIsNotCommit } from "./utils";
 
 export const selectProjectSlice: Selector<RootState, ProjectSlice> = (state) =>
@@ -77,11 +78,6 @@ export const selectLatestReleaseTag = createSelector(
   (project) => project?.latestRelease?.tag,
 );
 
-export const selectProjectAccess = createSelector(
-  selectCurrentProject,
-  (project) => project?.access,
-);
-
 export const selectForkCurrentProjectUrl = createSelector(
   [selectCurrentProject],
   (project) => (project ? forkUrlFromProject(project) : null),
@@ -104,13 +100,13 @@ export const selectProjectPathWithNamespaceRequired = createSelector(
       throw new Error("Project does not exist when it is required");
     }
 
-    return pathWithNamespace;
+    return pathWithNamespace!;
   },
 );
 
 export const selectProjectRef = createSelector(
   selectCurrentProject,
-  (project) => (project ? project.ref ?? "main" : null),
+  (project) => (project ? (project.ref ?? "main") : null),
 );
 
 /**
@@ -134,6 +130,6 @@ export const selectVersionSwitchingTo = createSelector(
   [selectProjectPathWithNamespace, selectPendingProject],
   (pathWithNamespace, pendingProject) =>
     pendingProject && pathWithNamespace === pendingProject.pathWithNamespace
-      ? pendingProject.ref ?? "main"
+      ? (pendingProject.ref ?? "main")
       : null,
 );

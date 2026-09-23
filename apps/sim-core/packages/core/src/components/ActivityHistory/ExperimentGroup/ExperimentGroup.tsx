@@ -1,5 +1,5 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { ActivityHistoryGroup } from "../ActivityHistoryGroup/ActivityHistoryGroup";
 import { ActivityHistoryGroupTitle } from "../ActivityHistoryGroup/ActivityHistoryGroupTitle";
@@ -88,15 +88,8 @@ const emptySimIds: string[] = [];
 const makeSelectExperimentById = (id: string) =>
   createSelector(
     [selectExperimentRuns, selectPendingExperimentRuns],
-    (experiments, pendingExperiments) => {
-      const experimentRun = experiments[id] ?? pendingExperiments[id];
-
-      if (!experimentRun) {
-        throw new Error("data missing for experiment");
-      }
-
-      return experimentRun;
-    },
+    (experiments, pendingExperiments) =>
+      experiments[id] ?? pendingExperiments[id] ?? null,
   );
 
 export const ExperimentGroup: FC<{
@@ -107,17 +100,20 @@ export const ExperimentGroup: FC<{
 
   const simDispatch = useSimulatorDispatch();
   const open =
-    useSimulatorSelector(selectCurrentExperimentId) === data.experimentId;
-  const experimentFinished = hasExperimentFinished(data.status);
+    useSimulatorSelector(selectCurrentExperimentId) ===
+    data?.experimentId;
 
-  const pending = !experimentRunInitialized(data);
-  const readyToShow = useReadyToShowExperiment(open, pending, data.startedTime);
+  const pending = data ? !experimentRunInitialized(data) : true;
+  const readyToShow = useReadyToShowExperiment(
+    open,
+    pending,
+    data?.startedTime ?? 0,
+  );
 
   const [hovered, setHovered] = useState(false);
 
-  const simIds = experimentRunInitialized(data)
-    ? data.simulationIds
-    : emptySimIds;
+  const simIds =
+    data && experimentRunInitialized(data) ? data.simulationIds : emptySimIds;
 
   const anySimsViewableSelector = useCallback(
     (state: SimulatorRootState) => {
@@ -130,10 +126,11 @@ export const ExperimentGroup: FC<{
 
   const anySimsViewable = useSimulatorSelector(anySimsViewableSelector);
 
-  if (!readyToShow) {
+  if (!data || !readyToShow) {
     return null;
   }
 
+  const experimentFinished = hasExperimentFinished(data.status);
   const experimentFailed = data.status === "errored";
   const experimentPendingAndFailed = pending && experimentFailed;
 
@@ -181,10 +178,10 @@ export const ExperimentGroup: FC<{
                   open
                     ? hovered
                       ? theme["dark-hover-hover"]
-                      : theme.black
+                      : theme["black"]
                     : hovered
                       ? theme["dark-hover"]
-                      : theme.dark
+                      : theme["dark"]
                 }
               />
             </span>

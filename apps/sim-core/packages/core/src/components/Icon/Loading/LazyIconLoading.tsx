@@ -2,9 +2,7 @@ import React, { FC, lazy, Suspense } from "react";
 
 import { IconLoadingProps } from "./types";
 
-const lazyIconPromise = import(
-  /* webpackChunkName: "IconLoading", webpackPrefetch: true */ "./IconLoading"
-);
+const lazyIconPromise = import("./IconLoading");
 
 const LazyIconLoadingInner = lazy(async () => ({
   default: (await lazyIconPromise).IconLoading,

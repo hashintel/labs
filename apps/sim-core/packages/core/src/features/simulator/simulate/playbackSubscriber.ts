@@ -1,4 +1,4 @@
-import { Store } from "@reduxjs/toolkit";
+import type { Store } from "../../reduxCompat";
 
 import { SimulatorRootState } from "../types";
 import { incrementStep } from "./slice";

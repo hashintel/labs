@@ -5,7 +5,7 @@ import { ModalForm } from "../ModalForm";
 
 import "./ModalTwoColumn.css";
 
-interface ModalTwoColumnProps {
+type ModalTwoColumnProps = {
   title: ReactNode;
   intro: ReactNode;
   onSubmit: () => Promise<void>;
@@ -13,7 +13,7 @@ interface ModalTwoColumnProps {
   rightChildren: ReactNode;
   className?: string;
   disabled?: boolean;
-}
+};
 
 /**
  * @deprecated

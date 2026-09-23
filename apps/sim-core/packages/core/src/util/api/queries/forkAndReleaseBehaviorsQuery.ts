@@ -1,5 +1,6 @@
 import { FilesFragment } from "./unpreparedProjectByPath";
 import { ForkAndReleaseBehaviorsMutation } from "../types";
+import type { ProjectFiles } from "../../../features/files/utils";
 import { ProjectVisibility } from "../../../features/project/types";
 import { query } from "../query";
 import { toHcFiles } from "../../../features/files/utils";
@@ -76,7 +77,7 @@ export const forkAndReleaseBehaviorsQuery = async (args: {
 
   return {
     updatedAt: fork.sourceProject.updatedAt,
-    files: toHcFiles(fork.sourceProject),
+    files: toHcFiles(fork.sourceProject as ProjectFiles),
     behaviorPathWithNamespace: fork.behaviorProject.pathWithNamespace,
     behaviorRef: fork.behaviorProject.ref,
   };

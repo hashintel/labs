@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 
 import { AnalysisViewerPlotsTabProps } from "./types";
 import { ButtonCallToAction } from "./ButtonCallToAction";
@@ -7,7 +6,7 @@ import { HelpParagraph } from "./HelpParagraph";
 import { IconCreatePlot } from "../Icon/CreatePlot";
 import { PlotViewer } from "../PlotViewer/PlotViewer";
 import { Scope, useScopes } from "../../features/scopes";
-import { selectEmbedded } from "../../features/viewer/selectors";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
 export const PlotsTab: FC<AnalysisViewerPlotsTabProps> = ({
   analysisPlotsDataAvailable,
@@ -21,7 +20,7 @@ export const PlotsTab: FC<AnalysisViewerPlotsTabProps> = ({
   readonly,
 }) => {
   const { canEdit, canLogin } = useScopes(Scope.edit, Scope.login);
-  const embedded = useSelector(selectEmbedded);
+  const { embedded } = useViewer();
 
   if (!analysisMode) {
     return embedded ? null : (

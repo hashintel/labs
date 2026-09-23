@@ -6,7 +6,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { batch, useDispatch, useSelector } from "react-redux";
 import { JsonMap } from "@hashintel/engine-web";
 
 import { FancyButton } from "../Fancy/Button";
@@ -16,9 +15,8 @@ import { ParsedGlobals } from "../../features/files/types";
 import { globalConfigSchema } from "../../util/monaco-config";
 import { globalsFileId, stringifyGlobals } from "../../features/files/utils";
 import { parseGlobals } from "./utils";
-import { selectCanToggleVisualGlobals } from "../../features/scopes";
 import { selectGlobals } from "../../features/files/selectors";
-import { toggleVisualGlobals, updateFile } from "../../features/files/slice";
+import { useFiles, useFilesSelector } from "../../features/files/FilesContext";
 import { useCancellableDebounce } from "../../hooks/useCancellableDebounce";
 
 import "./GlobalsEditor.scss";
@@ -32,9 +30,9 @@ const emptyMessage = (
 const skipSchema = (field: string) => field !== "schema";
 
 export const GlobalsEditor: FC = () => {
-  const dispatch = useDispatch();
-  const globalsString = useSelector(selectGlobals);
-  const canToggleVisualGlobals = useSelector(selectCanToggleVisualGlobals);
+  const { updateFile, toggleVisualGlobals } = useFiles();
+  const globalsString = useFilesSelector(selectGlobals);
+  const canToggleVisualGlobals = true;
   const [globalsState, setGlobals] = useState(parseGlobals(globalsString));
 
   const globalsStateRef = useRef(globalsState);
@@ -79,23 +77,15 @@ export const GlobalsEditor: FC = () => {
       scheduleUpdate(() => {
         const contents = stringifyGlobals(globals);
 
-        /**
-         * We need to ensure our local copy of globals is updated in the same
-         * render as the redux copy to ensure we don't overwrite our local copy
-         * with the redux copy (and that we don't re-parse the redux copy which
-         * breaks performance).
-         */
-        batch(() => {
-          setGlobals({
-            globals,
-            lastGlobalsString: contents,
-            error: null,
-          });
-          dispatch(updateFile({ id: globalsFileId, contents }));
+        setGlobals({
+          globals,
+          lastGlobalsString: contents,
+          error: null,
         });
+        updateFile(globalsFileId, contents);
       }, 200);
     },
-    [dispatch, scheduleUpdate],
+    [updateFile, scheduleUpdate],
   );
 
   /**
@@ -132,7 +122,7 @@ export const GlobalsEditor: FC = () => {
                 theme="blue"
                 onClick={(evt) => {
                   evt.preventDefault();
-                  dispatch(toggleVisualGlobals());
+                  toggleVisualGlobals();
                 }}
               >
                 <strong>Edit globals.json</strong>

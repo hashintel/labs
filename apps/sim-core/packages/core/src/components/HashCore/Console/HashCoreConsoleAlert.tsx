@@ -1,18 +1,16 @@
-import React, { FC, Fragment, useEffect, useMemo } from "react";
-import { useDispatch } from "react-redux";
+import React, { FC, Fragment, useMemo } from "react";
 
 import type { HcFile } from "../../../features/files/types";
 import { SIM_DOCS_URL } from "../../../util/api/paths";
 import type { UserAlertInState } from "../../../features/viewer/types";
-import { setCurrentFileId } from "../../../features/files/slice";
-import { trackEvent } from "../../../features/analytics";
+import { useFiles } from "../../../features/files/FilesContext";
 
-interface HashCoreConsoleAlertProps {
+type HashCoreConsoleAlertProps = {
   alert: UserAlertInState;
   files: Record<string, Pick<HcFile, "id" | "path">>;
-}
+};
 
-const filesRegex = /((?:(?:[@/](?:[\w-]+\/)+)|(?:\/))?[\w-]+\.[a-z]+)/i;
+const filesRegex = /((?:(?:[@\/](?:[\w-]+\/)+)|(?:\/))?[\w-]+\.[a-z]+)/i;
 
 /**
  * Convert internal error language into something more widely accessible.
@@ -24,7 +22,7 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
   alert,
   files,
 }) => {
-  const dispatch = useDispatch();
+  const { setCurrentFileId } = useFiles();
 
   const message = useMemo(
     () =>
@@ -36,7 +34,7 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
             onClick={(evt) => {
               evt.preventDefault();
 
-              dispatch(setCurrentFileId(files[piece].id));
+              setCurrentFileId(files[piece].id);
             }}
           >
             {piece}
@@ -45,7 +43,7 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
           <Fragment key={idx}>{makeErrorMessageFriendlier(piece)}</Fragment>
         ),
       ),
-    [files, alert.message, dispatch],
+    [files, alert.message, setCurrentFileId],
   );
 
   const messageIncludesFiles = useMemo(
@@ -54,15 +52,6 @@ export const HashCoreConsoleAlert: FC<HashCoreConsoleAlertProps> = ({
       alert.message.split(filesRegex).some((piece) => files[piece]),
     [alert.message, files],
   );
-
-  useEffect(() => {
-    dispatch(
-      trackEvent({
-        action: "User Alert",
-        label: Object.values(alert).join(" - "),
-      }),
-    );
-  }, [alert, dispatch]);
 
   return (
     <>

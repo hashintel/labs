@@ -1,15 +1,13 @@
 import React, { FC } from "react";
-import { useDispatch } from "react-redux";
 
-import { AppDispatch } from "../../../../features/types";
 import { IconAlert } from "../../../Icon/Alert";
 import { SIM_DOCS_URL } from "../../../../util/api/paths";
-import { setCurrentFileId } from "../../../../features/files/slice";
+import { useFiles } from "../../../../features/files/FilesContext";
 
 import "./ExperimentsListError.css";
 
 export const ExperimentsListError: FC = () => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { setCurrentFileId } = useFiles();
   return (
     <div className="ExperimentsListError">
       <div className="ExperimentsListError__Text">
@@ -19,7 +17,7 @@ export const ExperimentsListError: FC = () => {
           <button
             onClick={(evt) => {
               evt.preventDefault();
-              dispatch(setCurrentFileId("experiments"));
+              setCurrentFileId("experiments");
             }}
           >
             experiments.json
@@ -30,7 +28,6 @@ export const ExperimentsListError: FC = () => {
           <a
             href={`${SIM_DOCS_URL}/creating-simulations/experiments`}
             target="_blank"
-            rel="noreferrer"
           >
             our docs
           </a>{" "}

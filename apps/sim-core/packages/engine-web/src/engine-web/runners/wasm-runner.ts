@@ -3,6 +3,7 @@ import { DatasetCache, HashPyodide, SimulationComponents } from "../simulation";
 import { RawManifest, ReadyHandler, RunnerRequest, RunnerStatus } from "../";
 import { StateIteratorWrapper } from "../../../wasm/bundler";
 import { runnerActions as actions } from "./actions";
+import { toError } from "./toError";
 
 export interface RunnerState {
   // Runner controls
@@ -36,7 +37,7 @@ export interface RunnerState {
 
 export const WasmRequestHandler = async (
   request: RunnerRequest,
-  runner: RunnerState,
+  runner: RunnerState
 ): Promise<RunnerStatus> => {
   let includeSteps = false;
 
@@ -51,7 +52,7 @@ export const WasmRequestHandler = async (
               numSteps: request.numSteps,
               includeSteps: request.includeSteps,
             },
-            runner,
+            runner
           );
           includeSteps = request.includeSteps;
         }
@@ -81,7 +82,7 @@ export const WasmRequestHandler = async (
     }
   } catch (err) {
     console.error("Failed handling request", err);
-    runner.runnerError = err instanceof Error ? err : null;
+    runner.runnerError = toError(err);
   }
 
   if (runner.runnerError) {
@@ -98,8 +99,8 @@ export const WasmRequestHandler = async (
       JSON.stringify(
         runner.runnerError,
         // JSON.stringify doesn't work by default on error types – this makes it work
-        Object.getOwnPropertyNames(runner.runnerError),
-      ),
+        Object.getOwnPropertyNames(runner.runnerError)
+      )
     );
   }
 

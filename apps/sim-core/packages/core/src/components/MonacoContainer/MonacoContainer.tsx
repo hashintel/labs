@@ -8,9 +8,9 @@ import React, {
 
 import "./MonacoContainer.css";
 
-interface MonacoContainerProps {
+type MonacoContainerProps = {
   hidden: boolean;
-}
+};
 
 const hiddenStyle: CSSProperties = {
   display: "none",
@@ -27,8 +27,3 @@ export const MonacoContainer: ForwardRefExoticComponent<
     />
   )),
 );
-
-// // @ts-expect-error
-// MonacoContainer.whyDidYouRender = {
-//   customName: "MonacoContainer"
-// };

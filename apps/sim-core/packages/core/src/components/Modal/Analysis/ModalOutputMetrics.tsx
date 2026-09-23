@@ -1,5 +1,4 @@
 import React, { FC, useState } from "react";
-import { shallowEqual, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 
 import { AnalysisModal } from "./AnalysisModal";
@@ -11,13 +10,14 @@ import { OutputOperation } from "../../../features/analysis/analysisJsonTypes";
 import { RESERVED_BUILT_IN_KEYS } from "../../../features/files/validate";
 import { ReactSelectOption } from "../../Dropdown/types";
 import { selectLocalBehaviorKeyFieldNames } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
 import { useSafeOnClose } from "../../../hooks/useSafeOnClose";
 import { validateOutput } from "../../../features/analysis/analysisJsonValidation";
 import { validateTitle } from "../../../features/analysis/validation";
 
 import "./ModalOutputMetrics.scss";
 
-interface ModalOutputMetricsProps {
+type ModalOutputMetricsProps = {
   onClose: VoidFunction;
   onSave: Function;
   onDelete?: Function;
@@ -25,12 +25,12 @@ interface ModalOutputMetricsProps {
   metricKey?: string;
   operations?: Operation[];
   isCreate?: boolean;
-}
+};
 
-interface FormInputs {
+type FormInputs = {
   title: string;
   operations: Operation[];
-}
+};
 
 export const defaultNewOperation: Operation = {
   op: OperationTypes.get,
@@ -96,7 +96,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
     return true;
   };
 
-  const onSubmit = (values: FormInputs) => {
+  const onSubmit = async (values: FormInputs) => {
     const result = {
       ...values,
       operations: currentOperations,
@@ -155,10 +155,7 @@ export const ModalOutputMetrics: FC<ModalOutputMetricsProps> = ({
   );
 
   const safeOnClose = useSafeOnClose(!isFormDirty, true, onClose);
-  const localBehaviorKeys = useSelector(
-    selectLocalBehaviorKeyFieldNames,
-    shallowEqual,
-  );
+  const localBehaviorKeys = useFilesSelector(selectLocalBehaviorKeyFieldNames);
   const behaviorKeys = [...localBehaviorKeys, ...RESERVED_BUILT_IN_KEYS].sort();
   const behaviorKeysOptions: ReactSelectOption[] = behaviorKeys.map((key) => ({
     label: key,

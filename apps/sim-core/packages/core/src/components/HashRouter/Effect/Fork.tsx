@@ -1,31 +1,28 @@
 import React, { FC, useEffect, useLayoutEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
-import { unwrapResult } from "@reduxjs/toolkit";
 
-import { AppDispatch } from "../../../features/types";
 import {
   LinkableProject,
   SimulationProject,
 } from "../../../features/project/types";
 import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
 import { Scope, useScopes } from "../../../features/scopes";
-import { fetchProject } from "../../../features/project/slice";
 import { forceLogIn } from "../../../features/user/utils";
-import { forkProject } from "../../../features/project/thunks";
-import { selectBootstrapped } from "../../../features/user/selectors";
-import { selectCurrentProject } from "../../../features/project/selectors";
+import { prepareForkProject } from "../../../features/project/thunks";
+import { navigate } from "../../../util/navigation";
 import { urlFromProject } from "../../../routes";
 import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
 import { useNavigateAway } from "./hooks";
+import { useProject } from "../../../features/project/ProjectContext";
+import { useUser } from "../../../features/user/UserContext";
+import { useToast } from "../../../features/toast/ToastContext";
 
 const useEnsureProject = (
   project: LinkableProject,
   onCancel: VoidFunction,
 ): SimulationProject | null => {
-  const dispatch = useDispatch<AppDispatch>();
-  const currentProject = useSelector(selectCurrentProject);
-  const bootstrapped = useSelector(selectBootstrapped);
+  const { currentProject, fetchProject } = useProject();
+  const { bootstrapped } = useUser();
   const fatalError = useFatalError();
   const isCurrentProject =
     !!(project && currentProject) &&
@@ -38,29 +35,20 @@ const useEnsureProject = (
 
   useEffect(() => {
     if (bootstrapped && !isCurrentProject && project) {
-      //@ts-expect-error redux problems
-      const promise = dispatch(fetchProject({ project, redirect: false }));
-
       (async () => {
         try {
-          //@ts-expect-error redux problems
-          const result = unwrapResult(await promise);
-
+          const result = await fetchProject({ project, redirect: false });
           if (!result) {
             onCancelRef.current();
           }
-        } catch (err) {
-          if (err instanceof Error && err?.name !== "AbortError") {
+        } catch (err: any) {
+          if (err?.name !== "AbortError") {
             fatalError(err);
           }
         }
       })();
-
-      return () => {
-        promise.abort();
-      };
     }
-  }, [bootstrapped, dispatch, fatalError, isCurrentProject, project]);
+  }, [bootstrapped, fetchProject, fatalError, isCurrentProject, project]);
 
   return isCurrentProject ? currentProject : null;
 };
@@ -69,12 +57,14 @@ export const HashRouterEffectFork: FC<{
   project: LinkableProject;
 }> = ({ project: targetProject }) => {
   const navigateAway = useNavigateAway(targetProject);
-  const dispatch = useDispatch<AppDispatch>();
   const { canFork, canForkIfSignedIn, canLogin } = useScopes(
     Scope.fork,
     Scope.forkIfSignedIn,
     Scope.login,
   );
+  const { setProjectWithMeta } = useProject();
+  const { addUserProject } = useUser();
+  const { displayToast } = useToast();
   const project = useEnsureProject(targetProject, () =>
     canLogin ? forceLogIn(true) : navigateAway(true),
   );
@@ -88,8 +78,13 @@ export const HashRouterEffectFork: FC<{
         <ModalNewProject
           onCancel={navigateAway}
           onSubmit={async (values) => {
-            //@ts-expect-error redux problems
-            await dispatch(forkProject(project, values));
+            const result = prepareForkProject(project, values);
+            if (result.partialProject) {
+              addUserProject(result.partialProject);
+            }
+            setProjectWithMeta(result.nextProject);
+            navigate(urlFromProject(result.nextProject));
+            displayToast(result.toastData);
             hideForkModal();
           }}
           defaultName={projectName}
@@ -98,14 +93,21 @@ export const HashRouterEffectFork: FC<{
           visibilityDisabled={projectVisibility === "private"}
         />
       ) : null,
-    [dispatch, navigateAway, project, projectName, projectVisibility],
+    [
+      navigateAway,
+      project,
+      projectName,
+      projectVisibility,
+      setProjectWithMeta,
+      addUserProject,
+      displayToast,
+    ],
   );
 
   useEffect(() => {
     if (canForkIfSignedIn || canFork) {
       if (canFork) {
         showForkModal();
-
         return () => {
           hideForkModal();
         };

@@ -50,21 +50,14 @@ import {
   simulationRunUpdated,
   updatePendingExperimentTime,
 } from "./slice";
-import { addUserAlert } from "../../viewer";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import { earlyStopSimulation } from "./thunks";
 import { historicCloudExperimentProvider } from "../historicCloudExperimentProvider";
-import { parseAllBehaviorKeys } from "../../files/slice";
 import { pyodideEnabled } from "../../../util/pyodideEnabled";
-import { save } from "../../thunks";
 import { selectAllSimulationData, selectExperimentRuns } from "./selectors";
-import {
-  selectCurrentProject,
-  selectCurrentProjectUrl,
-} from "../../project/selectors";
+import { selectCurrentProject } from "../../project/selectors";
 import { selectExperiments } from "../../../components/SimulationRunner/Controls/Experiments/selectors";
 import { simulationProvider } from "./buildprovider";
-import { trackEvents } from "../../analytics";
 
 /**
  * Just using this to hide the casting away from the consumer. The casting is
@@ -75,11 +68,11 @@ const toConnectable = <T>(
 ): ConnectableObservable<T> => observable.pipe(multicast(new Subject())) as any;
 
 type ExperimentError = Error & { context?: string };
-interface ExperimentWideSimulationErrorEvent {
+type ExperimentWideSimulationErrorEvent = {
   type: "experimentError";
   error: ExperimentError;
   simulationId: string;
-}
+};
 
 type MappedExperimentStream =
   | ExperimentStreamResponse
@@ -92,25 +85,21 @@ export const experimentError =
 
     // Check if no credits are remaining and throw the out-of-credits error modal
     if (err.message && err.message === "OutOfCredits") {
-      appStore.dispatch(
-        addUserAlert({
-          context: "experiments.json",
-          message: "Out of cloud compute credits",
-          timestamp: Date.now(),
-          type: "error",
-          simulationId: null,
-        }),
-      );
+      appBridge.dispatchUserAlert({
+        context: "experiments.json",
+        message: "Out of cloud compute credits",
+        timestamp: Date.now(),
+        type: "error",
+        simulationId: null,
+      });
     } else {
-      appStore.dispatch(
-        addUserAlert({
-          context: err.context ?? "experiment.json",
-          message: err.message ?? "running experiment failed",
-          timestamp: Date.now(),
-          type: "error",
-          simulationId: null,
-        }),
-      );
+      appBridge.dispatchUserAlert({
+        context: err.context ?? "experiment.json",
+        message: err.message ?? "running experiment failed",
+        timestamp: Date.now(),
+        type: "error",
+        simulationId: null,
+      });
     }
   };
 
@@ -126,12 +115,14 @@ const groupExperimentStreamByType =
     observable.pipe(
       groupBy((evt) => evt.type),
       map((group) => {
-        type GroupName = typeof group extends GroupedObservable<infer Name, any>
-          ? Name
-          : never;
-        type GroupType = typeof group extends GroupedObservable<any, infer Type>
-          ? Type
-          : never;
+        type GroupName =
+          typeof group extends GroupedObservable<infer Name, any>
+            ? Name
+            : never;
+        type GroupType =
+          typeof group extends GroupedObservable<any, infer Type>
+            ? Type
+            : never;
 
         type Union = {
           [Name in GroupName]: GroupedObservable<
@@ -145,11 +136,10 @@ const groupExperimentStreamByType =
     );
 
 export const queueExperiment =
-  (experimentName: string): SimulatorThunk<void> =>
-  (dispatch, getState) => {
-    const appState = appStore.getState();
+  (experimentName: string): SimulatorThunk<Promise<void>> =>
+  async (dispatch, getState) => {
+    const appState = appBridge.getState();
     const project = selectCurrentProject(appState);
-    const projectUrl = selectCurrentProjectUrl(appState);
     const experiments = Object.fromEntries(selectExperiments(appState) ?? []);
     const projectPath = project?.pathWithNamespace;
     const projectRef = project?.ref;
@@ -195,23 +185,6 @@ export const queueExperiment =
       }),
     );
 
-    // Track this this event and the associated runs
-    const label = `${project?.name} - ${experimentName} - ${projectUrl}`;
-    const context = { cloud: simulationProvider.target === "cloud" };
-
-    const trackExperimentRunEvent = {
-      action: "Experiment Run",
-      label,
-      context,
-    };
-
-    const simulationTrackingEvents = (simIds: string[]) =>
-      simIds.map(() => ({
-        action: "Experiment Simulation Run",
-        label,
-        context,
-      }));
-
     const handleFailedPendingExperiment = (err: ExperimentError) =>
       dispatch(experimentError(err, pendingExperimentId));
 
@@ -239,9 +212,9 @@ export const queueExperiment =
        */
       if (selectScope[Scope.save](appState)) {
         beforeQueuePromise = beforeQueuePromise
-          // @ts-expect-error redux
-          .then(() => appStore.dispatch(parseAllBehaviorKeys()))
-          .then(() => appStore.dispatch(save()))
+          .then(() => {
+            // parseAllBehaviorKeys and save are no longer dispatched to app store
+          })
           .then(() => {
             /**
              * This ensures the pending experiment appears above the
@@ -320,8 +293,7 @@ export const queueExperiment =
                   pendingExperimentId,
                 }),
               );
-              // @ts-expect-error trackEvents
-              appStore.dispatch(trackEvents([trackExperimentRunEvent]));
+
               break;
           }
         }),
@@ -403,12 +375,6 @@ export const queueExperiment =
                   case "simulationsCreated":
                     return group.pipe(
                       tap((event) => {
-                        appStore.dispatch(
-                          // @ts-expect-error trackEvents
-                          trackEvents(
-                            simulationTrackingEvents(Object.keys(event.plan)),
-                          ),
-                        );
                         dispatch(
                           experimentSimulationsCreated({
                             experimentId: experiment.experimentId,
@@ -440,7 +406,7 @@ export const queueExperiment =
                       mergeMap(async (evt) => {
                         const simData =
                           selectAllSimulationData(getState())?.[
-                            evt.simulationId
+                            evt.simulationId!
                           ];
 
                         if (!simData) {
@@ -459,13 +425,13 @@ export const queueExperiment =
 
                           return {
                             analysis: data,
-                            simId: evt.simulationId,
+                            simId: evt.simulationId!,
                           };
                         } catch (err) {
                           console.error(err);
                           return {
                             analysis: null,
-                            simId: evt.simulationId,
+                            simId: evt.simulationId!,
                           };
                         }
                       }),
@@ -491,28 +457,24 @@ export const queueExperiment =
                      * multiple types together – so we need to cast it back to
                      * a regular observable.
                      */
-                    /* eslint-disable no-case-declarations */
                     const combinedGroup = group as Observable<
                       typeof group extends GroupedObservable<any, infer Type>
                         ? Type
                         : never
                     >;
-                    /* eslint-enable no-case-declarations */
 
                     return combinedGroup.pipe(
                       tap(({ type, error, simulationId }) => {
                         // @todo reduce duplication with middleware
                         const message = error?.message ?? "error";
                         if (type === "error") {
-                          appStore.dispatch(
-                            addUserAlert({
-                              type: "error",
-                              message: message,
-                              context: "",
-                              timestamp: Date.now(),
-                              simulationId: simulationId,
-                            }),
-                          );
+                          appBridge.dispatchUserAlert({
+                            type: "error",
+                            message: message,
+                            context: "",
+                            timestamp: Date.now(),
+                            simulationId: simulationId,
+                          });
                         }
 
                         // Make sure to update the runner status so the spinning bar goes away
@@ -591,18 +553,9 @@ export const queueExperiment =
               }),
             );
 
-            const ids = experiment.simulationIds;
-            appStore.dispatch(
-              // @ts-expect-error trackEvents
-              trackEvents([
-                trackExperimentRunEvent,
-                ...simulationTrackingEvents(ids),
-              ]),
-            );
-
             for (const [runId, promise] of Object.entries(startedPromises)) {
               promise.then(() => {
-                return dispatch(simulationRunStarted(runId));
+                dispatch(simulationRunStarted(runId));
               });
             }
 
@@ -612,15 +565,13 @@ export const queueExperiment =
                 .then((status) => {
                   // @todo reduce duplication with middleware
                   if (status.runnerError) {
-                    appStore.dispatch(
-                      addUserAlert({
-                        type: "error",
-                        message: status.runnerError.message ?? "error",
-                        context: "",
-                        timestamp: Date.now(),
-                        simulationId: runId,
-                      }),
-                    );
+                    appBridge.dispatchUserAlert({
+                      type: "error",
+                      message: status.runnerError.message ?? "error",
+                      context: "",
+                      timestamp: Date.now(),
+                      simulationId: runId,
+                    });
                   }
 
                   if (status.simulationRunId && status.earlyStop) {
@@ -636,15 +587,13 @@ export const queueExperiment =
                 })
                 .catch((errorMessage: Error) => {
                   const message = errorMessage?.message ?? "error";
-                  appStore.dispatch(
-                    addUserAlert({
-                      type: "error",
-                      message: message,
-                      context: "experiments.json",
-                      timestamp: Date.now(),
-                      simulationId: runId,
-                    }),
-                  );
+                  appBridge.dispatchUserAlert({
+                    type: "error",
+                    message: message,
+                    context: "experiments.json",
+                    timestamp: Date.now(),
+                    simulationId: runId,
+                  });
                   // Make sure to update the runner status so the spinning bar goes away
                   dispatch(
                     simulationRunFailed({

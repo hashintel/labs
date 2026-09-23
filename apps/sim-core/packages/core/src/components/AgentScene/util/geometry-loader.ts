@@ -1,7 +1,7 @@
 import * as THREE from "three";
-import { BufferGeometryUtils } from "three/examples/jsm/utils/BufferGeometryUtils";
-import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader";
-import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
+import { MTLLoader } from "three/examples/jsm/loaders/MTLLoader.js";
+import { OBJLoader } from "three/examples/jsm/loaders/OBJLoader.js";
 
 import { BUILTIN_MODELS, BUILTIN_MODELS_DB } from "./builtinmodels";
 
@@ -13,66 +13,60 @@ export const loadGeometryMesh = async (
 ): Promise<RawGeometry> => {
   switch (userMeshName) {
     case "box":
-      return geoHelper("BoxBufferGeometry", num, [1, 1, 1]);
-    case "cone": {
-      const [geo, mat] = geoHelper("ConeBufferGeometry", num, [0.5, 1, 30]);
+      return geoHelper("BoxGeometry", num, [1, 1, 1]);
+    case "cone":
+      const [geo, mat] = geoHelper("ConeGeometry", num, [0.5, 1, 30]);
       // Our cones point in the forward direction
       // Cones normally point up
       // We need to rotate them so they point the correct direction
       geo.rotateX(Math.PI);
       geo.rotateY(Math.PI / 2);
       return [geo, mat];
-    }
-    case "flatplane": {
-      const [geoPlane, matPlane] = geoHelper(
-        "PlaneBufferGeometry",
-        num,
-        [1, 1],
-      );
+    case "flatplane":
+      const [geoPlane, matPlane] = geoHelper("PlaneGeometry", num, [1, 1]);
       geoPlane.translate(0, 0, -0.5);
       return [geoPlane, matPlane];
-    }
     case "cylinder":
-      return geoHelper("CylinderBufferGeometry", num, [0.5, 0.5]);
+      return geoHelper("CylinderGeometry", num, [0.5, 0.5]);
     case "dodecahedron":
-      return geoHelper("DodecahedronBufferGeometry", num, [0.5]);
+      return geoHelper("DodecahedronGeometry", num, [0.5]);
     case "icosahedron":
-      return geoHelper("IcosahedronBufferGeometry", num, [0.5]);
+      return geoHelper("IcosahedronGeometry", num, [0.5]);
     case "octahedron":
-      return geoHelper("OctahedronBufferGeometry", num, [0.5]);
+      return geoHelper("OctahedronGeometry", num, [0.5]);
     case "sphere":
-      return geoHelper("SphereBufferGeometry", num, [0.5]);
+      return geoHelper("SphereGeometry", num, [0.5]);
     case "tetrahedron":
-      return geoHelper("TetrahedronBufferGeometry", num, [0.5]);
+      return geoHelper("TetrahedronGeometry", num, [0.5]);
     case "torus":
-      return geoHelper("TorusBufferGeometry", num, [0.3, 0.2, 10, 10]);
+      return geoHelper("TorusGeometry", num, [0.3, 0.2, 10, 10]);
     case "torusknot":
-      return geoHelper("TorusKnotBufferGeometry", num, [0.3, 0.2, 10, 10]);
+      return geoHelper("TorusKnotGeometry", num, [0.3, 0.2, 10, 10]);
     case "pickedAgent":
       return pickedMesh();
     default:
       try {
-        const model = await polyLoader(userMeshName);
+        const model = await polyLoader(userMeshName, num);
         return model;
-      } catch (err) {
+      } catch {
         // Fail through and produce a box
-        return geoHelper("BoxBufferGeometry", num, [1, 1, 1]);
+        return geoHelper("BoxGeometry", num, [1, 1, 1]);
       }
   }
 };
 
 type SupportedShapes =
-  | "BoxBufferGeometry"
-  | "ConeBufferGeometry"
-  | "PlaneBufferGeometry"
-  | "CylinderBufferGeometry"
-  | "DodecahedronBufferGeometry"
-  | "IcosahedronBufferGeometry"
-  | "OctahedronBufferGeometry"
-  | "SphereBufferGeometry"
-  | "TetrahedronBufferGeometry"
-  | "TorusBufferGeometry"
-  | "TorusKnotBufferGeometry";
+  | "BoxGeometry"
+  | "ConeGeometry"
+  | "PlaneGeometry"
+  | "CylinderGeometry"
+  | "DodecahedronGeometry"
+  | "IcosahedronGeometry"
+  | "OctahedronGeometry"
+  | "SphereGeometry"
+  | "TetrahedronGeometry"
+  | "TorusGeometry"
+  | "TorusKnotGeometry";
 
 /**
  * Create a new InstanceMesh from a geometry name and constructor parameters
@@ -89,46 +83,40 @@ const geoHelper = (
   geometry.setAttribute("color", new THREE.InstancedBufferAttribute(colors, 3));
   const material = new THREE.MeshPhongMaterial({
     vertexColors: true,
-    shininess: 0.1,
-    reflectivity: 0.1,
+    shininess: 30,
   });
   return [geometry, material];
 };
 
 const pickedMesh = (): RawGeometry => {
-  const modelGeometry = new THREE.Geometry();
-
-  // The hover diamond
   const coneGeometry = new THREE.ConeGeometry();
-  coneGeometry.translate(0, 0, 0);
   coneGeometry.scale(0.2, 0.2, 0.2);
   coneGeometry.rotateX(Math.PI);
   coneGeometry.translate(0, 0.8, 0);
 
-  // The bounding box
   const boxGeometry = new THREE.BoxGeometry();
   boxGeometry.scale(1.05, 1.05, 1.05);
 
-  // Merge them
-  modelGeometry.merge(coneGeometry);
-  modelGeometry.merge(boxGeometry);
-  const bufGeometry = new THREE.BufferGeometry().fromGeometry(modelGeometry);
+  const merged = mergeGeometries([coneGeometry, boxGeometry], false);
+  if (!merged) throw new Error("Failed to merge picked-agent geometry");
 
-  // A simple bounding box
+  merged.rotateX(Math.PI / 2);
+
   const material = new THREE.MeshStandardMaterial({
     color: "white",
     wireframe: true,
   });
 
-  // We need to align the coordinate systems of the normal geometry and the models
-  bufGeometry.rotateX(Math.PI / 2);
-  return [bufGeometry, material];
+  return [merged, material];
 };
 
 /**
  * Fetch a model from the API and return its geoemtry and materials
  */
-export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
+export const polyLoader = async (
+  meshName: string,
+  numMeshes: number,
+): Promise<RawGeometry> => {
   // Check for a built-in and any specific rotation information
   const builtin = BUILTIN_MODELS[meshName];
   if (!builtin) {
@@ -170,14 +158,9 @@ export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
   });
 
   mergedMaterials.concat(Object.values(materials.materials));
-  const geometry = BufferGeometryUtils.mergeBufferGeometries(
-    mergedGeometries,
-    true,
-  );
+  const geometry = mergeGeometries(mergedGeometries, true);
 
-  // Yes, it's deprecated, but it's the only way to get material merging to work
-  const material = new THREE.MultiMaterial(Object.values(mergedMaterials));
-  material.vertexColors = true;
+  const material = mergedMaterials[0] ?? new THREE.MeshStandardMaterial();
 
   // Resize the mesh to fit within a single cube
   const boundingBox = new THREE.Box3();
@@ -200,13 +183,25 @@ export const polyLoader = async (meshName: string): Promise<RawGeometry> => {
   geometry.rotateY((rotY ?? 0) * (Math.PI / 180));
   geometry.rotateZ((rotZ ?? 0) * (Math.PI / 180));
 
-  return [geometry, material];
+  // Per-instance color buffer so each agent can have its own color from the
+  // simulation state (e.g. green for healthy trees, red for fire).
+  const colors = new Float32Array(numMeshes * 3).map(() => 0);
+  geometry.setAttribute(
+    "color",
+    new THREE.InstancedBufferAttribute(colors, 3),
+  );
+  const coloredMaterial = new THREE.MeshPhongMaterial({
+    vertexColors: true,
+    shininess: 30,
+  });
+
+  return [geometry, coloredMaterial];
 };
 
-const fetchPolyFromBuiltinDb = (slug: string) => {
+const fetchPolyFromBuiltinDb = async (slug: string) => {
   const { folderPath, resourceUrls } = BUILTIN_MODELS_DB.find((model) => {
     return model.slug === slug;
-  }) ?? { folderPath: null, resourceUrls: [] };
+  }) || { folderPath: null, resourceUrls: [] };
 
   if (!folderPath) {
     throw new Error("No folderPath found for built-in model " + slug);

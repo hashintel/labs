@@ -1,2 +1,11 @@
 coverage
-dist
+
+# auto-generated types for API queries
+src/util/api/auto-types.ts
+
+# Playwright E2E test artifacts
+tests/e2e/test-results/
+tests/e2e/playwright-report/
+tests/e2e/.playwright/
+playwright-report/
+test-results/

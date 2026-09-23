@@ -55,7 +55,8 @@ pub struct MessageHandlerState {
 impl MessageHandlerState {
     #[must_use]
     pub fn get_messages(&self) -> Array {
-        Array::from(&JsValue::from_serde(&self.messages.clone()).unwrap())
+        let js = crate::util::to_js_json(&self.messages).unwrap();
+        Array::from(&js)
     }
 
     pub fn remove_agent(&mut self, agent_id: String) {
@@ -63,16 +64,14 @@ impl MessageHandlerState {
     }
 
     pub fn add_agent(&mut self, agent: &JsValue) -> Result<(), JsValue> {
-        let agent_serde = agent
-            .into_serde()
+        let agent_serde = serde_wasm_bindgen::from_value(agent.clone())
             .map_err(|e| JsValue::from(e.to_string()))?;
         self.results.added.push(agent_serde);
         Ok(())
     }
 
     pub fn add_message(&mut self, message: &JsValue) -> Result<(), JsValue> {
-        let message_serde = message
-            .into_serde()
+        let message_serde = serde_wasm_bindgen::from_value(message.clone())
             .map_err(|e| JsValue::from(e.to_string()))?;
         self.results.messages.push(message_serde);
         Ok(())

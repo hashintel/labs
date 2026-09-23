@@ -1,0 +1,1 @@
+{"root":["./src/datasets/fetchdataset.ts","./src/parsers/parsecsvasjson.ts","./src/validators/validatemodeldescription.ts","./src/validators/validatemodelname.ts","./src/validators/validatemodelpath.ts"],"version":"5.9.3"}

@@ -1,14 +1,13 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 
 import { ActivityHistoryRowSpacer } from "../ActivityHistoryRowSpacer";
 import { IconArrowDownDrop } from "../../Icon/ArrowDownDrop";
 
 import "./ActivityHistoryGroupTitle.scss";
 
-export const ActivityHistoryGroupTitle: FC<{ canOpen: boolean }> = ({
-  canOpen,
-  children,
-}) => (
+export const ActivityHistoryGroupTitle: FC<
+  PropsWithChildren<{ canOpen: boolean }>
+> = ({ canOpen, children }) => (
   <>
     <div className="ActivityHistoryGroupTitle__Name">{children}</div>
     {canOpen ? (

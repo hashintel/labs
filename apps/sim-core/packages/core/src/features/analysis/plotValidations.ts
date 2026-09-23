@@ -50,14 +50,14 @@ const baseValidations = (
       expectedShape,
     );
   }
-  for (const datum of plot.data) {
-    if (typeof datum !== "object") {
+  for (let index = 0; index < plot.data.length; index++) {
+    if (typeof plot.data[index] !== "object") {
       return new PlotHasAnInvalidItemInTheDataArrayError(
         plot?.title ?? defaultTitle,
         expectedShape,
       );
     }
-    if (Object.keys(datum).length === 0) {
+    if (Object.keys(plot.data[index]).length === 0) {
       return new PlotHasEmptyDataObjectError(
         plot?.title ?? defaultTitle,
         expectedShape,
@@ -326,43 +326,44 @@ const LineOrScatterValidatorBothAxes = (
   if (!currentPlot) {
     return false;
   }
-  // ensure both x and y are using the same data source
-  // @ts-expect-error fixme
-  const errors = currentPlot.data.map((currentPlotDataItem) => {
-    const xKey = currentPlotDataItem.x;
-    const yKey = currentPlotDataItem.y;
-    const xOutputExists = LineOrScatterCheckOutputExistence(
-      xKey,
-      currentPlot.title,
-      "x",
-      outputs,
-    );
-    const yOutputExists = LineOrScatterCheckOutputExistence(
-      yKey,
-      currentPlot.title,
-      "y",
-      outputs,
-    );
-    if (xOutputExists instanceof Error) {
-      return xOutputExists;
-    }
-    if (yOutputExists instanceof Error) {
-      return yOutputExists;
-    }
-    if (xOutputExists === true && yOutputExists === true) {
-      // @ts-expect-error we already checked this above
-      const outputMetric = outputs[xKey][outputs[xKey].length - 1] ?? {};
-      const outputMetricEndsInGet = outputMetric.op === GetOperator.get;
-      // @ts-expect-error we already checked this above
-      const outputMetricY = outputs[yKey][outputs[yKey].length - 1] ?? {};
-      const outputMetricYEndsInGet = outputMetricY.op === GetOperator.get;
-      if (outputMetricEndsInGet !== outputMetricYEndsInGet) {
-        return new PlotLineOrScatterBothAxesMustBeInSyncError(
-          currentPlot.title,
-        );
+  const plotData = currentPlot.data as { x: string; y: string }[];
+  const errors = plotData
+    .map((currentPlotDataItem) => {
+      const xKey = currentPlotDataItem.x;
+      const yKey = currentPlotDataItem.y;
+      const xOutputExists = LineOrScatterCheckOutputExistence(
+        xKey,
+        currentPlot.title,
+        "x",
+        outputs,
+      );
+      const yOutputExists = LineOrScatterCheckOutputExistence(
+        yKey,
+        currentPlot.title,
+        "y",
+        outputs,
+      );
+      if (xOutputExists instanceof Error) {
+        return xOutputExists;
       }
-    }
-  });
+      if (yOutputExists instanceof Error) {
+        return yOutputExists;
+      }
+      if (xOutputExists === true && yOutputExists === true) {
+        const xOps = outputs![xKey]!;
+        const outputMetric = xOps[xOps.length - 1] ?? {};
+        const outputMetricEndsInGet = outputMetric.op === GetOperator.get;
+        const yOps = outputs![yKey]!;
+        const outputMetricY = yOps[yOps.length - 1] ?? {};
+        const outputMetricYEndsInGet = outputMetricY.op === GetOperator.get;
+        if (outputMetricEndsInGet !== outputMetricYEndsInGet) {
+          return new PlotLineOrScatterBothAxesMustBeInSyncError(
+            currentPlot.title,
+          );
+        }
+      }
+    })
+    .filter((error): error is Error => error instanceof Error);
   return errors.length > 0 ? errors : true;
 };
 const LineOrScatterValidatorYAxis = (

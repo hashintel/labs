@@ -1,17 +1,17 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import { ReactSVG } from "react-svg";
 import classNames from "classnames";
 
 import "./Logo.css";
 
-interface LogoProps {
+type LogoProps = {
   size?: number;
   logoSize?: number;
   textSize?: number;
   className?: string;
-}
+};
 
-export const Logo: FC<LogoProps> = ({
+export const Logo: FC<PropsWithChildren<LogoProps>> = ({
   size = 1,
   logoSize = size,
   textSize = size,

@@ -1,5 +1,16 @@
-import { createContext, useContext, useEffect, useRef } from "react";
-import { ShepherdTourContext } from "react-shepherd";
+import {
+  ComponentProps,
+  createContext,
+  FC,
+  PropsWithChildren,
+  useContext,
+  useEffect,
+  useRef,
+} from "react";
+import {
+  ShepherdTour as BaseShepherdTour,
+  ShepherdTourContext,
+} from "react-shepherd";
 import type BaseStep from "shepherd.js/src/types/step";
 import type BaseTour from "shepherd.js/src/types/tour";
 
@@ -7,7 +18,10 @@ import { TourShowcase } from "../../../features/project/types";
 
 import "./HashCoreTour.css";
 
-export { ShepherdTour } from "react-shepherd";
+// react-shepherd's ShepherdTour type predates React 18's stricter children typing.
+export const ShepherdTour = BaseShepherdTour as unknown as FC<
+  PropsWithChildren<ComponentProps<typeof BaseShepherdTour>>
+>;
 
 export interface Step extends BaseStep {
   options: BaseStep.StepOptions;

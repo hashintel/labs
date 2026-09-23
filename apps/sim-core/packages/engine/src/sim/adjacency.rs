@@ -37,7 +37,7 @@ impl<'a> Eq for Point3WithId<'a> {}
 
 impl<'a> Point3WithId<'a> {
     #[must_use]
-    pub fn new(agent: &'a AgentState, idx: i32, x: f64, y: f64, z: f64) -> Point3WithId {
+    pub fn new(agent: &'a AgentState, idx: i32, x: f64, y: f64, z: f64) -> Point3WithId<'a> {
         Point3WithId {
             dims: [x, y, z],
             idx,

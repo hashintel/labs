@@ -1,73 +1,21 @@
-import React, { FC, lazy, Suspense, useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import React, { FC } from "react";
 import TimeAgo from "react-timeago";
-import { useModal } from "react-modal-hook";
-import urljoin from "url-join";
 
 import { HashCoreHeaderMenu } from "..";
-import { IS_STAGING } from "../../../util/api";
 import { IconBrain } from "../../Icon/Brain";
 import { IconLock } from "../../Icon/Lock";
 import { Logo } from "../../Logo";
-import { ModalPrivateDependencies } from "../../Modal/PrivateDependencies";
-import { ModalReleaseCreate, ModalReleaseUpdate } from "../../Modal";
-import type { ReleaseMeta } from "../../../util/api/types";
-import { Scope, useScopes } from "../../../features/scopes";
-import { coreVersions } from "../../../util/api/queries";
+import { Scope, useScope } from "../../../features/scopes";
 import { projectIsPrivate } from "../../../features/project/utils";
-import { selectCurrentProject } from "../../../features/project/selectors";
-import {
-  selectDidSave,
-  selectProjectHasPrivateDependencies,
-} from "../../../features/files/selectors";
+import { selectDidSave } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
+import { useProject } from "../../../features/project/ProjectContext";
 
 import "./HashCoreHeader.css";
 
-const shouldShowVersionPicker = IS_STAGING;
-
-const HashVersionPicker = shouldShowVersionPicker
-  ? lazy(() =>
-      import(
-        /* webpackChunkName: "HashVersionPicker" */ "./HashVersionPicker"
-      ).then((module) => ({
-        default: module.HashVersionPicker,
-      })),
-    )
-  : null;
-
 export const HashCoreHeader: FC = () => {
-  const project = useSelector(selectCurrentProject);
-  const [versions, setVersions] = useState<string[]>([]);
-  const isSaved = useSelector(selectDidSave);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    if (shouldShowVersionPicker) {
-      coreVersions(undefined, controller.signal).then((vs) =>
-        setVersions(vs.coreVersions),
-      );
-    }
-    return controller.abort.bind(controller);
-  }, []);
-
-  const [data, _setData] = useState<ReleaseMeta>();
-  const [_showCreateReleaseModal, hideCreateReleaseModal] = useModal(
-    () => <ModalReleaseCreate onClose={hideCreateReleaseModal} data={data} />,
-    [data],
-  );
-
-  const [_showUpdateInIndex, hideUpdateInIndex] = useModal(
-    () => <ModalReleaseUpdate onClose={hideUpdateInIndex} />,
-    [],
-  );
-
-  const [_showPrivateDependencies, hidePrivateDependencies] = useModal(() => (
-    <ModalPrivateDependencies onClose={hidePrivateDependencies} />
-  ));
-
-  const _hasPrivateDependencies = useSelector(
-    selectProjectHasPrivateDependencies,
-  );
+  const { currentProject: project } = useProject();
+  const isSaved = useFilesSelector(selectDidSave);
 
   const projectUpdatedAtDate = project
     ? new Date(project.updatedAt)
@@ -81,19 +29,7 @@ export const HashCoreHeader: FC = () => {
 
   const isBehaviorProject = project?.type === "Behavior";
 
-  const {
-    canLogin: _canLogin,
-    canRelease: _canRelease,
-    canSave,
-    canUseAccount: _canUseAccount,
-    canLinkToProjectInIndex,
-  } = useScopes(
-    Scope.login,
-    Scope.release,
-    Scope.save,
-    Scope.useAccount,
-    Scope.linkToProjectInIndex,
-  );
+  const canSave = useScope(Scope.save);
 
   /**
    * These svg icons have fractional sizes to ensure they don't have
@@ -123,16 +59,7 @@ export const HashCoreHeader: FC = () => {
         </div>
       </div>
       <div className="HashCoreHeader__section HashCoreHeader__section--middle">
-        {project && canLinkToProjectInIndex ? (
-          <a
-            href={urljoin("/", project.pathWithNamespace)}
-            className="HashCoreHeader-title-link"
-          >
-            {title}
-          </a>
-        ) : (
-          title
-        )}
+        {title}
         {project?.updatedAt && (
           <i className="HashCoreHeader-timeago">
             &nbsp;- last{" "}
@@ -147,70 +74,7 @@ export const HashCoreHeader: FC = () => {
           </i>
         )}
       </div>
-      <div className="HashCoreHeader__section HashCoreHeader__section--right">
-        {!!versions?.length && HashVersionPicker ? (
-          <Suspense fallback={null}>
-            <HashVersionPicker versions={versions} />
-          </Suspense>
-        ) : null}
-        <div>
-          {
-            /**
-             * We only show last published if you are on main and are able to
-             * edit / publish
-             */
-            // project?.latestRelease && canRelease ? (
-            //   <i className="HashCoreHeader-timeago">
-            //     Last released <TimeAgo date={project.latestRelease.createdAt} />
-            //   </i>
-            // ) : null
-          }
-          {/* {project ? <HashCoreHeaderShareButton /> : null} */}
-          {/* {project && canRelease ? (
-            <button
-              className="HashCoreHeader__RightButton"
-              onClick={async (evt) => {
-                evt.preventDefault();
-
-                if (
-                  project?.visibility === "public" &&
-                  hasPrivateDependencies
-                ) {
-                  showPrivateDependencies();
-                } else if (project.latestRelease) {
-                  showUpdateInIndex();
-                } else {
-                  setData(await getReleaseMeta());
-                  showCreateReleaseModal();
-                }
-              }}
-            >
-              Create a{" "}
-              {projectIsPrivate(project)
-                ? project.ownerType === "Org"
-                  ? "shared "
-                  : "private "
-                : ""}
-              release
-            </button>
-          ) : null} */}
-          {/* {canLogin ? (
-            <Link
-              className="HashCoreHeader__RightButton HashCoreHeader__RightButton--CTA"
-              path="/signup"
-            >
-              Sign up / Sign in
-            </Link>
-          ) : null} */}
-        </div>
-
-        {/* {canUseAccount ? <HashCoreHeaderUserImage /> : null} */}
-      </div>
+      <div className="HashCoreHeader__section HashCoreHeader__section--right"></div>
     </header>
   );
 };
-
-// // @ts-expect-error
-// HashCoreHeader.whyDidYouRender = {
-//   customName: "HashCoreHeader"
-// };

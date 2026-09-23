@@ -1,5 +1,5 @@
 import { FC, useEffect } from "react";
-import { navigate } from "hookrouter";
+import { navigate } from "../../../util/navigation";
 
 import { urlFromProject } from "../../../routes";
 import { useGettingStartedProject } from "../../HashCore/Tour/util";
