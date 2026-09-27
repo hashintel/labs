@@ -6,11 +6,13 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { Tab, TabPanel } from "react-tabs";
 import { useModal } from "react-modal-hook";
 
-import { AppDispatch } from "../../../features/types";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { HashCoreContextMenu } from "../ContextMenu";
 import { HashCoreEditorBehaviorKeysFileAction } from "./HashCoreEditorBehaviorKeysFileAction";
 import { HashCoreEditorFile } from "./HashCoreEditorFile";
@@ -23,12 +25,7 @@ import {
 } from "../../Icon";
 import { IconCodeTagsCheck } from "../../Icon/CodeTagsCheck";
 import { MonacoContainer } from "../../MonacoContainer";
-import {
-  Scope,
-  selectCanToggleVisualGlobals,
-  selectVisualGlobalsVisible,
-  useScope,
-} from "../../../features/scopes";
+import { Scope, useScope } from "../../../features/scopes";
 import { SimpleTooltip } from "../../SimpleTooltip";
 import { TabActionBar } from "../../TabActionBar/TabActionBar";
 import {
@@ -38,32 +35,17 @@ import {
 import { ViewStates } from "../../TabbedEditor/Panel/TabbedEditorPanel";
 import { analysisFileId, globalsFileId } from "../../../features/files/utils";
 import {
-  closeAllFiles,
-  closeFile,
-  closeFilesToTheRight,
-  closeOtherFiles,
-  setCurrentFileId,
-  toggleVisualGlobals,
-} from "../../../features/files/slice";
-import {
   fileActionSize,
   getDocsSection,
   validateAnalysisJsonAndDispatchErrorsIfAny,
 } from "./utils";
 import {
-  selectCurrentFile,
-  selectCurrentFileId,
-  selectOpenFileIds,
-  selectOpenFiles,
   selectParsedAnalysis,
   selectReplaceProposal,
   selectShouldShowBehaviorKeys,
 } from "../../../features/files/selectors";
-import {
-  selectEditorVisible,
-  selectEmbedded,
-} from "../../../features/viewer/selectors";
-import { trackEvent } from "../../../features/analytics";
+
+import { useViewer } from "../../../features/viewer/ViewerContext";
 import { useNameNewBehaviorModal } from "../Files";
 import { useOnClickOutside } from "../../../hooks/useOnClickOutside";
 import { useResizeObserver } from "../../../hooks/useResizeObserver/useResizeObserver";
@@ -76,13 +58,21 @@ import "./HashCoreEditor.scss";
 export const HashCoreEditor: FC = () => {
   const [, setMonacoContainer] = useMonacoContainerFromContext();
 
-  const dispatch = useDispatch<AppDispatch>();
-  const openFiles = useSelector(selectOpenFiles);
-  const openFileIds = useSelector(selectOpenFileIds);
-  const currentFileId = useSelector(selectCurrentFileId);
-  const currentFile = useSelector(selectCurrentFile);
-  const replaceProposal = useSelector(selectReplaceProposal);
-  const analysis = useSelector(selectParsedAnalysis);
+  const {
+    openFiles,
+    openFileIds,
+    currentFileId,
+    currentFile,
+    setCurrentFileId,
+    closeFile,
+    closeOtherFiles,
+    closeFilesToTheRight,
+    closeAllFiles,
+    toggleVisualGlobals,
+    visualGlobals: shouldShowGlobalEditor,
+  } = useFiles();
+  const replaceProposal = useFilesSelector(selectReplaceProposal);
+  const analysis = useFilesSelector(selectParsedAnalysis);
 
   const [diffEditorInstance, monacoDiffContainerRef] =
     useMonacoContainerFromContext(true);
@@ -149,14 +139,14 @@ export const HashCoreEditor: FC = () => {
     ],
   );
 
-  const editorVisible = useSelector(selectEditorVisible);
-  const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
-  const shouldShowBehaviorKeys = useSelector(selectShouldShowBehaviorKeys);
+  const { editorVisible, embedded, addUserAlert, clearUserAlerts } =
+    useViewer();
+  const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
   const section = getDocsSection(currentFile, shouldShowBehaviorKeys);
 
   const editorViewStates = useRef<ViewStates>({});
 
-  const canToggleVisualGlobals = useSelector(selectCanToggleVisualGlobals);
+  const canToggleVisualGlobals = currentFileId === globalsFileId;
 
   const [contextMenuStyle, setContextMenuStyle] = useState<
     Pick<CSSProperties, "top" | "left">
@@ -173,7 +163,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeFile(currentOpenFileInEditor));
+              closeFile(currentOpenFileInEditor);
             }}
           >
             Close
@@ -184,7 +174,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeOtherFiles(currentOpenFileInEditor));
+              closeOtherFiles(currentOpenFileInEditor);
             }}
           >
             Close Others
@@ -195,7 +185,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeFilesToTheRight(currentOpenFileInEditor));
+              closeFilesToTheRight(currentOpenFileInEditor);
             }}
           >
             Close to the Right
@@ -206,7 +196,7 @@ export const HashCoreEditor: FC = () => {
             onClick={(evt) => {
               evt.preventDefault();
               evt.stopPropagation();
-              dispatch(closeAllFiles(currentOpenFileInEditor));
+              closeAllFiles();
             }}
           >
             Close All
@@ -214,12 +204,17 @@ export const HashCoreEditor: FC = () => {
         </li>
       </HashCoreContextMenu>
     ),
-    [contextMenuStyle, dispatch, currentOpenFileInEditor],
+    [
+      contextMenuStyle,
+      closeFile,
+      closeOtherFiles,
+      closeFilesToTheRight,
+      closeAllFiles,
+      currentOpenFileInEditor,
+    ],
   );
 
   useOnClickOutside(tabsRef, hideContextMenu);
-
-  const embedded = useSelector(selectEmbedded);
 
   const canSave = useScope(Scope.save);
   const canShowBehaviorKeys =
@@ -238,7 +233,7 @@ export const HashCoreEditor: FC = () => {
                 <Tab
                   key={file.id}
                   onClick={() => {
-                    dispatch(setCurrentFileId(file.id));
+                    setCurrentFileId(file.id);
                   }}
                   className={`react-tabs__tab tab-${file.id}`}
                   onContextMenu={(evt) => {
@@ -257,7 +252,7 @@ export const HashCoreEditor: FC = () => {
                       className="tab-button"
                       onClick={(evt) => {
                         evt.stopPropagation();
-                        dispatch(closeFile(file.id));
+                        closeFile(file.id);
                       }}
                     >
                       <IconClose size={8} />
@@ -298,7 +293,7 @@ export const HashCoreEditor: FC = () => {
             <button
               onClick={(evt) => {
                 evt.preventDefault();
-                dispatch(toggleVisualGlobals());
+                toggleVisualGlobals();
               }}
               className="tab-button"
               key="visual-globals"
@@ -334,17 +329,10 @@ export const HashCoreEditor: FC = () => {
                    *
                    * @todo fix this
                    */
-                  dispatch(
-                    //@ts-expect-error redux problems
-                    trackEvent({
-                      action: "Validate Analysis JSON Button clicked: Core",
-                      label: "analysis.json",
-                    }),
-                  );
-                  validateAnalysisJsonAndDispatchErrorsIfAny(
-                    analysis as any,
-                    dispatch,
-                  );
+                  validateAnalysisJsonAndDispatchErrorsIfAny(analysis as any, {
+                    addUserAlert,
+                    clearUserAlerts,
+                  });
                 }
               }}
             >
@@ -367,16 +355,6 @@ export const HashCoreEditor: FC = () => {
             className="tab-button"
             href={`https://docs.hash.ai/core/creating-simulations/${section}`}
             target="_blank"
-            onClick={() =>
-              dispatch(
-                //@ts-expect-error redux problems
-                trackEvent({
-                  action: "Docs Link Clicked: Core",
-                  label: section,
-                }),
-              )
-            }
-            rel="noreferrer"
           >
             <IconHelpCircle size={fileActionSize} />
             <SimpleTooltip
@@ -441,12 +419,3 @@ export const HashCoreEditor: FC = () => {
     </div>
   );
 };
-
-// HashCoreEditor.whyDidYouRender = {
-//   // this is needed because the compenent is wrapped in `memo` so it's
-//   // `displayName` is `undefined` ... apparently `@welldone-software/why-did-
-//   // you-render`'s types are somewhat incomplete
-//   //
-//   // @ts-expect-error
-//   customName: "HashCoreEditor"
-// };

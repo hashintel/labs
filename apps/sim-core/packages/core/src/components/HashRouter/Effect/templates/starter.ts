@@ -1,4 +1,4 @@
-import { CommitActionVerb } from "../../../../util/api/types";
+import { CommitActionVerb } from "../../../../util/api/apiTypes";
 import { ProjectTemplate } from "./types";
 
 const starterSimAnalysis = `\

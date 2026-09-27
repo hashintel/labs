@@ -1,10 +1,11 @@
-import React, { FC } from "react";
-import { useSelector } from "react-redux";
+import React, { FC, PropsWithChildren } from "react";
 
-import { selectEmbedded } from "../../features/viewer/selectors";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
-export const PlotViewerTitleContainer: FC = ({ children }) => {
-  const embedded = useSelector(selectEmbedded);
+export const PlotViewerTitleContainer: FC<PropsWithChildren> = ({
+  children,
+}) => {
+  const { embedded } = useViewer();
 
   return embedded ? null : <div className="PlotViewer__Header">{children}</div>;
 };

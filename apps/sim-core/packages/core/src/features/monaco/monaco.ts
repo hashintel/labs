@@ -1,15 +1,17 @@
-import { Store } from "@reduxjs/toolkit";
 import { IDisposable, Uri, editor } from "monaco-editor";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 import { v4 as uuid } from "uuid";
 
-import type { AppDispatch, RootState } from "../types";
+if (typeof window !== "undefined") {
+  (window as any).__monacoEditor = editor;
+}
+
 import { Ext } from "../../util/files/enums";
+
+import type { Dispatch } from "react";
 import type { HcFile } from "../files/types";
 import { addGitConflictMarkersDecorator } from "./decorators/addGitConflictMarkersDecorator";
 import { isReadOnly } from "../files/utils";
-import { selectAllFiles, selectFileEntities } from "../files/selectors";
-import { selectCurrentProjectUrl } from "../project/selectors";
 import { updateFile } from "../files/slice";
 
 type ModelStore = Record<string, editor.ITextModel>;
@@ -139,8 +141,8 @@ export const setMonacoModel = (
 };
 
 const createMonacoSubscriber = () => {
-  let dispatch: AppDispatch;
-  let getState: () => RootState;
+  let filesDispatch: Dispatch<any>;
+  let fileEntities: Record<string, HcFile | undefined> = {};
   let models: ModelStore = {};
   let modelsToDispose: editor.ITextModel[] = [];
 
@@ -155,12 +157,8 @@ const createMonacoSubscriber = () => {
       model.onDidChangeContent(() => {
         const contents = model.getValue();
 
-        if (!document.hasFocus()) {
-          return;
-        }
-
-        if (contents !== selectFileEntities(getState!())[file.id]?.contents) {
-          dispatch(updateFile({ id: file.id, contents }));
+        if (contents !== fileEntities[file.id]?.contents) {
+          filesDispatch(updateFile({ id: file.id, contents }));
         }
       });
     }
@@ -188,55 +186,58 @@ const createMonacoSubscriber = () => {
     getTextModel,
     getTextModelRequired,
 
-    subscribe(store: Store<RootState>) {
-      // @ts-expect-error redux problems
-      dispatch = store.dispatch;
-      getState = store.getState;
+    /**
+     * Synchronise Monaco text models with the current file state from React
+     * context. Call this from a useEffect whenever files or projectUrl change.
+     * Replaces the old subscribe(store) approach that relied on Redux.
+     */
+    syncModels(
+      files: HcFile[],
+      projectUrl: string | null,
+      dispatch: Dispatch<any>,
+    ) {
+      filesDispatch = dispatch;
+      fileEntities = Object.fromEntries(files.map((file) => [file.id, file]));
 
-      store.subscribe(() => {
-        for (const model of modelsToDispose) {
-          model.dispose();
+      for (const model of modelsToDispose) {
+        model.dispose();
+      }
+
+      modelsToDispose = [];
+
+      const newModels: ModelStore = {};
+
+      for (const file of files) {
+        const modelId = getModelId(file, projectUrl);
+        const model = models[modelId] ?? createTextModel(file);
+
+        if (model.getValue() !== file.contents) {
+          model.setValue(file.contents);
         }
 
-        modelsToDispose = [];
+        newModels[modelId] = model;
+      }
 
-        const nextState = store.getState();
-
-        const projectUrl = selectCurrentProjectUrl(nextState);
-        const newModels: ModelStore = {};
-
-        for (const file of selectAllFiles(nextState)) {
-          const modelId = getModelId(file, projectUrl);
-          const model = models[modelId] ?? createTextModel(file);
-
-          if (model.getValue() !== file.contents) {
-            model.setValue(file.contents);
+      /**
+       * We defer the disposal of models until the next sync because React
+       * may not yet have re-rendered without the state that relies on this
+       * model just yet
+       */
+      modelsToDispose = Object.entries(models).reduce<editor.ITextModel[]>(
+        (toDispose, [modelId, model]) => {
+          if (!newModels[modelId]) {
+            toDispose.push(model);
           }
 
-          newModels[modelId] = model;
-        }
+          return toDispose;
+        },
+        [],
+      );
 
-        /**
-         * We defer the disposal of models until the next dispatch because React
-         * may not yet have re-rendered without the state that relies on this
-         * model just yet
-         */
-        modelsToDispose = Object.entries(models).reduce<editor.ITextModel[]>(
-          (modelsToDispose, [modelId, model]) => {
-            if (!newModels[modelId]) {
-              modelsToDispose.push(model);
-            }
-
-            return modelsToDispose;
-          },
-          [],
-        );
-
-        models = newModels;
-      });
+      models = newModels;
     },
   };
 };
 
-export const { getTextModel, getTextModelRequired, subscribe } =
+export const { getTextModel, getTextModelRequired, syncModels } =
   createMonacoSubscriber();

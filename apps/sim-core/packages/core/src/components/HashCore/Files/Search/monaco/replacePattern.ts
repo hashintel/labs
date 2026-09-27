@@ -81,8 +81,12 @@ export class ReplacePattern {
       if (piece.caseOps !== null && piece.caseOps.length > 0) {
         const repl: string[] = [];
         const lenOps: number = piece.caseOps.length;
-        let opIdx = 0;
-        for (let idx = 0, len: number = match.length; idx < len; idx++) {
+        let opIdx: number = 0;
+        for (
+          let idx: number = 0, len: number = match.length;
+          idx < len;
+          idx++
+        ) {
           if (opIdx >= lenOps) {
             repl.push(match.slice(idx));
             break;
@@ -291,13 +295,10 @@ export function parseReplaceString(replaceString: string): ReplacePattern {
         // to the replacement text, not subsequent content.
         case CharCode.u:
         // \u => upper-cases one character.
-        // falls through
         case CharCode.U:
         // \U => upper-cases ALL following characters.
-        // falls through
         case CharCode.l:
         // \l => lower-cases one character.
-        // falls through
         case CharCode.L:
           // \L => lower-cases ALL following characters.
           result.emitUnchanged(idx - 1);

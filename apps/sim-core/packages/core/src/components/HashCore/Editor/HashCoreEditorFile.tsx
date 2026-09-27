@@ -5,20 +5,18 @@ import React, {
   SetStateAction,
   Suspense,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import { AppDispatch } from "../../../features/types";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { BehaviorKeys } from "../../BehaviorKeys/BehaviorKeys";
 import { DataLoader } from "../../DataLoader/DataLoader";
 import { FileBannerWrapper } from "../../FileBanner";
 import { GlobalsEditor } from "../../GlobalsEditor";
 import { HcFile } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
-import {
-  Scope,
-  selectVisualGlobalsVisible,
-  useScopes,
-} from "../../../features/scopes";
+import { Scope, useScopes } from "../../../features/scopes";
 import {
   TabbedEditorDiffPanel,
   TabbedEditorPanel,
@@ -29,10 +27,9 @@ import {
   canAutosuggestKeysForFile,
   globalsFileId,
 } from "../../../features/files/utils";
-import { getTextModelRequired } from "../../../features/monaco";
-import { selectCurrentProjectUrl } from "../../../features/project/selectors";
+import { getTextModel } from "../../../features/monaco";
 import { selectShouldShowBehaviorKeys } from "../../../features/files/selectors";
-import { updateBehaviorKeysFile } from "../../../features/files/slice";
+import { useProject } from "../../../features/project/ProjectContext";
 
 export const HashCoreEditorFile: FC<{
   file: HcFile;
@@ -52,10 +49,10 @@ export const HashCoreEditorFile: FC<{
   const [editorInstance] = useMonacoContainerFromContext();
   const [diffEditorInstance] = useMonacoContainerFromContext(true);
 
-  const dispatch = useDispatch<AppDispatch>();
-  const projectUrl = useSelector(selectCurrentProjectUrl);
-  const shouldShowBehaviorKeys = useSelector(selectShouldShowBehaviorKeys);
-  const shouldShowGlobalEditor = useSelector(selectVisualGlobalsVisible);
+  const { updateBehaviorKeysFile, visualGlobals: shouldShowGlobalEditor } =
+    useFiles();
+  const { currentProjectUrl: projectUrl } = useProject();
+  const shouldShowBehaviorKeys = useFilesSelector(selectShouldShowBehaviorKeys);
   const { canModifyFile, canSaveFile } = useScopes(
     Scope.modifyFile,
     Scope.saveFile,
@@ -82,12 +79,7 @@ export const HashCoreEditorFile: FC<{
           disabled={!canSaveFile}
           autosuggest={canAutosuggestKeysForFile(file)}
           onChange={(keys) => {
-            dispatch(
-              updateBehaviorKeysFile({
-                fileId: file.id,
-                keys,
-              }),
-            );
+            updateBehaviorKeysFile(file.id, keys);
           }}
         />
       ) : file.id === globalsFileId && shouldShowGlobalEditor ? (
@@ -108,14 +100,33 @@ export const HashCoreEditorFile: FC<{
           file={file}
           nextContents={nextContents}
         />
-      ) : (
-        <TabbedEditorPanel
-          editorInstance={editorInstance}
-          textModel={getTextModelRequired(file, projectUrl)}
-          readOnly={!canModifyFile}
-          viewStatesRef={viewStatesRef}
-        />
-      )}
+      ) : (() => {
+        const textModel = getTextModel(file, projectUrl);
+        if (!textModel) {
+          return (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                height: "100%",
+                color: "var(--theme-dark-text, #aaa)",
+                fontSize: 13,
+              }}
+            >
+              Loading editor...
+            </div>
+          );
+        }
+        return (
+          <TabbedEditorPanel
+            editorInstance={editorInstance}
+            textModel={textModel}
+            readOnly={!canModifyFile}
+            viewStatesRef={viewStatesRef}
+          />
+        );
+      })()}
     </>
   );
 };

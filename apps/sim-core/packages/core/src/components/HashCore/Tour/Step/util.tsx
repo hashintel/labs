@@ -1,4 +1,11 @@
-import React, { FC, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { getDomIdByFileId } from "../../Files/ListItemFile";
 import { pauseSimulator } from "../../../../features/simulator/simulate/slice";
@@ -32,14 +39,14 @@ export const Indicator: FC<{
   position: "left-overlap" | "right-overlap" | "right";
 }> = ({ element, show, position }) => {
   const calculateRef = useRef<VoidFunction | null>(null);
-  const immediateIdRef = useRef<number | null>(null);
+  const immediateIdRef = useRef<ReturnType<typeof setImmediate> | null>(null);
 
   const calculateOnResize = () => {
     if (immediateIdRef.current !== null) {
-      clearTimeout(immediateIdRef.current);
+      clearImmediate(immediateIdRef.current);
     }
 
-    immediateIdRef.current = setTimeout(() => calculateRef.current?.());
+    immediateIdRef.current = setImmediate(() => calculateRef.current?.());
   };
 
   const setTargetObserverRef = useResizeObserver(calculateOnResize, {
@@ -180,15 +187,17 @@ export const ProgressIndicator: FC = () => {
   );
 };
 
-export const Buttons: FC = ({ children }) => (
+export const Buttons: FC<PropsWithChildren> = ({ children }) => (
   <div className="shepherd-footer">{children}</div>
 );
 
-export const Button: FC<{
-  type: "back" | "next";
-  className?: string;
-  disabled?: boolean;
-}> = ({ type, className = "", disabled = false, children }) => {
+export const Button: FC<
+  PropsWithChildren<{
+    type: "back" | "next";
+    className?: string;
+    disabled?: boolean;
+  }>
+> = ({ type, className = "", disabled = false, children }) => {
   const tour = useTour();
 
   return (

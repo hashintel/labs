@@ -1,7 +1,6 @@
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { ResourceProject } from "../../../features/project/types";
-import type { RootState } from "../../../features/types";
 import { mapLegacyDependencyFormat } from "../../../features/project/utils";
 import {
   selectParsedDependencies,
@@ -30,7 +29,7 @@ export const selectPathsForDependencies = createSelector(
 export const makeSelectPresentItemsFromResource = () =>
   createSelector(
     selectPathsForDependencies,
-    (_: RootState, resource: ResourceProject) => resource,
+    (_: any, resource: ResourceProject) => resource,
     (paths, resource) =>
       resource.files.reduce<string[]>((result, file) => {
         if (paths.includes(file.path.formatted)) {

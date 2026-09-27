@@ -1,23 +1,13 @@
 import React from "react";
-import ReactDOM from "react-dom";
-import { Provider } from "react-redux";
+import { render } from "@testing-library/react";
 
 import { ModalPrivateDependencies } from "./ModalPrivateDependencies";
-import { mockProject } from "../../../features/project/mocks";
-import { setProjectWithMeta } from "../../../features/actions";
-import { store } from "../../../features/store";
+import { ProjectProvider } from "../../../features/project/ProjectContext";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-
-  //@ts-expect-error redux problems
-  store.dispatch(setProjectWithMeta(mockProject));
-
-  ReactDOM.render(
-    <Provider store={store}>
+  render(
+    <ProjectProvider>
       <ModalPrivateDependencies onClose={() => {}} />
-    </Provider>,
-    div,
+    </ProjectProvider>,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

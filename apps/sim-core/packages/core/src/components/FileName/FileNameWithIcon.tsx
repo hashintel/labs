@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 
 import { FileName } from "./FileName";
 import { IconFileOutline } from "../Icon/FileOutline";
@@ -22,9 +22,11 @@ function getIcon(icon: IconType) {
   }
 }
 
-export const FileNameWithIcon: FC<{
-  icon: IconType;
-}> = ({ icon, children }) => (
+export const FileNameWithIcon: FC<
+  PropsWithChildren<{
+    icon: IconType;
+  }>
+> = ({ icon, children }) => (
   <FileName className="FileNameWithIcon">
     {getIcon(icon)}
     <div className="FileNameWithIcon__FileName">{children}</div>

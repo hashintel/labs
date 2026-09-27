@@ -1,4 +1,4 @@
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { FormDataType } from "../../../Modal/Experiments/types";
 import { selectExperimentsSrc } from "../../../../features/files/selectors";

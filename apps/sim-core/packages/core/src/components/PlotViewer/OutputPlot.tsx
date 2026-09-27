@@ -1,7 +1,12 @@
 import React, { FC, useEffect, useMemo, useRef, useState } from "react";
-import Plot, { Figure } from "react-plotly.js";
-import * as Plotly from "plotly.js";
+import createPlotlyComponent from "react-plotly.js/factory";
+import type { Figure } from "react-plotly.js";
+import Plotly from "plotly.js-dist-min";
 import { Subject } from "rxjs";
+
+const Plot = createPlotlyComponent(Plotly) as unknown as React.ComponentClass<
+  import("react-plotly.js").PlotParams
+>;
 
 import { IconSpinner } from "../Icon";
 import { OutputPlotProps } from "./types";
@@ -47,7 +52,7 @@ const mapLayout = (
 
 const getLastOperationFromOperationChain = (
   definition: any,
-  outputs: Record<string, any[]>,
+  outputs: { [index: string]: any[] },
   axisToUse: "x" | "y",
   index: number,
 ) => {
@@ -66,10 +71,10 @@ const isAxisAvailable = (
   definition: any,
   index: number,
   axisToUse: "x" | "y",
-) => !!definition?.data?.[index]?.[axisToUse];
+) => !!(definition?.data?.[index] && definition.data[index][axisToUse]);
 const doLastOperationTypesMatch = (
   definition: any,
-  outputs: Record<string, any[]>,
+  outputs: { [index: string]: any[] },
   index: number,
 ) => {
   const x = isASingleStepAggregationOperation(
@@ -89,7 +94,7 @@ const doLastOperationTypesMatch = (
  */
 const prepareDataBasedOnOutputMetricsLastOperation = async (
   definition: any,
-  outputs: Record<string, any[]>,
+  outputs: { [index: string]: any[] },
   clonedData: any,
   currentStep: number,
 ) => {
@@ -254,7 +259,7 @@ const prepareDataBasedOnOutputMetricsLastOperation = async (
 
 const usePreparePlotsObserver = (
   definition: any,
-  outputs: Record<string, any[]>,
+  outputs: { [index: string]: any[] },
   clonedData: any,
   currentStep: number,
 ) => {
@@ -262,13 +267,13 @@ const usePreparePlotsObserver = (
   const ref = useRef<
     Subject<{
       definition: any;
-      outputs: Record<string, any[]>;
+      outputs: { [index: string]: any[] };
       clonedData: any;
       currentStep: number;
     }>
   >(null as any);
   // @todo type this
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<any | null>(null);
 
   if (!ref.current) {
     ref.current = new Subject();
@@ -333,7 +338,7 @@ export const OutputPlot: FC<
 
   const clonedData = useMemo(() => JSON.parse(JSON.stringify(data)), [data]);
 
-  const plotlyRef = useRef<Plot>(null);
+  const plotlyRef = useRef<InstanceType<typeof Plot>>(null);
   const resizeRef = useResizeObserver(
     () => {
       // @see https://github.com/plotly/react-plotly.js/issues/76#issuecomment-442503423

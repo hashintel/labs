@@ -10,6 +10,22 @@ import {
 } from "./types";
 import { AgentStateProxy } from "./AgentStateProxy";
 
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object") {
+    if ("message" in err && typeof (err as any).message === "string") {
+      return (err as any).message;
+    }
+    try {
+      return JSON.stringify(err);
+    } catch {
+      // fall through
+    }
+  }
+  return String(err);
+}
+
 export class JsCustomBehavior {
   public name: string;
   public dependencies: string[];
@@ -23,7 +39,7 @@ export class JsCustomBehavior {
     src: NamedBehavior,
     properties: Json,
     datasets: Json,
-    agentCache: AgentCache,
+    agentCache: AgentCache
   ) {
     this.name = src.name;
     this.dependencies = src.dependencies;
@@ -35,7 +51,7 @@ export class JsCustomBehavior {
 
   public apply(
     stateWrapper: AgentStateWrapper,
-    contextWrapper: ContextWrapper,
+    contextWrapper: ContextWrapper
   ) {
     const context: Context = {
       messages: () => contextWrapper.messages(),
@@ -56,28 +72,24 @@ export class JsCustomBehavior {
       try {
         this.flushCache(state);
       } catch (err) {
-        // Errors from flushing to Rust do not go through our extended EvalError
-        // We need to add information about the behavior and cause
+        const msg = extractErrorMessage(err);
         throw new Error(
-          `error setting agent state after behavior ${this.name}: ${
-            err instanceof Error ? err.message : err
-          }`,
+          `error setting agent state after behavior ${this.name}: ${msg}`
         );
       }
-    } catch (err) {
-      /**
-       * @todo this context is lost when stringifying in WasmRequestHandler
-       *    figure out why and do something about it, or stop adding it.
-       */
-      // @ts-expect-error args isn't on the err type, we're bolting it on.
-      err.args = {
-        context: {
-          messages: JSON.parse(JSON.stringify(context.messages())),
-          neighbors: JSON.parse(JSON.stringify(context.neighbors())),
-          // do not copy properties: it might be tens of megabytes!
-          // use the copy in the main thread.
-        },
-      };
+    } catch (e) {
+      const msg = extractErrorMessage(e);
+      const err: Error & { args?: unknown } = new Error(msg);
+      try {
+        err.args = {
+          context: {
+            messages: JSON.parse(JSON.stringify(context.messages())),
+            neighbors: JSON.parse(JSON.stringify(context.neighbors())),
+          },
+        };
+      } catch {
+        // context accessors may fail if WASM state is corrupted
+      }
       throw err;
     } finally {
       /**
@@ -99,13 +111,17 @@ export class JsCustomBehavior {
       try {
         state.wrapper.set(key, value);
       } catch (err) {
-        const agent_id = state.wrapper.get("agent_id");
+        let agent_id = "unknown";
+        try {
+          agent_id = state.wrapper.get("agent_id");
+        } catch {
+          // wrapper may be in a bad state
+        }
+        const msg = extractErrorMessage(err);
         throw new Error(
           `could not set state variable '${key}' to value ${JSON.stringify(
-            value,
-          )} on agent with id '${agent_id}': ${
-            err instanceof Error ? err.message : err
-          }`,
+            value
+          )} on agent with id '${agent_id}': ${msg}`
         );
       }
     });

@@ -151,11 +151,11 @@ export let useSyncAnimations = <T extends HTMLElement | SVGElement>(
 };
 
 if (
-  !Object.prototype.hasOwnProperty.call(Element, "getAnimations") ||
+  !Element.prototype.hasOwnProperty("getAnimations") ||
   typeof Animation === "undefined" ||
-  !Object.prototype.hasOwnProperty.call(Animation, "play") ||
-  !Object.prototype.hasOwnProperty.call(Animation, "currentTime") ||
-  !Object.prototype.hasOwnProperty.call(Animation, "pause")
+  !Animation.prototype.hasOwnProperty("play") ||
+  !Animation.prototype.hasOwnProperty("currentTime") ||
+  !Animation.prototype.hasOwnProperty("pause")
 ) {
   console.warn(
     "useSyncAnimations: unsupported browser – disabling animation syncing",

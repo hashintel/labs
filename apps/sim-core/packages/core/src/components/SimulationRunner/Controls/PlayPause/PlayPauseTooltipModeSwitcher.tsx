@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import classNames from "classnames";
 
 import { RadioInput, RadioInputProps } from "../../../Inputs/Radio/RadioInput";
@@ -22,9 +22,11 @@ import {
 import "./PlayPauseTooltipModeSwitcher.scss";
 
 const PlayPauseTooltipModeLabel: FC<
-  Omit<RadioInputProps, "tick" | "name"> & {
-    name: "simulationMode" | "stepsToRetain";
-  }
+  PropsWithChildren<
+    Omit<RadioInputProps, "tick" | "name"> & {
+      name: "simulationMode" | "stepsToRetain";
+    }
+  >
 > = ({ disabled, children, name, ...props }) => (
   <label
     className={classNames("PlayPauseTooltipModeLabel", {

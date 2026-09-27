@@ -1,9 +1,9 @@
-import { EntityState } from "@reduxjs/toolkit";
-
 import type { BasicUser, TourProgress, User } from "../../util/api/types";
 import { PartialSimulationProject } from "../project/types";
 
-export interface UserSlice extends EntityState<PartialSimulationProject> {
+export interface UserSlice {
+  ids: string[];
+  entities: Record<string, PartialSimulationProject | undefined>;
   isLoggedIn: boolean;
   currentUser: User | null;
   /**

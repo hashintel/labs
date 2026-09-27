@@ -20,48 +20,48 @@ export enum DistributionTypes {
   gamma = "gamma",
 }
 
-export interface FormDataDynamicFieldValuesType {
+export type FormDataDynamicFieldValuesType = {
   steps: number;
   field: ReactSelectOption;
   values: string;
-}
-export interface FormDataDynamicFieldValuesErrorsType {
+};
+export type FormDataDynamicFieldValuesErrorsType = {
   steps?: string;
   field?: string;
   values?: string;
-}
+};
 
-export interface FormDataDynamicFieldLinspaceType {
+export type FormDataDynamicFieldLinspaceType = {
   steps: number;
   field: ReactSelectOption;
   start: number;
   stop: number;
   samples: number;
-}
-export interface FormDataDynamicFieldLinspaceErrorsType {
+};
+export type FormDataDynamicFieldLinspaceErrorsType = {
   steps?: string;
   field?: string;
   start?: string;
   stop?: string;
   samples?: string;
-}
+};
 
-export interface FormDataDynamicFieldArangeType {
+export type FormDataDynamicFieldArangeType = {
   steps: number;
   field: ReactSelectOption;
   start: number;
   stop: number;
   increment: number;
-}
-export interface FormDataDynamicFieldArangeErrorsType {
+};
+export type FormDataDynamicFieldArangeErrorsType = {
   steps?: string;
   field?: string;
   start?: string;
   stop?: string;
   increment?: string;
-}
+};
 
-export interface FormDataDynamicFieldMonteCarloType {
+export type FormDataDynamicFieldMonteCarloType = {
   steps: number;
   field: ReactSelectOption;
   samples: number;
@@ -75,8 +75,8 @@ export interface FormDataDynamicFieldMonteCarloType {
   beta?: number;
   shape?: number;
   scale?: number;
-}
-export interface FormDataDynamicFieldMonteCarloErrorsType {
+};
+export type FormDataDynamicFieldMonteCarloErrorsType = {
   steps?: string;
   field?: string;
   samples?: string;
@@ -90,43 +90,43 @@ export interface FormDataDynamicFieldMonteCarloErrorsType {
   beta?: string;
   shape?: string;
   scale?: string;
-}
+};
 
-export interface FormDataDynamicFieldGroupType {
+export type FormDataDynamicFieldGroupType = {
   steps: number;
   runs: ReactSelectOption[] | null;
-}
-export interface FormDataDynamicFieldGroupErrorsType {
+};
+export type FormDataDynamicFieldGroupErrorsType = {
   steps?: string;
   runs?: string;
-}
+};
 
-export interface FormDataDynamicFieldMultiparameterType {
+export type FormDataDynamicFieldMultiparameterType = {
   steps: number;
   runs: ReactSelectOption[] | null; // Used for react-select multi item
-}
-export interface FormDataDynamicFieldMultiparameterErrorsType {
+};
+export type FormDataDynamicFieldMultiparameterErrorsType = {
   steps?: string;
   runs?: string;
-}
+};
 
 export enum FormDataDynamicFieldOptimizationMetricObjective {
   min = "min",
   max = "max",
 }
 
-export interface FormDataDynamicFieldOptimizationFieldType {
+export type FormDataDynamicFieldOptimizationFieldType = {
   name: string;
   value: string;
   uuid: string;
-}
-export interface FormDataDynamicFieldOptimizationFieldErrorsType {
+};
+export type FormDataDynamicFieldOptimizationFieldErrorsType = {
   name?: string;
   value?: string;
   uuid?: string;
-}
+};
 
-export interface FormDataDynamicFieldOptimizationType {
+export type FormDataDynamicFieldOptimizationType = {
   maxRuns: number;
   minSteps: number;
   maxSteps: number;
@@ -136,17 +136,17 @@ export interface FormDataDynamicFieldOptimizationType {
     label: string;
   };
   fields: FormDataDynamicFieldOptimizationFieldType[];
-}
-export interface FormDataDynamicFieldOptimizationErrorsType {
+};
+export type FormDataDynamicFieldOptimizationErrorsType = {
   maxRuns?: string;
   minSteps?: string;
   maxSteps?: string;
   metricName?: string;
   metricObjective?: string;
   fields?: FormDataDynamicFieldOptimizationFieldErrorsType[];
-}
+};
 
-export interface FormDataType {
+export type FormDataType = {
   experimentTitle: string;
   experimentType: ReactSelectOption;
   // ReactSelectOption | string => Used for react-select single item
@@ -159,7 +159,7 @@ export interface FormDataType {
     [ExperimentTypes.multiparameter]?: FormDataDynamicFieldMultiparameterType;
     [ExperimentTypes.optimization]?: FormDataDynamicFieldOptimizationType;
   };
-}
+};
 
 export type RawExperimentOptimizationFieldValue =
   | { range: string }
@@ -184,7 +184,7 @@ export type RawExperimentOptimizationType = Omit<
  *
  * @todo fix this
  */
-export interface RawExperimentType {
+export type RawExperimentType = {
   experimentTitle: string;
   experimentType: string;
   dynamicFields: {
@@ -206,9 +206,9 @@ export interface RawExperimentType {
     };
     optimization?: RawExperimentOptimizationType;
   };
-}
+};
 
-export interface DynamicFieldsErrorsType {
+export type DynamicFieldsErrorsType = {
   [ExperimentTypes.values]?: FormDataDynamicFieldValuesErrorsType;
   [ExperimentTypes.linspace]?: FormDataDynamicFieldLinspaceErrorsType;
   [ExperimentTypes.arange]?: FormDataDynamicFieldArangeErrorsType;
@@ -216,19 +216,19 @@ export interface DynamicFieldsErrorsType {
   [ExperimentTypes.group]?: FormDataDynamicFieldGroupErrorsType;
   [ExperimentTypes.multiparameter]?: FormDataDynamicFieldMultiparameterErrorsType;
   [ExperimentTypes.optimization]?: FormDataDynamicFieldOptimizationErrorsType;
-}
+};
 
-export interface FormErrorsType {
+export type FormErrorsType = {
   experimentTitle?: string;
   dynamicFields?: DynamicFieldsErrorsType;
-}
+};
 
 export type AllFormDataTypeDynamicFieldsType = Required<
   FormDataType["dynamicFields"]
 >[keyof FormDataType["dynamicFields"]];
 
-export interface ParseError {
+export type ParseError = {
   msg?: string;
-}
+};
 
 export type ParseResult<T> = Result<T, ParseError>;

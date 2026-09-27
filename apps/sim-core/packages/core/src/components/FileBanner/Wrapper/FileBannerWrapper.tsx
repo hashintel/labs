@@ -1,7 +1,5 @@
 import React, { FC } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import { AppDispatch } from "../../../features/types";
 import { Ext } from "../../../util/files/enums";
 import {
   FileBannerBuiltin,
@@ -10,40 +8,33 @@ import {
   FileBannerUpgrade,
 } from "..";
 import { FileBannerPythonSafari } from "../PythonSafari";
-import { FileBannerSignIn } from "../SignIn/FileBannerSignIn";
 import type {
   HcFile,
   HcSharedBehaviorFile,
 } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
-import { Scope, useScopes } from "../../../features/scopes";
-import { addDependencies } from "../../../features/files/slice";
+import { Scope, useScope } from "../../../features/scopes";
 import { fetchDependencies } from "../../../util/api";
 import { getTextModelRequired } from "../../../features/monaco";
-import { isReadOnly } from "../../../features/files/utils";
 import { pyodideEnabled } from "../../../util/pyodideEnabled";
-import { selectAllFiles } from "../../../features/files/selectors";
-import {
-  selectCurrentProject,
-  selectCurrentProjectUrl,
-} from "../../../features/project/selectors";
-import { store } from "../../../features/store";
+import { useFiles } from "../../../features/files/FilesContext";
+import { useProject } from "../../../features/project/ProjectContext";
 
-interface FileBannerWrapperProps {
+type FileBannerWrapperProps = {
   file: HcFile;
   nextContents: string | null;
   setNextContents: (nextContents: string | null) => void;
-}
+};
 
 export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
   file,
   nextContents,
   setNextContents,
 }) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const project = useSelector(selectCurrentProject);
-  const projectUrl = useSelector(selectCurrentProjectUrl);
-  const { canEdit, canLogin } = useScopes(Scope.edit, Scope.login);
+  const { handleAddDependencies, allFiles } = useFiles();
+  const { currentProject: project, currentProjectUrl: projectUrl } =
+    useProject();
+  const canEdit = useScope(Scope.edit);
 
   /**
    * show the Python/Safari banner for any `.py` file (even local) if Pyodide
@@ -58,11 +49,7 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
   }
 
   if (!canEdit) {
-    if (canLogin && isReadOnly(file, false)) {
-      return <FileBannerSignIn />;
-    } else {
-      return null;
-    }
+    return null;
   }
 
   /**
@@ -100,14 +87,11 @@ export const FileBannerWrapper: FC<FileBannerWrapperProps> = ({
         }}
         labelB={`Upgrade to (v${latestTag})`}
         onChooseB={async () => {
-          await dispatch(
-            //@ts-expect-error redux problems
-            addDependencies({
-              [file.path.formatted]: latestTag,
-            }),
-          );
+          await handleAddDependencies({
+            [file.path.formatted]: latestTag,
+          });
 
-          const nextFile = selectAllFiles(store.getState()).find(
+          const nextFile = allFiles.find(
             (potentialFile) =>
               potentialFile.path.formatted === file.path.formatted &&
               (potentialFile as HcSharedBehaviorFile).ref === file.latestTag,

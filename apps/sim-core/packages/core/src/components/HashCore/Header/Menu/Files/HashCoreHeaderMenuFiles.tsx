@@ -1,5 +1,4 @@
 import React, { ChangeEvent, FC, memo, MouseEvent, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 
 import { IconBrain } from "../../../../Icon/Brain";
@@ -10,18 +9,19 @@ import { ModalNewDataset } from "../../../../Modal/NewDataset/ModalNewDataset";
 import { PartialSimulationProject } from "../../../../../features/project/types";
 import { Scope } from "../../../../../features/scopes";
 import { descByUpdatedAt } from "../../../../../util/descByUpdatedAt";
-import { mainProjectPath, urlFromProject } from "../../../../../routes";
-import { selectCurrentProject } from "../../../../../features/project/selectors";
-import { selectUserProfileUrl } from "../../../../../features/user/selectors";
-import { trackEvent } from "../../../../../features/analytics";
+import { mainProjectPath } from "../../../../../routes";
+
+import { useProject } from "../../../../../features/project/ProjectContext";
+import { useUser } from "../../../../../features/user/UserContext";
 import {
   useExportFiles,
   useImportFiles,
+  useImportProjectFromUrl,
 } from "../../../../../features/files/hooks";
 import { useNameNewBehaviorModal } from "../../../Files/hooks";
 import { useSaveOrFork } from "../../../../../hooks/useSaveOrFork";
 
-interface HashCoreHeaderMenuFilesProps {
+type HashCoreHeaderMenuFilesProps = {
   openMenuItem: string;
   openSubmenuItem: string;
   clearAll: () => void;
@@ -34,7 +34,7 @@ interface HashCoreHeaderMenuFilesProps {
   onMouseLeaveSubmenuItem: ({ target }: MouseEvent<HTMLLIElement>) => void;
   userProjects: PartialSimulationProject[];
   exampleProjects: PartialSimulationProject[];
-}
+};
 
 /**
  * @todo most of these props do not need to be props – define them locally instead
@@ -50,11 +50,10 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     onMouseEnterSubmenuItem,
     onMouseLeaveSubmenuItem,
     userProjects,
-    exampleProjects: _exampleProjects,
+    exampleProjects,
   }) => {
-    const userProfileUrl = useSelector(selectUserProfileUrl);
-    const project = useSelector(selectCurrentProject);
-    const dispatch = useDispatch();
+    const { userProfileUrl } = useUser();
+    const { currentProject: project } = useProject();
     // const forkUrl = project ? forkUrlFromProject(project) : null;
 
     const showModalNewBehavior = useNameNewBehaviorModal();
@@ -65,6 +64,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
 
     const exportFiles = useExportFiles();
     const importFiles = useImportFiles();
+    const importProjectFromUrl = useImportProjectFromUrl();
     const importFileRef = useRef<HTMLInputElement | null>(null);
     const onImportClick = () => {
       importFileRef.current?.click();
@@ -82,26 +82,33 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
 
     const toListItem =
       (type: "Example" | "User") => (item: PartialSimulationProject) => {
-        const href =
-          type === "User"
-            ? mainProjectPath(item.pathWithNamespace)
-            : urlFromProject(item);
+        if (type === "Example") {
+          const slug = item.pathWithNamespace.split("/").pop() ?? "";
+          const zipUrl = `/example_projects/${slug}.zip`;
+          return (
+            <li key={item.pathWithNamespace}>
+              <Link
+                onClick={(evt) => {
+                  evt.preventDefault();
+                  clearAll();
+                  importProjectFromUrl(zipUrl, item.name).catch((err) =>
+                    console.error(`Error importing example: ${err instanceof Error ? err.message : String(err)}`),
+                  );
+                }}
+                className="HashCoreHeaderMenuProjectLink"
+              >
+                <span>{item.name}</span>
+              </Link>
+            </li>
+          );
+        }
 
+        const href = mainProjectPath(item.pathWithNamespace);
         return (
           <li key={href}>
             <Link
               path={href}
               onClick={() => {
-                dispatch(
-                  trackEvent({
-                    action: "Open project",
-                    label: `${type} - ${item.pathWithNamespace} - ${item.ref} - From menu`,
-                    context: {
-                      type,
-                    },
-                  }),
-                );
-
                 clearAll();
               }}
               className="HashCoreHeaderMenuProjectLink"
@@ -154,7 +161,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               </ul>
             </li>
           )}
-          <li className="HashCoreHeaderMenu-submenu-item">
+          {/* <li className="HashCoreHeaderMenu-submenu-item">
             <LabeledInputRadio
               group="HashCoreHeaderMenu-submenu"
               label="New project"
@@ -181,7 +188,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                 From starter template
               </Link>
             </ul>
-          </li>
+          </li> */}
           <li>
             <hr />
           </li>
@@ -200,6 +207,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               <ul>
                 {[...userProjects]
                   .sort(descByUpdatedAt)
+                  .slice(0, 10)
                   .map(toListItem("User"))}
                 {userProfileUrl ? (
                   <>
@@ -218,7 +226,7 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
               </ul>
             </li>
           ) : null}
-          {/* {exampleProjects.length ? (
+          {exampleProjects.length ? (
             <li
               className="HashCoreHeaderMenu-submenu-item"
               onMouseEnter={onMouseEnterSubmenuItem}
@@ -236,21 +244,21 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
                   .map(toListItem("Example"))}
               </ul>
             </li>
-          ) : null} */}
+          ) : null}
           <li className="HashCoreHeaderMenu-submenu-item">
             <input
               type="file"
               accept=".zip"
               ref={importFileRef}
               style={{ display: "none" }}
-              onChange={(evt: ChangeEvent<HTMLInputElement>) => {
+              onChange={async (evt: ChangeEvent<HTMLInputElement>) => {
                 evt.preventDefault();
                 clearAll();
                 const files = evt.currentTarget.files;
                 if (files) {
                   importFiles(files).catch((err) =>
                     console.error(
-                      `Error importing project files: ${err.message}`,
+                      `Error importing project files: ${err instanceof Error ? err.message : String(err ?? "Unknown error")}`,
                     ),
                   );
                 }
@@ -300,12 +308,12 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
             <li className="HashCoreHeaderMenu-submenu-item">
               <Link
                 forceLogin={!userProfileUrl}
-                onClick={(evt: MouseEvent<HTMLAnchorElement>) => {
+                onClick={async (evt: MouseEvent<HTMLAnchorElement>) => {
                   evt.preventDefault();
                   clearAll();
                   exportFiles().catch((err) =>
                     console.error(
-                      `Error exporting project files: ${err.message}`,
+                      `Error exporting project files: ${err instanceof Error ? err.message : String(err ?? "Unknown error")}`,
                     ),
                   );
                 }}
@@ -339,8 +347,3 @@ export const HashCoreHeaderMenuFiles: FC<HashCoreHeaderMenuFilesProps> = memo(
     );
   },
 );
-
-// // @ts-expect-error
-// HashCoreHeaderMenuFiles.whyDidYouRender = {
-//   customName: "HashCoreHeaderMenuFiles"
-// };

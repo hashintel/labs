@@ -9,7 +9,6 @@ import {
 import type { DataLoaderParserReducer, DataLoaderParserState } from "../types";
 import { HcDatasetFile } from "../../../features/files/types";
 import { jsonToRows } from "../utils";
-import { getErrorMessage } from "../../../features/utils";
 
 export const loadingMessage = "Loading...";
 export const successMessage = "Success!";
@@ -83,10 +82,10 @@ export const useDataLoaderParser = (
       }
 
       ({ pathname, format } = result);
-    } catch (error) {
+    } catch (error: any) {
       dispatch({
         type: "invalidUrl",
-        payload: { url, errorMessage: getErrorMessage(error) },
+        payload: { url, errorMessage: error.message },
       });
       return;
     }

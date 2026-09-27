@@ -1,6 +1,6 @@
-import { check } from "prettier";
 import { v4 as uuid } from "uuid";
 
+import { toError } from "./toError";
 import {
   AgentState,
   RunnerRequestArgs,
@@ -19,14 +19,14 @@ import {
 const rebuildWrapper = (
   wasmlib: WasmLib,
   components: SimulationComponents,
-  fromState: AgentState[],
+  fromState: AgentState[]
 ) =>
   wasmlib.start_simulation(
     fromState,
     components?.properties,
     components?.datasets,
     components?.behaviors,
-    components?.handlers,
+    components?.handlers
   );
 
 /**
@@ -53,7 +53,7 @@ const runSim = async (runner: RunnerState) => {
     runner.stepsLeft -= 1;
 
     // awaiting the runner might be instant, so we need to prevent the thread from locking
-    await new Promise((resolve) => setTimeout(resolve));
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     if (runner.stepHandler) {
       await runner.stepHandler(runner.stepsTaken + 1, newState);
@@ -71,16 +71,23 @@ const runSim = async (runner: RunnerState) => {
 
 const initialize = async (
   request: RunnerRequestArgs<"initialize">,
-  runner: RunnerState,
+  runner: RunnerState
 ) => {
+  // Stop any background runSim and prevent stale concurrent handlers from
+  // producing responses tagged with the new simulation ID.  We defer setting
+  // simulationRunId until after all async work so that any in-flight
+  // getReadySteps response still carries the OLD id (which the main thread
+  // will discard because that simulation was already cleared).
+  runner.running = false;
+  runner.stepsLeft = 0;
+  runner.accumulatedSteps = {};
+
   if (runner.wrapper) {
     runner.wrapper.free();
     runner.wrapper = null;
   }
 
-  // Prep the runner
-  runner.simulationRunId = request.presetRunId ?? uuid();
-  runner.stepsLeft = request.numSteps;
+  const newSimulationRunId = request.presetRunId ?? uuid();
   runner.stepsTaken = 0;
   runner.earlyStop = false;
   runner.stopMessage = null;
@@ -90,10 +97,11 @@ const initialize = async (
     runner.parsedSimulation = await simulationFromRequest(
       request.manifestSrc,
       runner.datasetCache,
-      request.pyodideEnabled,
+      request.pyodideEnabled
     );
   } catch (err) {
-    if (err instanceof Error && err.message === "Cannot load pyodide") {
+    const message = err instanceof Error ? err.message : String(err);
+    if (message === "Cannot load pyodide") {
       runner.pyodide = "errored";
       return false;
     } else {
@@ -117,19 +125,22 @@ const initialize = async (
   runner.wrapper = rebuildWrapper(
     runner.wasmlib,
     runner.parsedSimulation,
-    initialState,
+    initialState
   );
 
   runner.latestState = runner.wrapper.initial_state() as AgentState[];
   runner.parsedSimulation.behaviors.updateAgentCache(runner.latestState);
 
-  // Add the initial state to the accumulated steps
-  // So when we give our response, the initial state is there
+  // Now that init is complete, assign the new ID and initial state.
+  // Any concurrent handler that captured runner state before this point
+  // would have seen the old simulationRunId (harmlessly ignored).
+  runner.simulationRunId = newSimulationRunId;
+  runner.stepsLeft = request.numSteps;
   runner.accumulatedSteps = { 0: runner.latestState };
 
   // Ensure the behavior's properties are up to date
   runner.parsedSimulation.behaviors.updateProperties(
-    runner.parsedSimulation.properties,
+    runner.parsedSimulation.properties
   );
 
   return true;
@@ -138,7 +149,7 @@ const initialize = async (
 // Step N steps and then give a response
 const step = async (
   request: RunnerRequestArgs<"step">,
-  runner: RunnerState,
+  runner: RunnerState
 ) => {
   if (runner.earlyStop) {
     return;
@@ -147,7 +158,7 @@ const step = async (
   runner.running = true;
 
   await runSim(runner).catch((err) => {
-    runner.runnerError = err;
+    runner.runnerError = toError(err);
   });
 };
 
@@ -161,7 +172,7 @@ const play = (request: RunnerRequestArgs<"play">, runner: RunnerState) => {
     runner.running = true;
 
     runSim(runner).catch((err) => {
-      runner.runnerError = err;
+      runner.runnerError = toError(err);
     });
   }
 };
@@ -197,7 +208,7 @@ const getReadySteps = async (runner: RunnerState) => {
  */
 const updateComponents = (
   request: RunnerRequestArgs<"updateComponents">,
-  runner: RunnerState,
+  runner: RunnerState
 ) => {
   try {
     if (runner.parsedSimulation) {
@@ -216,7 +227,7 @@ const updateComponents = (
       runner.wrapper = rebuildWrapper(
         runner.wasmlib,
         runner.parsedSimulation,
-        runner.latestState,
+        runner.latestState
       );
     }
   } catch (err) {

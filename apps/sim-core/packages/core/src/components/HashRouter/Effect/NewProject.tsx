@@ -1,92 +1,62 @@
-import { navigate } from "hookrouter";
 import React, { FC, useEffect } from "react";
 import { useModal } from "react-modal-hook";
-import { useDispatch } from "react-redux";
+import { navigate } from "../../../util/navigation";
 
-import { setProjectWithMeta } from "../../../features/actions";
-import { trackEvent } from "../../../features/analytics";
-import { preparePartialSimulationProject } from "../../../features/project/utils";
-import { Scope, useScopes } from "../../../features/scopes";
-import { AppDispatch } from "../../../features/types";
-import { addUserProject } from "../../../features/user/slice";
-import { forceLogIn } from "../../../features/user/utils";
-import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
-import { urlFromProject } from "../../../routes";
-import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
 import { ModalNewProject } from "../../Modal/NewProject/ModalNewProject";
+import { createLocalProjectFromTemplate } from "../../../util/api/queries/createLocalProjectFromTemplate";
+import { preparePartialSimulationProject } from "../../../features/project/utils";
+import { templates } from "./templates/templates";
+
+import { urlFromProject } from "../../../routes";
 import { useNavigateAway } from "./hooks";
-import { createNewSimulationProjectFromTemplate } from "./templates/templates";
+import { useSafeQueryParams } from "../../../hooks/useSafeQueryParams";
+import { useUser } from "../../../features/user/UserContext";
+import { useProject } from "../../../features/project/ProjectContext";
 
 export const HashRouterEffectNewProject: FC<{ template?: string }> = ({
   template = "empty",
 }) => {
-  const dispatch = useDispatch<AppDispatch>();
+  const { addUserProject } = useUser();
+  const { setProjectWithMeta } = useProject();
   const navigateAway = useNavigateAway();
   const [{ namespace }] = useSafeQueryParams();
-  const { canNewProject, canNewProjectIfSignedIn } = useScopes(
-    Scope.newProject,
-    Scope.newProjectIfSignedIn,
-  );
-  const fatalError = useFatalError();
+
+  const actions = templates[template];
+  if (!actions) {
+    throw new Error(`Unrecognised template ${template}`);
+  }
 
   const [showModal, hideModal] = useModal(
     () => (
       <ModalNewProject
         onCancel={navigateAway}
-        //eslint-disable-next-line @typescript-eslint/require-await
         onSubmit={async (values) => {
-          //migration shim
-
-          const project = createNewSimulationProjectFromTemplate(
+          const project = createLocalProjectFromTemplate(
             values.namespace,
             values.path,
             values.name,
             values.visibility,
-            template,
+            actions,
           );
 
-          dispatch(
-            //@ts-expect-error redux problems
-            trackEvent({
-              action: "New Project: Core",
-              label: project.pathWithNamespace,
-            }),
-          );
+          if (!values.namespace) {
+            addUserProject(preparePartialSimulationProject(project));
+          }
 
-          dispatch(addUserProject(preparePartialSimulationProject(project)));
-          //@ts-expect-error redux problems
-          dispatch(setProjectWithMeta(project));
+          setProjectWithMeta(project);
           navigate(urlFromProject(project), false, {}, true);
         }}
         action="Create New Simulation"
         defaultNamespace={namespace}
       />
     ),
-    [dispatch, namespace, navigateAway],
+    [actions, addUserProject, setProjectWithMeta, namespace, navigateAway],
   );
 
   useEffect(() => {
-    if (canNewProject) {
-      showModal();
-
-      return () => {
-        hideModal();
-      };
-    } else if (canNewProjectIfSignedIn) {
-      forceLogIn(true);
-    } else {
-      fatalError(
-        "Should never not be able to new project if signed while at /new",
-      );
-    }
-  }, [
-    dispatch,
-    showModal,
-    hideModal,
-    canNewProject,
-    canNewProjectIfSignedIn,
-    fatalError,
-  ]);
+    showModal();
+    return () => hideModal();
+  }, [showModal, hideModal]);
 
   return null;
 };

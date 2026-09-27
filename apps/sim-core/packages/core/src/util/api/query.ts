@@ -12,15 +12,17 @@ const apiUrl = (graphql: string) => {
   return { queryName, url };
 };
 
-interface ApiError {
+type ApiError = {
   message: string;
   extensions?: {
     code: string;
     arguments?: object;
   };
-}
+};
 
-type Variables = Record<string, any>;
+type Variables = {
+  [key: string]: any;
+};
 
 export class QueryError extends Error {
   queryName: string | undefined;
@@ -88,13 +90,17 @@ export async function query<T, V = {} | undefined>(
   variables?: V,
   signal?: AbortSignal,
 ): Promise<T> {
-  const { data, errors } = await baseQuery<T, V>(graphql, variables, signal);
+  const { data, errors } = await baseQuery<T, V>(
+    graphql,
+    variables,
+    signal,
+  );
 
   if (errors) {
     throw new QueryError({
       graphql,
-      variables: variables ?? null,
-      errors: errors,
+      variables: variables || null,
+      errors: errors as ApiError[],
     });
   }
 

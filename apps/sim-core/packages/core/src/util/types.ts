@@ -1,6 +1,6 @@
 import { ExperimentRun } from "@hashintel/engine-web";
 
-export interface NamedBehaviorSrc {
+export type NamedBehaviorSrc = {
   name: string;
   shortname: string;
   behaviorSrc: string;
@@ -10,42 +10,44 @@ export interface NamedBehaviorSrc {
    * @todo this field is unused I believe – remove it?
    */
   dependencies: string[];
-}
+};
 
-export interface InitSrc {
+export type InitSrc = {
   id: string;
   name: string;
   initSrc: string;
-}
+};
 
-export interface SimulationSrc {
+export type SimulationSrc = {
   initializers: InitSrc[];
   propertiesSrc: string;
   behaviors: NamedBehaviorSrc[];
   analysisSrc: string;
   dependenciesSrc: string;
   experimentsSrc: string;
-}
+};
 
 /**
  * @deprecated
  * @use auto generated types
  * @todo remove this
  */
-export interface APISimulationRun {
+export type APISimulationRun = {
   id: string;
   stepsLink?: string | null;
   analysisLink?: string | null;
-  propertyValues: Record<string, number>;
+  propertyValues: {
+    [key: string]: number;
+  };
   metricOutcome?: number | null;
-}
+};
 
 /**
  * @deprecated
  * @use auto generated types
  * @todo remove this
  */
-export interface APIExperimentRun {
+export type APIExperimentRun = {
   id: string;
   name: string;
   experimentSrc: any;
@@ -55,4 +57,4 @@ export interface APIExperimentRun {
     metricObjective?: ExperimentRun["metricObjective"] | null;
     metricName?: string | null;
   };
-}
+};

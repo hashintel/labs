@@ -1,7 +1,8 @@
 import yargs from "yargs";
+import { hideBin } from "yargs/helpers";
 
 export const parseArgs = () =>
-  yargs
+  yargs(hideBin(process.argv))
     .options({
       dryRun: {
         alias: ["dry-run", "n"],
@@ -21,4 +22,5 @@ export const parseArgs = () =>
     })
     .help("help")
     .alias("help", "h")
-    .version(false).argv;
+    .version(false)
+    .parseSync();

@@ -11,7 +11,7 @@ import { requestPrivateProjectAccessCode } from "../../../util/api/queries/reque
 
 export const useSelectableRelease = (
   project: LinkableProject,
-  access: ProjectAccess,
+  access: ProjectAccess | null | undefined,
   onError?: VoidFunction,
 ) => {
   const [reducerState, dispatch] = useReducer(

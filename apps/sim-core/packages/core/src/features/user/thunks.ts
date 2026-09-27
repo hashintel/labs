@@ -30,7 +30,6 @@ export const tourProgress =
     }
 
     // Update state optimistically
-    // @ts-expect-error redux problems
     dispatch(setTourProgressWithLocalStorage(progress));
 
     if (useAccount) {
@@ -41,7 +40,6 @@ export const tourProgress =
 
         if (prevProgress) {
           // Revert back to the previous state prior to optimistically updating
-          // @ts-expect-error redux problems
           dispatch(setTourProgressWithLocalStorage(prevProgress));
         }
       }

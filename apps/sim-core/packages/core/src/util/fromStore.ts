@@ -1,4 +1,4 @@
-import { Store } from "@reduxjs/toolkit";
+import type { Store } from "../features/reduxCompat";
 import { InteropObservable, from } from "rxjs";
 
 /**

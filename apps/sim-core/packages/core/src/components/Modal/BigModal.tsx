@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import classNames from "classnames";
 
 import { Modal } from "./Modal";
@@ -6,14 +6,14 @@ import { ModalExit } from "./ModalExit";
 
 import "./BigModal.css";
 
-interface BigModalProps {
+type BigModalProps = {
   onClose?: () => void;
   cancelButton?: boolean;
   className?: string;
   backdropClassName?: string;
-}
+};
 
-export const BigModal: FC<BigModalProps> = ({
+export const BigModal: FC<PropsWithChildren<BigModalProps>> = ({
   onClose,
   cancelButton = true,
   children,

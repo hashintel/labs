@@ -1,8 +1,8 @@
 import { ProjectVisibility } from "../../../features/project/types";
 
-export interface NewProjectModalValues {
+export type NewProjectModalValues = {
   name: string;
   path: string;
   namespace: string;
   visibility: ProjectVisibility;
-}
+};

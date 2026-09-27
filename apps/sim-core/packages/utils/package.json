@@ -8,13 +8,13 @@
     "postinstall": "tsc -b .",
     "build": "tsc -b .",
     "build:watch": "tsc -b . -w",
-    "fmt": "prettier --write --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet --fix \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"",
-    "lint": "prettier --check --cache \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && tsc --noEmit"
+    "fmt": "prettier --write \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet --fix \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\"",
+    "fmt-check": "prettier --check \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\" && eslint --quiet \"*.{ts,js,json}\" \"{scripts,src}/**/*.{ts,js,json}\""
   },
   "license": "SSPL-1.0",
   "devDependencies": {
     "@types/node": "^14.14.7",
-    "typescript": "^4.1.3"
+    "typescript": "^5.3.3"
   },
   "dependencies": {
     "@types/papaparse": "5.2.5",

@@ -1,4 +1,4 @@
-// // @ts-expect-error
+// // @ts-ignore
 // import pystdlibsrc from "!!raw-loader!./pystdlib.py";
 
 // export { pystdlibsrc };

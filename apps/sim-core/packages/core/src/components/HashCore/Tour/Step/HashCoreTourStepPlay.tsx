@@ -31,7 +31,9 @@ export const HashCoreTourStepPlay: FC = () => {
         the simulation.
       </p>
       <p>
-        <strong>Click the run button below the view pane to continue.</strong>{" "}
+        <strong>
+          Click the run button below the view pane to continue.
+        </strong>{" "}
       </p>
       <Buttons>
         <BackButton />

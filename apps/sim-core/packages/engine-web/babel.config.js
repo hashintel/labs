@@ -4,5 +4,8 @@ module.exports = {
     ["@babel/preset-env", { useBuiltIns: "usage", corejs: { version: 3 } }],
     "@babel/preset-typescript",
   ],
-  plugins: [],
+  plugins: [
+    "@babel/plugin-proposal-class-properties",
+    "@babel/plugin-proposal-numeric-separator",
+  ],
 };

@@ -1,18 +1,16 @@
 import React, { FC, memo, MouseEvent } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import { DISCORD_URL } from "../../../../DiscordWidget/DiscordWidget";
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
-import { selectHasProject } from "../../../../../features/project/selectors";
-import { trackEvent } from "../../../../../features/analytics";
+
+import { useProject } from "../../../../../features/project/ProjectContext";
 import { useTour } from "../../../Tour";
 
-interface HashCoreHeaderMenuHelpProps {
+type HashCoreHeaderMenuHelpProps = {
   openMenuItem: string;
   onClickMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   clearAll: () => void;
-}
+};
 
 export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
   ({
@@ -23,8 +21,7 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
   }) => {
     const tour = useTour();
     // const canUseAccount = useScope(Scope.useAccount);
-    const hasProject = useSelector(selectHasProject);
-    const dispatch = useDispatch();
+    const { hasProject } = useProject();
 
     return (
       <>
@@ -37,26 +34,23 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
         />
         <ul className="HashCoreHeaderMenu-submenu">
           <li className="HashCoreHeaderMenu-submenu-item">
-            <a
-              href="https://hash.dev/docs/simulation"
-              target="_blank"
-              onClick={() =>
-                dispatch(
-                  trackEvent({
-                    action: "Docs Link Clicked: Core",
-                    label: "Homepage",
-                  }),
-                )
-              }
-              rel="noreferrer"
-            >
+            <a href="https://docs.hash.ai/core/" target="_blank" rel="noopener noreferrer">
               Docs
+            </a>
+          </li>
+          <li className="HashCoreHeaderMenu-submenu-item">
+            <a
+              href="https://github.com/hashintel/labs/issues/new/choose"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Report an issue
             </a>
           </li>
           {/* {canUseAccount ? (
             <li className="HashCoreHeaderMenu-submenu-item">
               <a href={ACCOUNT_URL} target="_blank">
-                My account
+                My Account
               </a>
             </li>
           ) : null} */}
@@ -71,31 +65,12 @@ export const HashCoreHeaderMenuHelp: FC<HashCoreHeaderMenuHelpProps> = memo(
                   tour.start();
                 }}
               >
-                New user tour
+                New User Tour
               </a>
             </li>
           ) : null}
-          {/* <li className="HashCoreHeaderMenu-submenu-item">
-            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
-              Community forum
-            </a>
-          </li> */}
-          <li className="HashCoreHeaderMenu-submenu-item">
-            <a
-              href={"https://github.com/hashintel/labs/issues/new/choose"}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Report an issue
-            </a>
-          </li>
         </ul>
       </>
     );
   },
 );
-
-// // @ts-expect-error
-// HashCoreHeaderMenuHelp.whyDidYouRender = {
-//   customName: "HashCoreHeaderMenuHelp"
-// };

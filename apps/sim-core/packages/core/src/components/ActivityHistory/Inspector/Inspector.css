@@ -43,9 +43,7 @@
 .AgentInspector__List {
   overflow: auto;
   scrollbar-width: none;
-  padding-bottom: calc(
-    var(--discord-button-y-offset) + var(--discord-button-size)
-  );
+  padding-bottom: 58px;
 }
 
 .AgentInfo {

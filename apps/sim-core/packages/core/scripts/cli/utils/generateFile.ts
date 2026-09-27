@@ -3,12 +3,12 @@ import { extname, join, relative } from "path";
 import { format } from "prettier";
 
 type NameContentTuple = [string, string];
-type FileGenerator = (pair: NameContentTuple) => void;
-interface FileGeneratorContext {
+type FileGenerator = (pair: NameContentTuple) => Promise<void>;
+type FileGeneratorContext = {
   dryRun: boolean;
   verbose: boolean;
   componentDir: string;
-}
+};
 type FileGeneratorFactory = (ctx: FileGeneratorContext) => FileGenerator;
 
 /**

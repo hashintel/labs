@@ -1,0 +1,267 @@
+---
+alwaysApply: true
+---
+# HASH Labs - AI Agent Guidelines
+
+## Project Overview
+
+This is HASH's labs monorepo containing experimental simulation tools and proof-of-concepts. The primary application is sim-core (hCore), an in-browser IDE for building and running agent-based simulations.
+
+## IMPORTANT: Scope Boundary
+
+**Everything outside `apps/sim-core/` is OUT OF SCOPE.**
+
+- Do NOT modify files outside `apps/sim-core/` (no changes to root configs, `sim-engine/`, `sim-core-plugins/`, `pocs/`, `.github/`, root `.gitignore`, etc.)
+- All plan documents (`TODO.md`, `ARCHITECTURE.md`, `TESTING_STRATEGY.md`) live inside `apps/sim-core/`
+- All build, test, and dev commands run from within `apps/sim-core/`
+- The `.cursor/rules/` directory is an exception (IDE config, not repo content)
+- **Goal:** `apps/sim-core/` will be extracted into its own repository at the end of this project. Keep it self-contained.
+
+## Important: Technical Debt Awareness
+
+Before making changes, review [TODO.md](mdc:apps/sim-core/TODO.md) for:
+- Outdated dependencies that should NOT be upgraded in isolation
+- Deprecated packages that need replacement
+- Planned modernization phases
+- Known compatibility issues
+
+Key warnings:
+- React 18.2 (upgraded from 16.14). react-three-fiber/drei still on old versions (need @react-three/* migration)
+- Build tooling: Vite 7 (migrated from Webpack 4; engine-web stdlib still uses webpack)
+
+## IMPORTANT: Application is Becoming Local-First
+
+This app is being transformed into a **free, fully-featured, local-only simulation IDE**.
+
+### Core Principles
+- **NO USER ACCOUNTS** - Don't add authentication or login flows
+- **NO CLOUD FEATURES** - Don't add cloud storage, sharing, or server-side features
+- **NO ANALYTICS** - Don't add Sentry, FullStory, or tracking code
+- **LOCAL STORAGE ONLY** - Use localStorage/IndexedDB for persistence
+- **GitHub sync is FUTURE** - Don't implement yet (post-migration)
+
+### Features Already REMOVED (do not re-introduce)
+- User authentication (ModalSignin, ModalSignup) — DELETED
+- Cloud credits / CloudUsage — DELETED
+- Project sharing (ModalShare*) — DELETED
+- Access codes — DELETED
+- Server project storage — DELETED
+- Fork project — DELETED
+- Project releases/versioning (ModalRelease*) — DELETED
+- hCloud experiment runners — DELETED
+- Sentry / FullStory analytics — DELETED
+- Discord widget — DELETED
+- hookrouter — REPLACED with custom `util/navigation.ts` + `util/usePathRouter.ts`
+
+### Features to KEEP
+- All simulation execution (step, play, pause, reset)
+- All viewer tabs (3D, geospatial, analysis, process chart, raw output)
+- Code editing (Monaco, file tree, behaviors)
+- Local experiments (parameter sweeps, optimization)
+- hIndex shared behaviors library
+- Import/Export .zip
+- Onboarding tour
+
+## IMPORTANT: Redux is Being Removed
+
+Redux is being **completely removed** (not migrated to another library). DO NOT add any Redux code.
+
+Current state: Two Redux stores (App Store + Simulator Store)
+Target state: React built-in state management (Context + hooks)
+
+If you need to add new state management:
+- DON'T create new Redux slices
+- DON'T add new useSelector/useDispatch usage
+- DON'T add new state management libraries
+- DO use React's built-in useState, useReducer, useContext
+- DO keep state as local as possible (lift only when necessary)
+- DO use localStorage for persistence
+- See [TODO.md](mdc:apps/sim-core/TODO.md) for the full removal plan
+
+## Architecture Alignment
+
+Before implementing any feature or making significant changes:
+
+1. Review [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md) to understand:
+   - How the component/feature fits into the overall system
+   - Existing patterns for similar functionality
+
+2. Check implementation decisions against established patterns:
+   - State management: Use React built-ins (useState, useContext, useReducer)
+   - Components: Should this follow the src/components/[Name]/ structure?
+   - Async operations: Use regular async functions (not Redux thunks)
+
+3. If deviating from architecture, document why in the PR/commit message.
+
+## Deletion Hygiene
+
+When deleting a component, module, or feature:
+
+1. **Find ALL sibling files** in the same directory — not just the main `.tsx`. Check for:
+   - `.scss` / `.css` stylesheets
+   - `.spec.tsx` / `.test.tsx` test files
+   - `util.ts`, `types.ts`, `index.ts` helper files
+   - Subdirectories (e.g. `VersionPicker/` inside `Modal/Release/`)
+2. **Search for imports** of the deleted module across the codebase (`grep` / `rg`) to find orphaned references.
+3. **Check shared stylesheets** for dead selectors that referenced the deleted component's CSS class names.
+4. **Check e2e / integration tests** for references to deleted UI elements (e.g. CSS selectors like `.ModalSignin__Frame`).
+
+## Dependency Awareness
+
+When removing or moving a package dependency:
+
+1. **Search the entire monorepo** for actual usage of the package (not just the package.json that declares it). Yarn/npm hoisting means a package declared in one workspace can be silently used by another.
+2. **After removing a dependency**, run the production build to verify nothing breaks from missing modules.
+3. **When moving a dependency** between workspace packages, run `yarn install` (with `--ignore-scripts` if needed) and verify the module resolves from the consuming package's directory.
+
+## Type Safety After Refactoring
+
+When replacing a library or changing function signatures:
+
+1. **Match the original API's type flexibility**. If the old library accepted `boolean | string`, the replacement must too. Read call sites, not just the old library's TypeScript types.
+2. **After modifying a type, interface, or function signature**, search for all call sites and verify they still type-check. Pay special attention to:
+   - Functions that lost a parameter (callers may still pass it)
+   - Functions that gained a required parameter (callers may pass too few)
+   - Functions whose parameter types narrowed (callers may pass wider types)
+3. **Run the TypeScript compiler / Vite build** after every batch of related changes — do NOT defer this to the end of a phase.
+
+## Build & Test Verification
+
+**Bug fixes:** When fixing bugs, use a TDD approach — write a failing test first, then fix. Prefer unit/component tests; use E2E only when necessary. See [testing-bugs.mdc](mdc:.cursor/rules/testing-bugs.mdc) and [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md).
+
+After every meaningful batch of changes (not just at the end of a phase):
+
+1. **Run unit tests**: `npx jest --forceExit --testPathIgnorePatterns "e2e"` in `apps/sim-core/packages/core`
+2. **Run production build**: `vite build` in `apps/sim-core/packages/core`
+3. **Check for errors explicitly**: pipe build output through `Select-String "ERROR"` — warnings are expected, errors are not.
+4. **Fix immediately** — do not accumulate errors across multiple changes. Each commit should leave the build green.
+
+### TypeScript & Lint Error Policy
+
+After editing any source file, **always check for and fix TypeScript and lint errors** in the files you changed:
+
+1. **Use `ReadLints`** on every file you edited before considering the task done.
+2. **Run the TypeScript compiler** (`npx tsc --noEmit` from `apps/sim-core`) or check the dev server's `fork-ts-checker` output to catch type errors in changed files.
+3. **Fix all errors you introduced.** If a change causes new type errors in other files (e.g. changing a function signature breaks call sites), fix those too.
+4. **Deliberately skipping errors is OK** only when ALL of these are true:
+   - The error is in code that is **explicitly scheduled for removal** (e.g. Redux slices, `react-redux` Provider types)
+   - The error is **pre-existing** (not introduced by your change)
+   - The error is **documented** in [TODO.md](mdc:apps/sim-core/TODO.md) or this file
+5. **When skipping errors, state explicitly** which errors are being skipped and why (e.g. "Skipping 24 TS2769 dispatch errors in Redux code scheduled for removal per TODO.md").
+
+**Known pre-existing errors that are OK to skip:**
+- ~24 Redux dispatch TS2769 errors (RTK 1.5 / TS 5.3 incompatibility — resolves with Redux removal)
+- ~23 `children` prop errors from `react-redux` `Provider` and other third-party library types (resolves with Redux removal and library upgrades)
+- ~42 `children` errors in `.spec.tsx` test files using old render patterns (will update with Redux removal)
+
+### E2E Tests (MANDATORY after UI or routing changes)
+
+The E2E tests are Playwright-based regression tests that verify the full application renders and functions correctly. They **must** be run after:
+- Any change to routing (`usePathRouter.ts`, `navigation.ts`, route definitions)
+- Any change to the App bootstrap flow (`boot.ts`, `bootstrapQuery.ts`, `index.tsx`)
+- Any change to major UI containers (`HashCore`, `HashRouter`, `App`)
+- Any change to the file tree, simulation controls, or viewer tabs
+- React version upgrades or build tooling changes
+
+**Commands:**
+- Quick smoke check: `yarn test:e2e -- --grep "Smoke"` in `apps/sim-core/packages/core`
+- Full E2E suite: `yarn test:e2e` in `apps/sim-core/packages/core`
+- Tests run sequentially (1 worker) — the simulation engine is CPU-intensive
+
+**Important:** The E2E tests require either a running dev server (`yarn serve`) or will auto-start one via the Playwright config. If the dev server is already running, Playwright will reuse it.
+
+## Major Phase Review (MANDATORY)
+
+After completing each major phase (e.g. "Phase 1: Cleanup & Simplification", "Phase 3: Build System Modernization"):
+
+1. **Full build verification**: Run production build and confirm zero errors.
+2. **Full unit test suite**: Run all unit tests and confirm zero failures.
+3. **Full E2E test suite**: Run `yarn test:e2e` and confirm all tests pass. Do NOT skip this.
+4. **Orphan scan**: Search for files referencing deleted modules (spec files, scss files, e2e tests, stale comments).
+4. **Dependency audit**: Verify no packages were left dangling in the wrong package.json.
+5. **Documentation review**: Update [TODO.md](mdc:apps/sim-core/TODO.md), [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md), this rules file, and [README.md](mdc:apps/sim-core/README.md) to reflect completed work.
+6. **Plan reassessment**: Based on what was learned during the phase, identify:
+   - Tasks that turned out easier or harder than expected
+   - New issues discovered
+   - Revised priority ordering for remaining phases
+7. **Propose cursor rules updates**: After each major review, draft specific additions or changes to THIS file and present them to the user for approval before applying.
+
+## Commit Discipline
+
+After completing each logical section of work (e.g. a migration phase, a feature, a bug fix):
+
+1. **Run the review panel** on the diff — assemble expert personas, address critical issues, follow recommendations. See [reviewers.mdc](mdc:.cursor/rules/reviewers.mdc) Commit Workflow.
+2. **Run `git status` at the repository root** to check for uncommitted changes
+3. **Stage and commit** all related changes before moving on to the next task
+4. Group changes into logical commits (one per phase/feature, not one giant commit)
+5. Never leave uncommitted work behind when finishing a task or phase
+6. If a task spans multiple phases, commit each phase separately with a clear message
+
+This prevents work from being lost and keeps the history clean and reviewable.
+
+## Documentation Maintenance
+
+After completing significant changes, update:
+
+1. [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md) - For structural changes
+2. [README.md](mdc:apps/sim-core/README.md) - For entry point/build changes
+3. [TODO.md](mdc:apps/sim-core/TODO.md) - For dependency updates or new tech debt
+4. This rules file - For convention changes (propose changes, get approval)
+
+## Repository Structure (In-Scope)
+
+apps/sim-core/               - **ALL WORK HAPPENS HERE**
+  ARCHITECTURE.md            - System structure docs
+  TODO.md                    - Migration roadmap / tech debt tracker
+  TESTING_STRATEGY.md        - Test pyramid and conventions
+  packages/core/             - React/TypeScript simulation IDE (hCore)
+  packages/engine-web/       - WASM simulation engine bridge
+  packages/engine/           - Rust ↔ JS engine bindings
+  packages/utils/            - Shared utilities
+  packages/sim-engine-types/ - Type definitions for the engine
+
+Out of scope (do not modify):
+  apps/sim-engine/           - Standalone Rust engine
+  apps/sim-core-plugins/     - hCore plugins
+  pocs/                      - Proof of concepts
+  .github/                   - CI/CD workflows
+
+## Tech Stack (Note: Many packages outdated - see [TODO.md](mdc:apps/sim-core/TODO.md))
+
+sim-core Frontend:
+- React 18.2.0 (upgraded from 16.14)
+- Redux Toolkit 1.5 (outdated - BEING REMOVED ENTIRELY)
+- TypeScript 5.3.3 (updated from 4.1; ~80 RTK type errors suppressed until Redux removal)
+- Vite 7 (migrated from Webpack 4)
+- SCSS modules for styling
+
+## Two Redux Stores Pattern (LEGACY - Being Deleted)
+
+App Store (features/store.ts) - General UI state
+Simulator Store (features/simulator/store.ts) - High-frequency simulation updates
+
+**DO NOT USE** - These are scheduled for complete removal. See [TODO.md](mdc:apps/sim-core/TODO.md).
+
+## Build Commands
+
+sim-core:
+  yarn                  - Install and build
+  yarn serve:core       - Vite dev server (not webpack-dev-server)
+  yarn build:core       - Production build
+  yarn fmt:core         - Format code
+  yarn test:core        - Run tests
+
+## Common Gotchas
+
+1. Redux is being removed - don't add any Redux code
+2. Don't upgrade React/Redux partially - ecosystem must stay in sync
+3. Routing uses custom `util/navigation.ts` + `util/usePathRouter.ts` (not hookrouter or react-router)
+4. Legacy code from 2019-2020 - be cautious with refactoring
+5. NODE_OPTIONS=--openssl-legacy-provider no longer needed (resolved by Vite migration)
+
+## References
+
+- [sim-core README](mdc:apps/sim-core/README.md)
+- [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md)
+- [TODO.md](mdc:apps/sim-core/TODO.md)
+- [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md)

@@ -1,4 +1,9 @@
-import React, { FC, Children, ButtonHTMLAttributes } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  Children,
+  ButtonHTMLAttributes,
+} from "react";
 import classNames from "classnames";
 
 import { FancyProps, getIcon } from "..";
@@ -14,7 +19,7 @@ export type FancyButtonProps = Omit<
 /**
  * @todo massively simplify
  */
-export const FancyButton: FC<FancyButtonProps> = ({
+export const FancyButton: FC<PropsWithChildren<FancyButtonProps>> = ({
   children,
   theme = "white",
   icon,

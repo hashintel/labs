@@ -1,14 +1,16 @@
-import React, { FC } from "react";
+import React, { FC, PropsWithChildren } from "react";
 import classNames from "classnames";
 
 import { IconAlertOutline, IconInformationOutline } from "../Icon";
 
 import "./ModalInfoBox.scss";
 
-export const ModalInfoBox: FC<{
-  type?: "info" | "warning";
-  className?: string;
-}> = ({ type = "info", children, className }) => (
+export const ModalInfoBox: FC<
+  PropsWithChildren<{
+    type?: "info" | "warning";
+    className?: string;
+  }>
+> = ({ type = "info", children, className }) => (
   <div
     className={classNames("ModalInfoBox", `ModalInfoBox--${type}`, className)}
   >

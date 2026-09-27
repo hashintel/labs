@@ -1,5 +1,4 @@
 import React, { FC, MouseEventHandler, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
 import { Ext } from "../../../util/files/enums";
 import type { HcSharedBehaviorFile } from "../../../features/files/types";
@@ -8,17 +7,20 @@ import { LinkBehavior } from "../../Link/LinkBehavior";
 import type { ParsedPath } from "../../../util/files/types";
 import { SimulationProject } from "../../../features/project/types";
 import { destinationPathInUse, parse } from "../../../util/files";
-import { forkOpenBehavior } from "../../../features/files/slice";
 import { selectIdKindAndPathFromFiles } from "../../../features/files/selectors";
+import {
+  useFiles,
+  useFilesSelector,
+} from "../../../features/files/FilesContext";
 import { useModalNameBehavior } from "../../HashCore/Files/hooks/useModalNameBehavior";
 
 import "../FileBanner.css";
 import "./FileBannerShared.css";
 
-interface FileBannerSharedProps {
+type FileBannerSharedProps = {
   file: HcSharedBehaviorFile;
   project: SimulationProject;
-}
+};
 
 export const FileBannerShared: FC<FileBannerSharedProps> = ({
   file,
@@ -29,10 +31,10 @@ export const FileBannerShared: FC<FileBannerSharedProps> = ({
     [file],
   );
 
-  const dispatch = useDispatch();
+  const { forkOpenBehavior } = useFiles();
 
   const copy = (destination: ParsedPath) => {
-    dispatch(forkOpenBehavior({ source: file, destination, project }));
+    forkOpenBehavior({ source: file, destination, project });
   };
 
   const showModalNameBehavior = useModalNameBehavior(
@@ -44,7 +46,7 @@ export const FileBannerShared: FC<FileBannerSharedProps> = ({
     destination,
   );
 
-  const files = useSelector(selectIdKindAndPathFromFiles);
+  const files = useFilesSelector(selectIdKindAndPathFromFiles);
 
   const onClick: MouseEventHandler = (evt) => {
     evt.preventDefault();

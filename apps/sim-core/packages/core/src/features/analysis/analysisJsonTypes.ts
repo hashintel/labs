@@ -26,9 +26,9 @@ export enum CountOperator {
   "count" = "count",
 }
 
-export interface SingleStepAggregationOperation {
+export type SingleStepAggregationOperation = {
   op: CountOperator | AggregatorOperator;
-}
+};
 
 // 2. Gets the max/min/mean/sum of a value across ALL steps in a simulation
 // QUESTION: up to the current step shown, or just across all steps?
@@ -42,11 +42,11 @@ export enum CumulativeAggregateOperator {
   "aggregate" = "aggregate",
 }
 
-export interface CumulativeAggregationOperation {
+export type CumulativeAggregationOperation = {
   op: CumulativeAggregateOperator.aggregate;
   by: AggregatorOperator;
   range?: number; // <-- if supplied, aggregates across the previous n steps only
-}
+};
 
 // both of these will distill an array of numbers to a single number
 export type AggregationOperation =
@@ -64,79 +64,79 @@ export enum FilterComparator {
 export enum FilterOperator {
   "filter" = "filter",
 }
-export interface FilterOperation {
+export type FilterOperation = {
   op: FilterOperator.filter;
   field: string | number; // TODO: why is this a number?
   comparison: FilterComparator;
   value: string | number | boolean | null;
-}
+};
 
 export enum GetOperator {
   "get" = "get",
 }
 
-export interface GetOperation {
+export type GetOperation = {
   op: "get";
   field: string | number; // might be an array index
-}
+};
 
 export type OutputOperation =
   | AggregationOperation
   | FilterOperation
   | GetOperation;
 
-export type Output = Record<string, OutputOperation[]>;
+export type Output = { [title: string]: OutputOperation[] };
 
 // --------------------- PLOTS ------------------------- //
 
-export interface XDataPoint {
+export type XDataPoint = {
   x: string;
   name?: string;
-}
+};
 
-export interface XDataPoints {
+export type XDataPoints = {
   x: string[];
   name?: string[];
-}
+};
 
-export interface YDataPoint {
+export type YDataPoint = {
   y: string;
   name?: string;
-}
+};
 
-export interface YDataPoints {
+export type YDataPoints = {
   y: string[];
   name?: string[];
-}
+};
 
 export type YAndXDataPoints = YDataPoints & XDataPoints;
 
 export type YPointAndOptionalXPoint = (XDataPoint | YDataPoint) | YDataPoints;
 
-export interface ZDataPoints {
+export type ZDataPoints = {
   z: string;
-}
+};
 
 // TODO: Force this to be an array, because a single bar bar chart is not very interesting.
-export interface BarChart {
+export type BarChart = {
   type: "bar";
   data: YDataPoint | YDataPoint[];
-}
+};
 
-export interface BoxPlot {
+export type BoxPlot = {
   type: "box";
   data: YDataPoint | YDataPoint[];
-}
+};
 
-export interface Histogram {
+export type Histogram = {
   type: "histogram";
   data: XDataPoint | XDataPoint[] | YDataPoint | YDataPoint[];
-}
+};
 
-export interface Timeseries {
+export type Timeseries = {
   type: "timeseries";
   data: YDataPoint[];
-}
+};
 
 // Selection of charts which can be used to map an output z of interest
 // against parameters x and y varied in an experiment.
@@ -145,24 +145,24 @@ export interface Timeseries {
 // or an SingleStepAggregationOperation
 // - in which case the chart updates per step with the different value of z.
 // The former is probably more useful.
-export interface TwoParameterExperimentChart {
+export type TwoParameterExperimentChart = {
   type: "contour" | "heatmap" | "line3d" | "scatter3d";
   data: ZDataPoints[];
   // z: string; // must refer to an output that ends in an AggregationOperation
   // DataSource not needed as it cannot be timeseries (?)
-}
+};
 
 export type LineOrScatterDataType = YPointAndOptionalXPoint[];
 
-export interface Line {
+export type Line = {
   type: "line";
   data: LineOrScatterDataType[];
-}
+};
 
-export interface Scatter {
+export type Scatter = {
   type: "scatter";
   data: LineOrScatterDataType[];
-}
+};
 
 export type Chart =
   | BarChart
@@ -173,9 +173,9 @@ export type Chart =
   | Scatter;
 // | TwoParameterExperimentChart;
 
-export interface TimeseriesShortcut {
+export type TimeseriesShortcut = {
   timeseries?: string[];
-}
+};
 
 // this could be a generic: Plot<Line>.
 export type Plot = {
@@ -196,12 +196,9 @@ export type Plot = {
  * @todo this should just be ParsedAnalysis (which is just Json) – we're assuming
  *       too much about it
  */
-export interface UncheckedAnalysisJson {
+export type UncheckedAnalysisJson = {
   outputs: Partial<Output>;
   plots: Partial<Plot[]>;
-}
+};
 
-export interface AnalysisJson {
-  outputs: Output;
-  plots: Plot[];
-}
+export type AnalysisJson = { outputs: Output; plots: Plot[] };

@@ -174,7 +174,7 @@ impl<'mem: 'v, 'v> VisitorMut<'mem> {
         self.prepare_buffer_write(&Buffer::Data, size)
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     pub fn shrink_with_data_length(&mut self, size: usize) -> Result<BufferChange> {
         use crate::{shared_memory::markers::Val, Error};
 

@@ -1,4 +1,4 @@
-import { AnyAction, Middleware } from "redux";
+import type { AnyAction, Middleware } from "./reduxCompat";
 import { Subject } from "rxjs";
 
 import { PartialSimulationProject } from "./project/types";
@@ -9,7 +9,7 @@ export const projectUpdatedSort = (
 ) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime();
 
 export const observeMiddleware =
-  <T>(subject: Subject<AnyAction>): Middleware<{}, T> =>
+  <T>(subject: Subject<AnyAction>): Middleware<T> =>
   () =>
   (next) =>
   (action) => {
@@ -21,8 +21,3 @@ export const observeMiddleware =
 // @todo remove this
 export const isCompleteErrorMessage = (message: string) =>
   message.includes("_HASH_PRIVATE_TEMPORARY_COMPLETE_ERROR");
-
-export const getErrorMessage = (error: unknown) => {
-  if (error instanceof Error) return error.message;
-  return String(error);
-};
