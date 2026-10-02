@@ -23,7 +23,7 @@ type SemanticsViewProps = {
  * The questions on the semantics of the compilation: the list by topic on
  * the left, and on the right the selected question's card, or the intro and
  * the topics when none is selected. The view reads the register and the
- * catalog alone, never the document the Examples view has open.
+ * catalog alone, never the document the Playground view has open.
  */
 export const SemanticsView: React.FC<SemanticsViewProps> = ({ selected, onSelect }) => {
   const listRef = usePanelRef();

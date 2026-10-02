@@ -4,12 +4,12 @@ import { FIRST_EXAMPLE } from "../../examples/catalog";
 import { routeOf } from "./route";
 
 describe("routeOf", () => {
-  it("opens the example a hash names in the Examples view", () => {
+  it("opens the example a hash names in the Playground view", () => {
     // GIVEN the hash of an example
     // WHEN it is read
     const route = routeOf("#birth-death");
-    // THEN the Examples view opens on that example
-    expect(route.view).toBe("examples");
+    // THEN the Playground view opens on that example
+    expect(route.view).toBe("playground");
     expect(route.example.id).toBe("birth-death");
   });
 
@@ -41,8 +41,8 @@ describe("routeOf", () => {
 
   it("opens the first example for an empty hash or one the catalog does not hold", () => {
     // GIVEN no hash, and a hash naming no example
-    // THEN each opens the first example in the Examples view
-    expect(routeOf("")).toEqual({ view: "examples", example: FIRST_EXAMPLE });
-    expect(routeOf("#no-such-example")).toEqual({ view: "examples", example: FIRST_EXAMPLE });
+    // THEN each opens the first example in the Playground view
+    expect(routeOf("")).toEqual({ view: "playground", example: FIRST_EXAMPLE });
+    expect(routeOf("#no-such-example")).toEqual({ view: "playground", example: FIRST_EXAMPLE });
   });
 });

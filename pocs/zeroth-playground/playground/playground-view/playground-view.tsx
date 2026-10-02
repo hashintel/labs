@@ -29,9 +29,9 @@ import type { Document } from "../app/document";
 import type { LineDecoration } from "../editor/line-decorations";
 
 import "../ui/resizable.css";
-import "./examples-view.css";
+import "./playground-view.css";
 
-type ExamplesViewProps = {
+type PlaygroundViewProps = {
   document: Document;
   /** The document compiled, once per render, by the app. */
   compilation: Compilation;
@@ -63,12 +63,12 @@ function diagnosticLines(
 }
 
 /**
- * The Examples view: the example's page down the left; the IR editor over
+ * The Playground view: the example's page down the left; the IR editor over
  * the compiler options, and the emitted module beside them; the net preview
  * under both. A hover in the IR, the module or the preview lights what
  * belongs with it in the other two.
  */
-export const ExamplesView: React.FC<ExamplesViewProps> = ({ document, compilation, onChange, hover, onHover }) => {
+export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ document, compilation, onChange, hover, onHover }) => {
   const irEditorRef = useRef<CodeEditor | null>(null);
   const gridRef = useGridRef();
   const optionsRef = usePanelRef();

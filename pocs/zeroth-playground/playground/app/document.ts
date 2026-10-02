@@ -1,4 +1,4 @@
-import { type ModuleEdits, NO_EDITS, isEdited, recompiled } from "../examples-view/module-edits";
+import { type ModuleEdits, NO_EDITS, isEdited, recompiled } from "../playground-view/module-edits";
 import { sameOptions, withOption } from "../options/option-edits";
 
 import type { CompilerOptions, OptionName, PetriNetIr } from "../../compiler";
