@@ -5,8 +5,8 @@
  * height and one radius: a squircle where the browser draws one.
  */
 .header__views {
-  --segment-height: 1.75rem;
-  --segment-radius: 0.7rem;
+  --segment-height: var(--control-height);
+  --segment-radius: var(--control-radius);
   position: relative;
   display: inline-flex;
   justify-self: center;
@@ -15,10 +15,6 @@
   background: var(--paper-2);
   box-shadow: var(--shadow-lift);
   isolation: isolate;
-
-  @supports (corner-shape: squircle) {
-    --segment-radius: calc(var(--segment-height) / 2);
-  }
 
   &::before {
     content: "";
