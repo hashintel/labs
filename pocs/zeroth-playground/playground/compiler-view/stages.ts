@@ -155,7 +155,7 @@ export const STAGES: readonly Stage[] = [
     output: "`{ ok: true, graph }` or `{ ok: false, errors }`",
     details: [
       "**Rates** on coin gives a linear graph (`language: \"linear\"`); on clock, an SPN graph (`language: \"spn\"`).",
-      "A construct it cannot express is refused per item, and the IR stays as it is. The lowering the options pick refuses by name first, before the code is read: **Shape** on modular refuses a coloured net with `modular-coloured-not-lowered` alone, so the coloured examples open on monolithic.",
+      "A construct it cannot express is refused per item, and the IR stays as it is. The lowering the options pick refuses by name first, before the code is read: **Shape** on modular refuses a coloured net with `modular-coloured-not-lowered` alone, so Bucket, the coloured example, opens on monolithic.",
       "It takes the options in force: every option that does not apply to the net is already at its default, so the lowering has nothing to warn about.",
     ],
   },
@@ -172,7 +172,7 @@ export const STAGES: readonly Stage[] = [
     output: "`emit` and `trace`",
     details: [
       "A linear module is typed in LIA or LRA: LIA for Int places, LRA for Real places and draws.",
-      "**Shape** on modular, what the examples open with: one module per transition and per place, composed. On monolithic, the compiler's default: one module holds the whole step.",
+      "**Shape** on modular: one module per transition and per place, composed. On monolithic, the compiler's default: one module holds the whole step.",
       "Under **Marking** on Int, one LRA `Draw_` module per rated transition turns its draw into a flag. The LIA module that fires the transition reads it: its transition module, or the one module under monolithic.",
       "`X(name)` reads a variable's value in this round: an input the harness writes, or a variable another module drives. A variable has one driver, and the awaits form a DAG.",
       "SPN: a place is a Nat counter, a transition owns a Clock armed with `exp(rate)` and an Event it toggles; the clocks are hidden in the system.",
