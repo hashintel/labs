@@ -1,3 +1,5 @@
+import "./panel.css";
+
 /**
  * How a panel folds: toward the edge of its stack it sits against. `bottom`
  * is a panel in a vertical stack, which folds to its head row; `start` and
@@ -45,7 +47,7 @@ export const Panel: React.FC<PanelProps> = ({ title, fold, actions, children }) 
     <section className="panel" data-stack={stack} data-collapsed={collapsed} aria-label={title}>
       <header className="panel__head">
         {fold === undefined ? (
-          <span className="panel__title">{title}</span>
+          <span className="caps panel__title">{title}</span>
         ) : (
           <button
             type="button"
@@ -55,7 +57,7 @@ export const Panel: React.FC<PanelProps> = ({ title, fold, actions, children }) 
             onClick={fold.onToggle}
           >
             <span className="panel__chevron" data-points={chevronDirection(fold)} aria-hidden="true" />
-            <span className="panel__title">{title}</span>
+            <span className="caps panel__title">{title}</span>
           </button>
         )}
         {actions === undefined ? null : <div className="panel__actions">{actions}</div>}

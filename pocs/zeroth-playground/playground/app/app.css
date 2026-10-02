@@ -1,0 +1,9 @@
+.app {
+  display: grid;
+  grid-template-rows: var(--header-height) minmax(0, 1fr);
+  height: 100%;
+}
+
+.workspace {
+  min-height: 0;
+}

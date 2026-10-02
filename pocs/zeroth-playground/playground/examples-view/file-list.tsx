@@ -1,3 +1,5 @@
+import "./file-list.css";
+
 type FileListProps = {
   paths: readonly string[];
   selected: string;

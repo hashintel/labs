@@ -1,0 +1,75 @@
+.header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--s-5);
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--hair);
+}
+
+.header__wordmark {
+  display: block;
+  width: auto;
+  height: 1.1rem;
+  color: var(--ink-2);
+  opacity: 0.55;
+}
+
+.header__title {
+  margin: 0;
+  overflow: hidden;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  /* The joining word stays lowercase between the two names. */
+  & i {
+    margin: 0 0.1em;
+    color: color-mix(in oklab, var(--ink-2) 55%, var(--paper));
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+}
+
+.header__example {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.header__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.75rem;
+  padding: 0 0.65rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  animation: header-reset-in var(--base) var(--ease);
+  transition:
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+
+  &:hover {
+    border-color: var(--ink-2);
+    color: var(--ink);
+  }
+}
+
+.header__reset-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+@keyframes header-reset-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.25rem);
+  }
+}

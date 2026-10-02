@@ -1,5 +1,3 @@
-import "./compiler-view.css";
-
 import { useId, useState } from "react";
 import { Group, Panel as ResizablePanel, Separator, usePanelRef } from "react-resizable-panels";
 
@@ -18,6 +16,8 @@ import { stageSamples } from "./stage-sample";
 import type { StageFocus } from "./stage-focus";
 import type { SampleInput } from "./stage-sample";
 import type { StageId } from "./stages";
+
+import "../ui/resizable.css";
 
 /** The one panel of the view that folds. */
 const FOLDS = ["guide"] as const;
@@ -66,7 +66,7 @@ export const CompilerView: React.FC<SampleInput> = (input) => {
           defaultSize="30%"
         >
           <Panel title="Compiler guide" fold={folds.foldOf("guide", "start")}>
-            <article className="docs compiler-guide">
+            <article className="docs prose">
               <CompilerGuide />
             </article>
           </Panel>

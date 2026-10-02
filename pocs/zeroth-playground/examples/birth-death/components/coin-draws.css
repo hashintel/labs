@@ -3,13 +3,13 @@
 .coin-draws {
   --coin-step: 1.6s;
 
-  font-family: var(--sw-mono);
+  font-family: var(--mono);
 }
 
 /* The readout names the step, the draw and what it decides; one line at a time. */
 .coin-draws__readout {
   display: grid;
-  font-size: 0.72rem;
+  font-size: var(--fs-xs);
   line-height: 1.4;
 }
 
@@ -19,16 +19,16 @@
 }
 
 .coin-draws__step--fires {
-  color: var(--sw-accent);
+  color: var(--accent);
 }
 
 .coin-draws__step--waits {
-  color: var(--sw-ink-2);
+  color: var(--ink-2);
 }
 
 .coin-draws__summary {
   display: none;
-  color: var(--sw-ink);
+  color: var(--ink);
 }
 
 .coin-draws__axis {
@@ -39,36 +39,36 @@
 
 .coin-draws__region,
 .coin-draws__tick {
-  fill: var(--sw-ink-2);
-  font-size: 11px;
+  fill: var(--ink-2);
+  font-size: var(--fs-svg);
 }
 
 .coin-draws__region--fires,
 .coin-draws__tick--threshold {
-  fill: var(--sw-accent);
+  fill: var(--accent);
 }
 
 .coin-draws__band {
-  fill: var(--sw-accent-wash);
+  fill: var(--accent-wash);
 }
 
 .coin-draws__line {
-  stroke: var(--sw-ink-2);
+  stroke: var(--ink-2);
   stroke-width: 1.25;
 }
 
 .coin-draws__threshold {
-  stroke: var(--sw-accent);
+  stroke: var(--accent);
   stroke-width: 1.5;
 }
 
 .coin-draws__draw--fires {
-  fill: var(--sw-accent);
+  fill: var(--accent);
 }
 
 .coin-draws__draw--waits {
-  fill: var(--sw-paper-2);
-  stroke: var(--sw-ink-2);
+  fill: var(--paper-2);
+  stroke: var(--ink-2);
   stroke-width: 1.5;
 }
 

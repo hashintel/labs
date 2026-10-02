@@ -1,0 +1,251 @@
+/*
+ * Documents rounded on grey, steps square, side inputs dashed. The focused
+ * stage and its edges take the accent, the others step back; a refused stage
+ * is red, one not reached faded.
+ */
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.pipeline__legend {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.4rem var(--s-5);
+  margin: 0;
+  padding: 0.6rem var(--s-3) 0;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label-sm);
+  letter-spacing: 0.04em;
+  list-style: none;
+
+  & li {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+
+    &::before {
+      content: "";
+      display: block;
+      width: 0.95rem;
+      height: 0.6rem;
+      border: 1px solid var(--ink);
+    }
+
+    &[data-kind="data"]::before {
+      border-color: var(--ink-2);
+      border-radius: 0.3rem;
+      background: var(--paper);
+    }
+
+    &[data-kind="step"]::before {
+      background: var(--paper-2);
+    }
+
+    &[data-kind="input"]::before {
+      border-style: dashed;
+      border-color: var(--ink-2);
+    }
+
+    &[data-kind="playground"]::before {
+      width: 0.5rem;
+      height: 0.5rem;
+      border: none;
+      background: linear-gradient(135deg, var(--ink-2) 50%, transparent 50%);
+    }
+
+    &[data-kind="refused"]::before {
+      border-color: var(--red);
+      border-radius: 0.3rem;
+    }
+
+    &[data-kind="idle"]::before {
+      border-color: var(--ink-2);
+      border-radius: 0.3rem;
+      opacity: 0.4;
+    }
+  }
+}
+
+.pipeline__svg {
+  display: block;
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  padding: var(--s-1) var(--s-3) var(--s-2);
+  overflow: visible;
+}
+
+.pipeline__shape {
+  fill: var(--paper-2);
+  stroke: var(--ink);
+  stroke-width: 1.25;
+  transition:
+    fill var(--base) var(--ease),
+    stroke var(--base) var(--ease),
+    stroke-width var(--base) var(--ease);
+}
+
+.pipeline__notch {
+  fill: var(--ink-2);
+  transition: fill var(--base) var(--ease);
+}
+
+.pipeline__label {
+  fill: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: fill var(--base) var(--ease);
+}
+
+.pipeline__note {
+  fill: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-svg-note);
+  letter-spacing: 0.02em;
+  transition: fill var(--base) var(--ease);
+}
+
+/* The pin pops in when a click pins the stage. */
+.pipeline__pin {
+  fill: var(--accent);
+  transition: r var(--base) var(--ease);
+
+  @starting-style {
+    r: 0;
+  }
+}
+
+.pipeline__node {
+  cursor: pointer;
+  outline: none;
+  transform-box: fill-box;
+  transform-origin: center;
+  transition:
+    opacity var(--base) var(--ease),
+    transform var(--base) var(--ease);
+
+  &[data-kind="data"] .pipeline__shape {
+    fill: var(--paper);
+    stroke: var(--ink-2);
+    stroke-width: 1;
+  }
+
+  &[data-kind="input"] .pipeline__shape {
+    fill: none;
+    stroke: var(--ink-2);
+    stroke-width: 1;
+    stroke-dasharray: 4 3;
+  }
+
+  &:is([data-kind="step"], [data-kind="input"]) .pipeline__label {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  &[data-stage="code-parser"] .pipeline__label {
+    fill: var(--ink-2);
+  }
+
+  &[data-tone="refused"] {
+    & .pipeline__shape {
+      stroke: var(--red);
+    }
+
+    & .pipeline__label {
+      fill: var(--red);
+    }
+  }
+
+  &[data-tone="idle"]:is([data-state="rest"], [data-state="near"]) {
+    opacity: 0.45;
+  }
+
+  /* Focus: the stage in the accent and lifted a little, its neighbours as they are, everything else stepped back. */
+  &[data-state="focus"] {
+    @media (prefers-reduced-motion: no-preference) {
+      transform: scale(1.015);
+    }
+
+    & .pipeline__shape {
+      fill: var(--accent-wash);
+      stroke: var(--accent);
+      stroke-width: 2;
+    }
+
+    & :is(.pipeline__label, .pipeline__note, .pipeline__notch) {
+      fill: var(--accent);
+    }
+  }
+
+  &[data-state="dim"] {
+    opacity: 0.3;
+  }
+
+  &:focus-visible .pipeline__shape {
+    stroke-width: 2.5;
+  }
+}
+
+/* A paper-coloured halo under each line, so a later edge crossing an earlier one cuts a small gap in it. */
+.pipeline__halo {
+  stroke: var(--paper-2);
+  stroke-width: 6;
+}
+
+.pipeline__line {
+  stroke: var(--ink-2);
+  stroke-width: 1.1;
+  transition:
+    stroke var(--base) var(--ease),
+    stroke-width var(--base) var(--ease);
+}
+
+.pipeline__edge-label {
+  fill: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-svg-note);
+  letter-spacing: 0.02em;
+  paint-order: stroke fill;
+  stroke: var(--paper-2);
+  stroke-width: 3px;
+  transition: fill var(--base) var(--ease);
+}
+
+.pipeline__arrow {
+  fill: var(--ink-2);
+}
+
+.pipeline__arrow--lit {
+  fill: var(--accent);
+}
+
+.pipeline__edge {
+  transition: opacity var(--base) var(--ease);
+
+  &[data-absent="true"] .pipeline__line {
+    stroke-dasharray: 3 3;
+  }
+
+  &[data-state="focus"] {
+    & .pipeline__line {
+      stroke: var(--accent);
+      stroke-width: 1.75;
+    }
+
+    & .pipeline__edge-label {
+      fill: var(--accent);
+    }
+  }
+
+  &[data-state="dim"] {
+    opacity: 0.22;
+  }
+}

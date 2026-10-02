@@ -5,9 +5,9 @@
   flex-direction: column;
   gap: 0.6rem;
   padding: 0.75rem 0.8rem 0.8rem;
-  border: 1px solid var(--sw-hair-2);
-  border-radius: 2px;
-  background: var(--sw-paper-2);
+  border: 1px solid var(--hair-2);
+  border-radius: var(--r-xs);
+  background: var(--paper-2);
 }
 
 .explorer__field {
@@ -21,13 +21,13 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 0.5rem;
-  color: var(--sw-ink);
-  font-size: 0.8rem;
+  color: var(--ink);
+  font-size: var(--fs-md);
 }
 
 .explorer__field-value {
-  color: var(--sw-accent);
-  font-family: var(--sw-mono);
+  color: var(--accent);
+  font-family: var(--mono);
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
 }
@@ -35,12 +35,12 @@
 .explorer__range {
   width: 100%;
   margin: 0;
-  accent-color: var(--sw-accent);
+  accent-color: var(--accent);
 }
 
 .explorer__range:focus-visible,
 .explorer__button:focus-visible {
-  outline: 2px solid var(--sw-accent);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -55,54 +55,57 @@
 .explorer__button {
   flex: none;
   padding: 0.3rem 0.7rem;
-  border: 1px solid var(--sw-accent);
-  border-radius: 2px;
-  background: var(--sw-accent);
-  color: var(--sw-paper-2);
-  font-family: var(--sw-mono);
-  font-size: 0.68rem;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-xs);
+  background: var(--accent);
+  color: var(--paper-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
   font-weight: 500;
   letter-spacing: 0.08em;
+  /* The font's own line height sets the button's height. */
+  line-height: normal;
   text-transform: uppercase;
-  cursor: pointer;
-  transition: background-color 120ms var(--sw-ease), border-color 120ms var(--sw-ease);
+  transition:
+    background-color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
 }
 
 .explorer__button:hover {
-  border-color: var(--sw-accent-deep);
-  background: var(--sw-accent-deep);
+  border-color: var(--accent-deep);
+  background: var(--accent-deep);
 }
 
 .explorer__verdict {
   flex: 1 1 13rem;
   min-height: 2.9em;
   padding-left: 0.55rem;
-  border-left: 2px solid var(--sw-hair);
-  color: var(--sw-ink-2);
+  border-left: 2px solid var(--hair);
+  color: var(--ink-2);
   font-size: 0.75rem;
   line-height: 1.45;
 }
 
 .explorer__verdict--fires {
-  border-left-color: var(--sw-accent);
-  color: var(--sw-ink);
+  border-left-color: var(--accent);
+  color: var(--ink);
 }
 
 .explorer__verdict--waits {
-  border-left-color: var(--sw-ink-2);
-  color: var(--sw-ink);
+  border-left-color: var(--ink-2);
+  color: var(--ink);
 }
 
 .explorer__rate {
   padding-top: 0.45rem;
-  border-top: 1px solid var(--sw-hair-2);
-  color: var(--sw-ink-2);
-  font-family: var(--sw-mono);
-  font-size: 0.72rem;
+  border-top: 1px solid var(--hair-2);
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
 }
 
 .explorer__value {
-  color: var(--sw-ink);
+  color: var(--ink);
   font-weight: 600;
 }
 
@@ -114,41 +117,41 @@
 
 .survival-plot__text,
 .survival-plot__draw-label {
-  font-family: var(--sw-mono);
-  font-size: 11px;
+  font-family: var(--mono);
+  font-size: var(--fs-svg);
 }
 
 .survival-plot__text--muted {
-  fill: var(--sw-ink-2);
+  fill: var(--ink-2);
 }
 
 .survival-plot__text--accent {
-  fill: var(--sw-accent);
+  fill: var(--accent);
 }
 
 .survival-plot__band {
-  fill: var(--sw-accent-wash);
+  fill: var(--accent-wash);
 }
 
 .survival-plot__mark {
-  stroke: var(--sw-accent);
+  stroke: var(--accent);
   stroke-width: 3;
 }
 
 .survival-plot__axis {
-  stroke: var(--sw-ink-2);
+  stroke: var(--ink-2);
   stroke-width: 1.25;
 }
 
 .survival-plot__guide {
-  stroke: var(--sw-accent);
+  stroke: var(--accent);
   stroke-width: 1;
   stroke-dasharray: 3 3;
 }
 
 .survival-plot__curve {
   fill: none;
-  stroke: var(--sw-ink);
+  stroke: var(--ink);
   stroke-width: 1.5;
   stroke-linejoin: round;
 }
@@ -162,26 +165,20 @@
 }
 
 .survival-plot__draw--fires .survival-plot__draw-line {
-  stroke: var(--sw-accent);
+  stroke: var(--accent);
 }
 
 .survival-plot__draw--fires .survival-plot__draw-dot,
 .survival-plot__draw--fires .survival-plot__draw-label {
-  fill: var(--sw-accent);
+  fill: var(--accent);
 }
 
 .survival-plot__draw--waits .survival-plot__draw-line {
-  stroke: var(--sw-ink-2);
+  stroke: var(--ink-2);
   stroke-dasharray: 2 2;
 }
 
 .survival-plot__draw--waits .survival-plot__draw-dot,
 .survival-plot__draw--waits .survival-plot__draw-label {
-  fill: var(--sw-ink-2);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .explorer__button {
-    transition: none;
-  }
+  fill: var(--ink-2);
 }

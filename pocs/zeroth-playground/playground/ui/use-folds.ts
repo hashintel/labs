@@ -9,7 +9,7 @@ export type Foldable = {
   expand: () => void;
 };
 
-/** How long a fold eases; the stylesheet's `--fold-duration` says the same. */
+/** How long a panel takes to collapse or open; `--fold` in `theme/tokens.css` says the same. */
 const FOLD_MS = 260;
 
 /**

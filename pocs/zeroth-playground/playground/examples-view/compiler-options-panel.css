@@ -1,0 +1,106 @@
+/* Sections of options, each with what it does; a dependent option nests under its parent. */
+.options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14.5rem, 1fr));
+  align-content: start;
+  gap: var(--s-5) 1.75rem;
+  height: 100%;
+  padding: 0.85rem 0.85rem var(--s-5);
+  overflow-y: auto;
+}
+
+.options__section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.options__title {
+  margin: 0;
+  font-size: 0.66rem;
+  font-weight: 600;
+}
+
+.options__about {
+  margin: -0.35rem 0 0.1rem;
+  color: var(--ink-2);
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.option {
+  display: grid;
+  grid-template-columns: 5.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-1) 0.6rem;
+
+  /* An option that only matters through the one above hangs from it on a hairline. */
+  &[data-nested="true"] {
+    margin-left: 0.55rem;
+    padding-left: 0.7rem;
+    border-left: 1px solid var(--hair);
+  }
+
+  /* Off for this net: label and control fade, and the hint says why. */
+  &[data-disabled="true"] {
+    & :is(.option__label, .option__control) {
+      opacity: 0.45;
+    }
+
+    & .option__hint {
+      font-style: italic;
+    }
+  }
+}
+
+.option__label {
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: 500;
+}
+
+.option__control {
+  width: 100%;
+  height: 1.6rem;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-xs);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  transition: border-color var(--fast) var(--ease);
+
+  &:hover:not(:disabled) {
+    border-color: var(--ink-2);
+  }
+
+  &:focus-visible {
+    outline: none;
+    border-color: var(--accent);
+  }
+
+  /* Placed and weighted to win over hover and focus, which a field being typed in has. */
+  &[aria-invalid="true"]:not(:disabled) {
+    border-color: var(--red);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.option__control--select {
+  appearance: none;
+  padding-right: var(--s-6);
+  background: var(--chevron-down) no-repeat right var(--s-2) center / 0.55rem auto var(--paper-2);
+  cursor: pointer;
+}
+
+.option__hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+}

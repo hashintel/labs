@@ -2,7 +2,10 @@ import type { Monaco } from "./monaco";
 
 export const SWISS_THEME = "swiss";
 
-/** `vs` in the swiss palette: ink on paper, the accent for keywords and numbers, hairlines for the gutter. */
+/**
+ * `vs` in the swiss palette: ink on paper, the accent for keywords and numbers, hairlines for the gutter.
+ * Monaco's theme takes colour literals, not CSS variables, so the palette of `theme/tokens.css` is hex here.
+ */
 export function defineSwissTheme(monaco: Monaco): void {
   monaco.editor.defineTheme(SWISS_THEME, {
     base: "vs",

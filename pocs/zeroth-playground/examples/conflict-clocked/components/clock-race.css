@@ -13,8 +13,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
-  font-family: var(--sw-mono);
-  font-size: 0.72rem;
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
   line-height: 1.3;
 }
 
@@ -26,12 +26,12 @@
 }
 
 .clock-race__name {
-  color: var(--sw-ink);
+  color: var(--ink);
   font-weight: 500;
 }
 
 .clock-race__fires {
-  color: var(--sw-accent);
+  color: var(--accent);
   font-size: 0.66rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -46,21 +46,21 @@
 }
 
 .clock-race__zero {
-  color: var(--sw-ink-2);
+  color: var(--ink-2);
 }
 
 .clock-race__rail {
   flex: 1;
   height: 12px;
-  border: 1px solid var(--sw-hair);
-  background: var(--sw-paper);
+  border: 1px solid var(--hair);
+  background: var(--paper);
 }
 
 /* The bar shrinks toward the 0 at its left, as its clock runs down. */
 .clock-race__bar {
   display: block;
   height: 100%;
-  background: var(--sw-accent);
+  background: var(--accent);
   transform-origin: left center;
   animation: var(--race-loop) linear infinite;
 }
@@ -139,7 +139,7 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--sw-accent);
+  background: var(--accent);
   animation: var(--race-loop) step-end infinite;
 }
 
@@ -156,7 +156,7 @@
 }
 
 .clock-race__wait {
-  color: var(--sw-ink-2);
+  color: var(--ink-2);
   visibility: hidden;
   animation: clock-race-wait var(--race-loop) step-end infinite;
 }

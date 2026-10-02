@@ -6,6 +6,8 @@ import type { OptionName } from "../../compiler";
 import type { Example } from "../../examples/catalog";
 import type { OptionLabels } from "../options/option-labels";
 
+import "./strategy-table.css";
+
 /** By option, then by value, the titles of the examples that open with it. */
 type Opened = Map<OptionName, Map<string, string[]>>;
 

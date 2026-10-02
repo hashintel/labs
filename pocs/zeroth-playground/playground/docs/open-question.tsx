@@ -1,3 +1,5 @@
+import "./open-question.css";
+
 type OpenQuestionProps = {
   /** Who can settle it. */
   owner: "HASH" | "Zeroth" | "HASH and Zeroth";
@@ -9,7 +11,7 @@ type OpenQuestionProps = {
 export const OpenQuestion: React.FC<OpenQuestionProps> = ({ owner, children }) => {
   return (
     <aside className="open-question">
-      <span className="open-question__owner">For {owner}</span>
+      <span className="caps open-question__owner">For {owner}</span>
       <div className="open-question__body">{children}</div>
     </aside>
   );

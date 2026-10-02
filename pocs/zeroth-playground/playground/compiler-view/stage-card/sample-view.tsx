@@ -1,5 +1,7 @@
 import type { StageSample } from "../stage-sample";
 
+import "./sample-view.css";
+
 type SampleViewProps = {
   exampleTitle: string;
   sample: StageSample;
@@ -10,7 +12,7 @@ export const SampleView: React.FC<SampleViewProps> = ({ exampleTitle, sample }) 
   const { excerpt } = sample;
   return (
     <section className="sample" data-tone={sample.tone} aria-label={`Live: ${exampleTitle}`}>
-      <p className="kicker sample__kicker">Live · {exampleTitle}</p>
+      <p className="caps kicker">Live · {exampleTitle}</p>
       <p className="sample__headline">
         <span className="sample__dot" aria-hidden="true" />
         {sample.headline}
@@ -27,7 +29,7 @@ export const SampleView: React.FC<SampleViewProps> = ({ exampleTitle, sample }) 
       )}
       {excerpt === undefined ? null : (
         <figure className="sample__excerpt">
-          <figcaption className="sample__source">{excerpt.source}</figcaption>
+          <figcaption className="caps sample__source">{excerpt.source}</figcaption>
           <pre>
             {excerpt.lines.map((line, index) => {
               const previous = excerpt.lines[index - 1];

@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import { EXAMPLES, LADDER, exampleById } from "../../examples/catalog";
 
+import "./example-picker.css";
+
 type ExamplePickerProps = {
   exampleId: string;
   onSelect: (id: string) => void;
@@ -102,7 +104,7 @@ export const ExamplePicker: React.FC<ExamplePickerProps> = ({ exampleId, onSelec
           const titleId = `${LIST_ID}-${rung.id}`;
           return examples.length === 0 ? null : (
             <div key={rung.id} role="group" aria-labelledby={titleId} className="picker__group">
-              <div id={titleId} className="picker__group-title">
+              <div id={titleId} className="caps picker__group-title">
                 {rung.title}
               </div>
               {examples.map((example) => (
@@ -132,7 +134,7 @@ export const ExamplePicker: React.FC<ExamplePickerProps> = ({ exampleId, onSelec
           );
         })}
         <p className="picker__about" aria-hidden="true">
-          <span className="picker__about-net">{about?.title}</span>
+          <span className="caps picker__about-net">{about?.title}</span>
           {about?.summary}
         </p>
       </div>

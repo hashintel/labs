@@ -12,6 +12,9 @@ import { useFolds } from "../ui/use-folds";
 
 import type { Compilation } from "../../compiler";
 
+import "../ui/resizable.css";
+import "./module-view.css";
+
 type ModuleViewProps = {
   /** Names the editor's models, so undo never reaches another example's text. */
   exampleId: string;

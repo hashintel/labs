@@ -6,6 +6,9 @@ import { useStageFocus } from "./stage-focus";
 import type { FocusHandoff } from "./focus-handoff";
 import type { StageWithSample } from "./stage-sample";
 
+import "./stage-card.css";
+import "./stage-overview.css";
+
 type StageOverviewProps = {
   exampleTitle: string;
   /** Every stage in pipeline order, with what it made of the example. */
@@ -22,8 +25,8 @@ export const StageOverview: React.FC<StageOverviewProps> = ({ exampleTitle, samp
   const { togglePin } = useStageFocus();
   return (
     <div className="stage-overview">
-      <div className="stage-overview__intro">
-        <p className="kicker">Overview</p>
+      <div className="stage-overview__intro prose">
+        <p className="caps kicker">Overview</p>
         <h2 className="stage-card__title">{exampleTitle}, stage by stage</h2>
         <p className="stage-card__summary">
           Hover a stage in the graph or in the guide to open its card here; click to pin it.

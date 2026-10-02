@@ -1,3 +1,5 @@
+import "./switch.css";
+
 type SwitchProps = {
   label: string;
   checked: boolean;
@@ -13,7 +15,7 @@ export const Switch: React.FC<SwitchProps> = ({ label, checked, onChange, disabl
     <button
       type="button"
       role="switch"
-      className="switch"
+      className="caps switch"
       aria-checked={checked}
       disabled={disabled}
       title={title}

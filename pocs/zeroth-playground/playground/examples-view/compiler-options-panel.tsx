@@ -4,6 +4,8 @@ import { NOT_USED, OPTION_SECTIONS, type OptionLabels } from "../options/option-
 
 import type { OptionName, OptionState } from "../../compiler";
 
+import "./compiler-options-panel.css";
+
 function sectionId(title: string): string {
   return `options-${title.toLowerCase().replaceAll(" ", "-")}`;
 }
@@ -86,7 +88,7 @@ export const CompilerOptionsPanel: React.FC<CompilerOptionsPanelProps> = ({ stat
   <div className="options">
     {OPTION_SECTIONS.map((section) => (
       <section key={section.title} className="options__section" aria-labelledby={sectionId(section.title)}>
-        <h3 className="options__title" id={sectionId(section.title)}>
+        <h3 className="caps options__title" id={sectionId(section.title)}>
           {section.title}
         </h3>
         <p className="options__about">{section.about}</p>

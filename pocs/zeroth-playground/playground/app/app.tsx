@@ -11,6 +11,8 @@ import { type View, routeOf } from "./route";
 
 import type { Hover } from "../examples-view/hover";
 
+import "./app.css";
+
 /**
  * The playground: the header over the two views. It holds the open document
  * and compiles it once per render for both views; each view is hidden, not
