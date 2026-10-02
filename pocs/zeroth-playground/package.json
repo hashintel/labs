@@ -50,7 +50,8 @@
       }
     },
     "overrides": {
-      "speech-rule-engine>@xmldom/xmldom": "0.9.12"
+      "speech-rule-engine>@xmldom/xmldom": "0.9.12",
+      "monaco-editor>dompurify": "3.4.16"
     }
   },
   "license": "(MIT OR Apache-2.0)"

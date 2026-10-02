@@ -122,7 +122,10 @@ Styles are plain CSS. A component imports its own file, placed beside it, and ne
 
 A code parser for the IR's code strings would need the TypeScript compiler, which does not fit this budget. That is why nets with code strings are refused here.
 
-`package.json` overrides one transitive package, scoped to its parent: `speech-rule-engine>@xmldom/xmldom` is lifted to 0.9.12, which fixes the advisories against 0.9.10. The chain is `rehype-mathjax`, then `mathjax-full` 3, then `speech-rule-engine` 4, which pins `@xmldom/xmldom` at exactly 0.9.10, and it runs only at build time. Drop the override once `rehype-mathjax` moves to MathJax 4 (remarkjs/remark-math#118 and #119), whose `speech-rule-engine` allows the fixed version.
+`package.json` overrides two transitive packages, each scoped to the parent that pins it:
+
+- `speech-rule-engine>@xmldom/xmldom` is lifted to 0.9.12, which fixes the advisories against 0.9.10. The chain is `rehype-mathjax`, then `mathjax-full` 3, then `speech-rule-engine` 4, which pins `@xmldom/xmldom` at exactly 0.9.10, and it runs only at build time. Drop the override once `rehype-mathjax` moves to MathJax 4 (remarkjs/remark-math#118 and #119), whose `speech-rule-engine` allows the fixed version.
+- `monaco-editor>dompurify` is lifted to 3.4.16, which fixes the advisory against 3.4.15. Monaco 0.57 pins `dompurify` at exactly 3.4.15 for its hover widget. Drop the override once a Monaco release depends on 3.4.16 or later.
 
 ## Gates
 
