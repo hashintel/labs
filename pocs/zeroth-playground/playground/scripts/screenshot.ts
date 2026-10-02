@@ -1,7 +1,8 @@
 /**
  * Screenshots every example the picker lists at 1440x900 into `screenshots/`,
- * then the compiler view, opening `dist/index.html` from disk as a reader
- * would. Run `pnpm build` first, then `pnpm screenshot`.
+ * then the Compiler view and the Semantics view with and without a question,
+ * opening `dist/index.html` from disk as a reader would. Run `pnpm build`
+ * first, then `pnpm screenshot`.
  */
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
@@ -49,6 +50,20 @@ try {
   const compiler = path.join(out, "compiler.png");
   await tab.screenshot({ path: compiler });
   console.log(`wrote ${path.relative(root, compiler)}`);
+  // The Semantics view: the intro with the list, then one question selected from its hash.
+  for (const [hash, name] of [
+    ["semantics", "semantics.png"],
+    ["semantics/ties-under-clocks", "semantics-question.png"],
+  ] as const) {
+    await tab.goto(`${page}#${hash}`);
+    await tab.reload();
+    await tab.locator(".question-list__row").filter({ visible: true }).first().waitFor();
+    await tab.evaluate(() => document.fonts.ready);
+    await tab.waitForTimeout(400);
+    const file = path.join(out, name);
+    await tab.screenshot({ path: file });
+    console.log(`wrote ${path.relative(root, file)}`);
+  }
 } finally {
   await browser.close();
 }

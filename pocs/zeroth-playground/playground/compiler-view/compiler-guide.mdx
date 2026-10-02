@@ -1,4 +1,3 @@
-import { OpenQuestion } from "../docs/open-question";
 import { DWELL_MS } from "../pointer/pointer-motion";
 import { StageRef } from "./stage-ref";
 import { StrategyTable } from "./strategy-table";
@@ -52,8 +51,6 @@ A lowering diagnostic names an item, not a line. `compile` finds the line with `
 - **The Compiler options panel.** The options sit beside the text, not in it, each with a one-line hint. `optionStates` greys what does not apply and says why. Each example opens with its options from the catalog.
 - **Cross-highlighting.** `matchingLines` pairs ranges by source, else when one IR path contains the other. A hover takes effect once the pointer has rested {DWELL_MS} ms, so a sweep lights nothing.
 
-### Open questions
+### Open on the playground's side
 
-<OpenQuestion owner="HASH">
-  A lowering diagnostic lands on the first IR line of its item, so a `code-not-parsed` on a kernel points at the transition, not at `kernel:`. Should a diagnostic carry the IR path it concerns?
-</OpenQuestion>
+A lowering diagnostic lands on the first IR line of its item, so a `code-not-parsed` on a kernel points at the transition rather than at `kernel:`. Whether a diagnostic should carry the IR path it concerns is HASH's to settle. The questions on the semantics of the compilation, what a net means as modules and what Zeroth can express, are in the Semantics view.

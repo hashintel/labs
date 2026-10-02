@@ -1,0 +1,32 @@
+/* The topics under the intro: each with its count and one line on what it holds. */
+.semantics-intro__topics {
+  margin: 0;
+}
+
+.semantics-intro__topic {
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--hair-2);
+
+  & dt {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    color: var(--ink);
+    font-size: var(--fs-md);
+    font-weight: 600;
+  }
+
+  & dd {
+    margin: 0.15rem 0 0;
+    color: var(--text-2);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+  }
+}
+
+.semantics-intro__count {
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label-sm);
+  font-weight: 400;
+}

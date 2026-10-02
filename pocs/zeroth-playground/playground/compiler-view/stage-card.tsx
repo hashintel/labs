@@ -1,5 +1,6 @@
 import { flushSync } from "react-dom";
 
+import { BackLink } from "../ui/back-link";
 import { focusById } from "./focus-handoff";
 import { RichText } from "./rich-text";
 import { SampleView } from "./stage-card/sample-view";
@@ -41,19 +42,16 @@ export const StageCard: React.FC<StageCardProps> = ({ stage, sample, exampleTitl
       <article className="stage-card__doc prose">
         <div className="stage-card__head">
           {pinned === null ? null : (
-            <button
-              type="button"
+            <BackLink
               id={handoff.back}
-              className="caps stage-card__back"
               onClick={() => {
                 // The button goes with the card: hand the focus to the stage's row in the overview.
                 flushSync(() => togglePin(pinned));
                 focusById(handoff.row(pinned));
               }}
             >
-              <span className="stage-card__back-chevron" aria-hidden="true" />
               All stages
-            </button>
+            </BackLink>
           )}
           <p className="caps kicker">
             {KIND_LABELS[stage.kind]} · {OWNER_LABELS[stage.owner]}

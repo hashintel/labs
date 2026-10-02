@@ -1,0 +1,18 @@
+How does a kernel run under SPN, which has no sort for a token's attributes? A kernel writes the produced tokens; under clocks a place is a `Nat` counter.
+
+### Today
+
+A kernel is refused under clocks with `clocks-kernel`, and **Rates** on clock does not apply to a coloured net at all. Under coins the monolithic step writes each produced attribute as a local and lands it by compaction:
+
+```python
+out_Launch_Airborne_0_battery = ite(sel_Launch_0, Hangar_0_battery, ite(sel_Launch_1, Hangar_1_battery, Hangar_2_battery))
+Airborne_0_battery = ite(fire_Launch & (landed_Airborne == 0.0), out_Launch_Airborne_0_battery, Airborne_0_battery)
+```
+
+The playground's one coloured example, Bucket, has no kernel, and its rate is code the playground does not parse.
+
+### Options on the table
+
+- A `Real` sort in SPN beside `Nat`, so a place keeps its positions and a kernel writes them at the event.
+- An LRA module per coloured place for the attributes, beside the SPN modules for the counts; see *SPN and LRA modules in one system*.
+- Keep coloured nets under coins.

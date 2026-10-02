@@ -10,6 +10,7 @@ import {
 import { STAGES } from "./stages";
 
 import type { Compilation, CompilerOptions } from "../../compiler";
+import type { Excerpt } from "../ui/excerpt";
 import type { Stage, StageId } from "./stages";
 
 /**
@@ -38,26 +39,11 @@ export type SampleRow = {
   error?: boolean;
 };
 
-type ExcerptLine = {
-  /** 1-based, in the source text. */
-  number: number;
-  text: string;
-  /** A line the sample points at, lit as the editors light it. */
-  lit: boolean;
-};
-
-/** Lines quoted from one text, in order; the numbers may skip. */
-export type SampleExcerpt = {
-  /** The text the lines come from: `net.py`, `IR`. */
-  source: string;
-  lines: ExcerptLine[];
-};
-
 export type StageSample = {
   tone: SampleTone;
   headline: string;
   rows: SampleRow[];
-  excerpt?: SampleExcerpt;
+  excerpt?: Excerpt;
 };
 
 const SAMPLES: Record<StageId, (input: SampleInput) => StageSample> = {

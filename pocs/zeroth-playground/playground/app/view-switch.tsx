@@ -5,6 +5,7 @@ import "./view-switch.css";
 const VIEWS: readonly { id: View; label: string }[] = [
   { id: "examples", label: "Examples" },
   { id: "compiler", label: "Compiler" },
+  { id: "semantics", label: "Semantics" },
 ];
 
 type ViewSwitchProps = {
@@ -12,7 +13,7 @@ type ViewSwitchProps = {
   onSelect: (view: View) => void;
 };
 
-/** The two views as a segmented control: the one shown is pressed. */
+/** The views as a segmented control: the one shown is pressed. */
 export const ViewSwitch: React.FC<ViewSwitchProps> = ({ view, onSelect }) => {
   return (
     <nav className="header__views" aria-label="Views">

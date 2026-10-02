@@ -23,6 +23,22 @@ describe("routeOf", () => {
     expect(alone).toEqual({ view: "compiler", example: FIRST_EXAMPLE });
   });
 
+  it("opens the Semantics view, on the question after the slash", () => {
+    // GIVEN the Semantics view's hash, with a question, with an unknown one, and alone
+    // WHEN each is read
+    const withQuestion = routeOf("#semantics/ties-under-clocks");
+    const unknown = routeOf("#semantics/no-such-question");
+    const alone = routeOf("#semantics");
+    // THEN all open the Semantics view on the first example; only the known question is selected
+    expect(withQuestion).toEqual({
+      view: "semantics",
+      example: FIRST_EXAMPLE,
+      question: expect.objectContaining({ id: "ties-under-clocks" }),
+    });
+    expect(unknown).toEqual({ view: "semantics", example: FIRST_EXAMPLE });
+    expect(alone).toEqual({ view: "semantics", example: FIRST_EXAMPLE });
+  });
+
   it("opens the first example for an empty hash or one the catalog does not hold", () => {
     // GIVEN no hash, and a hash naming no example
     // THEN each opens the first example in the Examples view

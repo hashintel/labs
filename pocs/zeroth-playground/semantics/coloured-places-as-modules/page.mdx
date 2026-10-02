@@ -1,0 +1,20 @@
+How should a coloured place split into modules, so that **Shape** on modular applies to every net? The modular shape refuses coloured places and dynamics today.
+
+### Today
+
+The modular shape refuses a net with a coloured place or dynamics with `modular-coloured-not-lowered`, before it reads any code. The monolithic step gives each position of a coloured place a present flag and one variable per attribute, and closes the survivors up at the end of the step:
+
+```python
+Pool_0_present = Var(BOOL)  # Pool slot 0 holds a token
+Pool_0_x = Var(REAL)
+rank_Pool_1 = ite(Pool_0_present, expr(1.0, theory=LRA, sort=REAL), 0.0)
+Pool_0_present = kept_Pool >= 1.0
+```
+
+A transition's bindings read the positions of every input place, and its kernel writes the positions of every output place, so the step is one block of locals.
+
+### Options on the table
+
+- One module per place that drives every position's variables, awaiting each transition's selected binding and produced tokens as Bools and Reals in the interface.
+- One module per position, so a place of n positions is n modules and the compaction is a chain of awaits.
+- Keep the monolithic shape for coloured and dynamic nets.

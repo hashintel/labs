@@ -1,5 +1,5 @@
 import { codeStrings, optionStates, yamlKeys } from "../../../compiler";
-import { NOT_USED, OPTION_SECTIONS, valueLabel } from "../../options/option-labels";
+import { NOT_USED, OPTION_SECTIONS, setOptionLabels, valueLabel } from "../../options/option-labels";
 import { excerptOf } from "./excerpt";
 import { notParsed } from "./not-reached";
 import { diagnosticRow, plural } from "./rows";
@@ -84,10 +84,7 @@ export function optionsSample({ compilation, options }: SampleInput): StageSampl
   const states = optionStates(ir, options);
   const applying = states.filter((state) => state.notApplicable === undefined);
   const labelled = OPTION_SECTIONS.flatMap((section) => section.options);
-  const set = labelled.flatMap((labels) => {
-    const value = options[labels.name];
-    return value === undefined ? [] : [`${labels.label} ${valueLabel(labels, String(value))}`];
-  });
+  const set = setOptionLabels(options);
   const rows = labelled.flatMap((labels) => {
     const state = states.find((candidate) => candidate.name === labels.name);
     if (state === undefined) {

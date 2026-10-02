@@ -1,0 +1,17 @@
+How should SPN express an arc of weight 2: `(n + 1) + 1`, an `Inc` of `Inc`, or a count on `Inc` and `Dec`?
+
+### Today
+
+Under coins an arc of weight w tests `P >= w` and moves w tokens at once:
+
+```python
+Parts = ite(X(fire_Join), Parts - 2, Parts)  # Join takes 2
+```
+
+Under clocks an arc of weight above 1 is refused with `clocks-arc-weight`: SPN tests a count against zero and moves one token per arc, `P != 0` and `Pool + 1`.
+
+### Options on the table
+
+- Nest the increments, `(n + 1) + 1`, an `Inc` of `Inc`. `check_nat_ops` suggests it types; it is untested.
+- A count on `Inc` and `Dec`, so one event moves w tokens.
+- Refuse, as today.

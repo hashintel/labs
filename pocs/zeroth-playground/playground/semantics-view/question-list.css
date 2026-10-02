@@ -1,0 +1,81 @@
+/* The questions by topic: a status dot, the title, and the owner in small mono at the right. */
+.question-list {
+  height: 100%;
+  padding: var(--s-2) var(--s-2) var(--s-4);
+  overflow-y: auto;
+}
+
+.question-list__group {
+  margin-bottom: var(--s-2);
+}
+
+/* A topic's title recedes behind its questions, in line with their titles. */
+.question-list__topic {
+  padding: 0.6rem 0.6rem 0.25rem 1.55rem;
+  color: var(--ink-3);
+  font-size: var(--fs-label-sm);
+}
+
+.question-list__row {
+  display: grid;
+  grid-template-columns: 0.95rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--s-2);
+  width: 100%;
+  min-height: 1.9rem;
+  padding: 0.3rem 0.6rem;
+  border-radius: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+
+  /* The pointer greys a row and the keyboard washes it in the accent, so the two never look alike. */
+  &:hover {
+    background: var(--hair-2);
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: var(--accent-wash);
+  }
+
+  /* The selected question: a heavier weight and a wash of ink, which hover and focus still show over. */
+  &[aria-selected="true"] {
+    background: var(--ink-wash);
+    font-weight: 600;
+
+    &:hover {
+      background: var(--hair-2);
+    }
+  }
+}
+
+/* The status as a dot: amber while open, blue once proposed, grey once settled. */
+.question-list__status {
+  justify-self: center;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--amber-line);
+
+  &[data-status="proposed"] {
+    background: var(--accent);
+  }
+
+  &[data-status="settled"] {
+    background: var(--ink-3);
+  }
+}
+
+.question-list__title {
+  overflow-wrap: anywhere;
+}
+
+.question-list__owner {
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label-sm);
+  white-space: nowrap;
+}

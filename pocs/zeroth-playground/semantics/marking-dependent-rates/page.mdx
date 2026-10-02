@@ -1,0 +1,17 @@
+Can SPN take a rate that reads the marking, such as a death rate per member of `Population`? `Exp` takes a constant today.
+
+### Today
+
+A clock is armed with a constant, so `Death` fires at rate 1 however many members remain:
+
+```python
+return ite(fires_Death, exp(1.0), clk_Death), ite(fires_Death, ~ev_Death, None)
+```
+
+Under coins such a rate is written as code, and the compiler tests it against an exponential draw, `rate >= X(e_T)`. This playground passes no code parser, so it refuses the code with `code-not-parsed`. Under clocks the code is refused with `clocks-rate-code` before it is read.
+
+### Options on the table
+
+- `Exp` of a term over the marking, re-armed when the marking changes.
+- One clock per token: a module per member of `Population`, which the compiler would unroll up to a bound.
+- Keep constant rates under clocks and refuse code, as today.

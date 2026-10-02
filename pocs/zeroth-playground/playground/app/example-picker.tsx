@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { EXAMPLES, LADDER, exampleById } from "../../examples/catalog";
+import { stepIndex } from "../ui/roving";
 
 import "./example-picker.css";
 
@@ -28,21 +29,12 @@ function walk(event: React.KeyboardEvent<HTMLDivElement>) {
   }
   const options = optionsOf(event.currentTarget);
   const at = options.indexOf(document.activeElement as HTMLButtonElement);
-  const next =
-    event.key === "ArrowDown"
-      ? at + 1
-      : event.key === "ArrowUp"
-        ? at - 1
-        : event.key === "Home"
-          ? 0
-          : event.key === "End"
-            ? options.length - 1
-            : null;
+  const next = stepIndex(event.key, at, options.length);
   if (next === null) {
     return;
   }
   event.preventDefault();
-  options[Math.max(0, Math.min(options.length - 1, next))]?.focus();
+  options[next]?.focus();
 }
 
 /**

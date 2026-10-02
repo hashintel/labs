@@ -1,0 +1,18 @@
+Should read and inhibitor arcs count as conflicts? Today any two transitions that share an input place get picks under **Conflicts** on nondet, whatever the arc kinds. So two readers of one place get picks, although neither takes a token.
+
+### Today
+
+`conflictingTransitions` groups the transitions by input place and ignores the arc's kind. On Conflict, `TakeLeft` and `TakeRight` take from `Pool` and each gets a pick:
+
+```python
+return (Pool >= 1) & X(pick_TakeLeft)
+return (avail_Pool >= 1) & X(pick_TakeRight)
+```
+
+On Arcs, `Join` reads `Power` and is inhibited by `Jam`, and no other transition touches either place, so **Conflicts** does not apply. Add a second transition that reads `Power`, and both readers get a pick.
+
+### Options on the table
+
+- Keep every shared input place as a conflict: a proof under nondet ranges over the readers too.
+- Count standard arcs alone: a read or inhibitor arc takes nothing, so two readers never compete for a token.
+- Count a read arc against a taker only: a reader and a taker of one place compete for the token's presence, two readers do not.

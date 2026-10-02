@@ -29,14 +29,8 @@ So when both takers expire together, `Left` and `Right` each gain a token while 
 
 ### Open questions
 
-<OpenQuestion owner="HASH">
-  A false pick at expiry stops time. Should the clock pause while its pick is false, or re-arm at expiry whatever the pick?
-</OpenQuestion>
+<Question id="false-pick-under-clocks" />
 
-<OpenQuestion owner="HASH and Zeroth">
-  Two takers that expire together both produce, and `Pool` loses no token. Under exponential clocks a tie has chance zero, so this matters only where delays can be equal. Should `Place_Pool` apply both takes on a tie, or should a tie fire one transition?
-</OpenQuestion>
+<Question id="ties-under-clocks" />
 
-<OpenQuestion owner="Zeroth">
-  How is an input that nothing drives, a pick or a controller's choice, handled under SPN? The sugar has no helper for `Nondet`, and `simulate()` takes no input but `t`, so this output does not run there. **Control** on open does not apply under clocks for the same reason.
-</OpenQuestion>
+<Question id="picks-under-clocks" />

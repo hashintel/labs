@@ -1,0 +1,18 @@
+How can SPN express a capacity: an ordering on `Nat`, or a complement place? SPN tests a count against zero only.
+
+### Today
+
+Under coins a producer tests the fill of the place, and the place applies every mover:
+
+```python
+fill_Buffer = ite(X(fire_PutLeft), fill_Buffer + 1, fill_Buffer)  # PutLeft added 1
+return (RightSource >= 1) & (fill_Buffer + 1 <= 2)
+```
+
+Under clocks a capacity is refused with `clocks-capacity`, so a stochastic net with a capped place compiles under coins only.
+
+### Options on the table
+
+- An ordering on `Nat`, so a producer's clock runs while `Buffer < 2`.
+- A complement place of free room, a `Nat` the producers take from and the takers add to. It is one more interface variable per capped place, and it may be empty, which SPN tests.
+- Refuse, as today.

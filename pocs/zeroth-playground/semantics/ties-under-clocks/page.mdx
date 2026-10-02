@@ -1,0 +1,17 @@
+Two takers that expire together both produce, and `Pool` loses no token. Under exponential clocks a tie has chance zero, so this matters only where delays can be equal. Should `Place_Pool` apply both takes on a tie, or should a tie fire one transition?
+
+### Today
+
+Each case of the place needs the other events off, so a step where two events toggle leaves the count where it was:
+
+```python
+return ite(fired_Return & ~fired_TakeLeft & ~fired_TakeRight, Pool + 1, ite(fired_TakeLeft & ~fired_Return & ~fired_TakeRight & (Pool != 0), Pool - 1, ite(fired_TakeRight & ~fired_Return & ~fired_TakeLeft & (Pool != 0), Pool - 1, Pool)))
+```
+
+`Left` and `Right` each gain a token meanwhile. Zeroth's `test_birth_death_over_a_long_run` covers a producer and a consumer only, and `_breakpoint` in `simulate.py` pins only the expiring clock.
+
+### Options on the table
+
+- Apply every take on a tie: the place needs `Pool >= 2` for two takes, and a tie that it cannot afford fires neither.
+- Fire one transition per instant, the earlier in record order; the other keeps its clock at 0 and fires in the next round.
+- Leave it: a tie has chance zero under exponential clocks.

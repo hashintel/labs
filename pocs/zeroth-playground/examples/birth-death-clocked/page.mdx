@@ -37,10 +37,6 @@ A coin reads its draw $u$ as the delay $\tau = -\ln(u)/\lambda$ of the clock it 
 
 ### Open questions
 
-<OpenQuestion owner="HASH and Zeroth">
-  Should a coin step allow ties? In one step `Birth` and `Death` can both fire, and the coins' `Place_Population` applies both. Under clocks two expiries at one instant have chance zero, and the place then applies neither. Both rules leave the same marking here. But where one firing disables another by adding a token, as through an inhibitor arc, the coin step fires both and clocks fire one.
-</OpenQuestion>
+<Question id="ties-under-coins" />
 
-<OpenQuestion owner="Zeroth">
-  Can SPN take a rate that reads the marking, such as a death rate per member of `Population`? `Exp` takes a constant today, so `Death` fires at rate 1 however many members remain. Under coins such a rate is code, which this playground does not parse.
-</OpenQuestion>
+<Question id="marking-dependent-rates" />

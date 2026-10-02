@@ -1,0 +1,23 @@
+Will Zeroth's `Drift` generator land, so an LRA flow can read its own state? Dynamics such as `dx/dt = 10 - x` need a flow whose rate depends on the variable it moves.
+
+### Today
+
+Under coins the dynamics take one Euler step of `dt` in `next`, before the sweep:
+
+```python
+Tank_0_level = ite(Tank_0_present, Tank_0_level + 0.125 * (10.0 - Tank_0_level), Tank_0_level)  # Tank: one Euler step of dt = 0.25
+```
+
+An LRA `delay` block was rejected: a `Real` cannot write a tangent, `x * A` raises `NonLinearError`, and `eval.py` runs no delay block. The only flow the compiler writes is a clock's, a constant rate against the time reference:
+
+```python
+return ite(clk_Birth >= 0, -1 * d(t), None), 0
+```
+
+**Rates** on clock does not apply to a net with dynamics.
+
+### Options on the table
+
+- A `Drift` generator in Zeroth: a flow that reads its own state, so dynamics compile to flows and the net runs in continuous time.
+- Keep Euler steps under coins, with `dt` as the step.
+- A constant-rate flow per attribute, re-armed at every event, as a piecewise approximation.

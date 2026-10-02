@@ -1,0 +1,50 @@
+/* A question referenced from a page: an amber card naming who can answer it, with a way into the Semantics view. */
+.question-ref {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+  margin: 0 0 var(--s-3);
+  padding: 0.6rem 0.85rem 0.65rem;
+  border-left: 2px solid var(--amber-line);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  background: var(--amber-wash);
+
+  /* A settled question has lost its amber: it reads as a note. */
+  &[data-status="settled"] {
+    border-left-color: var(--hair);
+    background: var(--paper);
+
+    & .question-ref__meta {
+      color: var(--ink-2);
+    }
+  }
+}
+
+.question-ref__meta {
+  grid-column: 1 / -1;
+  color: var(--amber);
+  font-size: var(--fs-label-sm);
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.question-ref__title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.question-ref__open {
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  transition: color var(--fast) var(--ease);
+
+  &:hover {
+    color: var(--accent-deep);
+    text-decoration: underline;
+  }
+}

@@ -1,0 +1,19 @@
+Do SPN and LRA modules compose in one system? Clocked arrivals beside a coin model of the service would need it, and so would coloured tokens under clocks.
+
+### Today
+
+Every module of a clocked net is in SPN, and the system composes them with the clocks hidden:
+
+```python
+transition_Arrive = Transition_Arrive(theory=SPN, ctrl=(clk_Arrive, ev_Arrive), extl=(t,))
+net = compose(
+    transition_Arrive,
+```
+
+Under coins, **Marking** on Int already composes two theories: one LRA `Draw_T` module per rated transition turns its draw into a Bool flag, and the LIA modules read it through `X(hit_T)`. Whether SPN joins such a composition is Zeroth's to say.
+
+### Options on the table
+
+- `compose` takes modules of any theories, and a variable's sort fixes which theory reads it.
+- A bridge module that reads an SPN event and drives a linear Bool, or the reverse.
+- One theory per system, as today under clocks.

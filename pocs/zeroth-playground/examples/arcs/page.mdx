@@ -16,10 +16,8 @@ Clock rates test a read arc as `P != 0` and an inhibitor arc as `P == 0`. They r
 
 ### Open questions
 
-<OpenQuestion owner="HASH">
-  Should read and inhibitor arcs count as conflicts? Today any two transitions that share an input place get picks under **Conflicts** on nondet, whatever the arc kinds. So two readers of one place get picks, although neither takes a token.
-</OpenQuestion>
+<Question id="read-arcs-as-conflicts" />
 
-<OpenQuestion owner="Zeroth">
-  How should SPN express an arc of weight 2: `(n + 1) + 1`, an `Inc` of `Inc`, or a count on `Inc` and `Dec`?
-</OpenQuestion>
+<Question id="arc-weights-under-clocks" />
+
+<Question id="read-and-inhibitor-arcs-modular" />

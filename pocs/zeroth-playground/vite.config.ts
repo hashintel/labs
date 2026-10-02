@@ -64,6 +64,6 @@ export default defineConfig({
   test: {
     // Vitest's root defaults to Vite's root, playground/: widen it to the project.
     root: fromRoot("."),
-    include: ["{compiler,examples,playground}/**/*.test.{ts,tsx}"],
+    include: ["{compiler,examples,semantics,playground}/**/*.test.{ts,tsx}"],
   },
 });

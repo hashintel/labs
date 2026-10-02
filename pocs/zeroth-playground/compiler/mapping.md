@@ -1,6 +1,6 @@
 # Mapping the Petri net IR to reactive modules
 
-The design shared by HASH and Zeroth: how each part of a net maps to zrth, the options, the open questions and who can settle each. Update a question here when it is settled. Every mapping under coins reproduces one step of the net, as [README.md](README.md#one-step-of-the-net) defines it.
+The design shared by HASH and Zeroth: how each part of a net maps to zrth, the options, the open questions and who can settle each. The questions on the semantics, what a net means as modules and what Zeroth can express, live in [../semantics/](../semantics/README.md) and the playground's Semantics view; each section below links its questions there. The tooling questions, on executors, seeds and numerics, are listed here alone. Settling a question updates its folder in `semantics/`, and this file where it is listed alone. Every mapping under coins reproduces one step of the net, as [README.md](README.md#one-step-of-the-net) defines it.
 
 ## 1. Scope
 
@@ -75,9 +75,9 @@ net = compose(
 
 Open questions:
 
-- The modular shape for coloured and dynamic nets. (HASH)
+- [A coloured place split into modules](../semantics/coloured-places-as-modules/page.mdx) (HASH)
 - When the spn line merges to `main`, so the `next` the compiler writes stops depending on the branch. (Zeroth)
-- Whether SPN and LRA modules compose in one system. (Zeroth)
+- [SPN and LRA modules in one system](../semantics/spn-and-lra-in-one-system/page.mdx) (Zeroth)
 
 ### (b) Places
 
@@ -130,9 +130,9 @@ Pool_0_x = Var(REAL)
 
 Open questions:
 
-- Capacities under SPN: an ordering on `Nat`, or a complement place? (Zeroth)
-- Should a capacity test count the room a later transition frees in the same step? Today it counts only the transitions before it in record order. (HASH)
-- Coloured tokens under SPN: a `Real` sort, or an LRA module beside SPN ones? (Zeroth)
+- [Capacity under clocks](../semantics/capacity-under-clocks/page.mdx) (Zeroth)
+- [Room freed later in the step](../semantics/room-freed-later-in-the-step/page.mdx) (HASH)
+- [Coloured tokens under clocks](../semantics/coloured-tokens-under-clocks/page.mdx) (Zeroth)
 
 ### (c) Transitions, enabling
 
@@ -166,8 +166,9 @@ Read and inhibitor arcs under clocks (golden "tests read and inhibitor arcs, app
 
 Open questions:
 
-- Weighted arcs and output weights under SPN: `(n + 1) + 1` (an `Inc` of `Inc`, inferred from `check_nat_ops`, untested), or a count on `Inc` and `Dec`? (Zeroth)
-- How an open SPN module is driven. (Zeroth)
+- [Arc weights under clocks](../semantics/arc-weights-under-clocks/page.mdx) (Zeroth)
+- [Picks and choices under clocks](../semantics/picks-under-clocks/page.mdx) (Zeroth)
+- [Read and inhibitor arcs in the modular shape](../semantics/read-and-inhibitor-arcs-modular/page.mdx), settled (HASH)
 
 ### (d) Transitions, firing and stochastic rates
 
@@ -222,9 +223,9 @@ Both write the partial if-then as `ite(cond, x, None)` and an event's flow as `0
 
 Open questions:
 
-- Guard in the transition with a paused clock, or place decides, for several input places? (HASH; Zeroth on the intent)
-- Marking-dependent rates under SPN, where `Exp` takes a constant. (Zeroth)
-- Immediate transitions under SPN: a zero-delay construct with priorities? (Zeroth)
+- [The transition decides, or the places decide](../semantics/transition-or-places-decide/page.mdx) (HASH and Zeroth)
+- [Marking-dependent rates under clocks](../semantics/marking-dependent-rates/page.mdx) (Zeroth)
+- [Immediate transitions under clocks](../semantics/immediate-transitions-under-clocks/page.mdx) (Zeroth)
 
 ### (e) Conflicts and non-determinism
 
@@ -256,12 +257,12 @@ The interpreter reads an undriven pick as true, so the nondet trace equals the s
 
 Open questions:
 
-- A false pick that holds time, or a pause of the clock? (HASH)
-- Ties: two consumers of one place expiring together produce without consuming (`nextCount` in `lower/clocks.ts`); Zeroth's `test_birth_death_over_a_long_run` covers only a producer and a consumer. Under exponential clocks equal remainders have chance zero: `_breakpoint` in `simulate.py` pins only the expiring clock. Intended? (HASH, Zeroth)
-- Should a coin step allow ties? Two transitions can both fire in one step, and both apply, where clocks fire one at a time. Where one firing disables another, as through an inhibitor arc, the two differ. (HASH, Zeroth)
-- Should read and inhibitor arcs count as conflicts? Today they do, so two readers of one place get picks that hold them without competing. (HASH)
-- Are `control: open` and `conflicts: nondet` one mechanism? Both add an undriven Bool to a guard, `X(go_T)` or `X(pick_T)`, so one option for external choices could replace both. (HASH)
-- How picks are driven under SPN. (Zeroth)
+- [A false pick under clocks](../semantics/false-pick-under-clocks/page.mdx) (HASH)
+- [Ties under clocks](../semantics/ties-under-clocks/page.mdx) (HASH and Zeroth)
+- [Ties under coins](../semantics/ties-under-coins/page.mdx) (HASH and Zeroth)
+- [Read and inhibitor arcs as conflicts](../semantics/read-arcs-as-conflicts/page.mdx) (HASH)
+- [One mechanism for external choices](../semantics/one-mechanism-for-choices/page.mdx) (HASH)
+- [Picks and choices under clocks](../semantics/picks-under-clocks/page.mdx) (Zeroth)
 
 ### (f) Kernels and outputs
 
@@ -290,7 +291,7 @@ A Gaussian draw in a rate, `Distribution.Gaussian(input.Hangar[0].battery, 4).ma
 
 Open questions:
 
-- Kernels under SPN, which has no sort for attributes. (Zeroth)
+- [Kernels under clocks](../semantics/kernels-under-clocks/page.mdx) (Zeroth)
 
 ### (g) Continuous dynamics and time
 
@@ -317,7 +318,7 @@ The Euler step (golden `boiler`, `lower/monolithic/colour.test.ts`, `dt: 0.25`) 
 
 Open questions:
 
-- Will Zeroth's `Drift` generator land, so an LRA flow can read its own state? (Zeroth)
+- [An LRA flow that reads its own state](../semantics/lra-flow-reads-its-state/page.mdx) (Zeroth)
 - Seed and `dt` equivalence between HASH's own simulator and `simulate.py`: one stream per transition, or a lazy driver on HASH's side? (HASH, Zeroth)
 
 ### (h) Names, provenance and diagnostics

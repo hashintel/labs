@@ -93,18 +93,15 @@ return X(u_Birth) >= 0.36787944117144233
 
 ### Open questions
 
-<OpenQuestion owner="Zeroth">
-  The question, and why it matters for this net.
-</OpenQuestion>
+<Question id="ties-under-clocks" />
 ````
 
 - The documentation view writes the net's name and the heading from `meta.ts`; the page starts with its first paragraph.
-- The documentation view passes `Figure` and `OpenQuestion` to every page as MDX components, from `playground/docs/page-components.ts`. A page uses them without importing them, and imports only its own `./components/`. It also renders fenced code through `CodeBlock`, which wraps a long line under a hanging indent, so quote a line of Python in a fenced block when it is longer than about 25 characters: inline code does not wrap.
+- The documentation view passes `Figure` and `Question` to every page as MDX components, from `playground/docs/page-components.ts`. A page uses them without importing them, and imports only its own `./components/`. It also renders fenced code through `CodeBlock`, which wraps a long line under a hanging indent, so quote a line of Python in a fenced block when it is longer than about 25 characters: inline code does not wrap.
 - Open with the problem, not with the net or the options. Name the IR items and the Python names the reader will see. Say once, on the page that needs it, what a later page builds on. Name another example by its feature, in italics: *Rates as clocks*.
 - **Options** lists only the options that change this net's output, never one the panel greys out, and not the shape the example opens with. Leave the section out when the body already covers them.
 - Only the first page, Cycle, has a **Hover** section: one bullet on what pointing at a line or a node does.
-- An open question is about the semantics of the compilation: what a net means as modules, or what Zeroth can express. Tooling, executors, numerics and plans belong elsewhere. Each question sits on the one page where it matters most.
-- `owner` is `"HASH"`, `"Zeroth"` or `"HASH and Zeroth"`: who can settle the question. Keep it in step with the owner in [compiler/mapping.md](../compiler/mapping.md) where the question is listed there.
+- An open question lives in [semantics/](../semantics/README.md), one folder per question, and a page only references it: `<Question id="..." />` renders a card with its owner, its status and a way into the Semantics view. An id the register does not hold fails the page render test. Each question sits on the one page where it matters most.
 - A refused example says why under `### Refused here`, and what the compiler would write with a code parser.
 - Maths is written as `$...$` or `$$...$$` and rendered to SVG at build time. Keep it short.
 - A figure helps where a picture explains the mapping. Put the drawing in the example's `components/` folder, and wrap it in `<Figure caption="...">` on the page. `Figure` draws the frame and the caption; the frame's CSS is in `playground/docs/figures/figure.css`.
@@ -122,5 +119,5 @@ Every React component of an example sits in its `components/` folder, with its C
 ## Tests
 
 - `catalog.test.ts` checks that every folder holds a `meta.ts`, a `net.pn.yaml` and a `page.mdx`, and that the examples climb the ladder rung by rung, each at its own `order`.
-- `playground/docs/example-pages.test.tsx` renders every page with the components the documentation view passes. MDX is not type-checked, so this test catches a component a page uses but neither imports nor is passed, and an `owner` outside the three values.
+- `playground/docs/example-pages.test.tsx` renders every page with the components the documentation view passes. MDX is not type-checked, so this test catches a component a page uses but neither imports nor is passed, and a `Question` whose id the register does not hold.
 - `examples.test.ts` compiles each example under the options it opens with. It checks the outcome table (compiles, or the codes it is refused with), that no option is dropped, and each Python file against its snapshot in `__snapshots__/<id>/`, one folder per example that compiles. A change that alters the output updates the snapshots with `pnpm test -u` and lists the diff in its commit.
