@@ -16,6 +16,9 @@ type HeaderProps = {
   onReset: () => void;
 };
 
+/** The views that work on the example the picker names; the Semantics view does not. */
+const EXAMPLE_VIEWS: readonly View[] = ["playground", "compiler"];
+
 /** A counter-clockwise arrow: back to how the example opens. */
 const ResetIcon: React.FC = () => {
   return (
@@ -36,12 +39,15 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   return (
     <header className="header">
-      <HashWordmark className="header__wordmark" />
-      <h1 className="caps header__title">
-        Petri net <i>to</i> Zeroth reactive modules
-      </h1>
+      <div className="header__brand">
+        <HashWordmark className="header__wordmark" />
+        <h1 className="caps header__title">
+          Petri net <i>to</i> reactive modules
+        </h1>
+      </div>
       <ViewSwitch view={view} onSelect={onSelectView} />
-      <div className="header__example">
+      {/* The picker names the example the Playground and Compiler views work on; the Semantics view is general. */}
+      <div className="header__example" hidden={!EXAMPLE_VIEWS.includes(view)}>
         {changed ? (
           <button
             type="button"

@@ -9,7 +9,7 @@
   --segment-radius: 0.7rem;
   position: relative;
   display: inline-flex;
-  justify-self: end;
+  justify-self: center;
   border-radius: var(--segment-radius);
   corner-shape: squircle;
   background: var(--paper-2);

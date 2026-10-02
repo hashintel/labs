@@ -1,10 +1,18 @@
+/* Two equal side columns keep the view switch centred whatever the brand and the picker take. */
 .header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   gap: var(--s-5);
   padding: 0 var(--s-5);
   border-bottom: 1px solid var(--hair);
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
 }
 
 .header__wordmark {
@@ -36,8 +44,13 @@
 
 .header__example {
   display: flex;
+  justify-self: end;
   align-items: center;
   gap: 0.9rem;
+
+  &[hidden] {
+    display: none;
+  }
 }
 
 .header__reset {
