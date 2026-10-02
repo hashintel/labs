@@ -1,0 +1,103 @@
+/* -- Arrive's coin: one draw per step on [0, 1], against the threshold ----- */
+
+.coin-draws {
+  --coin-step: 1.6s;
+
+  font-family: var(--sw-mono);
+}
+
+/* The readout names the step, the draw and what it decides; one line at a time. */
+.coin-draws__readout {
+  display: grid;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.coin-draws__step,
+.coin-draws__summary {
+  grid-area: 1 / 1;
+}
+
+.coin-draws__step--fires {
+  color: var(--sw-accent);
+}
+
+.coin-draws__step--waits {
+  color: var(--sw-ink-2);
+}
+
+.coin-draws__summary {
+  display: none;
+  color: var(--sw-ink);
+}
+
+.coin-draws__axis {
+  display: block;
+  margin-top: 0.2rem;
+  overflow: visible;
+}
+
+.coin-draws__region,
+.coin-draws__tick {
+  fill: var(--sw-ink-2);
+  font-size: 11px;
+}
+
+.coin-draws__region--fires,
+.coin-draws__tick--threshold {
+  fill: var(--sw-accent);
+}
+
+.coin-draws__band {
+  fill: var(--sw-accent-wash);
+}
+
+.coin-draws__line {
+  stroke: var(--sw-ink-2);
+  stroke-width: 1.25;
+}
+
+.coin-draws__threshold {
+  stroke: var(--sw-accent);
+  stroke-width: 1.5;
+}
+
+.coin-draws__draw--fires {
+  fill: var(--sw-accent);
+}
+
+.coin-draws__draw--waits {
+  fill: var(--sw-paper-2);
+  stroke: var(--sw-ink-2);
+  stroke-width: 1.5;
+}
+
+/* Each step shows its own draw and readout for a quarter of the loop. */
+.coin-draws__step,
+.coin-draws__draw {
+  animation: coin-draws-show calc(4 * var(--coin-step)) step-end infinite;
+  animation-delay: calc(var(--step) * var(--coin-step) - 4 * var(--coin-step));
+}
+
+/* Hidden just before the quarter ends, so that two steps never show together. */
+@keyframes coin-draws-show {
+  0% { visibility: visible; }
+  24.9% { visibility: hidden; }
+  100% { visibility: hidden; }
+}
+
+/* Without motion, the four draws show at once over a count of those that fire. */
+@media (prefers-reduced-motion: reduce) {
+  .coin-draws__step,
+  .coin-draws__draw {
+    animation: none;
+  }
+
+  .coin-draws__step {
+    display: none;
+  }
+
+  .coin-draws__summary {
+    display: inline;
+  }
+}

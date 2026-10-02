@@ -1,0 +1,36 @@
+`TakeLeft` takes two tokens from `Pool` and `TakeRight` takes one, so when `Pool` runs low only one of them can fire. The compiler has to say which one gets the tokens.
+
+By default, **Conflicts** on sweep, record order decides, as in one step of the net. `TakeLeft` tests `Pool >= 2`, and `TakeRight` tests what `TakeLeft` left, `avail_Pool`:
+
+```python
+avail_Pool = Pool
+avail_Pool = ite(X(fire_TakeLeft), avail_Pool - 2, avail_Pool)
+return avail_Pool >= 1
+```
+
+With **Conflicts** on nondet, each transition in the conflict also waits for an input Bool that nothing drives, `pick_TakeLeft` or `pick_TakeRight`. The two guards become:
+
+```python
+return (Pool >= 2) & X(pick_TakeLeft)
+return (avail_Pool >= 1) & X(pick_TakeRight)
+```
+
+Each way of resolving the conflict is then a run of the modules, and all picks true is the sweep.
+
+`TakeLeft` is also controllable. **Control** on open adds the same kind of input to its guard, `X(go_TakeLeft)`.
+
+### Options
+
+- **Conflicts** on nondet adds the picks.
+- **Control** on open adds `go_TakeLeft`.
+- **Shape** on monolithic gives one `Conflict` class whose `next` takes from `Pool` in record order, with no `avail_Pool`.
+
+### Open questions
+
+<OpenQuestion owner="HASH">
+  Should read and inhibitor arcs count as conflicts? Today any two transitions that share an input place get picks, so two readers of one place get picks although they take nothing.
+</OpenQuestion>
+
+<OpenQuestion owner="HASH">
+  Are **Control** on open and **Conflicts** on nondet one mechanism? Both add an input Bool that nothing drives to a guard, `X(go_T)` or `X(pick_T)`. One option for external choices could replace both.
+</OpenQuestion>

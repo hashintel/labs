@@ -1,0 +1,33 @@
+name: cafe_queue
+description: 'Customers arrive, wait for a free member of staff, are served and leave.'
+kind: stochastic
+
+places:
+  Waiting:
+  FreeStaff:
+  Serving:
+  Served:
+
+transitions:
+  Arrive:
+    outputs:
+      Waiting:
+    rate: 1.2
+  BeginService:
+    inputs:
+      Waiting:
+      FreeStaff:
+    outputs:
+      Serving:
+    rate: 0.4
+  FinishService:
+    inputs:
+      Serving:
+    outputs:
+      Served:
+      FreeStaff:
+    rate: 0.5
+
+marking:
+  Waiting: 3
+  FreeStaff: 2

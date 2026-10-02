@@ -1,0 +1,15 @@
+A coloured place becomes a row of positions. `Pool` holds two `Ball` tokens with a real `x`, and the rate of `Take` reads the first token: $\lambda = 0.6 \cdot x / 100$.
+
+### Refused here
+
+The rate is code, so the compiler refuses the net with `code-not-parsed`.
+
+With a parser, the monolithic step gives each position of `Pool` a present flag and an `x`: `Pool_0_present` and `Pool_0_x`. `Take` tries the tokens in order and fires on the first whose rate reaches an exponential draw, `e_Take`. At the end of the step the surviving tokens close up in position order.
+
+**Shape** on modular refuses the net with `modular-coloured-not-lowered`, before it reads any code.
+
+### Open questions
+
+<OpenQuestion owner="HASH">
+  How should a coloured place split into modules, so that **Shape** on modular applies to every net? The modular shape refuses coloured places and dynamics today.
+</OpenQuestion>

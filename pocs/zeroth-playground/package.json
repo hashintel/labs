@@ -1,0 +1,54 @@
+{
+  "name": "zeroth-playground",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Petri net IR to Zeroth reactive modules playground: one HTML file with both editors, a net preview and a page per example.",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint:tsc": "tsc --noEmit && tsc -p compiler --noEmit",
+    "screenshot": "node playground/scripts/screenshot.ts",
+    "check:zrth": "node --import ./compiler/scripts/resolve-ts.ts compiler/scripts/check-zrth.ts"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource-variable/jetbrains-mono": "5.3.0",
+    "elkjs": "0.12.0",
+    "js-yaml": "5.4.2",
+    "monaco-editor": "0.57.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-resizable-panels": "4.14.1",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@mdx-js/rollup": "3.1.1",
+    "@types/mdx": "2.0.14",
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.1",
+    "oxc-transform-react": "0.152.0",
+    "playwright": "1.63.0",
+    "rehype-mathjax": "7.1.0",
+    "remark-math": "6.0.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.2",
+    "vite-plugin-singlefile": "2.3.3",
+    "vitest": "5.0.3"
+  },
+  "pnpm": {
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "@vitejs/plugin-react>oxc-transform-react": "0.152.0"
+      }
+    }
+  },
+  "license": "(MIT OR Apache-2.0)"
+}

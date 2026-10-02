@@ -1,0 +1,16 @@
+name: birth_death_process
+description: 'Births add to the population at rate 2, and each death removes one member at rate 1 while any remain.'
+kind: stochastic
+
+places:
+  Population:
+
+transitions:
+  Birth:
+    outputs:
+      Population:
+    rate: 2
+  Death:
+    inputs:
+      Population:
+    rate: 1

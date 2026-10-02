@@ -1,0 +1,209 @@
+/* -- Two clocks race for Pool: bars run down to 0, the first to reach it fires --
+
+   One loop of 6.6 s, each bar's length its clock's time left, out of 3 time
+   units. Both start armed: TakeLeft with 2.4, TakeRight with 1.0.
+   1.0 s   TakeRight reaches 0: it takes a token and re-arms with 2.1.
+   2.4 s   TakeLeft reaches 0: it takes a token and re-arms with 2.7.
+   3.1 s   TakeRight reaches 0 and takes the last token, re-arming with 1.5.
+           Pool is empty, so both clocks wait until the loop starts again. */
+
+.clock-race {
+  --race-loop: 6.6s;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  font-family: var(--sw-mono);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.clock-race__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.2rem;
+}
+
+.clock-race__name {
+  color: var(--sw-ink);
+  font-weight: 500;
+}
+
+.clock-race__fires {
+  color: var(--sw-accent);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+.clock-race__track {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.clock-race__zero {
+  color: var(--sw-ink-2);
+}
+
+.clock-race__rail {
+  flex: 1;
+  height: 12px;
+  border: 1px solid var(--sw-hair);
+  background: var(--sw-paper);
+}
+
+/* The bar shrinks toward the 0 at its left, as its clock runs down. */
+.clock-race__bar {
+  display: block;
+  height: 100%;
+  background: var(--sw-accent);
+  transform-origin: left center;
+  animation: var(--race-loop) linear infinite;
+}
+
+.clock-race__clock--TakeLeft .clock-race__bar {
+  animation-name: clock-race-left;
+}
+
+.clock-race__clock--TakeRight .clock-race__bar {
+  animation-name: clock-race-right;
+}
+
+.clock-race__clock--TakeLeft .clock-race__fires {
+  animation: clock-race-left-fires var(--race-loop) step-end infinite;
+}
+
+.clock-race__clock--TakeRight .clock-race__fires {
+  animation: clock-race-right-fires var(--race-loop) step-end infinite;
+}
+
+@keyframes clock-race-left {
+  0% { transform: scaleX(0.8); }
+  36.36% { transform: scaleX(0); }
+  36.4% { transform: scaleX(0.9); }
+  46.97% { transform: scaleX(0.667); }
+  100% { transform: scaleX(0.667); }
+}
+
+@keyframes clock-race-right {
+  0% { transform: scaleX(0.333); }
+  15.15% { transform: scaleX(0); }
+  15.19% { transform: scaleX(0.7); }
+  46.97% { transform: scaleX(0); }
+  47.01% { transform: scaleX(0.5); }
+  100% { transform: scaleX(0.5); }
+}
+
+@keyframes clock-race-left-fires {
+  0% { opacity: 0; }
+  36.36% { opacity: 1; }
+  45% { opacity: 0; }
+}
+
+@keyframes clock-race-right-fires {
+  0% { opacity: 0; }
+  15.15% { opacity: 1; }
+  25% { opacity: 0; }
+  46.97% { opacity: 1; }
+  57% { opacity: 0; }
+}
+
+.clock-race__pool {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.15rem;
+}
+
+/* The tokens and the note share one place: the note shows once the last token is taken. */
+.clock-race__contents {
+  display: grid;
+  align-items: center;
+}
+
+.clock-race__tokens,
+.clock-race__wait {
+  grid-area: 1 / 1;
+}
+
+.clock-race__tokens {
+  display: flex;
+  gap: 0.35rem;
+}
+
+.clock-race__token {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--sw-accent);
+  animation: var(--race-loop) step-end infinite;
+}
+
+.clock-race__token--3 {
+  animation-name: clock-race-take-first;
+}
+
+.clock-race__token--2 {
+  animation-name: clock-race-take-second;
+}
+
+.clock-race__token--1 {
+  animation-name: clock-race-take-third;
+}
+
+.clock-race__wait {
+  color: var(--sw-ink-2);
+  visibility: hidden;
+  animation: clock-race-wait var(--race-loop) step-end infinite;
+}
+
+@keyframes clock-race-take-first {
+  0% { visibility: visible; }
+  15.15% { visibility: hidden; }
+  100% { visibility: hidden; }
+}
+
+@keyframes clock-race-take-second {
+  0% { visibility: visible; }
+  36.36% { visibility: hidden; }
+  100% { visibility: hidden; }
+}
+
+@keyframes clock-race-take-third {
+  0% { visibility: visible; }
+  46.97% { visibility: hidden; }
+  100% { visibility: hidden; }
+}
+
+@keyframes clock-race-wait {
+  0% { visibility: hidden; }
+  46.97% { visibility: visible; }
+  100% { visibility: visible; }
+}
+
+/* Without motion: the moment TakeRight reaches 0 first and takes a token, while TakeLeft keeps its time. */
+@media (prefers-reduced-motion: reduce) {
+  .clock-race :is(.clock-race__bar, .clock-race__fires, .clock-race__token, .clock-race__wait) {
+    animation: none;
+  }
+
+  .clock-race__clock--TakeLeft .clock-race__bar {
+    transform: scaleX(0.467);
+  }
+
+  .clock-race__clock--TakeRight .clock-race__bar {
+    transform: scaleX(0);
+  }
+
+  .clock-race__clock--TakeRight .clock-race__fires {
+    opacity: 1;
+  }
+
+  .clock-race__token--3 {
+    visibility: hidden;
+  }
+}

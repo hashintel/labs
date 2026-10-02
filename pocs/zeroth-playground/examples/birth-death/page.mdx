@@ -1,0 +1,52 @@
+import { CoinClockExplorer } from "./components/coin-clock-explorer";
+
+The compiler turns a rate into a coin tested each step, or into a clock in continuous time. The two agree draw by draw, but a coin fires at most once per step, so its rate stays below $\lambda$.
+
+Under **Rates** on coin, the default, `Transition_Birth` tests a draw against $\theta = e^{-\lambda \Delta t}$ each step. For rate 2 over a step of 1, $\theta = e^{-2}$:
+
+```python
+return X(u_Birth) >= 0.1353352832366127
+```
+
+Under **Rates** on clock, each transition owns a clock armed with `exp(rate)`. It fires when the clock reaches 0, then re-arms. The compiler writes that in the SPN theory: a clock `clk_T` and an event `ev_T` per transition, a Nat per place that moves when `fired` sees an event, and the clocks hidden in `compose`. `Transition_Birth` reads:
+
+```python
+fires_Birth = clk_Birth == 0
+return ite(fires_Birth, exp(2.0), clk_Birth), ite(fires_Birth, ~ev_Birth, None)
+```
+
+An `ite` with `None` as its last branch has no value where its condition fails: the event toggles when `Birth` fires and stays put otherwise. Its `flow` runs the clock down while it is not negative, and leaves the event still with `0`:
+
+```python
+return ite(clk_Birth >= 0, -1 * d(t), None), 0
+```
+
+<table>
+  <thead>
+    <tr><th scope="col"></th><th scope="col">Coin</th><th scope="col">Clock</th></tr>
+  </thead>
+  <tbody>
+    <tr><th scope="row">Time</th><td>steps of $\Delta t$</td><td>continuous</td></tr>
+    <tr><th scope="row">Fires when</th><td>$u_T \ge \theta$</td><td>`clk_T == 0`</td></tr>
+    <tr><th scope="row">Firings</th><td>at most one per step</td><td>one per expiry</td></tr>
+  </tbody>
+</table>
+
+A draw $u$ stands for the delay $\tau = -\ln(u)/\lambda$, and $u \ge \theta$ exactly when $\tau \le \Delta t$. So the coin fires exactly when the clock would expire within the step. A clock can expire twice in one step, though, while a coin fires once, so the coin's rate $p/\Delta t$ stays below $\lambda$. It tends to $\lambda$ as $\Delta t$ shrinks.
+
+<Figure caption="One draw u decides both. The coin fires when u ≥ θ. The clock it stands for, τ = −ln(u)/λ, expires within the step when τ ≤ Δt. As Δt shrinks, the coin's rate p/Δt rises toward λ = 2.">
+  <CoinClockExplorer />
+</Figure>
+
+Under clocks, `Death` pauses its clock while `Population` is empty. *Two inputs, one firing* shows where that choice matters.
+
+### Options
+
+- **Rates** on clock gives the SPN modules above.
+- **Time step** sets $\Delta t$, and with it each coin's threshold.
+
+### Open questions
+
+<OpenQuestion owner="HASH and Zeroth">
+  Should a coin step allow ties? In one step `Birth` and `Death` can both fire, and `Place_Population` applies both. Under clocks two expiries at one instant have chance zero, and the place then applies neither. Both rules leave the same marking here. But where one firing disables another by adding a token, as through an inhibitor arc, the coin step fires both and clocks fire one.
+</OpenQuestion>
