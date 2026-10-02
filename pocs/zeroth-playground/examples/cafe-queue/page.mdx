@@ -1,23 +1,26 @@
-`BeginService` needs a customer in `Waiting` and a free member of staff in `FreeStaff`. Under coins that is two tests in one guard. Under clocks the compiler must also decide what an empty input does to the clock.
+`BeginService` needs a customer in `Waiting` and a free member of staff in `FreeStaff`. Under clocks the compiler must decide what an empty input place does to the clock.
 
-Under **Rates** on coin, the default, `Transition_BeginService` tests both places beside its draw:
-
-```python
-return (Waiting >= 1.0) & (FreeStaff >= 1.0) & (X(u_BeginService) >= 0.6703200460356393)
-```
-
-Under **Rates** on clock, the transition decides. `fires_BeginService` keeps both tests, and the clock runs down only while both places hold a token:
+The transition decides. `fires_BeginService` keeps both tests:
 
 ```python
 fires_BeginService = (clk_BeginService == 0) & (Waiting != 0) & (FreeStaff != 0)
 ```
 
-Zeroth's own `birth_death.py` lets the places decide instead. The clock always runs, and at expiry each input place gives a token if it has one. With one input place the two rules agree. With two they do not: `BeginService` could take a customer from `Waiting` while `FreeStaff` is empty.
+The clock runs down only while both places hold a token, and pauses otherwise:
+
+```python
+return ite(clk_BeginService >= 0, ite((Waiting != 0) & (FreeStaff != 0), -1 * d(t), 0 * d(t)), None), 0
+```
+
+Zeroth's own `birth_death.py` lets the places decide instead. The clock always runs, and at expiry each input place gives a token if it has one. With one input place, as for `Death` on *Rates as clocks*, the two rules agree, since an exponential delay has no memory. With two they do not: `BeginService` could take a customer from `Waiting` while `FreeStaff` is empty.
 
 ### Options
 
-- **Rates** on clock gives the SPN modules above.
-- **Marking** on Int keeps the places Int, and the guard reads `X(hit_BeginService)`, a Bool from `Draw_BeginService`, in place of the draw.
+- **Rates** on coin tests both places beside the draw, in one guard:
+
+  ```python
+  return (Waiting >= 1.0) & (FreeStaff >= 1.0) & (X(u_BeginService) >= 0.6703200460356393)
+  ```
 
 ### Open questions
 

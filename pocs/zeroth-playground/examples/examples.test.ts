@@ -19,19 +19,16 @@ describe("the examples", () => {
         files.length > 0 ? "compiles" : errors.map((error) => error.code).join(","),
       ]),
     );
-    // THEN the plain and stochastic nets compile, and the nets with code wait for a parser
+    // THEN the plain and stochastic nets compile, and the net with code waits for a parser
     expect(outcomes).toEqual({
       cycle: "compiles",
-      capacity: "compiles",
       conflict: "compiles",
-      fork: "compiles",
-      "fork-clocked": "compiles",
-      queue: "compiles",
+      capacity: "compiles",
+      arcs: "compiles",
       "birth-death": "compiles",
+      "birth-death-clocked": "compiles",
       "cafe-queue": "compiles",
-      "sir-model": "compiles",
-      boiler: "code-not-parsed,code-not-parsed",
-      drones: "code-not-parsed,code-not-parsed,code-not-parsed,code-not-parsed,code-not-parsed",
+      "conflict-clocked": "compiles",
       bucket: "code-not-parsed",
     });
   });

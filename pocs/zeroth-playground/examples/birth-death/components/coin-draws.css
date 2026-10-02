@@ -1,4 +1,4 @@
-/* -- Arrive's coin: one draw per step on [0, 1], against the threshold ----- */
+/* -- Birth's coin: one draw per step on [0, 1], against the threshold ------ */
 
 .coin-draws {
   --coin-step: 1.6s;

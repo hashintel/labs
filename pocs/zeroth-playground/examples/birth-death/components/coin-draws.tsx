@@ -1,10 +1,10 @@
 import "./coin-draws.css";
 
-/** Arrive's threshold at rate 2.5 over a step of 0.5: e^(-1.25). */
-const THRESHOLD = Math.exp(-2.5 * 0.5);
+/** Birth's threshold at rate 2 over a step of 0.5: e^(-1). */
+const THRESHOLD = Math.exp(-2 * 0.5);
 
-/** Four draws of u_Arrive, one per step: three reach the threshold, close to the chance 0.71. */
-const DRAWS = [0.1, 0.71, 0.4, 0.88];
+/** Four draws of u_Birth, one per step: three reach the threshold, close to the chance 0.63. */
+const DRAWS = [0.1, 0.71, 0.52, 0.88];
 
 /** Where a value in [0, 1] sits along the axis, as a share of the drawing's width. */
 function across(value: number): string {
@@ -16,7 +16,7 @@ function verdict(u: number): "fires" | "waits" {
 }
 
 /**
- * Arrive's coin over four steps: each step one draw lands on [0, 1], and the
+ * Birth's coin over four steps: each step one draw lands on [0, 1], and the
  * transition fires when it reaches the threshold. Without motion, the four
  * draws show at once.
  */

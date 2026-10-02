@@ -1,11 +1,11 @@
 import type { ExampleMeta } from "../catalog";
 
 export default {
-  feature: "Slots and compaction",
+  feature: "Code strings are refused",
   title: "Bucket",
-  summary: "A coloured place as a row of positions.",
+  summary: "A rate written as code waits for a code parser.",
   rung: "colours",
-  order: 120,
+  order: 90,
   listed: false,
   options: {},
 } satisfies ExampleMeta;

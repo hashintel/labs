@@ -32,7 +32,7 @@ Two rate strategies recur below. Coins test each rated transition once per step 
 
 **Files.** `layout: per-module` writes `net.py` (variables, imports, `compose`) plus one file per class, `transition_birth.py` for `Transition_Birth`. Every file opens on its imports: the compiler writes no header naming the net or where it came from. Every module's step method is `next`; there is no option for `update`. At the spn tip `next` and `flow` alias `update` and `delay` for every theory (`_method` in `sugar.py`, `test_next_and_flow_are_aliases_for_update_and_delay`), and `origin/main` accepts `update` only.
 
-The cycle as IR (`examples/cycle/net.pn.yaml`) and as the monolithic step (golden "lowers a plain net to an LIA module with one step of the net per next", `lower/monolithic.test.ts`):
+The cycle as IR (`examples/cycle/net.pn.yaml`) and as the monolithic step (golden "lowers a plain net to an LIA module with one step of the net per next", `lower/monolithic.test.ts`, and `examples/__snapshots__/cycle/net.py`):
 
 ```yaml
 transitions:
@@ -56,7 +56,7 @@ transitions:
         return A, B
 ```
 
-The modular composition (`examples/__snapshots__/cycle/net.py`) and the clocked one (`birthDeathPython`, `testing/birth-death.fixtures.ts`):
+The cycle's modular composition (golden "composes one module per transition and per place in the modular shape", `lower/modular.test.ts`, which pins the `compose` line) and the clocked one (`birthDeathPython`, `testing/birth-death.fixtures.ts`):
 
 ```python
 transition_Go = Transition_Go(theory=LIA, ctrl=(fire_Go,), extl=(A,))
@@ -131,6 +131,7 @@ Pool_0_x = Var(REAL)
 Open questions:
 
 - Capacities under SPN: an ordering on `Nat`, or a complement place? (Zeroth)
+- Should a capacity test count the room a later transition frees in the same step? Today it counts only the transitions before it in record order. (HASH)
 - Coloured tokens under SPN: a `Real` sort, or an LRA module beside SPN ones? (Zeroth)
 
 ### (c) Transitions, enabling
@@ -237,7 +238,7 @@ Open questions:
 
 `simulate.py` takes no external but `t` (see (i)), so the clocked nondet output does not run there. Under a driver, a false pick at expiry holds the flow horizon (`hi` in `simulate.py`) at 0. A round that then changes nothing raises `NoFlow` (`stuck at {now}: time cannot pass and the round changes nothing`). Two alternatives: pause the clock in `flow` on the pick, or re-arm it at expiry whatever the pick. `GuardSkipped` names a `next` that would change state before `hi` and not at `hi`. Every `fires_T` the compiler writes needs `clk_T == 0`, which holds only where `clk_T >= 0` stops time, so its output cannot raise it.
 
-Coins (golden "has each transition in a conflict wait for an undriven pick under conflicts nondet", `lower/monolithic.test.ts`) and clocks (`examples/__snapshots__/fork-clocked/net.py`):
+Coins (golden "has each transition in a conflict wait for an undriven pick under conflicts nondet", `lower/monolithic.test.ts`) and clocks (`examples/__snapshots__/conflict-clocked/net.py`):
 
 ```python
         fire_TakeLeft = (Pool >= 2) & X(pick_TakeLeft)  # TakeLeft: 2 Pool -> Left
@@ -259,6 +260,7 @@ Open questions:
 - Ties: two consumers of one place expiring together produce without consuming (`nextCount` in `lower/clocks.ts`); Zeroth's `test_birth_death_over_a_long_run` covers only a producer and a consumer. Under exponential clocks equal remainders have chance zero: `_breakpoint` in `simulate.py` pins only the expiring clock. Intended? (HASH, Zeroth)
 - Should a coin step allow ties? Two transitions can both fire in one step, and both apply, where clocks fire one at a time. Where one firing disables another, as through an inhibitor arc, the two differ. (HASH, Zeroth)
 - Should read and inhibitor arcs count as conflicts? Today they do, so two readers of one place get picks that hold them without competing. (HASH)
+- Are `control: open` and `conflicts: nondet` one mechanism? Both add an undriven Bool to a guard, `X(go_T)` or `X(pick_T)`, so one option for external choices could replace both. (HASH)
 - How picks are driven under SPN. (Zeroth)
 
 ### (f) Kernels and outputs

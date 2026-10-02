@@ -15,51 +15,51 @@ function example(id: string): Example {
   return found;
 }
 
-const queue = example("queue");
+const birthDeath = example("birth-death");
 
 describe("the document", () => {
   it("opens as the example, unchanged", () => {
-    // GIVEN the queue
+    // GIVEN Birth–death under coins
     // WHEN its document is opened
-    const document = documentOf(queue);
+    const document = documentOf(birthDeath);
     // THEN it holds the example's text and options, no edits, and counts as unchanged
     expect(document).toEqual({
-      exampleId: "queue",
-      irText: queue.ir,
-      options: queue.options,
+      exampleId: "birth-death",
+      irText: birthDeath.ir,
+      options: birthDeath.options,
       module: { editing: false, texts: {} },
     });
-    expect(isChanged(document, queue)).toBe(false);
+    expect(isChanged(document, birthDeath)).toBe(false);
   });
 
   it("drops the module edits on a new text, and keeps the document on the same text", () => {
-    // GIVEN the queue with a hand edit to net.py
+    // GIVEN Birth–death with a hand edit to net.py
     const edited = {
-      ...documentOf(queue),
-      module: editFile(toggleEditing(documentOf(queue).module), "net.py", "# edited", "# compiled"),
+      ...documentOf(birthDeath),
+      module: editFile(toggleEditing(documentOf(birthDeath).module), "net.py", "# edited", "# compiled"),
     };
     // WHEN the same text, then a new one, comes in
-    const same = withIrText(edited, queue.ir);
-    const changed = withIrText(edited, `${queue.ir}\n`);
+    const same = withIrText(edited, birthDeath.ir);
+    const changed = withIrText(edited, `${birthDeath.ir}\n`);
     // THEN the same text changes nothing; a new one drops the edits, keeps the toggle, and counts as a change
     expect(same).toBe(edited);
     expect(changed.module).toEqual({ editing: true, texts: {} });
-    expect(isChanged(edited, queue)).toBe(true);
-    expect(isChanged(changed, queue)).toBe(true);
+    expect(isChanged(edited, birthDeath)).toBe(true);
+    expect(isChanged(changed, birthDeath)).toBe(true);
   });
 
   it("stores an option the panel changes, and counts the default back as unchanged", () => {
-    // GIVEN the queue, which opens modular
-    const parsed = parsePetriNetIr(queue.ir);
+    // GIVEN Birth–death, which opens modular
+    const parsed = parsePetriNetIr(birthDeath.ir);
     if (!parsed.ok) {
-      throw new Error("queue does not parse");
+      throw new Error("birth-death does not parse");
     }
-    const document = documentOf(queue);
+    const document = documentOf(birthDeath);
     // WHEN the shape goes to monolithic, then back to modular
     const monolithic = withOptionText(document, parsed.ir, "shape", "monolithic");
     const back = withOptionText(monolithic, parsed.ir, "shape", "modular");
     // THEN the first is a change and the second is not
-    expect(isChanged(monolithic, queue)).toBe(true);
-    expect(isChanged(back, queue)).toBe(false);
+    expect(isChanged(monolithic, birthDeath)).toBe(true);
+    expect(isChanged(back, birthDeath)).toBe(false);
   });
 });

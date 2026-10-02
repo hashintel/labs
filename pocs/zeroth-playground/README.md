@@ -22,10 +22,10 @@ pnpm dev
 - **Views.** The IR editor has highlighting, completion of the IR's keys and places, and a hover that reads the IR trace. The module view lists the Python files and the diagnostics, each at the IR line of its item. The preview draws the net as an SVG laid out with elkjs.
 - **Options beside the IR.** The Compiler options panel under the IR editor holds the compiler options; the IR carries none. An option that does not apply to the net is greyed, with the reason. Each example opens with its own options, and Reset restores them with the text.
 - **Cross-highlighting.** Hovering a line in either editor lights the lines on the other side that name the same net item, and the item in the preview. Hovering a place or a transition in the preview lights its lines on both sides.
-- **The example ladder.** The examples climb from plain nets (Steps) to stochastic ones (Rates), each named by the feature it tackles. The picker in the header lists them. Each has a page; some end with open questions, each naming who can settle it: HASH, Zeroth or both. Two pages carry a CSS animation, and the Birth–death page has an explorer with a Δt slider, a draw and the coin's rate.
-- **The Compiler view.** A switch in the header opens a guide, a graph of the pipeline's stages and a card per stage with a live sample from the open example. `#compiler`, or `#compiler/queue`, opens it.
+- **The example ladder.** The examples climb from plain nets (Steps) to stochastic ones (Rates), each adding one idea and named by it. The picker in the header lists them. Each has a page; most end with open questions, each naming who can settle it: HASH, Zeroth or both. Two pages carry a CSS animation, and *Rates as clocks* has an explorer with a Δt slider, a draw and the coin's rate.
+- **The Compiler view.** A switch in the header opens a guide, a graph of the pipeline's stages and a card per stage with a live sample from the open example. `#compiler`, or `#compiler/capacity`, opens it.
 
-The coloured examples (boiler, drones, bucket) carry code strings and are refused with `code-not-parsed`: reading the code back needs a parser built on the TypeScript compiler, far past the single-file budget. The picker leaves them out; `#boiler`, `#drones` and `#bucket` open them, with the refusal and the page.
+The coloured example, Bucket, carries a code string and is refused with `code-not-parsed`: reading the code back needs a parser built on the TypeScript compiler, far past the single-file budget. The picker leaves it out; `#bucket` opens it, with the refusal and the page.
 
 ## Working on it
 

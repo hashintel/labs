@@ -7,8 +7,8 @@ export type View = "examples" | "compiler";
 export type Route = { view: View; example: Example };
 
 /**
- * What a URL hash names, so a link opens the playground on it: `#queue` is
- * an example, `#compiler` the Compiler view, `#compiler/queue` both. An
+ * What a URL hash names, so a link opens the playground on it: `#capacity`
+ * is an example, `#compiler` the Compiler view, `#compiler/capacity` both. An
  * example the catalog does not hold opens the first one.
  */
 export function routeOf(hash: string): Route {

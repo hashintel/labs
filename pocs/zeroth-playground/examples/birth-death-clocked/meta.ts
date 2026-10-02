@@ -1,11 +1,11 @@
 import type { ExampleMeta } from "../catalog";
 
 export default {
-  feature: "Two inputs under clocks",
-  title: "Café queue",
-  summary: "A clock that runs only while both input places hold a token.",
+  feature: "Rates as clocks",
+  title: "Birth–death",
+  summary: "A rate becomes a clock that runs down in continuous time.",
   rung: "rates",
-  order: 70,
+  order: 60,
   listed: true,
   options: { rates: "clock" },
 } satisfies ExampleMeta;

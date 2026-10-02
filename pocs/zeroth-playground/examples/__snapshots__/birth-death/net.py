@@ -21,7 +21,7 @@ class Transition_Birth(Module):
         return False
 
     def next(self, fire_Birth, u_Birth):
-        return X(u_Birth) >= 0.1353352832366127
+        return X(u_Birth) >= 0.36787944117144233
 
 
 class Transition_Death(Module):
@@ -31,7 +31,7 @@ class Transition_Death(Module):
         return False
 
     def next(self, fire_Death, Population, u_Death):
-        return (Population >= 1.0) & (X(u_Death) >= 0.36787944117144233)
+        return (Population >= 1.0) & (X(u_Death) >= 0.6065306597126334)
 
 
 class Place_Population(Module):

@@ -18,8 +18,8 @@ function opened(id: string): { ir: PetriNetIr; options: CompilerOptions } {
 
 describe("withOption", () => {
   it("stores only the options off their default that apply to the net", () => {
-    // GIVEN the queue, which opens modular with a step of 0.5
-    const { ir, options } = opened("queue");
+    // GIVEN Birth–death under coins, which opens modular with a step of 0.5
+    const { ir, options } = opened("birth-death");
     // WHEN one option at a time is changed
     // THEN the panel keeps what bears on the net, and a text that is not a number changes nothing
     expect(withOption(ir, options, "shape", "monolithic")).toEqual({ dt: 0.5 });
@@ -30,8 +30,8 @@ describe("withOption", () => {
   });
 
   it("drops the options clock rates ignore", () => {
-    // GIVEN the fork under clocks, its conflicts left open
-    const { ir, options } = opened("fork-clocked");
+    // GIVEN the conflict under clocks, its conflicts left open
+    const { ir, options } = opened("conflict-clocked");
     // WHEN the shape is changed, then the rates
     // THEN the shape does not stick under clocks, and conflicts survive the move to coins
     expect(withOption(ir, options, "shape", "modular")).toEqual({ rates: "clock", conflicts: "nondet" });
@@ -39,8 +39,8 @@ describe("withOption", () => {
   });
 
   it("ignores a value the option does not have", () => {
-    // GIVEN the queue
-    const { ir, options } = opened("queue");
+    // GIVEN Birth–death under coins
+    const { ir, options } = opened("birth-death");
     // WHEN its shape is set to a value it does not take
     // THEN the options stay as they were
     expect(withOption(ir, options, "shape", "round")).toEqual(options);
