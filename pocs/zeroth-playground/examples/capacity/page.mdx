@@ -1,0 +1,27 @@
+`Buffer` holds at most two tokens, and `PutLeft` and `PutRight` can both fill it in one step. So the second producer must count the token the first one adds, although that token lands only at the end of the step.
+
+`PutLeft` comes first, so it tests the marking: `Buffer + 1 <= 2`. `PutRight` tests `fill_Buffer + 1 <= 2`, where the local `fill_Buffer` is what `Buffer` would hold if the step ended now:
+
+```python
+fill_Buffer = Buffer
+fill_Buffer = ite(X(fire_PutLeft), fill_Buffer + 1, fill_Buffer)
+return (RightSource >= 1) & (fill_Buffer + 1 <= 2)
+```
+
+These are the lines of `Transition_PutRight`. It rebuilds the fill from `X(fire_PutLeft)`, while `Place_Buffer` alone writes `Buffer`. In the monolithic shape one `fill_Buffer` runs through the sweep, and every firing that moves tokens in `Buffer` updates it.
+
+`Take` comes after both producers in record order, so the room it frees counts only from the next step. A full `Buffer` that `Take` drains in this step still blocks both producers.
+
+### Options
+
+- **Shape** on monolithic gives one `Capacity` class: `fill_Buffer = Buffer` before the sweep, and the class returns `fill_Buffer` as the new `Buffer`.
+
+### Open questions
+
+<OpenQuestion owner="Zeroth">
+  How can SPN express a capacity: an ordering on `Nat`, or a complement place? SPN tests a count against zero only, so **Rates** on clock refuses a capacity with `clocks-capacity`.
+</OpenQuestion>
+
+<OpenQuestion owner="HASH">
+  Should a capacity test count the room a later transition frees in the same step? Today it counts only the transitions before it in record order.
+</OpenQuestion>

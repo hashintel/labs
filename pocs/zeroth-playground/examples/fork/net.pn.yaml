@@ -1,0 +1,27 @@
+name: fork
+kind: plain
+
+places:
+  Pool:
+  Left:
+  Right:
+
+transitions:
+  TakeLeft:
+    inputs:
+      Pool:
+    outputs:
+      Left:
+  TakeRight:
+    inputs:
+      Pool:
+    outputs:
+      Right:
+  Return:
+    inputs:
+      Left:
+    outputs:
+      Pool:
+
+marking:
+  Pool: 3

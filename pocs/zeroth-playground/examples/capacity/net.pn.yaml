@@ -1,0 +1,30 @@
+name: capacity
+kind: plain
+
+places:
+  LeftSource:
+  RightSource:
+  Buffer:
+    capacity: 2
+  Sink:
+
+transitions:
+  PutLeft:
+    inputs:
+      LeftSource:
+    outputs:
+      Buffer:
+  PutRight:
+    inputs:
+      RightSource:
+    outputs:
+      Buffer:
+  Take:
+    inputs:
+      Buffer:
+    outputs:
+      Sink:
+
+marking:
+  LeftSource: 5
+  RightSource: 5

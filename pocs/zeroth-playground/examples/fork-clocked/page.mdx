@@ -1,0 +1,42 @@
+import { ClockRace } from "./components/clock-race";
+
+Under clocks a conflict is a race. `TakeLeft` and `TakeRight` both take from `Pool`, and whichever clock reaches 0 first takes a token.
+
+<Figure caption="TakeLeft and TakeRight race for Pool. Both clocks run down at the same speed; the first to reach 0 fires, takes a token and re-arms with a new delay, and the other keeps its time. With Pool empty, both clocks wait. Return is left out.">
+  <ClockRace />
+</Figure>
+
+With **Conflicts** on nondet, each taker also needs its pick when its clock expires:
+
+```python
+fires_TakeLeft = (clk_TakeLeft == 0) & (Pool != 0) & pick_TakeLeft
+```
+
+A pick is an input that nothing drives, read at expiry. `Return` is in no conflict and has none. A false pick stops time: the clock stays at 0, and no time passes until the pick turns true.
+
+`Place_Pool` applies one firing at a time. Each case of its `ite` needs the other events off:
+
+```python
+fired_TakeLeft & ~fired_Return & ~fired_TakeRight & (Pool != 0)
+```
+
+So when both takers expire together, `Left` and `Right` each gain a token while `Pool` loses none.
+
+### Options
+
+- **Conflicts** on sweep drops the picks: the first clock to expire fires.
+- **Rates** on coin compiles the same net in steps of **Time step**, with a coin per transition.
+
+### Open questions
+
+<OpenQuestion owner="HASH">
+  A false pick at expiry stops time. Should the clock pause while its pick is false, or re-arm at expiry whatever the pick?
+</OpenQuestion>
+
+<OpenQuestion owner="HASH and Zeroth">
+  Two takers that expire together both produce, and `Pool` loses no token. Under exponential clocks a tie has chance zero, so this matters only where delays can be equal. Should `Place_Pool` apply both takes on a tie, or should a tie fire one transition?
+</OpenQuestion>
+
+<OpenQuestion owner="Zeroth">
+  How is an input that nothing drives, a pick or a controller's choice, handled under SPN? The sugar has no helper for `Nondet`, and `simulate()` takes no input but `t`, so this output does not run there. **Control** on open does not apply under clocks for the same reason.
+</OpenQuestion>

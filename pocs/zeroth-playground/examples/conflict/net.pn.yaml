@@ -1,0 +1,24 @@
+name: conflict
+kind: plain
+
+places:
+  Pool:
+  Left:
+  Right:
+
+transitions:
+  TakeLeft:
+    inputs:
+      Pool:
+        weight: 2
+    outputs:
+      Left:
+    controllable: true
+  TakeRight:
+    inputs:
+      Pool:
+    outputs:
+      Right:
+
+marking:
+  Pool: 3

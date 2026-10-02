@@ -1,0 +1,33 @@
+name: boiler
+kind: plain
+
+colours:
+  Vessel:
+    level: real
+
+dynamics:
+  Heat:
+    colour: Vessel
+    code: |
+      return tokens.map((t) => ({ level: 0.5 * (10 - t.level) }));
+
+places:
+  Tank:
+    colour: Vessel
+    dynamics: Heat
+    capacity: 1
+  Alarms:
+
+transitions:
+  Alarm:
+    inputs:
+      Tank:
+        kind: read
+    outputs:
+      Alarms:
+    guard: |
+      return input.Tank[0].level >= 8;
+
+marking:
+  Tank:
+    - {level: 0}
