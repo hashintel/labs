@@ -1,0 +1,26 @@
+name: bucket
+kind: stochastic
+
+colours:
+  Ball:
+    x: real
+
+places:
+  Pool:
+    colour: Ball
+    capacity: 2
+  Done:
+
+transitions:
+  Take:
+    inputs:
+      Pool:
+    outputs:
+      Done:
+    rate: |
+      return 0.6 * (input.Pool[0].x / 100);
+
+marking:
+  Pool:
+    - {x: 2}
+    - {x: 0.5}

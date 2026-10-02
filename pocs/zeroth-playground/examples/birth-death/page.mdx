@@ -1,0 +1,27 @@
+import { CoinDraws } from "./components/coin-draws";
+
+A transition at rate $\lambda$ fires within a step of length $\Delta t$ with probability $1 - e^{-\lambda \Delta t}$. The compiler turns that into a coin: an input draw `u_T` and the test `X(u_T) >= θ`, with $\theta = e^{-\lambda \Delta t}$ computed at compile time.
+
+Over a step of 0.5, `Birth` at rate 2 gets $\theta = e^{-1} \approx 0.37$, so it fires in about 63% of steps:
+
+```python
+return X(u_Birth) >= 0.36787944117144233
+```
+
+<Figure caption="Four steps of Birth's coin. Each step draws u in [0, 1], and Birth fires when u ≥ θ = e^(−2 × 0.5) ≈ 0.37. Three of the four draws fire, close to the chance 1 − θ ≈ 0.63.">
+  <CoinDraws />
+</Figure>
+
+`Death` also needs a token in `Population`, so it tests the place beside its draw:
+
+```python
+return (Population >= 1.0) & (X(u_Death) >= 0.6065306597126334)
+```
+
+The draws are Reals, so the places are Reals too and the modules use the theory LRA: `Population = Var(REAL)`, `Population + 1.0`.
+
+### Options
+
+- **Time step** sets $\Delta t$, and every threshold follows it.
+- **Marking** on Int keeps the places Int and moves each draw into an LRA module, `Draw_Birth`, that writes a Bool `hit_Birth`. The guard reads `X(hit_Birth)` in place of the draw.
+- **Rates** on clock compiles the net in continuous time, as *Rates as clocks* shows.

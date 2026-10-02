@@ -1,0 +1,56 @@
+import { DWELL_MS } from "../pointer/pointer-motion";
+import { StageRef } from "./stage-ref";
+import { StrategyTable } from "./strategy-table";
+
+## The compiler
+
+This view shows how the playground turns the IR text into Python, one part at a time. The graph holds every part. Rounded boxes are documents, square boxes are steps, and dashed boxes are inputs beside the main line. A notch in a corner marks what the playground adds around the compiler.
+
+Hover a box, or a stage named in this guide, to open its card under the graph. Click to pin it, and click again to let it go. Beside each card, a Live section shows what the stage made of the example picked in the header. Pick another example in the header, or edit the text or the compiler options in the Playground view, and the cards follow.
+
+### The stages
+
+1. The <StageRef stage="ir-text">IR text</StageRef> is the YAML in the IR editor of the Playground view. It carries no compiler options.
+2. <StageRef stage="parse">Parse</StageRef> reads it with js-yaml, then checks it against a strict zod schema. The result is a <StageRef stage="ir">PetriNetIr</StageRef>, or diagnostics with their lines.
+3. The <StageRef stage="options">compiler options</StageRef> come from the panel under the IR editor. The compile passes them beside the parsed document, to the lowering and the traces; the text never holds them.
+4. <StageRef stage="lower">Lower</StageRef> calls `lowerPetriNetIr(ir, options, parseCode)`. No <StageRef stage="code-parser">code parser</StageRef> is passed, so a net with code strings is refused with `code-not-parsed`.
+5. The <StageRef stage="graph">module graph</StageRef> is linear, in LIA or LRA, under coins, and SPN under clocks. Under **Shape** on modular, it holds one module per transition and per place, composed. Under **Shape** on monolithic, it holds one module for the whole step. Under **Marking** on Int, one LRA `Draw_` module per rated transition turns its draw into a flag, and the LIA module that fires the transition reads it.
+6. <StageRef stage="emit">Emit</StageRef> prints the graph as Python over `zrth.sugar`, and writes each line with its provenance. The <StageRef stage="files">files</StageRef> come `net.py` first, each with its trace: one file, or one per module under **Files** on one per module.
+7. <StageRef stage="trace">Trace</StageRef> covers the IR text with line ranges. Each range has a provenance: what the lines are, why they are there, the IR path and the net item. With the files' own, these are the <StageRef stage="traces">traces</StageRef> the editors use.
+8. <StageRef stage="provenance">provenanceAt</StageRef> answers for one line with the innermost range that holds it.
+9. The <StageRef stage="hover">hover</StageRef> lights the matching ranges in the other views. Under the modular shape, a transition in the IR lights its variables, its module class and the line that makes its instance. Under **Shape** on monolithic, it lights its draw variable, if it has a rate, and the line of the step that sets its `fire_` flag. Under **Marking** on Int, it also lights its `Draw_` module: the class, its `hit_` variable and its instance. The <StageRef stage="diagnostics">diagnostics</StageRef> are placed on IR lines through the trace.
+
+For a trace $T$ of ranges $r$ from line $s_r$ to line $e_r$, the innermost range at line $\ell$ is the one with the fewest lines:
+
+$$
+r^{*}(\ell) = \text{the } r \in T \text{ with } s_r \le \ell \le e_r \text{ and } e_r - s_r \text{ least.}
+$$
+
+### Options
+
+Each option picks one strategy. The Compiler options panel holds them in four groups: Structure, Rates, Choices and Coloured tokens. The document carries none. An option sits under the one that usually decides whether it applies: **Files** under **Shape**, because it applies under modular (and also under clocks), and **Time step** and **Marking** under **Rates**, because they apply under coin (**Time step** also sets the step for dynamics). An option that does not apply to the net is greyed and reads "not used", with the reason in place of its hint. Its default would have no effect.
+
+<StrategyTable />
+
+The highlighted value is the compiler's default, from `OPTIONS`, the table that also gives what each option applies to. Each example opens with the options that show its idea. Cycle opens monolithic, the other plain and coin examples modular, and the clock examples under clocks. Bucket, a coloured net, opens monolithic, since the modular shape refuses it with `modular-coloured-not-lowered`.
+
+Coins test each rated transition once per **Time step** against a uniform draw, in LIA or LRA. Clocks arm an exponential clock per transition over continuous time, in SPN. So **Rates** on clock takes **Shape**, **Time step**, **Marking** and **Control** out of play.
+
+### Diagnostics
+
+Every diagnostic is `{ code, message, item }`. They come from three places.
+
+- <StageRef stage="parse">Parse</StageRef>: `yaml-syntax` for text that is not YAML, `schema` for a document that does not fit the IR, and a code of its own for a reference that does not hold, such as `unknown-place` for an arc to an undeclared place or `kind-mismatch` for a `kind` the rates do not give. `yaml-syntax` sits at the line js-yaml reports; the others at the line of their key, when the key is in the text.
+- The <StageRef stage="options">compiler options</StageRef>: `option-not-applicable`, a warning for each option asked for that does not apply to the net, with the reason the panel shows. The panel keeps only the options that apply, so it does not appear here.
+- <StageRef stage="lower">Lower</StageRef>: refusals by name, such as `clocks-capacity` or `modular-coloured-not-lowered`, and refusals of code, here always `code-not-parsed`. A net refused by a lowering's `refusals` has no code read, so its refusals never mix with `code-not-parsed`.
+
+A lowering diagnostic names an item, not a line. `compile` finds the line with `firstLineOf`: the start of the first range of the IR trace whose source is that item. A refused net keeps its IR trace, so a hover still pairs the IR with the net preview.
+
+### What the playground adds
+
+- **The Compiler options panel.** The options sit beside the text, not in it, each with a one-line hint. `optionStates` greys what does not apply and says why. Each example opens with its options from the catalog.
+- **Cross-highlighting.** `matchingLines` pairs ranges by source, else when one IR path contains the other. A hover takes effect once the pointer has rested {DWELL_MS} ms, so a sweep lights nothing.
+
+### Open on the playground's side
+
+A lowering diagnostic lands on the first IR line of its item, so a `code-not-parsed` on a kernel points at the transition rather than at `kernel:`. Whether a diagnostic should carry the IR path it concerns is HASH's to settle. The questions on the semantics of the compilation, what a net means as modules and what Zeroth can express, are in the Semantics view.

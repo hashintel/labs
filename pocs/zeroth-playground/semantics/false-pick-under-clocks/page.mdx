@@ -1,0 +1,18 @@
+A false pick at expiry stops time. Should the clock pause while its pick is false, or re-arm at expiry whatever the pick?
+
+### Today
+
+A transition in a conflict needs its pick when its clock reaches 0, and its `flow` runs the clock down while its input places allow a firing:
+
+```python
+fires_TakeLeft = (clk_TakeLeft == 0) & (Pool != 0) & pick_TakeLeft
+return ite(clk_TakeLeft >= 0, ite(Pool != 0, -1 * d(t), 0 * d(t)), None), 0
+```
+
+With the pick false the clock stays at 0, and `clk_TakeLeft >= 0` holds the flow horizon at 0. In `simulate.py` a round that then changes nothing raises `NoFlow`. No time passes until the pick turns true.
+
+### Options on the table
+
+- Hold time, as today: a false pick is a choice to wait, and the driver that holds it false owns the stall.
+- Pause the clock in `flow` on the pick, as it pauses on an empty input place: time passes, and the transition fires as soon as the pick turns true.
+- Re-arm the clock at expiry whatever the pick: a false pick costs the transition its turn, and the race starts again.

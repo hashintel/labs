@@ -1,0 +1,19 @@
+`Take` fires at a rate that reads a token's attribute, so the IR writes that rate as code. The compiler reads code only through a code parser it is given.
+
+`Pool` holds two `Ball` tokens with a real `x`, and the rate of `Take` reads the first token:
+
+```ts
+return 0.6 * (input.Pool[0].x / 100);
+```
+
+### Refused here
+
+This playground passes no code parser, so the net is refused with `code-not-parsed`. A TypeScript parser does not fit its single HTML file.
+
+With a parser, the monolithic step gives each position of `Pool` a present flag and an `x`: `Pool_0_present` and `Pool_0_x`. `Take` tries the tokens in order and fires on the first whose rate reaches an exponential draw, `e_Take`. At the end of the step the surviving tokens close up in position order.
+
+**Shape** on modular refuses the net with `modular-coloured-not-lowered`, before it reads any code.
+
+### Open questions
+
+<Question id="coloured-places-as-modules" />

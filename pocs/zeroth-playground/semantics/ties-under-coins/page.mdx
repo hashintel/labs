@@ -1,0 +1,24 @@
+Should a coin step allow ties? In one step two transitions can both fire, and the place applies both. Under clocks two expiries at one instant have chance zero, and the place applies neither.
+
+### Today
+
+Under coins `Place_Population` applies `Birth` and `Death` one after the other, so a step where both fire leaves the count where it was:
+
+```python
+Population = ite(X(fire_Birth), Population + 1.0, Population)  # Birth adds 1
+Population = ite(X(fire_Death), Population - 1.0, Population)  # Death takes 1
+```
+
+Under clocks each case of the place needs the other event off:
+
+```python
+return ite(fired_Birth & ~fired_Death, Population + 1, ite(fired_Death & ~fired_Birth & (Population != 0), Population - 1, Population))
+```
+
+Both rules leave the same marking on Birth–death. They differ where one firing disables another by adding a token, as through an inhibitor arc: the coin step fires both, and clocks fire one.
+
+### Options on the table
+
+- Keep both: a coin step is a sweep, a clocked step is one event.
+- Fire at most one transition per coin step, so the step is a race as under clocks. Rates then shrink with the number of enabled transitions.
+- Let a clocked place apply every take on a tie, as *Ties under clocks* asks.

@@ -1,0 +1,17 @@
+Are **Control** on open and **Conflicts** on nondet one mechanism? Both add an input Bool that nothing drives to a guard, `X(go_T)` or `X(pick_T)`. One option for external choices could replace both.
+
+### Today
+
+A controllable transition in a conflict gets both inputs when both options are on. On Conflict, `TakeLeft` is marked `controllable` and shares `Pool` with `TakeRight`:
+
+```python
+return (Pool >= 1) & X(go_TakeLeft) & X(pick_TakeLeft)
+```
+
+A pick exists for every transition in a conflict; a go exists for every transition the IR marks controllable. The two sets overlap on `TakeLeft` and nowhere else on this net.
+
+### Options on the table
+
+- One option for external choices: every undriven Bool is a `choice_T`, on the transitions the net or the IR leaves open.
+- Keep two: the IR marks a controller's choice, and the net's shape gives a conflict's pick. A proof over picks ranges over the net's own nondeterminism, a proof over goes over a controller.
+- Nest **Control** under **Conflicts**, so open control is one more source of picks.

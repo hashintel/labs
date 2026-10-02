@@ -1,0 +1,20 @@
+Does the modular shape test read and inhibitor arcs as the monolithic step does? A read arc tests a place without taking from it, an inhibitor arc needs it below the weight.
+
+### Today
+
+Both shapes test the three arcs. On Arcs, `Transition_Join` tests them in one guard, and the places a read or inhibitor arc touches return their count unchanged:
+
+```python
+return (Parts >= 2) & (Power >= 1) & (Jam < 1)
+```
+
+`lower/lower.test.ts` runs both shapes on random nets with weighted, read and inhibitor arcs and compares every step with the reference step.
+
+### Options on the table
+
+- Test them in both shapes.
+- Let the modular shape ignore them, which it used to do.
+
+### Decision
+
+HASH, 2026-10-02. Both shapes test read and inhibitor arcs. The modular shape used to ignore them; the differential test now covers both arc kinds in both shapes.

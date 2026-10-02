@@ -1,0 +1,23 @@
+An arc can do more than take one token. `Join` takes two `Parts` through an arc of weight 2, reads `Power` without taking from it, and fires only while `Jam` is empty.
+
+`Transition_Join` tests the three arcs in one guard:
+
+```python
+return (Parts >= 2) & (Power >= 1) & (Jam < 1)
+```
+
+- An arc of weight w tests `P >= w` and takes w tokens: `Place_Parts` applies `Parts - 2`.
+- A read arc tests `P >= w` and takes nothing.
+- An inhibitor arc tests `P < w`.
+
+The read and inhibitor arcs move no token, so `Place_Power` and `Place_Jam` return their count unchanged. Add `Jam: 1` to the marking, and `Join` never fires.
+
+Clock rates test a read arc as `P != 0` and an inhibitor arc as `P == 0`. They refuse an arc of weight above 1 with `clocks-arc-weight`, because an SPN event moves one token per arc.
+
+### Open questions
+
+<Question id="read-arcs-as-conflicts" />
+
+<Question id="arc-weights-under-clocks" />
+
+<Question id="read-and-inhibitor-arcs-modular" />
