@@ -5,6 +5,8 @@ import { Drawing } from "./net-preview/drawing";
 
 import type { NetItem, PetriNetIr } from "../../compiler";
 
+import "./net-preview.css";
+
 type NetPreviewProps = {
   ir: PetriNetIr;
   /** The net item lit by a hover in any view. */

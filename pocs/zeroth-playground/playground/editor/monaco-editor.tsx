@@ -9,6 +9,8 @@ import type { Trace } from "../../compiler";
 import type { editor } from "monaco-editor/editor/editor.api.js";
 import type { PETRI_NET_IR_LANGUAGE } from "./petri-net-ir-language";
 
+import "./monaco-editor.css";
+
 /** The editor instance a parent can reach through `editorRef`, to reveal a line say. */
 export type CodeEditor = editor.IStandaloneCodeEditor;
 
@@ -44,7 +46,7 @@ const OPTIONS: editor.IStandaloneEditorConstructionOptions = {
   lineDecorationsWidth: 6,
   glyphMargin: false,
   folding: true,
-  // Expanded chevrons rest faint and come up while the pointer is over the gutter; see theme.css.
+  // Expanded chevrons rest faint and come up while the pointer is over the gutter; see monaco-editor.css.
   showFoldingControls: "mouseover",
   wordBasedSuggestions: "off",
   quickSuggestions: { other: true, comments: false, strings: true },

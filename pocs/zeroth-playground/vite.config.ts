@@ -19,6 +19,17 @@ export default defineConfig({
     emptyOutDir: true,
   },
   plugins: [
+    // Monaco's own CSS goes in the `vendor` cascade layer, under every unlayered rule of the
+    // playground, so a rule overrides Monaco's without a longer selector or !important.
+    {
+      name: "monaco-css-layer",
+      enforce: "pre",
+      transform(code, id) {
+        return /[\\/]monaco-editor[\\/].*\.css$/u.test(id.split("?")[0] ?? id)
+          ? { code: `@layer vendor {\n${code}\n}`, map: null }
+          : null;
+      },
+    },
     // Math in the pages is rendered to inline SVG at build time: no fonts or stylesheet to ship.
     // Only .mdx files are pages, so a .md file imported with ?raw stays text.
     {

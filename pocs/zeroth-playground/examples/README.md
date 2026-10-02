@@ -111,7 +111,7 @@ return X(u_Birth) >= 0.36787944117144233
 
 ## Figures
 
-Every React component of an example sits in its `components/` folder, with its CSS beside it, and imports nothing from `playground/`. A drawing is small, minimal and correct about the step it shows.
+Every React component of an example sits in its `components/` folder, with its CSS beside it, and imports nothing from `playground/`. Its CSS uses the playground's tokens, such as `var(--accent)` or `var(--fs-xs)`, from `playground/theme/tokens.css`. A drawing is small, minimal and correct about the step it shows.
 
 - Text keeps a fixed size whatever the panel's width: the docs panel is about 200 px wide in a 1000 px window and 300 px in a 1440 px one. Lay a drawing out in HTML and CSS, or in an SVG without a `viewBox`, placed in percentages or drawn at the width a `ResizeObserver` measures. Never scale text with a `viewBox`.
 - `Figure` is a size container, so a drawing can change its layout with `@container` queries.

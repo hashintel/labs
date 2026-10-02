@@ -1,0 +1,36 @@
+/* The options in the guide: wider than the reading column, each value as code, the default on a grey chip. */
+.strategy-table {
+  max-width: none;
+  font-size: var(--fs-md);
+
+  & :is(th, td) {
+    vertical-align: baseline;
+  }
+
+  & thead th {
+    font-size: var(--fs-label-sm);
+  }
+
+  & tbody th {
+    width: auto;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--fs-md);
+    font-weight: 600;
+    letter-spacing: normal;
+    white-space: nowrap;
+  }
+
+  & td:nth-child(2) {
+    white-space: nowrap;
+  }
+
+  & code + code {
+    margin-left: 0.3rem;
+  }
+
+  & code[data-default="false"] {
+    background: none;
+    color: var(--ink-2);
+  }
+}

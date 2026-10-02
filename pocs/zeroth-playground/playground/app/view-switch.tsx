@@ -1,5 +1,7 @@
 import type { View } from "./route";
 
+import "./view-switch.css";
+
 const VIEWS: readonly { id: View; label: string }[] = [
   { id: "examples", label: "Examples" },
   { id: "compiler", label: "Compiler" },
@@ -18,7 +20,7 @@ export const ViewSwitch: React.FC<ViewSwitchProps> = ({ view, onSelect }) => {
         <button
           key={option.id}
           type="button"
-          className="header__view"
+          className="caps header__view"
           aria-pressed={option.id === view}
           onClick={() => onSelect(option.id)}
         >

@@ -1,9 +1,12 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { App } from "./app/app";
+// The theme first: tokens.css names the cascade layers, which must come before any layered rule.
+import "./theme/tokens.css";
+import "./theme/base.css";
+import "./theme/prose.css";
 import "./theme/fonts";
-import "./theme/theme.css";
+import { App } from "./app/app";
 
 const root = document.getElementById("root");
 if (root === null) {

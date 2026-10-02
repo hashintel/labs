@@ -1,0 +1,157 @@
+/* A panel: a head with the title over the body; the head of a collapsible panel is a toggle. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Heads sit halfway between the page's paper and the panels' lighter body, their labels a step softer than ink-2. */
+.panel__head {
+  --panel-label: var(--ink-3);
+  display: flex;
+  flex: 0 0 var(--panel-head);
+  align-items: center;
+  height: var(--panel-head);
+  padding: 0 var(--s-3);
+  border-bottom: 1px solid var(--hair-2);
+  background: color-mix(in oklab, var(--paper) 50%, var(--paper-2));
+  overflow: hidden;
+  white-space: nowrap;
+  transition: border-color var(--fold) var(--ease);
+}
+
+.panel__title {
+  overflow: hidden;
+  color: var(--panel-label);
+  line-height: 1;
+  text-overflow: ellipsis;
+}
+
+.panel__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  height: 1.5rem;
+  margin-left: -0.35rem;
+  padding: 0 0.35rem;
+  border-radius: var(--r-xs);
+  color: var(--panel-label);
+  transition:
+    background-color var(--fast) var(--ease),
+    color var(--fast) var(--ease);
+
+  &:hover {
+    background: var(--hair-2);
+    color: var(--ink);
+
+    & .panel__title {
+      color: var(--ink);
+    }
+  }
+
+  &:focus-visible {
+    outline-offset: 0;
+  }
+}
+
+/* The chevron points toward the edge the panel collapses against, and turns back once collapsed. */
+.panel__chevron {
+  --turn: 45deg;
+  --shift-x: 0rem;
+  --shift-y: -0.1rem;
+  flex: 0 0 auto;
+  width: 0.42rem;
+  height: 0.42rem;
+  border-right: 1.25px solid currentColor;
+  border-bottom: 1.25px solid currentColor;
+  transform: translate(var(--shift-x), var(--shift-y)) rotate(var(--turn));
+  transition: transform var(--fold) var(--ease);
+
+  &[data-points="up"] {
+    --turn: -135deg;
+    --shift-y: 0.1rem;
+  }
+
+  &[data-points="left"] {
+    --turn: 135deg;
+    --shift-x: 0.1rem;
+    --shift-y: 0rem;
+  }
+
+  &[data-points="right"] {
+    --turn: -45deg;
+    --shift-x: -0.1rem;
+    --shift-y: 0rem;
+  }
+}
+
+.panel__body {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  background: var(--paper-2);
+  transition:
+    opacity var(--base) var(--ease),
+    visibility 0s;
+}
+
+/* Controls at the right of a panel's head; a collapsed panel hides them. */
+.panel__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-left: auto;
+  padding-left: var(--s-3);
+}
+
+/* Collapsed, the head stays with its title and the body fades out. */
+.panel[data-collapsed="true"] {
+  & .panel__actions {
+    display: none;
+  }
+
+  & .panel__head {
+    border-bottom-color: transparent;
+  }
+
+  & .panel__body {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--fast) var(--ease),
+      visibility 0s linear var(--fast);
+  }
+}
+
+/* Collapsed against a side, the head turns into a strip: the chevron on top, the title upright under it. */
+.panel[data-stack="horizontal"][data-collapsed="true"] {
+  flex-direction: row;
+
+  & .panel__head {
+    flex: 0 0 var(--panel-head);
+    align-items: flex-start;
+    justify-content: center;
+    width: var(--panel-head);
+    height: 100%;
+    padding: 0.3rem 0;
+    border-bottom: none;
+  }
+
+  & .panel__toggle {
+    flex-direction: column;
+    gap: 0.7rem;
+    height: auto;
+    margin: 0;
+    padding: var(--s-2) 0.3rem;
+  }
+
+  & .panel__title {
+    writing-mode: vertical-rl;
+  }
+}

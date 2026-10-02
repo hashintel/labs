@@ -7,6 +7,8 @@ import { useStageFocus } from "./stage-focus";
 
 import type { StageWithSample } from "./stage-sample";
 
+import "./pipeline-graph.css";
+
 type PipelineGraphProps = {
   /** Every stage in pipeline order, with how it fared on the example. */
   samples: readonly StageWithSample[];

@@ -1,0 +1,58 @@
+/*
+ * The two views as a rounded track, the one shown inked by a pill. The pill
+ * is the track's ::before, anchored to the pressed button, so it glides to
+ * whichever view is chosen. The track, the pill and the buttons share one
+ * height and one radius: a squircle where the browser draws one.
+ */
+.header__views {
+  --segment-height: 1.75rem;
+  --segment-radius: 0.7rem;
+  position: relative;
+  display: inline-flex;
+  justify-self: end;
+  border-radius: var(--segment-radius);
+  corner-shape: squircle;
+  background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
+  isolation: isolate;
+
+  @supports (corner-shape: squircle) {
+    --segment-radius: calc(var(--segment-height) / 2);
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    position-anchor: --current-view;
+    top: anchor(top);
+    right: anchor(right);
+    bottom: anchor(bottom);
+    left: anchor(left);
+    z-index: -1;
+    border-radius: var(--segment-radius);
+    corner-shape: squircle;
+    background: color-mix(in oklab, var(--ink) 70%, var(--paper-2));
+    transition:
+      left var(--slow) var(--ease),
+      right var(--slow) var(--ease);
+  }
+}
+
+.header__view {
+  height: var(--segment-height);
+  padding: 0 1.05rem;
+  border-radius: var(--segment-radius);
+  corner-shape: squircle;
+  color: var(--ink-3);
+  line-height: normal;
+  transition: color var(--slow) var(--ease);
+
+  &:hover {
+    color: var(--ink-2);
+  }
+
+  &[aria-pressed="true"] {
+    anchor-name: --current-view;
+    color: var(--paper-2);
+  }
+}

@@ -1,5 +1,7 @@
 import type { Diagnostic } from "../../compiler";
 
+import "./diagnostics-list.css";
+
 type DiagnosticsListProps = {
   errors: readonly Diagnostic[];
   warnings: readonly Diagnostic[];

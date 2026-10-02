@@ -3,6 +3,8 @@ import { useStageTarget } from "./stage-focus";
 
 import type { StageId } from "./stages";
 
+import "./stage-ref.css";
+
 type StageRefProps = {
   stage: StageId;
   children: React.ReactNode;

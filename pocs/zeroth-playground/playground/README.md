@@ -19,7 +19,7 @@ The source sits in three folders at the root. `vite.config.ts` sets Vite's root 
 | `preview/` | the net graph, its elkjs layout, the SVG |
 | `docs/` | the documentation view, the page registry, and the components it passes to every page: the `Figure` frame, `OpenQuestion`, and `CodeBlock` for fenced code |
 | `pointer/` | the hover dwell shared by both views |
-| `theme/` | the swiss variables and styles, fonts, the wordmark |
+| `theme/` | the tokens, the base and prose layers, fonts, the wordmark |
 | `scripts/` | the screenshot script |
 
 `index.html` and `main.tsx` sit at the top of the folder.
@@ -82,8 +82,24 @@ The panel stores only what `optionsForNet` keeps: the options that apply to the 
 - Every React Compiler diagnostic fails `pnpm build`, the dev server's module and the tests that import it: a ref read in render, `setState` in render, an effect that only derives state, a construct the compiler cannot memoize. `vite.config.ts` sets `panicThreshold: "all_errors"` and the stricter checks. Restructure the component rather than opting out. `"use no memo"` still compiles the function, and a diagnostic inside it is only logged.
 - Effects only synchronize systems React does not own. Today that is Monaco, in `editor/monaco-editor.tsx`.
 - State is plain data with pure transition functions beside it, tested without the DOM. `app/document.ts`, `examples-view/module-edits.ts` and `pointer/pointer-motion.ts` are examples.
-- Styles are plain CSS with the swiss variables in `theme/theme.css`. Use current CSS where it removes code: anchor positioning, `@starting-style`, `:has`, the Popover API.
 - Comments say what the code does and why. Prose follows the house style: plain words, short sentences, no em dashes.
+
+## Styles
+
+Styles are plain CSS. A component imports its own file, placed beside it, and nests its rules with native CSS nesting. The views that lay out resizable groups import `ui/resizable.css`, which holds the classes those groups share.
+
+| File | Holds |
+| --- | --- |
+| `theme/tokens.css` | the cascade layers, and the tokens: colours, type sizes, spacing, radii, shadows, durations |
+| `theme/base.css` | the reset and the page, one focus ring, a button reset with no specificity, `.caps` for mono capitals, `.note` |
+| `theme/prose.css` | `.docs`, the reading column of the pages and the guide, and `.prose`, the typography the stage card shares with them |
+
+- `main.tsx` imports the three before anything else, because `tokens.css` names the layers before any rule uses one.
+- The layers, lowest first, are `base`, `prose` and `vendor`. A plugin in `vite.config.ts` puts Monaco's own CSS in `vendor`. A component's rules sit in no layer, so they win over all three without a longer selector.
+- Use a token where the value is one. A value only one rule uses stays a literal in that rule. `editor/swiss-theme.ts` repeats the colours as hex, because Monaco's theme API takes literals.
+- `!important` only overrides a style Monaco writes inline. Monaco's list also writes rules at run time, outside any layer, and those win over Monaco's layered ones. `editor/monaco-editor.css` restores the one that showed.
+- Reduced motion zeroes the duration tokens. A figure that runs its own keyframes shows a still frame instead.
+- Use current CSS where it removes code: anchor positioning, `@starting-style`, `:has`, the Popover API.
 
 ## Bundle
 

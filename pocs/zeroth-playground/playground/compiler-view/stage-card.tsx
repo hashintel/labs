@@ -9,6 +9,8 @@ import type { FocusHandoff } from "./focus-handoff";
 import type { StageSample } from "./stage-sample";
 import type { Stage } from "./stages";
 
+import "./stage-card.css";
+
 type StageCardProps = {
   stage: Stage;
   sample: StageSample;
@@ -36,13 +38,13 @@ export const StageCard: React.FC<StageCardProps> = ({ stage, sample, exampleTitl
   const [from, to] = stage.kind === "step" ? ["In", "Out"] : ["From", "To"];
   return (
     <div className="stage-card">
-      <article className="stage-card__doc">
+      <article className="stage-card__doc prose">
         <div className="stage-card__head">
           {pinned === null ? null : (
             <button
               type="button"
               id={handoff.back}
-              className="stage-card__back"
+              className="caps stage-card__back"
               onClick={() => {
                 // The button goes with the card: hand the focus to the stage's row in the overview.
                 flushSync(() => togglePin(pinned));
@@ -53,7 +55,7 @@ export const StageCard: React.FC<StageCardProps> = ({ stage, sample, exampleTitl
               All stages
             </button>
           )}
-          <p className="kicker">
+          <p className="caps kicker">
             {KIND_LABELS[stage.kind]} · {OWNER_LABELS[stage.owner]}
           </p>
         </div>
@@ -63,11 +65,11 @@ export const StageCard: React.FC<StageCardProps> = ({ stage, sample, exampleTitl
         </p>
         <pre className="stage-card__call">{stage.call}</pre>
         <dl className="stage-card__io">
-          <dt>{from}</dt>
+          <dt className="caps">{from}</dt>
           <dd>
             <RichText text={stage.input} />
           </dd>
-          <dt>{to}</dt>
+          <dt className="caps">{to}</dt>
           <dd>
             <RichText text={stage.output} />
           </dd>

@@ -28,6 +28,9 @@ import type { Compilation, Diagnostic } from "../../compiler";
 import type { Document } from "../app/document";
 import type { LineDecoration } from "../editor/line-decorations";
 
+import "../ui/resizable.css";
+import "./examples-view.css";
+
 type ExamplesViewProps = {
   document: Document;
   /** The document compiled, once per render, by the app. */

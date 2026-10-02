@@ -4,6 +4,8 @@ import { ViewSwitch } from "./view-switch";
 
 import type { View } from "./route";
 
+import "./header.css";
+
 type HeaderProps = {
   view: View;
   onSelectView: (view: View) => void;
@@ -35,7 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="header">
       <HashWordmark className="header__wordmark" />
-      <h1 className="header__title">
+      <h1 className="caps header__title">
         Petri net <i>to</i> Zeroth reactive modules
       </h1>
       <ViewSwitch view={view} onSelect={onSelectView} />
