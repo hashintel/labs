@@ -5,17 +5,18 @@
   align-items: center;
   gap: 0.55rem;
   max-width: 24rem;
-  height: 1.75rem;
-  padding: 0 0.6rem 0 var(--s-3);
-  border: 1px solid var(--hair);
-  border-radius: var(--r-sm);
+  height: var(--control-height);
+  padding: 0 0.7rem 0 0.95rem;
+  border-radius: var(--control-radius);
+  corner-shape: squircle;
   background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
   font-size: var(--fs-md);
   line-height: 1;
-  transition: border-color var(--fast) var(--ease);
+  transition: background-color var(--fast) var(--ease);
 
   &:hover {
-    border-color: var(--ink-2);
+    background: color-mix(in oklab, var(--paper-2) 94%, var(--ink));
   }
 }
 
