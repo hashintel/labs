@@ -1,6 +1,5 @@
-import { flushSync } from "react-dom";
-
 import { topicById } from "../../semantics/register";
+import { hashOf } from "../app/route";
 import { PAGE_COMPONENTS } from "../docs/page-components";
 import { BackLink } from "../ui/back-link";
 import { QUESTION_PAGES } from "./question-pages";
@@ -11,29 +10,21 @@ import type { Question } from "../../semantics/register";
 
 import "./question-card.css";
 
-type QuestionCardProps = {
-  question: Question;
-  /** Deselects the question; the card hands the focus back to its row in the list. */
-  onBack: () => void;
-};
-
 /**
  * The selected question: its topic, owner and status over its title, the
  * page, and then where it shows, one block per example compiled at the
- * options that bring the behaviour out.
+ * options that bring the behaviour out. The way back is a link to the view
+ * with no question, which also hands the focus to the question's row.
  */
-export const QuestionCard: React.FC<QuestionCardProps> = ({ question, onBack }) => {
+export const QuestionCard: React.FC<{ question: Question }> = ({ question }) => {
   const Page = QUESTION_PAGES[question.id];
   const topic = topicById(question.topic);
   return (
     <div className="question-card">
       <div className="question-card__head">
         <BackLink
-          onClick={() => {
-            // The link goes with the card: hand the focus to the question's row in the list.
-            flushSync(onBack);
-            document.getElementById(rowId(question.id))?.focus();
-          }}
+          href={hashOf({ view: "semantics" })}
+          onClick={() => document.getElementById(rowId(question.id))?.focus()}
         >
           All questions
         </BackLink>

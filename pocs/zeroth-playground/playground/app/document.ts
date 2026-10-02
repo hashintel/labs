@@ -17,21 +17,21 @@ export type Document = {
   module: ModuleEdits;
 };
 
-/** The example as it opens. */
-export function documentOf(example: Example): Document {
+/** The example as it opens, under the options given in place of its own. */
+export function documentOf(example: Example, options: CompilerOptions = example.options): Document {
   return {
     exampleId: example.id,
     irText: example.ir,
-    options: example.options,
+    options,
     module: NO_EDITS,
   };
 }
 
-/** Whether the text, the options or the module differ from the example as it opens. */
-export function isChanged(document: Document, example: Example): boolean {
+/** Whether the text, the options or the module differ from the document as it opened. */
+export function isChanged(document: Document, opening: Document): boolean {
   return (
-    document.irText !== example.ir ||
-    !sameOptions(document.options, example.options) ||
+    document.irText !== opening.irText ||
+    !sameOptions(document.options, opening.options) ||
     isEdited(document.module)
   );
 }

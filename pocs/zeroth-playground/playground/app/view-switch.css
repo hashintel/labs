@@ -35,19 +35,22 @@
 }
 
 .header__view {
+  display: inline-flex;
+  align-items: center;
   height: var(--segment-height);
   padding: 0 1.05rem;
   border-radius: var(--segment-radius);
   corner-shape: squircle;
   color: var(--ink-3);
   line-height: normal;
+  text-decoration: none;
   transition: color var(--slow) var(--ease);
 
   &:hover {
     color: var(--ink-2);
   }
 
-  &[aria-pressed="true"] {
+  &[aria-current="page"] {
     anchor-name: --current-view;
     color: var(--paper-2);
   }

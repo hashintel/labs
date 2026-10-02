@@ -10,23 +10,23 @@ const VIEWS: readonly { id: View; label: string }[] = [
 
 type ViewSwitchProps = {
   view: View;
-  onSelect: (view: View) => void;
+  /** Where each view's link goes: the view on what it last showed. */
+  targets: Record<View, string>;
 };
 
-/** The views as a segmented control: the one shown is pressed. */
-export const ViewSwitch: React.FC<ViewSwitchProps> = ({ view, onSelect }) => {
+/** The three views as a segmented control of links: the one shown is the current page. */
+export const ViewSwitch: React.FC<ViewSwitchProps> = ({ view, targets }) => {
   return (
     <nav className="header__views" aria-label="Views">
       {VIEWS.map((option) => (
-        <button
+        <a
           key={option.id}
-          type="button"
+          href={targets[option.id]}
           className="caps header__view"
-          aria-pressed={option.id === view}
-          onClick={() => onSelect(option.id)}
+          aria-current={option.id === view ? "page" : undefined}
         >
           {option.label}
-        </button>
+        </a>
       ))}
     </nav>
   );
