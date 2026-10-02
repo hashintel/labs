@@ -56,6 +56,12 @@
     font-size: 0.85rem;
   }
 
+  /* A label over a title: a stage's kind, "Overview", the example a sample reads, a question's topic. */
+  .kicker {
+    margin: 0 0 0.45rem;
+    white-space: nowrap;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     :root {
       --fast: 0s;

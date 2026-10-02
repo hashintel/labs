@@ -1,5 +1,5 @@
 /*
- * The two views as a rounded track, the one shown inked by a pill. The pill
+ * The views as a rounded track, the one shown inked by a pill. The pill
  * is the track's ::before, anchored to the pressed button, so it glides to
  * whichever view is chosen. The track, the pill and the buttons share one
  * height and one radius: a squircle where the browser draws one.

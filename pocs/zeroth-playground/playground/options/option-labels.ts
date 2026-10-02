@@ -1,4 +1,4 @@
-import type { OptionName } from "../../compiler";
+import type { CompilerOptions, OptionName } from "../../compiler";
 
 /**
  * How the compiler options read in the panel: grouped by what they decide,
@@ -30,6 +30,14 @@ export function valueLabel(labels: OptionLabels, value: string): string {
  * read monolithic over composed modules.
  */
 export const NOT_USED = "not used";
+
+/** The options set, each as its label and value label, in the panel's order: `Shape modular`, `Time step 0.5`. */
+export function setOptionLabels(options: CompilerOptions): string[] {
+  return OPTION_SECTIONS.flatMap((section) => section.options).flatMap((labels) => {
+    const value = options[labels.name];
+    return value === undefined ? [] : [`${labels.label} ${valueLabel(labels, String(value))}`];
+  });
+}
 
 export type OptionSection = {
   title: string;

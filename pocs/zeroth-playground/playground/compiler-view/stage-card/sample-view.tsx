@@ -1,3 +1,5 @@
+import { CodeExcerpt } from "../../ui/code-excerpt";
+
 import type { StageSample } from "../stage-sample";
 
 import "./sample-view.css";
@@ -27,23 +29,7 @@ export const SampleView: React.FC<SampleViewProps> = ({ exampleTitle, sample }) 
           ))}
         </dl>
       )}
-      {excerpt === undefined ? null : (
-        <figure className="sample__excerpt">
-          <figcaption className="caps sample__source">{excerpt.source}</figcaption>
-          <pre>
-            {excerpt.lines.map((line, index) => {
-              const previous = excerpt.lines[index - 1];
-              const skipped = previous !== undefined && line.number > previous.number + 1;
-              return (
-                <span key={line.number} className="sample__line" data-lit={line.lit} data-skipped={skipped}>
-                  <span className="sample__number">{line.number}</span>
-                  {line.text === "" ? " " : line.text}
-                </span>
-              );
-            })}
-          </pre>
-        </figure>
-      )}
+      {excerpt === undefined ? null : <CodeExcerpt excerpt={excerpt} />}
     </section>
   );
 };

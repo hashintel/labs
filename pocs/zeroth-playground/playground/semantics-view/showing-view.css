@@ -1,0 +1,70 @@
+/* One place a question shows: the example, its options, a way to open it, and the quoted lines. */
+.showing {
+  margin: 0 0 var(--s-5);
+  padding-top: var(--s-3);
+  border-top: 1px solid var(--hair-2);
+}
+
+.showing__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 0.2rem 0.75rem;
+  margin-bottom: 0.6rem;
+}
+
+.showing__example {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.showing__feature {
+  font-weight: 600;
+}
+
+.showing__net {
+  font-size: var(--fs-label-sm);
+}
+
+/* The options compiled under, as the panel labels them: "Rates clock · Conflicts nondet". */
+.showing__options {
+  grid-column: 1;
+  margin: 0;
+  font-size: var(--fs-label-sm);
+}
+
+.showing__open {
+  grid-row: 1 / 3;
+  grid-column: 2;
+  align-self: center;
+  height: 1.6rem;
+  padding: 0 0.6rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--accent);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+  transition:
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease);
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent-deep);
+  }
+}
+
+/* A compile that refuses: its first diagnostic in place of the lines. */
+.showing__refused {
+  margin: 0;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--hair-2);
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: var(--fs-code);
+  overflow-wrap: anywhere;
+}

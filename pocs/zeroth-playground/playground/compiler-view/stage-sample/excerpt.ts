@@ -1,6 +1,12 @@
-import type { SampleExcerpt } from "../stage-sample";
+import {
+  excerptOf as excerptOfText,
+  excerptOfLines as excerptOfNumbers,
+} from "../../ui/excerpt";
 
-type LineRange = { startLine: number; endLine: number };
+import type { LineRange } from "../../../compiler";
+import type { Excerpt } from "../../ui/excerpt";
+
+export { coveredLines } from "../../ui/excerpt";
 
 /** The most lines a sample quotes. */
 export const EXCERPT_LINES = 8;
@@ -12,33 +18,17 @@ export function excerptOf(
   firstLine: number,
   count = EXCERPT_LINES,
   lit: readonly number[] = [],
-): SampleExcerpt {
-  const lines = text
-    .split("\n")
-    .slice(firstLine - 1, firstLine - 1 + Math.min(count, EXCERPT_LINES))
-    .map((line, index) => ({ number: firstLine + index, text: line, lit: lit.includes(firstLine + index) }));
-  return { source, lines };
+): Excerpt {
+  return excerptOfText(source, text, firstLine, Math.min(count, EXCERPT_LINES), lit);
 }
 
 /** The listed lines of the text alone, each lit, up to `EXCERPT_LINES`. */
-export function excerptOfLines(source: string, text: string, numbers: readonly number[]): SampleExcerpt {
-  const lines = text.split("\n");
-  return {
-    source,
-    lines: numbers.slice(0, EXCERPT_LINES).map((number) => ({ number, text: lines[number - 1] ?? "", lit: true })),
-  };
+export function excerptOfLines(source: string, text: string, numbers: readonly number[]): Excerpt {
+  return excerptOfNumbers(source, text, numbers.slice(0, EXCERPT_LINES));
 }
 
 export function lineSpan({ startLine, endLine }: LineRange): string {
   return startLine === endLine ? `line ${startLine}` : `lines ${startLine}–${endLine}`;
-}
-
-/** The lines the ranges cover, each once, in order. */
-export function coveredLines(ranges: readonly LineRange[]): number[] {
-  const lines = ranges.flatMap(({ startLine, endLine }) =>
-    Array.from({ length: endLine - startLine + 1 }, (_, index) => startLine + index),
-  );
-  return [...new Set(lines)].toSorted((a, b) => a - b);
 }
 
 /** Line numbers in order, written as runs: `line 18`, `lines 11, 15, 23–34`. */

@@ -1,0 +1,18 @@
+Under clocks, should the transition decide, as `fires_BeginService` does, or the places, as in Zeroth's `birth_death.py`? Under the places' rule `BeginService` can fire with `FreeStaff` empty, so the staff, `FreeStaff + Serving`, can grow past the two it starts with.
+
+### Today
+
+The transition decides. It keeps the test of every input place, and its clock runs down only while all of them hold a token:
+
+```python
+fires_BeginService = (clk_BeginService == 0) & (Waiting != 0) & (FreeStaff != 0)
+return ite(clk_BeginService >= 0, ite((Waiting != 0) & (FreeStaff != 0), -1 * d(t), 0 * d(t)), None), 0
+```
+
+Zeroth's `birth_death.py` at 5bd3bf9 lets the clock run, and the place ignores a death on an empty place. With one input place the two rules agree, since an exponential delay has no memory. With two they do not.
+
+### Options on the table
+
+- The transition decides, as today: a firing takes one token from each input place or none.
+- The places decide, as in `birth_death.py`: `fires = (clk == 0)`, and each place gives a token if it has one.
+- Both, as an option, so a net written for Zeroth's rule compiles to it.

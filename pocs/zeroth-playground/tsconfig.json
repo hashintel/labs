@@ -18,5 +18,5 @@
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["compiler", "examples", "playground", "vite.config.ts"]
+  "include": ["compiler", "examples", "semantics", "playground", "vite.config.ts"]
 }

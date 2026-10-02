@@ -1,6 +1,6 @@
 import { CodeBlock } from "./code-block";
 import { Figure } from "./figures/figure";
-import { OpenQuestion } from "./open-question";
+import { Question } from "./question-ref";
 
 import type { MDXComponents } from "mdx/types";
 
@@ -9,4 +9,4 @@ import type { MDXComponents } from "mdx/types";
  * view passes them to each page, so the examples import nothing from the
  * playground. `pre` renders the page's fenced code.
  */
-export const PAGE_COMPONENTS = { Figure, OpenQuestion, pre: CodeBlock } satisfies MDXComponents;
+export const PAGE_COMPONENTS = { Figure, Question, pre: CodeBlock } satisfies MDXComponents;

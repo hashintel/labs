@@ -1,23 +1,24 @@
 # Playground
 
-The React app that shows the compiler at work: the IR editor, the Python it compiles to, a preview of the net, a documentation page per example, and the Compiler view. `pnpm build` writes it to one HTML file, `dist/index.html`, that opens from `file://`.
+The React app that shows the compiler at work: the IR editor, the Python it compiles to, a preview of the net, a documentation page per example, the Compiler view, and the Semantics view with the open questions. `pnpm build` writes it to one HTML file, `dist/index.html`, that opens from `file://`.
 
 ## Folders
 
 One concept per file, kebab-case names, a file's private helpers in a folder of the same name, tests beside the file they test.
 
-The source sits in three folders at the root. `vite.config.ts` sets Vite's root to `playground/`, which imports the other two; the build still writes `dist/index.html` at the root. The playground imports only `compiler/index.ts` from the compiler, and the examples through `examples/catalog.ts` and their pages.
+The source sits in four folders at the root. `vite.config.ts` sets Vite's root to `playground/`, which imports the other three; the build still writes `dist/index.html` at the root. The playground imports only `compiler/index.ts` from the compiler, the examples through `examples/catalog.ts` and their pages, and the questions through `semantics/register.ts` and their pages.
 
 | Folder | Holds |
 | --- | --- |
 | `app/` | the shell: `App`, the URL route, the open document and its edits, the header with the view switch and the example picker |
 | `examples-view/` | the Examples view: its grid, the module view with its file list and diagnostics, the compiler options panel, hover state, module edits |
 | `compiler-view/` | the Compiler view: the guide, the pipeline graph, the stage list, the stage cards and their live samples, the options table |
+| `semantics-view/` | the Semantics view: the question list by topic, the question card with its page and where it shows, the evidence compiled off the catalog |
 | `options/` | how the compiler options read and change in the playground, shared by both views |
-| `ui/` | the primitives both views use: `Panel`, `Switch`, `useFolds`, the resize target |
+| `ui/` | the primitives the views share: `Panel`, `Switch`, `useFolds`, the resize target, `BackLink`, `CodeExcerpt` over `excerpt.ts`, the arrow-key step of a list |
 | `editor/` | Monaco setup and theme, the `petri-net-ir` language and its completions, the provenance hover, line decorations, the React wrapper |
 | `preview/` | the net graph, its elkjs layout, the SVG |
-| `docs/` | the documentation view, the page registry, and the components it passes to every page: the `Figure` frame, `OpenQuestion`, and `CodeBlock` for fenced code |
+| `docs/` | the documentation view, the page registry, and the components it passes to every page: the `Figure` frame, the `Question` reference card, and `CodeBlock` for fenced code |
 | `pointer/` | the hover dwell shared by both views |
 | `theme/` | the tokens, the base and prose layers, fonts, the wordmark |
 | `scripts/` | the screenshot script |
@@ -38,13 +39,23 @@ Compilation { ir, options, irTrace, graph, files, errors, warnings }
 
 Pointer over a line or node ─► useDwell ─► Hover { provenance }
         ─► lit lines in both editors and the lit node in the preview
+
+App state: selectedQuestion ─► Semantics view
+        │ per showing: compile(example.ir, { options }) off the catalog
+        ▼
+Evidence { lines of the net item } or { the first diagnostic }
+
+NavigationContext { openQuestion, openExample }
+        ├─► a page's Question card opens the question in the Semantics view
+        └─► a showing's "Open in Playground" opens the example with its options
 ```
 
 - `App` in `app/app.tsx` holds the document and compiles it during render. `app/route.ts` reads the URL hash it opens on, and `app/document.ts` holds the document's pure transitions.
 - `ExamplesView` takes the document and hands back the next one, built with those transitions. `CompilerView` only reads it.
 - The IR carries no options: the options panel holds them.
 - A new IR text or new options drop the module edits. Reset and switching examples rebuild the document from the catalog.
-- Both views stay mounted under React's `Activity`, so each keeps its panel sizes, collapsed panels and pins.
+- All three views stay mounted under React's `Activity`, so each keeps its panel sizes, collapsed panels and pins.
+- The Semantics view reads the register and the catalog alone, never the document. `App` holds the selected question, so a page's `Question` card can open it there through `app/navigation.ts`.
 - The playground passes no code parser, so the nets with code strings are refused with `code-not-parsed`.
 
 ## Layout
@@ -73,6 +84,10 @@ The panel stores only what `optionsForNet` keeps: the options that apply to the 
 2. Place it and its edges in `compiler-view/pipeline-layout.ts`.
 3. Write its live sample in `compiler-view/stage-sample/` and route it from `stage-sample.ts`.
 4. Cover it in `stage-sample.test.ts` and `pipeline-layout.test.ts`.
+
+## The Semantics view
+
+`semantics/register.ts` lists the questions by topic; [semantics/README.md](../semantics/README.md) says how to add one. The view's left panel is the list, grouped by `TOPICS`, with a status dot per row. The right panel shows the intro and the topics with their counts, or the selected question's card: its page, rendered with the same components as an example page, then "Shows in". Each showing compiles its example at its options with `compile`, independent of the open document, and `semantics-view/evidence.ts` quotes the lines `linesOfItem` gives for the net item, up to 14, or the first diagnostic when the compile refuses. "Open in Playground" opens the example in the Examples view with those options. `#semantics` opens the view, `#semantics/<id>` a question.
 
 ## Conventions
 
@@ -140,6 +155,6 @@ Check visible changes in a headless browser against the build:
 Notes:
 
 - Playwright 1.63 drives its own Chromium 153. Run `pnpm exec playwright install chromium` once after `pnpm install`, and again after a Playwright upgrade; it downloads about 170 MB.
-- Both views stay mounted, so filter selectors with `:visible`.
+- All three views stay mounted, so filter selectors with `:visible`.
 - Monaco renders spaces as non-breaking spaces in `innerText`; normalize before comparing text.
-- `pnpm screenshot` captures the examples the picker lists and the Compiler view at 1440×900 into `screenshots/`.
+- `pnpm screenshot` captures the examples the picker lists, the Compiler view and the Semantics view, with and without a question, at 1440×900 into `screenshots/`.
