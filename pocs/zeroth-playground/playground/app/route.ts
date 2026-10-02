@@ -1,8 +1,8 @@
 import { type Example, FIRST_EXAMPLE, exampleById } from "../../examples/catalog";
 import { type Question, questionById } from "../../semantics/register";
 
-/** The three views: the examples workspace, how the compiler works, and the questions on the semantics. */
-export type View = "examples" | "compiler" | "semantics";
+/** The three views: the Playground, how the compiler works, and the questions on the semantics. */
+export type View = "playground" | "compiler" | "semantics";
 
 /** What the playground opens on; `question` only when the hash selects one in the Semantics view. */
 export type Route = { view: View; example: Example; question?: Question };
@@ -23,5 +23,5 @@ export function routeOf(hash: string): Route {
     const question = questionById(second);
     return { view: "semantics", example: FIRST_EXAMPLE, ...(question === undefined ? {} : { question }) };
   }
-  return { view: "examples", example: exampleById(first) ?? FIRST_EXAMPLE };
+  return { view: "playground", example: exampleById(first) ?? FIRST_EXAMPLE };
 }

@@ -3,7 +3,7 @@ import type { View } from "./route";
 import "./view-switch.css";
 
 const VIEWS: readonly { id: View; label: string }[] = [
-  { id: "examples", label: "Examples" },
+  { id: "playground", label: "Playground" },
   { id: "compiler", label: "Compiler" },
   { id: "semantics", label: "Semantics" },
 ];

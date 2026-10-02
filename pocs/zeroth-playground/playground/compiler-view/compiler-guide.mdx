@@ -6,11 +6,11 @@ import { StrategyTable } from "./strategy-table";
 
 This view shows how the playground turns the IR text into Python, one part at a time. The graph holds every part. Rounded boxes are documents, square boxes are steps, and dashed boxes are inputs beside the main line. A notch in a corner marks what the playground adds around the compiler.
 
-Hover a box, or a stage named in this guide, to open its card under the graph. Click to pin it, and click again to let it go. Beside each card, a Live section shows what the stage made of the example picked in the header. Pick another example in the header, or edit the text or the compiler options in the Examples view, and the cards follow.
+Hover a box, or a stage named in this guide, to open its card under the graph. Click to pin it, and click again to let it go. Beside each card, a Live section shows what the stage made of the example picked in the header. Pick another example in the header, or edit the text or the compiler options in the Playground view, and the cards follow.
 
 ### The stages
 
-1. The <StageRef stage="ir-text">IR text</StageRef> is the YAML in the IR editor of the Examples view. It carries no compiler options.
+1. The <StageRef stage="ir-text">IR text</StageRef> is the YAML in the IR editor of the Playground view. It carries no compiler options.
 2. <StageRef stage="parse">Parse</StageRef> reads it with js-yaml, then checks it against a strict zod schema. The result is a <StageRef stage="ir">PetriNetIr</StageRef>, or diagnostics with their lines.
 3. The <StageRef stage="options">compiler options</StageRef> come from the panel under the IR editor. The compile passes them beside the parsed document, to the lowering and the traces; the text never holds them.
 4. <StageRef stage="lower">Lower</StageRef> calls `lowerPetriNetIr(ir, options, parseCode)`. No <StageRef stage="code-parser">code parser</StageRef> is passed, so a net with code strings is refused with `code-not-parsed`.

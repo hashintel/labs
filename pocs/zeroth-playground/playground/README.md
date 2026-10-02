@@ -11,7 +11,7 @@ The source sits in four folders at the root. `vite.config.ts` sets Vite's root t
 | Folder | Holds |
 | --- | --- |
 | `app/` | the shell: `App`, the URL route, the open document and its edits, the header with the view switch and the example picker |
-| `examples-view/` | the Examples view: its grid, the module view with its file list and diagnostics, the compiler options panel, hover state, module edits |
+| `playground-view/` | the Playground view: its grid, the module view with its file list and diagnostics, the compiler options panel, hover state, module edits |
 | `compiler-view/` | the Compiler view: the guide, the pipeline graph, the stage list, the stage cards and their live samples, the options table |
 | `semantics-view/` | the Semantics view: the question list by topic, the question card with its page and where it shows, the evidence compiled off the catalog |
 | `options/` | how the compiler options read and change in the playground, shared by both views |
@@ -51,16 +51,16 @@ NavigationContext { openQuestion, openExample }
 ```
 
 - `App` in `app/app.tsx` holds the document and compiles it during render. `app/route.ts` reads the URL hash it opens on, and `app/document.ts` holds the document's pure transitions.
-- `ExamplesView` takes the document and hands back the next one, built with those transitions. `CompilerView` only reads it.
+- `PlaygroundView` takes the document and hands back the next one, built with those transitions. `CompilerView` only reads it.
 - The IR carries no options: the options panel holds them.
-- A new IR text or new options drop the module edits. Reset and switching examples rebuild the document from the catalog.
+- A new IR text or new options drop the module edits. Reset and switching examples rebuild the document from the catalog. `#<example-id>` opens the Playground view on that example.
 - All three views stay mounted under React's `Activity`, so each keeps its panel sizes, collapsed panels and pins.
 - The Semantics view reads the register and the catalog alone, never the document. `App` holds the selected question, so a page's `Question` card can open it there through `app/navigation.ts`.
 - The playground passes no code parser, so the nets with code strings are refused with `code-not-parsed`.
 
 ## Layout
 
-- The Examples view is a `react-resizable-panels` grid: the documentation as a full-height first column, the IR and the module side by side, the net preview under them. Dragging a gridline resizes a row or a column, and dragging the point where two cross resizes both. A hovered or dragged gridline shows a blue overlay with a deep-blue line.
+- The Playground view is a `react-resizable-panels` grid: the documentation as a full-height first column, the IR and the module side by side, the net preview under them. Dragging a gridline resizes a row or a column, and dragging the point where two cross resizes both. A hovered or dragged gridline shows a blue overlay with a deep-blue line.
 - Every view is the same `Panel`. The documentation, the compiler options, the preview and the files collapse from the chevron in their head; collapsed against a side, a panel becomes a strip with its title written upright.
 - The example picker is a popover anchored to its button and walked with the arrow keys. It lists the listed examples rung by rung and skips an empty rung; an unlisted example appears while it is open.
 - `NetPreview` is the one component that takes a `PetriNetIr`, the boundary a canvas can replace.
@@ -87,7 +87,7 @@ The panel stores only what `optionsForNet` keeps: the options that apply to the 
 
 ## The Semantics view
 
-`semantics/register.ts` lists the questions by topic; [semantics/README.md](../semantics/README.md) says how to add one. The view's left panel is the list, grouped by `TOPICS`, with a status dot per row. The right panel shows the intro and the topics with their counts, or the selected question's card: its page, rendered with the same components as an example page, then "Shows in". Each showing compiles its example at its options with `compile`, independent of the open document, and `semantics-view/evidence.ts` quotes the lines `linesOfItem` gives for the net item, up to 14, or the first diagnostic when the compile refuses. "Open in Playground" opens the example in the Examples view with those options. `#semantics` opens the view, `#semantics/<id>` a question.
+`semantics/register.ts` lists the questions by topic; [semantics/README.md](../semantics/README.md) says how to add one. The view's left panel is the list, grouped by `TOPICS`, with a status dot per row. The right panel shows the intro and the topics with their counts, or the selected question's card: its page, rendered with the same components as an example page, then "Shows in". Each showing compiles its example at its options with `compile`, independent of the open document, and `semantics-view/evidence.ts` quotes the lines `linesOfItem` gives for the net item, up to 14, or the first diagnostic when the compile refuses. "Open in Playground" opens the example in the Playground view with those options. `#semantics` opens the view, `#semantics/<id>` a question.
 
 ## Conventions
 
@@ -96,7 +96,7 @@ The panel stores only what `optionsForNet` keeps: the options that apply to the 
 - The React Compiler memoizes, through `@vitejs/plugin-react`'s `compiler` option with `oxc-transform-react`. Derive values in render and do not add `useMemo` or `useCallback`.
 - Every React Compiler diagnostic fails `pnpm build`, the dev server's module and the tests that import it: a ref read in render, `setState` in render, an effect that only derives state, a construct the compiler cannot memoize. `vite.config.ts` sets `panicThreshold: "all_errors"` and the stricter checks. Restructure the component rather than opting out. `"use no memo"` still compiles the function, and a diagnostic inside it is only logged.
 - Effects only synchronize systems React does not own. Today that is Monaco, in `editor/monaco-editor.tsx`.
-- State is plain data with pure transition functions beside it, tested without the DOM. `app/document.ts`, `examples-view/module-edits.ts` and `pointer/pointer-motion.ts` are examples.
+- State is plain data with pure transition functions beside it, tested without the DOM. `app/document.ts`, `playground-view/module-edits.ts` and `pointer/pointer-motion.ts` are examples.
 - Comments say what the code does and why. Prose follows the house style: plain words, short sentences, no em dashes.
 
 ## Styles

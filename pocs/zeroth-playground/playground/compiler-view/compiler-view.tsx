@@ -26,7 +26,7 @@ const FOLDS = ["guide"] as const;
  * How the compiler works: the guide on the left, and on the right the graph
  * of every stage over the card of the focused one, read off the example in
  * the editor. A hover focuses a stage once the pointer settles on it, as in
- * the examples view; a keyboard focus focuses it at once, and a click pins
+ * the Playground view; a keyboard focus focuses it at once, and a click pins
  * it. The card follows the hovered stage, else the keyboard's, else the
  * pinned one, else lists them all. Every stage's sample is read once per render,
  * off the example: its title, its IR text, its options and what it compiles to.

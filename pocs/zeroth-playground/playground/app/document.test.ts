@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { parsePetriNetIr } from "../../compiler";
 import { exampleById } from "../../examples/catalog";
-import { editFile, toggleEditing } from "../examples-view/module-edits";
+import { editFile, toggleEditing } from "../playground-view/module-edits";
 import { documentOf, isChanged, withIrText, withOptionText } from "./document";
 
 import type { Example } from "../../examples/catalog";

@@ -10,7 +10,7 @@ import "./showing-view.css";
 
 /**
  * One place a question shows: the example and the options that bring the
- * behaviour out, a way to open them in the Examples view, and the lines the
+ * behaviour out, a way to open them in the Playground view, and the lines the
  * compiler writes for the net item, compiled here from the catalog.
  */
 export const ShowingView: React.FC<{ showing: Showing }> = ({ showing }) => {
@@ -33,7 +33,7 @@ export const ShowingView: React.FC<{ showing: Showing }> = ({ showing }) => {
         <button
           type="button"
           className="showing__open"
-          title="Open the example in the Examples view with these options"
+          title="Open the example in the Playground view with these options"
           onClick={() => openExample(example.id, options)}
         >
           Open in Playground

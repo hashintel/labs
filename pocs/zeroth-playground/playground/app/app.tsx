@@ -3,7 +3,7 @@ import { Activity, useState } from "react";
 import { compile } from "../../compiler";
 import { FIRST_EXAMPLE, exampleById } from "../../examples/catalog";
 import { CompilerView } from "../compiler-view/compiler-view";
-import { ExamplesView } from "../examples-view/examples-view";
+import { PlaygroundView } from "../playground-view/playground-view";
 import { useDwell } from "../pointer/use-dwell";
 import { SemanticsView } from "../semantics-view/semantics-view";
 import { type Document, documentOf, isChanged } from "./document";
@@ -12,7 +12,7 @@ import { type Navigation, NavigationContext } from "./navigation";
 import { type View, routeOf } from "./route";
 
 import type { CompilerOptions } from "../../compiler";
-import type { Hover } from "../examples-view/hover";
+import type { Hover } from "../playground-view/hover";
 
 import "./app.css";
 
@@ -50,7 +50,7 @@ export const App: React.FC = () => {
     },
     openExample: (id, options) => {
       selectExample(id, options);
-      setView("examples");
+      setView("playground");
     },
   };
 
@@ -75,9 +75,9 @@ export const App: React.FC = () => {
             />
           </main>
         </Activity>
-        <Activity mode={view === "examples" ? "visible" : "hidden"}>
+        <Activity mode={view === "playground" ? "visible" : "hidden"}>
           <main className="workspace">
-            <ExamplesView
+            <PlaygroundView
               document={document}
               compilation={compilation}
               onChange={setDocument}
