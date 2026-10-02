@@ -1,6 +1,5 @@
 import { Group, Panel as ResizablePanel, Separator, usePanelRef } from "react-resizable-panels";
 
-import { questionById } from "../../semantics/register";
 import { Panel } from "../ui/panel";
 import { RESIZE_TARGET } from "../ui/resize-target";
 import { useFolds } from "../ui/use-folds";
@@ -8,15 +7,16 @@ import { QuestionCard } from "./question-card";
 import { QuestionList } from "./question-list";
 import { SemanticsIntro } from "./semantics-intro";
 
+import type { Question } from "../../semantics/register";
+
 import "../ui/resizable.css";
 
 /** The one panel of the view that folds. */
 const FOLDS = ["questions"] as const;
 
 type SemanticsViewProps = {
-  /** The selected question's id; the app owns it, so a page can open a question here. */
-  selected: string | null;
-  onSelect: (id: string | null) => void;
+  /** The question the hash names, if any. */
+  question?: Question;
 };
 
 /**
@@ -25,10 +25,9 @@ type SemanticsViewProps = {
  * the topics when none is selected. The view reads the register and the
  * catalog alone, never the document the Playground view has open.
  */
-export const SemanticsView: React.FC<SemanticsViewProps> = ({ selected, onSelect }) => {
+export const SemanticsView: React.FC<SemanticsViewProps> = ({ question }) => {
   const listRef = usePanelRef();
   const folds = useFolds(FOLDS, () => listRef.current);
-  const question = selected === null ? undefined : questionById(selected);
   return (
     <Group
       orientation="horizontal"
@@ -45,7 +44,7 @@ export const SemanticsView: React.FC<SemanticsViewProps> = ({ selected, onSelect
         defaultSize="32%"
       >
         <Panel title="Questions" fold={folds.foldOf("questions", "start")}>
-          <QuestionList selected={selected} onSelect={onSelect} />
+          <QuestionList selected={question?.id ?? null} />
         </Panel>
       </ResizablePanel>
       <Separator className="gridline gridline--column" />
@@ -54,7 +53,7 @@ export const SemanticsView: React.FC<SemanticsViewProps> = ({ selected, onSelect
           {question === undefined ? (
             <SemanticsIntro />
           ) : (
-            <QuestionCard question={question} onBack={() => onSelect(null)} />
+            <QuestionCard question={question} />
           )}
         </Panel>
       </ResizablePanel>

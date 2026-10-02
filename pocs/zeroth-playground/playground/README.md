@@ -50,12 +50,12 @@ NavigationContext { openQuestion, openExample }
         └─► a showing's "Open in Playground" opens the example with its options
 ```
 
-- `App` in `app/app.tsx` holds the document and compiles it during render. `app/route.ts` reads the URL hash it opens on, and `app/document.ts` holds the document's pure transitions.
+- `App` in `app/app.tsx` holds the document and compiles it during render. `app/router.ts` keeps the route in step with the URL hash, `app/route.ts` reads a hash as a route and writes a route as a hash, and `app/document.ts` holds the document's pure transitions.
 - `PlaygroundView` takes the document and hands back the next one, built with those transitions. `CompilerView` only reads it.
 - The IR carries no options: the options panel holds them.
-- A new IR text or new options drop the module edits. Reset and switching examples rebuild the document from the catalog. `#<example-id>` opens the Playground view on that example.
+- The hash says where the app is: `#<example-id>` opens the Playground view on that example, `#<example-id>?shape=modular` opens it under other options, `#compiler/<example-id>` the Compiler view, and `#semantics/<question-id>` a question. Every link in the app is an `<a href="#…">`, so Back and Forward work, and a link can be copied. A hash naming another example, or other options, rebuilds the document from the catalog; edits in the panel and the editors do not write the hash. A new IR text or new options drop the module edits, and Reset returns to the document as the hash opened it.
 - All three views stay mounted under React's `Activity`, so each keeps its panel sizes, collapsed panels and pins.
-- The Semantics view reads the register and the catalog alone, never the document. `App` holds the selected question, so a page's `Question` card can open it there through `app/navigation.ts`.
+- The Semantics view reads the register and the catalog alone, never the document. The selected question is the one the hash names, so a page's `Question` card opens it with a link, and the view switch returns to the question last shown.
 - The playground passes no code parser, so the nets with code strings are refused with `code-not-parsed`.
 
 ## Layout

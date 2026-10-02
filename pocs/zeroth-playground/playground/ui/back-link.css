@@ -12,6 +12,7 @@
   border-radius: 0.4rem;
   color: var(--accent);
   line-height: 1;
+  text-decoration: none;
   white-space: nowrap;
   transition:
     color var(--fast) var(--ease),

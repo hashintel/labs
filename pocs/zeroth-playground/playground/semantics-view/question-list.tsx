@@ -1,4 +1,5 @@
 import { QUESTIONS, TOPICS, questionsOf } from "../../semantics/register";
+import { hashOf } from "../app/route";
 import { stepIndex } from "../ui/roving";
 
 import type { Status } from "../../semantics/register";
@@ -7,7 +8,6 @@ import "./question-list.css";
 
 type QuestionListProps = {
   selected: string | null;
-  onSelect: (id: string) => void;
 };
 
 /** What the status dot says on hover. */
@@ -24,8 +24,8 @@ export function rowId(question: string): string {
 
 /** The arrow keys walk the rows; Home and End jump to the ends. Enter and Space press the row. */
 function walk(event: React.KeyboardEvent<HTMLDivElement>) {
-  const rows = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="option"]')];
-  const at = rows.indexOf(document.activeElement as HTMLButtonElement);
+  const rows = [...event.currentTarget.querySelectorAll<HTMLAnchorElement>("a[href]")];
+  const at = rows.indexOf(document.activeElement as HTMLAnchorElement);
   const next = stepIndex(event.key, at, rows.length);
   if (next === null) {
     return;
@@ -36,13 +36,13 @@ function walk(event: React.KeyboardEvent<HTMLDivElement>) {
 
 /**
  * Every question of the register, grouped by topic: a status dot, the title,
- * and who can settle it. A click selects; a hover does nothing. The selected
+ * and who can settle it. Each row is a link to the question's hash; a hover does nothing. The selected
  * row, else the first, is the one Tab reaches, and the arrow keys walk the rest.
  */
-export const QuestionList: React.FC<QuestionListProps> = ({ selected, onSelect }) => {
+export const QuestionList: React.FC<QuestionListProps> = ({ selected }) => {
   const tabStop = selected ?? QUESTIONS[0]?.id;
   return (
-    <div className="question-list" role="listbox" aria-label="Questions" onKeyDown={walk}>
+    <nav className="question-list" aria-label="Questions" onKeyDown={walk}>
       {TOPICS.map((topic) => {
         const questions = questionsOf(topic.id);
         const titleId = `question-topic-${topic.id}`;
@@ -52,16 +52,14 @@ export const QuestionList: React.FC<QuestionListProps> = ({ selected, onSelect }
               {topic.title}
             </div>
             {questions.map((question) => (
-              <button
+              <a
                 key={question.id}
-                type="button"
-                role="option"
                 id={rowId(question.id)}
+                href={hashOf({ view: "semantics", question })}
                 className="question-list__row"
                 data-question={question.id}
-                aria-selected={question.id === selected}
+                aria-current={question.id === selected ? "page" : undefined}
                 tabIndex={question.id === tabStop ? 0 : -1}
-                onClick={() => onSelect(question.id)}
               >
                 <span
                   className="question-list__status"
@@ -72,11 +70,11 @@ export const QuestionList: React.FC<QuestionListProps> = ({ selected, onSelect }
                 />
                 <span className="question-list__title">{question.title}</span>
                 <span className="question-list__owner">{question.owner}</span>
-              </button>
+              </a>
             ))}
           </div>
         );
       })}
-    </div>
+    </nav>
   );
 };

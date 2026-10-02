@@ -1,5 +1,5 @@
 import { exampleById } from "../../examples/catalog";
-import { useNavigation } from "../app/navigation";
+import { hashOf } from "../app/route";
 import { setOptionLabels } from "../options/option-labels";
 import { CodeExcerpt } from "../ui/code-excerpt";
 import { evidenceOf } from "./evidence";
@@ -10,11 +10,10 @@ import "./showing-view.css";
 
 /**
  * One place a question shows: the example and the options that bring the
- * behaviour out, a way to open them in the Playground view, and the lines the
- * compiler writes for the net item, compiled here from the catalog.
+ * behaviour out, a link that opens them in the Playground view, and the lines
+ * the compiler writes for the net item, compiled here from the catalog.
  */
 export const ShowingView: React.FC<{ showing: Showing }> = ({ showing }) => {
-  const { openExample } = useNavigation();
   const example = exampleById(showing.example);
   if (example === undefined) {
     return <p className="note">The catalog has no example {showing.example}.</p>;
@@ -30,14 +29,13 @@ export const ShowingView: React.FC<{ showing: Showing }> = ({ showing }) => {
           <span className="caps showing__net">{example.title}</span>
         </p>
         <p className="caps showing__options">{labels.length === 0 ? "Default options" : labels.join(" · ")}</p>
-        <button
-          type="button"
+        <a
           className="showing__open"
+          href={hashOf({ view: "playground", example, options })}
           title="Open the example in the Playground view with these options"
-          onClick={() => openExample(example.id, options)}
         >
           Open in Playground
-        </button>
+        </a>
       </div>
       {evidence.kind === "refused" ? (
         <p className="showing__refused">{evidence.message}</p>

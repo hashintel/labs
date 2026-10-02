@@ -26,9 +26,11 @@
   padding: 0.3rem 0.6rem;
   border-radius: 0.5rem;
   font-size: 0.82rem;
+  color: inherit;
   font-weight: 500;
   line-height: 1.35;
   text-align: left;
+  text-decoration: none;
   transition: background-color var(--fast) var(--ease);
 
   /* The pointer greys a row and the keyboard washes it in the accent, so the two never look alike. */
@@ -42,7 +44,7 @@
   }
 
   /* The selected question: a heavier weight and a wash of ink, which hover and focus still show over. */
-  &[aria-selected="true"] {
+  &[aria-current="page"] {
     background: var(--ink-wash);
     font-weight: 600;
 

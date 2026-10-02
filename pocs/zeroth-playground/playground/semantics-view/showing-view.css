@@ -39,8 +39,11 @@
 .showing__open {
   grid-row: 1 / 3;
   grid-column: 2;
+  display: inline-flex;
+  align-items: center;
   align-self: center;
   height: 1.6rem;
+  text-decoration: none;
   padding: 0 0.6rem;
   border: 1px solid var(--hair);
   border-radius: var(--r-sm);

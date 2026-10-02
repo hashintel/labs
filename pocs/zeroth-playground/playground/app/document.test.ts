@@ -29,7 +29,7 @@ describe("the document", () => {
       options: birthDeath.options,
       module: { editing: false, texts: {} },
     });
-    expect(isChanged(document, birthDeath)).toBe(false);
+    expect(isChanged(document, documentOf(birthDeath))).toBe(false);
   });
 
   it("drops the module edits on a new text, and keeps the document on the same text", () => {
@@ -44,8 +44,8 @@ describe("the document", () => {
     // THEN the same text changes nothing; a new one drops the edits, keeps the toggle, and counts as a change
     expect(same).toBe(edited);
     expect(changed.module).toEqual({ editing: true, texts: {} });
-    expect(isChanged(edited, birthDeath)).toBe(true);
-    expect(isChanged(changed, birthDeath)).toBe(true);
+    expect(isChanged(edited, documentOf(birthDeath))).toBe(true);
+    expect(isChanged(changed, documentOf(birthDeath))).toBe(true);
   });
 
   it("stores an option the panel changes, and counts the default back as unchanged", () => {
@@ -59,7 +59,7 @@ describe("the document", () => {
     const monolithic = withOptionText(document, parsed.ir, "shape", "monolithic");
     const back = withOptionText(monolithic, parsed.ir, "shape", "modular");
     // THEN the first is a change and the second is not
-    expect(isChanged(monolithic, birthDeath)).toBe(true);
-    expect(isChanged(back, birthDeath)).toBe(false);
+    expect(isChanged(monolithic, documentOf(birthDeath))).toBe(true);
+    expect(isChanged(back, documentOf(birthDeath))).toBe(false);
   });
 });

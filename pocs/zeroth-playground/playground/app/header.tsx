@@ -8,9 +8,10 @@ import "./header.css";
 
 type HeaderProps = {
   view: View;
-  onSelectView: (view: View) => void;
+  /** Where each view's link in the switch goes. */
+  targets: Record<View, string>;
   exampleId: string;
-  /** The IR text, the options or the module differ from the example as it opens. */
+  /** The IR text, the options or the module differ from the example as it opened. */
   changed: boolean;
   onSelectExample: (id: string) => void;
   onReset: () => void;
@@ -19,7 +20,7 @@ type HeaderProps = {
 /** The views that work on the example the picker names; the Semantics view does not. */
 const EXAMPLE_VIEWS: readonly View[] = ["playground", "compiler"];
 
-/** A counter-clockwise arrow: back to how the example opens. */
+/** A counter-clockwise arrow: back to how the example opened. */
 const ResetIcon: React.FC = () => {
   return (
     <svg className="header__reset-icon" viewBox="0 0 12 12" aria-hidden="true">
@@ -31,7 +32,7 @@ const ResetIcon: React.FC = () => {
 
 export const Header: React.FC<HeaderProps> = ({
   view,
-  onSelectView,
+  targets,
   exampleId,
   changed,
   onSelectExample,
@@ -45,14 +46,14 @@ export const Header: React.FC<HeaderProps> = ({
           Petri net <i>to</i> reactive modules
         </h1>
       </div>
-      <ViewSwitch view={view} onSelect={onSelectView} />
+      <ViewSwitch view={view} targets={targets} />
       {/* The picker names the example the Playground and Compiler views work on; the Semantics view is general. */}
       <div className="header__example" hidden={!EXAMPLE_VIEWS.includes(view)}>
         {changed ? (
           <button
             type="button"
             className="header__reset"
-            title="Return the IR, the options and the module to the example as it opens"
+            title="Return the IR, the options and the module to the example as it opened"
             onClick={onReset}
           >
             <ResetIcon />
