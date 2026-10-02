@@ -15,7 +15,7 @@ pnpm dev
 
 `pnpm build` writes `dist/index.html`, one file with the JavaScript, the CSS, the fonts (Inter and JetBrains Mono) and the editor worker inlined, about 6.6 MB. It opens from `file://` and can be sent as an attachment. A comment at its top names every package and font it bundles, with the licence and the source of each. A URL hash names the example to open: `index.html#birth-death`.
 
-`pnpm test` runs the unit tests, `pnpm lint:tsc` type-checks, and `pnpm screenshot` opens the built file in Playwright's Chromium and screenshots the examples the picker lists, then the Compiler view, at 1440×900 into `screenshots/`. Install that Chromium once with `pnpm exec playwright install chromium`.
+`pnpm test` runs the unit tests, `pnpm lint:tsc` type-checks, and `pnpm screenshot` opens the built file in Playwright's Chromium and screenshots the examples the picker lists, then the Compiler and Semantics views, at 1440×900 into `screenshots/`. Install that Chromium once with `pnpm exec playwright install chromium`.
 
 ## What it does
 
@@ -24,6 +24,7 @@ pnpm dev
 - **Cross-highlighting.** Hovering a line in either editor lights the lines on the other side that name the same net item, and the item in the preview. Hovering a place or a transition in the preview lights its lines on both sides.
 - **The example ladder.** The examples climb from plain nets (Steps) to stochastic ones (Rates), each adding one idea and named by it. The picker in the header lists them. Each has a page; most end with open questions, each naming who can settle it: HASH, Zeroth or both. Two pages carry a CSS animation, and *Rates as clocks* has an explorer with a Δt slider, a draw and the coin's rate.
 - **The Compiler view.** A switch in the header opens a guide, a graph of the pipeline's stages and a card per stage with a live sample from the open example. `#compiler`, or `#compiler/capacity`, opens it.
+- **The Semantics view.** The questions still open between HASH and Zeroth on what a net means as modules, grouped by topic. Each one quotes the Python that shows it today and opens the example that shows it. `#semantics`, or `#semantics/ties-under-clocks`, opens it.
 
 The coloured example, Bucket, carries a code string and is refused with `code-not-parsed`: reading the code back needs a parser built on the TypeScript compiler, far past the single-file budget. The picker leaves it out; `#bucket` opens it, with the refusal and the page.
 
