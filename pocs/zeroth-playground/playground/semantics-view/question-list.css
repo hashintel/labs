@@ -71,8 +71,25 @@
   }
 }
 
+/*
+ * A title stays on one line, and one the row cuts fades out at the cut, so
+ * the owner keeps its place on the right. The fade is a mask that an
+ * animation on the title's own scroll timeline applies: the timeline is
+ * active only while the title overflows, so a title that fits stays whole.
+ */
 .question-list__title {
-  overflow-wrap: anywhere;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  animation: question-title-fade linear both;
+  animation-timeline: scroll(self inline);
+}
+
+@keyframes question-title-fade {
+  from,
+  to {
+    mask-image: linear-gradient(to right, black calc(100% - 2rem), transparent);
+  }
 }
 
 .question-list__owner {
