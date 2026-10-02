@@ -7,19 +7,19 @@ describe("routeOf", () => {
   it("opens the example a hash names in the Examples view", () => {
     // GIVEN the hash of an example
     // WHEN it is read
-    const route = routeOf("#queue");
+    const route = routeOf("#birth-death");
     // THEN the Examples view opens on that example
     expect(route.view).toBe("examples");
-    expect(route.example.id).toBe("queue");
+    expect(route.example.id).toBe("birth-death");
   });
 
   it("opens the Compiler view, on the example after the slash", () => {
     // GIVEN the Compiler view's hash, with and without an example
     // WHEN each is read
-    const withExample = routeOf("#compiler/queue");
+    const withExample = routeOf("#compiler/birth-death");
     const alone = routeOf("#compiler");
     // THEN both open the Compiler view, the bare one on the first example
-    expect(withExample).toEqual({ view: "compiler", example: expect.objectContaining({ id: "queue" }) });
+    expect(withExample).toEqual({ view: "compiler", example: expect.objectContaining({ id: "birth-death" }) });
     expect(alone).toEqual({ view: "compiler", example: FIRST_EXAMPLE });
   });
 

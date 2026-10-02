@@ -1,11 +1,11 @@
 import type { ExampleMeta } from "../catalog";
 
 export default {
-  feature: "Capacity within a step",
+  feature: "A capped place",
   title: "Capacity",
-  summary: "A later producer sees the token an earlier one added.",
+  summary: "A later producer counts the token an earlier one adds in the same step.",
   rung: "steps",
-  order: 20,
+  order: 30,
   listed: true,
   options: { shape: "modular" },
 } satisfies ExampleMeta;

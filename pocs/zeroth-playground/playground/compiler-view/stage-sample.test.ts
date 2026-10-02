@@ -27,33 +27,33 @@ function inputOfText(irText: string, options: CompilerOptions = {}): SampleInput
   return { exampleTitle: "Edited", irText, options, compilation: compile(irText, { options }) };
 }
 
-const queue = inputOf("queue");
-const drones = inputOf("drones");
-const forkClocked = inputOf("fork-clocked");
+const birthDeath = inputOf("birth-death");
+const bucket = inputOf("bucket");
+const conflictClocked = inputOf("conflict-clocked");
 
 describe("stageSample on a net that compiles", () => {
   it("marks every stage's sample ok", () => {
-    // GIVEN Queue as it opens, which compiles
+    // GIVEN Birth–death under coins as it opens, which compiles
     // THEN every stage's sample is ok
     for (const stage of STAGES) {
-      expect(stageSample(stage.id, queue).tone, stage.id).toBe("ok");
+      expect(stageSample(stage.id, birthDeath).tone, stage.id).toBe("ok");
     }
   });
 
   it("quotes the IR and counts what parses", () => {
-    // GIVEN Queue as it opens
+    // GIVEN Birth–death under coins as it opens
     // WHEN the IR text is sampled
-    const text = stageSample("ir-text", queue);
+    const text = stageSample("ir-text", birthDeath);
     // THEN it counts the lines and quotes the first, and the parse counts the places and transitions
-    expect(text.headline).toBe(`${queue.irText.split("\n").length} lines of YAML.`);
-    expect(text.excerpt?.lines[0]).toEqual({ number: 1, text: "name: queue", lit: false });
-    expect(stageSample("parse", queue).headline).toBe("Parsed: 2 places, 2 transitions.");
+    expect(text.headline).toBe(`${birthDeath.irText.split("\n").length} lines of YAML.`);
+    expect(text.excerpt?.lines[0]).toEqual({ number: 1, text: "name: birth_death", lit: false });
+    expect(stageSample("parse", birthDeath).headline).toBe("Parsed: 1 place, 2 transitions.");
   });
 
   it("names the options that apply and the ones the panel sets", () => {
-    // GIVEN Queue as it opens, with the modular shape and a time step of 0.5
+    // GIVEN Birth–death under coins as it opens, with the modular shape and a time step of 0.5
     // WHEN the options are sampled
-    const options = stageSample("options", queue);
+    const options = stageSample("options", birthDeath);
     // THEN the panel's two options are named, and Slots, which a plain net has no use for, is muted
     expect(options.headline).toContain("the panel sets Shape modular, Time step 0.5");
     expect(options.rows.find((row) => row.label === "Time step")).toEqual({ label: "Time step", value: "0.5" });
@@ -61,22 +61,22 @@ describe("stageSample on a net that compiles", () => {
   });
 
   it("reads the graph's language, theory and modules", () => {
-    // GIVEN Queue as it opens, and Queue under the monolithic shape
+    // GIVEN Birth–death under coins as it opens, and under the monolithic shape
     // WHEN the graph is sampled
-    const monolithic = inputOf("queue", { dt: 0.5 });
-    // THEN the modular graph has four modules and the monolithic one a single root module
-    expect(stageSample("graph", queue).headline).toBe("A linear graph in LRA: 4 modules, 6 variables.");
+    const monolithic = inputOf("birth-death", { dt: 0.5 });
+    // THEN the modular graph has three modules and the monolithic one a single root module
+    expect(stageSample("graph", birthDeath).headline).toBe("A linear graph in LRA: 3 modules, 5 variables.");
     const graph = stageSample("graph", monolithic);
-    expect(graph.headline).toBe("A linear graph in LRA: 1 module, 4 variables.");
-    expect(graph.rows).toContainEqual({ label: "modules", value: "Queue" });
-    expect(graph.rows).toContainEqual({ label: "root", value: "one module, Queue" });
-    expect(stageSample("code-parser", queue).headline).toContain("No code strings");
+    expect(graph.headline).toBe("A linear graph in LRA: 1 module, 3 variables.");
+    expect(graph.rows).toContainEqual({ label: "modules", value: "BirthDeath" });
+    expect(graph.rows).toContainEqual({ label: "root", value: "one module, BirthDeath" });
+    expect(stageSample("code-parser", birthDeath).headline).toContain("No code strings");
   });
 
   it("lists the files with net.py first and quotes it", () => {
-    // GIVEN Queue as it opens
+    // GIVEN Birth–death under coins as it opens
     // WHEN the files are sampled
-    const files = stageSample("files", queue);
+    const files = stageSample("files", birthDeath);
     // THEN net.py comes first and the excerpt quotes it from its first line
     expect(files.rows[0]?.label).toBe("net.py");
     expect(files.excerpt?.source).toBe("net.py");
@@ -84,14 +84,14 @@ describe("stageSample on a net that compiles", () => {
   });
 
   it("picks a nested line for the provenance and lights matching Python for the hover", () => {
-    // GIVEN Queue as it opens
+    // GIVEN Birth–death under coins as it opens
     // WHEN the provenance and the hover are sampled
-    const provenance = stageSample("provenance", queue);
-    const hover = stageSample("hover", queue);
-    // THEN the provenance names the innermost of the ranges at its line, and the hover lights Arrive's lines
+    const provenance = stageSample("provenance", birthDeath);
+    const hover = stageSample("hover", birthDeath);
+    // THEN the provenance names the innermost of the ranges at its line, and the hover lights Birth's lines
     expect(provenance.headline).toMatch(/^net\.py line \d+: \d+ ranges hold it; the innermost is line/u);
     expect(provenance.rows.some((row) => row.label === "source")).toBe(true);
-    expect(hover.rows[0]?.value).toContain("transition Arrive");
+    expect(hover.rows[0]?.value).toContain("transition Birth");
     expect(hover.excerpt?.lines.length).toBeGreaterThan(0);
     expect(hover.excerpt?.lines.every((line) => line.lit)).toBe(true);
     expect(provenance.excerpt?.lines.filter((line) => line.lit)).toHaveLength(1);
@@ -100,34 +100,28 @@ describe("stageSample on a net that compiles", () => {
 
 describe("stageSample on a refused net", () => {
   it("counts the code strings the absent parser leaves refused", () => {
-    // GIVEN Drones as it opens, a net with five code strings
+    // GIVEN Bucket as it opens, a net whose one rate is a code string
     // WHEN the code parser is sampled
-    const parser = stageSample("code-parser", drones);
-    // THEN it is refused, and lists each string by surface and IR path
+    const parser = stageSample("code-parser", bucket);
+    // THEN it is refused, and lists the string by surface and IR path
     expect(parser.tone).toBe("refused");
-    expect(parser.headline).toBe("5 code strings and no parser: 5 code-not-parsed errors.");
-    expect(parser.rows.map((row) => `${row.label} ${row.value}`)).toEqual([
-      "dynamics dynamics.Drain.code",
-      "lambda transitions.Launch.rate",
-      "kernel transitions.Launch.kernel",
-      "lambda transitions.Land.guard",
-      "kernel transitions.Land.kernel",
-    ]);
+    expect(parser.headline).toBe("1 code string and no parser: 1 code-not-parsed error.");
+    expect(parser.rows.map((row) => `${row.label} ${row.value}`)).toEqual(["lambda transitions.Take.rate"]);
   });
 
   it("refuses at lower with the codes and lines, and leaves the later stages idle", () => {
-    // GIVEN Drones as it opens
+    // GIVEN Bucket as it opens
     // WHEN the lowering and the diagnostics are sampled
-    const lower = stageSample("lower", drones);
-    const diagnostics = stageSample("diagnostics", drones);
-    // THEN the lowering is refused with lined errors, the stages after it idle, and the diagnostics list five errors
+    const lower = stageSample("lower", bucket);
+    const diagnostics = stageSample("diagnostics", bucket);
+    // THEN the lowering is refused with a lined error, the stages after it idle, and the diagnostics list one error
     expect(lower.tone).toBe("refused");
     expect(lower.rows[0]?.value).toMatch(/^code-not-parsed: /u);
     expect(lower.rows[0]?.label).toMatch(/^line \d+$/u);
     for (const stage of ["graph", "emit", "files"] as const) {
-      expect(stageSample(stage, drones).tone, stage).toBe("idle");
+      expect(stageSample(stage, bucket).tone, stage).toBe("idle");
     }
-    expect(diagnostics.headline).toBe("5 errors, 0 warnings.");
+    expect(diagnostics.headline).toBe("1 error, 0 warnings.");
     expect(diagnostics.tone).toBe("ok");
     expect(diagnostics.rows.every((row) => row.error === true)).toBe(true);
   });
@@ -158,29 +152,29 @@ describe("stageSample on a refused net", () => {
   });
 
   it("still traces the IR and quotes a provenance from it", () => {
-    // GIVEN Drones as it opens, which the lowering refuses
+    // GIVEN Bucket as it opens, which the lowering refuses
     // THEN the trace has no Python, the provenance quotes an IR line, and the hover has nothing to light
-    expect(stageSample("trace", drones).rows[1]).toMatchObject({ label: "Python", muted: true });
-    expect(stageSample("provenance", drones).headline).toMatch(/^IR line \d+/u);
-    expect(stageSample("hover", drones).headline).toContain("no Python to light");
+    expect(stageSample("trace", bucket).rows[1]).toMatchObject({ label: "Python", muted: true });
+    expect(stageSample("provenance", bucket).headline).toMatch(/^IR line \d+/u);
+    expect(stageSample("hover", bucket).headline).toContain("no Python to light");
   });
 });
 
 describe("stageSample under clocks", () => {
   it("reads an SPN graph with its hidden clocks", () => {
-    // GIVEN Fork under clocks as it opens
+    // GIVEN Conflict with rates as it opens, under clocks
     // WHEN the graph is sampled
-    const graph = stageSample("graph", forkClocked);
+    const graph = stageSample("graph", conflictClocked);
     // THEN it is an SPN graph that hides one clock per transition, emitted with next and flow
     expect(graph.headline).toBe("An SPN graph: 6 modules, 12 variables.");
     expect(graph.rows).toContainEqual({ label: "hidden", value: "clk_TakeLeft, clk_TakeRight, clk_Return" });
-    expect(stageSample("emit", forkClocked).rows).toContainEqual({ label: "step method", value: "next and flow" });
+    expect(stageSample("emit", conflictClocked).rows).toContainEqual({ label: "step method", value: "next and flow" });
   });
 
   it("lights each line once, written as runs, and says the excerpt is cut", () => {
-    // GIVEN Fork under clocks as it opens
+    // GIVEN Conflict with rates as it opens, under clocks
     // WHEN the hover is sampled
-    const hover = stageSample("hover", forkClocked);
+    const hover = stageSample("hover", conflictClocked);
     // THEN the lit lines are listed as runs, and the excerpt shows the first 8 of them, once each
     expect(hover.headline).toContain("lights 18 lines of net.py");
     expect(hover.rows).toContainEqual({ label: "net.py", value: "lines 11, 15, 19, 23–34, 73, 85, 101" });
@@ -189,9 +183,9 @@ describe("stageSample under clocks", () => {
   });
 
   it("greys the options clocks fix", () => {
-    // GIVEN Fork under clocks as it opens
+    // GIVEN Conflict with rates as it opens, under clocks
     // WHEN the options are sampled
-    const options = stageSample("options", forkClocked);
+    const options = stageSample("options", conflictClocked);
     // THEN Shape is muted and reads as not used, not as its default, and Rates reads clock
     expect(options.rows.find((row) => row.label === "Shape")).toEqual({
       label: "Shape",

@@ -8,18 +8,20 @@ fill_Buffer = ite(X(fire_PutLeft), fill_Buffer + 1, fill_Buffer)
 return (RightSource >= 1) & (fill_Buffer + 1 <= 2)
 ```
 
-These are the lines of `Transition_PutRight`. It rebuilds the fill from `X(fire_PutLeft)`, while `Place_Buffer` alone writes `Buffer`. In the monolithic shape one `fill_Buffer` runs through the sweep, and every firing that moves tokens in `Buffer` updates it.
+These are the lines of `Transition_PutRight`. It rebuilds the fill from `X(fire_PutLeft)` as a taker rebuilds `avail_Pool` on *Who gets the token*, while `Place_Buffer` alone writes `Buffer`.
 
 `Take` comes after both producers in record order, so the room it frees counts only from the next step. A full `Buffer` that `Take` drains in this step still blocks both producers.
 
+Clock rates refuse a capacity with `clocks-capacity`, so a stochastic net with a capped place compiles under coins only.
+
 ### Options
 
-- **Shape** on monolithic gives one `Capacity` class: `fill_Buffer = Buffer` before the sweep, and the class returns `fill_Buffer` as the new `Buffer`.
+- **Shape** on monolithic gives one `Capacity` class: `fill_Buffer = Buffer` before the sweep, every firing that moves tokens in `Buffer` updates it, and the class returns it as the new `Buffer`.
 
 ### Open questions
 
 <OpenQuestion owner="Zeroth">
-  How can SPN express a capacity: an ordering on `Nat`, or a complement place? SPN tests a count against zero only, so **Rates** on clock refuses a capacity with `clocks-capacity`.
+  How can SPN express a capacity: an ordering on `Nat`, or a complement place? SPN tests a count against zero only.
 </OpenQuestion>
 
 <OpenQuestion owner="HASH">

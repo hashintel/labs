@@ -1,11 +1,11 @@
 import type { ExampleMeta } from "../catalog";
 
 export default {
-  feature: "Coins against clocks",
+  feature: "Rates as coins",
   title: "Birth–death",
-  summary: "The same net in discrete steps and in continuous time.",
+  summary: "A rate becomes a draw tested against a threshold each step.",
   rung: "rates",
-  order: 60,
+  order: 50,
   listed: true,
-  options: { shape: "modular" },
+  options: { shape: "modular", dt: 0.5 },
 } satisfies ExampleMeta;

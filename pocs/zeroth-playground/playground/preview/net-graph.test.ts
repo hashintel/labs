@@ -17,37 +17,46 @@ function irOf(id: string): PetriNetIr {
 
 describe("netGraph", () => {
   it("reads places with their marking and transitions with their rates and arcs", () => {
-    // GIVEN the queue
+    // GIVEN Birth–death
     // WHEN its graph is read
-    const graph = netGraph(irOf("queue"));
-    // THEN the places come first with their counts and capacity, then the rated transitions, then the arcs
+    const graph = netGraph(irOf("birth-death"));
+    // THEN the place comes first with its count, then the rated transitions, then the arcs
     expect(graph.nodes).toEqual([
-      { id: "place:Waiting", kind: "place", name: "Waiting", tokens: 0, capacity: 4 },
-      { id: "place:Served", kind: "place", name: "Served", tokens: 0 },
-      { id: "transition:Arrive", kind: "transition", name: "Arrive", rate: 2.5, guarded: false, controllable: false },
-      { id: "transition:Serve", kind: "transition", name: "Serve", rate: 3, guarded: false, controllable: false },
+      { id: "place:Population", kind: "place", name: "Population", tokens: 0 },
+      { id: "transition:Birth", kind: "transition", name: "Birth", rate: 2, guarded: false, controllable: false },
+      { id: "transition:Death", kind: "transition", name: "Death", rate: 1, guarded: false, controllable: false },
     ]);
     expect(graph.edges.map((edge) => [edge.source, edge.target, edge.weight, edge.kind])).toEqual([
-      ["transition:Arrive", "place:Waiting", 1, "standard"],
-      ["place:Waiting", "transition:Serve", 1, "standard"],
-      ["transition:Serve", "place:Served", 1, "standard"],
+      ["transition:Birth", "place:Population", 1, "standard"],
+      ["place:Population", "transition:Death", 1, "standard"],
     ]);
   });
 
-  it("keeps arc kinds and weights, coloured places and code rates", () => {
-    // GIVEN the boiler, the conflict and the drones
+  it("keeps arc kinds and weights, capacities, colours, guards and code rates", () => {
+    // GIVEN the arcs, the conflict, the bucket and a transition with a guard
+    const guardedIr: PetriNetIr = {
+      name: "guarded",
+      kind: "plain",
+      places: { A: null },
+      transitions: { Go: { inputs: { A: null }, guard: "return true;" } },
+    };
     // WHEN their graphs are read
-    const boiler = netGraph(irOf("boiler"));
+    const arcs = netGraph(irOf("arcs"));
     const conflict = netGraph(irOf("conflict"));
-    const drones = netGraph(irOf("drones"));
-    // THEN the boiler keeps its read arc, coloured tank and guard, the conflict its arc weight and
-    // controllable transition, and the drones a rate written as code
-    expect(boiler.edges[0]).toMatchObject({ place: "Tank", transition: "Alarm", kind: "read" });
-    expect(boiler.nodes[0]).toMatchObject({ kind: "place", name: "Tank", tokens: 1, colour: "Vessel", capacity: 1 });
-    expect(boiler.nodes[2]).toMatchObject({ kind: "transition", name: "Alarm", guarded: true });
-    expect(conflict.edges[0]).toMatchObject({ place: "Pool", transition: "TakeLeft", weight: 2 });
+    const bucket = netGraph(irOf("bucket"));
+    const guarded = netGraph(guardedIr);
+    // THEN the arcs keep their weight and kinds, the conflict its controllable transition, the
+    // bucket its capped coloured place and its rate written as code, and the guard is marked
+    expect(arcs.edges.map((edge) => [edge.place, edge.weight, edge.kind])).toEqual([
+      ["Parts", 2, "standard"],
+      ["Power", 1, "read"],
+      ["Jam", 1, "inhibitor"],
+      ["Products", 1, "standard"],
+    ]);
     expect(conflict.nodes[3]).toMatchObject({ name: "TakeLeft", controllable: true });
-    expect(drones.nodes[3]).toMatchObject({ name: "Launch", rate: "code" });
+    expect(bucket.nodes[0]).toMatchObject({ kind: "place", name: "Pool", tokens: 2, colour: "Ball", capacity: 2 });
+    expect(bucket.nodes[2]).toMatchObject({ name: "Take", rate: "code" });
+    expect(guarded.nodes[1]).toMatchObject({ name: "Go", guarded: true });
   });
 
   it("drops an arc to a place the IR does not declare", () => {
@@ -88,16 +97,16 @@ describe("layoutNet", () => {
   });
 
   it("keys the cache on structure alone and reuses one promise per structure", () => {
-    // GIVEN the cycle, the cycle with another marking, and the fork
+    // GIVEN the cycle, the cycle with another marking, and the conflict
     const cycle = irOf("cycle");
     const graph = netGraph(cycle);
     const remarked = netGraph({ ...cycle, marking: { A: 3 } });
-    const fork = netGraph(irOf("fork"));
+    const conflict = netGraph(irOf("conflict"));
     // WHEN their layouts are looked up
-    // THEN the two cycles share a key and a promise, and the fork has a key of its own
+    // THEN the two cycles share a key and a promise, and the conflict has a key of its own
     expect(layoutKey(graph)).toBe(layoutKey(remarked));
     expect(layoutFor(graph)).toBe(layoutFor(remarked));
-    expect(layoutKey(fork)).not.toBe(layoutKey(graph));
+    expect(layoutKey(conflict)).not.toBe(layoutKey(graph));
   });
 
   it("places a graph at a cached geometry with the graph's own marking", async () => {

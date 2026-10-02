@@ -335,7 +335,7 @@ For every example it compiles the IR through `index.ts` under the options the ex
 
 It prints one row per example and option set: `constructs`, `raises`, or `refused` with the compiler's codes. The check passes no code parser, so a net with code strings is refused with `code-not-parsed`. Each raise follows, with the error, the generated lines it passed through and the folder that keeps the files. It exits with 1 when anything raises, and with 2 when `ZRTH_PATH` is unset or zrth does not import from it.
 
-It is not one of the gates, since CI has no zrth. Run it after a change to the output, and when zrth's `spn` branch moves. At 5bd3bf9 every example the compiler accepts constructs under every set: 38 construct, 9 are refused. Node runs the compiler's TypeScript through `scripts/resolve-ts.ts`, which resolves its imports written without an extension.
+It is not one of the gates, since CI has no zrth. Run it after a change to the output, and when zrth's `spn` branch moves. At 5bd3bf9 every set constructs but Bucket's two, which the compiler refuses: `code-not-parsed` by default, `modular-coloured-not-lowered` under the modular shape. Node runs the compiler's TypeScript through `scripts/resolve-ts.ts`, which resolves its imports written without an extension.
 
 ## Extending it
 
@@ -377,6 +377,6 @@ The TypeScript in this folder is formatted as Prettier formats it at a width of 
 
 [mapping.md](mapping.md) tracks these with the other open questions.
 
-- The playground passes no `parseCode`, so the nets with code strings (Boiler, Drones, Bucket) are refused with `code-not-parsed`. A TypeScript parser does not fit the playground's one-file budget.
-- Clock rates refuse a capacity (`clocks-capacity`) and an arc weight above one (`clocks-arc-weight`): SPN tests a count against zero only and moves one token at a time. So Queue and the SIR model have no clocked output. Sections (b) and (c) of [mapping.md](mapping.md) hold the questions.
+- The playground passes no `parseCode`, so a net with code strings, such as the Bucket example, is refused with `code-not-parsed`. A TypeScript parser does not fit the playground's one-file budget.
+- Clock rates refuse a capacity (`clocks-capacity`) and an arc weight above one (`clocks-arc-weight`): SPN tests a count against zero only and moves one token at a time. So a stochastic net with either has no clocked output. Sections (b) and (c) of [mapping.md](mapping.md) hold the questions.
 - `pnpm check:zrth` checks that the output constructs, not that it runs. `zrth.simulate` takes no external but `t`, so the clocked output under `conflicts: nondet`, whose picks are externals, cannot run there. No run of the clocked output under `conflicts: sweep` is kept in the repository.

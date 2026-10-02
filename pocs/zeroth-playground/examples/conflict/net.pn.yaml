@@ -10,7 +10,6 @@ transitions:
   TakeLeft:
     inputs:
       Pool:
-        weight: 2
     outputs:
       Left:
     controllable: true
@@ -19,6 +18,11 @@ transitions:
       Pool:
     outputs:
       Right:
+  Return:
+    inputs:
+      Left:
+    outputs:
+      Pool:
 
 marking:
   Pool: 3

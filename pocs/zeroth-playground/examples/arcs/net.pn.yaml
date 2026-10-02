@@ -1,0 +1,24 @@
+name: arcs
+kind: plain
+
+places:
+  Parts:
+  Power:
+  Jam:
+  Products:
+
+transitions:
+  Join:
+    inputs:
+      Parts:
+        weight: 2
+      Power:
+        kind: read
+      Jam:
+        kind: inhibitor
+    outputs:
+      Products:
+
+marking:
+  Parts: 5
+  Power: 1

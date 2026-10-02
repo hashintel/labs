@@ -6,7 +6,7 @@ One step of a plain net fires every enabled transition once, in record order. A 
   <OneStep />
 </Figure>
 
-With **Shape** on monolithic, the compiler writes the step as one class, `Cycle`, with an Int per place. Its `next` method is one step of the net:
+The compiler writes the step as one class, `Cycle`, with an Int per place. Its `next` method is one step of the net:
 
 ```python
 fire_Go = A >= 1
@@ -17,22 +17,17 @@ A = ite(fire_Back, A + 1, A)
 B = ite(fire_Go, B + 1, B)
 ```
 
-The first four lines test and take in record order. The last two land the produced tokens.
+The first four lines test and take in record order. The last two land the produced tokens. Every later example compiles this step.
 
-The playground opens the example with **Shape** on modular. It splits the same step into one module per transition and one per place, joined by `compose`. `Transition_Go` writes the Bool `fire_Go` as `A >= 1`. `Place_A` applies every firing that moves `A`:
+**Shape** on modular splits the same step into one module per transition and one per place, joined by `compose`. `Transition_Go` writes the Bool `fire_Go` as `A >= 1`. `Place_A` applies every firing that moves `A`:
 
 ```python
 A = ite(X(fire_Go), A - 1, A)
 A = ite(X(fire_Back), A + 1, A)
 ```
 
-`X(fire_Go)` reads the value `fire_Go` takes in this step, so `Place_A` waits for `Transition_Go`. In Zeroth a variable has one writer, so each place gets a module of its own.
-
-### Options
-
-- **Shape** on monolithic gives the class `Cycle` above.
-- **Files** on one per module writes `net.py` and a file per module, such as `transition_go.py`.
+`X(fire_Go)` reads the value `fire_Go` takes in this step, so `Place_A` waits for `Transition_Go`. In Zeroth a variable has one writer, so each place gets a module of its own. The plain and coin examples after this one open in this shape.
 
 ### Hover
 
-- Point at a line in either editor, or at a node in the preview, to light the lines and nodes that match it. `Go:` lights `fire_Go`, `Transition_Go` and the line that builds `transition_Go`.
+- Point at a line in either editor, or at a node in the preview, to light the lines and nodes that match it. `Go:` lights the line of the step that sets `fire_Go`.

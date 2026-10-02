@@ -118,7 +118,7 @@ export const STAGES: readonly Stage[] = [
     output: "`lower` (**Shape**, **Rates**, **Time step**, **Marking**, **Conflicts**, **Control**, **Slots**) and `emit` (**Files**)",
     details: [
       "The panel groups them by what they decide: Structure, Rates, Choices, Coloured tokens. **Files** sits under **Shape**; **Time step** and **Marking** sit under **Rates**.",
-      "One table, `OPTIONS`, gives each option its values, its default, the nets it applies to and why it does not apply to a net. `resolveOptions` fills every option left out with its default, **Shape** on monolithic among them. Each example opens with its own options: the modular shape wherever it compiles the net, clocks for Fork under clocks, monolithic for the coloured nets.",
+      "One table, `OPTIONS`, gives each option its values, its default, the nets it applies to and why it does not apply to a net. `resolveOptions` fills every option left out with its default, **Shape** on monolithic among them. Each example opens with the options that show its idea: monolithic for Cycle and Bucket, modular for the other plain and coin examples, clocks for the clock examples.",
       "`optionStates` greys an option that has no effect on the net. Its control reads \"not used\", and the reason takes the place of its hint: no conflict, no coloured place, clock rates.",
       "A change keeps only the options that apply and differ from their default (`optionsForNet`). `compile` keeps the same ones, drops any other with an `option-not-applicable` warning, so in the playground none appears, and reports the options in force as `compilation.options`.",
       "**Rates** on clock fixes the composition: **Shape**, **Time step**, **Marking** and **Control** no longer apply.",
@@ -139,7 +139,7 @@ export const STAGES: readonly Stage[] = [
       "A parser that would read the strings is built on the TypeScript compiler, too large for one HTML file.",
       "Without it, each code string the lowering reads is refused with `code-not-parsed`, naming its surface: `lambda`, `kernel` or `dynamics`.",
       "A net without code strings never calls it.",
-      "Boiler, Drones and Bucket carry code and are refused. The refusal is part of what the playground shows.",
+      "Bucket carries code and is refused. The refusal is part of what the playground shows.",
     ],
   },
   {
@@ -280,7 +280,7 @@ export const STAGES: readonly Stage[] = [
     input: "The provenance under the pointer",
     output: "Lit lines in each other editor, a lit node in the preview",
     details: [
-      "Two ranges match when their sources name the same item, or, when neither has a source, when one IR path equals the other or contains it: `places.Waiting` matches `places.Waiting.capacity`.",
+      "Two ranges match when their sources name the same item, or, when neither has a source, when one IR path equals the other or contains it: `places.Buffer` matches `places.Buffer.capacity`.",
       "A range with a source never matches one without.",
       `The hover takes effect once the pointer has rested ${DWELL_MS} ms, so a sweep across lines lights nothing.`,
       "The editor a hover starts in lights none of its own lines; its card shows the provenance there.",

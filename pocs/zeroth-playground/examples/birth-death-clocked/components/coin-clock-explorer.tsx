@@ -40,7 +40,7 @@ function verdictOf(dt: number, draw: number | undefined): string {
  * curve, and the rate the coin reaches when it fires at most once per step.
  */
 export const CoinClockExplorer: React.FC = () => {
-  const [dt, setDt] = useState(1);
+  const [dt, setDt] = useState(0.5);
   const [draw, setDraw] = useState<number | undefined>(undefined);
   const theta = threshold(LAMBDA, dt);
 

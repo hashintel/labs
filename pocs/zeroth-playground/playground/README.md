@@ -116,7 +116,7 @@ pnpm build
 Check visible changes in a headless browser against the build:
 
 1. `pnpm build`.
-2. Write a throwaway Playwright script as `playground/scripts/<name>.tmp.ts` that opens `file://.../dist/index.html#<id>`, acts, and screenshots. `#compiler`, or `#compiler/queue`, opens the Compiler view.
+2. Write a throwaway Playwright script as `playground/scripts/<name>.tmp.ts` that opens `file://.../dist/index.html#<id>`, acts, and screenshots. `#compiler`, or `#compiler/capacity`, opens the Compiler view.
 3. Run it with `node playground/scripts/<name>.tmp.ts`, read the screenshots, then delete the script. Node 24 runs TypeScript as is, as `pnpm screenshot` does.
 
 Notes:

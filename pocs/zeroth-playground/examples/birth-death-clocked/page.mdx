@@ -1,0 +1,46 @@
+import { CoinClockExplorer } from "./components/coin-clock-explorer";
+
+Under clocks, each transition owns a clock armed with an exponential delay at its rate. Time flows until a clock reaches 0, then that transition fires and its clock re-arms.
+
+The compiler writes this in Zeroth's SPN theory. Each transition gets a clock `clk_T` and an event `ev_T` that toggles when it fires. `Transition_Birth` reads:
+
+```python
+fires_Birth = clk_Birth == 0
+return ite(fires_Birth, exp(2.0), clk_Birth), ite(fires_Birth, ~ev_Birth, None)
+```
+
+An `ite` with `None` as its last branch has no value where its condition fails, so the event toggles only when `Birth` fires. The `flow` method runs the clock down against the time `t` while it is not negative, and holds the event still with `0`:
+
+```python
+return ite(clk_Birth >= 0, -1 * d(t), None), 0
+```
+
+Each place is a Nat. `Place_Population` adds or takes one token when `fired` sees the event of `Birth` or `Death`. `compose` hides the clocks: `hide={clk_Birth, clk_Death}`.
+
+`Death` also needs a token in `Population`, so its clock runs down only while the place holds one:
+
+```python
+ite(Population != 0, -1 * d(t), 0 * d(t))
+```
+
+*Two inputs under clocks* shows where that choice matters.
+
+A coin reads its draw $u$ as the delay $\tau = -\ln(u)/\lambda$ of the clock it stands for, and $u \ge \theta$ exactly when $\tau \le \Delta t$. But a clock can expire twice in one step, while a coin fires at most once, so the coin's rate $p/\Delta t$ stays below $\lambda$.
+
+<Figure caption="One draw u decides both. The coin fires when u ≥ θ. The clock it stands for, τ = −ln(u)/λ, expires within the step when τ ≤ Δt. As Δt shrinks, the coin's rate p/Δt rises toward λ = 2.">
+  <CoinClockExplorer />
+</Figure>
+
+### Options
+
+- **Rates** on coin compiles the net in steps, as *Rates as coins* shows.
+
+### Open questions
+
+<OpenQuestion owner="HASH and Zeroth">
+  Should a coin step allow ties? In one step `Birth` and `Death` can both fire, and the coins' `Place_Population` applies both. Under clocks two expiries at one instant have chance zero, and the place then applies neither. Both rules leave the same marking here. But where one firing disables another by adding a token, as through an inhibitor arc, the coin step fires both and clocks fire one.
+</OpenQuestion>
+
+<OpenQuestion owner="Zeroth">
+  Can SPN take a rate that reads the marking, such as a death rate per member of `Population`? `Exp` takes a constant today, so `Death` fires at rate 1 however many members remain. Under coins such a rate is code, which this playground does not parse.
+</OpenQuestion>

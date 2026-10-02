@@ -3,15 +3,15 @@ import type { CompilerOptions } from "../compiler";
 /** A rung of the ladder: the examples it holds tackle features of one kind. */
 export type Rung = {
   id: "steps" | "rates" | "colours";
+  /** The rung's heading in the picker. */
   title: string;
-  about: string;
 };
 
-/** The ladder, from the plainest net up. */
+/** The ladder, from the plainest net up; examples/README.md says what each rung holds. */
 export const LADDER: readonly Rung[] = [
-  { id: "steps", title: "Steps", about: "Plain nets: how one step of the net becomes modules" },
-  { id: "rates", title: "Rates", about: "Stochastic nets: coins tested each step, or clocks in continuous time" },
-  { id: "colours", title: "Coloured tokens", about: "Attributes, dynamics and kernels; not compiled here yet" },
+  { id: "steps", title: "Steps" },
+  { id: "rates", title: "Rates" },
+  { id: "colours", title: "Coloured tokens" },
 ];
 
 /** What an example's `meta.ts` declares. */
@@ -31,9 +31,8 @@ export type ExampleMeta = {
    */
   listed: boolean;
   /**
-   * The compiler options the example opens with; the panel edits them from
-   * there. The playground opens a net in the modular shape wherever that shape
-   * compiles it: coloured nets and nets with dynamics stay monolithic.
+   * The compiler options the example opens with: those that show its
+   * feature. The panel edits them from there.
    */
   options: CompilerOptions;
 };
@@ -52,7 +51,7 @@ export type Example = ExampleMeta & {
 const METAS = import.meta.glob<ExampleMeta>("./*/meta.ts", { eager: true, import: "default" });
 const NETS = import.meta.glob<string>("./*/net.pn.yaml", { eager: true, query: "?raw", import: "default" });
 
-/** The folder a globbed path sits in: `./queue/meta.ts` is `queue`. */
+/** The folder a globbed path sits in: `./cycle/meta.ts` is `cycle`. */
 export function folderOf(path: string): string {
   return path.split("/").at(-2) ?? path;
 }
