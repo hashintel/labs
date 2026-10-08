@@ -1,0 +1,19 @@
+<Context>A machine uses items from a stock of 2. Restocks arrive at random, more slowly than it uses them.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Stock: 2 → 1 → 2`, Restock at step 2 (seed 1)
+
+**Verdict:** Satisfied at step 2.
+
+**Explanation:** A race: the first restock comes at step 2, with 1 item left. Had stock hit 0 first, it would be Violated there.
+
+</Example>
+
+**Question:** Does stock last until the first restock? Change the seed and see.

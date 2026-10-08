@@ -1,0 +1,6 @@
+name: All the dough rises
+metrics: {}
+constraint: eventually (count(Dough) == 0)
+run:
+  seed: 1
+  maxSteps: 10

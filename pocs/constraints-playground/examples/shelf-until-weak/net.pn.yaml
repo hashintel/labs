@@ -1,0 +1,27 @@
+name: shop_shelf
+description: 'A shelf of 6 items and 3 customers. Each sale uses one item and one customer. Restock needs a delivery, which never comes.'
+kind: plain
+
+places:
+  Shelf:
+  Customers:
+  Sold:
+  Delivery:
+
+transitions:
+  Sell:
+    inputs:
+      Shelf:
+      Customers:
+    outputs:
+      Sold:
+  Restock:
+    inputs:
+      Delivery:
+    outputs:
+      Shelf:
+        weight: 6
+
+marking:
+  Shelf: 6
+  Customers: 3

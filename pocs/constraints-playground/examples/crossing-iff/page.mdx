@@ -1,0 +1,19 @@
+<Context>At a crossing, one switch stops the cars and lights the walk sign together. Another switch undoes both.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `CarsStop: 0 → 1 → 0 → …`, `Walk: 0 → 1 → 0 → …`
+
+**Verdict:** Satisfied at the end of the run.
+
+**Explanation:** IFF is true when both sides match. At step 0 both are false, and that counts as a match.
+
+</Example>
+
+**Question:** Does the language need IFF, or are two IF rules enough?

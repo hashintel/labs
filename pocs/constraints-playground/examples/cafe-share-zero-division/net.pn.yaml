@@ -1,0 +1,28 @@
+name: small_cafe
+description: 'A cafe with one seat and 3 customers. The first is seated. The seat is never freed, so the rest are turned away.'
+kind: plain
+
+places:
+  Customers:
+  Seats:
+  Served:
+  TurnedAway:
+
+transitions:
+  Serve:
+    inputs:
+      Customers:
+      Seats:
+    outputs:
+      Served:
+  TurnAway:
+    inputs:
+      Customers:
+      Seats:
+        kind: inhibitor
+    outputs:
+      TurnedAway:
+
+marking:
+  Customers: 3
+  Seats: 1

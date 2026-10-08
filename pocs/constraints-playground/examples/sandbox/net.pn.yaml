@@ -1,0 +1,47 @@
+name: factory
+description: 'Orders arrive and queue. A machine ships them from stock, and sometimes breaks and is repaired.'
+kind: stochastic
+
+places:
+  Queue:
+  Up:
+  Down:
+  Stock:
+    capacity: 10
+  Shipped:
+
+transitions:
+  Arrive:
+    outputs:
+      Queue:
+    rate: 1
+  Process:
+    inputs:
+      Queue:
+      Up:
+        kind: read
+      Stock:
+    outputs:
+      Shipped:
+    rate: 1.5
+  Break:
+    inputs:
+      Up:
+    outputs:
+      Down:
+    rate: 0.05
+  Repair:
+    inputs:
+      Down:
+    outputs:
+      Up:
+    rate: 0.3
+  Restock:
+    outputs:
+      Stock:
+    rate: 0.6
+
+marking:
+  Up: 1
+  Stock: 5
+  Queue: 0

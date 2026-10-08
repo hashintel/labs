@@ -1,0 +1,114 @@
+.run {
+  height: 100%;
+  overflow: auto;
+  scrollbar-color: var(--hair) transparent;
+  background: var(--paper-2);
+}
+
+/* As tall as its content, which the Constraint panel reads to size the Run's pane. */
+.run__content {
+  display: grid;
+  align-content: start;
+  gap: var(--s-1);
+  padding: 0.375rem var(--s-3) 0.25rem;
+}
+
+.run__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.run__seed {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.run__seed-input {
+  width: 5rem;
+  height: 1.6rem;
+  padding: 0 var(--s-2);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-xs);
+  background: var(--paper-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+
+.run__rerun {
+  height: 1.6rem;
+  padding: 0 var(--s-3);
+  border-radius: var(--r-xs);
+  background: var(--ink);
+  color: var(--paper-2);
+  font-size: var(--fs-sm);
+
+  &:hover {
+    background: var(--ink-2);
+  }
+}
+
+.run__verdict {
+  padding: 0.15rem var(--s-2);
+  border-radius: var(--r-xs);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+
+  &[data-verdict="satisfied"] {
+    background: var(--green-wash);
+    color: var(--green);
+  }
+
+  &[data-verdict="violated"] {
+    background: var(--red-wash);
+    color: var(--red);
+  }
+
+  &[data-verdict="incomplete"] {
+    background: var(--ink-wash);
+    color: var(--ink-2);
+  }
+
+  &[data-verdict="pending"] {
+    background: var(--amber-wash);
+    color: var(--amber);
+  }
+}
+
+.run__summary {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-base);
+  font-weight: 500;
+}
+
+.run__check {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: var(--fs-label);
+}
+
+/* Why the run stopped, at the right of the bar. */
+.run__stop {
+  margin-left: auto;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+
+.run__diagnostics {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--fs-sm);
+
+  & [data-severity="error"] {
+    color: var(--red);
+  }
+
+  & [data-severity="warning"] {
+    color: var(--amber);
+  }
+}

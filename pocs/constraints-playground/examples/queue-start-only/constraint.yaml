@@ -1,0 +1,6 @@
+name: The queue starts short
+metrics: {}
+constraint: count(Queue) <= 5
+run:
+  seed: 1
+  maxSteps: 200

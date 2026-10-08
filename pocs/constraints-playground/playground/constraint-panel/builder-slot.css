@@ -1,0 +1,68 @@
+/* The builder scrolls inside its panel and keeps the panel's padding. */
+.builder-slot {
+  height: 100%;
+  padding: var(--s-3);
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-color: var(--hair) transparent;
+
+  /* A fade pinned to the bottom edge while there is more to scroll to; it clears at the end. */
+  &::after {
+    content: "";
+    position: sticky;
+    bottom: calc(-1 * var(--s-3));
+    display: block;
+    height: 1.75rem;
+    margin: -1.75rem calc(-1 * var(--s-3)) calc(-1 * var(--s-3));
+    background: linear-gradient(to bottom, transparent, var(--paper-2));
+    opacity: 0;
+    pointer-events: none;
+    animation: builder-fade linear both;
+    animation-timeline: scroll(self);
+  }
+}
+
+@keyframes builder-fade {
+  0%,
+  92% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Shown while the text does not parse and the builder holds the last state that did. */
+.builder-slot__errors {
+  margin: 0 0 var(--s-2);
+  color: var(--amber);
+  font-size: var(--fs-xs);
+}
+
+/* The Constraint panel's stack fills its cell; the panel measures it to size its panes. */
+.constraint-stack {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  scrollbar-color: var(--hair) transparent;
+}
+
+/* Its height is set from the panes' content, and is at least the column's. */
+.constraint-stack__inner {
+  width: 100%;
+  min-height: 100%;
+}
+
+/* A quiet text action in a panel head, such as Blank rule. */
+.constraint-stack__action {
+  height: 1.5rem;
+  padding: 0 var(--s-2);
+  border-radius: var(--r-xs);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+
+  &:hover {
+    background: color-mix(in oklab, var(--paper-2) 94%, var(--ink));
+    color: var(--ink);
+  }
+}

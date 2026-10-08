@@ -1,0 +1,24 @@
+name: self_restocking_shelf
+description: 'A shelf of 2 sells down to empty. Restock fires only when the shelf is empty, and puts 3 items back.'
+kind: plain
+
+places:
+  Shelf:
+  Sold:
+
+transitions:
+  Sell:
+    inputs:
+      Shelf:
+    outputs:
+      Sold:
+  Restock:
+    inputs:
+      Shelf:
+        kind: inhibitor
+    outputs:
+      Shelf:
+        weight: 3
+
+marking:
+  Shelf: 2

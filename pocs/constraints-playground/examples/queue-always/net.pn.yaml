@@ -1,0 +1,19 @@
+name: cafe_queue
+description: 'Customers arrive and wait in a queue. One server takes them out.'
+kind: stochastic
+
+places:
+  Queue:
+
+transitions:
+  Arrive:
+    outputs:
+      Queue:
+    rate: 1
+  Serve:
+    inputs:
+      Queue:
+    rate: 1.2
+
+marking:
+  Queue: 0

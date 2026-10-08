@@ -1,0 +1,19 @@
+<Context>Three orders ship one by one, each after a random number of days.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Ship: day 19.7 → 34.7 → 103.8` (seed 1)
+
+**Verdict:** Violated at step 2.
+
+**Explanation:** The second order ships on day 34.7, after the 30-day <Term>time window</Term> closes. Plain EVENTUALLY would pass at the same step.
+
+</Example>
+
+**Question:** Should the window start at the first state, as here, or at the event that opens it, like an order placed?

@@ -1,0 +1,19 @@
+/*
+ * The frame every figure on a page shares: the drawing, then its caption.
+ * Each drawing sets its own CSS beside it, in its example's components/
+ * folder. The frame is a size container, so a drawing can change its layout
+ * with the width it gets: the docs panel is about 200 px wide in a 1000 px
+ * window.
+ */
+.figure {
+  max-width: 22rem;
+  margin: 1.1rem 0 var(--s-5);
+  container-type: inline-size;
+}
+
+.figure__caption {
+  margin-top: 0.6rem;
+  color: var(--ink-2);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}

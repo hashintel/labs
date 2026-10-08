@@ -1,0 +1,19 @@
+<Context>12 balls of dough are proofing. One rises at each step.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Dough: 12 → 11 → … → 2`
+
+**Verdict:** Violated at the end of the run.
+
+**Explanation:** The <Term>horizon</Term>, `maxSteps: 10`, cuts the run with 2 balls left. With `maxSteps: 12` the same rule is satisfied at step 12.
+
+</Example>
+
+**Question:** Should a run cut by the horizon read "not decided" instead of Violated?

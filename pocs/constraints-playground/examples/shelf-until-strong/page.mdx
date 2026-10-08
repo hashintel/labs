@@ -1,0 +1,19 @@
+<Context>A shelf holds 6 items and 3 customers each buy one. The restock needs a delivery that never comes.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Shelf: 6 → 5 → 4 → 3`, no restock
+
+**Verdict:** Violated at the end of the run.
+
+**Explanation:** The shelf never empties, but <Term>strong until</Term> needs the restock to come. The <Term>deadlock</Term> at step 3 ends the run without it.
+
+</Example>
+
+**Question:** Should UNTIL fail when the goal never comes, with WEAK UNTIL as the version that passes?

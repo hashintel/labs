@@ -1,0 +1,16 @@
+name: counter_queue
+description: 'Customers join a queue that holds at most 6. Nobody is served. Two staff stay on.'
+kind: plain
+
+places:
+  Queue:
+    capacity: 6
+  Staff:
+
+transitions:
+  Arrive:
+    outputs:
+      Queue:
+
+marking:
+  Staff: 2

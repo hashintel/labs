@@ -1,0 +1,17 @@
+name: bakery_shelf
+description: 'A shelf starts with 3 loaves. Sell takes one per step until the shelf is empty.'
+kind: plain
+
+places:
+  Shelf:
+  Sold:
+
+transitions:
+  Sell:
+    inputs:
+      Shelf:
+    outputs:
+      Sold:
+
+marking:
+  Shelf: 3

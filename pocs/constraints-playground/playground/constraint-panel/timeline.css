@@ -1,0 +1,248 @@
+.timeline {
+  --row-height: 1.1rem;
+  --metric-height: 2.5rem;
+  --label-width: minmax(5rem, 9rem);
+  --scale-width: 1.6rem;
+
+  display: grid;
+  gap: var(--s-1);
+}
+
+.timeline__grid,
+.timeline__under {
+  display: grid;
+  grid-template-columns: var(--label-width) var(--scale-width) minmax(0, 1fr);
+  column-gap: var(--s-2);
+}
+
+.timeline__labels,
+.timeline__scales,
+.timeline__strips {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline__label {
+  align-self: center;
+  overflow: hidden;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A row of a condition under the pointer in the builder, or under the pointer here: a tint on its label, an outline on its strip. Colour only, so nothing moves. */
+.timeline__label[data-linked="true"] {
+  border-radius: var(--r-xs);
+  background: var(--accent-wash);
+  color: var(--accent-deep);
+}
+
+.timeline__strip[data-linked="true"] {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+/* A metric's largest value at the top of its cell and its smallest at the bottom. */
+.timeline__scale {
+  position: relative;
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: var(--fs-label-sm);
+  line-height: 1;
+  text-align: right;
+
+  & > span {
+    position: absolute;
+    right: 0;
+  }
+}
+
+.timeline__strips {
+  position: relative;
+}
+
+.timeline__strip {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--paper);
+}
+
+/*
+ * The states inside the window: a tinted band over the strips, clipped to
+ * them, with a 1px outline on top and at its sides to say where it starts and
+ * ends.
+ */
+.timeline__window {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  background: color-mix(in oklab, var(--cyan) 22%, transparent);
+  border: 1px solid var(--cyan);
+  border-radius: 2px;
+  pointer-events: none;
+}
+
+.timeline__key {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-2);
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-label);
+}
+
+.timeline__swatch {
+  width: 0.9rem;
+  height: 0.6rem;
+  margin-left: var(--s-2);
+  border-radius: 2px;
+
+  &:first-child {
+    margin-left: 0;
+  }
+
+  &[data-tone="holds"] {
+    background: var(--green);
+  }
+
+  &[data-tone="broken"] {
+    background: var(--red);
+  }
+
+  &[data-tone="open"] {
+    background: var(--amber-line);
+  }
+
+  &[data-tone="window"] {
+    background: color-mix(in oklab, var(--cyan) 22%, transparent);
+    outline: 1px solid var(--cyan);
+    outline-offset: -1px;
+  }
+}
+
+.timeline__cell {
+  fill: var(--hair);
+
+  &[data-value="true"] {
+    fill: var(--green);
+  }
+
+  &[data-value="false"] {
+    fill: var(--red);
+  }
+
+  &[data-value="satisfied"] {
+    fill: var(--green);
+  }
+
+  &[data-value="violated"] {
+    fill: var(--red);
+  }
+
+  &[data-value="pending"] {
+    fill: var(--amber-line);
+  }
+}
+
+.timeline__line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+/* Where the rule compares the metric: the value its condition turns on. */
+.timeline__threshold {
+  stroke: var(--ink-2);
+  stroke-dasharray: 3 3;
+  stroke-width: 1;
+}
+
+/*
+ * A tinted column with an outline around the step the verdict was decided, at
+ * least 8px wide so one thin cell still shows. It runs from above the strips
+ * to the axis under them.
+ */
+.timeline__decided {
+  position: absolute;
+  top: -2px;
+  bottom: calc(-1 * var(--s-1));
+  z-index: 2;
+  width: max(8px, var(--cell));
+  translate: -50% 0;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--ink) 14%, transparent);
+  pointer-events: none;
+}
+
+/* The step axis: the first step and time at the left of the strips, the last at the right. */
+.timeline__axis {
+  display: flex;
+  grid-column: 3;
+  justify-content: space-between;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  line-height: 1.1rem;
+}
+
+.timeline__decided-row {
+  position: relative;
+  grid-column: 3;
+  height: 1rem;
+}
+
+.timeline__decided-label {
+  position: absolute;
+  translate: 0 0;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  line-height: 1rem;
+  white-space: nowrap;
+
+  &[data-late="true"] {
+    translate: -100% 0;
+  }
+}
+
+.timeline__cursor {
+  fill: var(--ink);
+  opacity: 0.25;
+}
+
+/* The rule's win condition under the verdict row; its code in the file's own mono. */
+.timeline__pass {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+
+.timeline__code {
+  padding: 0 0.25rem;
+  border-radius: var(--r-xs);
+  background: var(--ink-wash);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: var(--fs-code);
+}
+
+.timeline__readout {
+  min-height: 1.5em;
+  margin: 0;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  line-height: 1.5;
+}

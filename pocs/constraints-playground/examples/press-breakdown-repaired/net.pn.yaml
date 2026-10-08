@@ -1,0 +1,22 @@
+name: press_repairs
+description: 'A press breaks down and is repaired, in turn.'
+kind: plain
+
+places:
+  Up:
+  Down:
+
+transitions:
+  Break:
+    inputs:
+      Up:
+    outputs:
+      Down:
+  Repair:
+    inputs:
+      Down:
+    outputs:
+      Up:
+
+marking:
+  Up: 1

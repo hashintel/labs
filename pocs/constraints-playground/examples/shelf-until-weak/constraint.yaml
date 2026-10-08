@@ -1,0 +1,6 @@
+name: Shelf ≥ 1 WEAK UNTIL a restock
+metrics: {}
+constraint: count(Shelf) >= 1 weak until fired(Restock) >= 1
+run:
+  seed: 1
+  maxSteps: 20

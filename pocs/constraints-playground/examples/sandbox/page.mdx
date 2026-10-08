@@ -1,0 +1,22 @@
+<Context>A small factory: orders arrive, a machine processes them, it breaks and gets repaired, stock gets restocked.</Context>
+
+**Rule**
+
+<Rule />
+
+Fill the blank, or write your own. Each name below is a <Term>metric</Term>.
+
+- `Waiting`: `count(Queue)`
+- `Stock`: `count(Stock)`
+- `Down`: `count(Down)`
+- `Shipped`: `count(Shipped)`
+- `Repairs`: `fired(Repair)`
+
+**Try:**
+
+- `always (Waiting <= 8)` queue stays short
+- `eventually (Shipped >= 10)` ten orders ship
+- `(Stock > 0) until (Repairs >= 1)` stock lasts until a repair
+- `always (Down = 0)` never breaks
+
+**Question:** What rule do you want to test? Examples are in the picker.

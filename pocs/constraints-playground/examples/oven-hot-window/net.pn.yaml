@@ -1,0 +1,24 @@
+name: oven
+description: 'An oven heats up, and now and then its element trips and it goes cold again.'
+kind: stochastic
+
+places:
+  Cold:
+  Hot:
+
+transitions:
+  Heat:
+    inputs:
+      Cold:
+    outputs:
+      Hot:
+    rate: 0.3
+  Trip:
+    inputs:
+      Hot:
+    outputs:
+      Cold:
+    rate: 0.05
+
+marking:
+  Cold: 1

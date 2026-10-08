@@ -1,0 +1,6 @@
+name: Neither a long queue nor no staff
+metrics: {}
+constraint: always (not (count(Queue) > 4 or count(Staff) == 0))
+run:
+  seed: 1
+  maxSteps: 20

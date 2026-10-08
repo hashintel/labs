@@ -1,0 +1,12 @@
+name: storeroom
+description: 'Restock adds one box per step to a storeroom that holds at most 8.'
+kind: plain
+
+places:
+  Stock:
+    capacity: 8
+
+transitions:
+  Restock:
+    outputs:
+      Stock:

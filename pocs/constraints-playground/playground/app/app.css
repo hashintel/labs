@@ -1,0 +1,12 @@
+/* One column that never grows past the window: a long line in a view scrolls inside it. */
+.app {
+  display: grid;
+  grid-template-rows: var(--header-height) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
+  height: 100%;
+}
+
+.workspace {
+  min-width: 0;
+  min-height: 0;
+}

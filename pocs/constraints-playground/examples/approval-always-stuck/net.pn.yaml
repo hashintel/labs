@@ -1,0 +1,33 @@
+name: approval
+description: 'A request is triaged into review. Approving it needs a signer and escalating it needs a timer, and neither is ever present, so the request is stuck in review.'
+kind: plain
+
+places:
+  Submitted:
+  InReview:
+  Approved:
+  Overdue:
+  Signer:
+  Timer:
+
+transitions:
+  Triage:
+    inputs:
+      Submitted:
+    outputs:
+      InReview:
+  Approve:
+    inputs:
+      InReview:
+      Signer:
+    outputs:
+      Approved:
+  Escalate:
+    inputs:
+      InReview:
+      Timer:
+    outputs:
+      Overdue:
+
+marking:
+  Submitted: 1

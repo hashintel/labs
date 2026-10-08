@@ -1,0 +1,19 @@
+<Context>An oven heats up and trips off at random times. The run stops at time 40.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Heat 3.9 → Trip 8.9 → Heat 9.2 → Trip 34.6` (seed 5)
+
+**Verdict:** Satisfied at step 4.
+
+**Explanation:** The hot state from 9.2 lasts past 20, so it covers the whole <Term>time window</Term>. The trip at 8.9 ends before 10 and does not count.
+
+</Example>
+
+**Question:** A state that begins before the window counts here. Is that the reading you expect?

@@ -1,0 +1,6 @@
+name: Shelf 2 ≤ x ≤ 4
+metrics: {}
+constraint: always (count(Shelf) >= 2 and count(Shelf) <= 4)
+run:
+  seed: 1
+  maxSteps: 20

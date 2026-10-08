@@ -1,0 +1,6 @@
+name: A burnt loaf sounds the alarm
+metrics: {}
+constraint: always (count(Burnt) >= 1 implies count(Alarm) >= 1)
+run:
+  seed: 1
+  maxSteps: 20

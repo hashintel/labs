@@ -1,0 +1,41 @@
+/*
+ * The tooltip is anchored to its term and fixed, so the reading column's
+ * scroll box does not clip it. `anchor-scope` keeps each tip on its own term.
+ */
+.term {
+  anchor-name: --term;
+  anchor-scope: --term;
+  text-decoration: underline dotted var(--ink-2);
+  text-underline-offset: 0.2em;
+  cursor: help;
+}
+
+.term__tip {
+  position: fixed;
+  position-anchor: --term;
+  position-area: top span-right;
+  position-try-fallbacks: flip-block, flip-inline;
+  z-index: 10;
+  width: max-content;
+  max-width: 28ch;
+  margin: var(--s-1) 0;
+  padding: var(--s-1) var(--s-2);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-xs);
+  background: var(--paper-2);
+  box-shadow: var(--shadow-menu);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  text-decoration: none;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease);
+
+  .term:hover > &,
+  .term:focus-visible > & {
+    visibility: visible;
+    opacity: 1;
+  }
+}

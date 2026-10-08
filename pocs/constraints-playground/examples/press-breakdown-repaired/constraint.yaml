@@ -1,0 +1,7 @@
+name: At most one open breakdown
+metrics:
+  OpenBreakdowns: fired(Break) - fired(Repair)
+constraint: always (OpenBreakdowns <= 1)
+run:
+  seed: 1
+  maxSteps: 9

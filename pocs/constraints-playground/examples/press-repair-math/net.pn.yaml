@@ -1,0 +1,24 @@
+name: press_timed
+description: 'A press breaks down at rate 0.1 per hour and is repaired at rate 0.3 per hour, a mean repair of 3.3 hours.'
+kind: stochastic
+
+places:
+  Up:
+  Down:
+
+transitions:
+  Break:
+    inputs:
+      Up:
+    outputs:
+      Down:
+    rate: 0.1
+  Repair:
+    inputs:
+      Down:
+    outputs:
+      Up:
+    rate: 0.3
+
+marking:
+  Up: 1

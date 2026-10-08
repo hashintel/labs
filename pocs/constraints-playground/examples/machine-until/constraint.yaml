@@ -1,0 +1,6 @@
+name: Stock > 0 UNTIL restock
+metrics: {}
+constraint: count(Stock) > 0 until fired(Restock) >= 1
+run:
+  seed: 1
+  maxSteps: 200

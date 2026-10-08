@@ -1,0 +1,6 @@
+name: Walk IFF cars stop
+metrics: {}
+constraint: always (count(CarsStop) == 1 iff count(Walk) == 1)
+run:
+  seed: 1
+  maxSteps: 10

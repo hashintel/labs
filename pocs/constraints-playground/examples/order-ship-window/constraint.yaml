@@ -1,0 +1,7 @@
+name: Shipped within the run
+metrics: {}
+constraint: eventually (fired(Ship) >= 1)
+run:
+  seed: 1
+  maxSteps: 200
+  maxTime: 30

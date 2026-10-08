@@ -1,0 +1,18 @@
+name: preapproved_request
+description: 'A request starts already approved and is then archived. It is never a draft.'
+kind: plain
+
+places:
+  Draft:
+  Approved:
+  Archived:
+
+transitions:
+  Archive:
+    inputs:
+      Approved:
+    outputs:
+      Archived:
+
+marking:
+  Approved: 1

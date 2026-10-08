@@ -1,0 +1,17 @@
+<Context>A press breaks down and is repaired, in turns. One spare part is always on hand.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Up: 1 → 0 → 1 → 0 → …`, `Spares: 1` throughout
+
+**Verdict:** Violated at step 1.
+
+**Explanation:** Now `Up == 1` must hold alone. At step 1 the press is down, so the AND fails. Same atoms, same run, opposite verdict.
+
+</Example>

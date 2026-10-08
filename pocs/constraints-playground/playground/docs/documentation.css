@@ -1,0 +1,10 @@
+/* The net a page uses, as a label over its title. */
+.docs__net {
+  margin: 0 0 0.3rem;
+}
+
+/* The fallback line sits flush with the heading above it. */
+.docs > .note {
+  padding: 0;
+  text-align: left;
+}

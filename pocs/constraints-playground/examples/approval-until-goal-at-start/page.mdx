@@ -1,0 +1,17 @@
+<Context>A request starts out already approved. Then it is archived.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Approved: 1 → 0`, `Draft: 0 → 0`
+
+**Verdict:** Satisfied at step 0.
+
+**Explanation:** The goal holds at step 0, so UNTIL passes at once. The hold side, `Draft >= 1`, is false but never checked.
+
+</Example>

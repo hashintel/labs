@@ -1,0 +1,17 @@
+name: corner_shop
+description: 'A shelf starts with 4 items. Sell takes one per step until the shelf is empty.'
+kind: plain
+
+places:
+  Shelf:
+  Sold:
+
+transitions:
+  Sell:
+    inputs:
+      Shelf:
+    outputs:
+      Sold:
+
+marking:
+  Shelf: 4

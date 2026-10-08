@@ -1,0 +1,17 @@
+<Context>A counter has 2 staff. Customers arrive one by one until 6 are waiting.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Queue: 0 → 1 → … → 5`, `Staff: 2` throughout
+
+**Verdict:** Violated at step 5.
+
+**Explanation:** At step 5 `Queue > 4` is true, so NOT makes the rule false. By <Term>De Morgan</Term> it means `Queue ≤ 4 and Staff ≠ 0`; keeping OR would pass.
+
+</Example>

@@ -1,0 +1,6 @@
+name: Press never down
+metrics: {}
+constraint: always(not (count(Down) == 1))
+run:
+  seed: 1
+  maxSteps: 10

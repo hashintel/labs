@@ -1,0 +1,19 @@
+<Context>A dough mixer has 1 order waiting. It breaks, 2 more orders arrive, then it is repaired and works through the queue.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Up: 1 → 0 → 1`, `Queue: 1 → 3 → 3`
+
+**Verdict:** Violated at step 2.
+
+**Explanation:** While down, 3 orders fit the ELSE limit of 4. At step 2 the repair brings back the THEN limit of 2, with 3 still queued.
+
+</Example>
+
+**Question:** Keep IF … THEN … ELSE, or write it as two IF rules?

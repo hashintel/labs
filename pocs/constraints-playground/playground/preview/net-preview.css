@@ -1,0 +1,98 @@
+/* The net in ink on paper; the item a hover lights, and its arcs, in the accent. */
+.net-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: var(--s-3);
+  overflow: hidden;
+}
+
+.net {
+  display: block;
+  width: 100%;
+  height: 100%;
+  font-family: var(--mono);
+}
+
+.net__node {
+  cursor: default;
+}
+
+.net__shape {
+  fill: var(--paper-2);
+  stroke: var(--ink);
+  stroke-width: 1.25;
+  transition:
+    fill var(--base) var(--ease),
+    stroke var(--base) var(--ease),
+    stroke-width var(--base) var(--ease);
+}
+
+.net__tokens circle {
+  fill: var(--ink);
+  transition: fill var(--base) var(--ease);
+}
+
+.net__count {
+  fill: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.net__label {
+  fill: var(--ink);
+  font-size: var(--fs-svg);
+  font-weight: 500;
+  transition: fill var(--base) var(--ease);
+}
+
+.net__detail,
+.net__weight {
+  fill: var(--ink-2);
+  font-size: var(--fs-svg-note);
+  letter-spacing: 0.02em;
+}
+
+.net__weight {
+  paint-order: stroke fill;
+  stroke: var(--paper-2);
+  stroke-width: 3px;
+}
+
+.net__line {
+  fill: none;
+  stroke: var(--ink-2);
+  stroke-width: 1.25;
+  transition:
+    stroke var(--base) var(--ease),
+    stroke-width var(--base) var(--ease);
+}
+
+.net__inhibit {
+  fill: var(--paper-2);
+  stroke: context-stroke;
+  stroke-width: 1.2;
+}
+
+.net__arc[data-kind="read"] .net__line {
+  stroke-dasharray: 4 3;
+}
+
+.net__node:is([data-lit="true"], [data-linked="true"]) {
+  & .net__shape {
+    fill: var(--accent-wash);
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+
+  & .net__tokens circle,
+  & .net__label {
+    fill: var(--accent);
+  }
+}
+
+.net__arc[data-lit="true"] .net__line {
+  stroke: var(--accent);
+  stroke-width: 1.75;
+}

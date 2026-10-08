@@ -1,0 +1,160 @@
+/* The brand and the example picker sit at the left, the flags and Reset at the right. */
+.header {
+  /* The header's controls share one height, one radius and one lift: a squircle where the browser draws one. */
+  --control-height: 1.75rem;
+  --control-radius: 0.7rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: var(--s-5);
+  padding: 0 var(--s-5);
+  border-bottom: 1px solid var(--hair);
+
+  @supports (corner-shape: squircle) {
+    --control-radius: calc(var(--control-height) / 2);
+  }
+}
+
+.header__brand {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  min-width: 0;
+}
+
+.header__wordmark {
+  display: block;
+  width: auto;
+  flex: none;
+  height: 1.1rem;
+  color: var(--ink-2);
+  opacity: 0.8;
+}
+
+.header__title {
+  flex: none;
+  margin: 0;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+
+  /* The joining word stays lowercase between the two names. */
+  & i {
+    margin: 0 0.1em;
+    color: color-mix(in oklab, var(--ink-2) 55%, var(--paper));
+    font-style: normal;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    text-transform: none;
+  }
+}
+
+/* The picker and the two step buttons share a row. */
+.header__examples {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.header__step {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: var(--control-height);
+  height: var(--control-height);
+  border-radius: var(--control-radius);
+  corner-shape: squircle;
+  background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
+  color: var(--ink-2);
+  transition:
+    color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+
+  &:hover:not(:disabled) {
+    background: color-mix(in oklab, var(--paper-2) 94%, var(--ink));
+    color: var(--ink);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+}
+
+.header__step-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+.header__example {
+  display: flex;
+  justify-self: end;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: 0;
+
+  &[hidden] {
+    display: none;
+  }
+}
+
+.header__reset {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: var(--control-height);
+  padding: 0 0.75rem;
+  border-radius: var(--control-radius);
+  corner-shape: squircle;
+  background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  animation: header-reset-in var(--base) var(--ease);
+  transition:
+    color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+
+  &:hover {
+    background: color-mix(in oklab, var(--paper-2) 94%, var(--ink));
+    color: var(--ink);
+  }
+}
+
+.header__reset-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+
+@keyframes header-reset-in {
+  from {
+    opacity: 0;
+    transform: translateX(0.25rem);
+  }
+}
+
+/* The MTL flag: a checkbox and mono caps, like the header's other labels. */
+.header__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: var(--control-height);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+  cursor: pointer;
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  & > input {
+    margin: 0;
+    accent-color: var(--ink);
+  }
+}

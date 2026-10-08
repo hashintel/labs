@@ -1,0 +1,12 @@
+name: pallet_delivery
+description: 'Each delivery brings 2 crates. Nothing takes crates out.'
+kind: plain
+
+places:
+  Stock:
+
+transitions:
+  Deliver:
+    outputs:
+      Stock:
+        weight: 2

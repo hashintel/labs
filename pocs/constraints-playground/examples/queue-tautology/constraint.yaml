@@ -1,0 +1,6 @@
+name: Waiting ≥ 2 OR ≤ 4
+metrics: {}
+constraint: always (count(Waiting) >= 2 or count(Waiting) <= 4)
+run:
+  seed: 1
+  maxSteps: 20

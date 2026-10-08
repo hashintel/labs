@@ -1,0 +1,19 @@
+<Context>A press breaks down and is repaired at random times, measured in hours.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Repairs take 1.1 → 2.3 → 5.1 hours` (seed 2)
+
+**Verdict:** Violated at step 6.
+
+**Explanation:** The same rule in math notation is `G (count(Down) = 1 → F[0,5] (count(Up) = 1))`. `G` is ALWAYS, `F` is EVENTUALLY, `→` is IF. The third repair, at step 6, takes 5.1 hours, past the 5-hour <Term>time window</Term>.
+
+</Example>
+
+**Question:** Does the language need math notation (`G`, `F`, `→`) alongside the words?

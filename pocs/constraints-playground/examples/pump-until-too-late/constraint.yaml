@@ -1,0 +1,6 @@
+name: Pump up UNTIL its first service
+metrics: {}
+constraint: count(Up) == 1 until fired(Service) >= 1
+run:
+  seed: 1
+  maxSteps: 12

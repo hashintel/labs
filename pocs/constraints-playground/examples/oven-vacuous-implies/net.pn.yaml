@@ -1,0 +1,26 @@
+name: oven
+description: 'An oven bakes 3 loaves. Burn would scorch a loaf, but only when the oven overheats, and nothing makes it overheat. No transition sounds the alarm.'
+kind: plain
+
+places:
+  Dough:
+  Baked:
+  Overheat:
+  Burnt:
+  Alarm:
+
+transitions:
+  Bake:
+    inputs:
+      Dough:
+    outputs:
+      Baked:
+  Burn:
+    inputs:
+      Baked:
+      Overheat:
+    outputs:
+      Burnt:
+
+marking:
+  Dough: 3

@@ -1,0 +1,25 @@
+name: heater
+description: 'A heater warms up. A draft cools it twice, then it stays warm.'
+kind: plain
+
+places:
+  Cold:
+  Warm:
+  Draft:
+
+transitions:
+  Heat:
+    inputs:
+      Cold:
+    outputs:
+      Warm:
+  Cool:
+    inputs:
+      Warm:
+      Draft:
+    outputs:
+      Cold:
+
+marking:
+  Cold: 1
+  Draft: 2

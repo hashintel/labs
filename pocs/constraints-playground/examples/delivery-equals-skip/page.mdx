@@ -1,0 +1,17 @@
+<Context>Stock arrives on pallets of 2. Nothing else changes it.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Stock: 0 → 2 → 4 → 6 → … → 20`
+
+**Verdict:** Violated at the end of the run.
+
+**Explanation:** Stock moves in twos, so it is never exactly 5. The <Term>horizon</Term> cuts the run at step 10 with the goal never met.
+
+</Example>

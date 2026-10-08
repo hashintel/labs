@@ -1,0 +1,17 @@
+name: proofing
+description: '12 balls of dough rise, one per step.'
+kind: plain
+
+places:
+  Dough:
+  Risen:
+
+transitions:
+  Rise:
+    inputs:
+      Dough:
+    outputs:
+      Risen:
+
+marking:
+  Dough: 12

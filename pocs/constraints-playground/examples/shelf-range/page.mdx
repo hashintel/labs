@@ -1,0 +1,17 @@
+<Context>A corner shop shelf starts with 4 items. Each sale takes one.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Shelf: 4 → 3 → 2 → 1 → 0`
+
+**Verdict:** Violated at step 3.
+
+**Explanation:** A range is two <Term name="atom">atoms</Term> joined by AND. Step 0 passes, since `4 ≤ 4`. Step 3 fails, since `1 < 2`. With `> 2 and < 4`, it fails at step 0.
+
+</Example>

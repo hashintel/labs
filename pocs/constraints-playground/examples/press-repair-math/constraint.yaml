@@ -1,0 +1,7 @@
+name: Repaired within 5 hours
+metrics: {}
+constraint: G (count(Down) = 1 → F[0,5] (count(Up) = 1))
+run:
+  seed: 2
+  maxSteps: 200
+  maxTime: 100

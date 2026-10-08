@@ -1,0 +1,27 @@
+name: depot
+description: 'Two parcels and a scanner that holds one. While the scanner holds a parcel, the next parcel goes straight to the van.'
+kind: plain
+
+places:
+  Depot:
+  Scanned:
+  Van:
+
+transitions:
+  Scan:
+    inputs:
+      Depot:
+      Scanned:
+        kind: inhibitor
+    outputs:
+      Scanned:
+  Skip:
+    inputs:
+      Depot:
+      Scanned:
+        kind: read
+    outputs:
+      Van:
+
+marking:
+  Depot: 2

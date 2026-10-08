@@ -1,0 +1,82 @@
+/*
+ * The cascade layers, lowest first. Monaco's own CSS sits in `vendor`, over
+ * the reset and the prose as it was before they were layered. Every rule
+ * outside a layer wins over all three, so a component overrides them, and
+ * Monaco, without a longer selector.
+ */
+@layer base, prose, vendor;
+
+/* The swiss theme: paper, ink, one accent, hairlines, Inter and JetBrains Mono. */
+@layer base {
+  :root {
+    --paper: #edeff1;
+    --paper-2: #f7f8f9;
+    --ink: #0f1115;
+    --ink-2: #565b66;
+    --ink-3: color-mix(in oklab, var(--ink-2) 75%, var(--paper-2));
+    --ink-wash: rgb(86 91 102 / 0.08);
+    --text: #22262c;
+    --text-2: #2b2f36;
+    --hair: #c3c8cf;
+    --hair-2: #dde1e6;
+    --accent: #0b5fff;
+    --accent-deep: #0a3f9e;
+    --accent-wash: rgb(11 95 255 / 0.1);
+    /* The open example's row in the picker: a faint lavender, lighter than the accent wash. */
+    --row-selected: #f0f2fc;
+    --cyan: #0a8fe0;
+    --cyan-wash: rgb(0 168 255 / 0.22);
+    --red: #d6402b;
+    --red-wash: rgb(214 64 43 / 0.12);
+    --green: #1f8a4c;
+    --green-wash: rgb(31 138 76 / 0.12);
+    /* Open questions: an amber that reads as unresolved, not as an error. */
+    --amber: #9a5b00;
+    --amber-wash: #fbf1df;
+    --amber-line: #e0a948;
+    --veil: rgb(255 255 255 / 0.65);
+    --chevron-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6' fill='none' stroke='%23565b66' stroke-width='1.2'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
+
+    --sans: "Inter Variable", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    /* Sizes that several rules share. Sizes close to these stay apart, since merging them moves text. */
+    --fs-label-sm: 0.62rem;
+    --fs-label: 0.68rem;
+    --fs-code: 0.7rem;
+    --fs-xs: 0.72rem;
+    --fs-sm: 0.78rem;
+    --fs-md: 0.8rem;
+    --fs-base: 0.875rem;
+    --fs-title: 1.15rem;
+    --fs-svg-note: 9px;
+    --fs-svg: 11px;
+
+    --s-1: 0.25rem;
+    --s-2: 0.5rem;
+    --s-3: 0.75rem;
+    --s-4: 1rem;
+    --s-5: 1.25rem;
+    --s-6: 1.5rem;
+
+    --r-xs: 2px;
+    --r-sm: 0.55rem;
+    --r-md: 0.75rem;
+
+    --shadow-lift: 0 1px 2px rgb(15 17 21 / 0.035), 0 2px 6px rgb(15 17 21 / 0.025);
+    --shadow-knob: 0 1px 2px rgb(15 17 21 / 0.25);
+    --shadow-menu: 0 2px 6px rgb(15 17 21 / 0.06);
+    --shadow-pop: 0 12px 32px rgb(15 17 21 / 0.14);
+
+    /* Reduced motion zeroes the durations, in base.css. */
+    --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --fast: 160ms;
+    --base: 200ms;
+    --slow: 280ms;
+    /* How long a panel takes to collapse or open; `useFolds` waits as long before it stops easing the layout. */
+    --fold: 260ms;
+
+    --header-height: 3rem;
+    --panel-head: 2rem;
+  }
+}

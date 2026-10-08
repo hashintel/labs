@@ -1,0 +1,7 @@
+name: ServedShare ≥ 0.5
+metrics:
+  ServedShare: fired(Serve) / (fired(Serve) + fired(TurnAway))
+constraint: always (ServedShare >= 0.5)
+run:
+  seed: 1
+  maxSteps: 20

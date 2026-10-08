@@ -1,0 +1,12 @@
+name: waiting_room
+description: 'Patients arrive at a waiting room with 6 seats. Nobody is called in.'
+kind: plain
+
+places:
+  Waiting:
+    capacity: 6
+
+transitions:
+  Arrive:
+    outputs:
+      Waiting:

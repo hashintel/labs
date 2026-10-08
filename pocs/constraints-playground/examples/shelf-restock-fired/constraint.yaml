@@ -1,0 +1,6 @@
+name: Restock has happened
+metrics: {}
+constraint: eventually (fired(Restock) >= 1)
+run:
+  seed: 1
+  maxSteps: 10

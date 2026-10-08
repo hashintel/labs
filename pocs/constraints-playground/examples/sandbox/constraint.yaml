@@ -1,0 +1,11 @@
+name: My rule
+metrics:
+  Waiting: count(Queue)
+  Stock: count(Stock)
+  Down: count(Down)
+  Shipped: count(Shipped)
+  Repairs: fired(Repair)
+constraint: always (_)
+run:
+  seed: 1
+  maxSteps: 200

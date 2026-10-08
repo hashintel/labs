@@ -1,0 +1,19 @@
+<Context>A request is triaged, then waits for a signer or a timer. Neither ever comes.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Approved: 0 → 0`
+
+**Verdict:** Violated at the end of the run.
+
+**Explanation:** EVENTUALLY cannot fail mid-run, since the goal could still come. The <Term>deadlock</Term> at step 1 ends the run with no approval.
+
+</Example>
+
+**Question:** Should EVENTUALLY be Violated when the run ends in a <Term>deadlock</Term> or is cut by the <Term>horizon</Term> before the goal?

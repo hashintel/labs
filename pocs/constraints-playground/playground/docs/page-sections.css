@@ -1,0 +1,28 @@
+.page-context {
+  color: var(--ink-2);
+
+  .prose & strong {
+    color: inherit;
+  }
+}
+
+.page-example {
+  margin: 0 0 0.95rem;
+  padding: var(--s-2) var(--s-3);
+  border-left: 2px solid var(--hair);
+  background: var(--paper-2);
+
+  /* A run sequence wraps between its steps, so it never runs past the column and its label stays on its line. */
+  .prose & code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .prose & p {
+    margin-bottom: var(--s-1);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}

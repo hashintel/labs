@@ -1,0 +1,458 @@
+/* The builder is a sentence that wraps: the operator line, then groups of chips. Made for a panel about 420px wide. */
+.builder {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  font-size: var(--fs-md);
+  color: var(--ink);
+}
+
+/* A sentence line and the scope note under it, flush left with the sentence. */
+.builder__head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.builder__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  font-weight: 500;
+}
+
+/* A top line flows as one line: [ALWAYS] [body], or [first part] [UNTIL] [second part]. Each part keeps its add row under it. */
+.builder__line--flow {
+  align-items: flex-start;
+
+  & > :is(.operator, .chip--window, .action--inline) {
+    min-height: 1.6rem;
+  }
+
+  & > .action--inline {
+    display: inline-flex;
+    align-items: center;
+    align-self: flex-start;
+  }
+}
+
+/* The body's add row takes its own line at the builder's left edge, however wide the panel is. */
+.builder__line--body > .group {
+  display: contents;
+
+  & > .group__actions {
+    flex-basis: 100%;
+  }
+}
+
+.builder__line--note {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+/* The operator is a chip of one segment. */
+.operator {
+  border: 1px solid var(--hair);
+  border-radius: 0.5rem;
+  background: var(--paper-2);
+  font-weight: 600;
+}
+
+/* A group's conditions flow and wrap; blocks and nested groups take a line. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.group__items {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* A nested group is drawn in brackets: a rule each side, a wash. It sits in the flow beside a connective chip and wraps its own content. */
+.group--nested {
+  position: relative;
+  flex: 0 1 auto;
+  padding: 0.3rem 0.5rem;
+  border-inline: 2px solid var(--hair);
+  border-radius: var(--r-sm);
+  background: var(--ink-wash);
+}
+
+/* A connective stays with the item after it, so a line never ends on "or". */
+.pair {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+
+  & > .connective {
+    margin-top: 0.15rem;
+  }
+
+  &.pair--first {
+    display: contents;
+  }
+}
+
+.connective {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-2);
+}
+
+.connective__pick {
+  border-radius: 99px;
+  background: var(--ink-wash);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  min-height: 1.35rem;
+}
+
+/* One condition: subject, comparison, value, remove. Segments are split by hairlines. */
+.chip {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  border: 1px solid var(--hair);
+  border-radius: 0.5rem;
+  background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+
+  & > * + * {
+    border-left: 1px solid var(--hair-2);
+  }
+}
+
+/* The condition under the pointer in another view: the border and a wash, nothing that moves. */
+.chip[data-linked="true"] {
+  border-color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 8%, var(--paper-2));
+}
+
+.chip__seg--subject {
+  font-weight: 600;
+}
+
+.chip__word {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.5rem;
+  color: var(--ink-2);
+}
+
+/* The input sits over a hidden copy of its text, so the field is as wide as what it holds. */
+.chip__field {
+  display: inline-grid;
+  min-width: 2.2rem;
+  padding: 0 0.1rem;
+
+  & > * {
+    grid-area: 1 / 1;
+    padding: 0 0.4rem;
+    font: inherit;
+    font-family: var(--mono);
+    font-size: var(--fs-code);
+  }
+}
+
+.chip__mirror {
+  display: flex;
+  align-items: center;
+  visibility: hidden;
+  white-space: pre;
+}
+
+.chip__input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+
+  &:focus-visible {
+    background: var(--accent-wash);
+  }
+}
+
+.chip__remove {
+  position: relative;
+  width: 1.5rem;
+  color: var(--ink-3);
+
+  /* Two bars drawn crossed make the cross. */
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 50% 0.45rem auto;
+    height: 1.25px;
+    background: currentColor;
+    rotate: 45deg;
+  }
+
+  &::after {
+    rotate: -45deg;
+  }
+
+  &:hover {
+    background: var(--red-wash);
+    color: var(--red);
+  }
+}
+
+/* An item is its own box in the flow; the wrapper only catches the right-click. */
+.item {
+  display: contents;
+}
+
+.atom-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* A block holds words and bracketed parts on one wrapping row: IF [ … ] THEN [ … ], NOT [ … ], [ … ] IFF [ … ]. */
+.box {
+  position: relative;
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.3rem 0.5rem;
+  border-inline: 2px solid var(--hair);
+  border-radius: var(--r-sm);
+  background: var(--ink-wash);
+
+  & .group--nested {
+    background: var(--paper-2);
+  }
+}
+
+/* IF, THEN and ELSE each take a line, in a fixed-width keyword column so the parts' left edges line up. */
+.box--if {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
+
+  & > .clause > .word {
+    flex: none;
+    width: 3.2rem;
+  }
+}
+
+.box--temporal {
+  border-color: var(--amber-line);
+}
+
+/* A word and the part after it wrap as one. */
+.clause {
+  display: flex;
+  flex: 0 1 auto;
+  align-items: flex-start;
+  gap: 0.3rem;
+  min-width: 0;
+
+  & > .word {
+    margin-top: 0.3rem;
+  }
+}
+
+.word {
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
+
+.box--not > .clause > .word {
+  color: var(--ink);
+  font-size: var(--fs-label);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* A group or a block with an actions menu keeps its button at the top-right corner and leaves it room. */
+:is(.group--nested, .box):has(> .item__menu, > .group__actions > .item__menu) {
+  padding-inline-end: 2rem;
+
+  & > .item__menu,
+  & > .group__actions > .item__menu {
+    position: absolute;
+    top: 0.3rem;
+    right: 0.4rem;
+    margin: 0;
+  }
+}
+
+/* What goes beyond the base, muted and small, on a line of its own under what caused it. */
+.scope-note {
+  flex-basis: 100%;
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+
+  &:empty {
+    display: none;
+  }
+}
+
+/* The notes of a block: one line each, under the whole sentence of the block. */
+.scope-notes {
+  display: flex;
+  flex-direction: column;
+  flex-basis: 100%;
+
+  & > .scope-note {
+    flex-basis: auto;
+  }
+
+  &:not(:has(> :not(:empty))) {
+    display: none;
+  }
+}
+
+.builder__head > .scope-note {
+  flex-basis: auto;
+}
+
+/* An empty slot: a dashed chip that asks for a condition. */
+.chip--hole {
+  border-style: dashed;
+  border-color: var(--ink-3);
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+/* The window chip is as tall as the operator chip beside it. */
+.chip--window {
+  min-height: 1.6rem;
+  box-shadow: none;
+  font-weight: 400;
+}
+
+/* The ••• button of an item: quiet until the pointer is near. */
+.item__menu {
+  min-width: 1.4rem;
+  height: 1.4rem;
+  margin-left: auto;
+  padding: 0 0.3rem;
+  border-radius: 99px;
+  color: var(--ink-3);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.05em;
+  line-height: 1;
+
+  &:hover {
+    background: var(--hair-2);
+    color: var(--ink);
+  }
+}
+
+/* The add buttons: ghost text, quiet until needed. */
+.group__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.action {
+  align-self: flex-start;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.5rem;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  transition: background-color var(--fast) var(--ease);
+
+  &:hover {
+    background: var(--ink-wash);
+    color: var(--ink);
+  }
+}
+
+.action--inline {
+  align-self: center;
+  color: var(--ink-3);
+}
+
+/* The grip: six dots at an item's left edge, drawn faintly at rest and in full on hover. Only the grip starts a drag. */
+.grip {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 0.9rem;
+  color: var(--ink-3);
+  cursor: grab;
+  opacity: 0.35;
+  transition: opacity var(--fast) var(--ease);
+
+  &:hover {
+    color: var(--ink);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.grip__dots {
+  display: block;
+  fill: currentColor;
+}
+
+:is(.chip, .box, .group--nested):hover > .grip,
+.grip:focus-visible {
+  opacity: 1;
+}
+
+/* A chip's grip is a segment of its own; a block's grip is a small tab on its top edge. */
+.chip > .grip {
+  align-self: stretch;
+}
+
+:is(.box, .group--nested) > .grip {
+  /* A block's tab shows only on hover, so at rest it is not a stray mark on the border. */
+  opacity: 0;
+  position: absolute;
+  top: -0.4rem;
+  left: 0.5rem;
+  width: 1.1rem;
+  height: 0.8rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+
+  & .grip__dots {
+    rotate: 90deg;
+  }
+}
+
+/* What is being dragged is dimmed; a hole that would take it shows a solid accent border and a tint. */
+.is-dragged {
+  opacity: 0.4;
+}
+
+.chip--target {
+  border-style: solid;
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+/* The cross sits inside the dashed border with room to spare, as on a filled chip. */
+.chip--hole > .chip__remove {
+  border-left-color: transparent;
+  margin-inline-end: 0.2rem;
+}

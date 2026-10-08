@@ -1,0 +1,17 @@
+<Context>A bakery shelf starts with 3 loaves. Each sale takes one until the shelf is empty.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Shelf: 3 → 2 → 1 → 0`
+
+**Verdict:** Violated at step 3.
+
+**Explanation:** At step 3 the shelf holds 0, and `0 > 0` is false. `≥ 1` fails at the same step, but its <Term>margin</Term> is 1 lower at every step.
+
+</Example>

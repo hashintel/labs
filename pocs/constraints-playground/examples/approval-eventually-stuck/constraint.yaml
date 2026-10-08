@@ -1,0 +1,6 @@
+name: The request is approved
+metrics: {}
+constraint: eventually (count(Approved) >= 1)
+run:
+  seed: 1
+  maxSteps: 200

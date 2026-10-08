@@ -1,0 +1,6 @@
+name: Stock > 5 AND < 3
+metrics: {}
+constraint: eventually (count(Stock) > 5 and count(Stock) < 3)
+run:
+  seed: 1
+  maxSteps: 20

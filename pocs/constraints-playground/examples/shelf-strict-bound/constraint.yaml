@@ -1,0 +1,6 @@
+name: Shelf never empty
+metrics: {}
+constraint: always (count(Shelf) > 0)
+run:
+  seed: 1
+  maxSteps: 20

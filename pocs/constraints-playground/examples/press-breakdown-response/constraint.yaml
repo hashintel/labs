@@ -1,0 +1,6 @@
+name: Every breakdown is repaired
+metrics: {}
+constraint: always (count(Down) >= 1 implies eventually (count(Up) >= 1))
+run:
+  seed: 1
+  maxSteps: 9

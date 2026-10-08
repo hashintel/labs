@@ -1,0 +1,19 @@
+<Context>A heater warms a room. A draft cools it twice, then dies down.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Warm: 0 → 1 → 0 → 1 → 0 → 1`
+
+**Verdict:** Satisfied at the end of the run.
+
+**Explanation:** On a finite run, ALWAYS from the last state sees only that state. So the rule holds when the room is warm at the end.
+
+</Example>
+
+**Question:** Is "warm at the last state" what "settles" means, or does it need a minimum time warm?

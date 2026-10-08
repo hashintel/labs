@@ -1,0 +1,19 @@
+<Context>A pump works through 2 units of fuel, then breaks. A mechanic comes and services it.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Up: 1 → 1 → 1 → 0 → 0 → 1`, Service at step 5
+
+**Verdict:** Violated at step 3.
+
+**Explanation:** The pump goes down at step 3, before any service. The service at step 5 comes too late to undo it.
+
+</Example>
+
+**Question:** Is UNTIL the word an expert would reach for, or "before"?

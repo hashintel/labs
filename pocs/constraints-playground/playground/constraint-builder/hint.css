@@ -1,0 +1,116 @@
+/* The hint sits under its keyword in the top layer, so nothing in the builder moves. It takes no pointer, so it never steals the hover. */
+.hint {
+  inset: auto;
+  top: anchor(bottom);
+  left: anchor(left);
+  position-try-fallbacks: --hint-right-aligned, flip-block;
+  width: max-content;
+  max-width: min(14rem, calc(100vw - 2rem));
+  margin: 0.3rem 0 0;
+  padding: var(--s-2) var(--s-3);
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  color: var(--ink);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: 1.4;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease);
+
+  &:popover-open {
+    opacity: 1;
+
+    @starting-style {
+      opacity: 0;
+    }
+  }
+}
+
+@position-try --hint-right-aligned {
+  left: auto;
+  right: anchor(right);
+}
+
+.hint__title {
+  margin: 0 0 0.15rem;
+  color: var(--ink);
+  font-size: var(--fs-label);
+  font-weight: 600;
+}
+
+.hint__line {
+  margin: 0;
+  color: var(--text);
+}
+
+/* Six cells a row, a step number under them. A tagged row has a letter before its cells. */
+.hint__rows {
+  --cell: 1.15rem;
+
+  display: grid;
+  gap: 2px;
+  margin-top: var(--s-2);
+}
+
+.hint__row {
+  display: grid;
+  grid-template-columns: repeat(6, var(--cell));
+  gap: 2px;
+
+  .hint__rows[data-tagged="true"] & {
+    grid-template-columns: 0.9rem repeat(6, var(--cell));
+  }
+}
+
+.hint__tag {
+  align-self: center;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+}
+
+.hint__cell {
+  display: grid;
+  place-items: center;
+  height: 1.1rem;
+  border-radius: var(--r-xs);
+  font-size: var(--fs-label);
+  line-height: 1;
+
+  &[data-tone="holds"] {
+    background: var(--green-wash);
+    color: var(--green);
+  }
+
+  &[data-tone="broken"] {
+    background: var(--red-wash);
+    color: var(--red);
+  }
+
+  &[data-tone="idle"] {
+    background: var(--ink-wash);
+  }
+
+  /* The cell that decides the verdict is solid. */
+  &[data-decisive="true"] {
+    color: var(--paper-2);
+
+    &[data-tone="holds"] {
+      background: var(--green);
+    }
+
+    &[data-tone="broken"] {
+      background: var(--red);
+    }
+  }
+}
+
+.hint__step {
+  color: var(--ink-3);
+  font-family: var(--mono);
+  font-size: var(--fs-label-sm);
+  text-align: center;
+}

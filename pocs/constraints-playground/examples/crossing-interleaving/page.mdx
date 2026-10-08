@@ -1,0 +1,19 @@
+<Context>At a crossing, one switch sends two signals: stop the cars, light the walk sign. Each signal lands on its own.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `CarsStop: 0 → 0 → 1`, `Walk: 0 → 0 → 0`
+
+**Verdict:** Violated at step 2.
+
+**Explanation:** With <Term>interleaving</Term>, only one signal lands at step 2, so the sides disagree, on every seed. If both landed in one step, the rule would hold.
+
+</Example>
+
+**Question:** Should a step be one firing, or every enabled transition at once?

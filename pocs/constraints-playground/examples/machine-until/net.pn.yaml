@@ -1,0 +1,22 @@
+name: machine
+description: 'A machine uses stock. It is restocked once, then used up again.'
+kind: stochastic
+
+places:
+  Stock:
+  Used:
+
+transitions:
+  Use:
+    inputs:
+      Stock:
+    outputs:
+      Used:
+    rate: 1
+  Restock:
+    outputs:
+      Stock:
+    rate: 0.5
+
+marking:
+  Stock: 2

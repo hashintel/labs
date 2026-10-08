@@ -1,0 +1,17 @@
+<Context>A storeroom starts empty. Items arrive one by one until it holds 8.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Stock: 0 → 1 → … → 8`
+
+**Verdict:** Violated at the end of the run.
+
+**Explanation:** No count is both `> 5` and `< 3`, so the condition is a <Term>contradiction</Term>. EVENTUALLY can only fail at the end, so the verdict waits for the <Term>deadlock</Term> at step 8.
+
+</Example>

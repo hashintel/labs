@@ -1,0 +1,19 @@
+<Context>A shelf holds 6 items and 3 customers each buy one. The restock needs a delivery that never comes.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Shelf: 6 → 5 → 4 → 3`, no restock
+
+**Verdict:** Satisfied at the end of the run.
+
+**Explanation:** <Term name="weak until">Weak until</Term> does not need the restock. The shelf held at every step until the <Term>deadlock</Term> at step 3, so it passes.
+
+</Example>
+
+**Question:** Should WEAK UNTIL pass when the run ends before the goal comes?

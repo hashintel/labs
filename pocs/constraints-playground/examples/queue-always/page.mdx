@@ -1,0 +1,19 @@
+<Context>Customers join a café queue at random. One server takes them out a little faster than they arrive.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Waiting: 0 → 1 → 0 → … → 5 → 6` (seed 1)
+
+**Verdict:** Violated at step 24.
+
+**Explanation:** `Waiting` is a <Term>metric</Term>, the queue length. With seed 1 it first reaches 6 at step 24. The seed decides when, or whether, it crosses 5.
+
+</Example>
+
+**Question:** Does the queue ever pass 5? Change the seed and see.

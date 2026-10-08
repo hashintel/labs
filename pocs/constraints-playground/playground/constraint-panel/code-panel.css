@@ -1,0 +1,42 @@
+/* The Code panel: constraint.yaml over the Math view, each under a small label and each as tall as its text. */
+.code-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  scrollbar-color: var(--hair) transparent;
+}
+
+.code-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.code-section--math {
+  border-top: 1px solid var(--hair-2);
+}
+
+.code-section__head {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--s-2);
+  margin: 0;
+  padding: 0.15rem var(--s-3);
+  color: var(--ink-3);
+}
+
+.code-section__hint {
+  font-size: var(--fs-label-sm);
+}
+
+/* The editor's height is set inline from its content; a text past its cap scrolls inside. */
+.code-section__editor {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+/* A file's name keeps its case. */
+.code-section__file {
+  text-transform: none;
+}

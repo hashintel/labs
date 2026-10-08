@@ -1,0 +1,41 @@
+name: mixer
+description: 'A dough mixer breaks once in the shift. While it is down, 2 more orders pile up. After the repair it serves the orders one by one.'
+kind: plain
+
+places:
+  Up:
+  Down:
+  Shift:
+  Ready:
+  Queue:
+  Served:
+
+transitions:
+  Break:
+    inputs:
+      Up:
+      Shift:
+    outputs:
+      Down:
+      Queue:
+        weight: 2
+  Repair:
+    inputs:
+      Down:
+    outputs:
+      Up:
+      Ready:
+  Serve:
+    inputs:
+      Queue:
+      Ready:
+        kind: read
+      Up:
+        kind: read
+    outputs:
+      Served:
+
+marking:
+  Up: 1
+  Shift: 1
+  Queue: 1

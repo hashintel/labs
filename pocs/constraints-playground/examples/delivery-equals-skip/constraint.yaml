@@ -1,0 +1,6 @@
+name: Stock = 5 at some point
+metrics: {}
+constraint: eventually (count(Stock) == 5)
+run:
+  seed: 1
+  maxSteps: 10

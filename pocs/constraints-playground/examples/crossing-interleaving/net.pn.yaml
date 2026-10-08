@@ -1,0 +1,37 @@
+name: split_crossing
+description: 'A pedestrian crossing where one switch sends two signals: one stops the cars, the other lights the walk sign. Each signal lands in its own firing.'
+kind: plain
+
+places:
+  CarsGo:
+  ToCars:
+  ToWalk:
+  CarsStop:
+  Walk:
+
+transitions:
+  Switch:
+    inputs:
+      CarsGo:
+    outputs:
+      ToCars:
+      ToWalk:
+  CarsHalt:
+    inputs:
+      ToCars:
+    outputs:
+      CarsStop:
+  WalkOn:
+    inputs:
+      ToWalk:
+    outputs:
+      Walk:
+  Resume:
+    inputs:
+      CarsStop:
+      Walk:
+    outputs:
+      CarsGo:
+
+marking:
+  CarsGo: 1

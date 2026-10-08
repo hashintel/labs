@@ -1,0 +1,6 @@
+name: Draft UNTIL approved
+metrics: {}
+constraint: count(Draft) >= 1 until count(Approved) >= 1
+run:
+  seed: 1
+  maxSteps: 20

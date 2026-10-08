@@ -1,0 +1,6 @@
+name: Up and few repairs, or a spare
+metrics: {}
+constraint: always(count(Up) == 1 and fired(Repair) < 3 or count(Spares) >= 1)
+run:
+  seed: 1
+  maxSteps: 10

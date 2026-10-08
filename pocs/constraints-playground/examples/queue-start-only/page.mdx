@@ -1,0 +1,19 @@
+<Context>3 people queue at a door. 4 more come in, one by one.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Queue: 3 → 4 → 5 → 6 → 7`
+
+**Verdict:** Satisfied at step 0.
+
+**Explanation:** With no ALWAYS, EVENTUALLY or UNTIL, the rule is checked at step 0 only. `always (count(Queue) <= 5)` fails at step 3.
+
+</Example>
+
+**Question:** Should a rule with no operator mean "first step only", or be an error?

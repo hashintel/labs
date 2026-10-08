@@ -1,0 +1,19 @@
+<Context>A request is triaged, then waits for a signer or a timer. Neither ever comes.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Overdue: 0 → 0`
+
+**Verdict:** Satisfied at the end of the run.
+
+**Explanation:** Triage fires at step 1, then a <Term>deadlock</Term> stops the run. Nothing goes overdue only because nothing happens at all.
+
+</Example>
+
+**Question:** Should an ALWAYS pass on a run that deadlocks at step 1, or only on a full-length run?

@@ -1,0 +1,7 @@
+name: Queue stays short
+metrics:
+  Waiting: count(Queue)
+constraint: always (Waiting <= 5)
+run:
+  seed: 1
+  maxSteps: 200

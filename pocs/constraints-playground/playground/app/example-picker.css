@@ -1,0 +1,275 @@
+/* The trigger centres its label and chevron. */
+.picker__trigger {
+  anchor-name: --example-picker;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  max-width: 32rem;
+  height: var(--control-height);
+  padding: 0 0.7rem 0 0.95rem;
+  border-radius: var(--control-radius);
+  corner-shape: squircle;
+  background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
+  font-size: var(--fs-md);
+  line-height: 1;
+  transition: background-color var(--fast) var(--ease);
+
+  &:hover {
+    background: color-mix(in oklab, var(--paper-2) 94%, var(--ink));
+  }
+}
+
+/* One line: the question, cut with an ellipsis when it does not fit. */
+.picker__label {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.picker__chevron {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin: 0 0.15rem 0 0.1rem;
+  border-right: 1.25px solid var(--ink-2);
+  border-bottom: 1.25px solid var(--ink-2);
+  /* Rotated, the two borders draw a V whose ink sits low in its box: lift it to the centre. */
+  transform: translateY(-0.1rem) rotate(45deg);
+  transition: transform var(--base) var(--ease);
+
+  .picker__trigger:has(+ .picker__list:popover-open) & {
+    transform: translateY(0.1rem) rotate(-135deg);
+  }
+}
+
+/* The list sits under the button, left-aligned to it, and fades in. The head and the footer stay while the rows scroll. */
+.picker__list {
+  position-anchor: --example-picker;
+  inset: auto;
+  top: anchor(bottom);
+  left: anchor(left);
+  width: min(26.25rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 4rem);
+  margin: 0.35rem 0 0;
+  padding: 0;
+  border: 1px solid var(--hair-2);
+  border-radius: 8px;
+  background: #fff;
+  /* A popover takes the system's text colour unless told otherwise. */
+  color: var(--ink);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.12);
+  overflow: hidden;
+  opacity: 0;
+  translate: 0 -0.25rem;
+  transition:
+    opacity var(--fast) var(--ease),
+    translate var(--base) var(--ease),
+    overlay var(--base) allow-discrete,
+    display var(--base) allow-discrete;
+
+  &:popover-open {
+    display: flex;
+    flex-direction: column;
+    opacity: 1;
+    translate: 0 0;
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 -0.25rem;
+    }
+  }
+}
+
+/* The search field over the toggle chip, on a hairline. */
+.picker__head {
+  display: grid;
+  flex: none;
+  gap: 8px;
+  padding: 12px;
+  border-bottom: 1px solid var(--hair-2);
+}
+
+.picker__field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--hair-2);
+  border-radius: 6px;
+  color: var(--ink-3);
+
+  &:focus-within {
+    border-color: var(--accent);
+  }
+}
+
+.picker__search-icon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+}
+
+.picker__search {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: none;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 16px;
+
+  &::placeholder {
+    color: var(--ink-3);
+  }
+}
+
+/* A hairline pill; it fills with the accent wash while the toggle is on. */
+.picker__team {
+  justify-self: start;
+  padding: 4px 10px;
+  border: 1px solid var(--hair-2);
+  border-radius: 12px;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 15px;
+  transition: background-color var(--fast) var(--ease);
+
+  &:hover {
+    background: var(--hair-2);
+  }
+
+  &[aria-pressed="true"] {
+    border-color: var(--accent);
+    background: var(--accent-wash);
+    color: var(--accent-deep);
+  }
+}
+
+/* The rows scroll under a 4px thumb. */
+.picker__rows {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--hair) transparent;
+}
+
+/* A group's title recedes behind its rows: small mono capitals. */
+.picker__group-title {
+  padding: 10px 14px 3px;
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+}
+
+/* Two lines: the rule in mono over the question in grey. */
+.picker__option {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 5px 14px;
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+
+  /* The pointer greys a row and the keyboard washes it in the accent, so the two never look alike. */
+  &:hover {
+    background: var(--hair-2);
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: var(--accent-wash);
+  }
+
+  /* The open example: a lavender fill and a medium rule. */
+  &[aria-selected="true"] {
+    background: var(--row-selected);
+
+    & .picker__rule {
+      font-weight: 500;
+    }
+
+    &:hover {
+      background: var(--hair-2);
+    }
+
+    &:focus-visible {
+      background: var(--accent-wash);
+    }
+  }
+}
+
+.picker__rule,
+.picker__question {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.picker__rule {
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 14px;
+}
+
+/* The sandbox's name is not a rule: the UI font. */
+.picker__rule--named {
+  font-family: var(--sans);
+  font-size: 12px;
+}
+
+.picker__question {
+  color: var(--ink-2);
+  font-size: 11.5px;
+  line-height: 14px;
+}
+
+.picker__match {
+  border-radius: 2px;
+  background: var(--accent-wash);
+  color: inherit;
+}
+
+.picker__empty {
+  padding: var(--s-4) var(--s-2);
+  text-align: center;
+}
+
+/* The net and the story of the row under the pointer, else under the keyboard focus; the height is fixed so the list never jumps. */
+.picker__about {
+  flex: none;
+  height: 5.6rem;
+  padding: 10px 14px;
+  overflow: hidden;
+  border-top: 1px solid var(--hair-2);
+  font-size: 11.5px;
+}
+
+.picker__about-net {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--ink-2);
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.picker__about-text {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}

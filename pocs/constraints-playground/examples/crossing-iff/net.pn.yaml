@@ -1,0 +1,25 @@
+name: crossing
+description: 'A pedestrian crossing. Halt stops the cars and lights the walk sign in one firing. Resume does the reverse.'
+kind: plain
+
+places:
+  CarsGo:
+  CarsStop:
+  Walk:
+
+transitions:
+  Halt:
+    inputs:
+      CarsGo:
+    outputs:
+      CarsStop:
+      Walk:
+  Resume:
+    inputs:
+      CarsStop:
+      Walk:
+    outputs:
+      CarsGo:
+
+marking:
+  CarsGo: 1

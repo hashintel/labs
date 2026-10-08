@@ -1,0 +1,6 @@
+name: The heater settles warm
+metrics: {}
+constraint: eventually (always (count(Warm) == 1))
+run:
+  seed: 1
+  maxSteps: 20

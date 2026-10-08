@@ -1,0 +1,19 @@
+<Context>A shelf starts with 2 items. Each sale takes one; when it is empty, a restock refills it to 3.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Shelf: 2 → 1 → 0 → 3`, `fired(Restock): 0 → 0 → 0 → 1`
+
+**Verdict:** Satisfied at step 3.
+
+**Explanation:** The rule reads states, not firings. `fired(Restock) >= 1` turns the event into a fact about the state: Restock has fired by now.
+
+</Example>
+
+**Question:** Is "has fired at least once" enough, or do we need "just fired"?

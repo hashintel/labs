@@ -1,0 +1,19 @@
+<Context>A press breaks down and is repaired, in turns. The run stops right after a breakdown.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `OpenBreakdowns: 0 → 1 → 0 → … → 1`
+
+**Verdict:** Satisfied at the end of the run.
+
+**Explanation:** The <Term>metric</Term> `OpenBreakdowns` is breakdowns minus repairs. It caps the backlog, but the run ends on a breakdown never repaired. Saying "every breakdown is repaired" needs a <Term>nested</Term> rule.
+
+</Example>
+
+**Question:** Is that rule worth one fixed nested form in the <Term>base</Term>?

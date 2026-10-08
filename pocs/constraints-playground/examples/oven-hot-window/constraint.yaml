@@ -1,0 +1,7 @@
+name: Hot from time 10 to 20
+metrics: {}
+constraint: always [10, 20] (count(Hot) == 1)
+run:
+  seed: 5
+  maxSteps: 200
+  maxTime: 40

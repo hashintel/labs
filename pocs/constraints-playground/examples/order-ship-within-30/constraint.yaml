@@ -1,0 +1,6 @@
+name: Two orders ship within 30 days
+metrics: {}
+constraint: eventually [0, 30] (count(Shipped) >= 2)
+run:
+  seed: 1
+  maxSteps: 200

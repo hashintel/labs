@@ -1,0 +1,6 @@
+name: Short queue when up, longer when down
+metrics: {}
+constraint: always (if count(Up) == 1 then count(Queue) <= 2 else count(Queue) <= 4)
+run:
+  seed: 1
+  maxSteps: 20

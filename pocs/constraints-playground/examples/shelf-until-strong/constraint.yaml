@@ -1,0 +1,6 @@
+name: Shelf ≥ 1 UNTIL a restock, which must come
+metrics: {}
+constraint: count(Shelf) >= 1 until fired(Restock) >= 1
+run:
+  seed: 1
+  maxSteps: 20

@@ -1,0 +1,19 @@
+<Context>A depot has 2 parcels. One is scanned; the other goes to the van without a scan.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `UnscannedInVan: 0 → -1 → 0`
+
+**Verdict:** Satisfied at the end of the run.
+
+**Explanation:** The <Term>metric</Term> `UnscannedInVan` is parcels in the van minus scans. The totals match, so the rule passes, yet the parcel in the van was never scanned. That needs a <Term>per-token</Term> rule.
+
+</Example>
+
+**Question:** Should the language express per-token rules, like one parcel skipping the scanner?

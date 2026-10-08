@@ -1,0 +1,44 @@
+name: pump
+description: 'A pump works while it has fuel. When the fuel runs out it breaks down. A mechanic is called and services it, and the cycle repeats.'
+kind: plain
+
+places:
+  Up:
+  Down:
+  Fuel:
+  Done:
+  Mechanic:
+
+transitions:
+  Work:
+    inputs:
+      Fuel:
+      Up:
+        kind: read
+    outputs:
+      Done:
+  Break:
+    inputs:
+      Up:
+      Fuel:
+        kind: inhibitor
+    outputs:
+      Down:
+  Call:
+    inputs:
+      Down:
+        kind: read
+      Mechanic:
+        kind: inhibitor
+    outputs:
+      Mechanic:
+  Service:
+    inputs:
+      Down:
+      Mechanic:
+    outputs:
+      Up:
+
+marking:
+  Up: 1
+  Fuel: 2

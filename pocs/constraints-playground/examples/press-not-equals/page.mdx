@@ -1,0 +1,19 @@
+<Context>A press breaks down and is repaired, in turns.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** `Down: 0 → 1 → 0 → 1 → …`
+
+**Verdict:** Violated at step 1.
+
+**Explanation:** At step 1 `Down` is 1, so `not (Down == 1)` is false. `Down != 1` is false at the same steps. The run goes on to step 10, but ALWAYS stays failed.
+
+</Example>
+
+**Question:** Does the language need NOT over a comparator, or is `≠` enough?

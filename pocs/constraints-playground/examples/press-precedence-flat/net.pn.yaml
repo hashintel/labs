@@ -1,0 +1,26 @@
+name: press_with_spare
+description: 'A press breaks down and is repaired, in turn. A repair needs a spare part on hand but does not use it up.'
+kind: plain
+
+places:
+  Up:
+  Down:
+  Spares:
+
+transitions:
+  Break:
+    inputs:
+      Up:
+    outputs:
+      Down:
+  Repair:
+    inputs:
+      Down:
+      Spares:
+        kind: read
+    outputs:
+      Up:
+
+marking:
+  Up: 1
+  Spares: 1

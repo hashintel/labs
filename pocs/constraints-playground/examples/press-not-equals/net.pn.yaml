@@ -1,0 +1,22 @@
+name: press
+description: 'A press breaks down and is repaired, in turn, forever.'
+kind: plain
+
+places:
+  Up:
+  Down:
+
+transitions:
+  Break:
+    inputs:
+      Up:
+    outputs:
+      Down:
+  Repair:
+    inputs:
+      Down:
+    outputs:
+      Up:
+
+marking:
+  Up: 1
