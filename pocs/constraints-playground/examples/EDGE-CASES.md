@@ -40,6 +40,7 @@ These settle what a constraint means, or what the language and its scope should 
 | `shelf-until-weak` | `until` | temporal | `count(Shelf) >= 1 weak until fired(Restock) >= 1` | Satisfied | end, step 3 (deadlock) | fits | same run as strong, opposite verdict | Restock never comes. Does WEAK UNTIL pass? | Should WEAK UNTIL pass when the run ends before the goal comes? |
 | `shelf-restock-fired` | `always-eventually` | temporal | `eventually (fired(Restock) >= 1)` | Satisfied | step 3, run goes on to 10 | fits | `fired(T)` as an event surrogate; eventually decided mid-run | How do you say “a restock happened”? | Is "has fired at least once" enough, or do we need "just fired"? |
 | `press-repair-math` | `mtl` | mtl | `G (count(Down) = 1 → F[0,5] (count(Up) = 1))` with `maxTime: 100`, seed 2 | Violated | step 6 | fits | math notation as an alias; a repair takes 5.1 hours | Can the rule be written as G and F? | Does the language need math notation (`G`, `F`, `→`) alongside the words? |
+| `delivery-equals-skip` | `comparators` | atoms | `eventually (count(Stock) == 5)` | Violated | end, step 10 (cut) | fits | `==` on a value the count steps over (0, 2, 4, 6) | Stock only changes in twos, so it can never equal 5. Can Petrinaut lint rules while you edit and flag values the net can never reach? Or is that Zeroth's job? |
 
 ### No open question
 
@@ -50,14 +51,13 @@ These describe a rule and its run. The page ends with no question for the team.
 | `shelf-strict-bound` | `comparators` | atoms | `always (count(Shelf) > 0)` | Violated | step 3 | fits | `> 0` vs `>= 1` on counts: same verdict, margins differ by 1 | Shelf > 0 vs ≥ 1: any difference? |
 | `queue-de-morgan` | `if-iff-not` | logic | `always (not (count(Queue) > 4 or count(Staff) == 0))` | Violated | step 5 | partly | not over a group; half-flip (keep `or`) gives Satisfied | NOT (long queue OR no staff): same as flipping each part? |
 | `stock-contradiction` | `and-or` | logic | `eventually (count(Stock) > 5 and count(Stock) < 3)` | Violated | end, step 8 (deadlock) | fits | unsatisfiable body; with `always` it fails at step 0 | Stock above 5 and below 3: what happens? |
-| `delivery-equals-skip` | `comparators` | atoms | `eventually (count(Stock) == 5)` | Violated | end, step 10 (cut) | fits | `==` on a value the count steps over (0, 2, 4, 6) | Stock comes in twos. Can it ever equal 5? |
 | `shelf-range` | `comparators` | atoms | `always (count(Shelf) >= 2 and count(Shelf) <= 4)` | Violated | step 3 | fits | range as two atoms; strict form fails at step 0 instead | Shelf between 2 and 4: are 2 and 4 allowed? |
 | `press-precedence-bracketed` | `and-or` | logic | `always (count(Up) == 1 and (fired(Repair) < 3 or count(Spares) >= 1))` | Violated | step 1 | fits | same atoms and run as above, opposite verdict | Brackets around the OR: does the verdict flip? |
 | `oven-vacuous-implies` | `if-iff-not` | logic | `always (count(Burnt) >= 1 implies count(Alarm) >= 1)` | Satisfied | end, step 3 (deadlock) | fits | false antecedent at every state; net has no alarm at all | Alarm never needed. Does the rule pass? |
 | `queue-tautology` | `and-or` | logic | `always (count(Waiting) >= 2 or count(Waiting) <= 4)` | Satisfied | end, step 6 (deadlock) | fits | `or` typed for `and`; the intended range fails at step 0 | OR typed instead of AND. Can the rule still fail? |
 | `approval-until-goal-at-start` | `until` | temporal | `count(Draft) >= 1 until count(Approved) >= 1` | Satisfied | step 0 | fits | B at s0 wins although A is false at s0 | Goal already true at step 0. Pass? |
 
-Count per rung: atoms 4, logic 8, temporal 8, limits 6, nested 2, mtl 3. Count per group, across both tables: comparators 5, and-or 4, if-iff-not 5, always-eventually 6, until 4, nested 3, mtl 4. Questions for the team 22, no open question 9.
+Count per rung: atoms 4, logic 8, temporal 8, limits 6, nested 2, mtl 3. Count per group, across both tables: comparators 5, and-or 4, if-iff-not 5, always-eventually 6, until 4, nested 3, mtl 4. Questions for the team 23, no open question 8.
 
 ## Spec ambiguities found
 
