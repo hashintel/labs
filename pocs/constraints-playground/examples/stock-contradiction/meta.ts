@@ -7,7 +7,6 @@ export default {
   question: "Stock above 5 and below 3: what happens?",
   context: "A storeroom starts empty. Items arrive one by one until it holds 8.",
   group: "and-or",
-  teamQuestion: false,
   rung: "logic",
   order: 120,
   listed: true,

@@ -7,7 +7,6 @@ export default {
   question: "No cars stopped, no walk sign. Does IFF pass?",
   context: "At a crossing, one switch stops the cars and lights the walk sign together. Another switch undoes both.",
   group: "if-iff-not",
-  teamQuestion: true,
   rung: "logic",
   order: 90,
   listed: true,

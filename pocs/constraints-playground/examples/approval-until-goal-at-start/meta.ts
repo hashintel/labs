@@ -7,7 +7,6 @@ export default {
   question: "Goal already true at step 0. Pass?",
   context: "A request starts out already approved. Then it is archived.",
   group: "until",
-  teamQuestion: false,
   rung: "temporal",
   order: 170,
   listed: true,

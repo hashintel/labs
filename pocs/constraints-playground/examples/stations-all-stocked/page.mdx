@@ -1,0 +1,19 @@
+<Context>Three stations each hold parts. Each station uses one part at a time.</Context>
+
+**Rule**
+
+<Rule />
+
+**Example**
+
+<Example>
+
+**Run:** seed 1, `StationA: 3 → 3 → 2 → 2`, `StationB: 2 → 1 → 1 → 0`, `StationC: 1 → 1 → 1 → 1`
+
+**Verdict:** Violated at step 3.
+
+**Explanation:** At step 3 `StationB` holds 0, so `count(StationB) >= 1` is false and the whole AND fails. The first station to empty ends the run as Violated, and the seed decides which one and when.
+
+</Example>
+
+**Question:** The rule says the same thing three times, once per station. Should the builder offer one condition over several places, like "all of these ≥ 1", instead of a chain of ANDs?

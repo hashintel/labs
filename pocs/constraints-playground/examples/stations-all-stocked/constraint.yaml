@@ -1,0 +1,6 @@
+name: Every station stocked
+metrics: {}
+constraint: always (count(StationA) >= 1 and count(StationB) >= 1 and count(StationC) >= 1)
+run:
+  seed: 1
+  maxSteps: 20

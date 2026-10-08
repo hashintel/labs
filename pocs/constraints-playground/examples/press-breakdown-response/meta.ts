@@ -7,7 +7,6 @@ export default {
   question: "Run ends mid-breakdown. Is the repair rule broken?",
   context: "A press breaks down and is repaired, in turns. The run stops right after a breakdown.",
   group: "nested",
-  teamQuestion: true,
   rung: "nested",
   order: 290,
   nested: true,

@@ -7,7 +7,6 @@ export default {
   question: "Shelf between 2 and 4: are 2 and 4 allowed?",
   context: "A corner shop shelf starts with 4 items. Each sale takes one.",
   group: "comparators",
-  teamQuestion: false,
   rung: "atoms",
   order: 40,
   listed: true,

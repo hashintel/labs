@@ -7,7 +7,6 @@ export default {
   question: "Two orders within 30 days: from when?",
   context: "Three orders ship one by one, each after a random number of days.",
   group: "mtl",
-  teamQuestion: true,
   rung: "mtl",
   order: 310,
   mtl: true,

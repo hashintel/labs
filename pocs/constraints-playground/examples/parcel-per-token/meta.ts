@@ -7,7 +7,6 @@ export default {
   question: "Totals match, one parcel unscanned. Does the rule catch it?",
   context: "A depot has 2 parcels. One is scanned; the other goes to the van without a scan.",
   group: "always-eventually",
-  teamQuestion: true,
   rung: "limits",
   order: 250,
   listed: true,

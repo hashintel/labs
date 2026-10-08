@@ -7,7 +7,6 @@ export default {
   question: "Queue limit tightens after repair. Does it break?",
   context: "A dough mixer has 1 order waiting. It breaks, 2 more orders arrive, then it is repaired and works through the queue.",
   group: "if-iff-not",
-  teamQuestion: true,
   rung: "logic",
   order: 100,
   listed: true,

@@ -49,8 +49,6 @@ export type ExampleMeta = {
   context: string;
   /** The picker group of the example's main construct. */
   group: Group["id"];
-  /** Whether the example asks the team to settle a question (EDGE-CASES.md, "Questions for the team"). */
-  teamQuestion: boolean;
   rung: Rung["id"];
   /** Where it sits up the ladder: examples sort by it, lowest first. */
   order: number;

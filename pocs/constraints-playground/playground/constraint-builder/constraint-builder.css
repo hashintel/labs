@@ -142,6 +142,11 @@
   font-weight: 600;
 }
 
+/* A chevron next to the number: it opens the metric list. */
+.chip__seg--metric-swap {
+  padding: 0 0.4rem;
+}
+
 .chip__word {
   display: inline-flex;
   align-items: center;

@@ -1,7 +1,5 @@
 name: Van never ahead of the scanner
-metrics:
-  UnscannedInVan: count(Van) - fired(Scan)
-constraint: always (UnscannedInVan <= 0)
+constraint: always (count(Van) <= fired(Scan))
 run:
   seed: 1
   maxSteps: 20

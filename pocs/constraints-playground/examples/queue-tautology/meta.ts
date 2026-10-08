@@ -7,7 +7,6 @@ export default {
   question: "OR typed instead of AND. Can the rule still fail?",
   context: "A waiting room starts empty. People arrive one by one until it holds 6.",
   group: "and-or",
-  teamQuestion: false,
   rung: "logic",
   order: 130,
   listed: true,

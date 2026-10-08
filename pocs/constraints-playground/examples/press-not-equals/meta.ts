@@ -7,7 +7,6 @@ export default {
   question: "NOT (Down = 1) vs Down ≠ 1: any difference?",
   context: "A press breaks down and is repaired, in turns.",
   group: "comparators",
-  teamQuestion: true,
   rung: "atoms",
   order: 50,
   listed: true,

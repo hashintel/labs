@@ -12,9 +12,11 @@ export type AtomSeries = {
   text: string;
   ref: MetricRef;
   op: Comparator;
-  value: number;
+  value: number | MetricRef;
   /** The left side's value at each state. `null` where it could not be computed. */
   lhs: (number | null)[];
+  /** The right side's value at each state, when it is a metric. `null` where it could not be computed. */
+  rhs?: (number | null)[];
   truth: boolean[];
 };
 
@@ -180,6 +182,11 @@ function createReader(
   return { metricAt, refAt };
 }
 
+/** The right side of an atom at one state: the number, or the metric's value (`null` where it cannot be computed). */
+function valueAt(value: number | MetricRef, reader: Reader): number | null {
+  return typeof value === "number" ? value : reader.refAt(value);
+}
+
 /** Truth at one state of a formula with no temporal operator and no hole (base operands). */
 /**
  * The truth of a state formula at one state. `positive` tracks whether the
@@ -193,7 +200,8 @@ function stateTruth(expr: StateExpr, reader: Reader, positive = true): boolean {
   switch (expr.kind) {
     case "atom": {
       const value = reader.refAt(expr.ref);
-      return value === null ? !positive : compare(value, expr.op, expr.value);
+      const bound = valueAt(expr.value, reader);
+      return value === null || bound === null ? !positive : compare(value, expr.op, bound);
     }
     case "bool":
       return expr.value;
@@ -535,13 +543,18 @@ export function evaluate(
       continue;
     }
     const lhs = readers.map((reader) => reader.refAt(atom.ref));
+    const rhs = typeof atom.value === "number" ? undefined : readers.map((reader) => valueAt(atom.value, reader));
     atoms.push({
       text,
       ref: atom.ref,
       op: atom.op,
       value: atom.value,
       lhs,
-      truth: lhs.map((value) => value !== null && compare(value, atom.op, atom.value)),
+      ...(rhs === undefined ? {} : { rhs }),
+      truth: lhs.map((value, at) => {
+        const bound = rhs === undefined ? atom.value : rhs[at];
+        return value !== null && typeof bound === "number" && compare(value, atom.op, bound);
+      }),
     });
   }
 
@@ -738,8 +751,8 @@ export type MarginResult = {
   value: number;
 };
 
-function atomMargin(value: number | null, op: Comparator, bound: number): number {
-  if (value === null) {
+function atomMargin(value: number | null, op: Comparator, bound: number | null): number {
+  if (value === null || bound === null) {
     return -Infinity;
   }
   switch (op) {
@@ -759,7 +772,7 @@ function atomMargin(value: number | null, op: Comparator, bound: number): number
 function stateMargin(expr: StateExpr, reader: Reader): number {
   switch (expr.kind) {
     case "atom":
-      return atomMargin(reader.refAt(expr.ref), expr.op, expr.value);
+      return atomMargin(reader.refAt(expr.ref), expr.op, valueAt(expr.value, reader));
     case "bool":
       return expr.value ? Infinity : -Infinity;
     case "not":
@@ -812,7 +825,7 @@ function robustness(expr: StateExpr, frame: Frame, readers: readonly Reader[], m
     case "atom":
       result = positions.map((position) => {
         const reader = readers[position];
-        return reader === undefined ? -Infinity : atomMargin(reader.refAt(expr.ref), expr.op, expr.value);
+        return reader === undefined ? -Infinity : atomMargin(reader.refAt(expr.ref), expr.op, valueAt(expr.value, reader));
       });
       break;
     case "bool":

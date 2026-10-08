@@ -7,7 +7,6 @@ export default {
   question: "Run gets stuck at once. Does ALWAYS pass?",
   context: "A request is triaged, then waits for a signer or a timer. Neither ever comes.",
   group: "always-eventually",
-  teamQuestion: true,
   rung: "temporal",
   order: 160,
   listed: true,

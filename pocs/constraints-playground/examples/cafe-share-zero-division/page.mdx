@@ -12,8 +12,8 @@
 
 **Verdict:** Violated at step 0.
 
-**Explanation:** The <Term>metric</Term> `ServedShare` is served ÷ (served + turned away). At step 0 that is 0 ÷ 0. Each <Term>atom</Term> that reads it is false there, and the run reports one error.
+**Explanation:** The metric `ServedShare` is served ÷ (served + turned away). At step 0 that is 0 ÷ 0. Each atom that reads it is false there, and the run reports one error.
 
 </Example>
 
-**Question:** Is "false, with one error" the right verdict where a metric has no value?
+**Question:** `ServedShare` needs a division, so it is defined as a metric first. Should the builder only pick named metrics, or let you write the division inside the rule?

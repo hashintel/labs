@@ -3,7 +3,7 @@ import { YAMLException, load } from "js-yaml";
 import { type ParseOptions, parseConstraint } from "./constraint-parser";
 import { parseMetricExpr } from "./metric-parser";
 import { printMetricRef } from "./printer";
-import { constraintAtoms, metricExprRefs } from "./walk";
+import { atomRefs, constraintAtoms, metricExprRefs } from "./walk";
 
 import type { PetriNetIr } from "../compiler/ir/schema";
 import type { ConstraintDocument, MetricRef } from "./ast";
@@ -248,7 +248,7 @@ export function checkReferences(
   for (const metric of doc.metrics) {
     checkRefs(metricExprRefs(metric.expr), `metric ${metric.name}`, lines?.metric[metric.name]);
   }
-  const constraintRefs = constraintAtoms(doc.constraint).map((atom) => atom.ref);
+  const constraintRefs = constraintAtoms(doc.constraint).flatMap(atomRefs);
   checkRefs(constraintRefs, "constraint", lines?.constraint);
 
   const dependencies = (name: string): string[] =>

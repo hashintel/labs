@@ -33,4 +33,4 @@ export { createRandom, simulate } from "./simulate";
 export type { RunResult, RunSettings, RunState, StopReason } from "./simulate";
 export { HOLE_INFO, NOW_WINDOW_PAST_END_INFO, WINDOW_PAST_END_INFO, evaluate, margin, runEndTime } from "./evaluate";
 export type { AtomSeries, EvaluateOptions, Evaluation, MarginResult, MetricSeries, Truth3 } from "./evaluate";
-export { atomText, constraintAtoms } from "./walk";
+export { atomRefs, atomText, constraintAtoms } from "./walk";

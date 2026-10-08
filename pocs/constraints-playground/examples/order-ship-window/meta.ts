@@ -7,7 +7,6 @@ export default {
   question: "Can the run's end at day 30 be a deadline?",
   context: "One order waits to ship after a random number of days. The run stops at day 30.",
   group: "mtl",
-  teamQuestion: true,
   rung: "limits",
   order: 240,
   listed: true,

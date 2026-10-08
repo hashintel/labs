@@ -7,7 +7,6 @@ export default {
   question: "NOT (long queue OR no staff): same as flipping each part?",
   context: "A counter has 2 staff. Customers arrive one by one until 6 are waiting.",
   group: "if-iff-not",
-  teamQuestion: false,
   rung: "logic",
   order: 110,
   listed: true,

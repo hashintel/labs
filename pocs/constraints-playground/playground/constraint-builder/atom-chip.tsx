@@ -19,6 +19,9 @@ type AtomChipProps = {
   onLink?: (on: boolean) => void;
 };
 
+/** The picker value that turns a metric on the right back into a number. */
+const NUMBER_KEY = "number";
+
 const COMPARATOR_GROUPS = [
   { options: COMPARATORS.map((op) => ({ value: op, label: COMPARATOR_SYMBOLS[op], title: COMPARATOR_MEANINGS[op] })) },
 ] as const;
@@ -61,7 +64,31 @@ export const AtomChip: React.FC<AtomChipProps> = ({ atom, names, onChange, onRem
       groups={COMPARATOR_GROUPS}
       onPick={(op) => onChange({ ...atom, op: op as Atom["op"] })}
     />
-    <NumberField value={atom.value} label="Value" onChange={(value) => onChange({ ...atom, value })} />
+    {typeof atom.value === "number" ? (
+      <>
+        <NumberField value={atom.value} label="Value" onChange={(value) => onChange({ ...atom, value })} />
+        <Pick
+          className="chip__seg chip__seg--metric-swap"
+          label="Compare with a metric"
+          text=""
+          title="Compare with a metric instead of a number"
+          value=""
+          groups={subjectGroups(names)}
+          searchable
+          onPick={(key) => onChange({ ...atom, value: parseRefKey(key) })}
+        />
+      </>
+    ) : (
+      <Pick
+        className="chip__seg chip__seg--subject"
+        label="Value"
+        text={refText(atom.value)}
+        value={refKey(atom.value)}
+        groups={[{ options: [{ value: NUMBER_KEY, label: "Number" }] }, ...subjectGroups(names, atom.value)]}
+        searchable
+        onPick={(key) => onChange({ ...atom, value: key === NUMBER_KEY ? 0 : parseRefKey(key) })}
+      />
+    )}
     <button type="button" className="chip__remove" aria-label="Remove condition" onClick={onRemove} />
   </span>
 );

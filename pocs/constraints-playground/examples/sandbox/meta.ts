@@ -7,7 +7,6 @@ export default {
   question: "What rule do you want to test?",
   context: "A small factory: orders arrive, a machine processes them, it breaks and gets repaired, stock gets restocked.",
   group: "sandbox",
-  teamQuestion: false,
   rung: "sandbox",
   order: 0,
   listed: true,

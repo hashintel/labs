@@ -7,7 +7,6 @@ export default {
   question: "Run cut before the dough is done. Fail?",
   context: "12 balls of dough are proofing. One rises at each step.",
   group: "always-eventually",
-  teamQuestion: true,
   rung: "temporal",
   order: 210,
   listed: true,

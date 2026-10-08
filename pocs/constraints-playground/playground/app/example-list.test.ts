@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { EXAMPLES, GROUPS } from "../../examples/catalog";
-import { builderWords, filterRows, groupRows, highlight, rowOf, ruleOf, shownExamples, teamQuestionCount } from "./example-list";
+import { PRESSING } from "../../examples/pressing";
+import { PRESSING_IDS, builderWords, collapseRows, filterRows, groupRows, highlight, rowOf, ruleOf, shownExamples } from "./example-list";
 
 import type { Row } from "./example-list";
 
@@ -80,7 +81,7 @@ describe("filterRows", () => {
     // GIVEN the rows
     const rows = rowsOf(true, true);
     // WHEN the query is blank
-    const found = filterRows(rows, "  ", false);
+    const found = filterRows(rows, "  ");
     // THEN nothing is dropped
     expect(found).toHaveLength(rows.length);
   });
@@ -90,9 +91,9 @@ describe("filterRows", () => {
     const rows = rowsOf(true, true);
     const example = rows.find((row) => row.rule.includes("UNTIL"))?.example;
     // WHEN the query is a keyword, the question in capitals, and the title in capitals
-    const byRule = filterRows(rows, "until", false);
-    const byQuestion = filterRows(rows, (example?.question ?? "").toUpperCase(), false);
-    const byTitle = filterRows(rows, (example?.title ?? "").toUpperCase(), false);
+    const byRule = filterRows(rows, "until");
+    const byQuestion = filterRows(rows, (example?.question ?? "").toUpperCase());
+    const byTitle = filterRows(rows, (example?.title ?? "").toUpperCase());
     // THEN each finds the example
     expect(byRule.some((row) => row.example.id === example?.id)).toBe(true);
     expect(byQuestion.some((row) => row.example.id === example?.id)).toBe(true);
@@ -102,20 +103,51 @@ describe("filterRows", () => {
   it("finds nothing for a query that matches no row, so no group is left", () => {
     // GIVEN the rows
     // WHEN the query matches nothing
-    const found = filterRows(rowsOf(true, true), "zzzz-no-such-rule", false);
+    const found = filterRows(rowsOf(true, true), "zzzz-no-such-rule");
     // THEN no row is left, so no group is either
     expect(found).toEqual([]);
     expect(groupRows(found)).toEqual([]);
   });
+});
 
-  it("keeps only the team questions when the toggle is on", () => {
-    // GIVEN the rows with both flags on
+describe("collapseRows", () => {
+  const idsOf = (groups: { rows: Row[] }[]) => groups.flatMap((group) => group.rows.map((row) => row.example.id));
+  const collapsedFor = (mtl: boolean, nested: boolean) =>
+    collapseRows(groupRows(rowsOf(mtl, nested)), PRESSING_IDS);
+  /** The ids in the full list's order, so a test checks the normal order too. */
+  const inOrder = (mtl: boolean, nested: boolean, wanted: string[]) =>
+    idsOf(groupRows(rowsOf(mtl, nested))).filter((id) => id === "sandbox" || wanted.includes(id));
+
+  it("shows the sandbox and exactly the 4 pressing ids, in the normal order, in every flag state", () => {
+    // GIVEN each flag state
+    for (const [mtl, nested] of [[false, false], [false, true], [true, false], [true, true]] as const) {
+      // WHEN the list is collapsed
+      const collapsed = collapsedFor(mtl, nested);
+      // THEN the sandbox comes first, then the 4 ids in the full list's order, with no empty group
+      expect(idsOf(collapsed)).toEqual(inOrder(mtl, nested, [...PRESSING]));
+      expect(idsOf(collapsed)[0]).toBe("sandbox");
+      expect(idsOf(collapsed)).toHaveLength(5);
+      expect(collapsed.every((group) => group.rows.length > 0)).toBe(true);
+    }
+  });
+
+  it("is not applied to the expanded list, which keeps every group and row", () => {
+    // GIVEN the grouped rows with both flags on
+    const groups = groupRows(rowsOf(true, true));
+    // WHEN the list is expanded, as the picker does by skipping the collapse
+    // THEN it holds every row, more than the collapsed list
+    expect(idsOf(groups)).toHaveLength(rowsOf(true, true).length);
+    expect(idsOf(groups).length).toBeGreaterThan(idsOf(collapsedFor(true, true)).length);
+  });
+
+  it("is not applied to search results, which keep every match", () => {
+    // GIVEN the rows with both flags on and a query that matches rows the collapsed list hides
     const rows = rowsOf(true, true);
-    // WHEN the toggle is on
-    const found = filterRows(rows, "", true);
-    // THEN every row left is a team question and the count agrees
-    expect(found.every((row) => row.example.teamQuestion)).toBe(true);
-    expect(found).toHaveLength(teamQuestionCount(rows.map((row) => row.example)));
+    // WHEN they are searched and grouped, as the picker does while the box has text
+    const found = groupRows(filterRows(rows, "always"));
+    // THEN every match is there, including hidden ones
+    expect(idsOf(found)).toEqual(filterRows(rows, "always").map((row) => row.example.id));
+    expect(idsOf(found).some((id) => id !== "sandbox" && !PRESSING_IDS.has(id))).toBe(true);
   });
 });
 

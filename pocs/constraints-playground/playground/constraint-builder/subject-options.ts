@@ -44,16 +44,18 @@ export function refText(ref: MetricRef): string {
  * transitions. A subject the net no longer names stays in its group, so the chip
  * keeps showing what the text says.
  */
-export function subjectGroups(names: Names, current: MetricRef): PickGroup[] {
+export function subjectGroups(names: Names, current?: MetricRef): PickGroup[] {
   const refs: MetricRef[][] = [
     names.metrics.map((name) => ({ kind: "metric", name })),
     names.places.map((place) => ({ kind: "count", place })),
     names.transitions.map((transition) => ({ kind: "fired", transition })),
   ];
   const order = ["metric", "count", "fired"];
-  const at = order.indexOf(current.kind);
-  if (!refs[at]?.some((ref) => refKey(ref) === refKey(current))) {
-    refs[at]?.unshift(current);
+  if (current !== undefined) {
+    const at = order.indexOf(current.kind);
+    if (!refs[at]?.some((ref) => refKey(ref) === refKey(current))) {
+      refs[at]?.unshift(current);
+    }
   }
   return [
     { title: "Metrics", options: refs[0] ?? [] },

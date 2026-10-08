@@ -7,7 +7,6 @@ export default {
   question: "Heater warm at the end. Has it settled?",
   context: "A heater warms a room. A draft cools it twice, then dies down.",
   group: "nested",
-  teamQuestion: true,
   rung: "nested",
   order: 300,
   nested: true,

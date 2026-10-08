@@ -1,4 +1,4 @@
-import { atomText, constraintAtoms, metricExprRefs } from "../../constraints/walk";
+import { atomRefs, atomText, constraintAtoms, metricExprRefs } from "../../constraints/walk";
 
 import type { AtomExpr } from "../../constraints/walk";
 import type { Comparator, Constraint, ConstraintDocument, MetricRef } from "../../constraints/ast";
@@ -45,10 +45,12 @@ function readsOf(ref: MetricRef, metrics: ConstraintDocument["metrics"], seen: S
 }
 
 /** The places and transitions the conditions read, resolving a metric through its definition to its `count()` and `fired()` references. */
-export function conditionReads(conditions: readonly Pick<AtomExpr, "ref">[], metrics: ConstraintDocument["metrics"]): NetReads {
+export function conditionReads(conditions: readonly Pick<AtomExpr, "ref" | "value">[], metrics: ConstraintDocument["metrics"]): NetReads {
   const into: NetReads = { places: [], transitions: [] };
   for (const condition of conditions) {
-    readsOf(condition.ref, metrics, new Set(), into);
+    for (const ref of atomRefs(condition)) {
+      readsOf(ref, metrics, new Set(), into);
+    }
   }
   return { places: [...new Set(into.places)], transitions: [...new Set(into.transitions)] };
 }
@@ -109,7 +111,7 @@ const COMPARATOR_PATTERNS: Readonly<Record<Comparator, string>> = {
  */
 export function conditionRanges(text: string, condition: Condition): TextRange[] {
   const pattern = new RegExp(
-    `(?<![\\w.])${refPattern(condition.ref)}\\s*(?:${COMPARATOR_PATTERNS[condition.op]})\\s*${escapeRegExp(String(condition.value))}(?![\\w.])`,
+    `(?<![\\w.])${refPattern(condition.ref)}\\s*(?:${COMPARATOR_PATTERNS[condition.op]})\\s*${typeof condition.value === "number" ? escapeRegExp(String(condition.value)) : refPattern(condition.value)}(?![\\w.])`,
     "gu",
   );
   return text.split("\n").flatMap((line, at) =>

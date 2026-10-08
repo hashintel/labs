@@ -7,7 +7,6 @@ export default {
   question: "Does stock last until the first restock?",
   context: "A machine uses items from a stock of 2. Restocks arrive at random, more slowly than it uses them.",
   group: "until",
-  teamQuestion: false,
   rung: "temporal",
   order: 140,
   listed: true,

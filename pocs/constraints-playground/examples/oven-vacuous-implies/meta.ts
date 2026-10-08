@@ -7,7 +7,6 @@ export default {
   question: "Alarm never needed. Does the rule pass?",
   context: "An oven bakes 3 loaves. It never overheats, so nothing burns, and it has no alarm at all.",
   group: "if-iff-not",
-  teamQuestion: false,
   rung: "logic",
   order: 80,
   listed: true,

@@ -63,6 +63,24 @@ describe("ConstraintBuilder", () => {
     expect(sentences[4]).toContain("NOT Waiting ≤ 5 + Add");
   });
 
+  it("reads a metric on the right side as a metric chip, and a number as a plain field", () => {
+    // GIVEN one condition that compares two references and one that compares with a number
+    const against: StateExpr = { kind: "atom", ref: { kind: "count", place: "Queue" }, op: ">=", value: { kind: "fired", transition: "Serve" } };
+    const metric = renderToStaticMarkup(
+      <ConstraintBuilder value={{ op: "always", body: against }} metrics={["Waiting"]} places={["Queue"]} transitions={["Serve"]} mtl nested onChange={() => {}} />,
+    );
+    const number = renderToStaticMarkup(
+      <ConstraintBuilder value={{ op: "always", body: queue }} metrics={["Waiting"]} places={["Queue"]} transitions={["Serve"]} mtl nested onChange={() => {}} />,
+    );
+    // WHEN each renders
+    // THEN the reference reads as a picker chip named Value and the number as a number field
+    expect(reading({ op: "always", body: against })).toContain("count(Queue) ≥ fired(Serve) + Condition");
+    expect(metric).toContain('aria-label="Value: fired(Serve)"');
+    expect(metric).not.toContain("chip__input");
+    expect(number).toContain("chip__input");
+    expect(number).toContain('aria-label="Compare with a metric: "');
+  });
+
   it("shows a hole as a dashed chip that asks for a condition, with no add row of its own", () => {
     // GIVEN an until whose goal is a hole
     // WHEN it renders

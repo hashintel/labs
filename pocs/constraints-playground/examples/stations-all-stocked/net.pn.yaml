@@ -1,0 +1,31 @@
+name: three_stations
+description: 'Three stations hold 3, 2 and 1 parts. Each use takes one part from its own station.'
+kind: plain
+
+places:
+  StationA:
+  StationB:
+  StationC:
+  Used:
+
+transitions:
+  UseA:
+    inputs:
+      StationA:
+    outputs:
+      Used:
+  UseB:
+    inputs:
+      StationB:
+    outputs:
+      Used:
+  UseC:
+    inputs:
+      StationC:
+    outputs:
+      Used:
+
+marking:
+  StationA: 3
+  StationB: 2
+  StationC: 1

@@ -197,7 +197,7 @@ export function summarise(doc: ConstraintDocument, evaluation: Evaluation, lastS
 export function thresholdsOf(doc: ConstraintDocument, metric: string): number[] {
   const values = constraintAtoms(doc.constraint)
     .filter((atom) => atom.ref.kind === "metric" && atom.ref.name === metric)
-    .map((atom) => atom.value);
+    .flatMap((atom) => (typeof atom.value === "number" ? [atom.value] : []));
   return [...new Set(values)];
 }
 

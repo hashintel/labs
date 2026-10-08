@@ -7,7 +7,6 @@ export default {
   question: "Two signals land one at a time. Does IFF break?",
   context: "At a crossing, one switch sends two signals: stop the cars, light the walk sign. Each signal lands on its own.",
   group: "if-iff-not",
-  teamQuestion: true,
   rung: "limits",
   order: 260,
   listed: true,

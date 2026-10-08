@@ -7,7 +7,6 @@ export default {
   question: "Run stops before approval. Fail?",
   context: "A request is triaged, then waits for a signer or a timer. Neither ever comes.",
   group: "always-eventually",
-  teamQuestion: true,
   rung: "temporal",
   order: 150,
   listed: true,

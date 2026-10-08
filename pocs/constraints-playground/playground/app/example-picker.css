@@ -85,7 +85,14 @@
   }
 }
 
-/* The search field over the toggle chip, on a hairline. */
+/* On a narrow screen the list starts at the left gutter, so its width fits inside the viewport. */
+@media (max-width: 34rem) {
+  .picker__list {
+    left: 1rem;
+  }
+}
+
+/* The search field, on a hairline. */
 .picker__head {
   display: grid;
   flex: none;
@@ -130,37 +137,32 @@
   }
 }
 
-/* A hairline pill; it fills with the accent wash while the toggle is on. */
-.picker__team {
-  justify-self: start;
-  padding: 4px 10px;
-  border: 1px solid var(--hair-2);
-  border-radius: 12px;
-  color: var(--ink);
-  font-size: 12px;
-  font-weight: 500;
-  line-height: 15px;
-  transition: background-color var(--fast) var(--ease);
-
-  &:hover {
-    background: var(--hair-2);
-  }
-
-  &[aria-pressed="true"] {
-    border-color: var(--accent);
-    background: var(--accent-wash);
-    color: var(--accent-deep);
-  }
-}
-
-/* The rows scroll under a 4px thumb. */
-.picker__rows {
+/* The rows scroll together under a 4px thumb. */
+.picker__scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   padding-bottom: 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--hair) transparent;
+}
+
+/* A plain text button under the list: "Show more" and "Show less". */
+.picker__more {
+  padding: 5px 14px;
+  color: var(--accent-deep);
+  font-size: 12px;
+  line-height: 15px;
+  text-align: left;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+/* While the list is expanded, the collapsed set's rows carry an amber tint. */
+.picker__option[data-pressing] {
+  background: var(--amber-wash);
 }
 
 /* A group's title recedes behind its rows: small mono capitals. */
@@ -250,6 +252,7 @@
 .picker__about {
   flex: none;
   height: 5.6rem;
+  margin: 0;
   padding: 10px 14px;
   overflow: hidden;
   border-top: 1px solid var(--hair-2);

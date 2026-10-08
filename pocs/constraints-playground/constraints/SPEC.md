@@ -9,7 +9,7 @@ Forked from `pocs/zeroth-playground` (labs#167). Kept: the Petri net IR, its par
 ## Layers
 
 1. **Metric**: a number read off one state. Defined once, by name, then referenced.
-2. **Atom**: `metric comparator value`. The value is a number.
+2. **Atom**: `metric comparator value`. The value is a number or a metric reference (`count(P)`, `fired(T)` or a metric name); no arithmetic on either side.
 3. **State constraint**: atoms joined with `and`, `or`, `not`, `implies`, `iff`, `if … then … else`, and brackets. It is true or false at one state.
 4. **Constraint**: one temporal operator around the state constraint(s): `always (S)`, `eventually (S)`, `A until B`, `A weak until B`. Outside v1: operators nested anywhere, a window on any operator, and no operator at all (`now`).
 
@@ -33,7 +33,7 @@ factor  := number | "count(" Place ")" | "fired(" Transition ")" | MetricName | 
 - `fired(T)`: how many times `T` has fired from the start of the run up to this state.
 - A metric may reference earlier metrics. A cycle is an error.
 - Division by zero gives an error diagnostic at evaluation, not NaN. Atoms that read the metric are false at that state.
-- `count(P)` and `fired(T)` may also appear directly in an atom (`count(Queue) > 3`). Token count is just a metric (team call, 2026-10-06). Arithmetic may not appear in an atom: define a metric for it. This is the middle ground between "define metrics first" and inline metrics, both raised on the team call. Open question O3.
+- `count(P)` and `fired(T)` may also appear directly in an atom (`count(Queue) > 3`). Token count is just a metric (team call, 2026-10-06). Either side of an atom may be one of these references (`count(A) >= count(B)`, working assumption). Arithmetic may not appear in an atom, on either side: define a metric for it (`count(A) >= count(B) + 2` is an error). This is the middle ground between "define metrics first" and inline metrics, both raised on the team call.
 
 ## Constraint grammar
 
@@ -79,13 +79,13 @@ temporal := ("always" | "eventually") window? "(" formula ")"
           | ("G" | "F") window? unary                         # math: binds like not
 primary  := atom | "true" | "false" | "_" | "(" formula ")"
 window   := "[" number "," number "]"                         # from <= to, from >= 0
-atom     := ref comparator number
+atom     := ref comparator (number | ref)
 ref      := MetricName | "count(" Place ")" | "fired(" Transition ")"
 comparator := "<" | "<=" | ">" | ">=" | "==" | "!="
 untilOp  := "until" | "weak" "until" | "weak_until" | "U" | "W"
 ```
 
-- **The top.** The formula's top node decides the constraint's `op`: `always`, `eventually`, `until` or `weak-until` (with its window, if any). Any other top node, such as an atom or an `and` of two calls, is a `now` constraint: checked at the first state (O5). `parse(print(x))` gives `x` back. A `now` whose formula is a single temporal call prints as that call and reads back as that operator, which means the same.
+- **The top.** The formula's top node decides the constraint's `op`: `always`, `eventually`, `until` or `weak-until` (with its window, if any). Any other top node, such as an atom or an `and` of two calls, is a `now` constraint: checked at the first state, flagged (working assumption, below). `parse(print(x))` gives `x` back. A `now` whose formula is a single temporal call prints as that call and reads back as that operator, which means the same.
 - **Holes.** `_` (or `□`) is an unfilled slot. It parses to `{ kind: "hole" }`, so a half-built builder state round-trips through text. A constraint with a hole gets no verdict.
 - Precedence, tightest first: `not` (and `G`, `F`), `and`, `or`, `implies`, `iff`, infix `until`. `if/then/else` takes the rest of the expression in each branch, so the builder brackets its branches. A bracketed temporal call is a primary.
 - **Mixed `and`/`or` without brackets** parses by precedence but gives a warning. The printer always adds brackets when `and` and `or` mix.
@@ -149,7 +149,7 @@ Builder words for comparators: `<` is below, `<=` is at most, `>` is above, `>=`
 - Read arcs test, inhibitor arcs test for fewer than the weight, capacities block a firing that would exceed them.
 - Each state stores: step index, time, marking, cumulative firings per transition, and the transition that fired into it.
 
-This is interleaving: one firing per state. The Zeroth compiler playground fires every enabled transition once per step. Which one Zeroth means by "a state" is open question O1.
+This is interleaving: one firing per state. The Zeroth compiler playground fires every enabled transition once per step. Which one Zeroth means by "a state" is not settled.
 
 ## Verdicts (online, on the run so far)
 
@@ -165,7 +165,7 @@ At each state `k` a constraint is **Satisfied**, **Violated** or **Pending**. On
 | `weak_until(A, B)` | as `until` | as `until` | as `until` | **Satisfied** (A held throughout) |
 
 - B is checked before A at each state: if B is true at `s0`, `until(A, B)` is satisfied at once, whatever A is.
-- The verdict at the end depends on where the run stopped. A run that is cut at 200 steps says nothing about step 201. This is O2.
+- The verdict at the end depends on where the run stopped. A run that is cut at 200 steps says nothing about step 201.
 
 ## Nested operators and windows (outside v1, provisional)
 
@@ -214,11 +214,12 @@ A constraint with a hole has no verdict: `incomplete` is true, `verdicts` is emp
 
 `evaluate(doc, states, { stopReason })` returns, beside the v1 fields: `incomplete`, `check` (`online` for v1, `monitor` for nested, windowed and `now`, `none` for a hole), `formulaTruth` (the formula's three-valued value at every state, for `monitor`) and `endTime`. Pass the run's stop reason, so the last state of a run stopped at `maxTime` holds until `maxTime`.
 
-## Decided 2026-10-08 (provisional)
+## Working assumptions (not confirmed by the team)
 
-Settles the gaps listed in `examples/EDGE-CASES.md`. Provisional until the team agrees.
+Set on 2026-10-08. They settle the gaps listed in `examples/EDGE-CASES.md`, and the questions that are easy to reverse. The team has not confirmed them. Where an item matches the 2026-10-06 call or the team's constraint definition doc (Notion, 2026-10-07), it says so. Each carries its alternative; change one when the build shows it wrong.
 
-- **A metric that cannot be computed** (such as 0/0) makes every atom that reads it false at that state, even under `not`, and gives one error diagnostic for the run. The run goes on.
+- **A right side that is a metric** is read at the same state as the left. `count(A) >= count(B)` compares the two values there; the printers write it back as written.
+- **A metric that cannot be computed** (such as 0/0), on either side of an atom, makes every atom that reads it false at that state, even under `not`, and gives one error diagnostic for the run. The run goes on.
 - **`maxSteps` counts firings.** A run has at most `maxSteps + 1` states, `s0` to `s_maxSteps`.
 - **`fired(T)` at state `k`** counts the firings up to and including the one into state `k`.
 - **Plain firings take no time.** `maxTime` applies only to stochastic firings: a firing whose time would pass `maxTime` does not happen, and the run stops with `max-time`.
@@ -228,17 +229,27 @@ Settles the gaps listed in `examples/EDGE-CASES.md`. Provisional until the team 
 - **Dangling else** binds to the nearest `if`.
 - **Chained `iff`** (`A iff B iff C`) is an error: "Bracket a chain of iff".
 - **Word style is canonical** for temporal operators and logic; function style and the math notation are read as aliases. A single `=` reads as `==`, and `!` as `not`.
-- **No operator at the top** is a `now` constraint, checked at `s0`, flagged outside v1 (O5).
-- **Nesting and windows** are read, run and flagged outside v1, with the semantics in "Nested operators and windows" (O7).
+- **No operator at the top** is a `now` constraint, checked at `s0`, flagged outside v1 (`queue-start-only`). Alternative: an error.
+- **Nesting and windows** are read, run and flagged outside v1, with the semantics in "Nested operators and windows" (working assumption: v1 is one operator at the top, below).
 - **A state that lasts no time** is seen at its instant by a window. The literal half-open reading would hide it, and on a plain net it would hide every state but the last.
 - **A window past the end of the run** is unknown; the top operator's end-of-run rule decides. A deadlocked run is treated the same, although its last marking would never change. Open: read a deadlock as lasting forever?
 - **`weak_until[a, b](A, B)`** is `until[a, b](A, B)` or A throughout `[0, b]`.
+- **IFF stays** (`crossing-iff`). Alternative: two IF rules. Matches the team's constraint definition doc (Notion, 2026-10-07), which lists IFF.
+- **`if … then … else` stays** (`mixer-if-then-else`). Alternative: two implications. Matches the team's constraint definition doc (Notion, 2026-10-07), which lists IF/THEN/ELSE.
+- **The builder offers no NOT** (`press-not-equals`). Matches the 2026-10-06 call and the team's constraint definition doc (Notion, 2026-10-07), which lists OR, AND, IF, IFF and IF/THEN/ELSE as combinators and has no NOT, so flipped comparators such as `≠` cover it. NOT stays in the text grammar and prints as written. Alternative: a NOT block in the builder.
+- **Math notation is an alias** (`G`, `F`, `→`), and word style is canonical (`press-repair-math`). The team's constraint definition doc (Notion, 2026-10-07) writes symbols beside the words (∨ ∧ → ↔ U W), which supports it. Alternative: word style only.
+- **The word UNTIL stays** (`pump-until-too-late`). Alternative: "before". Matches the team's constraint definition doc (Notion, 2026-10-07), which uses it.
+- **Mixed AND and OR without brackets** reads `(A and B) or C`, with the existing warning (`press-precedence-flat`). Alternative: an error.
+- **A metric with no value** makes its atoms false, with one error (`cafe-share-zero-division`). Set above.
+- **In v1 the builder's UNTIL means WEAK UNTIL** (`shelf-until-strong`, `shelf-until-weak`). Matches the 2026-10-06 call and the team's constraint definition doc (Notion, 2026-10-07), which says v1 does not need strong until at first. Strong UNTIL comes later. Alternative: UNTIL stays strong, as the playground reads it today. The evaluator and parser are unchanged. **Open follow-up:** the playground's `until` keyword is strong today; the doc's UNTIL is weak. Align the builder's UNTIL with weak until: awaiting the user's go-ahead.
+- **v1 is one temporal operator at the top** (`press-breakdown-repaired`). Matches the 2026-10-06 call and the team's constraint definition doc (Notion, 2026-10-07): v1 is one temporal operator over a combination of atoms. "Every X is followed by Y" (nested) waits; revisit when users ask for it. Adding a nested form later is additive. Alternative: one fixed nested form in v1.
+- **"Has fired at least once"** (`fired(T) >= 1`) is enough for v1 (`shelf-restock-fired`). Alternative: add "just fired".
 
 ## Margins (stretch, provisional)
 
-How far a constraint is from flipping. Not agreed by the team; shown as provisional if built.
+How far a constraint is from flipping. Not agreed by the team; shown as provisional if built. Not in scope until the margin is shown in the UI (see "Not in scope yet").
 
-- Atom: `x >= c` and `x > c` give `x - c`; `x <= c` and `x < c` give `c - x`; `x == c` gives `-|x - c|`; `x != c` gives `|x - c|`. Strict comparators at margin 0 are false, so the sign alone does not give the verdict there.
+- Atom: `c` is the number, or the right-side reference read at that state. `x >= c` and `x > c` give `x - c`; `x <= c` and `x < c` give `c - x`; `x == c` gives `-|x - c|`; `x != c` gives `|x - c|`. Strict comparators at margin 0 are false, so the sign alone does not give the verdict there.
 - `and` min, `or` max, `not` negate, `implies` max(-a, b).
 - `always` min over states, `eventually` max over states, `until` max over k of min(B(k), min over j<k of A(j)), `weak_until` the larger of `until` and min over all states of A.
 - `iff` is both implications, `if/then/else` its two implications.
@@ -284,17 +295,23 @@ Rungs: `atoms` (one metric, one comparator), `logic` (and, or, not, implies, iff
 
 Time windows are MTL, a layer on top of LTL. The parser reads a window only with the `mtl` option (`parseConstraint(text, { mtl: true })`); without it a window is the error "Time windows need MTL. Turn on MTL at the top." at the window's column. The playground's header has the MTL checkbox, and `#<id>?mtl=1` opens with it on.
 
-## Open questions (for the team)
+## Questions for the team
 
-- **O1. What is one state?** One firing (interleaving, as here) or one step that fires every enabled transition (the Zeroth compiler playground)? `always` reads differently under each.
-- **O2. Where does a run end?** Verdicts at the end depend on it: `eventually` fails on a run cut short.
-- **O3. Metrics first, or inline?** Here: named metrics and `count`/`fired` inline, arithmetic only in a named metric.
-- **O4. NOT.** The grammar has `not`. The builder offers flipped comparators instead (`is not`, `is at most`) and shows a parsed `not` as a group. Keep `not` in the builder?
-- **O5. No temporal operator.** Error, or "true in the first state"? The playground reads it as `now`, at the first state, flagged (`queue-start-only`).
-- **O6. `if … then … else`.** In the team's constraint definition doc. Keep it, or write it as two implications?
-- **O7. Nesting temporal operators.** `always(A implies eventually(B))`, the most common rule ("every X is followed by Y"), is not expressible in v1. The playground runs it, flagged (`press-breakdown-response`).
-- **O9. Windows.** The window semantics above (continuous time, states seen at their instant, unknown past the end) is a proposal. Do windows belong in the next version, and from which point does a window start: the state it is read at, or an event?
-- **O10. Notation.** Word style is canonical; Logic notation writes `G`, `F`, `U`. Show both side by side?
-- **O8. Margins.** Formula above, strict comparators at 0, and whether a margin is shown at all.
+Four builder questions, each on one example page. `examples/pressing.ts` lists them for the picker's short list. "Asking the team" in [AGENTS.md](../AGENTS.md) sets what may go here.
+
+1. **Define a metric first, or write the division in the rule?** `cafe-share-zero-division`
+2. **Flag a rule that can never be true while the user edits, or only after a run?** `stock-contradiction`
+3. **One condition over several places ("all of these >= 1"), or a chain of ANDs?** `stations-all-stocked`
+4. **Is "has fired at least once" enough, or does the builder need a "just fired" event as a subject?** `shelf-restock-fired`
+
+## Not in scope yet
+
+Each waits for its trigger. None is a question for the team.
+
+- **How time windows read**: from which point a window starts, and whether a state that begins before it counts (`order-ship-within-30`, `oven-hot-window`, `order-ship-window`). Trigger: MTL comes into scope.
+- **Rules about each token** (`parcel-per-token`): the doc's colour atoms ("all tokens / some token [dimension]"), which the 2026-10-06 call put outside v1, as it did quantifiers. Trigger: colours or quantifiers come into scope.
+- **Warnings while you edit** (`delivery-equals-skip`): flagging a value the net can never reach is an editor feature, not language scope. Trigger: the editor gets lint or warnings.
+- **Margins**, including margins for `iff` and `if/then/else` (spec ambiguity 10 in `examples/EDGE-CASES.md`). Trigger: the margin is shown in the UI.
+- **Plain and stochastic transitions in one net** (the rest of spec ambiguity 11): whether a stochastic transition may wait behind enabled plain ones. Trigger: mixed plain and stochastic nets are in scope.
 
 Nested operators are full LTL, a second layer. The parser reads a temporal operator below the top one, or inside a condition, only with the `nested` option (`parseConstraint(text, { nested: true })`); without it the error is "Nested operators need full LTL. Turn on Nested operators at the top." at the inner operator's column. The two options combine as `{ mtl, nested }` (`ConstraintFlags`). The playground's header has the Nested operators checkbox, and `#<id>?nested=1` opens with it on; `?nested=1&mtl=1` turns both on.

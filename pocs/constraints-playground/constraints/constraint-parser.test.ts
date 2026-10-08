@@ -341,13 +341,51 @@ describe("parseConstraint: errors", () => {
     expect(diagnostics[0]?.column).toBe(15);
   });
 
-  it("rejects a non-number bound", () => {
-    // GIVEN a metric on the right side
+  it("rejects a right side that is neither a number nor a metric", () => {
+    // GIVEN a bracket on the right side
     // WHEN it is parsed
-    const { diagnostics } = parseConstraint("always A > B");
+    const { diagnostics } = parseConstraint("always A > (B)");
 
-    // THEN the error asks for a number
-    expect(diagnostics[0]?.message).toBe('Expected a number but found "B"');
+    // THEN the error asks for a number or a metric
+    expect(diagnostics[0]?.message).toBe('Expected a number or a metric but found "("');
+  });
+
+  it("reads a metric, count or fired reference on the right side", () => {
+    // GIVEN comparisons whose right side names a metric, a place and a transition
+    // WHEN they are parsed
+    const metric = body("A >= B");
+    const place = body("count(PlaceA) >= count(PlaceB)");
+    const fired = body("count(Van) <= fired(Scan)");
+
+    // THEN each atom keeps the reference as its value
+    expect(metric).toEqual({ kind: "atom", ref: { kind: "metric", name: "A" }, op: ">=", value: { kind: "metric", name: "B" } });
+    expect(place).toEqual({
+      kind: "atom",
+      ref: { kind: "count", place: "PlaceA" },
+      op: ">=",
+      value: { kind: "count", place: "PlaceB" },
+    });
+    expect(fired).toEqual({
+      kind: "atom",
+      ref: { kind: "count", place: "Van" },
+      op: "<=",
+      value: { kind: "fired", transition: "Scan" },
+    });
+  });
+
+  it("rejects arithmetic after a reference on the right side", () => {
+    // GIVEN a sum on the right of a comparator
+    // WHEN it is parsed
+    const { diagnostics } = parseConstraint("always count(A) >= count(B) + 2");
+
+    // THEN the error says to define a metric, at the plus
+    expect(diagnostics).toEqual([
+      {
+        severity: "error",
+        message: "Arithmetic is not allowed in a constraint. Define a metric for it",
+        column: 29,
+      },
+    ]);
   });
 
   it("reads a single equals sign as ==", () => {

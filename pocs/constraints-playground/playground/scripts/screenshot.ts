@@ -22,6 +22,8 @@ try {
   await tab.goto(page);
   // The picker lists the examples up the ladder; each one opens from its hash on a fresh load.
   await tab.click(".picker__trigger");
+  // The collapsed list shows only the sandbox and the pressing rows; "Show more" lists every example.
+  await tab.getByRole("button", { name: "Show more" }).click();
   const ids = await tab.$$eval('.picker__list [role="option"]', (options) =>
     options.map((option) => option.getAttribute("data-example") ?? ""),
   );

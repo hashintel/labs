@@ -189,6 +189,21 @@ describe("checkReferences", () => {
     expect(diagnostics).toEqual([]);
   });
 
+  it("reports an unknown place, transition and metric on the right side as it does on the left", () => {
+    // GIVEN comparisons whose right sides name a missing place, transition and metric
+    const rule = (text: string) => check(["name: X", `constraint: always ${text}`, ""].join("\n"));
+    const place = rule("count(Queue) >= count(Nowhere)");
+    const transition = rule("count(Queue) >= fired(Nowhere)");
+    const metric = rule("count(Queue) >= Nowhere");
+    const left = rule("count(Nowhere) >= 0");
+
+    // WHEN they are checked
+    // THEN each gets one error naming the missing part, and the place one matches the left side's
+    expect(place.map((diagnostic) => diagnostic.message)).toEqual(left.map((diagnostic) => diagnostic.message));
+    expect(transition.map((diagnostic) => diagnostic.message)).toEqual([expect.stringContaining("Nowhere")]);
+    expect(metric.map((diagnostic) => diagnostic.message)).toEqual([expect.stringContaining("Nowhere")]);
+  });
+
   it("reports an unknown place in a metric, with the metric's line", () => {
     // GIVEN a metric that counts a place the net lacks
     const diagnostics = check(

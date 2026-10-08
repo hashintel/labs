@@ -7,7 +7,6 @@ export default {
   question: "Can the rule be written as G and F?",
   context: "A press breaks down and is repaired at random times, measured in hours.",
   group: "mtl",
-  teamQuestion: true,
   rung: "mtl",
   order: 330,
   mtl: true,

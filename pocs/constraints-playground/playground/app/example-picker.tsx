@@ -3,7 +3,9 @@ import { useState } from "react";
 import { exampleById } from "../../examples/catalog";
 
 import { stepIndex } from "../ui/roving";
-import { SANDBOX_NAME, contextOf, filterRows, groupRows, highlight, rowOf, shownExamples, teamQuestionCount } from "./example-list";
+import { SANDBOX_NAME, PRESSING_IDS, collapseRows, contextOf, filterRows, groupRows, highlight, rowOf, shownExamples } from "./example-list";
+
+import type { Row } from "./example-list";
 
 import "./example-picker.css";
 
@@ -65,23 +67,29 @@ function walk(event: React.KeyboardEvent<HTMLDivElement>) {
 
 /**
  * The example picker: a button naming the open example by the question it
- * answers (the sandbox by its title), and a popover with a search field, a
- * toggle for the examples with pending questions, and the examples grouped by the
- * construct they tackle. A row is the rule in the builder's words over the
- * question it answers; a check marks the open one. Unlisted examples appear
- * only while open. The popover is anchored under the button by CSS anchor
- * positioning, and closes on a choice, Escape, Tab from a row or a click
- * outside.
+ * answers (the sandbox by its title), and a popover with a search field and
+ * the examples grouped by the construct they tackle. Collapsed, the list keeps
+ * the sandbox and the rows in `PRESSING` (the questions for the team) and
+ * ends in "Show more"; expanded,
+ * it shows every row and ends in "Show less". A search shows every match and
+ * no button. A row is the rule in the builder's words over the question it
+ * answers; a check marks the open one. Unlisted examples appear only while
+ * open. The popover is anchored under the button by CSS anchor positioning,
+ * and closes on a choice, Escape, Tab from a row or a click outside.
  */
 export const ExamplePicker: React.FC<ExamplePickerProps> = ({ exampleId, mtl, nested, onSelect }) => {
   const [query, setQuery] = useState("");
-  const [teamOnly, setTeamOnly] = useState(false);
+  const [showAll, setShowAll] = useState(false);
   // The row the footer describes: the last one hovered or focused.
   const [active, setActive] = useState<string | null>(null);
   const current = exampleById(exampleId);
   const examples = shownExamples(exampleId, mtl, nested);
   const rows = examples.map(rowOf);
-  const groups = groupRows(filterRows(rows, query, teamOnly));
+  const found = groupRows(filterRows(rows, query));
+  const searching = query.trim() !== "";
+  const collapsed = collapseRows(found, PRESSING_IDS);
+  const groups = searching || showAll ? found : collapsed;
+  const countRows = (list: typeof found) => list.reduce((sum, group) => sum + group.rows.length, 0);
   const about = exampleById(active ?? exampleId);
   const label = current?.group === "sandbox" ? SANDBOX_NAME : (current?.question ?? "");
 
@@ -91,7 +99,7 @@ export const ExamplePicker: React.FC<ExamplePickerProps> = ({ exampleId, mtl, ne
       event.currentTarget.querySelector<HTMLInputElement>(".picker__search")?.focus();
     } else {
       setQuery("");
-      setTeamOnly(false);
+      setShowAll(false);
       setActive(null);
     }
   }
@@ -102,6 +110,32 @@ export const ExamplePicker: React.FC<ExamplePickerProps> = ({ exampleId, mtl, ne
       onSelect(first.example.id);
       event.currentTarget.closest<HTMLElement>("[popover]")?.hidePopover();
     }
+  }
+
+  function renderRow({ example, rule, question, named }: Row) {
+    return (
+      <button
+        key={example.id}
+        type="button"
+        role="option"
+        className="picker__option"
+        data-example={example.id}
+        data-pressing={showAll && !searching && PRESSING_IDS.has(example.id) ? "" : undefined}
+        aria-selected={example.id === exampleId}
+        aria-description={example.title}
+        tabIndex={-1}
+        popoverTarget={LIST_ID}
+        popoverTargetAction="hide"
+        onFocus={() => setActive(example.id)}
+        onPointerEnter={() => setActive(example.id)}
+        onClick={() => onSelect(example.id)}
+      >
+        <span className={named ? "picker__rule picker__rule--named" : "picker__rule"}>
+          <Highlighted text={rule} query={query} />
+        </span>
+        <span className="picker__question">{question}</span>
+      </button>
+    );
   }
 
   return (
@@ -133,15 +167,8 @@ export const ExamplePicker: React.FC<ExamplePickerProps> = ({ exampleId, mtl, ne
               onKeyDown={enter}
             />
           </label>
-          <button
-            type="button"
-            className="picker__team"
-            aria-pressed={teamOnly}
-            onClick={() => setTeamOnly(!teamOnly)}
-          >
-            Examples with pending questions ({teamQuestionCount(examples)})
-          </button>
         </div>
+        <div className="picker__scroll">
         <div role="listbox" aria-label="Examples" className="picker__rows">
           {groups.map((group) => {
             const titleId = `${LIST_ID}-${group.id}`;
@@ -150,32 +177,17 @@ export const ExamplePicker: React.FC<ExamplePickerProps> = ({ exampleId, mtl, ne
                 <div id={titleId} className="caps picker__group-title">
                   {group.title}
                 </div>
-                {group.rows.map(({ example, rule, question, named }) => (
-                  <button
-                    key={example.id}
-                    type="button"
-                    role="option"
-                    className="picker__option"
-                    data-example={example.id}
-                    aria-selected={example.id === exampleId}
-                    aria-description={example.title}
-                    tabIndex={-1}
-                    popoverTarget={LIST_ID}
-                    popoverTargetAction="hide"
-                    onFocus={() => setActive(example.id)}
-                    onPointerEnter={() => setActive(example.id)}
-                    onClick={() => onSelect(example.id)}
-                  >
-                    <span className={named ? "picker__rule picker__rule--named" : "picker__rule"}>
-                      <Highlighted text={rule} query={query} />
-                    </span>
-                    <span className="picker__question">{question}</span>
-                  </button>
-                ))}
+                {group.rows.map(renderRow)}
               </div>
             );
           })}
           {groups.length === 0 ? <p className="note picker__empty">No rules match</p> : null}
+          {searching || countRows(found) === countRows(collapsed) ? null : (
+            <button type="button" className="picker__more" aria-expanded={showAll} onClick={() => setShowAll(!showAll)}>
+              {showAll ? "Show less" : "Show more"}
+            </button>
+          )}
+        </div>
         </div>
         <p className="picker__about" aria-hidden="true">
           <span className="caps picker__about-net">{about?.title}</span>

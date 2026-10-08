@@ -1,4 +1,5 @@
 import { EXAMPLES, GROUPS } from "../../examples/catalog";
+import { PRESSING } from "../../examples/pressing";
 import { parseConstraintDocument, printConstraint } from "../../constraints";
 
 import type { Example, Group } from "../../examples/catalog";
@@ -73,9 +74,17 @@ export function contextOf(example: Example): string {
   return (example as { context?: string }).context ?? example.summary;
 }
 
-/** How many of the examples ask the team a question. */
-export function teamQuestionCount(examples: readonly Example[]): number {
-  return examples.filter((example) => example.teamQuestion).length;
+/** The ids the collapsed picker keeps besides the sandbox: the examples in `PRESSING`. */
+export const PRESSING_IDS: ReadonlySet<string> = new Set(PRESSING);
+
+/** The groups cut to the sandbox and the rows whose id is kept, in their normal order (rows hidden by a flag are not in `groups`); a group left with no rows is dropped. */
+export function collapseRows(groups: readonly RowGroup[], keep: ReadonlySet<string>): RowGroup[] {
+  return groups
+    .map((group) => ({
+      ...group,
+      rows: group.rows.filter((row) => row.example.group === "sandbox" || keep.has(row.example.id)),
+    }))
+    .filter((group) => group.rows.length > 0);
 }
 
 /** The rows grouped in picker order: a group with no rows is left out. */
@@ -88,17 +97,14 @@ export function groupRows(rows: readonly Row[]): RowGroup[] {
 }
 
 /**
- * The rows a search and the team toggle leave. A row matches when its rule,
- * its question or its title holds the query, ignoring case; an empty query
- * matches every row. The toggle keeps only the examples with a team question.
+ * The rows a search leaves. A row matches when its rule, its question or its
+ * title holds the query, ignoring case; an empty query matches every row.
  */
-export function filterRows(rows: readonly Row[], query: string, teamOnly: boolean): Row[] {
+export function filterRows(rows: readonly Row[], query: string): Row[] {
   const needle = query.trim().toLowerCase();
   return rows.filter(
     (row) =>
-      (!teamOnly || row.example.teamQuestion) &&
-      (needle === "" ||
-        [row.rule, row.question, row.example.title].some((text) => text.toLowerCase().includes(needle))),
+      needle === "" || [row.rule, row.question, row.example.title].some((text) => text.toLowerCase().includes(needle)),
   );
 }
 

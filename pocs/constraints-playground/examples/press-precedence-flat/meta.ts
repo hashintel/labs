@@ -7,7 +7,6 @@ export default {
   question: "A AND B OR C, no brackets: which joins first?",
   context: "A press breaks down and is repaired, in turns. One spare part is always on hand.",
   group: "and-or",
-  teamQuestion: true,
   rung: "logic",
   order: 60,
   listed: true,

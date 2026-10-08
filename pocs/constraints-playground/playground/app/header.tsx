@@ -99,7 +99,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         ) : null}
         <span className="caps header__flag" title="The scope agreed on 6 Oct. Tick a box to go beyond it.">
-          Base: LTL, one operator at the top
+          Base: LTL
         </span>
         <label
           className="caps header__flag"

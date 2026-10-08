@@ -7,7 +7,6 @@ export default {
   question: "Shelf > 0 vs ≥ 1: any difference?",
   context: "A bakery shelf starts with 3 loaves. Each sale takes one until the shelf is empty.",
   group: "comparators",
-  teamQuestion: false,
   rung: "atoms",
   order: 20,
   listed: true,

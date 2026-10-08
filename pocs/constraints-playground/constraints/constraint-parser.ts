@@ -33,6 +33,7 @@ export type ConstraintFlags = Required<ParseOptions>;
 export const WINDOW_NEEDS_MTL_ERROR = "Time windows need MTL. Turn on MTL at the top.";
 export const NESTED_NEEDS_LTL_ERROR = "Nested operators need full LTL. Turn on Nested operators at the top.";
 
+export const ARITHMETIC_ERROR = "Arithmetic is not allowed in a constraint. Define a metric for it";
 export const NO_TEMPORAL_ERROR = "Start with always, eventually or until";
 export const MIXED_WARNING =
   "Mixed and/or without brackets: and binds tighter than or. Add brackets to show what you mean";
@@ -381,10 +382,7 @@ function parseAtom(context: Context): StateExpr {
   const ref = parseMetricRef(stream);
   const opToken = peek(stream);
   if (opToken.kind === "punct" && ["+", "-", "*", "/"].includes(opToken.text)) {
-    throw new ParseError(
-      "Arithmetic is not allowed in a constraint. Define a metric for it",
-      opToken.column,
-    );
+    throw new ParseError(ARITHMETIC_ERROR, opToken.column);
   }
   const op = COMPARATORS.find(
     (candidate) => opToken.kind === "punct" && candidate === opToken.text,
@@ -396,7 +394,12 @@ function parseAtom(context: Context): StateExpr {
     );
   }
   advance(stream);
-  return { kind: "atom", ref, op, value: parseNumber(stream) };
+  const value = peek(stream).kind === "word" ? parseMetricRef(stream) : parseNumber(stream);
+  const after = peek(stream);
+  if (after.kind === "punct" && ["+", "-", "*", "/"].includes(after.text)) {
+    throw new ParseError(ARITHMETIC_ERROR, after.column);
+  }
+  return { kind: "atom", ref, op, value };
 }
 
 function parseNumber(stream: TokenStream): number {
@@ -406,7 +409,7 @@ function parseNumber(stream: TokenStream): number {
   }
   const token = peek(stream);
   if (token.kind !== "number") {
-    throw new ParseError(`Expected a number but found ${describe(token)}`, token.column);
+    throw new ParseError(`Expected a number or a metric but found ${describe(token)}`, token.column);
   }
   advance(stream);
   return negative ? -token.value : token.value;

@@ -40,7 +40,6 @@ The folder name is the id: the picker's key, the page's key and the URL hash, `#
 | `question` | the question the example answers, at most about 10 words, shown in the picker. Name the concrete situation so a reader who has not read the page or the spec understands it, such as "Stock comes in twos. Can it ever equal 5?". No verdict |
 | `context` | the net's story in 1 or 2 plain sentences, such as "Stock arrives on pallets of 2. Nothing else changes it." The page's Context line repeats it word for word |
 | `group` | the picker group of the main construct: `sandbox`, `comparators`, `and-or`, `if-iff-not`, `always-eventually`, `until`, `nested` or `mtl` |
-| `teamQuestion` | `true` when the example asks the team to settle what a rule means (EDGE-CASES.md, "Questions for the team") |
 | `rung` | `sandbox`, `atoms`, `logic`, `temporal`, `limits`, `nested` or `mtl` |
 | `order` | its place up the ladder; examples sort by it, in steps of 10 |
 | `mtl` | `true` when the constraint uses a time window. The picker shows the example only while MTL is on, and opening it turns MTL on. The tests parse it with `mtl: true`; every other example parses with MTL off |
@@ -54,7 +53,7 @@ The folder name is the id: the picker's key, the page's key and the URL hash, `#
 ## Adding an example
 
 1. Copy a folder from the same rung and rename it to the new id.
-2. Edit `meta.ts`. Pick an `order` that is not taken, between the examples it builds on and the ones that build on it. Fill `question`, `context`, `group`, `teamQuestion` and `expect`.
+2. Edit `meta.ts`. Pick an `order` that is not taken, between the examples it builds on and the ones that build on it. Fill `question`, `context`, `group` and `expect`.
 3. Replace `net.pn.yaml` and `constraint.yaml`.
 4. Rewrite `page.mdx` in the page format below. Run the example to get the verdict and the step; do not work it out by hand.
 5. Run `pnpm test`, open `#<id>` in `pnpm dev`, and run `pnpm screenshot`.
@@ -81,22 +80,20 @@ Every page follows one shape, after a LeetCode problem page, in under about 70 w
 **Explanation:** At step 3 the shelf holds 0, and `0 > 0` is false. ...
 
 </Example>
-
-**Question:** On whole counts, should the builder rewrite the <Term>strict bound</Term> `> 0` as ...?
 ````
 
 - **Context**: `meta.context`, word for word, in everyday words: what the places and transitions are. It renders grey, with its label inline.
 - **Rule**: `<Rule />`, which renders the example's `constraint.yaml` in the builder's words (`ALWAYS (count(Shelf) > 0)`, `≤`, `≠`) through `ruleOf`, so the page cannot drift from the file.
 - **Example**: the key values as one short sequence in code, the verdict in the badge words (Violated or Satisfied, "at step N." or "at the end of the run."), and 1 or 2 sentences tied to the numbers. A seeded run names its seed.
-- **Question**: optional. One line, only when the team must decide what a rule means or what the language and its scope should be. Never about a feature the builder lacks (suggesting, rewriting, warning, flagging). Drop it and set `teamQuestion: false` when nothing is open. When present, it is the same idea as `meta.question`, a little longer. It names the concrete situation, not the logic trick.
-- Wrap each technical term (deadlock, atom, horizon, interleaving, vacuous, strict bound, margin, De Morgan, ...) in `<Term>`, which underlines it and shows its line from `playground/docs/glossary.ts` on hover and on focus. Use `<Term name="deadlock">deadlocks</Term>` when the text differs from the entry. Add a missing term to the glossary first: a page that wraps an unknown term fails its render test.
+- **Question**: only on the examples in `examples/pressing.ts`, plus the 11 pages that keep an original question and show only under "Show more". One line: a builder question only the team can answer and has not settled, such as whether the builder should offer a "between" comparison. One example per question. A reader prompt such as "Change the seed and see" is labelled **Try:**, not Question.
+- Wrap each playground-specific or logic term (deadlock, horizon, interleaving, vacuous, strict bound, margin, De Morgan, ...) in `<Term>`, which underlines it and shows its line from `playground/docs/glossary.ts` on hover and on focus. Use `<Term name="deadlock">deadlocks</Term>` when the text differs from the entry. Add a missing term to the glossary first: a page that wraps an unknown term fails its render test.
 - No people's names, no quotes, no internal codes. The pages will be public.
-- The documentation view writes the net's name and the heading from `meta.ts`, and passes `Context`, `Example`, `Term` and `Figure` to every page from `playground/docs/page-components.ts`. It renders fenced code through `CodeBlock`.
+- The documentation view writes the net's name and the heading from `meta.ts`, and passes `Context`, `Example`, `Term`, `Figure` and `Rule` to every page from `playground/docs/page-components.ts`. It renders fenced code through `CodeBlock`.
 - In MDX, `<` before a space or a digit starts a tag. Put comparisons in code: `` `< 3` ``.
 
 ## Tests
 
-- `catalog.test.ts` checks that every folder holds a `meta.ts`, a `net.pn.yaml`, a `constraint.yaml` and a `page.mdx`, that the examples climb the ladder rung by rung, each at its own `order`, and that each has a short `question`, a `context` of 1 or 2 sentences, a known `group` and a `teamQuestion` flag.
+- `catalog.test.ts` checks that every folder holds a `meta.ts`, a `net.pn.yaml`, a `constraint.yaml` and a `page.mdx`, that the examples climb the ladder rung by rung, each at its own `order`, and that each has a short `question`, a `context` of 1 or 2 sentences and a known `group`. It also checks that `PRESSING` names at most 5 examples that exist, each once.
 - `examples.test.ts` parses each example's net and constraint, checks the references, runs it and checks that no step reports an error (except the one `expectsDiagnostic` names) and the verdict is decided.
 - `expected-verdicts.test.ts` runs each example that declares `expect` and checks its final verdict and the step that decides it.
 - `playground/docs/example-pages.test.tsx` renders every page with the components the documentation view passes, checks that each page opens on its `meta.context`, and that every `<Term>` is in the glossary.

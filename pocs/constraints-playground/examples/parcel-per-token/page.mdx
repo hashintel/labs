@@ -8,11 +8,11 @@
 
 <Example>
 
-**Run:** `UnscannedInVan: 0 → -1 → 0`
+**Run:** `Van: 0 → 0 → 1`, `Scan fired: 0 → 1 → 1`
 
 **Verdict:** Satisfied at the end of the run.
 
-**Explanation:** The <Term>metric</Term> `UnscannedInVan` is parcels in the van minus scans. The totals match, so the rule passes, yet the parcel in the van was never scanned. That needs a <Term>per-token</Term> rule.
+**Explanation:** The rule compares the parcels in the van with the scans so far. The totals match, so the rule passes, yet the parcel in the van was never scanned. That needs a <Term>per-token</Term> rule.
 
 </Example>
 

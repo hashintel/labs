@@ -402,7 +402,72 @@ describe("evaluate: metrics and atoms", () => {
   });
 });
 
+describe("an atom with a metric on the right", () => {
+  it("compares the two values at each state", () => {
+    // GIVEN a run where A starts below B, catches up, then passes it
+    const run = states([[1, 2], [2, 2], [3, 2]]);
+
+    // WHEN a comparison of the two is evaluated
+    const result = evaluate(document("always count(A) >= count(B)"), run);
+
+    // THEN the atom is true only where A is at least B, and the rule breaks at step 0
+    expect(result.atoms[0]?.truth).toEqual([false, true, true]);
+    expect(result.atoms[0]?.rhs).toEqual([2, 2, 2]);
+    expect(result.decidedAt).toBe(0);
+    expect(result.finalVerdict).toBe(V);
+  });
+
+  it("reads fired and named metrics on the right too", () => {
+    // GIVEN B is a named metric and Go has fired once more at each step
+    const run = states([[1, 1, 0], [2, 1, 1], [3, 1, 2]]);
+
+    // WHEN A is compared with the metric and with fired(Go)
+    const named = evaluate(document("always count(A) > Other", { Other: "count(B)" }), run);
+    const fired = evaluate(document("always count(A) > fired(Go)"), run);
+
+    // THEN each reads the right side at every state
+    expect(named.atoms[0]?.truth).toEqual([false, true, true]);
+    expect(fired.atoms[0]?.truth).toEqual([true, true, true]);
+    expect(fired.finalVerdict).toBe(S);
+  });
+
+  it("is false at a state where the right metric cannot be computed, even under not", () => {
+    // GIVEN a right-side metric that divides by zero at every state
+    const bad = document("always not count(A) > Broken", { Broken: "count(A) / count(B)" });
+
+    // WHEN it is evaluated on a run where B is 0
+    const result = evaluate(bad, states([[1, 0], [2, 0]]));
+
+    // THEN the atom is false, the not never makes the rule hold, and an error is reported
+    expect(result.atoms[0]?.truth).toEqual([false, false]);
+    expect(result.finalVerdict).toBe(V);
+    expect(result.diagnostics.some((diagnostic) => diagnostic.severity === "error")).toBe(true);
+  });
+});
+
 describe("margin (provisional)", () => {
+  it("treats a right-side metric as the bound at that state", () => {
+    // GIVEN A is 3 and B is 1
+    const run = states([[3, 1]]);
+    const marginOf = (text: string) => margin(document(`always ${text}`), run)!.value;
+
+    // WHEN each comparison of A with B is measured
+    // THEN the formulas are the number case with c = B
+    expect(marginOf("count(A) >= count(B)")).toBe(2);
+    expect(marginOf("count(A) <= count(B)")).toBe(-2);
+    expect(marginOf("count(A) == count(B)")).toBe(-2);
+    expect(marginOf("count(A) != count(B)")).toBe(2);
+  });
+
+  it("takes the minimum over the run for always", () => {
+    // GIVEN A minus B is 2, then 0, then 1
+    const run = states([[3, 1], [1, 1], [2, 1]]);
+
+    // WHEN the margin of always A >= B is read
+    // THEN it is the smallest signed distance
+    expect(margin(document("always count(A) >= count(B)"), run)!.value).toBe(0);
+  });
+
   it("is marked provisional", () => {
     // GIVEN any constraint
     // WHEN its margin is read

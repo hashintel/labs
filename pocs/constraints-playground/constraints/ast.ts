@@ -13,7 +13,7 @@ export type MetricExpr =
   | { kind: "negate"; operand: MetricExpr }
   | { kind: "binary"; op: "+" | "-" | "*" | "/"; left: MetricExpr; right: MetricExpr };
 
-/** What an atom's left side names: a defined metric, or a primitive read inline. */
+/** What an atom's left side names, or its right side when that is not a number: a defined metric, or a primitive read inline. */
 export type MetricRef =
   | { kind: "metric"; name: string }
   | { kind: "count"; place: string }
@@ -58,7 +58,7 @@ export type StateExpr =
   | { kind: "hole" }
   | { kind: "always" | "eventually"; body: StateExpr; window?: Window }
   | { kind: "until" | "weak-until"; hold: StateExpr; goal: StateExpr; window?: Window }
-  | { kind: "atom"; ref: MetricRef; op: Comparator; value: number }
+  | { kind: "atom"; ref: MetricRef; op: Comparator; value: number | MetricRef }
   | { kind: "bool"; value: boolean }
   | { kind: "not"; operand: StateExpr }
   | { kind: "and"; operands: StateExpr[] }

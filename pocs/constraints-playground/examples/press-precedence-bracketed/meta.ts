@@ -7,7 +7,6 @@ export default {
   question: "Brackets around the OR: does the verdict flip?",
   context: "A press breaks down and is repaired, in turns. One spare part is always on hand.",
   group: "and-or",
-  teamQuestion: false,
   rung: "logic",
   order: 70,
   listed: true,

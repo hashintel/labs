@@ -1,5 +1,5 @@
 import { formulaOf } from "./formula";
-import { printMetricRef } from "./printer";
+import { printAtomValue, printMetricRef } from "./printer";
 
 import type { Constraint, MetricExpr, MetricRef, StateExpr } from "./ast";
 
@@ -57,7 +57,12 @@ export function constraintAtoms(constraint: Constraint): AtomExpr[] {
   return stateAtoms(formulaOf(constraint));
 }
 
+/** Every reference an atom reads: the left side, then the right side when it is not a number. */
+export function atomRefs(atom: Pick<AtomExpr, "ref" | "value">): MetricRef[] {
+  return typeof atom.value === "number" ? [atom.ref] : [atom.ref, atom.value];
+}
+
 /** An atom as canonical text, which is also its identity. */
 export function atomText(atom: AtomExpr): string {
-  return `${printMetricRef(atom.ref)} ${atom.op} ${atom.value}`;
+  return `${printMetricRef(atom.ref)} ${atom.op} ${printAtomValue(atom.value)}`;
 }

@@ -7,7 +7,6 @@ export default {
   question: "How do you say “a restock happened”?",
   context: "A shelf starts with 2 items. Each sale takes one; when it is empty, a restock refills it to 3.",
   group: "always-eventually",
-  teamQuestion: true,
   rung: "temporal",
   order: 220,
   listed: true,

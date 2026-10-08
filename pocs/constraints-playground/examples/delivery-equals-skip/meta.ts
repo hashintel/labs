@@ -7,7 +7,6 @@ export default {
   question: "Stock comes in twos. Can it ever equal 5?",
   context: "Stock arrives on pallets of 2. Nothing else changes it.",
   group: "comparators",
-  teamQuestion: true,
   rung: "atoms",
   order: 30,
   listed: true,

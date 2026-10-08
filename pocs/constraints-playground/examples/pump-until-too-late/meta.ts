@@ -7,7 +7,6 @@ export default {
   question: "Service comes after the pump breaks. Pass?",
   context: "A pump works through 2 units of fuel, then breaks. A mechanic comes and services it.",
   group: "until",
-  teamQuestion: true,
   rung: "temporal",
   order: 180,
   listed: true,

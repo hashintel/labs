@@ -20,6 +20,11 @@ export function printMetricRef(ref: MetricRef): string {
   }
 }
 
+/** The right side of an atom: the number, or the metric reference. */
+export function printAtomValue(value: number | MetricRef): string {
+  return typeof value === "number" ? String(value) : printMetricRef(value);
+}
+
 /** Binding strength of a metric expression: higher binds tighter. */
 function metricLevel(expr: MetricExpr): number {
   switch (expr.kind) {
@@ -119,7 +124,7 @@ function printUntilSide(expr: StateExpr, windowed: boolean): string {
 function printStateBare(expr: StateExpr, tail: boolean): string {
   switch (expr.kind) {
     case "atom":
-      return `${printMetricRef(expr.ref)} ${expr.op} ${expr.value}`;
+      return `${printMetricRef(expr.ref)} ${expr.op} ${printAtomValue(expr.value)}`;
     case "bool":
       return String(expr.value);
     case "hole":
@@ -264,7 +269,7 @@ function printMathWindow(window: Window | undefined): string {
 function printMathBare(expr: StateExpr): string {
   switch (expr.kind) {
     case "atom":
-      return `${printMetricRef(expr.ref)} ${MATH_COMPARATORS[expr.op]} ${expr.value}`;
+      return `${printMetricRef(expr.ref)} ${MATH_COMPARATORS[expr.op]} ${printAtomValue(expr.value)}`;
     case "bool":
       return String(expr.value);
     case "hole":

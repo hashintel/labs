@@ -7,7 +7,6 @@ export default {
   question: "Can a breakdown count say every breakdown is repaired?",
   context: "A press breaks down and is repaired, in turns. The run stops right after a breakdown.",
   group: "nested",
-  teamQuestion: true,
   rung: "limits",
   order: 230,
   listed: true,

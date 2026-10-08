@@ -7,7 +7,6 @@ export default {
   question: "No ALWAYS in the rule. Which steps count?",
   context: "3 people queue at a door. 4 more come in, one by one.",
   group: "always-eventually",
-  teamQuestion: true,
   rung: "limits",
   order: 280,
   listed: true,
