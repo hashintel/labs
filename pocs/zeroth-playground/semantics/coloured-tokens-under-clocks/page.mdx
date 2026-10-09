@@ -1,0 +1,18 @@
+How are coloured tokens held under SPN: a `Real` sort, or an LRA module beside the SPN ones? Under clocks a place is a `Nat` counter, and an attribute has no sort.
+
+### Today
+
+**Rates** on clock does not apply to a coloured net, with the reason "A coloured net, or one with dynamics, compiles under coins only". Under coins each position of a coloured place is a present flag and one `Real` per attribute:
+
+```python
+Pool_0_present = Var(BOOL)  # Pool slot 0 holds a token
+Pool_0_x = Var(REAL)
+```
+
+A closed string is a `Real` code, a boolean a `Bool`; a `uuid` or an open string gets no variable.
+
+### Options on the table
+
+- A `Real` sort in SPN, so a position's attributes sit beside the counts in one theory.
+- An LRA module per coloured place, composed with the SPN modules; see *SPN and LRA modules in one system*.
+- A `Nat` counter with the attributes dropped, for nets whose guards and kernels read none.

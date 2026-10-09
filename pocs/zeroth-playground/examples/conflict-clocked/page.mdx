@@ -1,0 +1,27 @@
+import { ClockRace } from "./components/clock-race";
+
+Under clocks a conflict is a race: `TakeLeft` and `TakeRight` both take from `Pool`, and the clock that reaches 0 first takes the token.
+
+<Figure caption="TakeLeft and TakeRight race for Pool. The first clock to reach 0 fires, takes a token and re-arms; the other keeps its time. With Pool empty, both wait.">
+  <ClockRace />
+</Figure>
+
+With **Conflicts** on nondet, a taker also needs its pick at expiry. A false pick stops time until it turns true.
+
+```python
+fires_TakeLeft = (clk_TakeLeft == 0) & (Pool != 0) & pick_TakeLeft
+```
+
+`Place_Pool` applies one firing at a time, each case needing the other events off. So two takers that expire together both produce, while `Pool` loses no token.
+
+### Options
+
+- **Conflicts** on sweep drops the picks: the first clock to expire fires.
+
+### Open questions
+
+<Question id="false-pick-under-clocks" />
+
+<Question id="ties-under-clocks" />
+
+<Question id="picks-under-clocks" />

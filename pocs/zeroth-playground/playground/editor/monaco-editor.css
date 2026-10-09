@@ -1,0 +1,154 @@
+.monaco-host {
+  position: absolute;
+  inset: 0;
+  user-select: text;
+}
+
+/*
+ * Expanded chevrons in the gutter rest at a low opacity instead of Monaco's
+ * zero, and come up while the pointer is over the gutter. Collapsed ones stay
+ * at full, as Monaco has them.
+ */
+.margin-view-overlays {
+  & :is(.codicon-folding-expanded, .codicon-folding-manual-expanded) {
+    opacity: 0.3;
+  }
+
+  &:hover :is(.codicon-folding-expanded, .codicon-folding-manual-expanded) {
+    opacity: 1;
+  }
+}
+
+.monaco-editor {
+  & .monaco-hover,
+  & .suggest-widget {
+    font-family: var(--sans);
+  }
+
+  /* Completions and their details panel: slightly rounded, barely lifted. */
+  & .suggest-widget,
+  & .suggest-details {
+    overflow: hidden;
+    border-radius: 0.35rem;
+    box-shadow: var(--shadow-menu);
+  }
+
+  /*
+   * "No suggestions." and "Loading...": a quiet note rather than a row.
+   * Monaco sets the widget's height inline to one row; only !important wins
+   * over that, so the widget takes the message's height.
+   */
+  & .suggest-widget.message {
+    height: auto !important;
+  }
+
+  & .suggest-widget > .message {
+    padding-block: 3px;
+    color: color-mix(in oklab, var(--ink-2) 65%, var(--paper-2));
+    font-size: 12px;
+  }
+
+  /* Each row's description at full strength instead of Monaco's 70%. */
+  & .suggest-widget .details-label {
+    opacity: 1;
+  }
+
+  /*
+   * Monaco's list writes a focused row's icon colour at run time, outside any
+   * layer, and so wins over the suggest widget's own rule in `vendor`. This is
+   * that rule again, with its specificity, which wins over the list's.
+   */
+  & .suggest-widget .monaco-list .monaco-list-row.focused .codicon {
+    color: var(--vscode-editorSuggestWidget-selectedIconForeground);
+  }
+
+  /*
+   * Monaco sets the details panel's height inline from a one-line
+   * measurement, which cuts off a description that wraps. The descriptions
+   * are a line or two, so the panel takes its content's height, capped; only
+   * !important wins over the inline height.
+   */
+  & .suggest-details-container,
+  & .suggest-details,
+  & .suggest-details > .monaco-scrollable-element,
+  & .suggest-details .body {
+    height: auto !important;
+    max-height: 12rem;
+  }
+
+  /* The panel's text clear of the border, with the close button beside its first line. */
+  & .suggest-details .docs {
+    padding: 7px 32px 8px 10px;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 12.5px;
+    line-height: 1.45;
+  }
+
+  & .suggest-details .codicon-close {
+    top: 8px;
+    right: 8px;
+    color: var(--ink-2);
+  }
+
+  /* Hover cards: paper-grey text on ink, roomier, with the mono face for code. */
+  & .monaco-hover {
+    --monaco-monospace-font: var(--mono);
+    color: var(--hair);
+
+    /* Monaco writes the editor's font size and line height inline here; only !important wins over them. */
+    & .monaco-hover-content {
+      font-size: 13px !important;
+      line-height: 1.45 !important;
+    }
+
+    & .hover-contents:not(.html-hover-contents) {
+      padding: 8px 12px;
+    }
+
+    & strong {
+      color: var(--paper-2);
+    }
+
+    & code {
+      color: var(--paper);
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+  }
+}
+
+/* Whole lines lit by a hover in another view, or flagged by a diagnostic. */
+.line-lit {
+  background: var(--accent-wash);
+  animation: line-lit-in var(--fast) var(--ease);
+}
+
+@keyframes line-lit-in {
+  from {
+    background-color: transparent;
+  }
+}
+
+.line-error {
+  background: var(--red-wash);
+}
+
+.line-warning {
+  background: var(--ink-wash);
+}
+
+/* Monaco writes the mark's width inline; only !important wins over it. */
+.line-error-mark,
+.line-warning-mark {
+  width: 2px !important;
+  margin-left: 2px;
+}
+
+.line-error-mark {
+  background: var(--red);
+}
+
+.line-warning-mark {
+  background: var(--ink-2);
+}

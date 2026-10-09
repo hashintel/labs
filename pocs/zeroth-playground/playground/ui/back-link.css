@@ -1,0 +1,45 @@
+/*
+ * The padding gives the focus wash room. The negative margins take it back,
+ * so the chevron sits on the card's left edge and a head with the link is as
+ * tall as one without.
+ */
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: -0.2rem 0 -0.2rem -0.4rem;
+  padding: 0.2rem 0.45rem 0.2rem 0.4rem;
+  border-radius: 0.4rem;
+  color: var(--accent);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+
+  &:hover {
+    color: var(--accent-deep);
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: var(--accent-wash);
+    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 35%, transparent);
+  }
+}
+
+/* Two borders of a box turned an eighth draw the chevron, pointing back. */
+.back-link__chevron {
+  width: 0.36rem;
+  height: 0.36rem;
+  border-bottom: 1.5px solid currentColor;
+  border-left: 1.5px solid currentColor;
+  rotate: 45deg;
+  translate: 0.05rem 0;
+  transition: translate var(--fast) var(--ease);
+
+  .back-link:hover & {
+    translate: -0.1rem 0;
+  }
+}

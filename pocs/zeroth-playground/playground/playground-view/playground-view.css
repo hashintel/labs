@@ -1,0 +1,13 @@
+/* The grid's display and templates are inline; the cells only need to clip. */
+.workspace__grid [data-cell] {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* While a toggle collapses or opens a track, the grid eases its templates; never under a drag. */
+.workspace__grid--easing {
+  transition:
+    grid-template-columns var(--fold) var(--ease),
+    grid-template-rows var(--fold) var(--ease);
+}

@@ -1,0 +1,19 @@
+Should a capacity test count the room a later transition frees in the same step? A producer of a capped place sees the tokens the producers before it will land, and nothing a taker after it will remove.
+
+### Today
+
+A producer rebuilds the fill of the place from the flags of the earlier movers in record order. On Capacity, `PutRight` counts `PutLeft` and not `Take`:
+
+```python
+fill_Buffer = Buffer
+fill_Buffer = ite(X(fire_PutLeft), fill_Buffer + 1, fill_Buffer)  # PutLeft added 1
+return (RightSource >= 1) & (fill_Buffer + 1 <= 2)
+```
+
+`Take` comes after both producers, so the room it frees counts from the next step. A full `Buffer` that `Take` drains in this step still blocks both producers.
+
+### Options on the table
+
+- Keep record order: a producer sees only what the sweep decided before it. One step can leave a producer blocked by a place that is empty at the end of the step.
+- Count the takers too: a producer awaits the flag of every taker of the place. A taker that itself reads a flag of the producer would close a cycle in the awaits, which must form a DAG.
+- Put the takers of a capped place before its producers in the sweep, whatever the record order.

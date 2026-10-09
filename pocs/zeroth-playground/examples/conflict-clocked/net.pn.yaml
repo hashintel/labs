@@ -1,0 +1,30 @@
+name: conflict
+kind: stochastic
+
+places:
+  Pool:
+  Left:
+  Right:
+
+transitions:
+  TakeLeft:
+    inputs:
+      Pool:
+    outputs:
+      Left:
+    rate: 1
+  TakeRight:
+    inputs:
+      Pool:
+    outputs:
+      Right:
+    rate: 2
+  Return:
+    inputs:
+      Left:
+    outputs:
+      Pool:
+    rate: 0.5
+
+marking:
+  Pool: 3

@@ -1,0 +1,21 @@
+`Buffer` holds two tokens at most, and `PutLeft` and `PutRight` can both fill it in one step. The second producer must count a token that lands only at the end of the step.
+
+`PutRight` tests `fill_Buffer`, what `Buffer` would hold if the step ended now:
+
+```python
+fill_Buffer = Buffer
+fill_Buffer = ite(X(fire_PutLeft), fill_Buffer + 1, fill_Buffer)
+return (RightSource >= 1) & (fill_Buffer + 1 <= 2)
+```
+
+`Take` comes after both producers, so the room it frees counts from the next step: a full `Buffer` blocks both, even in a step where `Take` drains it. Clocks refuse a capacity, since SPN tests a count against zero only.
+
+### Options
+
+- **Shape** on monolithic keeps one `fill_Buffer` local, updated by every firing that moves `Buffer`.
+
+### Open questions
+
+<Question id="capacity-under-clocks" />
+
+<Question id="room-freed-later-in-the-step" />

@@ -1,0 +1,18 @@
+How is an input that nothing drives, a pick or a controller's choice, handled under SPN? The sugar has no helper for `Nondet`, and `simulate()` takes no input but `t`.
+
+### Today
+
+A pick is a Bool in the interface, read at expiry:
+
+```python
+pick_TakeRight = Var(Bool([1, 1]))  # the environment lets TakeRight fire when its clock expires
+fires_TakeRight = (clk_TakeRight == 0) & (Pool != 0) & pick_TakeRight
+```
+
+`simulate.py` drives no external but `t`, so the clocked output under **Conflicts** on nondet does not run there. **Control** on open does not apply under clocks for the same reason: the sugar has no helper for SPN's `Nondet(s)`, and `simulate.py` gives it no semantics.
+
+### Options on the table
+
+- A driver for externals in `simulate.py`: a function of the time and the state that writes every undriven Bool each round.
+- A `Nondet` helper in the sugar, so a pick is a HAVOC the checker ranges over and the simulator draws.
+- A scheduler module the compiler writes, which drives the picks from a policy: record order, or a draw.

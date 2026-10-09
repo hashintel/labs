@@ -1,0 +1,19 @@
+`TakeLeft` and `TakeRight` both take from `Pool`. When one token is left, which of them gets it?
+
+In record order, `TakeLeft` tests `Pool` and `TakeRight` tests what is left, `avail_Pool`, so `TakeLeft` wins every step. **Conflicts** on nondet leaves the choice open: each contender also waits for a pick, an input that nothing drives.
+
+```python
+return (Pool >= 1) & X(pick_TakeLeft)
+return (avail_Pool >= 1) & X(pick_TakeRight)
+```
+
+Every way of resolving the conflict is then a run, and all picks true is record order. `Return` is in no conflict and gets no pick.
+
+### Options
+
+- **Conflicts** on sweep drops the picks: record order alone decides.
+- **Control** on open gives `TakeLeft`, marked `controllable`, an input `go_TakeLeft` of the same kind as a pick.
+
+### Open questions
+
+<Question id="one-mechanism-for-choices" />

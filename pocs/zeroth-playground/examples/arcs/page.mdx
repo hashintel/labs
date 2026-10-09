@@ -1,0 +1,19 @@
+`Join` takes two `Parts`, reads `Power` without taking from it, and fires only while `Jam` is empty. Each kind of arc tests something else:
+
+```python
+return (Parts >= 2) & (Power >= 1) & (Jam < 1)
+```
+
+- A weight w tests `P >= w` and takes w tokens: `Place_Parts` applies `Parts - 2`.
+- A read arc tests `P >= w` and takes nothing.
+- An inhibitor arc tests `P < w`.
+
+Add `Jam: 1` to the marking, and `Join` never fires. Under clocks a read arc tests `P != 0` and an inhibitor arc `P == 0`, while a weight above 1 is refused: an SPN event moves one token per arc.
+
+### Open questions
+
+<Question id="read-arcs-as-conflicts" />
+
+<Question id="arc-weights-under-clocks" />
+
+<Question id="read-and-inhibitor-arcs-modular" />

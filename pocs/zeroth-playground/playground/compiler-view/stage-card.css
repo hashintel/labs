@@ -1,0 +1,96 @@
+/* The stage panel: the focused stage's card, or the overview of every stage. */
+.stage-card,
+.stage-overview {
+  height: 100%;
+  overflow-y: auto;
+  user-select: text;
+}
+
+.stage-card {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr));
+  align-content: start;
+  gap: var(--s-5) 2.25rem;
+  padding: var(--s-4) 1.35rem var(--s-6);
+}
+
+/* A pinned card leads with a way back, like a breadcrumb: "All stages", a hairline, then the stage's kind. */
+.stage-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+
+  & .kicker {
+    margin: 0;
+  }
+}
+
+.back-link + .kicker {
+  padding-left: 0.6rem;
+  border-left: 1px solid var(--hair);
+}
+
+.stage-card__doc {
+  max-width: 60ch;
+
+  & code {
+    font-size: 0.82em;
+  }
+}
+
+.stage-card__title {
+  margin: 0 0 0.4rem;
+}
+
+.stage-card__summary {
+  margin: 0 0 0.8rem;
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+
+.stage-card__call {
+  margin: 0 0 0.8rem;
+  padding: 0.45rem 0.6rem;
+  border-left: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.stage-card__io {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  gap: var(--s-1) var(--s-2);
+  margin: 0 0 0.8rem;
+  font-size: var(--fs-md);
+  line-height: 1.5;
+
+  & dt {
+    font-size: var(--fs-label-sm);
+    font-weight: 400;
+    line-height: 1.95;
+  }
+
+  & dd {
+    margin: 0;
+  }
+}
+
+.stage-card__details {
+  margin: 0;
+  padding: 0.6rem 0 0 1.05rem;
+  border-top: 1px solid var(--hair-2);
+  color: var(--text);
+  font-size: 0.82rem;
+  line-height: 1.58;
+
+  & li {
+    margin: 0 0 0.3rem;
+  }
+}

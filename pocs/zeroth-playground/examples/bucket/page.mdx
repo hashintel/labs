@@ -1,0 +1,13 @@
+`Take` fires at a rate that reads a token's attribute, so the IR writes the rate as code. The compiler reads code only through a parser it is given, and this playground passes none.
+
+```ts
+return 0.6 * (input.Pool[0].x / 100);
+```
+
+### Refused here
+
+The net is refused with `code-not-parsed`; a TypeScript parser does not fit one HTML file. With a parser, each position of `Pool` gets a present flag and an `x`, `Take` tries the tokens in order, and the survivors close up at the end of the step. **Shape** on modular refuses the net earlier, with `modular-coloured-not-lowered`.
+
+### Open questions
+
+<Question id="coloured-places-as-modules" />

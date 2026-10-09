@@ -1,0 +1,88 @@
+/* What the stage made of the example, beside the card: a headline, values, and a few quoted lines. */
+.sample {
+  align-self: start;
+  min-width: 0;
+  padding-left: var(--s-5);
+  border-left: 1px solid var(--hair-2);
+
+  &[data-tone="ok"] .sample__dot {
+    background: var(--accent);
+  }
+
+  &[data-tone="refused"] .sample__dot {
+    background: var(--red);
+  }
+
+  &[data-tone="idle"] {
+    & .sample__dot {
+      border: 1px solid var(--ink-2);
+      background: none;
+    }
+
+    & .sample__headline {
+      color: var(--ink-2);
+    }
+  }
+}
+
+.sample__headline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin: 0 0 var(--s-3);
+  color: var(--ink);
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+
+.sample__dot {
+  flex: 0 0 auto;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--ink-2);
+  transform: translateY(-0.05rem);
+}
+
+.sample__rows {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, max-content) minmax(0, 1fr);
+  margin: 0 0 0.85rem;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+
+.sample__row {
+  display: contents;
+
+  & :is(dt, dd) {
+    padding: 0.28rem 0;
+    border-top: 1px solid var(--hair-2);
+  }
+
+  & dt {
+    padding-right: 0.9rem;
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: var(--fs-code);
+    white-space: nowrap;
+  }
+
+  & dd {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: var(--fs-xs);
+    overflow-wrap: anywhere;
+  }
+
+  &[data-muted="true"] :is(dt, dd) {
+    color: var(--ink-2);
+    opacity: 0.6;
+  }
+
+  &[data-error="true"] dd {
+    color: var(--red);
+  }
+}

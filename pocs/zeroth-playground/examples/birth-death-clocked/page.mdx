@@ -1,0 +1,28 @@
+import { CoinClockExplorer } from "./components/coin-clock-explorer";
+
+Under clocks, each transition owns a clock armed with an exponential delay at its rate. Time flows until a clock reaches 0; the transition fires and the clock re-arms.
+
+The compiler writes this in Zeroth's SPN theory: a clock `clk_T` and an event `ev_T` per transition, a Nat per place. `Transition_Birth` fires at 0 and re-arms:
+
+```python
+fires_Birth = clk_Birth == 0
+return ite(fires_Birth, exp(2.0), clk_Birth), ite(fires_Birth, ~ev_Birth, None)
+```
+
+Its `flow` runs the clock down against the time `t`. Past 0 it has no value, which stops time, and the event's flow `0` keeps the event still:
+
+```python
+return ite(clk_Birth >= 0, -1 * d(t), None), 0
+```
+
+`Death` needs a token, so its clock runs only while `Population` holds one. `Place_Population` counts the events with `fired`, and `compose` hides the clocks.
+
+<Figure caption="One draw u reads both ways: the coin fires when u ≥ θ, and the clock it stands for, τ = −ln(u)/λ, expires within the step when τ ≤ Δt. A clock can expire twice in a step and a coin fires once, so the coin's rate p/Δt stays below λ = 2.">
+  <CoinClockExplorer />
+</Figure>
+
+### Open questions
+
+<Question id="ties-under-coins" />
+
+<Question id="marking-dependent-rates" />

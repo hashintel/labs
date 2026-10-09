@@ -1,0 +1,20 @@
+/* A stage named in the prose: a dotted underline that turns blue with the stage in the graph. */
+.stage-ref {
+  border-bottom: 1px dotted var(--ink-2);
+  transition:
+    color var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    background-color var(--fast) var(--ease);
+
+  &:hover,
+  &[data-focused="true"] {
+    border-bottom-color: var(--accent);
+    background: var(--accent-wash);
+    color: var(--accent);
+  }
+
+  &[aria-pressed="true"] {
+    border-bottom-style: solid;
+    border-bottom-color: var(--accent);
+  }
+}

@@ -1,0 +1,172 @@
+/* The trigger centres its label and chevron; inside the label, the feature and the net share a baseline. */
+.picker__trigger {
+  anchor-name: --example-picker;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 24rem;
+  height: var(--control-height);
+  padding: 0 0.7rem 0 0.95rem;
+  border-radius: var(--control-radius);
+  corner-shape: squircle;
+  background: var(--paper-2);
+  box-shadow: var(--shadow-lift);
+  font-size: var(--fs-md);
+  line-height: 1;
+  transition: background-color var(--fast) var(--ease);
+
+  &:hover {
+    background: color-mix(in oklab, var(--paper-2) 94%, var(--ink));
+  }
+}
+
+.picker__label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.picker__feature {
+  overflow: hidden;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.picker__net {
+  flex: 0 0 auto;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+}
+
+.picker__chevron {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 0.4rem;
+  height: 0.4rem;
+  margin: 0 0.15rem 0 0.1rem;
+  border-right: 1.25px solid var(--ink-2);
+  border-bottom: 1.25px solid var(--ink-2);
+  /* Rotated, the two borders draw a V whose ink sits low in its box: lift it to the centre. */
+  transform: translateY(-0.1rem) rotate(45deg);
+  transition: transform var(--base) var(--ease);
+
+  .picker__trigger:has(+ .picker__list:popover-open) & {
+    transform: translateY(0.1rem) rotate(-135deg);
+  }
+}
+
+/* The list sits under the button, right-aligned to it, and fades in. The footer closes it at the bottom. */
+.picker__list {
+  position-anchor: --example-picker;
+  inset: auto;
+  top: anchor(bottom);
+  right: anchor(right);
+  width: min(20rem, calc(100vw - 2rem));
+  max-height: min(80vh, 32rem);
+  margin: 0.35rem 0 0;
+  padding: var(--s-1) var(--s-1) 0;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-md);
+  background: var(--paper-2);
+  /* A popover takes the system's text colour unless told otherwise. */
+  color: var(--ink);
+  box-shadow: var(--shadow-pop);
+  overflow-y: auto;
+  opacity: 0;
+  translate: 0 -0.25rem;
+  transition:
+    opacity var(--fast) var(--ease),
+    translate var(--base) var(--ease),
+    overlay var(--base) allow-discrete,
+    display var(--base) allow-discrete;
+
+  &:popover-open {
+    opacity: 1;
+    translate: 0 0;
+
+    @starting-style {
+      opacity: 0;
+      translate: 0 -0.25rem;
+    }
+  }
+}
+
+/* A rung's title recedes behind its examples: small capitals in a lighter grey, in line with the features. */
+.picker__group-title {
+  padding: 0.6rem 0.6rem 0.2rem 1.6rem;
+  color: var(--ink-3);
+  font-size: var(--fs-label-sm);
+}
+
+.picker__option {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s-1);
+  width: 100%;
+  height: 1.875rem;
+  padding: 0 0.6rem 0 0.35rem;
+  border-radius: 0.5rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  text-align: left;
+  transition: background-color var(--fast) var(--ease);
+
+  /* The pointer greys a row and the keyboard washes it in the accent, so the two never look alike. */
+  &:hover {
+    background: var(--hair-2);
+  }
+
+  &:focus-visible {
+    outline: none;
+    background: var(--accent-wash);
+  }
+
+  /* The open example: a check and a heavier weight, never a fill, so hover and focus still show on it. */
+  &[aria-selected="true"] {
+    font-weight: 600;
+  }
+
+  & .picker__feature {
+    font-weight: inherit;
+  }
+}
+
+/* Two borders of a box turned a quarter back draw the check, as two borders turned forward draw the chevron. */
+.picker__check {
+  justify-self: center;
+  width: 0.5rem;
+  height: 0.28rem;
+  border-bottom: 1.5px solid var(--accent);
+  border-left: 1.5px solid var(--accent);
+  rotate: -45deg;
+  translate: 0 -0.08rem;
+  opacity: 0;
+
+  .picker__option[aria-selected="true"] & {
+    opacity: 1;
+  }
+}
+
+/* The net and the summary of the example under the pointer, else under the keyboard focus. */
+.picker__about {
+  position: sticky;
+  bottom: 0;
+  min-height: 4.4rem;
+  margin: var(--s-1) -0.25rem 0;
+  padding: 0.55rem 0.95rem 0.6rem;
+  border-top: 1px solid var(--hair-2);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  font-size: 0.76rem;
+}
+
+.picker__about-net {
+  display: block;
+  margin-bottom: 0.15rem;
+  color: var(--ink);
+  font-size: var(--fs-label-sm);
+}

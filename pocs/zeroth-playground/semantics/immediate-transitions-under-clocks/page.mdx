@@ -1,0 +1,17 @@
+How does a transition without a rate fire under clocks? Under coins it fires every step it is enabled. Under clocks every transition needs a clock, and a clock needs a rate.
+
+### Today
+
+Under coins a plain transition is a predicate on the marking, tested once per step:
+
+```python
+fire_Go = A >= 1  # Go: A -> B
+```
+
+Under clocks a transition without a rate is refused with `clocks-plain-transition`, so a mixed net compiles under coins only.
+
+### Options on the table
+
+- A zero-delay construct in SPN, with priorities among the immediate transitions that are enabled at one instant.
+- A very high rate as an approximation, which leaves a small chance that a timed transition fires first.
+- Refuse, as today.
