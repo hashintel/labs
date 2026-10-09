@@ -1,12 +1,12 @@
 import { OneStep } from "./components/one-step";
 
-One step of a plain net fires every enabled transition once, in record order. A firing takes its input tokens at once, and its output tokens land at the end of the step, so no token is produced and taken in the same step.
+One step of a plain net fires every enabled transition once, in record order. A firing takes its tokens at once; the tokens it produces land at the end of the step.
 
-<Figure caption="One step from A 1, B 0. Go fires: it takes the token from A at once, and the token lands in B at the end of the step. Back waits, because B was empty when Back was tested.">
+<Figure caption="One step from A 1, B 0. Go takes the token from A at once, and it lands in B at the end of the step. Back finds B empty and waits.">
   <OneStep />
 </Figure>
 
-The compiler writes the step as one class, `Cycle`, with an Int per place. Its `next` method is one step of the net:
+The compiler writes that step as the `next` method of one class, with an Int per place:
 
 ```python
 fire_Go = A >= 1
@@ -17,17 +17,10 @@ A = ite(fire_Back, A + 1, A)
 B = ite(fire_Go, B + 1, B)
 ```
 
-The first four lines test and take in record order. The last two land the produced tokens. Every later example compiles this step.
+Four lines test and take in order; the last two land the tokens.
 
-**Shape** on modular splits the same step into one module per transition and one per place, joined by `compose`. `Transition_Go` writes the Bool `fire_Go` as `A >= 1`. `Place_A` applies every firing that moves `A`:
+### Options
 
-```python
-A = ite(X(fire_Go), A - 1, A)
-A = ite(X(fire_Back), A + 1, A)
-```
+- **Shape** on modular splits the step into one module per transition and one per place. `Place_A` applies `ite(X(fire_Go), A - 1, A)`, where `X(fire_Go)` reads what `Transition_Go` wrote this step. A variable has one writer in Zeroth, so each place gets its own module.
 
-`X(fire_Go)` reads the value `fire_Go` takes in this step, so `Place_A` waits for `Transition_Go`. In Zeroth a variable has one writer, so each place gets a module of its own. The plain and coin examples after this one open in this shape.
-
-### Hover
-
-- Point at a line in either editor, or at a node in the preview, to light the lines and nodes that match it. `Go:` lights the line of the step that sets `fire_Go`.
+Point at a line in either editor, or at a node in the preview, to light what matches it.

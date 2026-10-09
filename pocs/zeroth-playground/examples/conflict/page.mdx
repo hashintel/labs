@@ -1,30 +1,18 @@
-`TakeLeft` and `TakeRight` both take from `Pool`, so when `Pool` holds one token only one of them can fire. The compiler has to say which one gets it.
+`TakeLeft` and `TakeRight` both take from `Pool`. When one token is left, which of them gets it?
 
-The step settles it in record order. `TakeLeft` comes first and tests `Pool`. `TakeRight` tests what `TakeLeft` left, `avail_Pool`:
-
-```python
-avail_Pool = Pool
-avail_Pool = ite(X(fire_TakeLeft), avail_Pool - 1, avail_Pool)
-```
-
-So once `Pool` is down to one token, `TakeLeft` takes it in every step and `TakeRight` never fires again.
-
-**Conflicts** on nondet leaves the choice open. Each transition in the conflict also waits for an input Bool that nothing drives, `pick_TakeLeft` or `pick_TakeRight`:
+In record order, `TakeLeft` tests `Pool` and `TakeRight` tests what is left, `avail_Pool`, so `TakeLeft` wins every step. **Conflicts** on nondet leaves the choice open: each contender also waits for a pick, an input that nothing drives.
 
 ```python
 return (Pool >= 1) & X(pick_TakeLeft)
 return (avail_Pool >= 1) & X(pick_TakeRight)
 ```
 
-Every way of resolving the conflict is then a run of the modules, and all picks true is record order. So a property proved under nondet holds whichever transition gets the token.
-
-`Return` takes from `Left`, which no other transition takes from. It is in no conflict, so it gets no pick, and it fires whenever `Left` holds a token.
+Every way of resolving the conflict is then a run, and all picks true is record order. `Return` is in no conflict and gets no pick.
 
 ### Options
 
-- **Conflicts** on sweep drops the picks, and record order alone decides.
-- **Control** on open gives `TakeLeft`, which the IR marks `controllable`, an input `go_TakeLeft` that nothing drives, of the same kind as a pick.
-- **Shape** on monolithic needs no `avail_Pool`: one `next` takes from `Pool` in record order.
+- **Conflicts** on sweep drops the picks: record order alone decides.
+- **Control** on open gives `TakeLeft`, marked `controllable`, an input `go_TakeLeft` of the same kind as a pick.
 
 ### Open questions
 

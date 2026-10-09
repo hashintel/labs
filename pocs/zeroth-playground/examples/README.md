@@ -4,24 +4,24 @@ One folder per Petri net: its IR document, the compiler options it opens with, a
 
 ## The ladder
 
-The examples climb a ladder of rungs, from the plainest net up. Each one adds one idea to the ones before it, and is named by that idea, then by the net it uses: "Rates as coins", using Birth–death. `LADDER` in `catalog.ts` lists the rungs:
+The examples climb a ladder of rungs. Each one adds one idea to the ones before it, and is named by that idea, then by the net it uses: "Rates as coins", using Birth–death. A page opens on the problem its net poses, quotes the lines the compiler writes for it, and stops. `LADDER` in `catalog.ts` lists the rungs:
 
 | Rung | Holds |
 | --- | --- |
-| `steps` | plain nets: how one step of the net becomes modules |
-| `rates` | stochastic nets: coins tested each step, or clocks in continuous time |
+| `steps` | nets compiled in steps, plain or with coins: what one step of the net means as modules |
+| `clocks` | stochastic nets compiled in continuous time, in Zeroth's SPN theory |
 | `colours` | coloured tokens; refused in the playground, which has no code parser, and unlisted |
 
 | Order | Example | Net | Opens with | What you learn |
 | --- | --- | --- | --- | --- |
-| 10 | One step as a module | Cycle | monolithic | A step fires every enabled transition once, in record order: it takes at once and lands at the end. The step is one `next` over an Int per place, or one module per transition and per place, read through `X(...)`. |
-| 20 | Who gets the token | Conflict | modular, `conflicts: nondet` | Record order settles a shared input place through `avail_Pool`. Nondet adds a `pick_T` per contender, so every resolution is a run. A transition in no conflict gets no pick. |
-| 30 | A capped place | Capacity | modular | `fill_Buffer` lets a later producer count the token an earlier one adds in the same step. Clocks refuse capacities. |
-| 40 | Weighted, read and inhibitor arcs | Arcs | modular | A weight w tests `P >= w` and takes w, a read arc tests without taking, an inhibitor arc tests `P < w`. |
-| 50 | Rates as coins | Birth–death | modular, `dt: 0.5` | A rate becomes an input draw `u_T` tested against e^(−λ·Δt), computed at compile time. Places become Real in LRA, or stay Int with a `Draw_T` module per transition. |
-| 60 | Rates as clocks | Birth–death | `rates: clock` | A rate becomes a clock `clk_T` armed with `exp(rate)` and an event `ev_T`, places become Nat counters, and `compose` hides the clocks. A coin's rate stays below λ. |
-| 70 | Two inputs under clocks | Café queue | `rates: clock` | A transition with two input places keeps both tests and pauses its clock while either is empty, where Zeroth's model lets the places decide. |
-| 80 | Conflicts under clocks | Conflict with rates | `rates: clock`, `conflicts: nondet` | A conflict becomes a race between clocks. A pick is read at expiry, and a false pick stops time. |
+| 10 | One step as a module | Cycle | monolithic | A step takes at once and lands at the end, as one `next` over an Int per place, or as one module per transition and place. |
+| 20 | Who gets the token | Conflict | modular, `conflicts: nondet` | Record order settles a shared place; a pick per contender leaves it open, so every resolution is a run. |
+| 30 | A capped place | Capacity | modular | `fill_Buffer` counts a token that lands at the end of the step; room freed later in the step does not count. |
+| 40 | What an arc tests | Arcs | modular | A weight takes w tokens, a read arc tests without taking, an inhibitor arc tests emptiness. |
+| 50 | Rates as coins | Birth–death | modular, `dt: 0.5` | A rate becomes a draw tested against e^(−λ·Δt) each step; the places become Real in LRA. |
+| 60 | Rates as clocks | Birth–death | `rates: clock` | A rate becomes a clock and an event in SPN; a coin's rate stays below λ. |
+| 70 | Two inputs under clocks | Café queue | `rates: clock` | The transition pauses its clock while an input place is empty, where Zeroth's model lets the places decide. |
+| 80 | Conflicts under clocks | Conflict with rates | `rates: clock`, `conflicts: nondet` | A conflict is a race between clocks; a false pick stops time, and a tie produces twice. |
 | 90 | Code strings are refused, unlisted | Bucket | monolithic | A rate written as code is refused with `code-not-parsed` until a code parser is passed. |
 
 The picker lists the listed examples rung by rung, sorted by `order`, and skips a rung with none. Put a new example where its idea builds on the ones before it, and only when no example already teaches that idea.
@@ -46,7 +46,7 @@ The folder name is the id: the picker's key, the page's key and the URL hash, `#
 | `feature` | what the example tackles: its name in the picker and its page heading |
 | `title` | the net's name, shown above the heading |
 | `summary` | one line on what it shows, in the picker |
-| `rung` | `steps`, `rates` or `colours` |
+| `rung` | `steps`, `clocks` or `colours` |
 | `order` | its place up the ladder; examples sort by it, in steps of 10 |
 | `listed` | `false` keeps it out of the picker; its hash still opens it |
 | `options` | the compiler options it opens with |
@@ -98,9 +98,9 @@ return X(u_Birth) >= 0.36787944117144233
 
 - The documentation view writes the net's name and the heading from `meta.ts`; the page starts with its first paragraph.
 - The documentation view passes `Figure` and `Question` to every page as MDX components, from `playground/docs/page-components.ts`. A page uses them without importing them, and imports only its own `./components/`. It also renders fenced code through `CodeBlock`, which wraps a long line under a hanging indent, so quote a line of Python in a fenced block when it is longer than about 25 characters: inline code does not wrap.
-- Open with the problem, not with the net or the options. Name the IR items and the Python names the reader will see. Say once, on the page that needs it, what a later page builds on. Name another example by its feature, in italics: *Rates as clocks*.
+- Open with the problem, not with the net or the options, so a reader gets it at a glance. A page is about a hundred words: the problem in one or two sentences, one quoted answer, and at most two options. Name the IR items and the Python names the reader will see. Name another example by its feature, in italics: *Rates as clocks*.
 - **Options** lists only the options that change this net's output, never one the panel greys out, and not the shape the example opens with. Leave the section out when the body already covers them.
-- Only the first page, Cycle, has a **Hover** section: one bullet on what pointing at a line or a node does.
+- Only the first page, Cycle, ends with one line on what pointing at a line or a node does.
 - An open question lives in [semantics/](../semantics/README.md), one folder per question, and a page only references it: `<Question id="..." />` renders a card with its owner, its status and a way into the Semantics view. An id the register does not hold fails the page render test. Each question sits on the one page where it matters most.
 - A refused example says why under `### Refused here`, and what the compiler would write with a code parser.
 - Maths is written as `$...$` or `$$...$$` and rendered to SVG at build time. Keep it short.
