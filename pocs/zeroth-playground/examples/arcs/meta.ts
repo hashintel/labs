@@ -1,7 +1,7 @@
 import type { ExampleMeta } from "../catalog";
 
 export default {
-  feature: "Weighted, read and inhibitor arcs",
+  feature: "What an arc tests",
   title: "Arcs",
   summary: "An arc that takes two tokens, one that reads a place, one that needs it empty.",
   rung: "steps",

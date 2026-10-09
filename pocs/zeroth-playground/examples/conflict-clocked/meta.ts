@@ -4,7 +4,7 @@ export default {
   feature: "Conflicts under clocks",
   title: "Conflict with rates",
   summary: "A conflict as a race between clocks, with picks read at expiry.",
-  rung: "rates",
+  rung: "clocks",
   order: 80,
   listed: true,
   options: { rates: "clock", conflicts: "nondet" },

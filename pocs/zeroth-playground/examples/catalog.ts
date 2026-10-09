@@ -2,7 +2,7 @@ import type { CompilerOptions } from "../compiler";
 
 /** A rung of the ladder: the examples it holds tackle features of one kind. */
 export type Rung = {
-  id: "steps" | "rates" | "colours";
+  id: "steps" | "clocks" | "colours";
   /** The rung's heading in the picker. */
   title: string;
 };
@@ -10,7 +10,7 @@ export type Rung = {
 /** The ladder, from the plainest net up; examples/README.md says what each rung holds. */
 export const LADDER: readonly Rung[] = [
   { id: "steps", title: "Steps" },
-  { id: "rates", title: "Rates" },
+  { id: "clocks", title: "Clocks" },
   { id: "colours", title: "Coloured tokens" },
 ];
 
