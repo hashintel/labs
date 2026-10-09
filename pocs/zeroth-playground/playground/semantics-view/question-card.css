@@ -35,9 +35,10 @@
   margin: 0 0 0.6rem;
 }
 
+/* A clear break after the page, before the places the question shows. */
 .question-card__shows {
   max-width: 72rem;
-  margin-top: var(--s-5);
+  margin-top: calc(2 * var(--s-6));
 }
 
 .question-card__shows-title {
