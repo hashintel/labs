@@ -1,11 +1,8 @@
 import type { ExampleMeta } from "../catalog";
 
 export default {
-  feature: "Who gets the token",
+  feature: "One shared token",
   title: "Conflict",
-  summary: "Record order settles a shared input place, or a pick per contender leaves it open.",
-  rung: "steps",
   order: 20,
-  listed: true,
-  options: { shape: "modular", conflicts: "nondet" },
+  options: { shape: "modular" },
 } satisfies ExampleMeta;

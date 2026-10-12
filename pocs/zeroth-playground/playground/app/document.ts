@@ -1,20 +1,12 @@
-import { type ModuleEdits, NO_EDITS, isEdited, recompiled } from "../playground-view/module-edits";
 import { sameOptions, withOption } from "../options/option-edits";
 
 import type { CompilerOptions, OptionName, PetriNetIr } from "../../compiler";
 import type { Example } from "../../examples/catalog";
 
-/**
- * What the playground has open: the IR text and the compiler options beside
- * it, since the text carries no options. The example it was loaded from
- * names the page. The module edits ride along: a new IR text or new options
- * compile a new module and drop them.
- */
 export type Document = {
   exampleId: string;
   irText: string;
   options: CompilerOptions;
-  module: ModuleEdits;
 };
 
 /** The example as it opens, under the options given in place of its own. */
@@ -23,27 +15,22 @@ export function documentOf(example: Example, options: CompilerOptions = example.
     exampleId: example.id,
     irText: example.ir,
     options,
-    module: NO_EDITS,
   };
 }
 
-/** Whether the text, the options or the module differ from the document as it opened. */
 export function isChanged(document: Document, opening: Document): boolean {
   return (
     document.irText !== opening.irText ||
-    !sameOptions(document.options, opening.options) ||
-    isEdited(document.module)
+    !sameOptions(document.options, opening.options)
   );
 }
 
-/** The document with a new IR text, which drops the module edits; the same text keeps it as it is. */
 export function withIrText(document: Document, irText: string): Document {
   return irText === document.irText
     ? document
-    : { ...document, irText, module: recompiled(document.module) };
+    : { ...document, irText };
 }
 
-/** The document with one option changed from a control's text, which drops the module edits. */
 export function withOptionText(
   document: Document,
   ir: PetriNetIr,
@@ -53,6 +40,5 @@ export function withOptionText(
   return {
     ...document,
     options: withOption(ir, document.options, name, text),
-    module: recompiled(document.module),
   };
 }

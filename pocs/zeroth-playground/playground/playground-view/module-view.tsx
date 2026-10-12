@@ -7,7 +7,6 @@ import { FileList } from "./file-list";
 import { type Hover, hoverAtLine, litLines } from "./hover";
 import { Panel } from "../ui/panel";
 import { RESIZE_TARGET } from "../ui/resize-target";
-import { type ModuleEdits, editFile, isEdited, shownText } from "./module-edits";
 import { useFolds } from "../ui/use-folds";
 
 import type { Compilation } from "../../compiler";
@@ -19,29 +18,17 @@ type ModuleViewProps = {
   /** Names the editor's models, so undo never reaches another example's text. */
   exampleId: string;
   compilation: Compilation;
-  /** The hand edits over the compiled files, and whether the editor takes more. */
-  edits: ModuleEdits;
-  onEdit: (edits: ModuleEdits) => void;
   hover: Hover | null;
   onHover: (hover: Hover | null) => void;
   onRevealIrLine: (line: number) => void;
 };
 
-const REFUSED = "# The lowering refused this net; the diagnostics below say why.\n";
-const NO_DOCUMENT = "# The text is not an IR document yet.\n";
+const REFUSED = "# Cannot compile this net. See the errors below.\n";
+const NO_DOCUMENT = "# Enter a valid Petri net to see the Python.\n";
 
-/**
- * The emitted module: the file shown in an editor, the other files in a
- * small panel at its right when the layout writes several, and the
- * diagnostics under both. The editor is read-only unless the edits are on;
- * an edited file shows its edit and drops its trace, which no longer
- * matches its lines.
- */
 export const ModuleView: React.FC<ModuleViewProps> = ({
   exampleId,
   compilation,
-  edits,
-  onEdit,
   hover,
   onHover,
   onRevealIrLine,
@@ -59,20 +46,15 @@ export const ModuleView: React.FC<ModuleViewProps> = ({
       ? compilation.ir === null
         ? NO_DOCUMENT
         : REFUSED
-      : shownText(edits, file.path, file.text);
-  const trace = file === undefined || isEdited(edits, file.path) ? [] : file.trace;
+      : file.text;
+  const trace = file?.trace ?? [];
   const code = (
     <div className="fill">
       <MonacoEditor
         path={`${exampleId}/module/${path}`}
         language="python"
         value={text}
-        readOnly={file === undefined || !edits.editing}
-        onChange={(next) => {
-          if (file !== undefined) {
-            onEdit(editFile(edits, file.path, next, file.text));
-          }
-        }}
+        readOnly
         stickyScroll
         trace={trace}
         decorations={litLines("module", trace, hover)}

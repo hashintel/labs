@@ -4,17 +4,10 @@ import { type Question, questionById } from "../../semantics/register";
 
 import type { CompilerOptions, OptionSpec } from "../../compiler";
 
-/** The three views: the Playground, how the compiler works, and the questions on the semantics. */
-export type View = "playground" | "compiler" | "semantics";
+export type View = "playground" | "semantics";
 
-/**
- * What a URL hash names. The Playground and Compiler views work on an example,
- * under the options the hash carries in place of the ones it opens with; a
- * hash that names no example, or one the catalog does not hold, leaves the
- * open example as it is. The Semantics view may select a question.
- */
 export type Route =
-  | { view: "playground" | "compiler"; example?: Example; options?: CompilerOptions }
+  | { view: "playground"; example?: Example; options?: CompilerOptions }
   | { view: "semantics"; question?: Question };
 
 /** The options a hash's query names, each checked against the options table. */
@@ -53,12 +46,6 @@ function queryOf(options: CompilerOptions | undefined): string {
   return query === "" ? "" : `?${query}`;
 }
 
-/**
- * The route a hash names: `#capacity` is an example, `#capacity?shape=modular`
- * one under other options, `#compiler/capacity` the Compiler view on it,
- * `#semantics` the Semantics view and `#semantics/ties-under-clocks` one of
- * its questions.
- */
 export function routeOf(hash: string): Route {
   const [path = "", query = ""] = hash.replace(/^#/u, "").split("?");
   const [first = "", second = ""] = path.split("/");
@@ -66,11 +53,10 @@ export function routeOf(hash: string): Route {
     const question = questionById(second);
     return { view: "semantics", ...(question === undefined ? {} : { question }) };
   }
-  const view = first === "compiler" ? "compiler" : "playground";
-  const example = exampleById(view === "compiler" ? second : first);
+  const example = exampleById(first === "compiler" ? second : first);
   const options = optionsOf(query);
   return {
-    view,
+    view: "playground",
     ...(example === undefined ? {} : { example }),
     ...(options === undefined ? {} : { options }),
   };
@@ -82,6 +68,5 @@ export function hashOf(route: Route): string {
     return route.question === undefined ? "#semantics" : `#semantics/${route.question.id}`;
   }
   const example = route.example?.id ?? "";
-  const path = route.view === "compiler" ? `compiler/${example}` : example;
-  return `#${path}${queryOf(route.options)}`;
+  return `#${example}${queryOf(route.options)}`;
 }

@@ -10,8 +10,8 @@ import "./net-preview.css";
 type NetPreviewProps = {
   ir: PetriNetIr;
   /** The net item lit by a hover in any view. */
-  lit: NetItem | null;
-  onHover: (source: NetItem | null) => void;
+  lit?: NetItem | null;
+  onHover?: (source: NetItem | null) => void;
 };
 
 /**
@@ -21,7 +21,7 @@ type NetPreviewProps = {
  * editors light its lines; a lit item from either editor shows here. The one
  * component that takes a `PetriNetIr`, so a canvas can replace it later.
  */
-export const NetPreview: React.FC<NetPreviewProps> = ({ ir, lit, onHover }) => {
+export const NetPreview: React.FC<NetPreviewProps> = ({ ir, lit = null, onHover }) => {
   const graph = netGraph(ir);
   // A structural change lays out in the background while the last drawing stays up.
   const shown = useDeferredValue(graph);

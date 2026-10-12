@@ -1,46 +1,12 @@
-/* The question panel with a question selected: the head, the page, then where it shows. */
 .question-card {
   height: 100%;
-  padding: var(--s-4) 1.35rem var(--s-6);
+  padding: 1.5rem 2rem;
   overflow-y: auto;
+  font-size: var(--fs-base);
+  line-height: 1.6;
   user-select: text;
-}
 
-/* The head leads with the way back, a hairline, then the topic, the owner and the status. */
-.question-card__head {
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  margin-bottom: 0.45rem;
-
-  & .kicker {
-    margin: 0;
+  & > * {
+    max-width: 65ch;
   }
-}
-
-.back-link + .kicker {
-  padding-left: 0.6rem;
-  border-left: 1px solid var(--hair);
-}
-
-.question-card__doc {
-  max-width: 60ch;
-
-  & code {
-    font-size: 0.82em;
-  }
-}
-
-.question-card__title {
-  margin: 0 0 0.6rem;
-}
-
-/* A clear break after the page, before the places the question shows. */
-.question-card__shows {
-  max-width: 72rem;
-  margin-top: calc(2 * var(--s-6));
-}
-
-.question-card__shows-title {
-  margin: 0 0 var(--s-2);
 }

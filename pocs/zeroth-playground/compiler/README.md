@@ -377,6 +377,6 @@ The TypeScript in this folder is formatted as Prettier formats it at a width of 
 
 [mapping.md](mapping.md) tracks these with the other open questions.
 
-- The playground passes no `parseCode`, so a net with code strings, such as the Bucket example, is refused with `code-not-parsed`. A TypeScript parser does not fit the playground's one-file budget.
+- The playground passes no `parseCode`, so a net with code strings, is refused with `code-not-parsed`. A TypeScript parser does not fit the playground's one-file budget.
 - Clock rates refuse a capacity (`clocks-capacity`) and an arc weight above one (`clocks-arc-weight`): SPN tests a count against zero only and moves one token at a time. So a stochastic net with either has no clocked output. Sections (b) and (c) of [mapping.md](mapping.md) hold the questions.
 - `pnpm check:zrth` checks that the output constructs, not that it runs. `zrth.simulate` takes no external but `t`, so the clocked output under `conflicts: nondet`, whose picks are externals, cannot run there. No run of the clocked output under `conflicts: sweep` is kept in the repository.

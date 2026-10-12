@@ -5,6 +5,8 @@ type ArcViewProps = {
   edge: LaidOutEdge;
   /** The net item lit by a hover in any view. */
   lit: NetItem | null;
+  arrowId: string;
+  inhibitId: string;
 };
 
 /** An arc lights with either of its ends. */
@@ -24,7 +26,7 @@ function midpoint(points: Point[]): Point {
 }
 
 /** An arc as an arrow, or a line ending in a circle for an inhibitor arc, with a weight other than one over its middle. */
-export const ArcView: React.FC<ArcViewProps> = ({ edge, lit }) => {
+export const ArcView: React.FC<ArcViewProps> = ({ edge, lit, arrowId, inhibitId }) => {
   if (edge.points.length < 2) {
     return null;
   }
@@ -34,7 +36,7 @@ export const ArcView: React.FC<ArcViewProps> = ({ edge, lit }) => {
       <polyline
         className="net__line"
         points={edge.points.map((point) => `${point.x},${point.y}`).join(" ")}
-        markerEnd={edge.kind === "inhibitor" ? "url(#net-inhibit)" : "url(#net-arrow)"}
+        markerEnd={`url(#${edge.kind === "inhibitor" ? inhibitId : arrowId})`}
       />
       {edge.weight === 1 ? null : (
         <text className="net__weight" x={label.x} y={label.y - 4} textAnchor="middle">

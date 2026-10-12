@@ -1,6 +1,6 @@
 # Mapping the Petri net IR to reactive modules
 
-The design shared by HASH and Zeroth: how each part of a net maps to zrth, the options, the open questions and who can settle each. The questions on the semantics, what a net means as modules and what Zeroth can express, live in [../semantics/](../semantics/README.md) and the playground's Semantics view; each section below links its questions there. The tooling questions, on executors, seeds and numerics, are listed here alone. Settling a question updates its folder in `semantics/`, and this file where it is listed alone. Every mapping under coins reproduces one step of the net, as [README.md](README.md#one-step-of-the-net) defines it.
+The design shared by HASH and Zeroth: how each part of a net maps to zrth, the options, the open questions and who can settle each. The questions on the semantics, what a net means as modules and what Zeroth can express, live in [../semantics/](../semantics/README.md) and the playground's Questions view; each section below links its questions there. The tooling questions, on executors, seeds and numerics, are listed here alone. Settling a question updates its folder in `semantics/`, and this file where it is listed alone. Every mapping under coins reproduces one step of the net, as [README.md](README.md#one-step-of-the-net) defines it.
 
 ## 1. Scope
 
@@ -75,7 +75,6 @@ net = compose(
 
 Open questions:
 
-- [A coloured place split into modules](../semantics/coloured-places-as-modules/page.mdx) (HASH)
 - When the spn line merges to `main`, so the `next` the compiler writes stops depending on the branch. (Zeroth)
 - [SPN and LRA modules in one system](../semantics/spn-and-lra-in-one-system/page.mdx) (Zeroth)
 
@@ -128,11 +127,6 @@ Pool_0_x = Var(REAL)
         Pool_0_present = kept_Pool >= 1.0
 ```
 
-Open questions:
-
-- [Capacity under clocks](../semantics/capacity-under-clocks/page.mdx) (Zeroth)
-- [Room freed later in the step](../semantics/room-freed-later-in-the-step/page.mdx) (HASH)
-- [Coloured tokens under clocks](../semantics/coloured-tokens-under-clocks/page.mdx) (Zeroth)
 
 ### (c) Transitions, enabling
 
@@ -164,11 +158,6 @@ Read and inhibitor arcs under clocks (golden "tests read and inhibitor arcs, app
         fires_In = (clk_In == 0) & (B != 0) & (C == 0)
 ```
 
-Open questions:
-
-- [Arc weights under clocks](../semantics/arc-weights-under-clocks/page.mdx) (Zeroth)
-- [Picks and choices under clocks](../semantics/picks-under-clocks/page.mdx) (Zeroth)
-- [Read and inhibitor arcs in the modular shape](../semantics/read-and-inhibitor-arcs-modular/page.mdx), settled (HASH)
 
 ### (d) Transitions, firing and stochastic rates
 
@@ -225,7 +214,6 @@ Open questions:
 
 - [The transition decides, or the places decide](../semantics/transition-or-places-decide/page.mdx) (HASH and Zeroth)
 - [Marking-dependent rates under clocks](../semantics/marking-dependent-rates/page.mdx) (Zeroth)
-- [Immediate transitions under clocks](../semantics/immediate-transitions-under-clocks/page.mdx) (Zeroth)
 
 ### (e) Conflicts and non-determinism
 
@@ -255,14 +243,6 @@ Coins (golden "has each transition in a conflict wait for an undriven pick under
 
 The interpreter reads an undriven pick as true, so the nondet trace equals the sweep trace. On a plain two-transition fork under coins (`lower/lower.test.ts`, "holds a transition whose pick is false and refuses another input left without a value"), holding `pick_TakeLeft` false for three steps ends at `{ Pool: 0, Left: 0, Right: 3 }`.
 
-Open questions:
-
-- [A false pick under clocks](../semantics/false-pick-under-clocks/page.mdx) (HASH)
-- [Ties under clocks](../semantics/ties-under-clocks/page.mdx) (HASH and Zeroth)
-- [Ties under coins](../semantics/ties-under-coins/page.mdx) (HASH and Zeroth)
-- [Read and inhibitor arcs as conflicts](../semantics/read-arcs-as-conflicts/page.mdx) (HASH)
-- [One mechanism for external choices](../semantics/one-mechanism-for-choices/page.mdx) (HASH)
-- [Picks and choices under clocks](../semantics/picks-under-clocks/page.mdx) (Zeroth)
 
 ### (f) Kernels and outputs
 
@@ -289,9 +269,6 @@ Example (golden `drones`, `lower/monolithic/colour.test.ts`, kernel `const d = i
 
 A Gaussian draw in a rate, `Distribution.Gaussian(input.Hangar[0].battery, 4).map((v) => v + 1)`, lowers to `Hangar_0_battery + 4 * z_0 + 1` (`code/linear-code.test.ts`).
 
-Open questions:
-
-- [Kernels under clocks](../semantics/kernels-under-clocks/page.mdx) (Zeroth)
 
 ### (g) Continuous dynamics and time
 
@@ -318,7 +295,6 @@ The Euler step (golden `boiler`, `lower/monolithic/colour.test.ts`, `dt: 0.25`) 
 
 Open questions:
 
-- [An LRA flow that reads its own state](../semantics/lra-flow-reads-its-state/page.mdx) (Zeroth)
 - Seed and `dt` equivalence between HASH's own simulator and `simulate.py`: one stream per transition, or a lazy driver on HASH's side? (HASH, Zeroth)
 
 ### (h) Names, provenance and diagnostics

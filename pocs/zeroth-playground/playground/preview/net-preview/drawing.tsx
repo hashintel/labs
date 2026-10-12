@@ -1,4 +1,4 @@
-import { use } from "react";
+import { use, useId } from "react";
 
 import { layoutFor, placeGraph } from "../layout-net";
 import { ArcView } from "./arc-view";
@@ -11,7 +11,7 @@ type DrawingProps = {
   graph: NetGraph;
   /** The net item lit by a hover in any view. */
   lit: NetItem | null;
-  onHover: (source: NetItem | null) => void;
+  onHover?: (source: NetItem | null) => void;
 };
 
 /** How far past its laid-out size the drawing may grow to fill the panel. */
@@ -19,6 +19,9 @@ const SCALE_CAP = 1.6;
 
 /** The laid-out net as one SVG, scaled to fit. It suspends while elkjs lays the graph out. */
 export const Drawing: React.FC<DrawingProps> = ({ graph, lit, onHover }) => {
+  const id = useId();
+  const arrowId = `${id}-arrow`;
+  const inhibitId = `${id}-inhibit`;
   const layout = placeGraph(graph, use(layoutFor(graph)));
   if (layout.nodes.length === 0) {
     return <p className="note">The net has no places or transitions yet.</p>;
@@ -34,7 +37,7 @@ export const Drawing: React.FC<DrawingProps> = ({ graph, lit, onHover }) => {
     >
       <defs>
         <marker
-          id="net-arrow"
+          id={arrowId}
           viewBox="0 0 10 10"
           refX="9"
           refY="5"
@@ -45,7 +48,7 @@ export const Drawing: React.FC<DrawingProps> = ({ graph, lit, onHover }) => {
           <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke" />
         </marker>
         <marker
-          id="net-inhibit"
+          id={inhibitId}
           viewBox="0 0 10 10"
           refX="9"
           refY="5"
@@ -57,7 +60,7 @@ export const Drawing: React.FC<DrawingProps> = ({ graph, lit, onHover }) => {
         </marker>
       </defs>
       {layout.edges.map((edge) => (
-        <ArcView key={edge.id} edge={edge} lit={lit} />
+        <ArcView key={edge.id} edge={edge} lit={lit} arrowId={arrowId} inhibitId={inhibitId} />
       ))}
       {layout.nodes.map((node) => (
         <NodeView key={node.id} node={node} lit={lit} onHover={onHover} />

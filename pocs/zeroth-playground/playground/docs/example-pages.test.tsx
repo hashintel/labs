@@ -2,7 +2,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { questionById } from "../../semantics/register";
-import CompilerGuide from "../compiler-view/compiler-guide.mdx";
 import { EXAMPLE_PAGES } from "./example-pages";
 import { PAGE_COMPONENTS } from "./page-components";
 
@@ -24,14 +23,4 @@ describe("the example pages", () => {
       }
     });
   }
-});
-
-describe("the Compiler guide", () => {
-  it("renders with the components the documentation view passes", () => {
-    // GIVEN the guide and the components the documentation view passes a page
-    // WHEN it renders
-    const html = renderToStaticMarkup(<CompilerGuide components={PAGE_COMPONENTS} />);
-    // THEN it holds its stages section
-    expect(html).toContain("The stages");
-  });
 });

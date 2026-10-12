@@ -30,12 +30,12 @@ describe("withOption", () => {
   });
 
   it("drops the options clock rates ignore", () => {
-    // GIVEN the conflict under clocks, its conflicts left open
-    const { ir, options } = opened("conflict-clocked");
+    // GIVEN Birth–death under clocks
+    const { ir, options } = opened("birth-death-clocked");
     // WHEN the shape is changed, then the rates
-    // THEN the shape does not stick under clocks, and conflicts survive the move to coins
-    expect(withOption(ir, options, "shape", "modular")).toEqual({ rates: "clock", conflicts: "nondet" });
-    expect(withOption(ir, options, "rates", "coin")).toEqual({ conflicts: "nondet" });
+    // THEN the shape does not stick under clocks, and coins return to the default rates
+    expect(withOption(ir, options, "shape", "modular")).toEqual({ rates: "clock" });
+    expect(withOption(ir, options, "rates", "coin")).toEqual({});
   });
 
   it("ignores a value the option does not have", () => {

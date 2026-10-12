@@ -20,7 +20,7 @@ pnpm dev          # http://localhost:5173, `#<example-id>` opens an example
 pnpm lint:tsc     # type-check, then check compiler/ on its own
 pnpm test         # unit tests (vitest)
 pnpm build        # dist/index.html, one self-contained file
-pnpm screenshot   # the listed examples and the Compiler view, into screenshots/
+pnpm screenshot   # the examples and questions, into screenshots/
 ZRTH_PATH=/path/to/zrth pnpm check:zrth   # import every example's Python into zrth; not a gate
 ```
 

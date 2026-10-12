@@ -33,7 +33,7 @@ describe("netGraph", () => {
   });
 
   it("keeps arc kinds and weights, capacities, colours, guards and code rates", () => {
-    // GIVEN the arcs, the conflict, the bucket and a transition with a guard
+    // GIVEN weighted, read, inhibitor and coloured arcs, and a controlled transition
     const guardedIr: PetriNetIr = {
       name: "guarded",
       kind: "plain",
@@ -41,9 +41,18 @@ describe("netGraph", () => {
       transitions: { Go: { inputs: { A: null }, guard: "return true;" } },
     };
     // WHEN their graphs are read
-    const arcs = netGraph(irOf("arcs"));
-    const conflict = netGraph(irOf("conflict"));
-    const bucket = netGraph(irOf("bucket"));
+    const arcs = netGraph({
+      name: "arcs", kind: "plain",
+      places: { Parts: null, Power: null, Jam: null, Products: null },
+      transitions: { Join: { inputs: { Parts: { weight: 2 }, Power: { kind: "read" }, Jam: { kind: "inhibitor" } }, outputs: { Products: null } } },
+    });
+    const conflict = netGraph({ ...irOf("conflict"), transitions: { TakeLeft: { inputs: { Pool: null }, controllable: true } } });
+    const bucket = netGraph({
+      name: "bucket", kind: "stochastic", colours: { Ball: { x: "real" } },
+      places: { Pool: { colour: "Ball", capacity: 2 }, Done: null },
+      transitions: { Take: { inputs: { Pool: null }, outputs: { Done: null }, rate: "return 1;" } },
+      marking: { Pool: [{ x: 2 }, { x: 0.5 }] },
+    });
     const guarded = netGraph(guardedIr);
     // THEN the arcs keep their weight and kinds, the conflict its controllable transition, the
     // bucket its capped coloured place and its rate written as code, and the guard is marked

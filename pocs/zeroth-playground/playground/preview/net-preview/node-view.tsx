@@ -9,7 +9,7 @@ type NodeViewProps = {
   node: LaidOutNode;
   /** The net item lit by a hover in any view. */
   lit: NetItem | null;
-  onHover: (source: NetItem | null) => void;
+  onHover?: (source: NetItem | null) => void;
 };
 
 /** The line under a node's name: a place's colour and capacity, a transition's rate and guard. */
@@ -40,8 +40,8 @@ export const NodeView: React.FC<NodeViewProps> = ({ node, lit, onHover }) => {
       className="net__node"
       data-kind={node.kind}
       data-lit={lit !== null && sameItem(lit, nodeSource(node))}
-      onMouseEnter={() => onHover(nodeSource(node))}
-      onMouseLeave={() => onHover(null)}
+      onMouseEnter={() => onHover?.(nodeSource(node))}
+      onMouseLeave={() => onHover?.(null)}
     >
       {node.kind === "place" ? (
         <circle className="net__shape" cx={cx} cy={node.y + node.height / 2} r={node.width / 2} />

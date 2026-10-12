@@ -7,11 +7,6 @@
 /** The speed, in pixels per millisecond, below which the pointer rests: 50 px a second. */
 const RESTING_SPEED = 0.05;
 
-/**
- * How long the pointer rests on a target before a hover takes effect. The
- * Compiler view's texts quote it, so it lives here, away from the page
- * listener in `use-dwell.ts`.
- */
 export const DWELL_MS = 60;
 
 /** Where the pointer was at a time, in the page's milliseconds. */

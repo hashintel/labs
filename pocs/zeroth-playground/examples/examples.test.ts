@@ -10,7 +10,7 @@ const OPENED = EXAMPLES.map((example) => ({
 }));
 
 describe("the examples", () => {
-  it("each compile, or are refused as expected, under the options they open with", () => {
+  it("each compile under the options they open with", () => {
     // GIVEN every example compiled under the options it opens with
     // WHEN each outcome is read off its compilation
     const outcomes = Object.fromEntries(
@@ -19,17 +19,13 @@ describe("the examples", () => {
         files.length > 0 ? "compiles" : errors.map((error) => error.code).join(","),
       ]),
     );
-    // THEN the plain and stochastic nets compile, and the net with code waits for a parser
+    // THEN every presentation example compiles
     expect(outcomes).toEqual({
       cycle: "compiles",
       conflict: "compiles",
-      capacity: "compiles",
-      arcs: "compiles",
       "birth-death": "compiles",
       "birth-death-clocked": "compiles",
       "cafe-queue": "compiles",
-      "conflict-clocked": "compiles",
-      bucket: "code-not-parsed",
     });
   });
 

@@ -1,27 +1,17 @@
 import { useRef } from "react";
-import {
-  Cell,
-  Grid,
-  Gridline,
-  Group,
-  Panel as ResizablePanel,
-  Separator,
-  useGridRef,
-  usePanelRef,
-} from "react-resizable-panels";
+import { Cell, Grid, Gridline, useGridRef } from "react-resizable-panels";
 
 import { optionStates } from "../../compiler";
 import { withIrText, withOptionText } from "../app/document";
 import { Documentation } from "../docs/documentation";
 import { type CodeEditor, MonacoEditor } from "../editor/monaco-editor";
+import { OPTION_LABELS } from "../options/option-labels";
 import { NetPreview } from "../preview/net-preview";
 import { Panel } from "../ui/panel";
 import { RESIZE_TARGET } from "../ui/resize-target";
-import { Switch } from "../ui/switch";
 import { type Foldable, useFolds } from "../ui/use-folds";
 import { CompilerOptionsPanel } from "./compiler-options-panel";
 import { type Hover, hoverAtLine, hoverAtSource, litLines } from "./hover";
-import { toggleEditing } from "./module-edits";
 import { ModuleView } from "./module-view";
 
 import type { Compilation, Diagnostic } from "../../compiler";
@@ -41,14 +31,7 @@ type PlaygroundViewProps = {
   onHover: (hover: Hover | null) => void;
 };
 
-/**
- * The panels that fold, by the container that owns them. Each container's
- * layout callback reads only its own handles: the grid's tracks are not
- * there while Activity has the grid unmounted, and a nested group may report
- * its layout before the grid around it has mounted again.
- */
 const GRID_FOLDS = ["documentation", "preview"] as const;
-const STACK_FOLDS = ["options"] as const;
 
 /** The IR lines the diagnostics point at. */
 function diagnosticLines(
@@ -62,25 +45,19 @@ function diagnosticLines(
   );
 }
 
-/**
- * The Playground view: the example's page down the left; the IR editor over
- * the compiler options, and the emitted module beside them; the net preview
- * under both. A hover in the IR, the module or the preview lights what
- * belongs with it in the other two.
- */
 export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ document, compilation, onChange, hover, onHover }) => {
   const irEditorRef = useRef<CodeEditor | null>(null);
   const gridRef = useGridRef();
-  const optionsRef = usePanelRef();
 
   function trackHandle(key: (typeof GRID_FOLDS)[number]): Foldable | undefined {
     return gridRef.current?.getTrackById(key === "documentation" ? "column" : "row", key);
   }
 
   const gridFolds = useFolds(GRID_FOLDS, trackHandle);
-  const stackFolds = useFolds(STACK_FOLDS, () => optionsRef.current);
   const { ir } = compilation;
-  const optionRows = ir === null ? [] : optionStates(ir, document.options);
+  const optionRows = ir === null ? [] : optionStates(ir, document.options).filter(
+    (state) => state.notApplicable === undefined && OPTION_LABELS.some((labels) => labels.name === state.name),
+  );
   const irDecorations = [
     ...litLines("ir", compilation.irTrace, hover),
     ...diagnosticLines(compilation.errors, "error"),
@@ -108,50 +85,35 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ document, compil
         { id: "preview", minSize: "18%", collapsible: true, collapsedSize: "2rem" },
       ]}
       defaultLayout={{
-        columns: { documentation: 24, ir: 38, module: 38 },
-        rows: { editors: 62, preview: 38 },
+        columns: { documentation: 26, ir: 34, module: 40 },
+        rows: { editors: 72, preview: 28 },
       }}
       resizeTargetMinimumSize={RESIZE_TARGET}
       onLayoutChange={gridFolds.sync}
     >
       <Cell column={0} row={0} rowSpan={2}>
-        <Panel title="Documentation" fold={gridFolds.foldOf("documentation", "start")}>
+        <Panel title="Example" fold={gridFolds.foldOf("documentation", "start")}>
           <Documentation exampleId={document.exampleId} />
         </Panel>
       </Cell>
       <Cell column={1} row={0}>
-        <Group
-          orientation="vertical"
-          className={stackFolds.easing ? "stack stack--easing" : "stack"}
-          resizeTargetMinimumSize={RESIZE_TARGET}
-          onLayoutChange={stackFolds.sync}
-        >
-          <ResizablePanel id="ir" minSize="30%">
-            <Panel title="Petri net IR">
-              <MonacoEditor
-                path={`${document.exampleId}/net.pn.yaml`}
-                language="petri-net-ir"
-                stickyScroll
-                value={document.irText}
-                onChange={(irText) => onChange(withIrText(document, irText))}
-                trace={compilation.irTrace}
-                decorations={irDecorations}
-                onHoverLine={(line) => onHover(hoverAtLine("ir", compilation.irTrace, line))}
-                editorRef={irEditorRef}
-              />
-            </Panel>
-          </ResizablePanel>
-          <Separator className="gridline gridline--row" />
-          <ResizablePanel
-            id="options"
-            panelRef={optionsRef}
-            collapsible
-            collapsedSize="2rem"
-            minSize="6rem"
-            maxSize="75%"
-            defaultSize="50%"
-          >
-            <Panel title="Compiler options" fold={stackFolds.foldOf("options", "bottom")}>
+        <div className="input-stack">
+          <Panel title="Petri net · YAML">
+            <MonacoEditor
+              path={`${document.exampleId}/net.pn.yaml`}
+              language="petri-net-ir"
+              stickyScroll
+              value={document.irText}
+              onChange={(irText) => onChange(withIrText(document, irText))}
+              trace={compilation.irTrace}
+              decorations={irDecorations}
+              onHoverLine={(line) => onHover(hoverAtLine("ir", compilation.irTrace, line))}
+              editorRef={irEditorRef}
+            />
+          </Panel>
+          {optionRows.length > 0 ? (
+            <details className="input-options">
+              <summary>Options</summary>
               <CompilerOptionsPanel
                 states={optionRows}
                 onChange={(name, value) => {
@@ -160,28 +122,15 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ document, compil
                   }
                 }}
               />
-            </Panel>
-          </ResizablePanel>
-        </Group>
+            </details>
+          ) : null}
+        </div>
       </Cell>
       <Cell column={2} row={0}>
-        <Panel
-          title="Reactive module"
-          actions={
-            <Switch
-              label="Edit"
-              checked={document.module.editing}
-              disabled={compilation.files.length === 0}
-              title="Edit the emitted module by hand; a change to the IR or the options writes it again"
-              onChange={() => onChange({ ...document, module: toggleEditing(document.module) })}
-            />
-          }
-        >
+        <Panel title="Zeroth · Python">
           <ModuleView
             exampleId={document.exampleId}
             compilation={compilation}
-            edits={document.module}
-            onEdit={(module) => onChange({ ...document, module })}
             hover={hover}
             onHover={onHover}
             onRevealIrLine={revealIrLine}
@@ -189,9 +138,9 @@ export const PlaygroundView: React.FC<PlaygroundViewProps> = ({ document, compil
         </Panel>
       </Cell>
       <Cell column={1} row={1} columnSpan={2}>
-        <Panel title="Net preview" fold={gridFolds.foldOf("preview", "bottom")}>
+        <Panel title="Net" fold={gridFolds.foldOf("preview", "bottom")}>
           {ir === null ? (
-            <p className="note">The net draws once the text parses as an IR.</p>
+            <p className="note">Enter a valid Petri net to see the diagram.</p>
           ) : (
             <NetPreview
               ir={ir}

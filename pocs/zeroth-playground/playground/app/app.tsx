@@ -2,7 +2,6 @@ import { Activity, useState } from "react";
 
 import { compile } from "../../compiler";
 import { FIRST_EXAMPLE, exampleById } from "../../examples/catalog";
-import { CompilerView } from "../compiler-view/compiler-view";
 import { sameOptions } from "../options/option-edits";
 import { PlaygroundView } from "../playground-view/playground-view";
 import { useDwell } from "../pointer/use-dwell";
@@ -19,7 +18,6 @@ import type { Hover } from "../playground-view/hover";
 
 import "./app.css";
 
-/** The example the Playground and Compiler views work on, and the options it opened with. */
 type Entry = { example: Example; options: CompilerOptions };
 
 /** The entry a route names, or the current one when the route names no example. */
@@ -35,18 +33,11 @@ function sameEntry(a: Entry, b: Entry): boolean {
 }
 
 /** A view's hash on the entry, carrying the options only where they differ from the example's own. */
-function targetOf(view: "playground" | "compiler", entry: Entry): string {
+function targetOf(entry: Entry): string {
   const options = sameOptions(entry.options, entry.example.options) ? {} : { options: entry.options };
-  return hashOf({ view, example: entry.example, ...options });
+  return hashOf({ view: "playground", example: entry.example, ...options });
 }
 
-/**
- * The playground: the header over the three views. The URL hash says where
- * the app is, through `useRoute`; the app renders the view it names and keeps
- * the document of the example it names, compiled once per render for the two
- * views that read it. Each view is hidden, not unmounted, while another
- * shows, so folds, sizes and pins survive the round trip.
- */
 export const App: React.FC = () => {
   const route = useRoute();
   const [entry, setEntry] = useState<Entry>(() =>
@@ -73,8 +64,7 @@ export const App: React.FC = () => {
   const opening = documentOf(entry.example, entry.options);
   const compilation = compile(document.irText, { options: document.options });
   const targets: Record<View, string> = {
-    playground: targetOf("playground", entry),
-    compiler: targetOf("compiler", entry),
+    playground: targetOf(entry),
     semantics: hashOf({ view: "semantics", ...(lastQuestion === null ? {} : { question: lastQuestion }) }),
   };
 
@@ -83,7 +73,7 @@ export const App: React.FC = () => {
     const example = exampleById(id);
     if (example !== undefined) {
       pointAt(null);
-      navigate({ view: route.view === "compiler" ? "compiler" : "playground", example });
+      navigate({ view: "playground", example });
     }
   }
 
@@ -97,16 +87,6 @@ export const App: React.FC = () => {
         onSelectExample={selectExample}
         onReset={() => setDocument(opening)}
       />
-      <Activity mode={route.view === "compiler" ? "visible" : "hidden"}>
-        <main className="workspace">
-          <CompilerView
-            exampleTitle={entry.example.title}
-            irText={document.irText}
-            options={document.options}
-            compilation={compilation}
-          />
-        </main>
-      </Activity>
       <Activity mode={route.view === "playground" ? "visible" : "hidden"}>
         <main className="workspace">
           <PlaygroundView
@@ -120,7 +100,7 @@ export const App: React.FC = () => {
       </Activity>
       <Activity mode={route.view === "semantics" ? "visible" : "hidden"}>
         <main className="workspace">
-          <SemanticsView question={lastQuestion ?? undefined} />
+          <SemanticsView question={route.view === "semantics" ? route.question : undefined} />
         </main>
       </Activity>
     </div>

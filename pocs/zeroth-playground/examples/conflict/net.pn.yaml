@@ -12,17 +12,11 @@ transitions:
       Pool:
     outputs:
       Left:
-    controllable: true
   TakeRight:
     inputs:
       Pool:
     outputs:
       Right:
-  Return:
-    inputs:
-      Left:
-    outputs:
-      Pool:
 
 marking:
-  Pool: 3
+  Pool: 1

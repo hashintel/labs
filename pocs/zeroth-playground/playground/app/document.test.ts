@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { parsePetriNetIr } from "../../compiler";
 import { exampleById } from "../../examples/catalog";
-import { editFile, toggleEditing } from "../playground-view/module-edits";
 import { documentOf, isChanged, withIrText, withOptionText } from "./document";
 
 import type { Example } from "../../examples/catalog";
@@ -22,30 +21,25 @@ describe("the document", () => {
     // GIVEN Birth–death under coins
     // WHEN its document is opened
     const document = documentOf(birthDeath);
-    // THEN it holds the example's text and options, no edits, and counts as unchanged
+    // THEN it holds the example's text and options, and counts as unchanged
     expect(document).toEqual({
       exampleId: "birth-death",
       irText: birthDeath.ir,
       options: birthDeath.options,
-      module: { editing: false, texts: {} },
     });
     expect(isChanged(document, documentOf(birthDeath))).toBe(false);
   });
 
-  it("drops the module edits on a new text, and keeps the document on the same text", () => {
-    // GIVEN Birth–death with a hand edit to net.py
-    const edited = {
-      ...documentOf(birthDeath),
-      module: editFile(toggleEditing(documentOf(birthDeath).module), "net.py", "# edited", "# compiled"),
-    };
-    // WHEN the same text, then a new one, comes in
-    const same = withIrText(edited, birthDeath.ir);
-    const changed = withIrText(edited, `${birthDeath.ir}\n`);
-    // THEN the same text changes nothing; a new one drops the edits, keeps the toggle, and counts as a change
-    expect(same).toBe(edited);
-    expect(changed.module).toEqual({ editing: true, texts: {} });
-    expect(isChanged(edited, documentOf(birthDeath))).toBe(true);
-    expect(isChanged(changed, documentOf(birthDeath))).toBe(true);
+  it("keeps the document for the same text and records a new text", () => {
+    // GIVEN an open example
+    const document = documentOf(birthDeath);
+    // WHEN the same text and a new text arrive
+    const same = withIrText(document, birthDeath.ir);
+    const changed = withIrText(document, `${birthDeath.ir}\n`);
+    // THEN unchanged text preserves identity and new text counts as a change
+    expect(same).toBe(document);
+    expect(changed.irText).toBe(`${birthDeath.ir}\n`);
+    expect(isChanged(changed, document)).toBe(true);
   });
 
   it("stores an option the panel changes, and counts the default back as unchanged", () => {
