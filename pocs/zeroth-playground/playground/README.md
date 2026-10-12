@@ -66,10 +66,11 @@ Styles are plain CSS. A component imports its own file, placed beside it, and ne
 
 A code parser for the IR's code strings would need the TypeScript compiler, which does not fit this budget. That is why nets with code strings are refused here.
 
-`package.json` overrides two transitive packages, each scoped to the parent that pins it:
+`package.json` overrides three transitive packages, each scoped to the parent that pins it:
 
 - `speech-rule-engine>@xmldom/xmldom` is lifted to 0.9.12, which fixes the advisories against 0.9.10. The chain is `rehype-mathjax`, then `mathjax-full` 3, then `speech-rule-engine` 4, which pins `@xmldom/xmldom` at exactly 0.9.10, and it runs only at build time. Drop the override once `rehype-mathjax` moves to MathJax 4 (remarkjs/remark-math#118 and #119), whose `speech-rule-engine` allows the fixed version.
 - `monaco-editor>dompurify` is lifted to 3.4.16, which fixes the advisory against 3.4.15. Monaco 0.57 pins `dompurify` at exactly 3.4.15 for its hover widget. Drop the override once a Monaco release depends on 3.4.16 or later.
+- `micromark-extension-math>katex` is lifted to 0.18.2, which fixes [GHSA-238p-pmpm-9mq7](https://github.com/advisories/GHSA-238p-pmpm-9mq7). The chain is `remark-math` 6, then `micromark-extension-math` 3.1, which allows only KaTeX 0.16. The playground uses its math parser and renders with MathJax. An [upstream upgrade](https://github.com/micromark/micromark-extension-math/pull/14) is pending; drop the override once a release allows KaTeX 0.18.2 or later.
 
 ## Gates
 
