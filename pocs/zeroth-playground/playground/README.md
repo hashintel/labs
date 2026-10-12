@@ -17,6 +17,7 @@ The app has two views: Examples and Questions. The build is one HTML file that o
 | `ui/` | Panels and resize controls. |
 | `theme/` | Tokens, fonts, and shared styles. |
 | `scripts/` | Screenshot capture. |
+| `build/` | The single-file HTML build hook. |
 
 ## Data flow
 
@@ -60,6 +61,8 @@ Styles are plain CSS. A component imports its own file, placed beside it, and ne
 ## Bundle
 
 `pnpm build` inlines everything into `dist/index.html`: scripts, CSS, fonts and the Monaco editor worker. MDX maths is rendered to SVG at build time. Monaco and elkjs are most of the file. Measure the file before adding a dependency.
+
+`build/single-file.ts` uses Vite's asset inlining and one output chunk, then embeds the JavaScript and CSS in the HTML. It rejects leftover external assets. The local hook replaces `vite-plugin-singlefile`, whose `micromatch` dependency pulls in `braces` affected by [GHSA-vfj7-8cjw-p6xm](https://github.com/advisories/GHSA-vfj7-8cjw-p6xm). All resources are inlined, so the build needs no glob matching.
 
 A code parser for the IR's code strings would need the TypeScript compiler, which does not fit this budget. That is why nets with code strings are refused here.
 

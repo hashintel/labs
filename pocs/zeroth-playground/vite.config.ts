@@ -6,7 +6,7 @@ import react from "@vitejs/plugin-react";
 import rehypeMathjax from "rehype-mathjax/svg";
 import remarkMath from "remark-math";
 import { defineConfig } from "vite";
-import { viteSingleFile } from "vite-plugin-singlefile";
+import { singleFile } from "./playground/build/single-file.ts";
 
 const fromRoot = (path: string) => fileURLToPath(new URL(path, import.meta.url));
 
@@ -59,7 +59,7 @@ export default defineConfig({
       },
     }),
     // One HTML file: JS, CSS, fonts and the editor worker inlined, so it opens from disk.
-    viteSingleFile({ removeViteModuleLoader: true }),
+    singleFile(),
   ],
   test: {
     // Vitest's root defaults to Vite's root, playground/: widen it to the project.
