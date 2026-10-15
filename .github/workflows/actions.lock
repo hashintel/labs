@@ -12,7 +12,7 @@ workflows:
         - 'actions/setup-python@v4.9.1'
         - 'github/codeql-action@v4.31.5'
         - 'swatinem/rust-cache@v2.8.2'
-        - 'taiki-e/install-action@main'
+        - 'taiki-e/install-action@v2.62.59'
 dependencies:
     'actions/checkout@v6.0.2':
         ref: 'v6.0.2'
@@ -34,8 +34,8 @@ dependencies:
         commit: 'sha1-779680da715d629ac1d338a641029a2f4372abb5'
         owner_id: 580492
         repo_id: 298565987
-    'taiki-e/install-action@main':
-        ref: 'main'
+    'taiki-e/install-action@v2.62.59':
+        ref: 'v2.62.59'
         commit: 'sha1-b4b80945859e8ef89a9732a0f46499a443b196fe'
         owner_id: 43724913
         repo_id: 442947557
