@@ -26,7 +26,7 @@
   },
   "dependencies": {
     "blockprotocol": "patch:blockprotocol@npm%3A0.0.12#~/.yarn/patches/blockprotocol-npm-0.0.12-2558a31f0a.patch",
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "twind": "0.16.19"
   },
   "devDependencies": {
@@ -42,7 +42,7 @@
     "typescript": "5.9.3"
   },
   "peerDependencies": {
-    "lodash": "4.17.21",
+    "lodash": "4.18.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
