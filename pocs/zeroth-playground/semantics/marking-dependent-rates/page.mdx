@@ -1,0 +1,11 @@
+Can an exponential clock's rate depend on the current token count?
+
+<ExampleNet example="birth-death-clocked" caption="Birth adds to Population; Death removes from it." />
+
+For a death rate $\mu$ per member, we need:
+
+$$
+\lambda_{\mathrm{Death}}(n)=\mu n
+$$
+
+The compiler emits constant rates. Can `exp` take this expression, and when should the clock be updated as Population changes?

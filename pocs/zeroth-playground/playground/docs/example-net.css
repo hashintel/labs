@@ -1,0 +1,18 @@
+.example-net {
+  margin: 1rem 0;
+
+  & figcaption {
+    color: var(--ink-2);
+    font-size: var(--fs-sm);
+    line-height: 1.5;
+  }
+}
+
+.example-net__drawing {
+  height: 180px;
+  margin-bottom: 0.5rem;
+
+  & .net-frame {
+    padding: 0;
+  }
+}
