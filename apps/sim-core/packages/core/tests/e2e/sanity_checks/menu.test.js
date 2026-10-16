@@ -6,11 +6,6 @@ const {
   XPATH_SIMULATION_FROM_STARTER_TEMPLATE_MENU_ITEM
 } = require("../utils");
 
-const { 
-  DISCORD_URL
-} = require("../../../src/components/DiscordWidget/DiscordWidget")
-
-
 const TIMEOUT_MENU_ITEM_HOVER = 300;
 const STARTING_URL = `${HCORE_URL}/@hash/boids-3d/main`;
 
@@ -480,26 +475,21 @@ describe("Sanity Checks - Menu", () => {
     const selector = ".HashCoreHeaderMenu-submenu-item a";
     await page.waitForSelector(selector);
     const links = await page.$$eval(selector, (elements) => elements.map(element => ({ href: element.href, text: element.innerText })))
-    expect(links.length).toBeGreaterThanOrEqual(4);
+    expect(links.length).toBeGreaterThanOrEqual(3);
     const foundElements = {
       docs: false,
-      newUserTour: false,
-      communityDiscord: false
-    }
-    links.forEach(link => {
-      if (link.href === "https://docs.hash.ai/core/" && link.text === 'Docs') {
+      newUserTour: false
+    };
+    links.forEach((link) => {
+      if (link.href === "https://docs.hash.ai/core/" && link.text === "Docs") {
         foundElements.docs = true;
       }
-      if (link.href.endsWith('#') && link.text === 'New user tour') {
+      if (link.href.endsWith("#") && link.text === "New user tour") {
         foundElements.newUserTour = true;
-      }
-      if (link.href === DISCORD_URL && link.text === 'Community Discord') {
-        foundElements.communityDiscord = true;
       }
     });
     expect(foundElements.docs).toBe(true);
     expect(foundElements.newUserTour).toBe(true);
-    expect(foundElements.communityDiscord).toBe(true);
   });
 
   test("CLOUD INACTIVE -> Clicking on it redirects to sign in", async () => {

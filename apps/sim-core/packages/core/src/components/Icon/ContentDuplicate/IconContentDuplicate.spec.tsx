@@ -1,10 +1,8 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { IconContentDuplicate } from "./IconContentDuplicate";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(<IconContentDuplicate />, div);
-  ReactDOM.unmountComponentAtNode(div);
+  render(<IconContentDuplicate />);
 });

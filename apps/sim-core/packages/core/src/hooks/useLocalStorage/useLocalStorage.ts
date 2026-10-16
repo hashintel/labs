@@ -39,5 +39,5 @@ export function useLocalStorage<T>(
     setItem(key, value);
   }, [value]);
 
-  return [value, setValue];
+  return [value as T, setValue];
 }

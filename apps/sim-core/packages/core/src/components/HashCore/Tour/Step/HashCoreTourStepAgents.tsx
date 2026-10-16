@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 
 import {
   BackButton,
@@ -10,11 +9,11 @@ import {
   useDomElementForFileId,
   useKeyboardSupport,
 } from "./util";
-import { selectCurrentFileId } from "../../../../features/files/selectors";
+import { useFiles } from "../../../../features/files/FilesContext";
 
 export const HashCoreTourStepAgents: FC = () => {
   const initialStateFile = useDomElementForFileId("initialState");
-  const currentFileId = useSelector(selectCurrentFileId);
+  const { currentFileId } = useFiles();
   const initialStateSelected = currentFileId === "initialState";
 
   useKeyboardSupport();
@@ -30,7 +29,6 @@ export const HashCoreTourStepAgents: FC = () => {
         <a
           target="_blank"
           href="https://docs.hash.ai/core/creating-simulations/anatomy-of-an-agent"
-          rel="noreferrer"
         >
           HASH is oriented around agents.
         </a>{" "}

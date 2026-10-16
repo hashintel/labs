@@ -72,7 +72,7 @@ function buildReplaceStringForSpecificSpecialCharacter(
 ): string {
   const splitPatternAtSpecialCharacter = pattern.split(specialCharacter);
   const splitMatchAtSpecialCharacter = matches[0].split(specialCharacter);
-  let replaceString = "";
+  let replaceString: string = "";
   splitPatternAtSpecialCharacter.forEach((splitValue, index) => {
     replaceString +=
       buildReplaceStringWithCasePreserved(

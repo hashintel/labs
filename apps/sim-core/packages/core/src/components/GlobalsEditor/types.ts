@@ -1,6 +1,6 @@
 import { JSONSchema7 } from "json-schema";
 
-export interface SharedGlobalsProps {
+export type SharedGlobalsProps = {
   schema?: JSONSchema7 | undefined;
   depth: number;
-}
+};

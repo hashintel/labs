@@ -1,4 +1,4 @@
-import { EntityId, EntityState } from "@reduxjs/toolkit";
+import type { EntityId } from "../../reduxCompat";
 import {
   ExperimentRun,
   OutputSeries,
@@ -9,7 +9,7 @@ import {
 } from "@hashintel/engine-web";
 
 import { AnalysisMode } from "./enum";
-import { CommitWithoutStats } from "../../../util/api/queries/commitActions";
+import { CommitWithoutStats } from "../../actions";
 import { LinkableProject } from "../../project/types";
 import { OutputPlots } from "../../../components/PlotViewer/analyze";
 
@@ -20,10 +20,10 @@ export enum SimulatorHistoryItemType {
   SingleRun = "SingleRun",
 }
 
-interface SimulatorHistoryItemShared {
+type SimulatorHistoryItemShared = {
   createdAt: number;
   historyId: string;
-}
+};
 
 export type SimulatorHistoryItemExperimentRun = SimulatorHistoryItemShared & {
   itemType: SimulatorHistoryItemType.ExperimentRun;
@@ -48,7 +48,9 @@ export type SimulatorHistoryItem =
   | SimulatorHistoryItemRelease
   | SimulatorHistoryItemCommitGroup;
 
-export interface SimulatorHistory extends EntityState<SimulatorHistoryItem> {
+export interface SimulatorHistory {
+  ids: (string | number)[];
+  entities: Record<string | number, SimulatorHistoryItem | undefined>;
   nextPage: string | null;
   complete: boolean;
   receivedCurrent: boolean;
@@ -70,7 +72,7 @@ export interface SimulatorHistory extends EntityState<SimulatorHistoryItem> {
   selectedCommitGroup: EntityId | null;
 }
 
-export interface SimulatorSlice {
+export type SimulatorSlice = {
   // Which simulation are we focusing on to display?
   // This simulation will be the focus of the viewers
   currentSimulation: SimulationRunId | null;
@@ -82,11 +84,17 @@ export interface SimulatorSlice {
 
   selectedTarget: ProviderTargetEnv;
 
-  simulationData: Record<string, SimulationData>;
+  simulationData: {
+    [id: string]: SimulationData;
+  };
 
-  experimentRuns: Record<string, ExperimentRun>;
+  experimentRuns: {
+    [id: string]: ExperimentRun;
+  };
 
-  pendingExperimentRuns: Record<string, PendingExperimentRun>;
+  pendingExperimentRuns: {
+    [id: string]: PendingExperimentRun;
+  };
 
   analysisMode: AnalysisMode | null;
 
@@ -97,14 +105,14 @@ export interface SimulatorSlice {
   cloudDisabled: boolean;
 
   history: SimulatorHistory;
-}
+};
 
-export interface SimulationAnalysis {
+export type SimulationAnalysis = {
   outputs?: OutputSeries;
   manifest: string;
-}
+};
 
-export interface SimulationData {
+export type SimulationData = {
   simulationRunId: string;
   steps: SimulationStates;
   /**
@@ -149,7 +157,7 @@ export interface SimulationData {
     | "downloading"
     | "errored"
     | "paused";
-}
+};
 
 export type PendingExperimentRun = Pick<
   ExperimentRun,

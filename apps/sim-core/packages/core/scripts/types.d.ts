@@ -10,14 +10,14 @@ declare module "@svgr/core" {
       dimensions: boolean;
       expandProps: "start" | "end" | false;
       prettier: boolean;
-      prettierConfig: Record<string, any>;
+      prettierConfig: { [key: string]: any };
       svgo: boolean;
       svgoConfig: {
-        plugins: Record<string, any>[];
+        plugins: { [key: string]: any }[];
       };
       ref: boolean;
-      replaceAttrValues: Record<string, string>;
-      svgProps: Record<string, string>;
+      replaceAttrValues: { [key: string]: string };
+      svgProps: { [key: string]: string };
       title: boolean;
       template: ({ template }: any, _: any, { jsx }: any) => string;
       // only partially documented, but necessary

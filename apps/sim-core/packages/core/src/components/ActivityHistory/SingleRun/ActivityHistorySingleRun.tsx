@@ -1,5 +1,5 @@
 import React, { FC, useMemo, useRef } from "react";
-import { createSelector } from "@reduxjs/toolkit";
+import { createSelector } from "reselect";
 
 import { ActivityHistoryItem } from "../ActivityHistoryItem";
 import { ActivityTime } from "../ActivityTime";
@@ -17,15 +17,7 @@ import { useSimulatorSelector } from "../../../features/simulator/context";
 import "./ActivityHistorySingleRun.scss";
 
 const makeSelectSingleRun = (runId: string) =>
-  createSelector(selectAllSimulationData, (data) => {
-    const run = data[runId];
-
-    if (!run) {
-      throw new Error("Data missing for run");
-    }
-
-    return run;
-  });
+  createSelector(selectAllSimulationData, (data) => data[runId] ?? null);
 
 export const ActivityHistorySingleRun: FC<{
   id: string;
@@ -38,6 +30,8 @@ export const ActivityHistorySingleRun: FC<{
 
   const [onContextMenu, exportingTooltip, exporting] =
     useSimulationRunContextMenu(itemRef, id);
+
+  if (!run) return null;
 
   return (
     <ActivityHistoryItem

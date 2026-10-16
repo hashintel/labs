@@ -2,10 +2,10 @@ import React, { FC, memo } from "react";
 
 import { DataTableCell } from "../Cell";
 
-interface DataTableRowProps {
+type DataTableRowProps = {
   rowIndex: number;
   record: any[];
-}
+};
 
 export const DataTableRow: FC<DataTableRowProps> = memo(
   ({ rowIndex, record }) => (

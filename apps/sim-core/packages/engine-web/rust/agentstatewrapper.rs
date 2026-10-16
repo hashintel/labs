@@ -1,4 +1,4 @@
-use crate::util::err_to_jsvalue;
+use crate::util::{err_to_jsvalue, from_js_json, to_js_json};
 use hashintel_core::prelude::*;
 use wasm_bindgen::prelude::*;
 
@@ -14,7 +14,7 @@ impl ImmutableAgentStateWrapper {
     pub fn get(&self, key: &str) -> Result<JsValue, JsValue> {
         unsafe {
             let value = (*self.inner).get_as_json(key).map_err(err_to_jsvalue)?;
-            JsValue::from_serde(&value).map_err(err_to_jsvalue)
+            serde_wasm_bindgen::to_value(&value).map_err(crate::util::serde_wasm_err_to_jsvalue)
         }
     }
 
@@ -36,7 +36,7 @@ impl AgentStateWrapper {
     pub fn get(&self, key: &str) -> Result<JsValue, JsValue> {
         unsafe {
             let value = (*self.inner).get_as_json(key).map_err(err_to_jsvalue)?;
-            JsValue::from_serde(&value).map_err(err_to_jsvalue)
+            to_js_json(&value)
         }
     }
 
@@ -44,7 +44,7 @@ impl AgentStateWrapper {
     /// This function will fail if the conversion of `value` into a `serde_json::Value` fails, or
     /// if we are unable to set a builtin field
     pub fn set(&mut self, key: &str, value: &JsValue) -> Result<(), JsValue> {
-        let value: serde_json::Value = value.into_serde().map_err(err_to_jsvalue)?;
+        let value: serde_json::Value = from_js_json(value)?;
         unsafe {
             (*self.inner)
                 .set_known_field(key, value)
@@ -63,7 +63,7 @@ impl AgentStateWrapper {
         let json_data = if data.is_undefined() {
             None
         } else {
-            Some(data.into_serde().map_err(err_to_jsvalue)?)
+            Some(serde_wasm_bindgen::from_value(data.clone()).map_err(crate::util::serde_wasm_err_to_jsvalue)?)
         };
 
         if to.is_string() {
@@ -79,7 +79,8 @@ impl AgentStateWrapper {
             }
         } else {
             // Assume multiple recipients
-            let to: Vec<String> = to.into_serde().map_err(err_to_jsvalue)?;
+            let to: Vec<String> =
+                serde_wasm_bindgen::from_value(to.clone()).map_err(crate::util::serde_wasm_err_to_jsvalue)?;
             unsafe {
                 (*self.inner)
                     .add_message(&to, kind, json_data)

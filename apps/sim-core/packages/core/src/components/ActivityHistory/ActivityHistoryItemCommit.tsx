@@ -3,7 +3,7 @@ import { format } from "date-fns";
 
 import { ActivityHistoryGroupSectionItem } from "./ActivityHistoryGroup/ActivityHistoryGroupSectionItem";
 import { ActivityHistoryItemTooltip } from "./ActivityHistoryItemTooltip";
-import { CommitWithoutStats } from "../../util/api/queries/commitActions";
+import { CommitWithoutStats } from "../../features/actions";
 import { SimulationRunId } from "../SimulationRunId/SimulationRunId";
 import { urlFromProject } from "../../routes";
 import { useCurrentRefItem } from "./hooks";

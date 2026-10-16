@@ -10,13 +10,13 @@ import {
 } from "./templates";
 import { generateFile, parseIcon } from ".";
 
-type FilesGenerator = (name: string) => void;
-interface FilesGeneratorContext {
+type FilesGenerator = (name: string) => Promise<void>;
+type FilesGeneratorContext = {
   dryRun: boolean;
   verbose: boolean;
   isValidIcon: boolean;
   fromIcon?: string;
-}
+};
 type FilesGeneratorFactory = (ctx: FilesGeneratorContext) => FilesGenerator;
 
 const pascalCase = (words: string) => upperFirst(camelCase(words));
@@ -34,7 +34,7 @@ const componentsDir = join(__dirname, "../../../src/components");
  */
 export const generateFiles: FilesGeneratorFactory =
   ({ dryRun = false, verbose = false, isValidIcon, fromIcon }) =>
-  (name) => {
+  async (name) => {
     const folderName = pascalCase(name);
     const componentName = `${isValidIcon ? "Icon" : ""}${folderName}`;
     const componentDir = join(
@@ -57,7 +57,8 @@ export const generateFiles: FilesGeneratorFactory =
     const indexFileName = "index.ts";
     const indexFileContent = indexTemplate(componentName);
 
-    Object.entries({
+    const write = generateFile({ dryRun, verbose, componentDir });
+    for (const entry of Object.entries({
       ...(isValidIcon
         ? {}
         : {
@@ -66,5 +67,7 @@ export const generateFiles: FilesGeneratorFactory =
       [testFileName]: testFileContent,
       [componentFileName]: componentFileContent,
       [indexFileName]: indexFileContent,
-    }).forEach(generateFile({ dryRun, verbose, componentDir }));
+    })) {
+      await write(entry as [string, string]);
+    }
   };

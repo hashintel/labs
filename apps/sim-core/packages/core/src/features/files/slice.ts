@@ -1,18 +1,8 @@
-import {
-  createNextState,
-  createSlice,
-  current,
-  Draft,
-  EntityId,
-  PayloadAction,
-} from "@reduxjs/toolkit";
-import findLastIndex from "lodash/findLastIndex";
-import produce from "immer";
-import { filter, mergeMap, reduce } from "rxjs/operators";
-import { from } from "rxjs";
+import { current, produce } from "immer";
+import type { Draft } from "immer";
+import findLastIndex from "lodash-es/findLastIndex";
 import { v4 } from "uuid";
 
-import { AsyncAppThunk } from "../types";
 import {
   BehaviorKeyFields,
   BehaviorKeysDraftField,
@@ -33,8 +23,10 @@ import type {
 import { Ext } from "../../util/files/enums";
 import { HcFileKind } from "./enums";
 import type { ParsedPath } from "../../util/files/types";
-import type { RootState } from "../types";
 import { SimulationProject } from "../project/types";
+
+type RootState = { files: FilesSlice; viewer?: any };
+
 import {
   addMany,
   getInitialState,
@@ -44,14 +36,11 @@ import {
   upsertOne,
 } from "./adapter";
 import {
-  allocateDatasetFileName,
   behaviorKeysFileName,
   behaviorKeysRepoPath,
-  canAutosuggestKeysForFile,
   defaultBehaviorKeys,
   isSharedDependency,
   mapFileId,
-  releaseToHcFiles,
   repoPathForBehavior,
   stringifyBehaviorKeys,
 } from "./utils";
@@ -61,157 +50,294 @@ import {
   projectUpdated,
   setProject,
 } from "../actions";
-import { createAppAsyncThunk } from "../createAppAsyncThunk";
-import { createDatasetQuery } from "../../util/api/queries/createDatasetQuery";
 import { defaultJsBehaviorSrc } from "../../util/defaultJsBehaviorSrc";
-import { fetchDependencies } from "../../util/api/queries";
-import { forkAndReleaseBehaviors, save } from "../thunks";
 import { isStoringProjectActions } from "../project/utils";
 import { parse } from "../../util/files";
-import { parseBehaviorKeysQuery } from "../../util/parseBehaviorKeysQuery";
-import { postFormData } from "../../util/postFormData";
-import { prepareFormDataWithFile } from "../../util/prepareFormDataWithFile";
 import {
   selectAllFilesLocal,
-  selectDatasetFiles,
   selectFileByIdLocal,
-  selectFileEntities,
-  selectLocalBehaviorFiles,
   selectParsedDependencies,
 } from "./selectors";
-import { selectCurrentProjectRequired } from "../project/selectors";
-import { toggleEditor } from "../viewer/slice";
 
-export const addDependencies = createAppAsyncThunk<
-  HcDependencyFile[],
-  DependenciesDescriptor
->("files/addDependencies", async (descriptor, { signal }) => {
-  const releases = await fetchDependencies(descriptor, signal);
+// ---------------------------------------------------------------------------
+// Action type constants
+// ---------------------------------------------------------------------------
 
-  return releases.reduce<HcDependencyFile[]>((files, release) => {
-    files.push(...releaseToHcFiles(release));
+const PREFIX = "files";
 
-    return files;
-  }, []);
+export const ActionTypes = {
+  createBehavior: `${PREFIX}/createBehavior`,
+  toggleBehaviorKeysEditor: `${PREFIX}/toggleBehaviorKeysEditor`,
+  updateBehaviorKeysFile: `${PREFIX}/updateBehaviorKeysFile`,
+  updateBehaviorKeysDynamicAccess: `${PREFIX}/updateBehaviorKeysDynamicAccess`,
+  updateFile: `${PREFIX}/updateFile`,
+  renameBehavior: `${PREFIX}/renameBehavior`,
+  renameInitFile: `${PREFIX}/renameInitFile`,
+  createProcessModelFile: `${PREFIX}/createProcessModelFile`,
+  deleteFile: `${PREFIX}/deleteFile`,
+  setCurrentFileId: `${PREFIX}/setCurrentFileId`,
+  closeFile: `${PREFIX}/closeFile`,
+  closeOtherFiles: `${PREFIX}/closeOtherFiles`,
+  closeAllFiles: `${PREFIX}/closeAllFiles`,
+  closeFilesToTheRight: `${PREFIX}/closeFilesToTheRight`,
+  forkOpenBehavior: `${PREFIX}/forkOpenBehavior`,
+  setReplaceProposal: `${PREFIX}/setReplaceProposal`,
+  toggleVisualGlobals: `${PREFIX}/toggleVisualGlobals`,
+  toggleVisualAnalysis: `${PREFIX}/toggleVisualAnalysis`,
+  addPreparedFile: `${PREFIX}/addPreparedFile`,
+  addDependenciesPending: `${PREFIX}/addDependencies/pending`,
+  addDependenciesFulfilled: `${PREFIX}/addDependencies/fulfilled`,
+  addDependenciesRejected: `${PREFIX}/addDependencies/rejected`,
+  parseAndShowBehaviorKeysFulfilled: `${PREFIX}/parseAndShowBehaviorKeys/fulfilled`,
+  parseAllBehaviorKeysFulfilled: `${PREFIX}/parseAllBehaviorKeys/fulfilled`,
+} as const;
+
+// ---------------------------------------------------------------------------
+// Action types (for type-safe dispatch)
+// ---------------------------------------------------------------------------
+
+interface PayloadAction<T> {
+  type: string;
+  payload: T;
+}
+
+// ---------------------------------------------------------------------------
+// Action creators
+// ---------------------------------------------------------------------------
+
+export const setCurrentFileId = (
+  payload: string | null,
+): PayloadAction<string | null> => ({
+  type: ActionTypes.setCurrentFileId,
+  payload,
 });
 
-export const parseAndShowBehaviorKeys = createAppAsyncThunk<
-  BehaviorKeyFields,
-  { fileId: string }
->(
-  "files/parseAndShowBehaviorKeys",
-  async ({ fileId }, { signal, getState }) => {
-    const file = selectFileEntities(getState())[fileId];
+export const updateFile = (payload: {
+  id: string;
+  contents: string;
+}): PayloadAction<{ id: string; contents: string }> => ({
+  type: ActionTypes.updateFile,
+  payload,
+});
 
-    if (file?.kind !== HcFileKind.Behavior) {
-      throw new Error("Cannot find behavior in state");
-    }
+export const deleteFile = (payload: string): PayloadAction<string> => ({
+  type: ActionTypes.deleteFile,
+  payload,
+});
 
-    if (!canAutosuggestKeysForFile(file)) {
-      throw new Error("Cannot parse keys for this behavior");
-    }
+export const createBehavior = (payload: {
+  contents?: string;
+  path: ParsedPath;
+  project: SimulationProject;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.createBehavior,
+  payload,
+});
 
-    return await parseBehaviorKeysQuery(file, signal);
-  },
-);
+export const renameBehavior = (payload: {
+  id: string;
+  newName: string;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.renameBehavior,
+  payload,
+});
+
+export const renameInitFile = (payload: {
+  id: string;
+  newName: string;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.renameInitFile,
+  payload,
+});
+
+export const closeFile = (payload: string): PayloadAction<string> => ({
+  type: ActionTypes.closeFile,
+  payload,
+});
+
+export const closeAllFiles = (payload: string): PayloadAction<string> => ({
+  type: ActionTypes.closeAllFiles,
+  payload,
+});
+
+export const closeOtherFiles = (payload: string): PayloadAction<string> => ({
+  type: ActionTypes.closeOtherFiles,
+  payload,
+});
+
+export const closeFilesToTheRight = (
+  payload: string,
+): PayloadAction<string> => ({
+  type: ActionTypes.closeFilesToTheRight,
+  payload,
+});
+
+export const forkOpenBehavior = (payload: {
+  destination: ParsedPath;
+  source: HcSharedBehaviorFile;
+  project: SimulationProject;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.forkOpenBehavior,
+  payload,
+});
+
+export const setReplaceProposal = (
+  payload: FilesSlice["replaceProposal"],
+): PayloadAction<FilesSlice["replaceProposal"]> => ({
+  type: ActionTypes.setReplaceProposal,
+  payload,
+});
+
+export const toggleBehaviorKeysEditor = (payload: {
+  fileId: string;
+  defaultKeys?: null | BehaviorKeyFields;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.toggleBehaviorKeysEditor,
+  payload,
+});
+
+export const updateBehaviorKeysFile = (payload: {
+  fileId: string;
+  keys: DraftBehaviorKeys;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.updateBehaviorKeysFile,
+  payload,
+});
+
+export const updateBehaviorKeysDynamicAccess = (payload: {
+  fileId: string;
+  dynamicAccess: boolean;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.updateBehaviorKeysDynamicAccess,
+  payload,
+});
+
+export const toggleVisualGlobals = (): { type: string } => ({
+  type: ActionTypes.toggleVisualGlobals,
+});
+
+export const toggleVisualAnalysis = (): { type: string } => ({
+  type: ActionTypes.toggleVisualAnalysis,
+});
+
+export const addPreparedFile = (payload: HcFile): PayloadAction<HcFile> => ({
+  type: ActionTypes.addPreparedFile,
+  payload,
+});
+
+export const createProcessModelFile = (payload: {
+  contents: string;
+  repoPath: string;
+  project: SimulationProject;
+}): PayloadAction<typeof payload> => ({
+  type: ActionTypes.createProcessModelFile,
+  payload,
+});
+
+// Async thunk action creators (matching RTK pattern for compatibility)
+function withType<T extends string, F extends (...args: any[]) => any>(
+  type: T,
+  fn: F,
+): F & { type: T } {
+  (fn as any).type = type;
+  return fn as F & { type: T };
+}
+
+export const addDependencies = {
+  pending: withType(
+    ActionTypes.addDependenciesPending,
+    (requestId: string, arg: DependenciesDescriptor) => ({
+      type: ActionTypes.addDependenciesPending,
+      meta: { arg, requestId },
+    }),
+  ),
+  fulfilled: withType(
+    ActionTypes.addDependenciesFulfilled,
+    (
+      payload: HcDependencyFile[],
+      requestId: string,
+      arg: DependenciesDescriptor,
+    ) => ({
+      type: ActionTypes.addDependenciesFulfilled,
+      payload,
+      meta: { arg, requestId },
+    }),
+  ),
+  rejected: withType(
+    ActionTypes.addDependenciesRejected,
+    (error: any, requestId: string, arg: DependenciesDescriptor) => ({
+      type: ActionTypes.addDependenciesRejected,
+      error,
+      meta: { arg, requestId },
+    }),
+  ),
+};
+
+export const parseAndShowBehaviorKeys = {
+  pending: withType(
+    `${PREFIX}/parseAndShowBehaviorKeys/pending` as const,
+    (requestId: string, arg: { fileId: string }) => ({
+      type: `${PREFIX}/parseAndShowBehaviorKeys/pending` as const,
+      meta: { arg, requestId },
+    }),
+  ),
+  fulfilled: withType(
+    ActionTypes.parseAndShowBehaviorKeysFulfilled,
+    (
+      payload: BehaviorKeyFields,
+      requestId: string,
+      arg: { fileId: string },
+    ) => ({
+      type: ActionTypes.parseAndShowBehaviorKeysFulfilled,
+      payload,
+      meta: { arg, requestId },
+    }),
+  ),
+  rejected: withType(
+    `${PREFIX}/parseAndShowBehaviorKeys/rejected` as const,
+    (error: any, requestId: string, arg: { fileId: string }) => ({
+      type: `${PREFIX}/parseAndShowBehaviorKeys/rejected` as const,
+      error,
+      meta: { arg, requestId },
+    }),
+  ),
+};
 
 type BehaviorKeysRecord = Record<string, BehaviorKeyFields>;
 
-export const parseAllBehaviorKeys = createAppAsyncThunk<BehaviorKeysRecord>(
-  "files/parseAllBehaviorKeys",
-  async (_, { signal, getState }) => {
-    const behaviors = selectLocalBehaviorFiles(getState());
+export const parseAllBehaviorKeys = {
+  pending: withType(
+    `${PREFIX}/parseAllBehaviorKeys/pending` as const,
+    (requestId: string, arg: undefined) => ({
+      type: `${PREFIX}/parseAllBehaviorKeys/pending` as const,
+      meta: { arg, requestId },
+    }),
+  ),
+  fulfilled: withType(
+    ActionTypes.parseAllBehaviorKeysFulfilled,
+    (payload: BehaviorKeysRecord, requestId: string, arg: undefined) => ({
+      type: ActionTypes.parseAllBehaviorKeysFulfilled,
+      payload,
+      meta: { arg, requestId },
+    }),
+  ),
+  rejected: withType(
+    `${PREFIX}/parseAllBehaviorKeys/rejected` as const,
+    (error: any, requestId: string, arg: undefined) => ({
+      type: `${PREFIX}/parseAllBehaviorKeys/rejected` as const,
+      error,
+      meta: { arg, requestId },
+    }),
+  ),
+};
 
-    return from(behaviors)
-      .pipe(
-        filter((behavior) => canAutosuggestKeysForFile(behavior)),
-        mergeMap(async (behavior): Promise<BehaviorKeysRecord> => {
-          return {
-            [behavior.id]: await parseBehaviorKeysQuery(behavior, signal),
-          };
-        }, 4),
-        reduce(
-          (record, piece): BehaviorKeysRecord => ({ ...record, ...piece }),
-          {},
-        ),
-      )
-      .toPromise()
-      .catch((err) => {
-        if (err.name !== "AbortError") {
-          throw err;
-        }
+// ---------------------------------------------------------------------------
+// Internal state helpers (mutate Immer drafts)
+// ---------------------------------------------------------------------------
 
-        return {};
-      });
-  },
-);
-
-export const createDataset =
-  (file: File, reportProgress?: (progress: number) => void): AsyncAppThunk =>
-  async (dispatch, getState) => {
-    /**
-     * We're saving before we mutate the project because we may be creating a
-     * dataset replacing one we've deleted, which we need to ensure has
-     * already been deleted on the API
-     *
-     * We're not awaiting it yet because we don't need it to be finished until
-     * later on when we add the dataset to the project
-     */
-    const savePromise = dispatch(save());
-
-    const state = getState();
-    const project = selectCurrentProjectRequired(state);
-    const datasets = selectDatasetFiles(state);
-    const filename = allocateDatasetFileName(file.name, datasets);
-
-    const { postForm } = await createDatasetQuery(
-      project.pathWithNamespace,
-      filename,
-      file.name,
-    );
-
-    await postFormData(
-      postForm.url,
-      prepareFormDataWithFile(file, postForm.fields),
-      reportProgress,
-    );
-
-    // Ensure this has finished
-    await savePromise;
-
-    // Migration shim
-    throw new Error("Datasets disabled for migration");
-
-    // const thisDataset = await addDatasetToProject(
-    //   project.pathWithNamespace,
-    //   dataset.id,
-    //   postForm.fields?.key,
-    //   file.name.endsWith(".csv"),
-    // );
-
-    // dispatch(
-    //   //@ts-expect-error trackEvent
-    //   trackEvent({
-    //     action: "New dataset: Core",
-    //     label: `${dataset?.name} - ${dataset?.id}`,
-    //   }),
-    // );
-
-    // if (!thisDataset) {
-    //   throw new Error("Cannot find dataset in results");
-    // }
-
-    // const datasetFile = toHcFiles({
-    //   files: [
-    //     {
-    //       ...thisDataset.file,
-    //       ref: project.ref,
-    //     },
-    //   ],
-    // })[0];
-
-    // dispatch(addPreparedFile(datasetFile));
-  };
+type DistributiveOmit<T, K extends keyof any> = T extends any
+  ? Omit<T, K>
+  : never;
 
 const setters = {
   removeOpenFileId(state: Draft<FilesSlice>, id: string) {
@@ -248,39 +374,6 @@ const setters = {
         state.openFileIds.push(id);
       }
     } else {
-      const currentState = current(state);
-      console.log("===== CURRENT STATE =====");
-      for (const [key, value] of Object.entries(currentState)) {
-        switch (key) {
-          case "actions":
-            console.log("===== ACTIONS =====");
-
-            for (const action of currentState.actions) {
-              console.log(JSON.stringify(action));
-            }
-
-            console.log("===== END ACTIONS =====");
-            break;
-          case "entities":
-            for (const entity of Object.values(currentState.entities)) {
-              console.log(JSON.stringify(entity));
-            }
-            break;
-          default:
-            console.log(key, JSON.stringify(value));
-            break;
-        }
-      }
-      console.log("===== LOCAL STORAGE =====");
-
-      try {
-        for (const [key, value] of Object.entries(localStorage)) {
-          console.log(key, value);
-        }
-      } catch (err) {
-        console.warn("Could not log localStorage", err);
-      }
-
       throw new Error(`Cannot append file that does not exist: ${id}`);
     }
   },
@@ -325,7 +418,7 @@ const setters = {
     }
   },
 
-  updateFileTracked(state: Draft<FilesSlice>, id: EntityId, contents: string) {
+  updateFileTracked(state: Draft<FilesSlice>, id: string, contents: string) {
     const file = state.entities[id];
 
     if (!file) {
@@ -607,14 +700,8 @@ const setters = {
     const behaviorToRows = (behavior: HcBehaviorFile | HcSharedBehaviorFile) =>
       behavior.keys.keys.rows;
 
-    // Later entries have the priority where there are clashes
     const types: Record<string, BehaviorKeysDraftField> = Object.fromEntries([
       ...[...(fileTarget?.rows ?? [])],
-      /**
-       * Ensure any row whose name did not change is prioritised over a row
-       * whose name was just changed. This ensures renaming a row overwrites the
-       * current type, not other types.
-       */
       ...(fileTarget?.rows.filter(([name, value]) => {
         const previousName = previousRows[value.uuid]?.[0];
 
@@ -681,9 +768,11 @@ const setters = {
   },
 };
 
-const filesInitialState = getInitialState<FilesSlice>({
-  ids: [],
-  entities: {},
+// ---------------------------------------------------------------------------
+// Initial state
+// ---------------------------------------------------------------------------
+
+export const filesInitialState = getInitialState<FilesSlice>({
   openFileIds: [],
   currentFileId: null,
   replaceProposal: null,
@@ -694,64 +783,30 @@ const filesInitialState = getInitialState<FilesSlice>({
   visualAnalysis: false,
 });
 
-export const {
-  actions: {
-    createProcessModelFile,
-    deleteFile,
-    forkOpenBehavior,
-    setCurrentFileId,
-    updateFile,
-    setReplaceProposal,
-    createBehavior,
-    renameBehavior,
-    renameInitFile,
-    closeFile,
-    closeAllFiles,
-    closeFilesToTheRight,
-    closeOtherFiles,
-    updateBehaviorKeysFile,
-    updateBehaviorKeysDynamicAccess,
-    toggleBehaviorKeysEditor,
-    toggleVisualGlobals,
-    toggleVisualAnalysis,
-    addPreparedFile,
-  },
-  reducer: filesReducer,
-} = createSlice({
-  name: "files",
-  initialState: filesInitialState,
-  reducers: {
-    createBehavior(
-      state,
-      action: PayloadAction<{
-        contents?: string;
-        path: ParsedPath;
-        project: SimulationProject;
-      }>,
-    ) {
-      const { path, project } = action.payload;
+// ---------------------------------------------------------------------------
+// Reducer
+// ---------------------------------------------------------------------------
 
+function rawReducer(state: Draft<FilesSlice>, action: any): FilesSlice | void {
+  switch (action.type) {
+    // --- Standard file actions ---
+
+    case ActionTypes.createBehavior: {
+      const { path, project } = action.payload;
       const fileContents =
         action.payload.contents ??
         (path.ext === Ext.Py
           ? "def behavior(state, context):\n  pass"
           : defaultJsBehaviorSrc);
-
       setters.createAndOpenBehaviorTracked(state, project, path, fileContents);
-    },
+      return;
+    }
 
-    toggleBehaviorKeysEditor(
-      state,
-      action: PayloadAction<{
-        fileId: string;
-        defaultKeys?: null | BehaviorKeyFields;
-      }>,
-    ) {
+    case ActionTypes.toggleBehaviorKeysEditor: {
       if (state.behaviorKeys) {
         state.behaviorKeys = false;
       } else {
         const draftFile = state.entities[action.payload.fileId];
-
         if (
           !draftFile ||
           (draftFile.kind !== HcFileKind.Behavior &&
@@ -761,89 +816,58 @@ export const {
             "Cannot show behavior keys editor for non-existent behavior",
           );
         }
-
         setters.setCurrentFileId(state, draftFile.id);
         state.behaviorKeys = true;
       }
-    },
+      return;
+    }
 
-    updateBehaviorKeysFile(
-      state,
-      action: PayloadAction<{
-        fileId: string;
-        keys: DraftBehaviorKeys;
-      }>,
-    ) {
+    case ActionTypes.updateBehaviorKeysFile: {
       setters.updateBehaviorKeys(
         state,
         action.payload.fileId,
         action.payload.keys,
       );
-    },
+      return;
+    }
 
-    updateBehaviorKeysDynamicAccess(
-      state,
-      action: PayloadAction<{
-        fileId: string;
-        dynamicAccess: boolean;
-      }>,
-    ) {
+    case ActionTypes.updateBehaviorKeysDynamicAccess: {
       const file = state.entities[action.payload.fileId];
-
       if (file?.kind !== HcFileKind.Behavior) {
         throw new Error("Cannot find behavior in state");
       }
-
       file.keys.dynamic_access = action.payload.dynamicAccess;
-
       setters.trackBehaviorKeysFileUpdate(
         state,
         action.payload.fileId,
         file.keys,
       );
-    },
+      return;
+    }
 
-    updateFile(
-      state,
-      action: PayloadAction<{ id: EntityId; contents: string }>,
-    ) {
+    case ActionTypes.updateFile: {
       setters.updateFileTracked(
         state,
         action.payload.id.toString(),
         action.payload.contents,
       );
-    },
+      return;
+    }
 
-    renameBehavior(
-      state,
-      action: PayloadAction<{ id: EntityId; newName: string }>,
-    ) {
+    case ActionTypes.renameBehavior: {
       const { newName, id } = action.payload;
-
       const file = state.entities[id];
-
       if (!file) {
         throw new Error("Cannot rename file which does not exist");
       }
+      if (newName === file.path.base) return;
 
-      if (newName === file.path.base) {
-        // GitLab errors on a request to move a file to its existing location
-        return;
-      }
-
-      /**
-       * This will break if we ever support proper folder structure
-       *
-       * @todo fix this
-       */
       const repoPath = `src/behaviors/${newName}`;
-
       setters.trackAction(state, {
         type: "move",
         oldRepoPath: file.repoPath,
         repoPath,
       });
-
       if (file.kind === HcFileKind.Behavior && !file.keys._trackCreation) {
         setters.trackAction(state, {
           type: "move",
@@ -851,95 +875,52 @@ export const {
           repoPath: `${repoPath}.json`,
         });
       }
-
       const path = parse(newName);
-      /**
-       * We're assuming ref here is main because we're allowing changes. This
-       * is probably a fair assumption, but could cause problems if it does not
-       * hold true.
-       */
       const newId = mapFileId(path.base, "main");
-
       updateOne(state, { id, changes: { path, repoPath } });
-
       const updatedFile = current(state).entities[id]!;
-
       upsertOne(state, { ...updatedFile, id: newId });
       removeOne(state, id);
-
       state.openFileIds = state.openFileIds.map((openId) =>
         openId === id ? newId : openId,
       );
       state.currentFileId =
         state.currentFileId === id ? newId : state.currentFileId;
-    },
+      return;
+    }
 
-    // This is a close copy-paste of renameBehavior. We can refactor when we support
-    // arbitrary init file names & folder structure.
-    renameInitFile(
-      state,
-      action: PayloadAction<{ id: EntityId; newName: string }>,
-    ) {
+    case ActionTypes.renameInitFile: {
       const { newName, id } = action.payload;
-
       const file = state.entities[id];
-
       if (!file) {
         throw new Error("Cannot rename file which does not exist");
       }
+      if (newName === file.path.base) return;
 
-      if (newName === file.path.base) {
-        // GitLab errors on a request to move a file to its existing location
-        return;
-      }
-
-      /**
-       * This will break if we ever support proper folder structure
-       *
-       * @todo fix this
-       */
       const repoPath = `src/${newName}`;
-
       setters.trackAction(state, {
         type: "move",
         oldRepoPath: file.repoPath,
         repoPath,
       });
-
       const path = parse(newName);
-      /**
-       * We're assuming ref here is main because we're allowing changes. This
-       * is probably a fair assumption, but could cause problems if it does not
-       * hold true.
-       */
       const newId = mapFileId(path.base, "main");
-
       updateOne(state, { id, changes: { path, repoPath } });
-
       const updatedFile = current(state).entities[id]!;
-
       upsertOne(state, { ...updatedFile, id: newId });
       removeOne(state, id);
-
       state.openFileIds = state.openFileIds.map((openId) =>
         openId === id ? newId : openId,
       );
       state.currentFileId =
         state.currentFileId === id ? newId : state.currentFileId;
-    },
+      return;
+    }
 
-    createProcessModelFile(
-      state: Draft<FilesSlice>,
-      action: PayloadAction<{
-        contents: string;
-        repoPath: string;
-        project: SimulationProject;
-      }>,
-    ) {
+    case ActionTypes.createProcessModelFile: {
       const { contents, project, repoPath } = action.payload;
       const parsedPath = parse(repoPath);
       const id = mapFileId(parsedPath.base, project.ref);
-
       setters.addFile(state, {
         id,
         path: parsedPath,
@@ -947,27 +928,28 @@ export const {
         contents,
         kind: HcFileKind.ProcessModel,
       });
-
       setters.trackAction(state, {
         type: "create",
         repoPath,
         contents,
       });
-    },
+      return;
+    }
 
-    deleteFile(state, action: PayloadAction<string>) {
+    case ActionTypes.deleteFile: {
       setters.deleteFile(state, action.payload);
-    },
+      return;
+    }
 
-    setCurrentFileId(state, action: PayloadAction<string | null>) {
+    case ActionTypes.setCurrentFileId: {
       setters.setCurrentFileId(state, action.payload);
-    },
+      return;
+    }
 
-    closeFile(state, action: PayloadAction<string>) {
+    case ActionTypes.closeFile: {
       const id = action.payload;
       if (state.openFileIds.includes(id)) {
         setters.removeOpenFileId(state, id);
-
         if (state.currentFileId === id && state.openFileIds.length > 0) {
           setters.setCurrentFileId(
             state,
@@ -975,13 +957,12 @@ export const {
           );
         }
       }
-    },
+      return;
+    }
 
-    closeOtherFiles(state, action: PayloadAction<string>) {
+    case ActionTypes.closeOtherFiles: {
       const id = action.payload;
-      // the file we must not close must be set as current
       setters.setCurrentFileId(state, id);
-      // edge case: do not close anything if the current file isn't available
       if (!state.openFileIds.includes(id)) {
         console.error("Error: the current file is not available, aborting.");
         return;
@@ -992,10 +973,10 @@ export const {
           setters.removeOpenFileId(state, openFileId);
         }
       });
-    },
+      return;
+    }
 
-    closeAllFiles(state, _action: PayloadAction<string>) {
-      // edge case: do not close anything if the current file isn't available
+    case ActionTypes.closeAllFiles: {
       if (!state.openFileIds.length) {
         throw new Error("There are no open files, so we can't close them.");
       }
@@ -1003,13 +984,12 @@ export const {
       openFileIds.forEach((openFileId) => {
         setters.removeOpenFileId(state, openFileId);
       });
-    },
+      return;
+    }
 
-    closeFilesToTheRight(state, action: PayloadAction<string>) {
+    case ActionTypes.closeFilesToTheRight: {
       const id = action.payload;
-      // the file we must not close must be set as current
       setters.setCurrentFileId(state, id);
-      // edge case: do not close anything if the current file isn't available
       if (!state.openFileIds.includes(id)) {
         console.error("Error: the current file is not available, aborting.");
         return;
@@ -1020,221 +1000,175 @@ export const {
       openFileIds.forEach((openFileId) => {
         setters.removeOpenFileId(state, openFileId);
       });
-    },
+      return;
+    }
 
-    forkOpenBehavior(
-      state,
-      {
-        payload: { destination, source, project },
-      }: PayloadAction<{
-        destination: ParsedPath;
-        source: HcSharedBehaviorFile;
-        project: SimulationProject;
-      }>,
-    ) {
+    case ActionTypes.forkOpenBehavior: {
+      const { destination, source, project } = action.payload;
       setters.createAndOpenBehaviorTracked(
         state,
         project,
         destination,
         source.contents,
       );
-
       setters.deleteFile(state, source.id);
-
       const id = mapFileId(destination.base, project.ref);
       const behavior = state.entities[id]!;
-
       if (behavior.kind !== HcFileKind.Behavior) {
         throw new Error(
           "Cannot create behavior keys file for non-existent behavior",
         );
       }
-
       behavior.keys = source.keys;
       setters.createBehaviorKeysFile(state, behavior);
-    },
+      return;
+    }
 
-    setReplaceProposal(
-      state,
-      { payload }: PayloadAction<FilesSlice["replaceProposal"]>,
-    ) {
-      setters.setReplaceProposal(state, payload);
-    },
+    case ActionTypes.setReplaceProposal: {
+      setters.setReplaceProposal(state, action.payload);
+      return;
+    }
 
-    toggleVisualGlobals(state) {
+    case ActionTypes.toggleVisualGlobals: {
       state.visualGlobals = !state.visualGlobals;
-    },
+      return;
+    }
 
-    toggleVisualAnalysis(state) {
+    case ActionTypes.toggleVisualAnalysis: {
       state.visualAnalysis = !state.visualAnalysis;
-    },
+      return;
+    }
 
-    addPreparedFile(
-      state: Draft<FilesSlice>,
-      { payload }: PayloadAction<HcFile>,
-    ) {
-      setters.addFile(state, payload);
-    },
-  },
-  extraReducers: (builder) => {
-    builder
-      .addCase(toggleEditor, (state) => {
-        setters.setReplaceProposal(state, null);
-      })
-      .addCase(addDependencies.pending, (state, action) => {
-        setters.addPendingDependencies(state, action.meta.arg);
-      })
-      /**
-       * @todo this will cancel pending dependencies that were included in this
-       *       request but were also previously pending
-       */
-      .addCase(addDependencies.rejected, (state, action) => {
-        setters.removePendingDependencies(state, action.meta.arg);
-      })
-      .addCase(addDependencies.fulfilled, (state, action) => {
-        setters.addDependencies(state, action.payload);
-      })
-      .addCase(setProject, (draft, action) => {
-        const prevState = current(draft);
+    case ActionTypes.addPreparedFile: {
+      setters.addFile(state, action.payload);
+      return;
+    }
 
-        return createNextState(filesInitialState, (state) => {
-          const { meta: { replaceTabs = true, file } = {}, project } =
-            action.payload;
+    // --- Async dependency actions ---
 
-          setters.addFiles(state, project.files);
+    case ActionTypes.addDependenciesPending: {
+      setters.addPendingDependencies(state, action.meta.arg);
+      return;
+    }
 
-          if (isStoringProjectActions(project)) {
-            state.actions = project.actions;
-          }
+    case ActionTypes.addDependenciesRejected: {
+      setters.removePendingDependencies(state, action.meta.arg);
+      return;
+    }
 
-          const openFiles = replaceTabs
-            ? DEFAULT_OPEN_FILES
-            : prevState.openFileIds;
-          for (const id of openFiles) {
-            setters.ensureFileOpen(state, id);
-          }
+    case ActionTypes.addDependenciesFulfilled: {
+      setters.addDependencies(state, action.payload);
+      return;
+    }
 
-          if (file && state.entities[file]) {
-            setters.setCurrentFileId(state, file);
-          } else {
-            setters.setCurrentFileId(
-              state,
-              replaceTabs ? DEFAULT_CURRENT_FILE : prevState.currentFileId,
-            );
-          }
-        });
-      })
-      .addCase(projectUpdated, (state, action) => {
-        const { actions } = action.payload;
+    // --- Shared actions (cross-context) ---
 
-        if (actions) {
-          const uuids = actions.map((action) => action.uuid);
+    case setProject.type: {
+      const prevState = current(state);
+      return produce(filesInitialState, (newState) => {
+        const { meta: { replaceTabs = true, file = undefined } = {}, project } =
+          action.payload;
 
-          state.actions = state.actions.filter(
-            (action) => !uuids.includes(action.uuid),
+        setters.addFiles(newState, project.files);
+
+        if (isStoringProjectActions(project)) {
+          newState.actions = project.actions;
+        }
+
+        const openFiles = replaceTabs
+          ? DEFAULT_OPEN_FILES
+          : prevState.openFileIds;
+        for (const id of openFiles) {
+          setters.ensureFileOpen(newState, id);
+        }
+
+        if (file && newState.entities[file]) {
+          setters.setCurrentFileId(newState, file);
+        } else {
+          setters.setCurrentFileId(
+            newState,
+            replaceTabs ? DEFAULT_CURRENT_FILE : prevState.currentFileId,
           );
         }
-      })
-      .addCase(canUserEditProjectUpdate, (state, action) => {
-        const map = action.payload.dependencies.reduce<Record<string, boolean>>(
-          (map, dep) => {
-            map[dep.pathWithNamespace] = dep.canUserEdit;
+      });
+    }
 
-            return map;
-          },
-          {},
-        );
+    case projectUpdated.type: {
+      const { actions } = action.payload;
+      if (actions) {
+        const uuids = actions.map((a: any) => a.uuid);
+        state.actions = state.actions.filter((a) => !uuids.includes(a.uuid));
+      }
+      return;
+    }
 
-        for (const id of state.ids) {
-          const file = state.entities[id];
-
-          if (
-            file &&
-            isSharedDependency(file) &&
-            map[file.pathWithNamespace] !== undefined
-          ) {
-            file.canUserEdit = map[file.pathWithNamespace];
-          }
+    case canUserEditProjectUpdate.type: {
+      const deps: any[] = action.payload.dependencies;
+      const map: Record<string, boolean> = {};
+      for (const dep of deps) {
+        map[dep.pathWithNamespace] = dep.canUserEdit;
+      }
+      for (const id of state.ids) {
+        const file = state.entities[id];
+        if (
+          file &&
+          isSharedDependency(file) &&
+          map[file.pathWithNamespace] !== undefined
+        ) {
+          file.canUserEdit = map[file.pathWithNamespace];
         }
-      })
-      .addCase(forkAndReleaseBehaviors.fulfilled, (draft, action) => {
-        const prevState = current(draft);
+      }
+      return;
+    }
 
-        return createNextState(filesInitialState, (state) => {
-          const { arg } = action.meta;
-          const { files, forkedBehaviors } = action.payload;
+    case ActionTypes.parseAndShowBehaviorKeysFulfilled: {
+      const fileId = action.meta.arg.fileId;
+      const file = state.entities[fileId];
+      if (file?.kind !== HcFileKind.Behavior) {
+        throw new Error("Cannot find behavior");
+      }
+      setters.mergeBehaviorKeysWithoutSyncing(state, file, action.payload);
+      setters.syncBehaviorKeys(state);
+      state.behaviorKeys = true;
+      setters.setCurrentFileId(state, action.meta.arg.fileId);
+      return;
+    }
 
-          const pairs = Object.fromEntries(
-            arg.behaviors.map((behavior) => {
-              const prevBehaviorId = mapFileId(behavior.filename, "main");
-              const nextBehavior = forkedBehaviors.find(
-                (file) => file.repoPath === behavior.path,
-              );
-
-              if (!prevState.entities[prevBehaviorId]) {
-                throw new Error("Could not find original behavior in project");
-              }
-
-              if (!nextBehavior) {
-                throw new Error(
-                  "Could not find new behavior in forked project",
-                );
-              }
-
-              return [prevBehaviorId, nextBehavior.id];
-            }),
-          );
-
-          setters.addFiles(state, files);
-
-          for (const id of prevState.openFileIds) {
-            setters.ensureFileOpen(state, pairs[id] ?? id);
-          }
-
-          if (prevState.currentFileId) {
-            if (pairs[prevState.currentFileId]) {
-              setters.setCurrentFileId(state, pairs[prevState.currentFileId]);
-            } else {
-              setters.setCurrentFileId(state, prevState.currentFileId);
-              state.behaviorKeys = prevState.behaviorKeys;
-            }
-          }
-
-          state.visualGlobals = prevState.visualGlobals;
-        });
-      })
-      .addCase(parseAndShowBehaviorKeys.fulfilled, (draft, action) => {
-        const fileId = action.meta.arg.fileId;
-        const file = draft.entities[fileId];
-
+    case ActionTypes.parseAllBehaviorKeysFulfilled: {
+      for (const [fileId, keys] of Object.entries(action.payload)) {
+        const file = state.entities[fileId];
         if (file?.kind !== HcFileKind.Behavior) {
           throw new Error("Cannot find behavior");
         }
+        setters.mergeBehaviorKeysWithoutSyncing(
+          state,
+          file,
+          keys as BehaviorKeyFields,
+        );
+      }
+      setters.syncBehaviorKeys(state);
+      return;
+    }
 
-        setters.mergeBehaviorKeysWithoutSyncing(draft, file, action.payload);
-        setters.syncBehaviorKeys(draft);
-
-        draft.behaviorKeys = true;
-        setters.setCurrentFileId(draft, action.meta.arg.fileId);
-      })
-      .addCase(parseAllBehaviorKeys.fulfilled, (draft, action) => {
-        for (const [fileId, keys] of Object.entries(action.payload)) {
-          const file = draft.entities[fileId];
-
-          if (file?.kind !== HcFileKind.Behavior) {
-            throw new Error("Cannot find behavior");
-          }
-
-          setters.mergeBehaviorKeysWithoutSyncing(draft, file, keys);
+    case beginActionSave.type: {
+      for (const a of state.actions) {
+        if (action.payload.includes(a.uuid)) {
+          a.saving = true;
         }
-        setters.syncBehaviorKeys(draft);
-      })
-      .addCase(beginActionSave, (state, { payload }) => {
-        for (const action of state.actions) {
-          if (payload.includes(action.uuid)) {
-            action.saving = true;
-          }
-        }
-      });
-  },
-});
+      }
+      return;
+    }
+
+    default:
+      return;
+  }
+}
+
+export const filesReducer = (
+  state: FilesSlice = filesInitialState,
+  action: any,
+): FilesSlice => {
+  return produce(state, (draft) => {
+    return rawReducer(draft, action);
+  });
+};

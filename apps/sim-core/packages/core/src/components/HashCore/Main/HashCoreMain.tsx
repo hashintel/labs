@@ -1,10 +1,9 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 
 import { HashCoreAside, HashCoreSection } from "..";
 import { WrappedSplitterLayout } from "../../WrappedSplitterLayout/WrappedSplitterLayout";
-import { selectEditorVisible } from "../../../features/viewer/selectors";
 import { useAddClassOnClick } from "./util";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./HashCoreMain.css";
 
@@ -27,7 +26,7 @@ export const HashCoreMain: FC = () => {
     );
   };
 
-  const editorVisible = useSelector(selectEditorVisible);
+  const { editorVisible } = useViewer();
 
   return (
     <main className="HashCoreMain" ref={setContainerRef}>

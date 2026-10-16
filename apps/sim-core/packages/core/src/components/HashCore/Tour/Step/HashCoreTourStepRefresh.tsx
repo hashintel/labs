@@ -1,5 +1,4 @@
 import React, { FC, useEffect, useMemo, useReducer } from "react";
-import { useSelector } from "react-redux";
 
 import {
   BackButton,
@@ -14,7 +13,7 @@ import {
   useOnSimulationReset,
 } from "./util";
 import { globalsFileId } from "../../../../features/files/utils";
-import { selectCurrentFileId } from "../../../../features/files/selectors";
+import { useFiles } from "../../../../features/files/FilesContext";
 
 const refreshInitialState = {
   hasOpenedProperties: false,
@@ -47,7 +46,7 @@ function refreshReducer(
 export const HashCoreTourStepRefresh: FC = () => {
   const [state, dispatch] = useReducer(refreshReducer, refreshInitialState);
   const propertiesFile = useDomElementForFileId(globalsFileId);
-  const currentFileId = useSelector(selectCurrentFileId);
+  const { currentFileId } = useFiles();
 
   useKeyboardSupport();
 
@@ -87,7 +86,6 @@ export const HashCoreTourStepRefresh: FC = () => {
         <a
           href="https://docs.hash.ai/core/creating-simulations/configuration/basic-properties"
           target="_blank"
-          rel="noreferrer"
         >
           globals.json is where you define global properties
         </a>{" "}
@@ -98,7 +96,6 @@ export const HashCoreTourStepRefresh: FC = () => {
         <a
           href="https://docs.hash.ai/core/creating-simulations/anatomy-of-an-agent/context"
           target="_blank"
-          rel="noreferrer"
         >
           context
         </a>

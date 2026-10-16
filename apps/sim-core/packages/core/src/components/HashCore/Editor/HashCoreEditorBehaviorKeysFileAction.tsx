@@ -1,17 +1,13 @@
 import React from "react";
-import { useDispatch, useSelector } from "react-redux";
 
-import { AppDispatch } from "../../../features/types";
 import { HcFileKind } from "../../../features/files/enums";
 import { IconBrain } from "../../Icon";
 import { SimpleTooltip } from "../../SimpleTooltip";
 import { fileActionSize } from "./utils";
-import { selectCurrentFile } from "../../../features/files/selectors";
-import { toggleBehaviorKeysEditor } from "../../../features/files/slice";
+import { useFiles } from "../../../features/files/FilesContext";
 
 export const HashCoreEditorBehaviorKeysFileAction = () => {
-  const currentFile = useSelector(selectCurrentFile);
-  const dispatch = useDispatch<AppDispatch>();
+  const { currentFile, toggleBehaviorKeysEditor } = useFiles();
 
   if (
     currentFile?.kind !== HcFileKind.Behavior &&
@@ -22,10 +18,10 @@ export const HashCoreEditorBehaviorKeysFileAction = () => {
 
   return (
     <button
-      onClick={(evt) => {
+      onClick={async (evt) => {
         evt.preventDefault();
 
-        dispatch(toggleBehaviorKeysEditor({ fileId: currentFile.id }));
+        toggleBehaviorKeysEditor(currentFile.id);
       }}
       className="tab-button"
     >

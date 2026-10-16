@@ -195,7 +195,6 @@ export const forkAndReleaseBehaviors = createAppAsyncThunk<
     });
 
     dispatch(
-      // @ts-expect-error redux problems
       trackEvent({
         action: "New Release: Core",
         label: `Behavior - ${forkedBehaviors

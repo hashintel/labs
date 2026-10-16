@@ -1,5 +1,4 @@
 import React, { FC, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 import classNames from "classnames";
 
@@ -7,15 +6,15 @@ import { ExperimentModal } from "../../../Modal/Experiments/ExperimentModal";
 import { ExperimentsMenu } from "./ExperimentsMenu";
 import { IconExperimentsRun } from "../../../Icon/ExperimentsRun";
 import { RawExperimentType } from "../../../Modal/Experiments/types";
+import { Scope, useScope } from "../../../../features/scopes";
 import { selectCanRunExperiment } from "../../../../features/simulator/simulate/selectors";
-import { selectShouldShowExperimentsButton } from "../../../../features/scopes";
 import { useSimulatorSelector } from "../../../../features/simulator/context";
 
 import "./ExperimentsRunner.css";
 
 export const ExperimentsRunner: FC = () => {
   const disabled = !useSimulatorSelector(selectCanRunExperiment);
-  const shouldShowExperiments = useSelector(selectShouldShowExperimentsButton);
+  const shouldShowExperiments = useScope(Scope.edit);
   const ref = useRef<HTMLDivElement>(null);
 
   const [open, setOpen] = useState(false);
