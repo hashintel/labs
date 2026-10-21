@@ -36,4 +36,20 @@ export const plugins: Plugin<any>[] = [
 			};
 		},
 	},
+	{
+		// Instruction pack for Patchwork's chat computer (the `llm:skill` type
+		// the chat tool consumes): how to build and edit Petri nets with the
+		// generic document tools. Auto-activates when a Petrinaut doc is
+		// focused.
+		type: "llm:skill",
+		id: "petrinaut-petrinet",
+		name: "Petrinaut Net",
+		description:
+			"Build and edit Petrinaut Petri nets — places, transitions, arcs, colours, parameters and their simulation code. Applies when the focused document is a Petrinaut net, or when the user asks to model a process as a Petri net.",
+		datatypes: ["petrinaut-petrinet"],
+		async load() {
+			const { skill } = await import("./llm-skill");
+			return skill;
+		},
+	},
 ];
