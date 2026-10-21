@@ -44,6 +44,7 @@ slug-visualize-vocab = "vec2slug.visualize_vocab:main"
 slug-analyze-attention = "vec2slug.analyze_attention:main"
 
 [tool.uv]
+required-version = ">=0.13.4"
 package = true
 
 [tool.ruff.lint]

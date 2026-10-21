@@ -33,4 +33,5 @@ sap-mock = "sap_mock_data.cli.main:main"
 packages = ["src/sap_mock_data"]
 
 [tool.uv]
+required-version = ">=0.13.4"
 default-groups = []
