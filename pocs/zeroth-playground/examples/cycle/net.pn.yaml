@@ -1,0 +1,21 @@
+name: cycle
+kind: plain
+
+places:
+  A:
+  B:
+
+transitions:
+  Go:
+    inputs:
+      A:
+    outputs:
+      B:
+  Back:
+    inputs:
+      B:
+    outputs:
+      A:
+
+marking:
+  A: 1

@@ -1,0 +1,12 @@
+.question-card {
+  height: 100%;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  font-size: var(--fs-base);
+  line-height: 1.6;
+  user-select: text;
+
+  & > * {
+    max-width: 65ch;
+  }
+}

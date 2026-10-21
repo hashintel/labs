@@ -1,0 +1,6 @@
+.question-ref {
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hair);
+  font-size: var(--fs-sm);
+}
