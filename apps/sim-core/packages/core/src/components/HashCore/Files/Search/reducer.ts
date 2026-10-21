@@ -1,14 +1,13 @@
 import { Dispatch, useEffect, useReducer } from "react";
-import { useSelector } from "react-redux";
-import produce, { Draft } from "immer";
+import { produce, Draft } from "immer";
 
 import {
   SearchFileResult,
   SearchQuery,
   SearchResultsDictionary,
 } from "./types";
-import { selectCurrentProjectUrl } from "../../../../features/project/selectors";
 import { useFilesRemovedObservable } from "./hooks";
+import { useProject } from "../../../../features/project/ProjectContext";
 
 export type SearchAction =
   | {
@@ -37,14 +36,14 @@ export type SearchAction =
   | { type: "reset"; payload: { projectUrl: string | null } }
   | { type: "filesRemoved"; payload: string[] };
 
-export interface SearchState {
+export type SearchState = {
   query: SearchQuery;
   resultsMap: SearchResultsDictionary;
   results: SearchFileResult[];
   noResults: boolean;
   pending: boolean;
   projectUrl: string | null;
-}
+};
 
 export type SearchDispatch = Dispatch<SearchAction>;
 
@@ -183,7 +182,7 @@ export const useSearchReducer = () => {
     searchInitialState,
   );
 
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProjectUrl: projectUrl } = useProject();
   if (searchState.projectUrl !== projectUrl) {
     searchDispatch({ type: "reset", payload: { projectUrl } });
   }

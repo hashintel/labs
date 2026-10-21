@@ -1,26 +1,8 @@
-// import { PartialProjectFragment } from "./partialProjectByPath";
 import { PartialSimulationProject } from "../../../features/project/types";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
-// import { query } from "../query";
 
-/*eslint-disable @typescript-eslint/require-await*/
 export const getOnboardingProject =
   async (): Promise<PartialSimulationProject> => {
-    // Migration shim
-
-    // const res = await query<{
-    //   specialProjects: UnpreparedPartialSimulationProject[];
-    // }>(
-    //   `
-    //       query GetOnboardingSimulation {
-    //         specialProjects(type: Onboarding) {
-    //           ...PartialProjectFragment
-    //         }
-    //       }
-
-    //       ${PartialProjectFragment}
-    //     `
-    // );
     const onBoardingProject = {
       pathWithNamespace: "@hash/wildfires-regrowth",
       name: "Wildfires - Regrowth",
@@ -34,6 +16,5 @@ export const getOnboardingProject =
       forkOf: null,
     } as any;
 
-    return preparePartialSimulationProject(onBoardingProject);
+    return preparePartialSimulationProject(onBoardingProject!);
   };
-/*eslint-enable @typescript-eslint/require-await*/

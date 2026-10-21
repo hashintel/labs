@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 import urljoin from "url-join";
 
 import {
@@ -10,10 +9,10 @@ import {
   ProgressIndicator,
 } from "./util";
 import { SITE_URL } from "../../../../util/api/paths";
-import { selectUserProfileUrl } from "../../../../features/user/selectors";
+import { useUser } from "../../../../features/user/UserContext";
 
 export const HashCoreTourStepDatasets: FC = () => {
-  const url = useSelector(selectUserProfileUrl);
+  const { userProfileUrl: url } = useUser();
 
   return (
     <>
@@ -23,13 +22,12 @@ export const HashCoreTourStepDatasets: FC = () => {
         <a
           href="https://docs.hash.ai/core/creating-simulations/datasets"
           target="_blank"
-          rel="noreferrer"
         >
           you can import datasets to customize your agents and behaviors
         </a>
         . Data, behaviors, and simulations that others users have shared are
         also available in{" "}
-        <a href={urljoin(SITE_URL, "@hash")} target="_blank" rel="noreferrer">
+        <a href={urljoin(SITE_URL, "@hash")} target="_blank">
           HASH
         </a>
         , which you can add to your own simulations.
@@ -37,7 +35,7 @@ export const HashCoreTourStepDatasets: FC = () => {
       <p>
         Your simulation and datasets are auto-saved to your{" "}
         {url ? (
-          <a href={url} target="_blank" rel="noreferrer">
+          <a href={url} target="_blank">
             profile
           </a>
         ) : (

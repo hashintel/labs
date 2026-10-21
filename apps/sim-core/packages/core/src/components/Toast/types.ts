@@ -6,8 +6,8 @@ export type ToastTheme =
   | "error" // "red"
   | "info"; // "white"
 
-export interface ToastProps {
+export type ToastProps = {
   theme?: ToastTheme;
   isDismissable?: boolean;
   dismiss: MouseEventHandler<HTMLButtonElement>;
-}
+};

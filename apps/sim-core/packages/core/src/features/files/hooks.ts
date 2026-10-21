@@ -1,10 +1,8 @@
 import { useCallback } from "react";
-import { useDispatch, useSelector, useStore } from "react-redux";
 import JSZip from "jszip";
-import { navigate } from "hookrouter";
+import { navigate } from "../../util/navigation";
 import { saveAs } from "file-saver";
 
-import { AppDispatch, RootState } from "../types";
 import { FilePathParts } from "../../util/files/types";
 import { HcFile } from "./types";
 import { HcFileKind } from "./enums";
@@ -13,65 +11,37 @@ import {
   RemoteSimulationProject,
   SimulationProjectWithHcFiles,
 } from "../project/types";
-import { addUserProject } from "../user/slice";
 import { fromFormatted } from "../../util/files/parse";
 import { preparePartialSimulationProject, toHcConfig } from "../project/utils";
-import { save } from "../thunks";
-import {
-  selectAllFiles,
-  selectCurrentFileId,
-  selectFileEntities,
-} from "./selectors";
-import { selectCurrentProject } from "../project/selectors";
-import { setProjectWithMeta } from "../actions";
 import { slugify, urlFromProject } from "../../routes";
 import { stringifyBehaviorKeys, toHcFiles } from "./utils";
-import { trackEvent } from "../analytics";
+
+import { useFiles } from "./FilesContext";
+import { useProject } from "../project/ProjectContext";
+import { useUser } from "../user/UserContext";
 
 export const useSelectFileById = (fileId: string): HcFile => {
-  try {
-    return useSelector(
-      useCallback(
-        (state: RootState) => {
-          const entity = selectFileEntities(state)[fileId];
+  const { fileEntities } = useFiles();
+  const entity = fileEntities[fileId];
 
-          if (!entity) {
-            throw new Error("Cannot render file that does not exist");
-          }
-
-          return entity;
-        },
-        [fileId],
-      ),
-    );
-  } catch (err) {
-    /**
-     * We have to do this console log outside of useSelector because of the
-     * potential for the Redux "zombie children" issue…
-     *
-     * @see https://react-redux.js.org/api/hooks#stale-props-and-zombie-children
-     */
+  if (!entity) {
     console.error("Cannot find file", fileId);
-    throw err;
+    throw new Error("Cannot render file that does not exist");
   }
+
+  return entity;
 };
 
-export const useFileIsCurrent = (fileId: string) =>
-  useSelector(
-    useCallback(
-      (state: RootState) => selectCurrentFileId(state) === fileId,
-      [fileId],
-    ),
-  );
+export const useFileIsCurrent = (fileId: string) => {
+  const { currentFileId } = useFiles();
+  return currentFileId === fileId;
+};
 
 export const useExportFiles = () => {
-  const store = useStore();
+  const { allFiles } = useFiles();
+  const { currentProject } = useProject();
 
-  const exportFiles = async () => {
-    const state = store.getState();
-    const allFiles = selectAllFiles(state);
-    const currentProject = selectCurrentProject(state);
-
+  const exportFiles = useCallback(async () => {
     const zip = new JSZip();
 
     for (const file of allFiles) {
@@ -109,145 +79,160 @@ export const useExportFiles = () => {
       fileZip,
       `${currentProject?.pathWithNamespace.split("/").pop()}.zip`,
     );
-  };
+  }, [allFiles, currentProject]);
 
   return exportFiles;
 };
 
-export const useImportFiles = () => {
-  const dispatch = useDispatch<AppDispatch>();
+/**
+ * Parse a zip buffer into a SimulationProjectWithHcFiles.
+ * Pure function — no React context or navigation side-effects.
+ */
+export async function parseZipToProject(
+  data: ArrayBuffer | Blob,
+  projectName: string,
+  namespace = "@imported",
+): Promise<SimulationProjectWithHcFiles> {
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(data);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new Error(`Error unzipping ${projectName}: ${msg}`);
+  }
 
-  const importFiles = async (files: FileList) => {
-    if (files.length === 0) {
-      // They pushed 'cancel' on the dialog.
+  const projectFiles: ProjectFile[] = [];
+  const zipFiles: { name: string; contentPromise: Promise<string> }[] = [];
+
+  zip.forEach((_relativePath, zipEntry) => {
+    if (zipEntry.dir) return;
+
+    while (zipEntry.name.startsWith("/")) {
+      zipEntry.name = zipEntry.name.slice(1);
+    }
+    if (zipEntry.name.startsWith(".")) return;
+
+    let parsed: FilePathParts | null = null;
+    try {
+      parsed = fromFormatted(zipEntry.name);
+    } catch (err) {
+      console.warn("Skipping file in import:", zipEntry.name, err);
       return;
     }
-    const file = files[0];
 
-    const zipMimeTypes = [
-      "application/zip",
-      "application/zip-compressed",
-      "application/x-zip-compressed",
-    ];
-    if (!zipMimeTypes.includes(file.type)) {
-      throw "Please upload a .zip file";
+    if (parsed.dir) {
+      const permittedDirs = ["src", "data", "views", "dependencies"];
+      const candidateDir = parsed.dir.split("/")[0];
+      if (!permittedDirs.includes(candidateDir)) {
+        console.warn("Skipping directory in import", parsed.dir);
+        return;
+      }
     }
 
-    const fileName = file.name.split(".").slice(0, -1).join(".");
-
-    let zip: JSZip;
-    try {
-      zip = await JSZip.loadAsync(file);
-    } catch (err: any) {
-      throw "Error unzipping " + file.name + ": " + err.message;
-    }
-    const projectFiles: ProjectFile[] = [];
-    const zipFiles: {
-      name: string;
-      contentPromise: Promise<string>;
-    }[] = [];
-
-    zip.forEach((_relativePath, zipEntry) => {
-      if (zipEntry.dir) {
-        // Skip directories.
-        return;
-      }
-
-      // Some zip files put leading '/'s on the file names.
-      // Trim those out so that HASH doesn't nest it as a folder.
-      while (zipEntry.name.startsWith("/")) {
-        zipEntry.name = zipEntry.name.slice(1);
-      }
-
-      if (zipEntry.name.startsWith(".")) {
-        // Skip hidden files
-        return;
-      }
-
-      let parsed: FilePathParts | null = null;
-      try {
-        parsed = fromFormatted(zipEntry.name);
-      } catch (err) {
-        console.warn("Skipping file in import:", zipEntry.name, err);
-        return;
-      }
-
-      if (parsed.dir) {
-        const permittedDirs = ["src", "data", "views", "dependencies"];
-        const candidateDir = parsed.dir.split("/")[0];
-        if (!permittedDirs.includes(candidateDir)) {
-          console.warn("Skipping directory in import", parsed.dir);
-          return;
-        }
-      }
-
-      // Convert to a simple array so we can later await the promises.
-      zipFiles.push({
-        name: zipEntry.name,
-        contentPromise: zipEntry.async("text"),
-      });
+    zipFiles.push({
+      name: zipEntry.name,
+      contentPromise: zipEntry.async("text"),
     });
+  });
 
-    for (const zipFile of zipFiles) {
-      const contents = await zipFile.contentPromise;
-      projectFiles.push({
-        name: zipFile.name.replace(/^.*[\\/]/, ""),
-        path: zipFile.name,
-        contents: contents,
-        ref: "1.0",
-      });
-    }
+  for (const zipFile of zipFiles) {
+    const contents = await zipFile.contentPromise;
+    projectFiles.push({
+      name: zipFile.name.replace(/^.*[\\\/]/, ""),
+      path: zipFile.name,
+      contents,
+      ref: "1.0",
+    });
+  }
 
-    const namespace = "@imported";
-    const path = slugify(fileName);
+  const path = slugify(projectName);
 
-    const importedProject: RemoteSimulationProject = {
-      id: `${path}`,
-      name: path,
-      description: "",
-      image: null,
-      thumbnail: null,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      canUserEdit: true,
-      pathWithNamespace: `${namespace}/${path}`,
-      namespace: namespace,
-      type: "Simulation",
-      ref: "main",
-      visibility: "public",
-      ownerType: "User",
-      forkOf: null,
-      latestRelease: null,
-      license: {
-        id: "5dc3da73cc0cf804dcc66a51",
-        name: "MIT License",
-      },
-      keywords: [],
-      files: projectFiles,
-    };
+  const importedProject: RemoteSimulationProject = {
+    id: path,
+    name: projectName,
+    description: "",
+    image: null,
+    thumbnail: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    canUserEdit: true,
+    pathWithNamespace: `${namespace}/${path}`,
+    namespace,
+    type: "Simulation",
+    ref: "main",
+    visibility: "public",
+    ownerType: "User",
+    forkOf: null,
+    latestRelease: null,
+    license: { id: "5dc3da73cc0cf804dcc66a51", name: "MIT License" },
+    keywords: [],
+    files: projectFiles,
+  };
 
-    const project: SimulationProjectWithHcFiles = {
+  try {
+    return {
       ...importedProject,
       config: toHcConfig(importedProject),
       files: toHcFiles(importedProject),
       ref: importedProject.ref ?? "main",
-      access: null,
     };
+  } catch (err) {
+    const msg =
+      err instanceof Error ? err.message : String(err ?? "Unknown error");
+    throw new Error(`Error parsing imported project: ${msg}`);
+  }
+}
 
-    dispatch(
-      // @ts-expect-error redux problems
-      trackEvent({
-        action: "Import Project: Core",
-        label: project.pathWithNamespace,
-      }),
-    );
+/**
+ * Fetch a zip from a URL and parse it into a project.
+ */
+export async function fetchAndParseProject(
+  url: string,
+  projectName: string,
+  namespace = "@example",
+): Promise<SimulationProjectWithHcFiles> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${url}: ${response.status}`);
+  }
+  const buffer = await response.arrayBuffer();
+  return parseZipToProject(buffer, projectName, namespace);
+}
 
-    dispatch(addUserProject(preparePartialSimulationProject(project)));
-    // @ts-expect-error redux problems
-    dispatch(setProjectWithMeta(project));
+export const useImportFiles = () => {
+  const { addUserProject } = useUser();
+  const { setProjectWithMeta: contextSetProjectWithMeta } = useProject();
+
+  const importFiles = async (files: FileList) => {
+    if (files.length === 0) return;
+    const file = files[0];
+
+    if (file.type !== "application/zip") {
+      throw new Error("Please upload a .zip file");
+    }
+
+    const fileName = file.name.split(".").slice(0, -1).join(".");
+    const project = await parseZipToProject(file, fileName);
+
+    addUserProject(preparePartialSimulationProject(project));
+    contextSetProjectWithMeta(project);
     navigate(urlFromProject(project), false, {}, true);
-    await dispatch(save());
   };
 
   return importFiles;
+};
+
+export const useImportProjectFromUrl = () => {
+  const { addUserProject } = useUser();
+  const { setProjectWithMeta: contextSetProjectWithMeta } = useProject();
+
+  return async (url: string, projectName: string, shouldNavigate = true) => {
+    const project = await fetchAndParseProject(url, projectName);
+
+    addUserProject(preparePartialSimulationProject(project));
+    contextSetProjectWithMeta(project);
+    if (shouldNavigate) {
+      navigate(urlFromProject(project), false, {}, true);
+    }
+  };
 };

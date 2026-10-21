@@ -102,7 +102,6 @@ Click reset to reset the simulation to the initial state.
 
 export const mockProject: SimulationProjectWithHcFiles = {
   ...mockRemoteProject,
-  access: null,
   files: toHcFiles(mockRemoteProject),
   config: toHcConfig(mockRemoteProject),
   ref: "1.0.0",

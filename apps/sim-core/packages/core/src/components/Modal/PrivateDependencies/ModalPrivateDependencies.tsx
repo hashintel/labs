@@ -1,5 +1,4 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
 import urljoin from "url-join";
 
 import { FancyButton } from "../../Fancy/Button";
@@ -9,8 +8,9 @@ import { IconAlertOutline } from "../../Icon/AlertOutline";
 import { Modal } from "../Modal";
 import { SITE_URL } from "../../../util/api/paths";
 import { Scope, useScope } from "../../../features/scopes";
-import { selectCurrentProjectRequired } from "../../../features/project/selectors";
 import { selectPrivateDependencies } from "../../../features/files/selectors";
+import { useFilesSelector } from "../../../features/files/FilesContext";
+import { useProject } from "../../../features/project/ProjectContext";
 
 import "./ModalPrivateDependencies.css";
 
@@ -31,9 +31,9 @@ const getPrivateKindsMessage = (files: HcDependencyFile[]) => {
 export const ModalPrivateDependencies: FC<{
   onClose: () => void;
 }> = ({ onClose }) => {
-  const privateDependencies = useSelector(selectPrivateDependencies);
+  const privateDependencies = useFilesSelector(selectPrivateDependencies);
   const privateKinds = getPrivateKindsMessage(privateDependencies);
-  const project = useSelector(selectCurrentProjectRequired);
+  const project = useProject().currentProject!;
   const canLinkToProjectInIndex = useScope(Scope.linkToProjectInIndex);
 
   const makeCurrentProjectPrivateText = (
@@ -51,7 +51,6 @@ export const ModalPrivateDependencies: FC<{
               <a
                 href={urljoin(SITE_URL, dependency.pathWithNamespace)}
                 target="_blank"
-                rel="noreferrer"
               >
                 {dependency.path.formatted}
               </a>
@@ -66,7 +65,6 @@ export const ModalPrivateDependencies: FC<{
               <a
                 href={urljoin(SITE_URL, project.pathWithNamespace)}
                 target="_blank"
-                rel="noreferrer"
               >
                 {makeCurrentProjectPrivateText}
               </a>

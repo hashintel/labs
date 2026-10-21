@@ -1,0 +1,42 @@
+---
+description: Treat strategy and architecture docs as source of truth - read before changes, update after changes
+alwaysApply: true
+---
+
+# Documentation as Source of Truth
+
+The following documents define how the project is structured, what decisions have been made, and what work is planned. **Treat them as authoritative** — read them before making changes, follow them during implementation, and update them when reality diverges.
+
+## Key Documents
+
+| Document | Purpose | Update When |
+|----------|---------|-------------|
+| [ARCHITECTURE.md](mdc:apps/sim-core/ARCHITECTURE.md) | System structure, component relationships, data flow | Adding/removing/moving modules, changing state management, altering data flow |
+| [TODO.md](mdc:apps/sim-core/TODO.md) | Technical debt, migration roadmap, dependency status | Completing a TODO item, discovering new debt, upgrading a dependency |
+| [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md) | Test pyramid, TDD workflow, test conventions | Adding new test patterns, changing test tooling, updating commands |
+| [README.md](mdc:apps/sim-core/README.md) | Entry point, build commands, project overview | Changing build commands, adding new apps/docs, altering project structure |
+| [.cursor/rules/hash-labs.mdc](mdc:.cursor/rules/hash-labs.mdc) | AI agent conventions, error policies, build verification | Changing conventions, updating known-error lists, adding new patterns |
+
+## Before Making Changes
+
+**Study the relevant docs before starting any task.** Don't skim — actually read and internalize the sections that relate to the area you're about to touch. This applies to features, bug fixes, refactors, and migrations alike.
+
+1. **Read ARCHITECTURE.md** to understand how the affected area is structured, what depends on it, and what patterns are in use.
+2. **Read TODO.md** to check for known issues, planned work, or migration phases that overlap with your task.
+3. **Read TESTING_STRATEGY.md** to know how the change should be tested (unit vs E2E, TDD for bugs).
+4. **Read hash-labs.mdc** for conventions that apply (state management, deletion hygiene, error policies).
+5. **Follow established patterns.** If the docs describe a pattern (e.g. state management via Context, component directory structure), follow it unless you have a strong reason not to.
+6. **If you plan to deviate**, state why in the commit message or PR description.
+
+## After Making Changes
+
+1. **Update any doc that is now inaccurate.** If your change makes a statement in ARCHITECTURE.md, TODO.md, or TESTING_STRATEGY.md wrong, fix it in the same commit.
+2. **Mark completed TODO items.** If you finish something listed in TODO.md, update its status.
+3. **Add new patterns.** If you introduce a new convention or pattern, document it in the appropriate file.
+4. **Don't leave stale docs.** Outdated documentation is worse than no documentation — it actively misleads.
+
+## When to Propose vs. Apply
+
+- **Factual updates** (completed items, corrected commands, fixed file paths): apply directly.
+- **Convention changes** (new patterns, changed policies, altered workflows): propose to the user before applying.
+- **Cursor rules changes**: always propose and get approval before modifying `.cursor/rules/*.mdc`.

@@ -1,8 +1,7 @@
 import { AnalysisJson } from "../../../features/analysis/analysisJsonTypes";
-import { AppDispatch } from "../../../features/types";
 import { HcFile } from "../../../features/files/types";
 import { HcFileKind } from "../../../features/files/enums";
-import { addUserAlert, clearUserAlerts } from "../../../features/viewer";
+import type { UserAlert } from "../../../features/viewer/types";
 import { globalsFileId } from "../../../features/files/utils";
 import { validateAnalysisJson } from "./../../../features/analysis/analysisJsonValidation";
 
@@ -40,10 +39,13 @@ export const getDocsSection = (
 
 export const validateAnalysisJsonAndDispatchErrorsIfAny = (
   analysis: AnalysisJson,
-  dispatch: AppDispatch,
+  viewerActions: {
+    addUserAlert: (alert: UserAlert) => void;
+    clearUserAlerts: () => void;
+  },
 ) => {
   const result = validateAnalysisJson(analysis);
-  dispatch(clearUserAlerts());
+  viewerActions.clearUserAlerts();
 
   if (
     result.success &&
@@ -73,5 +75,7 @@ export const validateAnalysisJsonAndDispatchErrorsIfAny = (
     timestamp: Date.now(),
     hideLinksToDocs: true,
   };
-  alerts.forEach((alert) => dispatch(addUserAlert({ ...alert, ...baseAttrs })));
+  alerts.forEach((alert) =>
+    viewerActions.addUserAlert({ ...alert, ...baseAttrs }),
+  );
 };

@@ -1,0 +1,35 @@
+---
+description: When user reports a bug - use TDD approach, verify with test first (unit preferred, E2E if needed)
+alwaysApply: true
+---
+
+# Bug Fixes: Test-First (TDD) Workflow
+
+When the user reports a bug, **always take a TDD approach**. Do not modify production code until you have a failing test that reproduces the issue.
+
+## Workflow
+
+1. **Reproduce with a test** — Write a test that fails and demonstrates the bug.
+2. **Verify the test fails** — Run it; the failure must match the reported behavior.
+3. **Fix the code** — Implement the fix so the test passes.
+4. **Run the full suite** — Ensure no regressions.
+
+## Test Type Selection
+
+| Prefer | When |
+|--------|------|
+| **Unit test** | Pure logic, utilities, selectors, parsers, pure functions |
+| **Component test** | React component behavior, hooks, context in isolation |
+| **E2E test** | Full user flows, UI interactions, routing, simulation, import/export |
+
+**Rule:** Use the lightest test type that can reliably reproduce the bug. Prefer unit over component over E2E.
+
+## Commands
+
+- **Unit:** `npx jest --forceExit --testPathIgnorePatterns "e2e"` in `apps/sim-core/packages/core`
+- **E2E:** `yarn ws:core test:e2e` (or `test:e2e:smoke` for quick check) in `apps/sim-core`
+- **Single E2E file:** `yarn ws:core test:e2e path/to/spec.ts`
+
+## Full Strategy
+
+See [TESTING_STRATEGY.md](mdc:apps/sim-core/TESTING_STRATEGY.md) for the complete testing strategy, test pyramid, and conventions.

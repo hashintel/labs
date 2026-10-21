@@ -1,5 +1,5 @@
-import * as m from "monocle-ts";
-import type { Color, Datum, PlotData, ScatterLine } from "plotly.js";
+import * as monocle from "monocle-ts";
+import type { Color, Datum, PlotData, ScatterLine } from "plotly.js-dist-min";
 import {
   DatumKeys,
   HashDatum,
@@ -10,7 +10,7 @@ import {
   isOutputSlice,
 } from "@hashintel/engine-web";
 import { flow } from "fp-ts/es6/function";
-import { merge } from "lodash";
+import { merge } from "lodash-es";
 import { pipe } from "fp-ts/es6/pipeable";
 
 import { OutputPlotProps } from "./types";
@@ -47,7 +47,7 @@ function or(a: any, b: any) {
 function scatterToData(scatter: string[], series: OutputSeries, step: number) {
   const data = [];
   for (const name of scatter) {
-    if (!series[name]?.[step]) {
+    if (!series[name] || !series[name][step]) {
       continue;
     }
     const color = extractColor(name);
@@ -78,7 +78,7 @@ function scatter3dToData(
 ) {
   const data = [];
   for (const name of scatter) {
-    if (!series[name]?.[step]) {
+    if (!series[name] || !series[name][step]) {
       continue;
     }
     const color = extractColor(name);
@@ -105,17 +105,13 @@ function scatter3dToData(
   return data;
 }
 
-const extractColor = (name: Color) => {
-  if (typeof name !== "string") {
-    return name;
-  }
+const extractColor = (name: Color) =>
+  typeof name === "string"
+    ? name === "white"
+      ? "gray"
+      : `#${mapColor(name) ?? intToRGB(hashCode(name))}`
+    : name;
 
-  if (name === "white") {
-    return "gray";
-  }
-  const colorHashCode = mapColor(name) ?? intToRGB(hashCode(name));
-  return `#${colorHashCode}`;
-};
 // https://stackoverflow.com/a/3426956
 function hashCode(str: string) {
   // java String#hashCode
@@ -133,9 +129,9 @@ function intToRGB(int: number) {
 }
 
 export function buildPlots(def: PlotDefinition): OutputPlotProps {
-  const layout = { ...def.layout } || {};
+  const layout = { ...def.layout };
 
-  const config = { ...def.config } || {};
+  const config = { ...def.config };
   config.displaylogo = false;
 
   const style: React.CSSProperties = {};
@@ -204,15 +200,16 @@ export function buildPlots(def: PlotDefinition): OutputPlotProps {
 }
 
 const datumLenses: {
-  [K in DatumKeys]: m.Optional<HashPlotData, HashDatum<K>>;
+  [K in DatumKeys]: monocle.Optional<HashPlotData, HashDatum<K>>;
 } = {
-  x: m.Optional.fromNullableProp<HashPlotData>()("x"),
-  y: m.Optional.fromNullableProp<HashPlotData>()("y"),
-  z: m.Optional.fromNullableProp<HashPlotData>()("z"),
+  x: monocle.Optional.fromNullableProp<HashPlotData>()("x"),
+  y: monocle.Optional.fromNullableProp<HashPlotData>()("y"),
+  z: monocle.Optional.fromNullableProp<HashPlotData>()("z"),
 };
 
-const lineLens = m.Optional.fromNullableProp<HashPlotData>()("line");
-const colorLens = m.Optional.fromNullableProp<Partial<ScatterLine>>()("color");
+const lineLens = monocle.Optional.fromNullableProp<HashPlotData>()("line");
+const colorLens =
+  monocle.Optional.fromNullableProp<Partial<ScatterLine>>()("color");
 
 const flattenSlice = <K extends DatumKeys>(
   series: OutputSeriesValue[],
@@ -235,7 +232,7 @@ const mapAxis =
       ? (series[value].slice(0, step + 1) as PlotData[K])
       : isOutputSlice(value)
         ? flattenSlice(series[value.name].slice(...value.slice))
-        : value;
+        : (value as PlotData[K]);
 
 export function buildData(
   def: PlotDefinition,
@@ -263,10 +260,10 @@ export function buildData(
   }
 }
 
-interface SetPlotlyThemeProps {
+type SetPlotlyThemeProps = {
   theme: "HASH_dark";
   layout: Partial<Plotly.Layout>;
-}
+};
 
 // Plotly.js doesn't have this function but plotly.py does
 // Colors taken from: https://github.com/plotly/plotly.py/blob/master/packages/python/plotly/templategen/definitions.py
@@ -323,7 +320,7 @@ const colorBars = {
 const plotlyClrs = {
   "HASH Light": theme.white,
   "Rhino Medium 2": theme["light-grey"],
-  "Rhino Medium 1": theme.grey,
+  "Rhino Medium 1": theme["grey"],
   "Rhino Dark": "#171b1f",
   "Rhino Core": "#2a3f5f",
 };
@@ -339,19 +336,19 @@ interface PlotStyle {
   table_cell_clr: string;
   table_header_clr: string;
   table_line_clr: string;
-  colorscale: string[];
+  colorscale: Array<string>;
 }
 
-const PlotStyles: Record<string, PlotStyle> = {
+const PlotStyles: { [name: string]: PlotStyle } = {
   HASH_dark: {
-    paper_clr: theme.dark,
+    paper_clr: theme["dark"],
     font_clr: plotlyClrs["HASH Light"],
     font_family: "Inter",
-    panel_background_clr: theme.dark,
-    panel_grid_clr: theme.dark,
+    panel_background_clr: theme["dark"],
+    panel_grid_clr: theme["dark"],
     axis_ticks_clr: plotlyClrs["Rhino Medium 1"],
     zerolinecolor_clr: plotlyClrs["Rhino Medium 2"],
-    table_cell_clr: theme.dark,
+    table_cell_clr: theme["dark"],
     table_header_clr: plotlyClrs["Rhino Core"],
     table_line_clr: "#000000",
     colorscale: colorBars.plasma,

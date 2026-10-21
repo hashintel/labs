@@ -1,33 +1,22 @@
 import React, { FC, Fragment, memo, MouseEvent } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import classNames from "classnames";
 
 import { LabeledInputRadio } from "../../../../LabeledInputRadio";
-import { Link } from "../../../../Link/Link";
-import { Scope, useScopes } from "../../../../../features/scopes";
+import { Scope, useScope } from "../../../../../features/scopes";
 import { TabKind } from "../../../../../features/viewer/enums";
 import { getMetaCharacter } from "../../../../../hooks/useKeyboardShortcuts";
-import { openSearch } from "../../../../../features/search/slice";
-import {
-  selectActivityVisible,
-  selectEditorVisible,
-  selectViewerVisible,
-} from "../../../../../features/viewer/selectors";
-import { selectHasProject } from "../../../../../features/project/selectors";
-import {
-  toggleActivity,
-  toggleEditor,
-  toggleViewer,
-} from "../../../../../features/viewer/slice";
+import { useProject } from "../../../../../features/project/ProjectContext";
+import { useSearch } from "../../../../../features/search/SearchContext";
+import { useViewer } from "../../../../../features/viewer/ViewerContext";
 import { viewerTabs } from "../../../../../features/viewer/utils";
 
-interface HashCoreHeaderMenuViewProps {
+type HashCoreHeaderMenuViewProps = {
   openMenuItem: string;
   onClickMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onAddView: (tabName: TabKind) => void;
   clearAll: () => void;
-}
+};
 
 export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
   ({
@@ -37,12 +26,17 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
     onAddView,
     clearAll,
   }) => {
-    const dispatch = useDispatch();
-    const { canEdit, canLogin } = useScopes(Scope.edit, Scope.login);
-    const hasProject = useSelector(selectHasProject);
-    const editorVisible = useSelector(selectEditorVisible);
-    const activityVisible = useSelector(selectActivityVisible);
-    const viewerVisible = useSelector(selectViewerVisible);
+    const { openSearch } = useSearch();
+    const canEdit = useScope(Scope.edit);
+    const { hasProject } = useProject();
+    const {
+      editorVisible,
+      activityVisible,
+      viewerVisible,
+      toggleActivity,
+      toggleEditor,
+      toggleViewer,
+    } = useViewer();
 
     const items = [];
 
@@ -68,7 +62,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             <a
               onClick={() => {
                 clearAll();
-                dispatch(openSearch());
+                openSearch();
               }}
             >
               {canEdit ? <>Search & Replace</> : <>Search</>}
@@ -89,7 +83,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
           <a
             onClick={() => {
               clearAll();
-              dispatch(toggleEditor());
+              toggleEditor();
             }}
           >
             <div className="HashCoreHeaderMenu__LabelWithHint">
@@ -106,7 +100,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
           <a
             onClick={() => {
               clearAll();
-              dispatch(toggleViewer());
+              toggleViewer();
             }}
           >
             <div className="HashCoreHeaderMenu__LabelWithHint">
@@ -130,7 +124,7 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
             onClick={() => {
               if (viewerVisible) {
                 clearAll();
-                dispatch(toggleActivity());
+                toggleActivity();
               }
             }}
           >
@@ -153,28 +147,6 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
       </Fragment>,
     );
 
-    if (canLogin) {
-      items.push(
-        <Fragment key="account">
-          {items.length ? (
-            <li>
-              <hr />
-            </li>
-          ) : null}
-          <li className="HashCoreHeaderMenu-submenu-item">
-            <Link path="/signup" onClick={clearAll}>
-              Sign up
-            </Link>
-          </li>
-          <li className="HashCoreHeaderMenu-submenu-item">
-            <Link path="/signin" onClick={clearAll}>
-              Sign in
-            </Link>
-          </li>
-        </Fragment>,
-      );
-    }
-
     return (
       <>
         <LabeledInputRadio
@@ -190,8 +162,3 @@ export const HashCoreHeaderMenuView: FC<HashCoreHeaderMenuViewProps> = memo(
     );
   },
 );
-
-// // @ts-expect-error
-// HashCoreHeaderMenuView.whyDidYouRender = {
-//   customName: "HashCoreHeaderMenuView"
-// };

@@ -32,5 +32,4 @@ export const createNewSimulationProject = async (
         { path, visibility, name, namespace, actions },
       )
     ).createProject,
-    null,
   );

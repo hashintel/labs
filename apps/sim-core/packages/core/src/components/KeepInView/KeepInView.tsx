@@ -2,6 +2,7 @@ import React, {
   createContext,
   FC,
   HTMLAttributes,
+  PropsWithChildren,
   useCallback,
   useContext,
   useEffect,
@@ -15,10 +16,9 @@ type Subscribe = (handler: VoidFunction) => Unsubscribe;
 
 const KeepInViewContext = createContext<Subscribe | null>(null);
 
-export const KeepInViewProvider: FC<HTMLAttributes<HTMLDivElement>> = ({
-  children,
-  ...props
-}) => {
+export const KeepInViewProvider: FC<
+  PropsWithChildren<HTMLAttributes<HTMLDivElement>>
+> = ({ children, ...props }) => {
   const subscribersRef = useRef([] as VoidFunction[]);
   const observerRef = useResizeObserver(() => {
     for (const handler of subscribersRef.current) {

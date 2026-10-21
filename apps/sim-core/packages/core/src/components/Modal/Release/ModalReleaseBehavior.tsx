@@ -2,10 +2,12 @@ import React, { FC, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { components } from "react-select";
 import { useForm } from "react-hook-form";
-import { unwrapResult } from "@reduxjs/toolkit";
 
 import type { AppDispatch } from "../../../features/types";
-import { HcBehaviorFile } from "../../../features/files/types";
+import {
+  HcBehaviorFile,
+  HcSharedBehaviorFile,
+} from "../../../features/files/types";
 import { ModalForm } from "../ModalForm";
 import {
   ModalFormEntry,
@@ -107,28 +109,28 @@ export const ModalReleaseBehavior: FC<ModalPublishBehaviorToIndexProps> = ({
 
     try {
       await handleQueryCodeErrors(values, setError, async () => {
-        const { forkedBehaviors } = await dispatch(
-          //@ts-expect-error redux problems
-          forkAndReleaseBehaviors({
-            projectPath: project.pathWithNamespace,
-            name: values.name,
-            namespace:
-              selectedPublishAs.value === "user"
-                ? ""
-                : selectedPublishAs.subLabel!,
-            path: values.path,
-            behaviors: toPublish.map((file) => ({
-              path: file.repoPath,
-              filename: file.path.base,
-            })),
-            projectDescription: values.description,
-            keywords: selectedKeywords.map((keyword) => keyword.value),
-            // subjects: selectedSubjects.map((subject) => subject.label),
-            license: selectedLicense.value ?? "",
-            // @todo allow for private behavior releases
-            visibility: "public",
-          }),
-        ).then(unwrapResult);
+        // The dispatch/AsyncThunkAction generics don't resolve cleanly through
+        // this thunk's config, so TS loses track of dispatch's thunk overload.
+        const { forkedBehaviors }: { forkedBehaviors: HcSharedBehaviorFile[] } =
+          await dispatch(
+            forkAndReleaseBehaviors({
+              projectPath: project.pathWithNamespace,
+              name: values.name,
+              namespace:
+                selectedPublishAs.value === "user"
+                  ? ""
+                  : selectedPublishAs.subLabel!,
+              path: values.path,
+              behaviors: toPublish.map((file) => ({
+                path: file.repoPath,
+                filename: file.path.base,
+              })),
+              projectDescription: values.description,
+              keywords: selectedKeywords.map((keyword) => keyword.value),
+              license: selectedLicense.value ?? "",
+              visibility: "public",
+            }) as any,
+          ).unwrap();
 
         dispatch(
           displayToast({
