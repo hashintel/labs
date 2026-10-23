@@ -16,10 +16,10 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-    uses: hashintel/actions/.github/workflows/preflight-dependencies.yml@6385f303753ea4de0bf48599d75c2b2a21012517 # main
+    uses: hashintel/actions/.github/workflows/preflight-dependencies.yml@26074ae19236a1e57dbf7c22b08916c49618eb24 # main
 
   pr-title:
     name: PR title
     permissions:
       contents: read
-    uses: hashintel/actions/.github/workflows/preflight-pr-title.yml@6385f303753ea4de0bf48599d75c2b2a21012517 # main
+    uses: hashintel/actions/.github/workflows/preflight-pr-title.yml@26074ae19236a1e57dbf7c22b08916c49618eb24 # main
