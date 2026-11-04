@@ -10,9 +10,7 @@ adapter.
 
 ## Development environment
 
-The library supports Python 3.11 through 3.13. Nix is an optional way to
-provide Python and system tools. Python dependencies come from
-`pyproject.toml` and are locked in `uv.lock`.
+The library supports Python 3.11.18 through 3.13. Nix is an optional way to provide Python and system tools. Python dependencies come from `pyproject.toml` and are locked in `uv.lock`.
 
 ### Without Nix
 
@@ -25,8 +23,7 @@ uv run sap-mock --help
 uv build
 ```
 
-The checked-in `.python-version` selects Python 3.13. By default, uv downloads
-that runtime when it is not already installed.
+Outside the Nix shell, `.python-version` selects Python 3.13.18. By default, uv downloads that runtime when it is not already installed.
 
 The package also installs with venv and pip, without the lock file:
 
@@ -50,8 +47,9 @@ Databricks supplies its own Spark and Java runtime.
 
 ### With Nix
 
-The default Nix shell provides pinned Python and uv executables. The uv
-commands are the same as without Nix:
+Both Nix shells provide Python 3.13.18 through a Python-only override, leaving the other nixpkgs packages unchanged. They set `UV_PYTHON` to that interpreter and disable uv's interpreter downloads through `UV_PYTHON_DOWNLOADS=never`. The flake refuses an interpreter version that differs from `.python-version`. Nix builds CPython locally when no binary substitute is available.
+
+The uv commands are the same as without Nix:
 
 ```console
 nix develop
