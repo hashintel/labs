@@ -1,0 +1,7 @@
+Should a clocked transition fire only when **all** its input places have a token?
+
+<ExampleNet example="cafe-queue" caption="A customer is waiting, but no staff member is free." />
+
+We pause BeginService until both inputs are available. A firing then takes one token from each input.
+
+If each place decides separately, BeginService could move the customer into Serving without taking a staff token. Is requiring all inputs the intended SPN behaviour?

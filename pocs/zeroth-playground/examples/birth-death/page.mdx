@@ -1,0 +1,11 @@
+Birth adds a token. Death removes one when Population is nonempty.
+
+Each enabled transition gets one draw per step. At rate $\lambda$ over a step $\Delta t$, its firing probability is:
+
+$$
+p = 1 - e^{-\lambda\Delta t}
+$$
+
+For Birth, $\lambda=2$ and $\Delta t=0.5$, so $p\approx0.63$.
+
+Change **Time step** to see the threshold change in Python. Each transition can fire at most once per step.

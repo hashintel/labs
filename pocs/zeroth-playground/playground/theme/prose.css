@@ -1,0 +1,138 @@
+/*
+ * The reading column of the pages and the guide, and the prose they share
+ * with the stage card. A component's rules, outside the layer, win over these.
+ */
+@layer prose {
+  .docs {
+    height: 100%;
+    padding: 1.1rem 1.35rem 2rem;
+    overflow-y: auto;
+    color: var(--text);
+    font-size: var(--fs-base);
+    line-height: 1.62;
+    user-select: text;
+
+    & > * {
+      max-width: 60ch;
+    }
+  }
+
+  .prose {
+    & h2 {
+      margin: 0 0 0.9rem;
+      color: var(--ink);
+      font-size: var(--fs-title);
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      line-height: 1.25;
+    }
+
+    & h3 {
+      margin: var(--s-6) 0 0.4rem;
+    }
+
+    & p {
+      margin: 0 0 0.95rem;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    & ul {
+      margin: 0 0 0.95rem;
+      padding-left: 1.1rem;
+    }
+
+    & ol {
+      margin: 0 0 0.95rem;
+      padding-left: 1.35rem;
+    }
+
+    & li {
+      margin: 0 0 0.35rem;
+
+      &::marker {
+        color: var(--ink-2);
+      }
+    }
+
+    & ol li {
+      margin-bottom: 0.45rem;
+      padding-left: 0.15rem;
+
+      &::marker {
+        font-family: var(--mono);
+        font-size: 0.75rem;
+      }
+    }
+
+    & strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+
+    /* Code is quoted as written: no ligature turns != or >= into a symbol the source does not have. */
+    & code {
+      padding: 0.05em 0.3em;
+      border-radius: var(--r-xs);
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--mono);
+      font-size: 0.8em;
+      font-variant-ligatures: none;
+      white-space: nowrap;
+    }
+
+    /* Math: MathJax SVG at the text's size; a display formula gets a line of its own. */
+    & mjx-container {
+      font-size: 1.02em;
+
+      &:not([display="true"]) svg {
+        vertical-align: -0.22em;
+      }
+
+      &[display="true"] {
+        display: block;
+        max-width: 100%;
+        margin: 0.85rem 0 1.05rem;
+        padding: var(--s-1) 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+        text-align: center;
+      }
+    }
+
+    /* Tables: hairline rows, a mono header, cells that wrap inside the column. */
+    & table {
+      width: 100%;
+      margin: 0.4rem 0 1.1rem;
+      border-collapse: collapse;
+      font-size: var(--fs-sm);
+      line-height: 1.45;
+    }
+
+    & :is(th, td) {
+      padding: 0.4rem 0.6rem 0.4rem 0;
+      border-bottom: 1px solid var(--hair-2);
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: break-word;
+    }
+
+    & th {
+      border-bottom-color: var(--hair);
+    }
+
+    & tbody th {
+      width: 22%;
+      border-bottom-color: var(--hair-2);
+      letter-spacing: 0;
+      text-transform: none;
+    }
+
+    & td code {
+      white-space: normal;
+    }
+  }
+}
