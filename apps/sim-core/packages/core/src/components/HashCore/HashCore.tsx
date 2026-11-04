@@ -1,8 +1,6 @@
-import React, { FC, memo, useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { navigate } from "hookrouter";
+import React, { FC, memo, useEffect } from "react";
+import { navigate } from "../../util/navigation";
 
-import { DiscordWidget } from "../DiscordWidget";
 import { HashCoreAccessGate } from "./AccessGate/HashCoreAccessGate";
 import { HashCoreHeader, HashCoreMain } from ".";
 import { HashCoreTour } from "./Tour";
@@ -13,49 +11,27 @@ import {
   image as defaultMetaImage,
 } from "../../metaTags.json";
 import { localStorageProjectKey } from "../../util/localStorageProjectKey";
-import {
-  selectAccessGate,
-  selectCurrentProject,
-} from "../../features/project/selectors";
 import { selectDidSave, selectFileIds } from "../../features/files/selectors";
-import { setProjectWithMeta } from "../../features/actions";
-import {
-  toggleActivity,
-  toggleEditor,
-  toggleViewer,
-} from "../../features/viewer/slice";
-import { trackEvent } from "../../features/analytics";
+import { useFilesSelector } from "../../features/files/FilesContext";
+import { useProject } from "../../features/project/ProjectContext";
+
 import { urlFromProject } from "../../routes";
 import { useKeyboardShortcuts } from "../../hooks/useKeyboardShortcuts";
 import { useParameterisedUi } from "../../hooks/useParameterisedUi";
 import { useSaveOrFork } from "../../hooks/useSaveOrFork";
 import { useShouldUnload } from "../../hooks/shouldUnload";
+import { useViewer } from "../../features/viewer/ViewerContext";
 
 export const HashCore: FC = memo(function HashCore() {
-  const dispatch = useDispatch();
-
-  const project = useSelector(selectCurrentProject);
-  const fileIds = useSelector(selectFileIds);
-  const accessGate = useSelector(selectAccessGate);
-  const didSave = useSelector(selectDidSave);
+  const {
+    currentProject: project,
+    accessGate,
+    setProjectWithMeta,
+  } = useProject();
+  const fileIds = useFilesSelector(selectFileIds);
+  const didSave = useFilesSelector(selectDidSave);
 
   useParameterisedUi();
-
-  const firstLoadTracked = useRef(false);
-  useEffect(() => {
-    if (project && !firstLoadTracked.current) {
-      dispatch(
-        trackEvent({
-          action: "Open Project",
-          label: `${project.type} - ${project.pathWithNamespace} - ${project.ref} - From direct link`,
-          context: {
-            type: project.type,
-          },
-        }),
-      );
-      firstLoadTracked.current = true;
-    }
-  }, [dispatch, project]);
 
   useEffect(() => {
     const onStorage = (event: StorageEvent) => {
@@ -88,7 +64,7 @@ export const HashCore: FC = memo(function HashCore() {
         event.newValue,
       );
 
-      dispatch(setProjectWithMeta(nextProject, { replaceTabs: false }));
+      setProjectWithMeta(nextProject, { replaceTabs: false });
       navigate(urlFromProject(nextProject), true, {}, false);
     };
 
@@ -96,11 +72,13 @@ export const HashCore: FC = memo(function HashCore() {
     return () => {
       window.removeEventListener("storage", onStorage);
     };
-  }, [dispatch, project, fileIds]);
+  }, [setProjectWithMeta, project, fileIds]);
 
   useShouldUnload(didSave);
 
   const [saveOrFork] = useSaveOrFork();
+
+  const { toggleActivity, toggleEditor, toggleViewer } = useViewer();
 
   useKeyboardShortcuts({
     meta: {
@@ -110,13 +88,13 @@ export const HashCore: FC = memo(function HashCore() {
     },
     metaShift: {
       a() {
-        dispatch(toggleActivity());
+        toggleActivity();
       },
       e() {
-        dispatch(toggleEditor());
+        toggleEditor();
       },
       y() {
-        dispatch(toggleViewer());
+        toggleViewer();
       },
     },
   });
@@ -149,7 +127,6 @@ export const HashCore: FC = memo(function HashCore() {
       ) : project ? (
         <HashCoreMain />
       ) : null}
-      <DiscordWidget />
     </HashCoreTour>
   );
 });

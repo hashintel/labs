@@ -2,7 +2,10 @@ import {
   PartialProjectByPathQuery,
   PartialProjectByPathQueryVariables,
 } from "../types";
-import { PartialSimulationProject } from "../../../features/project/types";
+import {
+  PartialSimulationProject,
+  UnpreparedPartialSimulationProject,
+} from "../../../features/project/types";
 import { preparePartialSimulationProject } from "../../../features/project/utils";
 import { query } from "../query";
 
@@ -43,5 +46,7 @@ export const partialProjectByPath = async (
     PartialProjectByPathQueryVariables
   >(queryString, { pathWithNamespace, version }, signal);
 
-  return preparePartialSimulationProject(project);
+  return preparePartialSimulationProject(
+    project as UnpreparedPartialSimulationProject,
+  );
 };

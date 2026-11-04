@@ -1,4 +1,5 @@
-import { omit } from "lodash";
+import { PlotDefinition } from "@hashintel/engine-web";
+import { omit } from "lodash-es";
 
 import { ChartTypes, Operation, Plot, YAxisItemType } from "./types";
 import { ParsedAnalysis } from "../../features/files/types";
@@ -7,17 +8,17 @@ import { updateFile } from "../../features/files/slice";
 
 export const MAGIC_STEPS_KEY = "Use steps on the X Axis";
 
-interface ModalsBaseProps {
+type ModalsBaseProps = {
   dispatch: Function;
   setAnalysis: Function;
   analysis: any;
   analysisString?: string;
-}
+};
 
-interface OutputMetricsModalSubmitType {
+type OutputMetricsModalSubmitType = {
   title: string;
   operations: Operation[];
-}
+};
 
 type OnOutputMetricsModalSaveInputType = ModalsBaseProps & {
   data: OutputMetricsModalSubmitType;
@@ -36,51 +37,51 @@ type OnPlotsModalDeleteType = ModalsBaseProps & {
   indexToDelete: number;
 };
 
-interface PlotsModalChartTypeOption {
+type PlotsModalChartTypeOption = {
   value: string;
   label: string;
-}
+};
 
-interface PlotsModalYAxisItemType {
+type PlotsModalYAxisItemType = {
   name: string;
   metric: string;
-}
+};
 
-interface PlotsModalXAxisItemType {
+type PlotsModalXAxisItemType = {
   name: string;
   metric: string;
-}
+};
 
-interface PlotsModalLayoutType {
+type PlotsModalLayoutType = {
   width: string;
   height: string;
-}
+};
 
-interface PlotsModalPositionType {
+type PlotsModalPositionType = {
   x: string;
   y: string;
-}
+};
 
-interface PlotsModalSubmitType {
+type PlotsModalSubmitType = {
   title: string;
   chartType: PlotsModalChartTypeOption;
   yitems?: PlotsModalYAxisItemType[];
   xitems?: PlotsModalXAxisItemType[];
   layout: PlotsModalLayoutType;
   position: PlotsModalPositionType;
-}
+};
 
 type OnPlotsModalSaveType = ModalsBaseProps & {
   data: PlotsModalSubmitType;
   plotIndex?: number;
 };
 
-interface saveToAnalysisFile {
+type saveToAnalysisFile = {
   dispatch: Function;
   setAnalysis: Function;
   analysisString?: string;
   newValues: any;
-}
+};
 
 const saveToAnalysisFile = ({
   dispatch,
@@ -159,8 +160,8 @@ export const onDuplicateMetric = ({
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getYAxisItemsFromDataDefinition = (
-  input: any,
-): YAxisItemType[] => {
+  input: PlotDefinition & any,
+): Array<YAxisItemType> => {
   if (!input.type && input[ChartTypes.timeseries]) {
     return input.timeseries.map((metric: any) => ({
       name: metric,
@@ -195,8 +196,8 @@ export const getYAxisItemsFromDataDefinition = (
 // Reads the data definition and transforms it to a format understood
 // by the Plots modal
 export const getXAxisItemsFromDataDefinition = (
-  input: any,
-): YAxisItemType[] => {
+  input: PlotDefinition & any,
+): Array<YAxisItemType> => {
   if (!input.type) {
     return input.data;
   }
@@ -210,13 +211,16 @@ export const getXAxisItemsFromDataDefinition = (
   );
 };
 
-export const getPlotTypeFromDataDefinition = (input: any): string =>
-  input.type ?? ChartTypes.timeseries;
+export const getPlotTypeFromDataDefinition = (
+  input: PlotDefinition & any,
+): string => input.type ?? ChartTypes.timeseries;
 
 const chartItemLabel = (item: { name?: string; metric?: string }) =>
   item.name ?? item.metric;
 
-export const transformPlotDataBasedOnChartType = (input: any) => {
+export const transformPlotDataBasedOnChartType = (
+  input: PlotDefinition & any,
+) => {
   const result = Object.assign({}, input);
   switch (input.type) {
     // http://localhost:8080/@hash/city-infection-model/6.1.1
@@ -261,12 +265,12 @@ export const transformPlotDataBasedOnChartType = (input: any) => {
       break;
 
     case ChartTypes.line:
-    case ChartTypes.scatter: {
+    case ChartTypes.scatter:
       // this assumes we have both X and Y  OR we have only Y and X=steps
       const hasMagicStepsKey =
         input.data?.xitems.length === 1 &&
         input.data.xitems[0].metric === MAGIC_STEPS_KEY;
-      const hasYItems = input.data?.yitems.length > 0 ?? false;
+      const hasYItems = (input.data?.yitems.length ?? 0) > 0;
       const hasXItems = hasMagicStepsKey
         ? false
         : input.data?.xitems.length > 0;
@@ -290,7 +294,7 @@ export const transformPlotDataBasedOnChartType = (input: any) => {
       }
 
       break;
-    }
+
     case ChartTypes.bar:
     default:
       result.data = input.data?.yitems?.map((item: any) => ({

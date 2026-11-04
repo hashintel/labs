@@ -1,4 +1,5 @@
-import { createSlice, Draft, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice } from "../reduxCompat";
+import type { Draft, PayloadAction } from "../reduxCompat";
 import { v4 as uuid } from "uuid";
 
 import { TabKind } from "./enums";

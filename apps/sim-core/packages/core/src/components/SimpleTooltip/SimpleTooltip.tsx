@@ -1,6 +1,7 @@
 import React, {
   FC,
   HTMLProps,
+  PropsWithChildren,
   Ref,
   useCallback,
   useEffect,
@@ -48,7 +49,7 @@ const clickedToOpen = (clicked: ClickedType) => {
 
 const defaultClickedState = "inactive" as const;
 
-export const SimpleTooltip: FC<SimpleTooltipProps> = ({
+export const SimpleTooltip: FC<PropsWithChildren<SimpleTooltipProps>> = ({
   position,
   allRoundedBorders,
   align = "left",

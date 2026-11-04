@@ -1,11 +1,10 @@
 import { ProviderTargetEnv } from "@hashintel/engine-web";
 
 import { AnyExperimentRun, SimulationData } from "./types";
-import { LinkableProject, ProjectAccess } from "../../project/types";
+import { LinkableProject } from "../../project/types";
 import { Scope, selectScope } from "../../scopes";
 import type { SimulatorThunk } from "../types";
-import { addUserAlert } from "../../viewer";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import {
   createCompleteManifest,
   experimentRunInitialized,
@@ -54,7 +53,7 @@ import { simulationProvider } from "./buildprovider";
 export const initializeNewRun =
   (firstRun = false): SimulatorThunk<Promise<void>> =>
   async (dispatch) => {
-    const appState = appStore.getState();
+    const appState = appBridge.getState();
     const outSimulationSrc = createCompleteManifest(appState);
 
     // @todo reimplement this
@@ -75,7 +74,7 @@ export const initializeNewRun =
 
       if (resp.simulationRunId) {
         const shouldSelect =
-          !firstRun || selectRefIsNotCommit(appStore.getState());
+          !firstRun || selectRefIsNotCommit(appBridge.getState());
 
         dispatch(
           setSelectedSimulation({
@@ -98,7 +97,6 @@ export const pauseAndNew =
 export const fetchProjectHistory =
   (
     project: LinkableProject,
-    access: ProjectAccess,
     pageToCurrent: boolean,
     createdBefore?: string | null,
     signal?: AbortSignal,
@@ -108,7 +106,7 @@ export const fetchProjectHistory =
       project,
       pageToCurrent,
       createdBefore,
-      access?.code,
+      undefined,
       signal,
     );
 
@@ -125,7 +123,6 @@ export const fetchProjectHistory =
 export const fetchProjectHistoryNextPage =
   (
     project: LinkableProject,
-    access: ProjectAccess,
     signal?: AbortSignal,
   ): SimulatorThunk<Promise<void>> =>
   async (dispatch, getState) => {
@@ -133,7 +130,6 @@ export const fetchProjectHistoryNextPage =
     await dispatch(
       fetchProjectHistory(
         project,
-        access,
         !selectHistoryReceivedCurrent(state),
         selectHistoryNextPage(state),
         signal,
@@ -202,7 +198,7 @@ export const toggleProviderTarget =
     simulationProvider.target = target ?? (cur === "cloud" ? "web" : "cloud");
     dispatch(setProviderTarget(simulationProvider.target));
 
-    if (selectScope[Scope.useCloud](appStore.getState())) {
+    if (selectScope[Scope.useCloud](appBridge.getState())) {
       setLocalStorageSimulatorTarget(simulationProvider.target);
     }
   };
@@ -350,14 +346,12 @@ export const earlyStopSimulation =
 
     if (sim && !simulationComplete(sim)) {
       const parsedMessage = parseStopMessage(message);
-      appStore.dispatch(
-        addUserAlert({
-          type: parsedMessage.status,
-          message: parsedMessage.reason,
-          context: "",
-          timestamp: Date.now(),
-          simulationId: simId,
-        }),
-      );
+      appBridge.dispatchUserAlert({
+        type: parsedMessage.status,
+        message: parsedMessage.reason,
+        context: "",
+        timestamp: Date.now(),
+        simulationId: simId,
+      });
     }
   };

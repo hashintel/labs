@@ -1,23 +1,27 @@
+import * as option from "fp-ts/es6/Option";
+
 import { mod } from "./math";
 import { themeNumbers } from "./theme";
 
-export const mapColor: (src: string, sd?: string) => number | null = (
+export const mapColor: (src: string, sd?: string) => option.Option<number> = (
   src,
   seed,
 ) =>
-  src === "random"
-    ? themeColor(
-        mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1),
-      )
-    : src === "primary"
-      ? themeNumbers.purple
-      : src === "accent"
-        ? themeNumbers.green
-        : !isNaN(Number(src))
-          ? themeColor(mod(Number(src) / themeBase.length, 1))
-          : Object.prototype.hasOwnProperty.call(themeNumbers, src)
-            ? themeNumbers[src]
-            : null;
+  option.fromNullable(
+    src === "random"
+      ? themeColor(
+          mod(hashNum(seed ?? Math.random().toString(36).substring(7)), 1),
+        )
+      : src === "primary"
+        ? themeNumbers.purple
+        : src === "accent"
+          ? themeNumbers.green
+          : !isNaN(Number(src))
+            ? themeColor(mod(Number(src) / themeBase.length, 1))
+            : themeNumbers.hasOwnProperty(src)
+              ? themeNumbers[src]
+              : undefined,
+  );
 
 const themeBase = [
   themeNumbers.purple,
@@ -52,7 +56,7 @@ const themeColor: (r: number) => number = (val) => {
 
 // From https://stackoverflow.com/questions/7616461/generate-a-hash-from-string-in-javascript
 const hash = (str: string) => {
-  let hash = 0,
+  var hash = 0,
     idx,
     chr;
   if (str.length === 0) return hash;

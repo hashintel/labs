@@ -1,12 +1,7 @@
 import React, { useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
 
 import { HashCoreFilesSearch } from "./HashCoreFilesSearch";
-import {
-  closeSearch,
-  openSearch,
-  selectSearchOpen,
-} from "../../../../features/search";
+import { useSearch } from "../../../../features/search/SearchContext";
 import { focusAndSelect } from "./util";
 import { useKeyboardShortcuts } from "../../../../hooks/useKeyboardShortcuts";
 import { useSearchReducer } from "./reducer";
@@ -19,13 +14,12 @@ import { useSearchReducer } from "./reducer";
 export const HashCoreFilesSearchContainer = () => {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const replaceInputRef = useRef<HTMLInputElement | null>(null);
-  const searchOpen = useSelector(selectSearchOpen);
-  const appDispatch = useDispatch();
+  const { searchOpen, openSearch, closeSearch } = useSearch();
   const [searchState, searchDispatch] = useSearchReducer();
 
   const ensureOpen = () => {
     if (!searchOpen) {
-      appDispatch(openSearch());
+      openSearch();
     }
   };
 
@@ -54,7 +48,7 @@ export const HashCoreFilesSearchContainer = () => {
     single: {
       Escape: () => {
         if (searchOpen) {
-          appDispatch(closeSearch());
+          closeSearch();
         }
       },
     },

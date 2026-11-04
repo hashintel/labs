@@ -1,12 +1,9 @@
-import omit from "lodash/omit";
+import omit from "lodash-es/omit";
 import { v4 as uuid } from "uuid";
 
 import { HcFileKind } from "./enums";
-import { defaultBehaviorKeys } from "./utils";
 
-interface BehaviorKeysFieldShared {
-  nullable: boolean;
-}
+type BehaviorKeysFieldShared = { nullable: boolean };
 
 export type BehaviorKeysFieldListShared = BehaviorKeysFieldShared & {
   child: BehaviorKeysField;
@@ -44,9 +41,7 @@ export type BehaviorKeysDraftRow<
   KeyType extends BehaviorKeysDraftField = BehaviorKeysDraftField,
 > = [string, KeyType];
 
-interface DraftFieldShareProps {
-  uuid: string;
-}
+type DraftFieldShareProps = { uuid: string };
 
 export type BehaviorKeysDraftFieldScalar = DraftFieldShareProps & {
   meta: OmitChildren<BehaviorKeysFieldScalar>;
@@ -86,14 +81,14 @@ export type BehaviorKeysDraftFieldWithRows =
   | BehaviorKeysDraftFieldFixedList
   | BehaviorKeysDraftFieldStruct;
 
-export interface CommittedBehaviorKeysRoot {
+export type CommittedBehaviorKeysRoot = {
   keys: BehaviorKeyFields;
   built_in_key_use: null | {
     selected: string[];
   };
   dynamic_access: boolean;
   _draft_keys?: DraftBehaviorKeys | null;
-}
+};
 
 export type DraftBehaviorKeysRoot = Omit<
   CommittedBehaviorKeysRoot,
@@ -175,8 +170,7 @@ export function toDraftFormat(data: BehaviorKeysField): BehaviorKeysDraftField {
 
 export const fieldHasRows = (
   field: BehaviorKeysDraftField,
-): field is BehaviorKeysDraftFieldWithRows =>
-  Object.prototype.hasOwnProperty.call(field, "rows");
+): field is BehaviorKeysDraftFieldWithRows => field.hasOwnProperty("rows");
 
 // export function toBehaviorKeysFormat(data: BehaviorKeysDraftFieldList): BehaviorKeysFieldList;
 // export function toBehaviorKeysFormat(data: BehaviorKeysDraftFieldFixedList): BehaviorKeysFieldFixedList;
@@ -228,6 +222,13 @@ export const toRootDraftFormat = (
   }),
   version: DRAFT_STATE_VERSION,
 });
+
+export const defaultBehaviorKeys: DraftBehaviorKeysRoot = {
+  keys: toRootDraftFormat({}),
+  built_in_key_use: null,
+  dynamic_access: false,
+  _trackCreation: false,
+};
 
 export const parseKeys = (
   keys: string | undefined,

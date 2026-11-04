@@ -1,4 +1,4 @@
-import React, { FC, Children } from "react";
+import React, { FC, PropsWithChildren, Children } from "react";
 import classNames from "classnames";
 
 import { FancyProps, getIcon } from "..";
@@ -12,7 +12,7 @@ export type FancyAnchorProps = FancyProps<HTMLAnchorElement> & LinkProps;
 /**
  * @todo remove duplication with FancyButton
  */
-export const FancyAnchor: FC<FancyAnchorProps> = ({
+export const FancyAnchor: FC<PropsWithChildren<FancyAnchorProps>> = ({
   children,
   theme = "white",
   icon,
