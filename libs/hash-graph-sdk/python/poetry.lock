@@ -170,7 +170,7 @@ name = "hash-graph-client"
 version = "0.0.0"
 description = "OpenAPI client for the HASH Graph API"
 optional = false
-python-versions = "^3.11"
+python-versions = "^3.11.18"
 files = []
 develop = true
 
@@ -188,7 +188,7 @@ name = "hash-graph-types"
 version = "0.0.0"
 description = "Type definitions for the type system and entity validation based on schemas"
 optional = false
-python-versions = "^3.11"
+python-versions = "^3.11.18"
 files = []
 develop = true
 
@@ -787,5 +787,5 @@ multidict = ">=4.0"
 
 [metadata]
 lock-version = "2.0"
-python-versions = "^3.11"
-content-hash = "901e0f877711bdb1830e251e1d315406aabe994e48c90731a6c0346cbfbeff08"
+python-versions = "^3.11.18"
+content-hash = "79fa743a33ea5047473ccbdd50680e93681b55e65f0730e4a1388275fef334d3"

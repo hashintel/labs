@@ -7,7 +7,7 @@ name = "sap-mock-data"
 version = "0.1.0"
 description = "Deterministic synthetic SAP data generation for Python and Databricks"
 readme = "README.md"
-requires-python = ">=3.11,<3.14"
+requires-python = ">=3.11.18,<3.14"
 dependencies = [
   "deltalake>=1.2,<2",
   "faker>=37,<40",
@@ -33,5 +33,5 @@ sap-mock = "sap_mock_data.cli.main:main"
 packages = ["src/sap_mock_data"]
 
 [tool.uv]
-required-version = ">=0.13.4"
+required-version = ">=0.13.6"
 default-groups = []

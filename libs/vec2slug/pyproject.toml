@@ -3,7 +3,7 @@ name = "vec2slug"
 version = "0.1.0"
 description = "Research: generating slugs from content embeddings"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.13.18"
 dependencies = [
     "absl-py>=2.4.0",
     "anthropic>=0.102.0",
@@ -44,7 +44,7 @@ slug-visualize-vocab = "vec2slug.visualize_vocab:main"
 slug-analyze-attention = "vec2slug.analyze_attention:main"
 
 [tool.uv]
-required-version = ">=0.13.4"
+required-version = ">=0.13.6"
 package = true
 
 [tool.ruff.lint]
