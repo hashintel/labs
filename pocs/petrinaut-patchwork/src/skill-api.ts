@@ -8,6 +8,16 @@ import type {
 	SDCPN,
 	Transition,
 } from "@hashintel/petrinaut";
+import {
+	getArcEndpointPlaceId,
+	type InputArc,
+	type OutputArc,
+} from "@hashintel/petrinaut-core";
+
+/** "standard", "inhibitor" or "read" — an inhibitor arc blocks its transition
+ * while the place holds tokens, and a read arc requires tokens without
+ * consuming them. */
+type ArcType = Transition["inputArcs"][number]["type"];
 
 type PetriNetDoc = {
 	"@patchwork": { type: "petrinaut-petrinet" };
@@ -22,6 +32,13 @@ const ARC_ID_SEPARATOR = "___";
 
 function generateArcId(inputId: string, outputId: string) {
 	return `${ARC_ID_PREFIX}${inputId}${ARC_ID_SEPARATOR}${outputId}`;
+}
+
+function placeIdOf(arc: InputArc | OutputArc): string | null {
+	if (!arc.endpoint && !arc.placeId) {
+		return null;
+	}
+	return getArcEndpointPlaceId(arc) || null;
 }
 
 function findPlace(def: SDCPN, nameOrId: string) {
@@ -87,8 +104,10 @@ function deleteItemsFromSdcpn(sdcpn: SDCPN, items: RemoveItem[]) {
 			for (let j = transition.inputArcs.length - 1; j >= 0; j--) {
 				const arc = transition.inputArcs[j];
 				if (!arc) continue;
-				const arcId = generateArcId(arc.placeId, transition.id);
-				if (arcIds.has(arcId) || placeIds.has(arc.placeId)) {
+				const placeId = placeIdOf(arc);
+				if (placeId === null) continue;
+				const arcId = generateArcId(placeId, transition.id);
+				if (arcIds.has(arcId) || placeIds.has(placeId)) {
 					transition.inputArcs.splice(j, 1);
 				}
 			}
@@ -96,8 +115,10 @@ function deleteItemsFromSdcpn(sdcpn: SDCPN, items: RemoveItem[]) {
 			for (let j = transition.outputArcs.length - 1; j >= 0; j--) {
 				const arc = transition.outputArcs[j];
 				if (!arc) continue;
-				const arcId = generateArcId(transition.id, arc.placeId);
-				if (arcIds.has(arcId) || placeIds.has(arc.placeId)) {
+				const placeId = placeIdOf(arc);
+				if (placeId === null) continue;
+				const arcId = generateArcId(transition.id, placeId);
+				if (arcIds.has(arcId) || placeIds.has(placeId)) {
 					transition.outputArcs.splice(j, 1);
 				}
 			}
@@ -124,8 +145,8 @@ function deleteItemsFromSdcpn(sdcpn: SDCPN, items: RemoveItem[]) {
 			}
 		}
 		for (const eq of sdcpn.differentialEquations) {
-			if (typeIds.has(eq.colorId)) {
-				eq.colorId = "";
+			if (eq.colorId && typeIds.has(eq.colorId)) {
+				eq.colorId = null;
 			}
 		}
 	}
@@ -164,6 +185,7 @@ type PlaceToTransitionArc = {
 	source_place: string;
 	target_transition: string;
 	weight?: number;
+	type?: ArcType;
 };
 
 type TransitionToPlaceArc = {
@@ -248,22 +270,28 @@ export default function (workspace: Workspace) {
 						placeId: string;
 						transitionId: string;
 						weight: number;
+						type?: ArcType;
 					}> = [];
 					for (const t of def.transitions) {
 						for (const ia of t.inputArcs) {
+							const placeId = placeIdOf(ia);
+							if (placeId === null) continue;
 							arcs.push({
-								id: generateArcId(ia.placeId, t.id),
+								id: generateArcId(placeId, t.id),
 								direction: "place_to_transition",
-								placeId: ia.placeId,
+								placeId,
 								transitionId: t.id,
 								weight: ia.weight,
+								type: ia.type,
 							});
 						}
 						for (const oa of t.outputArcs) {
+							const placeId = placeIdOf(oa);
+							if (placeId === null) continue;
 							arcs.push({
-								id: generateArcId(t.id, oa.placeId),
+								id: generateArcId(t.id, placeId),
 								direction: "transition_to_place",
-								placeId: oa.placeId,
+								placeId,
 								transitionId: t.id,
 								weight: oa.weight,
 							});
@@ -364,6 +392,7 @@ export default function (workspace: Workspace) {
 							transition.inputArcs.push({
 								placeId: place.id,
 								weight: args.weight ?? 1,
+								type: args.type ?? "standard",
 							});
 						} else {
 							const transition = findTransition(
@@ -562,6 +591,7 @@ export default function (workspace: Workspace) {
 										transition.inputArcs.push({
 											placeId,
 											weight: arcArgs.weight ?? 1,
+											type: arcArgs.type ?? "standard",
 										});
 									}
 								} else {
