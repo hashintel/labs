@@ -39,7 +39,7 @@
 		"es-toolkit": "1.41.0",
 		"json-schema": "0.4.0",
 		"picocolors": "1.1.1",
-		"vitest": "4.0.16",
+		"vitest": "4.1.12",
 		"zod": "4.1.12"
 	},
 	"devDependencies": {
@@ -55,7 +55,7 @@
 		"@types/papaparse": "5.3.16",
 		"@types/sanitize-html": "2.16.0",
 		"baseline-browser-mapping": "2.9.11",
-		"concurrently": "9.2.1",
+		"concurrently": "9.2.5",
 		"eslint": "^9.39.1",
 		"eslint-plugin-oxlint": "^1.30.0",
 		"jsdom": "24.1.3",
