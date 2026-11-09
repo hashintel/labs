@@ -1,0 +1,1056 @@
+{
+  "lambda": {
+    "const drone = input.Hangar[0];\nconst low = drone.battery < 20;\nreturn low || (!low && input.Hangar.length >= 1);": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "let",
+        "bindings": [
+          {
+            "name": "drone",
+            "value": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            }
+          },
+          {
+            "name": "low",
+            "value": {
+              "kind": "binary",
+              "op": "<",
+              "left": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "drone"
+                },
+                "field": "battery"
+              },
+              "right": {
+                "kind": "numberLit",
+                "value": 20
+              }
+            }
+          }
+        ],
+        "body": {
+          "kind": "binary",
+          "op": "||",
+          "left": {
+            "kind": "localRef",
+            "name": "low"
+          },
+          "right": {
+            "kind": "binary",
+            "op": "&&",
+            "left": {
+              "kind": "unary",
+              "op": "!",
+              "operand": {
+                "kind": "localRef",
+                "name": "low"
+              }
+            },
+            "right": {
+              "kind": "binary",
+              "op": ">=",
+              "left": {
+                "kind": "length",
+                "target": {
+                  "kind": "fieldAccess",
+                  "target": {
+                    "kind": "localRef",
+                    "name": "input"
+                  },
+                  "field": "Hangar"
+                }
+              },
+              "right": {
+                "kind": "numberLit",
+                "value": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "return -input.Hangar[0].battery + 2;": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": "+",
+        "left": {
+          "kind": "unary",
+          "op": "-",
+          "operand": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "battery"
+          }
+        },
+        "right": {
+          "kind": "numberLit",
+          "value": 2
+        }
+      }
+    },
+    "return 0.5 * (input.Hangar[0].battery / 4);": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": "*",
+        "left": {
+          "kind": "numberLit",
+          "value": 0.5
+        },
+        "right": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "battery"
+          },
+          "right": {
+            "kind": "numberLit",
+            "value": 4
+          }
+        }
+      }
+    },
+    "return 0.6 * (input.Hangar[0].battery / 100);": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": "*",
+        "left": {
+          "kind": "numberLit",
+          "value": 0.6
+        },
+        "right": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "battery"
+          },
+          "right": {
+            "kind": "numberLit",
+            "value": 100
+          }
+        }
+      }
+    },
+    "return 0.6 * (input.Pool[0].x / 100);": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": "*",
+        "left": {
+          "kind": "numberLit",
+          "value": 0.6
+        },
+        "right": {
+          "kind": "binary",
+          "op": "/",
+          "left": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Pool"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "x"
+          },
+          "right": {
+            "kind": "numberLit",
+            "value": 100
+          }
+        }
+      }
+    },
+    "return Distribution.Gaussian(input.Hangar[0].battery, 4).map((v) => v + 1);": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "distributionMap",
+        "base": {
+          "kind": "distribution",
+          "dist": "gaussian",
+          "args": [
+            {
+              "kind": "fieldAccess",
+              "target": {
+                "kind": "indexAccess",
+                "target": {
+                  "kind": "fieldAccess",
+                  "target": {
+                    "kind": "localRef",
+                    "name": "input"
+                  },
+                  "field": "Hangar"
+                },
+                "index": {
+                  "kind": "numberLit",
+                  "value": 0
+                }
+              },
+              "field": "battery"
+            },
+            {
+              "kind": "numberLit",
+              "value": 4
+            }
+          ]
+        },
+        "param": {
+          "name": "v"
+        },
+        "body": {
+          "kind": "binary",
+          "op": "+",
+          "left": {
+            "kind": "localRef",
+            "name": "v"
+          },
+          "right": {
+            "kind": "numberLit",
+            "value": 1
+          }
+        }
+      }
+    },
+    "return Math.abs(input.Hangar[0].battery);": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "mathCall",
+        "fn": "abs",
+        "args": [
+          {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "battery"
+          }
+        ]
+      }
+    },
+    "return Math.max(input.Hangar[0].battery, 50);": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "mathCall",
+        "fn": "max",
+        "args": [
+          {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "battery"
+          },
+          {
+            "kind": "numberLit",
+            "value": 50
+          }
+        ]
+      }
+    },
+    "return input.Airborne[0].battery < 20 || input.Airborne[0].state !== \"flying\";": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": "||",
+        "left": {
+          "kind": "binary",
+          "op": "<",
+          "left": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Airborne"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "battery"
+          },
+          "right": {
+            "kind": "numberLit",
+            "value": 20
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "op": "!=",
+          "left": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Airborne"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "state"
+          },
+          "right": {
+            "kind": "stringLit",
+            "value": "flying"
+          }
+        }
+      }
+    },
+    "return input.Hangar[0].battery > 50 ? 2 : 0.5;": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "cond",
+        "condition": {
+          "kind": "binary",
+          "op": ">",
+          "left": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            },
+            "field": "battery"
+          },
+          "right": {
+            "kind": "numberLit",
+            "value": 50
+          }
+        },
+        "thenBranch": {
+          "kind": "numberLit",
+          "value": 2
+        },
+        "elseBranch": {
+          "kind": "numberLit",
+          "value": 0.5
+        }
+      }
+    },
+    "return input.Hangar[0].battery;": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "fieldAccess",
+        "target": {
+          "kind": "indexAccess",
+          "target": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "localRef",
+              "name": "input"
+            },
+            "field": "Hangar"
+          },
+          "index": {
+            "kind": "numberLit",
+            "value": 0
+          }
+        },
+        "field": "battery"
+      }
+    },
+    "return input.Hangar[0].state !== \"lost\";": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": "!=",
+        "left": {
+          "kind": "fieldAccess",
+          "target": {
+            "kind": "indexAccess",
+            "target": {
+              "kind": "fieldAccess",
+              "target": {
+                "kind": "localRef",
+                "name": "input"
+              },
+              "field": "Hangar"
+            },
+            "index": {
+              "kind": "numberLit",
+              "value": 0
+            }
+          },
+          "field": "state"
+        },
+        "right": {
+          "kind": "stringLit",
+          "value": "lost"
+        }
+      }
+    },
+    "return input.Hangar[0].state === \"flying\";": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": "==",
+        "left": {
+          "kind": "fieldAccess",
+          "target": {
+            "kind": "indexAccess",
+            "target": {
+              "kind": "fieldAccess",
+              "target": {
+                "kind": "localRef",
+                "name": "input"
+              },
+              "field": "Hangar"
+            },
+            "index": {
+              "kind": "numberLit",
+              "value": 0
+            }
+          },
+          "field": "state"
+        },
+        "right": {
+          "kind": "stringLit",
+          "value": "flying"
+        }
+      }
+    },
+    "return input.Population.length > 2;": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": ">",
+        "left": {
+          "kind": "length",
+          "target": {
+            "kind": "fieldAccess",
+            "target": {
+              "kind": "localRef",
+              "name": "input"
+            },
+            "field": "Population"
+          }
+        },
+        "right": {
+          "kind": "numberLit",
+          "value": 2
+        }
+      }
+    },
+    "return input.Population.length;": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "length",
+        "target": {
+          "kind": "fieldAccess",
+          "target": {
+            "kind": "localRef",
+            "name": "input"
+          },
+          "field": "Population"
+        }
+      }
+    },
+    "return input.Tank[0].level >= 8;": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": ">=",
+        "left": {
+          "kind": "fieldAccess",
+          "target": {
+            "kind": "indexAccess",
+            "target": {
+              "kind": "fieldAccess",
+              "target": {
+                "kind": "localRef",
+                "name": "input"
+              },
+              "field": "Tank"
+            },
+            "index": {
+              "kind": "numberLit",
+              "value": 0
+            }
+          },
+          "field": "level"
+        },
+        "right": {
+          "kind": "numberLit",
+          "value": 8
+        }
+      }
+    },
+    "return input.Tank[0].level >= 8;\n": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "binary",
+        "op": ">=",
+        "left": {
+          "kind": "fieldAccess",
+          "target": {
+            "kind": "indexAccess",
+            "target": {
+              "kind": "fieldAccess",
+              "target": {
+                "kind": "localRef",
+                "name": "input"
+              },
+              "field": "Tank"
+            },
+            "index": {
+              "kind": "numberLit",
+              "value": 0
+            }
+          },
+          "field": "level"
+        },
+        "right": {
+          "kind": "numberLit",
+          "value": 8
+        }
+      }
+    },
+    "return true;": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "boolLit",
+        "value": true
+      }
+    }
+  },
+  "kernel": {
+    "const d = input.Hangar[0];\nreturn { Airborne: [{ battery: d.battery, state: \"flying\" }] };": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "let",
+        "bindings": [
+          {
+            "name": "d",
+            "value": {
+              "kind": "indexAccess",
+              "target": {
+                "kind": "fieldAccess",
+                "target": {
+                  "kind": "localRef",
+                  "name": "input"
+                },
+                "field": "Hangar"
+              },
+              "index": {
+                "kind": "numberLit",
+                "value": 0
+              }
+            }
+          }
+        ],
+        "body": {
+          "kind": "recordLit",
+          "entries": [
+            {
+              "key": "Airborne",
+              "value": {
+                "kind": "arrayLit",
+                "elements": [
+                  {
+                    "kind": "recordLit",
+                    "entries": [
+                      {
+                        "key": "battery",
+                        "value": {
+                          "kind": "fieldAccess",
+                          "target": {
+                            "kind": "localRef",
+                            "name": "d"
+                          },
+                          "field": "battery"
+                        }
+                      },
+                      {
+                        "key": "state",
+                        "value": {
+                          "kind": "stringLit",
+                          "value": "flying"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    },
+    "return { Hangar: [{ battery: 100, state: \"idle\" }] };": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "recordLit",
+        "entries": [
+          {
+            "key": "Hangar",
+            "value": {
+              "kind": "arrayLit",
+              "elements": [
+                {
+                  "kind": "recordLit",
+                  "entries": [
+                    {
+                      "key": "battery",
+                      "value": {
+                        "kind": "numberLit",
+                        "value": 100
+                      }
+                    },
+                    {
+                      "key": "state",
+                      "value": {
+                        "kind": "stringLit",
+                        "value": "idle"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "return {};": {
+      "params": [
+        {
+          "name": "input"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "recordLit",
+        "entries": []
+      }
+    }
+  },
+  "dynamics": {
+    "return tokens.map(() => ({ battery: -1 }));": {
+      "params": [
+        {
+          "name": "tokens"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "arrayMap",
+        "target": {
+          "kind": "localRef",
+          "name": "tokens"
+        },
+        "param": {
+          "name": "__element"
+        },
+        "body": {
+          "kind": "recordLit",
+          "entries": [
+            {
+              "key": "battery",
+              "value": {
+                "kind": "numberLit",
+                "value": -1
+              }
+            }
+          ]
+        }
+      }
+    },
+    "return tokens.map((d) => ({ battery: -2.5 }));": {
+      "params": [
+        {
+          "name": "tokens"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "arrayMap",
+        "target": {
+          "kind": "localRef",
+          "name": "tokens"
+        },
+        "param": {
+          "name": "d"
+        },
+        "body": {
+          "kind": "recordLit",
+          "entries": [
+            {
+              "key": "battery",
+              "value": {
+                "kind": "numberLit",
+                "value": -2.5
+              }
+            }
+          ]
+        }
+      }
+    },
+    "return tokens.map((t) => ({ level: 0.5 * (10 - t.level) }));": {
+      "params": [
+        {
+          "name": "tokens"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "arrayMap",
+        "target": {
+          "kind": "localRef",
+          "name": "tokens"
+        },
+        "param": {
+          "name": "t"
+        },
+        "body": {
+          "kind": "recordLit",
+          "entries": [
+            {
+              "key": "level",
+              "value": {
+                "kind": "binary",
+                "op": "*",
+                "left": {
+                  "kind": "numberLit",
+                  "value": 0.5
+                },
+                "right": {
+                  "kind": "binary",
+                  "op": "-",
+                  "left": {
+                    "kind": "numberLit",
+                    "value": 10
+                  },
+                  "right": {
+                    "kind": "fieldAccess",
+                    "target": {
+                      "kind": "localRef",
+                      "name": "t"
+                    },
+                    "field": "level"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "return tokens.map((t) => ({ level: 0.5 * (10 - t.level) }));\n": {
+      "params": [
+        {
+          "name": "tokens"
+        },
+        {
+          "name": "parameters"
+        }
+      ],
+      "body": {
+        "kind": "arrayMap",
+        "target": {
+          "kind": "localRef",
+          "name": "tokens"
+        },
+        "param": {
+          "name": "t"
+        },
+        "body": {
+          "kind": "recordLit",
+          "entries": [
+            {
+              "key": "level",
+              "value": {
+                "kind": "binary",
+                "op": "*",
+                "left": {
+                  "kind": "numberLit",
+                  "value": 0.5
+                },
+                "right": {
+                  "kind": "binary",
+                  "op": "-",
+                  "left": {
+                    "kind": "numberLit",
+                    "value": 10
+                  },
+                  "right": {
+                    "kind": "fieldAccess",
+                    "target": {
+                      "kind": "localRef",
+                      "name": "t"
+                    },
+                    "field": "level"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

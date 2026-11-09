@@ -1,0 +1,15 @@
+name: birth_death
+kind: stochastic
+
+places:
+  Population:
+
+transitions:
+  Birth:
+    outputs:
+      Population:
+    rate: 2
+  Death:
+    inputs:
+      Population:
+    rate: 1

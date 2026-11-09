@@ -1,0 +1,9 @@
+TakeLeft and TakeRight need the same token. With one token in Pool, at most one can fire.
+
+**In order** gives TakeLeft the token. **External inputs** lets each transition wait for a choice:
+
+```python
+return (Pool >= 1) & X(pick_TakeLeft)
+```
+
+Both choices may be false, so neither transition has to fire. If both are true, TakeLeft goes first.

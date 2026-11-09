@@ -1,0 +1,8 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": { "rootDir": ".", "lib": ["ES2023"], "types": [], "jsx": "preserve" },
+  "include": ["."],
+  // The boundary test lists this folder through Vite's import.meta.glob, and the scripts run
+  // under Node, so the root tsconfig, which loads Vite's and Node's types, checks them instead.
+  "exclude": ["boundary.test.ts", "scripts"]
+}

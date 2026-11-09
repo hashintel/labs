@@ -1,0 +1,61 @@
+/* A resizable group fills its cell. While a toggle collapses or opens one of its panels, it eases the sizes; never under a drag. */
+.stack {
+  height: 100%;
+}
+
+.stack--easing > [data-panel] {
+  transition: flex-grow var(--fold) var(--ease);
+}
+
+/* Gridlines: a 1px hairline; a translucent blue-cyan band grows 2px past each side on hover or drag. */
+.gridline {
+  position: relative;
+  z-index: 1;
+  background: var(--hair);
+  transition: background-color var(--slow) var(--ease);
+
+  &::after {
+    content: "";
+    position: absolute;
+    background: var(--cyan-wash);
+    opacity: 0;
+    transition:
+      opacity var(--slow) var(--ease),
+      transform var(--slow) var(--ease);
+    pointer-events: none;
+  }
+
+  /* The delay sits on these states alone, so entering waits 70ms and leaving is immediate. */
+  &:is([data-separator="hover"], [data-separator="active"], [data-separator="focus"]) {
+    background: var(--cyan);
+    transition-delay: 70ms;
+
+    &::after {
+      opacity: 1;
+      transform: none;
+      transition-delay: 70ms;
+    }
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.gridline--column {
+  width: 1px;
+
+  &::after {
+    inset: 0 -2px;
+    transform: scaleX(0.2);
+  }
+}
+
+.gridline--row {
+  height: 1px;
+
+  &::after {
+    inset: -2px 0;
+    transform: scaleY(0.2);
+  }
+}

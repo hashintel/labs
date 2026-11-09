@@ -1,0 +1,9 @@
+BeginService needs a waiting customer and a free member of staff. It takes one token from each and adds one to Serving.
+
+```python
+fires_BeginService = (clk_BeginService == 0) & (Waiting != 0) & (FreeStaff != 0)
+```
+
+FreeStaff starts empty, so the clock pauses. Set `FreeStaff: 1` to enable it.
+
+<Question id="transition-or-places-decide" />

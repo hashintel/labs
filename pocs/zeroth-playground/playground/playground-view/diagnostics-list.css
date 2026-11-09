@@ -1,0 +1,52 @@
+.diagnostics {
+  flex: 0 0 auto;
+  max-height: 30%;
+  margin: 0;
+  padding: 0.35rem 0;
+  border-top: 1px solid var(--hair-2);
+  background: var(--paper);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.diagnostic {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  padding: 0.15rem var(--s-3);
+  font-size: var(--fs-sm);
+  line-height: 1.35;
+}
+
+.diagnostic__code {
+  flex: 0 0 auto;
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: var(--fs-code);
+
+  .diagnostic[data-severity="warning"] & {
+    color: var(--ink-2);
+  }
+}
+
+.diagnostic__message {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.diagnostic__item {
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: var(--fs-code);
+  font-style: normal;
+}
+
+.diagnostic__line {
+  flex: 0 0 auto;
+  color: var(--accent);
+  font-size: var(--fs-xs);
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
