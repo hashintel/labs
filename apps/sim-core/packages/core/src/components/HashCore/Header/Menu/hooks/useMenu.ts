@@ -1,9 +1,9 @@
 import { useState, MouseEvent, RefObject, useMemo } from "react";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 
 import { useClickOutside } from "./useClickOutside";
 
-interface MenuInterface {
+type MenuInterface = {
   menuRef: RefObject<HTMLUListElement>;
   openMenuItem: string;
   openSubmenuItem: string;
@@ -15,7 +15,7 @@ interface MenuInterface {
   }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterSubmenuItem: ({ target }: MouseEvent<HTMLLIElement>) => void;
   onMouseLeaveSubmenuItem: ({ target }: MouseEvent<HTMLLIElement>) => void;
-}
+};
 
 function isHtmlLabelElement(target: EventTarget): target is HTMLLabelElement {
   return target instanceof HTMLLabelElement;

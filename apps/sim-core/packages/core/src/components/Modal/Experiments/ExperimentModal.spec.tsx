@@ -14,12 +14,9 @@ export const thisMustBeHereToMakeTheBuildHappyAboutTheFactThatWeDoNotHaveAnImpor
 // import { setProjectWithMeta } from "../../../features/actions";
 // import { store } from "../../../features/store";
 
-// TODO: Fix these tests. They are failing with the following error:
-// ReferenceError: WEBPACK_PUBLIC_PATH is not defined
-//    import { getLocalStorageSimulatorTarget } from "./target";
-// >  const workerUrl = urljoin(WEBPACK_PUBLIC_PATH, "simulationworker.js");
-// Most probably this is happening because the Jest pipeline is not running through webpack,
-// or I am missing another layer of Providers
+// TODO: Fix these tests. They are failing because the tests need proper
+// context providers (FilesProvider, SimulatorProvider, etc.) to render
+// the full ExperimentModal.
 
 // describe.skip("ExperimentModal tests", () => {
 //   it("renders without crashing", () => {

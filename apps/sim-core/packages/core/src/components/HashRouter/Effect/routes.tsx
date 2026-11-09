@@ -1,5 +1,4 @@
 import React from "react";
-import { HookRouter, navigate, useRoutes } from "hookrouter";
 
 import { HashRouterEffectDefaultProject } from "./DefaultProject";
 import { HashRouterEffectLegacySimulation } from "./LegacySimulation";
@@ -7,45 +6,39 @@ import { HashRouterEffectNewProject } from "./NewProject";
 import { HashRouterEffectNotFound } from "./NotFound";
 import { HashRouterEffectOnboard } from "./Onboard";
 import { HashRouterEffectProject } from "./Project";
-import { HashRouterEffectSignin } from "./Signin";
-import { HashRouterEffectSignup } from "./Signup";
+import { HashRouterEffectRedirectToRoot } from "./RedirectToRoot";
+import { RouteMap, usePathRouter } from "../../../util/usePathRouter";
 import { getRouteFromQuery } from "../../../routes";
+import { navigate } from "../../../util/navigation";
 
-const routes: HookRouter.RouteObject = {
+const routes: RouteMap = {
   "/": () => <HashRouterEffectDefaultProject />,
 
   "/new": () => <HashRouterEffectNewProject />,
-  "/new/:template": ({ template }) => (
+  "/new/:template": ({ template }: { template: string }) => (
     <HashRouterEffectNewProject template={template} />
   ),
 
   "/onboard": () => <HashRouterEffectOnboard />,
-  "/onboard/:step": ({ step }) => <HashRouterEffectOnboard step={step} />,
+  "/onboard/:step": ({ step }: { step: string }) => (
+    <HashRouterEffectOnboard step={step} />
+  ),
 
-  "/simulation/:id": ({ id }) => <HashRouterEffectLegacySimulation id={id} />,
-  "/simulation/:id/:name": ({ id }) => (
+  "/simulation/:id": ({ id }: { id: string }) => (
+    <HashRouterEffectLegacySimulation id={id} />
+  ),
+  "/simulation/:id/:name": ({ id }: { id: string }) => (
     <HashRouterEffectLegacySimulation id={id} />
   ),
 
-  "/signup": () => <HashRouterEffectSignup />,
-  "/signin": () => <HashRouterEffectSignin />,
+  "/signup": () => <HashRouterEffectRedirectToRoot />,
+  "/signin": () => <HashRouterEffectRedirectToRoot />,
 
   "/@*": () => <HashRouterEffectProject />,
 
-  /**
-   * @todo route handlers should be side effect free – handle this elsewhere
-   */
   "/:buildstamp/index.html": () => {
-    setTimeout(() => {
-      /**
-       * hookrouter's navigate has a bug where it incorrectly strips queries
-       * included in the path, so we have to separate them.
-       *
-       * @see https://github.com/Paratron/hookrouter/issues/70
-       * @todo consider moving to https://github.com/kyeotic/raviger
-       */
+    setImmediate(() => {
       const { path, query } = getRouteFromQuery();
-
       navigate(path, true, query, true);
     });
   },
@@ -53,4 +46,4 @@ const routes: HookRouter.RouteObject = {
   "*": () => <HashRouterEffectNotFound />,
 };
 
-export const useRouteEffect = () => useRoutes(routes);
+export const useRouteEffect = () => usePathRouter(routes);

@@ -1,4 +1,4 @@
-import { Middleware } from "@reduxjs/toolkit";
+import type { Middleware } from "../../reduxCompat";
 import { Observable, Subscription, combineLatest, defer, from, of } from "rxjs";
 import {
   concatMap,
@@ -31,10 +31,10 @@ import {
   selectSimulationIdsForAnalysisMode,
 } from "./selectors";
 import { simulatorStore } from "../store";
-import { store } from "../../store";
+import { appBridge } from "../appBridge";
 import { updatePlotData } from "./slice";
 
-type AppStore = typeof store;
+type AppStore = any;
 type PlotsOutputEntry = readonly [string, OutputPlots | null];
 
 const createPlotsObservers = (
@@ -50,7 +50,7 @@ const createPlotsObservers = (
 
   const analysisSrcObs = combineLatest([simObs, appObs]).pipe(
     map(
-      ([simState, appState]) =>
+      ([simState, appState]: [any, any]) =>
         selectAnalysisSelector(appState)(simState).analysis,
     ),
     distinctUntilChanged(),
@@ -142,7 +142,7 @@ export const createSubscriptionToDispatchPlotData = (
   simIds: string[],
   getState: () => SimulatorRootState,
 ) =>
-  createPlotsObservers(simulatorStore, store, simIds, () => {
+  createPlotsObservers(simulatorStore, appBridge as any, simIds, () => {
     const simulationData = selectAllSimulationData(getState());
 
     return Object.fromEntries(

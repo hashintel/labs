@@ -76,7 +76,7 @@ export const Select = forwardRef<
           <option
             value={opt.value}
             key={opt.value}
-            disabled={opt.disabled ?? disabled ? opt.value !== value : false}
+            disabled={(opt.disabled ?? disabled) ? opt.value !== value : false}
           >
             {opt.displayValue ?? opt.value}
           </option>

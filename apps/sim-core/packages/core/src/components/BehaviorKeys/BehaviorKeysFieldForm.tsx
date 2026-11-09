@@ -1,7 +1,6 @@
 import React, { FC, useState } from "react";
-import { batch } from "react-redux";
 import classNames from "classnames";
-import { debounce } from "lodash";
+import { debounce } from "lodash-es";
 
 import {
   BehaviorKeysField,
@@ -76,10 +75,8 @@ export const BehaviorKeysFieldForm: FC<BehaviorKeysFieldFormProps> = ({
             value={fieldName}
             onChange={(evt) => {
               const value = evt.target.value;
-              batch(() => {
-                setIsErrorOpen(false);
-                onNameChange(value);
-              });
+              setIsErrorOpen(false);
+              onNameChange(value);
             }}
             onBlur={() => {
               onNameCommit();

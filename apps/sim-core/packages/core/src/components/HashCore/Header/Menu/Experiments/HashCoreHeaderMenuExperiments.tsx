@@ -1,5 +1,4 @@
 import React, { FC, Fragment, memo, MouseEvent } from "react";
-import { useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 
 import { DisabledExperimentTooltip } from "../../../../SimulationRunner/Controls/Experiments/ExperimentsList";
@@ -10,18 +9,19 @@ import { Scope, useScope } from "../../../../../features/scopes";
 import { queueExperiment } from "../../../../../features/simulator/simulate/queueExperiment";
 import { selectExperiments } from "../../../../SimulationRunner/Controls/Experiments/selectors";
 import { selectProviderTarget } from "../../../../../features/simulator/simulate/selectors";
-import { trackEvent } from "../../../../../features/analytics";
+
+import { useFilesSelector } from "../../../../../features/files/FilesContext";
 import {
   useSimulatorDispatch,
   useSimulatorSelector,
 } from "../../../../../features/simulator/context";
 
-interface HashCoreHeaderMenuExperimentsProps {
+type HashCoreHeaderMenuExperimentsProps = {
   openMenuItem: string;
   onClickMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   onMouseEnterMenuItemLabel: ({ target }: MouseEvent<HTMLLabelElement>) => void;
   clearAll: () => void;
-}
+};
 
 export const HashCoreHeaderMenuExperiments: FC<HashCoreHeaderMenuExperimentsProps> =
   memo(
@@ -33,7 +33,7 @@ export const HashCoreHeaderMenuExperiments: FC<HashCoreHeaderMenuExperimentsProp
     }) => {
       const dispatch = useSimulatorDispatch();
       const canEdit = useScope(Scope.edit);
-      const experiments = useSelector(selectExperiments);
+      const experiments = useFilesSelector(selectExperiments);
       const target = useSimulatorSelector(selectProviderTarget);
       const [openCreateExperimentModal, hideCreateExperimentModal] = useModal(
         () => <ExperimentModal onClose={hideCreateExperimentModal} />,
@@ -94,10 +94,6 @@ export const HashCoreHeaderMenuExperiments: FC<HashCoreHeaderMenuExperimentsProp
                 onClick={() => {
                   clearAll();
                   openCreateExperimentModal();
-                  trackEvent({
-                    action: "Experiment wizard opened",
-                    label: "Menu",
-                  });
                 }}
               >
                 Create new experiment

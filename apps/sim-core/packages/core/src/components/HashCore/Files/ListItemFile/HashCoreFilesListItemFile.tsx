@@ -6,11 +6,10 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useModal } from "react-modal-hook";
 import urljoin from "url-join";
 
-import { AppDispatch } from "../../../../features/types";
+import { useFiles } from "../../../../features/files/FilesContext";
 import { Ext } from "../../../../util/files/enums";
 import { FileNameWithShortnameIcon } from "../../../FileName/FileNameWithShortnameIcon";
 import { HashCoreContextMenu } from "../../ContextMenu";
@@ -18,22 +17,11 @@ import { HashCoreFilesListItem } from "../ListItem/HashCoreFilesListItem";
 import { HcFileKind } from "../../../../features/files/enums";
 import { IconAccountMultiple, IconTrash } from "../../../Icon";
 import { LinkBehavior } from "../../../Link/LinkBehavior";
-import { ModalConfirmFileDelete, ModalReleaseBehavior } from "../../../Modal";
-import { ReleaseMeta } from "../../../../util/api/types";
+import { ModalConfirmFileDelete } from "../../../Modal";
 import { SITE_URL } from "../../../../util/api/paths";
 import { Scope, useScope } from "../../../../features/scopes";
-import {
-  deleteFile,
-  renameInitFile,
-  setCurrentFileId,
-  updateFile,
-} from "../../../../features/files/slice";
-import { getReleaseMeta } from "../../../../util/api";
 import { isSharedDependency } from "../../../../features/files/utils";
-import {
-  selectCurrentProject,
-  selectProjectPublishedFiles,
-} from "../../../../features/project/selectors";
+import { useProject } from "../../../../features/project/ProjectContext";
 import { useClipboardWriteText } from "../../../../hooks/useClipboardWriteText";
 import {
   useFileIsCurrent,
@@ -44,11 +32,11 @@ import { useRenameBehaviorModal } from "..";
 
 import "./HashCoreFilesListItemFile.scss";
 
-interface HashCoreFilesListItemFileProps {
+type HashCoreFilesListItemFileProps = {
   fileId: string;
   scrollIntoViewRef?: MutableRefObject<VoidFunction | null>;
   depth?: number;
-}
+};
 
 export const getDomIdByFileId = (id: string) => `HashCoreFilesListItem-${id}`;
 
@@ -58,10 +46,10 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   depth = 1,
 }) => {
   const file = useSelectFileById(fileId);
-  const dispatch = useDispatch<AppDispatch>();
-  const publishedFiles = useSelector(selectProjectPublishedFiles);
+  const { setCurrentFileId, deleteFile, updateFile, renameInitFile } =
+    useFiles();
+  const { projectPublishedFiles: publishedFiles } = useProject();
   const canSave = useScope(Scope.save);
-  const project = useSelector(selectCurrentProject);
   const current = useFileIsCurrent(fileId);
   const clipboardWriteText = useClipboardWriteText();
 
@@ -69,7 +57,6 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   const filePublished =
     fileIsBehavior && publishedFiles.includes(file.path.formatted);
   const canRename = canSave && fileIsBehavior && !filePublished;
-  const canPublish = canRename && project?.visibility === "public";
   const canDelete =
     canSave &&
     file.kind !== HcFileKind.Required &&
@@ -83,27 +70,14 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
         fileName={title}
         onAnswer={(confirm) => {
           if (confirm) {
-            dispatch(deleteFile(file.id));
+            deleteFile(file.id);
           } else {
             hideConfirmDelete();
           }
         }}
       />
     ),
-    [title, dispatch, file.id],
-  );
-
-  const [data, setData] = useState<ReleaseMeta | null>(null);
-  const [showReleaseBehaviorModal, hideReleaseBehaviorModal] = useModal(
-    () =>
-      data && file.kind === HcFileKind.Behavior ? (
-        <ModalReleaseBehavior
-          onHide={hideReleaseBehaviorModal}
-          data={data}
-          file={file}
-        />
-      ) : null,
-    [data, file],
+    [title, deleteFile, file.id],
   );
 
   const showNameBehavior = useRenameBehaviorModal(file.id, file.path);
@@ -117,25 +91,12 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
   const [showContextMenu, hideContextMenu] = useModal(
     () => (
       <HashCoreContextMenu style={contextMenuStyle}>
-        {canSave && canPublish && (
-          <li>
-            <button
-              onClick={async () => {
-                setData(await getReleaseMeta());
-                showReleaseBehaviorModal();
-              }}
-            >
-              Publish a release of this behavior
-            </button>
-          </li>
-        )}
         {isSharedDependency(file) ? (
           <>
             <li>
               <a
                 href={urljoin(SITE_URL, file.pathWithNamespace)}
                 target="_blank"
-                rel="noreferrer"
               >
                 View in HASH
               </a>
@@ -178,9 +139,9 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
               onClick={() => {
                 if (file.path.ext === Ext.Json) {
                   const contents = initJsonToJs(file.contents);
-                  dispatch(updateFile({ id: file.id, contents }));
+                  updateFile(file.id, contents);
                 }
-                dispatch(renameInitFile({ id: file.id, newName: "init.js" }));
+                renameInitFile(file.id, "init.js");
               }}
             >
               Convert to init.js
@@ -193,9 +154,9 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
               onClick={() => {
                 if (file.path.ext === Ext.Json) {
                   const contents = initJsonToPy(file.contents);
-                  dispatch(updateFile({ id: file.id, contents }));
+                  updateFile(file.id, contents);
                 }
-                dispatch(renameInitFile({ id: file.id, newName: "init.py" }));
+                renameInitFile(file.id, "init.py");
               }}
             >
               Convert to init.py
@@ -206,7 +167,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
           <li>
             <button
               onClick={() => {
-                dispatch(renameInitFile({ id: file.id, newName: "init.json" }));
+                renameInitFile(file.id, "init.json");
               }}
             >
               Convert to init.json
@@ -220,13 +181,12 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
       contextMenuStyle,
       canDelete,
       file,
-      canPublish,
       canSave,
       canRename,
       showConfirmDelete,
       showNameBehavior,
-      showReleaseBehaviorModal,
-      dispatch,
+      updateFile,
+      renameInitFile,
     ],
   );
 
@@ -258,7 +218,7 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
       onClick={(evt) => {
         evt.stopPropagation(); // needed to avoid collapsing the parent folder
         evt.preventDefault();
-        dispatch(setCurrentFileId(fileId));
+        setCurrentFileId(fileId);
       }}
       onContextMenu={(evt) => {
         evt.preventDefault();
@@ -297,11 +257,6 @@ export const HashCoreFilesListItemFile: FC<HashCoreFilesListItemFileProps> = ({
     </li>
   );
 };
-
-// HashCoreFilesListItem.whyDidYouRender = {
-//   // @ts-expect-error
-//   customName: "HashCoreFilesListItem"
-// };
 
 const initJSHeader =
   "/**\n" + " * @param {InitContext} context for initialization\n" + " */";

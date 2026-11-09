@@ -1,14 +1,16 @@
-import React, { FC, ReactNode } from "react";
+import React, { FC, PropsWithChildren, ReactNode } from "react";
 import classNames from "classnames";
 
-export const NewProjectField: FC<{
-  focused: boolean;
-  error?: boolean;
-  name: string;
-  fieldName: string;
-  tip?: ReactNode;
-  showTip?: boolean;
-}> = ({
+export const NewProjectField: FC<
+  PropsWithChildren<{
+    focused: boolean;
+    error?: boolean;
+    name: string;
+    fieldName: string;
+    tip?: ReactNode;
+    showTip?: boolean;
+  }>
+> = ({
   focused,
   error = false,
   name,

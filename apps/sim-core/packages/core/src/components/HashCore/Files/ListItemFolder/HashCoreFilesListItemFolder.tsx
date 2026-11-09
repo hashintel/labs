@@ -8,7 +8,7 @@ import { HcFile, HcFolder } from "../../../../features/files/types";
 
 import "./HashCoreFilesListItemFolder.css";
 
-interface HashCoreFilesListItemFolderProps {
+type HashCoreFilesListItemFolderProps = {
   scrollIntoViewRef?: MutableRefObject<VoidFunction | null>;
   childrenItems?: HcFile[] | HcFolder[]; // the files contained in the folder
   name: string; // the name of the current folder
@@ -17,7 +17,7 @@ interface HashCoreFilesListItemFolderProps {
   rootFolder?: boolean; // used only in HashCoreFiles to render a "virtual" root folder
   toggleOpen: (path: string) => void;
   openPaths: Record<string, boolean>;
-}
+};
 
 export const HashCoreFilesListItemFolder: FC<
   HashCoreFilesListItemFolderProps
@@ -89,8 +89,3 @@ export const HashCoreFilesListItemFolder: FC<
     </li>
   );
 };
-
-// HashCoreFilesListItemFolder.whyDidYouRender = {
-//   // @ts-expect-error
-//   customName: "HashCoreFilesListItemFolder"
-// };

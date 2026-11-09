@@ -26,7 +26,6 @@ export const ModalSignin: FC<{ onClose: VoidFunction; route: string }> = ({
     const onMessage = async (message: any) => {
       if (message.origin === API_LOGIN_URL) {
         window.removeEventListener("message", onMessage, false);
-        //@ts-expect-error dispatch
         await dispatch(bootstrapApp());
       }
     };

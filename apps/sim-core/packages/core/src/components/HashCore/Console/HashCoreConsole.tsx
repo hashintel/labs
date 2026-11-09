@@ -1,5 +1,4 @@
-import React, { FC, memo, ReactNode, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import React, { FC, memo, ReactNode, useMemo } from "react";
 import classnames from "classnames";
 import format from "date-fns/format";
 
@@ -7,10 +6,9 @@ import { HashCoreConsoleAlert } from "./HashCoreConsoleAlert";
 import { IconAlert, IconCheck, IconClose, IconStop } from "../../Icon";
 import { Scrollable } from "../../Scrollable";
 import type { UserAlert } from "../../../features/viewer/types";
-import { clearUserAlerts } from "../../../features/viewer/slice";
 import { selectIdKindAndPathFromFiles } from "../../../features/files/selectors";
-import { selectUserAlerts } from "../../../features/viewer/selectors";
-import { useModalCloudUsage } from "../../Modal/CloudUsage";
+import { useFilesSelector } from "../../../features/files/FilesContext";
+import { useViewer } from "../../../features/viewer/ViewerContext";
 
 import "./HashCoreConsole.css";
 
@@ -27,27 +25,14 @@ const errorIconMap: Record<UserAlert["type"], ReactNode> = {
  * @todo nathggns: remove when the above is fixed
  */
 export const HashCoreConsole: FC = memo(function HashCoreConsole() {
-  const userAlerts = useSelector(selectUserAlerts);
-  const dispatch = useDispatch();
+  const { userAlerts, clearUserAlerts } = useViewer();
 
-  const files = useSelector(selectIdKindAndPathFromFiles);
+  const files = useFilesSelector(selectIdKindAndPathFromFiles);
 
   const filesMap = useMemo(
     () => Object.fromEntries(files.map((file) => [file.path.formatted, file])),
     [files],
   );
-
-  // Show a modal on more important alert messages
-  const [showModal, hideModal] = useModalCloudUsage();
-  useEffect(() => {
-    const errorContexts = userAlerts.map((err) => err.message);
-    if (errorContexts.includes("Out of cloud compute credits")) {
-      showModal();
-      return () => {
-        hideModal();
-      };
-    }
-  }, [userAlerts, showModal, hideModal]);
 
   return (
     <div
@@ -56,10 +41,7 @@ export const HashCoreConsole: FC = memo(function HashCoreConsole() {
         "HashCoreConsole--empty": userAlerts.length === 0,
       })}
     >
-      <div
-        className="HashCoreConsole__clear"
-        onClick={() => dispatch(clearUserAlerts())}
-      >
+      <div className="HashCoreConsole__clear" onClick={() => clearUserAlerts()}>
         <IconClose size={10} />
       </div>
 

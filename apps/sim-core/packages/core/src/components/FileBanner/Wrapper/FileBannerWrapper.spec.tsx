@@ -1,10 +1,7 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-
   // TODO: figure out how to test things with @hashintel/engine-web in import path
-  ReactDOM.render(<div />, div);
-  ReactDOM.unmountComponentAtNode(div);
+  render(<div />);
 });
