@@ -22,7 +22,7 @@ asgi-correlation-id = "^4.1.0"
 rich = "^13.3.4"
 
 [tool.poetry.group.dev.dependencies]
-setuptools = "^67.7.1"
+setuptools = "^84.2.1"
 
 [tool.poetry.group.build-tools.dependencies]
 datamodel-code-generator = "^0.18.0"
