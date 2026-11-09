@@ -73,6 +73,10 @@ if [ ! -x "$RUNNER_DIR/node_modules/.bin/tsx" ]; then
   exit 1
 fi
 
+# The graph only honors requests carrying its service secret; default to the
+# local-dev value from HASH's committed .env.
+export HASH_GRAPH_SERVICE_SECRET="${HASH_GRAPH_SERVICE_SECRET:-hash-svc-local-dev-secret}"
+
 if [ -n "$WEB" ]; then
   # Resolves HASH_GRAPH_URL / HASH_WEB_ID / HASH_ACTOR_ID; fails if the graph is
   # down, the web is unknown, or the supply-chain ontology is missing. The

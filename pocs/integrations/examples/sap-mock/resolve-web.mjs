@@ -14,11 +14,18 @@ if (!shortname) {
 
 const die = (msg) => { console.error(`[resolve-web] ${msg}`); process.exit(1); };
 
-const systemActor = await fetch(`${GRAPH_URL}/actors/machine/identifier/system/graph`)
-  .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
-  .catch((e) => die(`graph unreachable at ${GRAPH_URL} (${e.message}) -- is it running? Set HASH_GRAPH_URL to override.`));
+const SECRET = process.env.HASH_GRAPH_SERVICE_SECRET;
+if (!SECRET) die("HASH_GRAPH_SERVICE_SECRET is not set (the graph's service secret, see HASH's .env).");
+const auth = { Authorization: `HASH-Service ${SECRET}` };
 
-const headers = { "Content-Type": "application/json", "X-Authenticated-User-Actor-Id": systemActor };
+const systemActor = await fetch(`${GRAPH_URL}/actors/machine/identifier/system/graph`, { headers: auth })
+  .catch((e) => die(`graph unreachable at ${GRAPH_URL} (${e.message}) -- is it running? Set HASH_GRAPH_URL to override.`))
+  .then((r) => {
+    if (r.status === 401) die(`graph at ${GRAPH_URL} rejected HASH_GRAPH_SERVICE_SECRET -- set it to the value the graph runs with.`);
+    return r.ok ? r.json() : die(`system actor lookup failed at ${GRAPH_URL} (${r.status})`);
+  });
+
+const headers = { ...auth, "Content-Type": "application/json", "X-Authenticated-User-Actor-Id": systemActor };
 const temporalAxes = { pinned: { axis: "transactionTime", timestamp: null }, variable: { axis: "decisionTime", interval: { start: null, end: null } } };
 const query = (path, body) =>
   fetch(`${GRAPH_URL}${path}`, { method: "POST", headers, body: JSON.stringify(body) })

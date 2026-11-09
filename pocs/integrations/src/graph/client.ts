@@ -27,6 +27,22 @@ export type GraphClientConfig = {
   limiter?: GraphLimiter;
 };
 
+/**
+ * Headers authenticating a graph request as `actorId`. The graph honors the actor header only
+ * alongside the service secret (`HASH_GRAPH_SERVICE_SECRET`, as configured on the graph).
+ */
+export function graphHeaders(actorId: string): Record<string, string> {
+  const secret = process.env.HASH_GRAPH_SERVICE_SECRET;
+  if (!secret) {
+    throw new Error("HASH_GRAPH_SERVICE_SECRET is not set; the graph rejects requests without its service secret");
+  }
+  return {
+    "Content-Type": "application/json",
+    Authorization: `HASH-Service ${secret}`,
+    "X-Authenticated-User-Actor-Id": actorId,
+  };
+}
+
 type ValueMetadata = { dataTypeId: VersionedUrl | null; provenance?: PropertyProvenance };
 type PropertyValueWithMetadata = { value: unknown; metadata: ValueMetadata };
 type PropertyObjectWithMetadata = { value: Record<string, PropertyValueWithMetadata> };
@@ -177,10 +193,7 @@ async function request<T>(method: string, config: GraphClientConfig, path: strin
     res = await with429Retry(() =>
       fetch(`${config.baseUrl}${path}`, {
         method,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Authenticated-User-Actor-Id": config.actorId,
-        },
+        headers: graphHeaders(config.actorId),
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(timeoutMs),
       }),

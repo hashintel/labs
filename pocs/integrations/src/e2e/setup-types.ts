@@ -4,6 +4,7 @@ import { postgresPipelines, mongoPipelines, type PipelineEnv } from "../pipeline
 import { aviationPipelines } from "../pipelines/aviation.js";
 import type { TablePipeline } from "../engine.js";
 import type { Step } from "../transform/pipeline.js";
+import { graphHeaders } from "../graph/client.js";
 
 const BP_TEXT = "https://blockprotocol.org/@blockprotocol/types/data-type/text/v/1";
 
@@ -16,7 +17,7 @@ export async function setupTypes(
   tablePipelines: readonly TablePipeline[],
   env: { graphUrl: string; actorId: string; typeBase: string },
 ): Promise<{ created: number; skipped: number }> {
-  const headers = { "Content-Type": "application/json", "X-Authenticated-User-Actor-Id": env.actorId };
+  const headers = graphHeaders(env.actorId);
   const isOurs = (url: string) => url.startsWith(env.typeBase + "/");
 
   const sinks: Sink[] = [];

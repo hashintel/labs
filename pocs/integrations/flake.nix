@@ -23,6 +23,12 @@
             corepack_24
             uv
           ];
+          # uv-installed wheels (numpy, pandas) link against libstdc++/zlib,
+          # which NixOS doesn't provide globally.
+          LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
+            pkgs.stdenv.cc.cc.lib
+            pkgs.zlib
+          ];
         };
       }
     );
