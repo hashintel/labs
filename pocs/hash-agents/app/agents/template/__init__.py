@@ -1,7 +1,7 @@
 """A template agent, which provides a simple interface into LangChain's LLMMathChain."""
 
 from beartype import beartype
-from langchain.chains import LLMMathChain
+from langchain_classic.chains import LLMMathChain
 from langchain_openai import ChatOpenAI
 
 from .io_types import Input, Output
