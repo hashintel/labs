@@ -134,9 +134,13 @@
     "yarn-audit-fix": "^10.0.1",
     "yarn-run-all": "3.1.1"
   },
-  "// resolutions": "@swc/core stays on 1.13: vite-plugin-top-level-await 1.5.0 fails with \"missing field `type`\" against @swc/core 1.16.",
+  "// resolutions": [
+    "@swc/core stays on 1.13: vite-plugin-top-level-await 1.5.0 fails with \"missing field `type`\" against @swc/core 1.16.",
+    "vite-plugin-top-level-await (up to 1.6.0) pins uuid 10, which has GHSA-w5hq-g745-h8pq. uuid 11.1.1 is patched and still ships the CommonJS build the plugin requires."
+  ],
   "resolutions": {
     "@swc/core": "1.13.5",
+    "**/vite-plugin-top-level-await/uuid": "^11.1.1",
     "@types/react": "16.9.56"
   },
   "dependencies": {}
