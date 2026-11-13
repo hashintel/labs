@@ -134,7 +134,9 @@
     "yarn-audit-fix": "^10.0.1",
     "yarn-run-all": "3.1.1"
   },
+  "// resolutions": "@swc/core stays on 1.13: vite-plugin-top-level-await 1.5.0 fails with \"missing field `type`\" against @swc/core 1.16.",
   "resolutions": {
+    "@swc/core": "1.13.5",
     "@types/react": "16.9.56"
   },
   "dependencies": {}
