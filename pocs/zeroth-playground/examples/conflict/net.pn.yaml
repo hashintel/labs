@@ -1,0 +1,22 @@
+name: conflict
+kind: plain
+
+places:
+  Pool:
+  Left:
+  Right:
+
+transitions:
+  TakeLeft:
+    inputs:
+      Pool:
+    outputs:
+      Left:
+  TakeRight:
+    inputs:
+      Pool:
+    outputs:
+      Right:
+
+marking:
+  Pool: 1

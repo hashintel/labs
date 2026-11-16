@@ -1,0 +1,20 @@
+.question-list {
+  height: 100%;
+  padding: 0.75rem;
+  overflow-y: auto;
+}
+
+.question-list__row {
+  display: block;
+  padding: 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: var(--r-sm);
+  color: inherit;
+  font-size: var(--fs-base);
+  line-height: 1.5;
+  text-decoration: none;
+
+  &:hover { background: var(--hair-2); }
+  &:focus-visible { outline: 2px solid var(--accent); }
+  &[aria-current="page"] { background: var(--ink-wash); font-weight: 600; }
+}

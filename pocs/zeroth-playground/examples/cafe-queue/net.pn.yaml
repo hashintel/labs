@@ -1,0 +1,20 @@
+name: cafe_queue
+kind: stochastic
+
+places:
+  Waiting:
+  FreeStaff:
+  Serving:
+
+transitions:
+  BeginService:
+    inputs:
+      Waiting:
+      FreeStaff:
+    outputs:
+      Serving:
+    rate: 1
+
+marking:
+  Waiting: 1
+  FreeStaff: 0

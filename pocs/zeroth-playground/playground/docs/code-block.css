@@ -1,0 +1,30 @@
+/* Code a page quotes: one row per line, a long line wrapping under a hanging indent. */
+.code-block {
+  margin: 0.2rem 0 var(--s-4);
+  padding: 0.55rem 0.7rem;
+  border-left: 2px solid var(--hair);
+  border-radius: 0 var(--r-xs) var(--r-xs) 0;
+  background: var(--paper);
+  line-height: 1.45;
+
+  & code {
+    display: block;
+    padding: 0;
+    background: none;
+    font-size: 0.74rem;
+    white-space: normal;
+  }
+}
+
+/* The continuation of a wrapped line starts 4ch in, so it never reads as a line of its own. */
+.code-block__line {
+  display: block;
+  padding-left: 4ch;
+  text-indent: -4ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+
+  & + & {
+    margin-top: 0.15rem;
+  }
+}
