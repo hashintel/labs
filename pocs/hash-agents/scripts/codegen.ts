@@ -107,7 +107,7 @@ const codegen = async ({ globPattern }: { globPattern: string }) => {
           "--input-file-type",
           "jsonschema",
           "--output-model-type",
-          "pydantic.BaseModel",
+          "pydantic_v2.BaseModel",
           "--output",
           outputPath,
         ],

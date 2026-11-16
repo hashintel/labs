@@ -1,8 +1,8 @@
 """A template agent, which provides a simple interface into LangChain's LLMMathChain."""
 
 from beartype import beartype
-from langchain import LLMMathChain
-from langchain.chat_models import ChatOpenAI
+from langchain_classic.chains import LLMMathChain
+from langchain_openai import ChatOpenAI
 
 from .io_types import Input, Output
 
@@ -14,8 +14,8 @@ def execute(agent_input: Input) -> Output:
     :param agent_input: Input defined in `io_types.ts`
     :return: Output defined in `io_types.ts`.
     """
-    llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
-    llm_math = LLMMathChain(llm=llm, verbose=True)
-    result = llm_math.run(agent_input.expression)
+    llm = ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+    llm_math = LLMMathChain.from_llm(llm, verbose=True)
+    result = llm_math.invoke({"question": agent_input.expression})["answer"]
     # ltrim "Answer: " from result
     return Output(result=float(result[8:]))
