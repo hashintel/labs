@@ -29,6 +29,9 @@ export default defineConfig(({ mode }) => {
           main: "./src/index.html",
           embed: "./src/embed.html",
         },
+        // Recent Rollup 4 releases do not finish tree-shaking this codebase, so it is
+        // skipped at the cost of about 1 MB more output.
+        treeshake: false,
       },
       reportCompressedSize: false,
       minify: true,
@@ -36,6 +39,14 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       BUILD_STAMP: JSON.stringify(BUILD_STAMP),
+    },
+    css: {
+      preprocessorOptions: {
+        scss: {
+          // sass 1.29 predates the modern compiler API that Vite 6 uses by default.
+          api: "legacy",
+        },
+      },
     },
     server: {
       port: 8080,
