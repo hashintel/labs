@@ -44,6 +44,7 @@ pub struct MessageBatch {
     arrow_schema: Arc<Schema>,
 }
 
+
 impl fmt::Debug for MessageBatch {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // todo: improve debug representation

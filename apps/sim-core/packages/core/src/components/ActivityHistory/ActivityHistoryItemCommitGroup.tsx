@@ -1,6 +1,5 @@
 import React, { FC } from "react";
-import { useSelector } from "react-redux";
-import { EntityId } from "@reduxjs/toolkit";
+import type { EntityId } from "../../features/reduxCompat";
 
 import { ActivityHistoryGroup } from "./ActivityHistoryGroup/ActivityHistoryGroup";
 import { ActivityHistoryGroupSection } from "./ActivityHistoryGroup/ActivityHistoryGroupSection";
@@ -9,8 +8,8 @@ import { ActivityHistoryItemCommit } from "./ActivityHistoryItemCommit";
 import { ActivityTime } from "./ActivityTime";
 import { SimulatorHistoryItemCommitGroup } from "../../features/simulator/simulate/types";
 import { selectHistoryCurrentCommitGroup } from "../../features/simulator/simulate/selectors";
-import { selectProjectPathWithNamespaceRequired } from "../../features/project/selectors";
 import { toggleCommitGroup } from "../../features/simulator/simulate/slice";
+import { useProject } from "../../features/project/ProjectContext";
 import {
   useSimulatorDispatch,
   useSimulatorSelector,
@@ -25,7 +24,11 @@ export const ActivityHistoryItemCommitGroup: FC<{
 
   const open =
     useSimulatorSelector(selectHistoryCurrentCommitGroup) === historyId;
-  const pathWithNamespace = useSelector(selectProjectPathWithNamespaceRequired);
+  const { currentProject } = useProject();
+  const pathWithNamespace = currentProject?.pathWithNamespace;
+  if (!pathWithNamespace) {
+    throw new Error("Project does not exist when it is required");
+  }
   const simDispatch = useSimulatorDispatch();
 
   return (

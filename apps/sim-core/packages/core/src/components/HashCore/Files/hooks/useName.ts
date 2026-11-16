@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useReducer, useRef, useState } from "react";
-import { useSelector } from "react-redux";
-import produce, { Draft } from "immer";
+import { produce, Draft } from "immer";
 
 import { Ext } from "../../../../util/files/enums";
 import type { HcFile } from "../../../../features/files/types";
@@ -9,6 +8,7 @@ import type { ParsedPath } from "../../../../util/files/types";
 import type { ReactSelectOption } from "../../../Dropdown/types";
 import { destinationPathInUse, parse } from "../../../../util/files";
 import { selectIdKindAndPathFromFiles } from "../../../../features/files/selectors";
+import { useFilesSelector } from "../../../../features/files/FilesContext";
 import { validateFileName } from "../../../../util/validation";
 
 const extensionMap = {
@@ -24,7 +24,7 @@ type LanguageOption = ReactSelectOption & {
 };
 
 const isAllowedExtensionString = (str: string): str is allowedExtensionString =>
-  Object.prototype.hasOwnProperty.call(extensionMap, str);
+  extensionMap.hasOwnProperty(str);
 
 const isReactOptionAllowable = (
   option: ReactSelectOption,
@@ -55,10 +55,7 @@ const getLanguageForLanguageStr = (
   return languageOptionByValue[lowerCase];
 };
 
-interface NameReducerState {
-  name: string;
-  selectedLanguage: LanguageOption;
-}
+type NameReducerState = { name: string; selectedLanguage: LanguageOption };
 type SetName = (name: NameReducerState["name"]) => void;
 type SetSelectedLanguage = (language: ReactSelectOption) => void;
 
@@ -75,7 +72,7 @@ const nameReducer = produce(
         state.selectedLanguage = action.language;
         break;
 
-      case "setName": {
+      case "setName":
         const matches = action.name.trim().match(/^(.*?)(\..*)?$/);
         const selectedLanguage = getLanguageForLanguageStr(matches?.[2]);
 
@@ -86,7 +83,7 @@ const nameReducer = produce(
           state.name = action.name;
         }
         break;
-      }
+
       case "set":
         return action.value;
     }
@@ -124,7 +121,7 @@ const useValidate = (args: {
   id?: string;
   value: NameReducerState;
 }): ValidateHook => {
-  const files = useSelector(selectIdKindAndPathFromFiles);
+  const files = useFilesSelector(selectIdKindAndPathFromFiles);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const argsRef = useRef(args);

@@ -1,17 +1,9 @@
 import { RefObject, useCallback, useEffect, useMemo, useRef } from "react";
-import { useDispatch, useSelector, useStore } from "react-redux";
-import produce from "immer";
+import { produce } from "immer";
 import { IRange, editor } from "monaco-editor";
-import { Observable, Subject, merge } from "rxjs";
-import {
-  buffer,
-  distinctUntilChanged,
-  filter,
-  map,
-  pairwise,
-} from "rxjs/operators";
+import { Subject, merge } from "rxjs";
+import { map } from "rxjs/operators";
 
-import type { AppDispatch, RootState } from "../../../../features/types";
 import type { HcFile } from "../../../../features/files/types";
 import {
   Replacement,
@@ -20,87 +12,77 @@ import {
   SearchResultsDictionary,
 } from "./types";
 import { SearchDispatch, SearchState } from "./reducer";
-import { fromStore } from "../../../../util/fromStore";
 import { getDiffModel } from "../../../TabbedEditor/DiffPanel";
 import { getNextContents, searchDebounce, triggerSearch } from "./util";
 import { isReadOnly } from "../../../../features/files/utils";
 import { parseReplaceString } from "./monaco";
 import {
-  selectAllFiles,
-  selectFileEntities,
   selectFileIds,
   selectReplaceProposal,
 } from "../../../../features/files/selectors";
-import { selectCurrentProjectUrl } from "../../../../features/project/selectors";
 import {
-  setCurrentFileId,
-  setReplaceProposal,
-} from "../../../../features/files/slice";
+  useFiles,
+  useFilesSelector,
+} from "../../../../features/files/FilesContext";
+import { useProject } from "../../../../features/project/ProjectContext";
 import { setMonacoModel } from "../../../../features/monaco";
 import { useMonacoContainerFromContext } from "../../../TabbedEditor/hooks";
 
 const useFileChangeObservable = () => {
-  const store = useStore<RootState>();
+  const { allFiles } = useFiles();
+  const subject = useMemo(() => new Subject<string[]>(), []);
+  const cacheRef = useRef(new Map<string, string>());
 
-  return useMemo(() => {
-    const observable = new Observable<string>((subscriber) => {
-      const cache = new Map<string, string>();
+  useEffect(() => {
+    const cache = cacheRef.current;
+    const changedIds: string[] = [];
 
-      const emitChangedFiles = (state: RootState) => {
-        const files = selectAllFiles(state);
+    const currentIds = new Set(allFiles.map((file) => file.id));
+    for (const key of cache.keys()) {
+      if (!currentIds.has(key)) {
+        cache.delete(key);
+      }
+    }
 
-        for (const file of files) {
-          if (cache.get(file.id) !== file.contents) {
-            cache.set(file.id, file.contents);
+    for (const file of allFiles) {
+      if (cache.get(file.id) !== file.contents) {
+        cache.set(file.id, file.contents);
+        changedIds.push(file.id);
+      }
+    }
 
-            subscriber.next(file.id);
-          }
-        }
-      };
+    if (changedIds.length > 0) {
+      subject.next(changedIds);
+    }
+  }, [allFiles, subject]);
 
-      const unsubscribeStore = store.subscribe(() => {
-        const state = store.getState();
-        const ids = selectFileIds(state);
-
-        for (const key of cache.keys()) {
-          if (!ids.includes(key)) {
-            cache.delete(key);
-          }
-        }
-
-        emitChangedFiles(state);
-      });
-
-      emitChangedFiles(store.getState());
-
-      return () => {
-        unsubscribeStore();
-      };
-    });
-
-    return observable.pipe(buffer(observable.pipe(searchDebounce())));
-  }, [store]);
+  return useMemo(() => subject.pipe(searchDebounce()), [subject]);
 };
 
 export const useFilesRemovedObservable = () => {
-  const store = useStore<RootState>();
-  return useMemo(() => {
-    return fromStore(store).pipe(
-      map(selectFileIds),
-      distinctUntilChanged(),
-      pairwise(),
-      map(([firstIds, secondIds]) =>
-        firstIds
-          .filter((id) => !secondIds.includes(id))
-          .map((id) => id.toString()),
-      ),
-      filter((ids) => ids.length > 0),
-    );
-  }, [store]);
+  const { allFiles } = useFiles();
+  const fileIds = useMemo(() => allFiles.map((file) => file.id), [allFiles]);
+  const subject = useMemo(() => new Subject<string[]>(), []);
+  const prevIdsRef = useRef<string[]>(fileIds);
+
+  useEffect(() => {
+    const prevIds = prevIdsRef.current;
+    prevIdsRef.current = fileIds;
+
+    const removedIds = prevIds.filter((id) => !fileIds.includes(id));
+    if (removedIds.length > 0) {
+      subject.next(removedIds);
+    }
+  }, [fileIds, subject]);
+
+  return subject.asObservable();
 };
 
 const useQueryChangeObservable = (query: SearchQuery) => {
-  const store = useStore<RootState>();
+  const { allFiles } = useFiles();
+  const fileIdsRef = useRef<string[]>(allFiles.map((file) => file.id));
+  fileIdsRef.current = allFiles.map((file) => file.id);
+
   const subject = useMemo(() => new Subject<SearchQuery>(), []);
 
   useEffect(() => {
@@ -111,9 +93,9 @@ const useQueryChangeObservable = (query: SearchQuery) => {
     () =>
       subject.pipe(
         searchDebounce(),
-        map(() => selectFileIds(store.getState()) as string[]),
+        map(() => fileIdsRef.current),
       ),
-    [subject, store],
+    [subject],
   );
 };
 
@@ -121,7 +103,7 @@ const useRemoveDeletedFilesFromResults = (
   resultsRef: RefObject<SearchResultsDictionary>,
   searchDispatch: SearchDispatch,
 ) => {
-  const fileIds = useSelector(selectFileIds);
+  const fileIds = useFilesSelector(selectFileIds);
 
   useEffect(() => {
     if (!resultsRef.current) {
@@ -167,10 +149,13 @@ export const useSearch = (
     queryRef.current = searchState.query;
   });
 
-  const store = useStore<RootState>();
+  const { fileEntities } = useFiles();
+  const fileEntitiesRef = useRef(fileEntities);
+  fileEntitiesRef.current = fileEntities;
+
   const filesToSearchObserver = useFilesToSearchObserver(searchState);
 
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProjectUrl: projectUrl } = useProject();
 
   useRemoveDeletedFilesFromResults(resultsRef, searchDispatch);
 
@@ -183,63 +168,64 @@ export const useSearch = (
   useEffect(() => {
     let controller: AbortController | null = null;
 
-    const subscription = filesToSearchObserver.subscribe((filesToSearch) => {
-      controller?.abort();
+    const subscription = (filesToSearchObserver as any).subscribe(
+      (filesToSearch: string[]) => {
+        controller?.abort();
 
-      const query = queryRef.current;
+        const query = queryRef.current;
 
-      /**
-       * We don't want to do the search if we don't have a search term, but we
-       * didn't filter the event from the observer because we do want to ensure
-       * we abort the pending search
-       */
-      if (!query.searchTerm) {
-        controller = null;
-
-        return;
-      }
-
-      controller = new AbortController();
-
-      const files = selectFileEntities(store.getState());
-
-      // This parses the replace term for any regex group tokens ($1, $2, etc)
-      const pattern = query.replaceTerm
-        ? parseReplaceString(query.replaceTerm)
-        : null;
-
-      triggerSearch(
-        query,
-        filesToSearch,
-        projectUrl,
-        files,
-        pattern,
-        resultsRef.current,
-        controller.signal,
-      )
-        .then((nextResults) => {
-          if (controller!.signal.aborted) {
-            throw new Error("Aborted");
-          }
-
+        /**
+         * We don't want to do the search if we don't have a search term, but we
+         * didn't filter the event from the observer because we do want to ensure
+         * we abort the pending search
+         */
+        if (!query.searchTerm) {
           controller = null;
-          searchDispatch({
-            type: "results",
-            payload: nextResults,
+
+          return;
+        }
+
+        controller = new AbortController();
+
+        const files = fileEntitiesRef.current;
+
+        const pattern = query.replaceTerm
+          ? parseReplaceString(query.replaceTerm)
+          : null;
+
+        triggerSearch(
+          query,
+          filesToSearch,
+          projectUrl,
+          files,
+          pattern,
+          resultsRef.current,
+          controller.signal,
+        )
+          .then((nextResults) => {
+            if (controller!.signal.aborted) {
+              throw new Error("Aborted");
+            }
+
+            controller = null;
+            searchDispatch({
+              type: "results",
+              payload: nextResults,
+            });
+          })
+          .catch((err) => {
+            if (err.message !== "Aborted") {
+              throw err;
+            }
           });
-        })
-        .catch((err) => {
-          if (err.message !== "Aborted") {
-            throw err;
-          }
-        });
-    });
+      },
+    );
 
     return () => {
       controller?.abort();
       subscription.unsubscribe();
     };
-  }, [filesToSearchObserver, projectUrl, searchDispatch, store]);
+  }, [filesToSearchObserver, projectUrl, searchDispatch]);
 };
 
 /**
@@ -272,7 +258,6 @@ export const useMonacoSearchHighlightDecorator = (
 
     return () => {
       for (const [model, decorations] of newDecorationsWithModel) {
-        // It may have been disposed by this point – if we've changed project
         if (!model.isDisposed()) {
           model.deltaDecorations(decorations, []);
         }
@@ -285,8 +270,8 @@ export const useReplaceProposal = (
   replacing: boolean,
   results: SearchFileResult[],
 ) => {
-  const appDispatch = useDispatch<AppDispatch>();
-  const replaceProposal = useSelector(selectReplaceProposal);
+  const { setReplaceProposal } = useFiles();
+  const replaceProposal = useFilesSelector(selectReplaceProposal);
 
   const replacingFileId = replaceProposal.proposal?.fileId;
   const replacingFileIdRef = useRef(replacingFileId);
@@ -309,7 +294,7 @@ export const useReplaceProposal = (
     );
 
     if (!resultsForCurrentFile) {
-      appDispatch(setReplaceProposal(null));
+      setReplaceProposal(null);
       return;
     }
 
@@ -319,13 +304,11 @@ export const useReplaceProposal = (
       throw new Error("Found read only file in replaceProposal");
     }
 
-    appDispatch(
-      setReplaceProposal({
-        fileId: file.id,
-        nextContents: getNextContents(file, model, matches),
-      }),
-    );
-  }, [appDispatch, replacing, results]);
+    setReplaceProposal({
+      fileId: file.id,
+      nextContents: getNextContents(file, model, matches),
+    });
+  }, [setReplaceProposal, replacing, results]);
 
   /**
    * This effect removes the visible replace proposal tab when swapping from
@@ -335,18 +318,18 @@ export const useReplaceProposal = (
     if (replacing) {
       return () => {
         if (replacingFileIdRef.current) {
-          appDispatch(setReplaceProposal(null));
+          setReplaceProposal(null);
         }
       };
     }
-  }, [appDispatch, replacing]);
+  }, [setReplaceProposal, replacing]);
 };
 
 export const useRevealMatchInEditor = () => {
-  const projectUrl = useSelector(selectCurrentProjectUrl);
+  const { currentProjectUrl: projectUrl } = useProject();
   const [editorInstance] = useMonacoContainerFromContext();
   const [diffEditorInstance] = useMonacoContainerFromContext(true);
-  const appDispatch = useDispatch<AppDispatch>();
+  const { setReplaceProposal, setCurrentFileId } = useFiles();
 
   return useCallback(
     (
@@ -368,7 +351,7 @@ export const useRevealMatchInEditor = () => {
         }
         const nextContents = getNextContents(file, model, matches);
 
-        appDispatch(setReplaceProposal({ fileId: file.id, nextContents }));
+        setReplaceProposal({ fileId: file.id, nextContents });
         diffEditorInstance.setModel(
           getDiffModel(projectUrl, file, nextContents),
         );
@@ -380,7 +363,7 @@ export const useRevealMatchInEditor = () => {
         if (!editorInstance) {
           throw new Error("Cannot find editor instance to reveal file in");
         }
-        appDispatch(setCurrentFileId(file.id));
+        setCurrentFileId(file.id);
 
         setMonacoModel(editorInstance, model);
 
@@ -389,6 +372,12 @@ export const useRevealMatchInEditor = () => {
         }
       }
     },
-    [appDispatch, diffEditorInstance, editorInstance, projectUrl],
+    [
+      setReplaceProposal,
+      diffEditorInstance,
+      editorInstance,
+      projectUrl,
+      setCurrentFileId,
+    ],
   );
 };

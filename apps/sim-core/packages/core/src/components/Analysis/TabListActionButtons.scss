@@ -2,7 +2,8 @@
   max-width: calc(
     (var(--analysis-tab-container-width) - 10px) - var(
         --AnalysisViewer__ActionButtons__Tooltip--index
-      ) * 38px
+      ) *
+      38px
   );
   min-width: 0;
   --clip-y-below: -50px;

@@ -1,23 +1,22 @@
-import React, { FC } from "react";
-import { useDispatch } from "react-redux";
+import React, { FC, PropsWithChildren } from "react";
 
 import { Toast } from ".";
 import { ToastKind } from "../../features/toast/enums";
 import type { ToastProps } from "./types";
-import { displayToast } from "../../features/toast/slice";
+import { useToast } from "../../features/toast/ToastContext";
 
 type SimulationToastProps = Pick<ToastProps, "theme" | "isDismissable"> & {
   nextToast?: ToastKind;
 };
 
-export const SimulationToast: FC<SimulationToastProps> = ({
+export const SimulationToast: FC<PropsWithChildren<SimulationToastProps>> = ({
   theme = "info",
   isDismissable = true,
   children,
   nextToast = ToastKind.None,
 }) => {
-  const dispatch = useDispatch();
-  const dismiss = () => dispatch(displayToast({ kind: nextToast }));
+  const { displayToast } = useToast();
+  const dismiss = () => displayToast({ kind: nextToast });
 
   return (
     <Toast theme={theme} isDismissable={isDismissable} dismiss={dismiss}>

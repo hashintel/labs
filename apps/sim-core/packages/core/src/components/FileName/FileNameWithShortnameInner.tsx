@@ -5,11 +5,11 @@ import type { ParsedPath } from "../../util/files/types";
 
 import "./FileNameWithShortnameInner.css";
 
-export interface FileNameWithShortnameProps {
+export type FileNameWithShortnameProps = {
   current?: boolean;
   path: ParsedPath;
   hasTitle?: boolean;
-}
+};
 
 export const FileNameWithShortnameInner: FC<FileNameWithShortnameProps> = ({
   current = false,

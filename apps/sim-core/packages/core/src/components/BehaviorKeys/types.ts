@@ -2,14 +2,14 @@ import { Draft } from "immer";
 
 import { BehaviorKeysDraftField } from "../../features/files/behaviorKeys";
 
-export interface ProjectionItem {
+export type ProjectionItem = {
   label: string;
   idx: number;
-}
+};
 
 export type Projection = ProjectionItem[];
 
-export interface BehaviorKeysFieldFormProps {
+export type BehaviorKeysFieldFormProps = {
   fieldName: string;
   clash: boolean;
   projection: ProjectionItem[];
@@ -29,4 +29,4 @@ export interface BehaviorKeysFieldFormProps {
   disabled: boolean;
   typeDisabled: boolean;
   emptyName: boolean;
-}
+};

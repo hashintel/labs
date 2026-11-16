@@ -1,11 +1,13 @@
-import React, { FC, useState } from "react";
+import React, { FC, PropsWithChildren, useState } from "react";
 import classNames from "classnames";
 
-export const GlobalsRowContainer: FC<{
-  field: string;
-  nested?: boolean;
-  depth: number;
-}> = ({ field, nested = false, children, depth }) => {
+export const GlobalsRowContainer: FC<
+  PropsWithChildren<{
+    field: string;
+    nested?: boolean;
+    depth: number;
+  }>
+> = ({ field, nested = false, children, depth }) => {
   const [open, setOpen] = useState(true);
 
   return (

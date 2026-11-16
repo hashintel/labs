@@ -71,7 +71,7 @@ export const BasicDiscordWidget: FC<{
 
 export const DiscordWidget: FC = () => {
   const activityVisible = useSelector(selectActivityVisible);
-  const store = useStore();
+  const store = useStore<RootState>();
 
   return (
     <BasicDiscordWidget

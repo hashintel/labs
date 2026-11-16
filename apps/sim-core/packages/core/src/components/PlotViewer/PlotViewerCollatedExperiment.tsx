@@ -1,6 +1,6 @@
 import React, { FC } from "react";
 import { PlannedRunVariant } from "@hashintel/engine-web";
-import { sortBy } from "lodash";
+import { sortBy } from "lodash-es";
 
 import { OutputPlotCollated } from "./OutputPlotCollated";
 import { PlotDataItem } from "./analyze";

@@ -39,7 +39,6 @@ export const trackingMiddleware: Middleware<{}, RootState> = (store) => {
     const payload = payloadByAction(store.getState(), action);
 
     if (payload) {
-      //@ts-expect-error redux type problems
       dispatch(trackEvent({ action: payload.action, label: payload.label }));
     }
 

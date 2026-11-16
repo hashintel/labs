@@ -21,10 +21,10 @@ import { validatePlot } from "../../../features/analysis/analysisJsonValidation"
 
 import "./ModalPlots.scss";
 
-interface ModalPlotsProps {
+type ModalPlotsProps = {
   onClose: VoidFunction;
   onSave: Function;
-  outputs: Record<string, any[]>;
+  outputs: { [index: string]: any[] };
   onDelete?: Function;
   plotKey?: number;
   plotTitle?: string;
@@ -39,14 +39,14 @@ interface ModalPlotsProps {
   XAxisItems?: XAxisItemType[];
   isCreate?: boolean;
   combinedHeightOfAllPlots?: number;
-}
+};
 
-interface FormInputs {
+type FormInputs = {
   title: string;
   chartType: ChartTypes;
   YAxisItems: YAxisItemType[];
   XAxisItems: XAxisItemType[];
-}
+};
 
 const chartTypeOptions: ReactSelectOption[] = [
   ChartTypes.area,
@@ -127,7 +127,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
   const [currentXAxisItems, setCurrentXAxisItems] =
     useState<XAxisItemType[]>(XAxisItems);
   const [chartType, setChartType] = useState<ReactSelectOption>(
-    isCreate ?? !plotChartType
+    (isCreate ?? !plotChartType)
       ? chartTypeOptions[0]
       : { label: String(plotChartType), value: String(plotChartType) },
   );
@@ -197,7 +197,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
     return true;
   };
 
-  const onSubmit = (values: FormInputs) => {
+  const onSubmit = async (values: FormInputs) => {
     const result = getFormState(values);
     if (!validate(result)) {
       return;
@@ -238,7 +238,7 @@ export const ModalPlots: FC<ModalPlotsProps> = ({
   const updateAxisItem = (
     axisToUpdate: "x" | "y",
     index: number,
-    newValues: YAxisItemType,
+    newValues: YAxisItemType | XAxisItemType,
   ) => {
     const items = axisToUpdate === "x" ? currentXAxisItems : currentYAxisItems;
     const newOps = [...items];

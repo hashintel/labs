@@ -1,12 +1,10 @@
-import {
+import { createAction, createSlice, freeze } from "../../reduxCompat";
+import type {
   AnyAction,
-  createAction,
-  createSlice,
   Draft,
   EntityId,
-  freeze,
   PayloadAction,
-} from "@reduxjs/toolkit";
+} from "../../reduxCompat";
 import {
   ExperimentPlan,
   ExperimentPlanEntry,
@@ -17,8 +15,8 @@ import {
 } from "@hashintel/engine-web";
 
 import { AnalysisMode } from "./enum";
-import { Commit, ProjectHistoryItemType } from "../../../util/api/types";
-import { CommitWithoutStats } from "../../../util/api/queries/commitActions";
+import { Commit, ProjectHistoryItemType } from "../../../util/api/apiTypes";
+import { CommitWithoutStats } from "../../actions";
 import {
   DEFAULT_STEPS_PER_SECOND,
   defaultSimulationData,
@@ -59,14 +57,13 @@ import {
 } from "./types";
 import { SimulatorRootState } from "../types";
 import { TabKind } from "../../viewer/enums";
-import { store as appStore } from "../../store";
+import { appBridge } from "../appBridge";
 import { isCompleteErrorMessage } from "../../utils";
 import {
   selectCurrentStep,
   selectRunning,
   selectTrackingFinalStep,
 } from "./selectors";
-import { selectCurrentTab } from "../../viewer";
 import { selectSimulationRequiresPyodide } from "../../files/selectors";
 
 /**
@@ -405,7 +402,9 @@ const { reducer, actions } = createSlice({
     // Used by initialize to create an empty simulation data
     resetViewer(state) {
       state.resetting = true;
-      state.pyodideStatus = selectSimulationRequiresPyodide(appStore.getState())
+      state.pyodideStatus = selectSimulationRequiresPyodide(
+        appBridge.getState(),
+      )
         ? "loading"
         : "unused";
     },
@@ -645,7 +644,7 @@ const { reducer, actions } = createSlice({
 
     removeSimulationData(state, action: PayloadAction<string>) {
       const id = action.payload;
-      if (Object.prototype.hasOwnProperty.call(state.simulationData, id)) {
+      if (state.simulationData.hasOwnProperty(id)) {
         const simulation = state.simulationData[id];
         delete state.simulationData[id];
         historyAdapter.removeOne(
@@ -662,10 +661,7 @@ const { reducer, actions } = createSlice({
 
         if (
           simulation.experimentId &&
-          Object.prototype.hasOwnProperty.call(
-            state.experimentRuns,
-            simulation.experimentId,
-          )
+          state.experimentRuns.hasOwnProperty(simulation.experimentId)
         ) {
           const experiment = state.experimentRuns[simulation.experimentId];
           const nextSimIds = experiment.simulationIds.filter(
@@ -812,7 +808,7 @@ const { reducer, actions } = createSlice({
               metricOutcome:
                 status === "errored"
                   ? undefined
-                  : simRun.metricOutcome ?? undefined,
+                  : (simRun.metricOutcome ?? undefined),
               metricName: run.packageData?.metricName ?? undefined,
             };
           }
@@ -853,8 +849,8 @@ const { reducer, actions } = createSlice({
           experimentRun.simulationIds = sortSimulationIds(state, experimentRun);
           experimentRun.metricOutcome =
             experimentRun.simulationIds.length > 0
-              ? state.simulationData[experimentRun.simulationIds[0]]
-                  ?.metricOutcome ?? undefined
+              ? (state.simulationData[experimentRun.simulationIds[0]]
+                  ?.metricOutcome ?? undefined)
               : undefined;
 
           state.experimentRuns[run.id] = experimentRun;
@@ -1167,7 +1163,7 @@ const simulationStatus = (
 
   if (
     simData?.experimentId &&
-    (simData?.stepsCount > 0 || (simData.analysis ?? simData.stepsLink))
+    (simData?.stepsCount > 0 || simData.analysis || simData.stepsLink)
   ) {
     return "completed";
   }
@@ -1309,7 +1305,8 @@ export const simulationReducer: typeof reducer = (
             // Check if analysis is focused and there are plots to generate
             //    - we need to keep data that hasn't yet been analysed,
             //    which might disappear too quickly at a low retention rate.
-            const focusedTab = selectCurrentTab(appStore.getState());
+            const focusedTab = appBridge.getState().viewer
+              ?.currentTab as string;
             const simHasPlots = !!Object.keys(updatedSimData.plots ?? {})
               .length;
             if (focusedTab === TabKind.Analysis && simHasPlots) {
@@ -1335,7 +1332,7 @@ export const simulationReducer: typeof reducer = (
                     ...updatedSimData.steps,
                     ...accumulatedSteps,
                   }
-                : accumulatedSteps,
+                : accumulatedSteps!,
             );
           }
         }

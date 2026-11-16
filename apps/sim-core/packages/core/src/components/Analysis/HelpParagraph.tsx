@@ -2,9 +2,9 @@ import React, { FC } from "react";
 
 import { IconHelpCircleOutline } from "../Icon/HelpCircleOutline";
 
-interface HelpParagraphProps {
+type HelpParagraphProps = {
   text: string;
-}
+};
 
 export const HelpParagraph: FC<HelpParagraphProps> = ({ text }) => (
   <div className="AnalysisViewer__MetricsHelp">

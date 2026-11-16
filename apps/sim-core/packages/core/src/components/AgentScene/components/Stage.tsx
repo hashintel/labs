@@ -1,20 +1,20 @@
 import React, { FC } from "react";
-import { useRecoilValue } from "recoil";
 
-import * as sceneState from "../state/SceneState";
+import { useSceneContext } from "../state/SceneContext";
 
 /**
  * Create a baseplate that scales with agents as they move, based on the agents
  * furthest from the center of the map.
  */
 export const ViewerStage: FC = () => {
-  // A Square grid centered around the middle of the agents
-  const dims = useRecoilValue(sceneState.StageDimensions);
-  const showGrid = useRecoilValue(sceneState.GridEnabled);
-  const showFloor = useRecoilValue(sceneState.FloorEnabled);
-  const showAxes = useRecoilValue(sceneState.AxesEnabled);
-  const stageColor = useRecoilValue(sceneState.StageColor);
-  const gridColor = useRecoilValue(sceneState.GridColor);
+  const {
+    stageDimensions: dims,
+    gridEnabled: showGrid,
+    floorEnabled: showFloor,
+    axesEnabled: showAxes,
+    stageColor,
+    gridColor,
+  } = useSceneContext();
 
   // Position of the grid to the center of the min/max
   const { pxMax, pxMin, pyMax, pyMin } = dims;
@@ -25,7 +25,6 @@ export const ViewerStage: FC = () => {
     pyMin,
   );
 
-  /* eslint-disable react/no-unknown-property */
   return (
     <>
       <gridHelper
@@ -42,7 +41,7 @@ export const ViewerStage: FC = () => {
         position={[centerX, centerY, -0.1]}
         visible={showFloor}
       >
-        <planeBufferGeometry attach="geometry" args={[1, 1]} />
+        <planeGeometry attach="geometry" args={[1, 1]} />
         <meshPhongMaterial
           attach="material"
           color={stageColor}
@@ -57,7 +56,6 @@ export const ViewerStage: FC = () => {
       <axesHelper args={[5]} visible={showAxes} />
     </>
   );
-  /* eslint-enable react/no-unknown-property */
 };
 
 function getStagePlacement(

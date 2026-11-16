@@ -1,59 +1,21 @@
-import { BUILTIN_SIMULATIONS } from "../../builtinSimulations";
 import { LocalStorageProject } from "../../../features/project/types";
-import { ProjectTypeName, VisibilityLevel } from "../types";
+import { ProjectTypeName, VisibilityLevel } from "../apiTypes";
 import type { User } from "../types";
 import { getItem } from "../../../hooks/useLocalStorage";
-import { getLocalStorageProject } from "../../../features/project/utils";
-import { prepareExamples } from "./exampleSimulations";
-import { prepareUserProjects } from "./myProjects";
-import { setLocalStorageProject } from "../../../features/middleware/localStorage";
+import { preparePartialSimulationProject } from "../../../features/project/utils";
+import {
+  fetchExampleManifest,
+  ExampleManifestEntry,
+} from "../../exampleProjects";
 
-// const queryString = /* GraphQL */ `
-//   query bootstrap {
-//     me {
-//       ...BasicUserFragment
-//       image
-//       tourProgress {
-//         completed
-//         version
-//         lastStepViewed
-//       }
-//       memberOf {
-//         org {
-//           id
-//           name
-//           shortname
-//         }
-//         role {
-//           id
-//           name
-//         }
-//       }
-//       role {
-//         id
-//         name
-//       }
-
-//       ...UserProjectsFragment
-//     }
-
-//     ...ExampleProjectsFragment
-//   }
-
-//   ${BasicUserFragment}
-//   ${PartialProjectFragment}
-//   ${UserProjectsFragment}
-//   ${ExampleProjectsFragment}
-// `;
-
-//eslint-disable-next-line @typescript-eslint/require-await
 export const bootstrapQuery = async () => {
   try {
-    // const result = await query<BootstrapQuery>(queryString);
-    // Migration shim
-    const result = bootstrapQueryResponse();
+    const manifest = await fetchExampleManifest();
+    const result = bootstrapQueryResponse(manifest);
 
-    const examples = prepareExamples(result.specialProjects);
+    const examples = result.specialProjects.map(
+      preparePartialSimulationProject,
+    );
     const bootstrap = { examples };
 
     if (result.me) {
@@ -65,34 +27,21 @@ export const bootstrapQuery = async () => {
       return {
         ...bootstrap,
         user,
-        projects: prepareUserProjects(projects.results),
+        projects: projects.results.map(preparePartialSimulationProject),
       };
     } else {
       return bootstrap;
     }
   } catch {
-    // Migration shim
     return { examples: [] };
   }
 };
 
-const bootstrapQueryResponse = () => {
-  // Migration shim-- load our BUILTIN_SIMULATIONS into localstorage so we have a default 'my project'
-  for (const simulation of BUILTIN_SIMULATIONS) {
-    const existingProject = getLocalStorageProject(
-      simulation.pathWithNamespace,
-      simulation.ref,
-    );
-    if (!existingProject) {
-      setLocalStorageProject({ ...simulation, actions: [] });
-    }
-  }
-
-  // Base the 'my projects' set off of what's in localstorage
+const bootstrapQueryResponse = (manifest: ExampleManifestEntry[]) => {
   const myProjects = [];
   for (const key in localStorage) {
     if (
-      !Object.prototype.hasOwnProperty.call(localStorage, key) ||
+      !localStorage.hasOwnProperty(key) ||
       !key.startsWith(`project/`) ||
       !key.endsWith("/main")
     ) {
@@ -136,22 +85,13 @@ const bootstrapQueryResponse = () => {
         results: myProjects,
       },
     },
-    specialProjects: [
-      {
-        // Migration shim--
-        // HASH will select the top item in this list as the default simulation.
-        // Keep this present to align with our `BUILTIN_SIMULATIONS`.
-        pathWithNamespace: "@hash/wildfires-regrowth",
-        name: "Wildfires - Regrowth",
-        updatedAt: "2022-05-19T13:57:26.000Z",
-        type: ProjectTypeName.Simulation,
-        visibility: VisibilityLevel.Public,
-        // latestRelease: {
-        //   createdAt: "2022-02-18T15:53:24.422Z",
-        //   tag: "9.9.0",
-        // },
-        forkOf: null,
-      },
-    ],
+    specialProjects: manifest.map((entry) => ({
+      pathWithNamespace: `@example/${entry.slug}`,
+      name: entry.name,
+      updatedAt: new Date().toISOString(),
+      type: (entry.type ?? "Simulation") as ProjectTypeName,
+      visibility: "public" as VisibilityLevel,
+      forkOf: null,
+    })),
   };
 };

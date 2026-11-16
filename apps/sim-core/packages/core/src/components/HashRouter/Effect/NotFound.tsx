@@ -1,23 +1,20 @@
 import { FC, useEffect } from "react";
-import { useDispatch } from "react-redux";
 
 import { HashCoreAccessGateKind } from "../../HashCore/AccessGate";
-import { setAccessGate } from "../../../features/project/slice";
+import { useProject } from "../../../features/project/ProjectContext";
 
 export const HashRouterEffectNotFound: FC = () => {
-  const dispatch = useDispatch();
+  const { setAccessGate } = useProject();
 
   useEffect(() => {
-    dispatch(
-      setAccessGate({
-        accessGate: {
-          kind: HashCoreAccessGateKind.NotFound,
-          props: { requestedProject: null },
-        },
-        url: window.location.pathname,
-      }),
-    );
-  }, [dispatch]);
+    setAccessGate({
+      accessGate: {
+        kind: HashCoreAccessGateKind.NotFound,
+        props: { requestedProject: null },
+      },
+      url: window.location.pathname,
+    });
+  }, [setAccessGate]);
 
   return null;
 };

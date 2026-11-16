@@ -5,9 +5,9 @@ import { ResourceProject } from "../../../../features/project/types";
 
 import "./HashCoreResourcesList.css";
 
-export interface HashCoreResourcesListProps {
+export type HashCoreResourcesListProps = {
   results: ResourceProject[];
-}
+};
 
 export const HashCoreResourcesList: FC<HashCoreResourcesListProps> = ({
   results,

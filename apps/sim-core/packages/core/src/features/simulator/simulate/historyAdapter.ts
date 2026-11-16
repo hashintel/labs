@@ -1,4 +1,4 @@
-import { createEntityAdapter } from "@reduxjs/toolkit";
+import { createEntityAdapter } from "../../reduxCompat";
 import { Draft } from "immer";
 
 import { APIExperimentRun } from "../../../util/types";
@@ -21,11 +21,6 @@ export const getHistoryItemId = {
     `singleRun-${simulation.simulationRunId}`,
   release: (release: ReleaseDescription) => `release-${release.tag}`,
 
-  /**
-   * Relying on a commit only ever appearing in one commit group. Using last one
-   * as new commits are added to the front of commit groups and we never want
-   * this to change for a commit group
-   */
   commitGroup: (commitGroup: SimulatorHistoryItemCommitGroup["item"]) =>
     commitGroup.recents
       ? RECENTS_COMMIT_GROUP_ID
