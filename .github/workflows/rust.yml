@@ -25,7 +25,7 @@ env:
 jobs:
   setup:
     name: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       lint: ${{ steps.crates.outputs.lint }}
       test: ${{ steps.crates.outputs.test }}
@@ -60,7 +60,7 @@ jobs:
     name: lint
     needs: setup
     if: needs.setup.outputs.lint != '{}'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.lint) }}
@@ -140,7 +140,7 @@ jobs:
     name: test
     needs: setup
     if: always() && needs.setup.outputs.test != '{}'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.test) }}
@@ -173,7 +173,7 @@ jobs:
 
       - name: Install Python
         if: matrix.directory == 'apps/sim-engine'
-        uses: actions/setup-python@v4.9.1
+        uses: actions/setup-python@v7.1.0
         with:
           python-version: "3.10"
 
@@ -200,7 +200,7 @@ jobs:
     name: Merging enabled
     needs: [setup, lint, test]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: check setup
         run: |
