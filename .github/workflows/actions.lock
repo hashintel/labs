@@ -5,7 +5,7 @@ version: 'v0.0.3'
 workflows:
     '.github/workflows/housekeeping.yml':
         - 'actions/checkout@v6.0.2'
-        - 'hashintel/actions@06238755f2364521d75a1eaf0b3b397261f46077'
+        - 'hashintel/actions@main'
     '.github/workflows/preflight-target.yml': []
     '.github/workflows/preflight.yml': []
     '.github/workflows/rust.yml':
@@ -35,7 +35,7 @@ dependencies:
         commit: 'sha1-fdbfb4d2750291e159f0156def62b853c2798ca2'
         owner_id: 9919
         repo_id: 259445878
-    'hashintel/actions@06238755f2364521d75a1eaf0b3b397261f46077':
+    'hashintel/actions@main':
         ref: 'main'
         commit: 'sha1-06238755f2364521d75a1eaf0b3b397261f46077'
         owner_id: 22116112
