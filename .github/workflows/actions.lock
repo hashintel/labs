@@ -5,6 +5,7 @@ version: 'v0.0.3'
 workflows:
     '.github/workflows/housekeeping.yml':
         - 'actions/checkout@v6.0.2'
+        - 'hashintel/actions@06238755f2364521d75a1eaf0b3b397261f46077'
     '.github/workflows/preflight-target.yml': []
     '.github/workflows/preflight.yml': []
     '.github/workflows/rust.yml':
@@ -19,6 +20,11 @@ dependencies:
         commit: 'sha1-de0fac2e4500dabe0009e67214ff5f5447ce83dd'
         owner_id: 44036562
         repo_id: 197814629
+    'actions/setup-node@v7.1.0':
+        ref: 'v7.1.0'
+        commit: 'sha1-949feb2413d6458794dcd2491c4babbbce0c15c1'
+        owner_id: 44036562
+        repo_id: 189476904
     'actions/setup-python@v7.1.0':
         ref: 'v7.1.0'
         commit: 'sha1-6d4fd22b20465ccc0f7354476588e8df7c9ca0e0'
@@ -29,6 +35,13 @@ dependencies:
         commit: 'sha1-fdbfb4d2750291e159f0156def62b853c2798ca2'
         owner_id: 9919
         repo_id: 259445878
+    'hashintel/actions@06238755f2364521d75a1eaf0b3b397261f46077':
+        ref: 'main'
+        commit: 'sha1-06238755f2364521d75a1eaf0b3b397261f46077'
+        owner_id: 22116112
+        repo_id: 1389230708
+        uses:
+            - 'actions/setup-node@v7.1.0'
     'swatinem/rust-cache@v2.8.2':
         ref: 'v2.8.2'
         commit: 'sha1-779680da715d629ac1d338a641029a2f4372abb5'
