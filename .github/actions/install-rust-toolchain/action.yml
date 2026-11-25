@@ -23,7 +23,7 @@ runs:
         NIGHTLY_TOOLCHAIN="nightly-.*"
 
         # extract components from the rust-toolchain.toml 
-        COMPONENTS=$(cat rust-toolchain.toml | yq -p toml '.toolchain.components[]')
+        COMPONENTS=$(yq -p toml '.toolchain.components[]' rust-toolchain.toml)
 
         rustup toolchain install "${{ inputs.toolchain }}"
 
@@ -39,4 +39,4 @@ runs:
           fi
         done
 
-        echo "RUSTUP_TOOLCHAIN=${{ inputs.toolchain }}" >> $GITHUB_ENV
+        echo "RUSTUP_TOOLCHAIN=${{ inputs.toolchain }}" >> "$GITHUB_ENV"
