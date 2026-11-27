@@ -1,4 +1,11 @@
-import React, { FC, useEffect, useState, Fragment, CSSProperties } from "react";
+import React, {
+  FC,
+  PropsWithChildren,
+  useEffect,
+  useState,
+  Fragment,
+  CSSProperties,
+} from "react";
 import { createPortal } from "react-dom";
 
 const fontsToPreload: [string, CSSProperties[]][] = Object.entries({
@@ -23,7 +30,7 @@ const fontsToPreload: [string, CSSProperties[]][] = Object.entries({
   "Apercu Mono": [{ fontWeight: "normal" }, { fontWeight: "bold" }],
 });
 
-export const FontsPreloader: FC = ({ children }) => {
+export const FontsPreloader: FC<PropsWithChildren> = ({ children }) => {
   const [target, setTarget] = useState<HTMLElement | null>(null);
 
   useEffect(() => {

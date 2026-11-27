@@ -17,6 +17,7 @@ import { VersionPicker } from "./VersionPicker/VersionPicker";
 import { getCreateReleaseDescription } from "./util";
 import { release } from "../../../features/project/slice";
 import { selectCurrentProject } from "../../../features/project/selectors";
+import { AppDispatch } from "../../../features/types";
 import { useFatalError } from "../../ErrorBoundary/ErrorBoundary";
 
 import "./ModalReleaseUpdate.scss";
@@ -40,7 +41,7 @@ export const ModalReleaseUpdate: FC<ModalReleaseUpdateProps> = ({
   const project = useSelector(selectCurrentProject);
   const [toPublish, setToPublish] = useState<HcBehaviorFile[]>([]);
 
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const fatalError = useFatalError();
 
   if (!project?.latestRelease) {

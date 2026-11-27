@@ -1,6 +1,6 @@
 import lineColumn from "line-column";
 import { IDisposable, IRange, Range, editor, languages } from "monaco-editor";
-import { remove } from "lodash";
+import { remove } from "lodash-es";
 
 enum ConflictMarkerTokenTypes {
   "StartHeading" = "StartHeading",
@@ -10,15 +10,15 @@ enum ConflictMarkerTokenTypes {
   "EndHeading" = "EndHeading",
 }
 
-export interface Conflict {
+export type Conflict = {
   range: Range;
   options: editor.IModelDecorationOptions;
-}
+};
 
-interface LineColumnInfo {
+type LineColumnInfo = {
   line: number;
   col: number;
-}
+};
 
 const getResolvedCodeLensesKey = (range: Range) =>
   `${range.startLineNumber}:${range.startColumn}`;
@@ -282,7 +282,7 @@ const registerGitConflictCodeLensProviders = (
 // >>>>>>> 77976da35a11db4580b80ae27e8d65caf5208086:README.md
 // Try it on https://regex101.com/r/aw03un/1
 const GIT_CONFLICT_MARKERS_REGEX =
-  /(^<<<<<<< \w+:\w+.+\s)((?:.|\s)*?)\s(=======\s)(^(?:.|\s)*?)(^>>>>>>> \w+:\w+.+\s)/gm;
+  /(^<<<<<<< \w+:\w+.+\s)([\s\S]*?)\s(=======\s)(^[\s\S]*?)(^>>>>>>> \w+:\w+.+\s)/gm;
 
 const getOptions = (
   token: string,
@@ -305,7 +305,7 @@ const startHeadingMatcher = (
   conflicts.push({
     range: new Range(lineData.line, 1, lineData.line, match.length),
     options: getOptions(
-      ConflictMarkerTokenTypes.StartHeading,
+      ConflictMarkerTokenTypes["StartHeading"],
       "Code in target",
     ),
   });
@@ -380,7 +380,7 @@ export const addGitConflictMarkersDecorator = (
     );
     return;
   }
-  const currentLanguage = editorInstance?.getModel()?.getModeId();
+  const currentLanguage = editorInstance?.getModel()?.getLanguageId();
   if (!currentLanguage) {
     console.error(
       "addGitConflictMarkersDecorator: could not detect current language",

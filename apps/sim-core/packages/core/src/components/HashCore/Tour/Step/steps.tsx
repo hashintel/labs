@@ -62,7 +62,6 @@ export const steps = [
           <a
             href="https://docs.hash.ai/core/creating-simulations/behaviors"
             target="_blank"
-            rel="noreferrer"
           >
             Behaviors are “actions” that, if attached to an agent, run every
             timestep.
@@ -103,7 +102,6 @@ export const steps = [
           <a
             href="https://docs.hash.ai/core/creating-simulations/views/analysis"
             target="_blank"
-            rel="noreferrer"
           >
             HASH plots charts from your simulation
           </a>

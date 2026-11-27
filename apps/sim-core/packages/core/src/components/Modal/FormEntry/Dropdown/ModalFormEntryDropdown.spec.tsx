@@ -1,18 +1,15 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { ModalFormEntryDropdown } from "./ModalFormEntryDropdown";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
+  render(
     <ModalFormEntryDropdown
       label="TEST"
       options={[]}
       value={undefined}
       onChange={() => {}}
     />,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

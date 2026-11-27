@@ -1,11 +1,10 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { ModalTwoColumn } from "./ModalTwoColumn";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
+  render(
     <ModalTwoColumn
       title="title"
       intro="intro"
@@ -13,7 +12,5 @@ it("renders without crashing", () => {
       leftChildren={null}
       rightChildren={null}
     />,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

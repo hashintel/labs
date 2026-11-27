@@ -2,6 +2,6 @@ export {
   getTextModelRequired,
   getTextModel,
   languageByExt,
-  subscribe,
+  syncModels,
   setMonacoModel,
 } from "./monaco";

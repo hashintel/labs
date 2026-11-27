@@ -1,4 +1,4 @@
-import { pick } from "lodash";
+import { pick } from "lodash-es";
 
 import type {
   LocalStorageProject,
@@ -57,12 +57,13 @@ export const toHcConfig = (
     keywords,
     type,
   };
-  try {
-    config = JSON.parse(
-      project.files.find((file) => file.path === "hash.json")!.contents,
-    );
-  } catch (exception) {
-    // TODO: track event
+  const hashFile = project.files.find((file) => file.path === "hash.json");
+  if (hashFile?.contents) {
+    try {
+      config = JSON.parse(hashFile.contents);
+    } catch {
+      // TODO: track event
+    }
   }
   return {
     ...config,

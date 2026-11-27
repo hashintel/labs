@@ -2,12 +2,12 @@ import React, { FC, CSSProperties } from "react";
 
 import "./ErrorDetails.css";
 
-interface ErrorDetailsProps {
+type ErrorDetailsProps = {
   errorName?: string;
   errorMessage?: string;
   errorStack?: string;
   hidden: boolean;
-}
+};
 
 const hiddenStyle: CSSProperties = {
   display: "none",

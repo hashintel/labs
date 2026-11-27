@@ -1,11 +1,10 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { ModalFormEntryRequiredText } from "./ModalFormEntryRequiredText";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(
+  render(
     <ModalFormEntryRequiredText
       label="label"
       placeholder="placeholder"
@@ -14,7 +13,5 @@ it("renders without crashing", () => {
       onChange={() => undefined}
       onBlur={() => undefined}
     />,
-    div,
   );
-  ReactDOM.unmountComponentAtNode(div);
 });

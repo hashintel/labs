@@ -1,6 +1,7 @@
 import React, {
   ButtonHTMLAttributes,
   FC,
+  PropsWithChildren,
   RefObject,
   useRef,
   useState,
@@ -12,9 +13,11 @@ import { SimpleTooltip } from "../../SimpleTooltip";
 import "./HashCoreFilesHeaderAction.scss";
 
 export const HashCoreFilesHeaderAction: FC<
-  ButtonHTMLAttributes<HTMLButtonElement> & {
-    paneRef?: RefObject<HTMLDivElement | null>;
-  }
+  PropsWithChildren<
+    ButtonHTMLAttributes<HTMLButtonElement> & {
+      paneRef?: RefObject<HTMLDivElement | null>;
+    }
+  >
 > = ({ title, children, className, paneRef, ...props }) => {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);

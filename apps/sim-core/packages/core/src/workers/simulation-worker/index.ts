@@ -1,5 +1,10 @@
 import RegisterPromiseWorker from "promise-worker-transferable/register";
-import { RunnerState, WasmRequestHandler, wasm } from "@hashintel/engine-web";
+import {
+  RunnerState,
+  RunnerStatus,
+  WasmRequestHandler,
+  wasm,
+} from "@hashintel/engine-web";
 
 const runner: Promise<RunnerState> = (async () => ({
   // Mechanical
@@ -34,8 +39,24 @@ const runner: Promise<RunnerState> = (async () => ({
   simulationRunId: null,
 }))();
 
-RegisterPromiseWorker(async (message) => {
-  return typeof message === "object"
-    ? await WasmRequestHandler(message, await runner)
-    : null;
+// Serialize message handling: promise-worker-transferable fires each incoming
+// message callback without awaiting the previous one.  For an async handler
+// like WasmRequestHandler that mutates shared RunnerState, concurrent
+// invocations cause data races (e.g. `initialize` setting a new
+// simulationRunId while a stale `getReadySteps` is still building its
+// response).  This queue ensures handlers execute one at a time.
+let handlerQueue: Promise<void> = Promise.resolve();
+
+RegisterPromiseWorker((message) => {
+  if (typeof message !== "object") return null;
+
+  return new Promise<RunnerStatus>((resolve, reject) => {
+    handlerQueue = handlerQueue
+      .then(async () => {
+        resolve(await WasmRequestHandler(message, await runner));
+      })
+      .catch((err) => {
+        reject(err);
+      });
+  });
 });

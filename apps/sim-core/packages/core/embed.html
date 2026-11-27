@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>HASH Core</title>
+    <style>html, body { background-color: black; }</style>
+    <link
+      rel="apple-touch-icon"
+      sizes="180x180"
+      href="https://cdn-us1.hash.ai/assets/img/brand/favicon-180.png"
+    />
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="32x32"
+      href="https://cdn-us1.hash.ai/assets/img/brand/favicon.png"
+    />
+    <meta name="msapplication-TileColor" content="#FFFFFF" />
+    <meta name="theme-color" content="#ffffff" />
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script>
+      if (typeof globalThis.setImmediate === "undefined") {
+        globalThis.setImmediate = function(fn) { return setTimeout(fn, 0); };
+        globalThis.clearImmediate = function(id) { clearTimeout(id); };
+      }
+      if (typeof globalThis.global === "undefined") {
+        globalThis.global = globalThis;
+      }
+    </script>
+    <script type="module" src="/src/embed.tsx"></script>
+  </body>
+</html>

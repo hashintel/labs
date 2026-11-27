@@ -39,6 +39,7 @@ pub struct AgentBatch {
     pub worker_index: usize,
 }
 
+
 /// Constructors for `Batch`
 impl AgentBatch {
     /// Get a shared batch from the `AgentState` format.

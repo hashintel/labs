@@ -1,19 +1,16 @@
-import React, { FC, useState } from "react";
+import React, { FC, PropsWithChildren, useState } from "react";
 import classNames from "classnames";
 import { SerializableAgentState } from "@hashintel/engine-web";
-import { useRecoilState, useRecoilValue } from "recoil";
 
-import * as sceneState from "../../AgentScene/state/SceneState";
+import { useSceneContext } from "../../AgentScene/state/SceneContext";
 import { ActivityEmpty } from "../ActivityEmpty";
 import { IconClose } from "../../Icon";
 
 import "./Inspector.css";
-import { WrappedSplitterLayout } from "../../WrappedSplitterLayout/WrappedSplitterLayout";
 
 export const AgentInspector: FC = () => {
-  const [selectedAgentIds, setSelectedAgents] = useRecoilState(
-    sceneState.SelectedAgentIds,
-  );
+  const { selectedAgentIds, setSelectedAgentIds: setSelectedAgents } =
+    useSceneContext();
   const agentIds = Object.keys(selectedAgentIds).reverse();
 
   if (agentIds.length === 0) {
@@ -47,17 +44,18 @@ export const AgentInspector: FC = () => {
 };
 
 const AgentInfo: FC<{ id: string }> = ({ id }) => {
+  const {
+    getSelectedAgentData,
+    hoveredAgent,
+    selectedAgentIds: selectedAgents,
+    setSelectedAgentIds: setSelectedAgents,
+  } = useSceneContext();
+
   // Toggled means "open" so the contents are visible
   // Agents are closed by default
   const [toggled, setToggled] = useState(true);
-  const agent = useRecoilValue(sceneState.SelectedAgentData(id));
-  const hoveredAgent = useRecoilValue(sceneState.HoveredAgent);
+  const agent = getSelectedAgentData(id);
   const isAgentHovered = id === hoveredAgent;
-
-  // Provide a way to deselect the agent
-  const [selectedAgents, setSelectedAgents] = useRecoilState(
-    sceneState.SelectedAgentIds,
-  );
   const unselectAgent = () => {
     const tempIds = { ...selectedAgents };
     delete tempIds[id];
@@ -206,7 +204,10 @@ const AgentProperty: FC<{
   return null;
 };
 
-const InfoHeader: FC<{ name: string }> = ({ name, children }) => {
+const InfoHeader: FC<PropsWithChildren<{ name: string }>> = ({
+  name,
+  children,
+}) => {
   const [toggled, setToggled] = useState(false);
   const toggle = () => setToggled(!toggled);
 
@@ -238,19 +239,3 @@ const prettifyField = (val: any) =>
   (val ?? "null").toLocaleString(undefined, {
     maximumSignificantDigits: 21,
   });
-
-export const AgentInspectorSplitterLayout = () => (
-  <div>
-    <WrappedSplitterLayout
-      vertical={true}
-      percentage={true}
-      primaryMinSize={20}
-      secondaryMinSize={30}
-      secondaryInitialSize={40}
-      secondaryHidden={true}
-    >
-      <AgentInspector />
-      <div />
-    </WrappedSplitterLayout>
-  </div>
-);

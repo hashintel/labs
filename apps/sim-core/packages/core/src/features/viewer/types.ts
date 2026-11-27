@@ -1,22 +1,22 @@
 import type { TabKind } from "./enums";
 
-export interface UserAlert {
+export type UserAlert = {
   type: "warning" | "error" | "complete";
   timestamp: number;
   message: string;
   context: string | undefined;
   simulationId: string | null;
   hideLinksToDocs?: true;
-}
+};
 
 export type UserAlertInState = UserAlert & {
   uuid: string;
 };
 
-export interface ViewerTab {
+export type ViewerTab = {
   kind: TabKind;
   name: string;
-}
+};
 
 export interface ViewerSlice {
   currentTab: TabKind;

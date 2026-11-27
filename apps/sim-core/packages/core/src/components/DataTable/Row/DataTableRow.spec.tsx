@@ -1,10 +1,14 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { DataTableRow } from "./DataTableRow";
 
 it("renders without crashing", () => {
-  const tbody = document.createElement("tbody");
-  ReactDOM.render(<DataTableRow rowIndex={0} record={[]} />, tbody);
-  ReactDOM.unmountComponentAtNode(tbody);
+  render(
+    <table>
+      <tbody>
+        <DataTableRow rowIndex={0} record={[]} />
+      </tbody>
+    </table>,
+  );
 });

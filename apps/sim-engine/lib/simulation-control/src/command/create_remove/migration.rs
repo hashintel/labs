@@ -1523,6 +1523,7 @@ pub(super) mod test {
     }
 
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // shared memory resize not supported on Windows
     fn test_migration_create() -> Result<()> {
         let experiment_id = ExperimentId::generate();
         let msg_schema = Arc::new(MessageSchema::new());
@@ -1609,6 +1610,7 @@ pub(super) mod test {
     }
 
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // shared memory resize not supported on Windows
     fn test_migration_move() -> Result<()> {
         let experiment_id = ExperimentId::generate();
         let msg_schema = Arc::new(MessageSchema::new());
@@ -1704,6 +1706,7 @@ pub(super) mod test {
     }
 
     #[test]
+    #[cfg_attr(target_os = "windows", ignore)] // shared memory resize not supported on Windows
     fn test_migration_all() -> Result<()> {
         let experiment_id = ExperimentId::generate();
         let msg_schema = Arc::new(MessageSchema::new());

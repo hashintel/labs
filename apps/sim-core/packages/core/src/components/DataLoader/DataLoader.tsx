@@ -25,14 +25,14 @@ const paginationPx = 26;
 const rowHeightRem = 1.2;
 const rowBorderPx = 1;
 
-interface DataLoaderProps {
+type DataLoaderProps = {
   url: string;
   editorInstance: EditorInstance | undefined;
   manifestId: string | null;
   file: HcDatasetFile;
   setDidFallback: Dispatch<SetStateAction<boolean>>;
   containerHeight?: number;
-}
+};
 
 export const DataLoader: FC<DataLoaderProps> = ({
   url,

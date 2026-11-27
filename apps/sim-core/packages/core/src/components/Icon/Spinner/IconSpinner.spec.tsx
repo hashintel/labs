@@ -1,10 +1,8 @@
 import React from "react";
-import ReactDOM from "react-dom";
+import { render } from "@testing-library/react";
 
 import { IconSpinner } from "./IconSpinner";
 
 it("renders without crashing", () => {
-  const div = document.createElement("div");
-  ReactDOM.render(<IconSpinner />, div);
-  ReactDOM.unmountComponentAtNode(div);
+  render(<IconSpinner />);
 });

@@ -41,7 +41,7 @@ export const selectDisplayEditorSection = createSelector(
       }
 
       return Object.keys(parsed).length > 0;
-    } catch (err) {
+    } catch {
       return true;
     }
   },
