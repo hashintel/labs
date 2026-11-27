@@ -1,0 +1,13 @@
+[project]
+name = "rust-ci"
+version = "0.0.0"
+description = "Selects the Rust crates that CI lints and tests"
+requires-python = ">=3.11.18"
+dependencies = [
+    "pygit2==1.20.1",
+    "toml==0.10.2",
+]
+
+[tool.uv]
+required-version = ">=0.13.6"
+package = false
