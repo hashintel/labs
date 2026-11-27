@@ -1,0 +1,12 @@
+.picker__trigger {
+  max-width: 100%;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--hair);
+  border-radius: var(--r-sm);
+  background: var(--paper-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-base);
+  cursor: pointer;
+}

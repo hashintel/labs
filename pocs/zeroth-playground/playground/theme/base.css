@@ -1,0 +1,73 @@
+/* The reset and the page, and what every component starts from. */
+@layer base {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  /* The interface is not text to copy; the documentation and the editors are. */
+  body {
+    user-select: none;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--fs-base);
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 1px;
+  }
+
+  /* No specificity, so a component's own rules win without trying. */
+  :where(button) {
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+
+  /* Mono capitals for labels and titles; a page's h3 and table heads, which MDX writes without a class, take them too. */
+  .caps,
+  .prose :is(h3, th) {
+    color: var(--ink-2);
+    font-family: var(--mono);
+    font-size: var(--fs-label);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .note {
+    padding: var(--s-3);
+    color: var(--ink-2);
+    font-size: 0.85rem;
+  }
+
+  /* A label over a title: a stage's kind, "Overview", the example a sample reads, a question's topic. */
+  .kicker {
+    margin: 0 0 0.45rem;
+    white-space: nowrap;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --fast: 0s;
+      --base: 0s;
+      --slow: 0s;
+      --fold: 0s;
+    }
+  }
+}
