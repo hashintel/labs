@@ -1,0 +1,12 @@
+{
+  "framework": null,
+  "installCommand": "pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm build && rm -rf vercel-static && mkdir -p vercel-static && cp package.json vercel-static/package.json && cp -R dist vercel-static/dist",
+  "outputDirectory": "vercel-static",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [{ "key": "Access-Control-Allow-Origin", "value": "*" }]
+    }
+  ]
+}
