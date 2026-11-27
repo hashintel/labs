@@ -3,16 +3,33 @@
 import logging
 import logging.config
 import os
+from contextvars import ContextVar
 from datetime import datetime, timezone
+from functools import cache
 from pathlib import Path
 from typing import Literal, assert_never
 
 import structlog
-from langchain import callbacks
+from langchain_core.tracers.context import register_configure_hook
 
 from app.logger.langchain import LoggingCallbackHandler
 
 Environment = Literal["dev", "prod"]
+
+
+@cache
+def _register_langchain_handler() -> None:
+    """Attaches `LoggingCallbackHandler` to every LangChain run.
+
+    LangChain adds the value of a registered context variable to the callback
+    manager of each run. The handler is the variable's default, so it applies in
+    every thread and task, not only in the context that called this function.
+    """
+    handler: ContextVar[LoggingCallbackHandler | None] = ContextVar(
+        "hash_agents_langchain_handler",
+        default=LoggingCallbackHandler(),
+    )
+    register_configure_hook(handler, inheritable=True)
 
 
 def setup_logging(environment: Environment = "dev") -> None:
@@ -148,4 +165,4 @@ def setup_logging(environment: Environment = "dev") -> None:
         cache_logger_on_first_use=True,
     )
 
-    callbacks.set_handler(LoggingCallbackHandler())
+    _register_langchain_handler()

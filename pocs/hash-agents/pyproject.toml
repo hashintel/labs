@@ -9,30 +9,31 @@ packages = [{include = "app"}]
 
 [tool.poetry.dependencies]
 python = "^3.11.18"
-langchain = "^0.0.199"
-openai = "^0.27.8"
-pydantic = "^1.10.7"
+langchain-classic = "^1.0.8"
+langchain-core = "^1.7.6"
+langchain-openai = "^1.7.4"
+numexpr = "^2.14.1"
+pydantic = "^2.12.0"
 python-dotenv = "^1.0.0"
-tiktoken = "^0.3.3"
 beartype = "^0.13.1"
-fastapi = "^0.95.1"
+fastapi = "^0.162.0"
 uvicorn = "^0.21.1"
 structlog = "^23.1.0"
 asgi-correlation-id = "^4.1.0"
 rich = "^13.3.4"
 
 [tool.poetry.group.dev.dependencies]
-setuptools = "^67.7.1"
+setuptools = "^84.2.1"
 
 [tool.poetry.group.build-tools.dependencies]
-datamodel-code-generator = "^0.18.0"
+datamodel-code-generator = ">=0.60.2"
 
 [tool.poetry.group.lint-tools.dependencies]
 black = "^23.3.0"
 ruff = "^0.0.262"
 
 [tool.poetry.group.production.dependencies]
-gunicorn = "^20.1.0"
+gunicorn = "^23.0.0"
 
 
 [tool.black]
