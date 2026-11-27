@@ -1,4 +1,13 @@
+# Code ownership
+/.github/CODEOWNERS @hashintel/infra-admins
+
 # Legal
 LICENSE @hashintel/legal
 LICENSE.txt @hashintel/legal
 LICENSE.md @hashintel/legal
+
+# GitHub Actions and CI configuration
+/.github/workflows/ @hashintel/infra
+/.github/actions/ @hashintel/infra
+/.github/scripts/ @hashintel/infra
+/.github/renovate.json @hashintel/infra
